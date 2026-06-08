@@ -1,0 +1,41 @@
+# Dependencies
+/node_modules
+
+# Build output
+/dist
+/build
+
+# Test coverage
+/coverage
+
+# Logs
+/logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment & secrets — never commit real values
+.env
+.env.*
+!.env.example
+
+# Master backlog / planning material (local-only)
+docs/planning/esma_1.docx
+*.docx
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Claude Code transient runtime files (keep settings.json, drop locks)
+.claude/scheduled_tasks.lock
+.claude/*.lock
