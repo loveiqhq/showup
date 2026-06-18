@@ -20,6 +20,12 @@ export enum UserStatus {
   Deleted = 'deleted',
 }
 
+/** Authorization role. Minimal admin support (seeds Epic 19). */
+export enum UserRole {
+  User = 'user',
+  Admin = 'admin',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -72,6 +78,14 @@ export class User {
     default: UserStatus.Registered,
   })
   status: UserStatus;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    enumName: 'users_role_enum',
+    default: UserRole.User,
+  })
+  role: UserRole;
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;
