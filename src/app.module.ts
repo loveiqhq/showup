@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import configuration from './config/configuration';
 import { validationSchema } from './config/env.validation';
@@ -29,6 +31,17 @@ import { AdminModule } from './modules/admin/admin.module';
       validationOptions: { abortEarly: false },
       envFilePath: ['.env'],
     }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: config.get<number>('auth.throttleTtlMs') ?? 60_000,
+            limit: config.get<number>('auth.throttleLimit') ?? 60,
+          },
+        ],
+      }),
+    }),
     DatabaseModule,
     HealthModule,
     LocationModule,
@@ -44,6 +57,10 @@ import { AdminModule } from './modules/admin/admin.module';
     AnalyticsModule,
     SafetyModule,
     AdminModule,
+  ],
+  providers: [
+    // Global rate limiting (Epic 2). Stricter per-route limits via @Throttle on auth endpoints.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

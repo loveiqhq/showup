@@ -33,8 +33,8 @@ export default tseslint.config(
     },
   },
   {
-    // Tests exercise HTTP responses (supertest) whose bodies are intentionally `any`.
-    files: ['test/**/*.ts', '**/*.e2e-spec.ts'],
+    // Tests use fakes/casts and supertest responses whose bodies are intentionally `any`.
+    files: ['test/**/*.ts', '**/*.spec.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',

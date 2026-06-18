@@ -6,7 +6,10 @@ import {
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 
+import { Public } from '../modules/auth/decorators/public.decorator';
+
 @ApiTags('health')
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(

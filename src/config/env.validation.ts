@@ -58,4 +58,21 @@ export const validationSchema = Joi.object({
   // CMS (Epic 13)
   CMS_BASE_URL: Joi.string().uri().allow('').optional(),
   CMS_API_KEY: Joi.string().allow('').optional(),
+
+  // Auth & tokens (Epic 2)
+  JWT_ACCESS_SECRET: Joi.string().min(16).required(),
+  JWT_ACCESS_TTL: Joi.string().default('15m'),
+  JWT_REFRESH_TTL: Joi.string().default('30d'),
+  OTP_LENGTH: Joi.number().integer().min(4).max(8).default(4),
+  OTP_TTL: Joi.number().integer().positive().default(300),
+  OTP_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
+  OTP_RESEND_COOLDOWN: Joi.number().integer().positive().default(60),
+  AUTH_EXPOSE_OTP: Joi.boolean().optional(),
+  THROTTLE_TTL_MS: Joi.number().integer().positive().default(60000),
+  THROTTLE_LIMIT: Joi.number().integer().positive().default(60),
+
+  // Social login (Epic 2) — comma-separated client IDs; optional until configured
+  GOOGLE_CLIENT_IDS: Joi.string().allow('').optional(),
+  APPLE_CLIENT_IDS: Joi.string().allow('').optional(),
+  APPLE_ISSUER: Joi.string().uri().default('https://appleid.apple.com'),
 });

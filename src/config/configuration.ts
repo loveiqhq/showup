@@ -55,4 +55,33 @@ export default () => ({
     baseUrl: process.env.CMS_BASE_URL || undefined,
     apiKey: process.env.CMS_API_KEY || undefined,
   },
+  auth: {
+    jwtSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-insecure-change-me-please',
+    accessTtl: process.env.JWT_ACCESS_TTL ?? '15m',
+    refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
+    otpLength: parseInt(process.env.OTP_LENGTH ?? '4', 10),
+    otpTtlSeconds: parseInt(process.env.OTP_TTL ?? '300', 10),
+    otpMaxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
+    otpResendCooldownSeconds: parseInt(
+      process.env.OTP_RESEND_COOLDOWN ?? '60',
+      10,
+    ),
+    // Returns the OTP code in the API response for testing. Defaults on outside production.
+    exposeOtp:
+      (process.env.AUTH_EXPOSE_OTP ??
+        (process.env.NODE_ENV === 'production' ? 'false' : 'true')) === 'true',
+    throttleTtlMs: parseInt(process.env.THROTTLE_TTL_MS ?? '60000', 10),
+    throttleLimit: parseInt(process.env.THROTTLE_LIMIT ?? '60', 10),
+  },
+  social: {
+    googleClientIds: (process.env.GOOGLE_CLIENT_IDS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    appleClientIds: (process.env.APPLE_CLIENT_IDS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    appleIssuer: process.env.APPLE_ISSUER ?? 'https://appleid.apple.com',
+  },
 });
