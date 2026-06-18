@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
@@ -130,6 +131,21 @@ describe('Auth (e2e)', () => {
       .post('/auth/refresh')
       .send({ refreshToken })
       .expect(401);
+  });
+
+  it('blocks a sensitive action when the session is stale (step-up required)', async () => {
+    const { user } = await googleLogin();
+    // Forge a valid token whose last-auth time is an hour ago.
+    const jwt = app.get(JwtService, { strict: false });
+    const staleToken = await jwt.signAsync({
+      sub: user.id,
+      authTime: Math.floor(Date.now() / 1000) - 3600,
+    });
+    const res = await request(server)
+      .post('/account/delete-request')
+      .set('Authorization', `Bearer ${staleToken}`)
+      .expect(403);
+    expect(res.body.error).toBe('step_up_required');
   });
 
   it('account deletion request flips status to deletion_pending', async () => {

@@ -38,6 +38,11 @@ export class RefreshToken {
   @Column({ name: 'rotated_to_id', type: 'uuid', nullable: true })
   rotatedToId: string | null;
 
+  // When the user last truly authenticated (phone OTP / social). Carried across rotation so that
+  // refreshing a session does NOT count as re-authentication — used for step-up on sensitive ops.
+  @Column({ name: 'auth_time', type: 'timestamptz' })
+  authTime: Date;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

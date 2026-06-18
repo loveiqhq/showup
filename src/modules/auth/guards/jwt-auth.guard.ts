@@ -33,15 +33,19 @@ export class JwtAuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const req = ctx.switchToHttp().getRequest<Request & { user?: User }>();
+    const req = ctx
+      .switchToHttp()
+      .getRequest<Request & { user?: User; authTime?: number }>();
     const [scheme, token] = (req.headers.authorization ?? '').split(' ');
     if (scheme !== 'Bearer' || !token) {
       throw new UnauthorizedException('Missing bearer token');
     }
 
-    let payload: { sub?: string };
+    let payload: { sub?: string; authTime?: number };
     try {
-      payload = await this.jwt.verifyAsync<{ sub?: string }>(token);
+      payload = await this.jwt.verifyAsync<{ sub?: string; authTime?: number }>(
+        token,
+      );
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
@@ -57,6 +61,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     req.user = user;
+    req.authTime = payload.authTime; // epoch seconds; undefined for legacy tokens
     return true;
   }
 }

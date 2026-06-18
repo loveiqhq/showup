@@ -13,6 +13,7 @@ import { AuthService } from './auth.service';
 import { AuditLog } from './entities/audit-log.entity';
 import { PhoneVerification } from './entities/phone-verification.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { FreshAuthGuard } from './guards/fresh-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OtpService } from './otp.service';
 import { LogSmsSender } from './sms/log-sms-sender';
@@ -52,6 +53,7 @@ import { parseDurationMs } from './util/duration';
     AppleVerifier,
     { provide: SMS_SENDER, useClass: LogSmsSender },
     JwtAuthGuard,
+    FreshAuthGuard,
     // Secure-by-default: every route requires a valid token unless marked @Public().
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],

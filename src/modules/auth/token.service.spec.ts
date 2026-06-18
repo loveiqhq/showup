@@ -88,6 +88,17 @@ describe('TokenService', () => {
     expect(repo.rows[0].tokenHash).toBe(sha256(tokens.refreshToken));
   });
 
+  it('stamps an auth time in the access token and preserves it across rotation', async () => {
+    const first = await svc.issueTokens(user);
+    const p1 = jwt.verify<{ authTime: number }>(first.accessToken);
+    expect(typeof p1.authTime).toBe('number');
+
+    const { tokens } = await svc.rotate(first.refreshToken);
+    const p2 = jwt.verify<{ authTime: number }>(tokens.accessToken);
+    // Refreshing is NOT re-authentication, so the auth time must carry over unchanged.
+    expect(p2.authTime).toBe(p1.authTime);
+  });
+
   it('rotates: revokes the old token and issues a new one', async () => {
     const first = await svc.issueTokens(user);
     const { tokens } = await svc.rotate(first.refreshToken);

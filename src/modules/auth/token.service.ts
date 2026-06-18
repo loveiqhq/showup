@@ -36,8 +36,16 @@ export class TokenService {
     return createHash('sha256').update(raw).digest('hex');
   }
 
-  async issueTokens(user: User, meta: DeviceMeta = {}): Promise<IssuedTokens> {
-    const accessToken = await this.jwt.signAsync({ sub: user.id });
+  async issueTokens(
+    user: User,
+    meta: DeviceMeta = {},
+    authTime: Date = new Date(),
+  ): Promise<IssuedTokens> {
+    const accessToken = await this.jwt.signAsync({
+      sub: user.id,
+      // Last real authentication time (epoch seconds) — drives step-up checks.
+      authTime: Math.floor(authTime.getTime() / 1000),
+    });
     const accessTtl = this.config.get<string>('auth.accessTtl') ?? '15m';
     const refreshTtl = this.config.get<string>('auth.refreshTtl') ?? '30d';
     const raw = randomBytes(32).toString('base64url');
@@ -49,6 +57,7 @@ export class TokenService {
         deviceId: meta.deviceId ?? null,
         userAgent: meta.userAgent ?? null,
         expiresAt: new Date(Date.now() + parseDurationMs(refreshTtl)),
+        authTime,
       }),
     );
 
@@ -89,10 +98,15 @@ export class TokenService {
       throw new UnauthorizedException('Account not active');
     }
 
-    const tokens = await this.issueTokens(user, {
-      deviceId: existing.deviceId,
-      userAgent: meta.userAgent ?? existing.userAgent,
-    });
+    // Preserve the original auth time — refreshing is NOT re-authentication.
+    const tokens = await this.issueTokens(
+      user,
+      {
+        deviceId: existing.deviceId,
+        userAgent: meta.userAgent ?? existing.userAgent,
+      },
+      existing.authTime,
+    );
     const successor = await this.refreshTokens.findOne({
       where: { tokenHash: this.hashToken(tokens.refreshToken) },
     });
