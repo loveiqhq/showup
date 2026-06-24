@@ -111,7 +111,26 @@ describe('Profiles (e2e)', () => {
     photoId = res.body.id;
   });
 
-  it('profile is complete once it has name, DOB and a photo', async () => {
+  it('profile is not complete with fewer than 4 photos', async () => {
+    const res = await request(server)
+      .get('/me/profile')
+      .set('Authorization', bearer())
+      .expect(200);
+    expect(res.body.isComplete).toBe(false);
+  });
+
+  it('profile is complete with name, DOB and 4 photos', async () => {
+    // One photo was uploaded above; add three more to reach the minimum of 4.
+    for (let i = 0; i < 3; i++) {
+      await request(server)
+        .post('/me/photos')
+        .set('Authorization', bearer())
+        .attach('file', Buffer.from([0xff, 0xd8, 0xff, 0xd9]), {
+          filename: `p${i}.jpg`,
+          contentType: 'image/jpeg',
+        })
+        .expect(201);
+    }
     const res = await request(server)
       .get('/me/profile')
       .set('Authorization', bearer())
@@ -130,16 +149,22 @@ describe('Profiles (e2e)', () => {
       .expect(415);
   });
 
-  it('DELETE /me/photos/:id removes the photo', async () => {
+  it('DELETE /me/photos/:id removes a photo and drops below complete', async () => {
     await request(server)
       .delete(`/me/photos/${photoId}`)
       .set('Authorization', bearer())
       .expect(204);
-    const res = await request(server)
+    // Four photos were uploaded; deleting one leaves three — back under the minimum.
+    const list = await request(server)
       .get('/me/photos')
       .set('Authorization', bearer())
       .expect(200);
-    expect(res.body).toHaveLength(0);
+    expect(list.body).toHaveLength(3);
+    const profile = await request(server)
+      .get('/me/profile')
+      .set('Authorization', bearer())
+      .expect(200);
+    expect(profile.body.isComplete).toBe(false);
   });
 
   it('POST /me/profile/verification sets status to pending', async () => {
