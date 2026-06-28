@@ -10,6 +10,7 @@ import { UpsertProfileDto } from './dto/upsert-profile.dto';
 import { ProfilePhoto } from './entities/profile-photo.entity';
 import { Profile, ProfileVerificationStatus } from './entities/profile.entity';
 import { isAtLeast18 } from './util/age';
+import { isProfileComplete } from './util/completion';
 
 @Injectable()
 export class ProfilesService {
@@ -47,17 +48,17 @@ export class ProfilesService {
     return this.profiles.save(profile);
   }
 
-  /** A profile is "complete" once it has a name, a date of birth, and at least one photo. */
+  /** A profile is "complete" once it has a name, a date of birth, and at least MIN_PHOTOS photos. */
   private async computeComplete(
     userId: string,
     profile: Profile,
   ): Promise<boolean> {
     const photoCount = await this.photos.count({ where: { userId } });
-    return (
-      Boolean(profile.displayName) &&
-      Boolean(profile.dateOfBirth) &&
-      photoCount > 0
-    );
+    return isProfileComplete({
+      displayName: profile.displayName,
+      dateOfBirth: profile.dateOfBirth,
+      photoCount,
+    });
   }
 
   /** Recompute completion after photos change. */
