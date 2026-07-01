@@ -42,6 +42,14 @@ export class CheckIn {
   @Column({ name: 'availability_end', type: 'timestamptz' })
   availabilityEnd: Date;
 
+  /**
+   * How long the user says they need to get ready before heading out, in minutes. Subtracted
+   * (with travel time) from the usable window when checking whether a date is feasible. Bounds are
+   * enforced in the service via `preparationTimeError` (currently 15–60 min).
+   */
+  @Column({ name: 'preparation_minutes', type: 'smallint', default: 30 })
+  preparationMinutes: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

@@ -17,6 +17,11 @@ export class CheckInDto {
   @ApiProperty()
   availabilityEnd: Date;
 
+  @ApiProperty({
+    description: 'Minutes the user needs to get ready before heading out',
+  })
+  preparationMinutes: number;
+
   @ApiProperty({ description: 'Whether this check-in is active right now' })
   active: boolean;
 
@@ -29,6 +34,7 @@ export class CheckInDto {
       status: c.status,
       availabilityStart: c.availabilityStart,
       availabilityEnd: c.availabilityEnd,
+      preparationMinutes: c.preparationMinutes,
       active: isActiveCheckIn(c, now),
       createdAt: c.createdAt,
     };

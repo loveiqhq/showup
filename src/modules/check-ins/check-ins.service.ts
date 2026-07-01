@@ -4,22 +4,36 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { LessThanOrEqual, MoreThan, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, LessThanOrEqual, MoreThan, Repository } from 'typeorm';
 
+import { LatLng } from '../location/location.geo';
 import { CreateCheckInDto } from './dto/create-check-in.dto';
 import { CheckIn } from './entities/check-in.entity';
 import {
   availabilityWindowError,
   CheckInStatus,
+  DEFAULT_PREPARATION_MINUTES,
   isActiveCheckIn,
+  preparationTimeError,
 } from './util/check-in';
+
+/** A nearby, available user surfaced by proximity search — derived data only, never coordinates. */
+export interface NearbyCheckIn {
+  userId: string;
+  /** Distance from the search centre, rounded to the nearest 100 m (never exact coordinates). */
+  distanceMeters: number;
+  availabilityStart: Date;
+  availabilityEnd: Date;
+}
 
 @Injectable()
 export class CheckInsService {
   constructor(
     @InjectRepository(CheckIn)
     private readonly checkIns: Repository<CheckIn>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -34,6 +48,18 @@ export class CheckInsService {
     const error = availabilityWindowError(start, end, now);
     if (error) throw new BadRequestException(error);
 
+    const preparationMinutes =
+      dto.preparationMinutes ?? DEFAULT_PREPARATION_MINUTES;
+    const prepError = preparationTimeError(preparationMinutes);
+    if (prepError) throw new BadRequestException(prepError);
+
+    const { latitude, longitude } = dto;
+    if ((latitude == null) !== (longitude == null)) {
+      throw new BadRequestException(
+        'latitude and longitude must be provided together',
+      );
+    }
+
     // Block stacking: any non-cancelled, not-yet-ended check-in counts as already active.
     const existing = await this.checkIns.findOne({
       where: {
@@ -46,14 +72,25 @@ export class CheckInsService {
       throw new BadRequestException('You already have an active check-in');
     }
 
-    return this.checkIns.save(
+    const checkIn = await this.checkIns.save(
       this.checkIns.create({
         userId,
         status: CheckInStatus.Available,
         availabilityStart: start,
         availabilityEnd: end,
+        preparationMinutes,
       }),
     );
+
+    // Store the location via PostGIS (kept out of the ORM entity on purpose — see the migration).
+    if (latitude != null && longitude != null) {
+      await this.dataSource.query(
+        `UPDATE check_ins SET location = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE id = $3`,
+        [longitude, latitude, checkIn.id],
+      );
+    }
+
+    return checkIn;
   }
 
   /** The user's currently-active check-in (available and inside its window), or null. */
@@ -64,6 +101,72 @@ export class CheckInsService {
       order: { availabilityEnd: 'DESC' },
     });
     return candidates.find((c) => isActiveCheckIn(c, now)) ?? null;
+  }
+
+  /**
+   * SHOWUP-42 — users who are available RIGHT NOW within `radiusMeters` of a search centre.
+   *
+   * Filters: status available, a location is set, the availability window is currently open, the
+   * account is not suspended/deleted/leaving, and the user is not in the exclusion list (the viewer
+   * themselves plus any blocked users). Ordered nearest-first. Returns derived distance only —
+   * never coordinates.
+   *
+   * Note: the block list is passed in. A user-blocking table does not exist yet (Epic 12 / Safety);
+   * until it does, callers pass an empty `blockedUserIds`. The query is already block-ready.
+   */
+  async findNearbyAvailable(params: {
+    center: LatLng;
+    radiusMeters: number;
+    now?: Date;
+    /** The viewer's own id, so they don't match themselves. */
+    excludeUserId?: string;
+    /** Users the viewer has blocked / been blocked by (Epic 12 will supply this). */
+    blockedUserIds?: string[];
+  }): Promise<NearbyCheckIn[]> {
+    const now = params.now ?? new Date();
+    const excluded = [
+      ...(params.excludeUserId ? [params.excludeUserId] : []),
+      ...(params.blockedUserIds ?? []),
+    ];
+
+    const center = `ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography`;
+    const rows = await this.dataSource.query<
+      Array<{
+        userId: string;
+        distanceMeters: string | number;
+        availabilityStart: string;
+        availabilityEnd: string;
+      }>
+    >(
+      `SELECT c.user_id AS "userId",
+              round(ST_Distance(c.location, ${center})::numeric, -2)::float8 AS "distanceMeters",
+              c.availability_start AS "availabilityStart",
+              c.availability_end   AS "availabilityEnd"
+         FROM check_ins c
+         JOIN users u ON u.id = c.user_id
+        WHERE c.status = 'available'
+          AND c.location IS NOT NULL
+          AND c.availability_start <= $3
+          AND c.availability_end   >  $3
+          AND u.status NOT IN ('suspended', 'deleted', 'deletion_pending')
+          AND c.user_id <> ALL($4::uuid[])
+          AND ST_DWithin(c.location, ${center}, $5)
+        ORDER BY ST_Distance(c.location, ${center}) ASC`,
+      [
+        params.center.lng,
+        params.center.lat,
+        now,
+        excluded,
+        params.radiusMeters,
+      ],
+    );
+
+    return rows.map((r) => ({
+      userId: r.userId,
+      distanceMeters: Number(r.distanceMeters),
+      availabilityStart: new Date(r.availabilityStart),
+      availabilityEnd: new Date(r.availabilityEnd),
+    }));
   }
 
   /** Cancel a check-in. Only the owner may cancel their own. */
