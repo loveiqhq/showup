@@ -70,6 +70,18 @@ describe('Check-ins (e2e)', () => {
       .expect(400);
   });
 
+  it('rejects a preparation time outside the allowed range', async () => {
+    await request(server)
+      .post('/me/check-ins')
+      .set('Authorization', bearer())
+      .send({
+        availabilityStart: hoursFromNow(0),
+        availabilityEnd: hoursFromNow(3),
+        preparationMinutes: 120,
+      })
+      .expect(400);
+  });
+
   it('creates an active check-in for a valid window', async () => {
     const res = await request(server)
       .post('/me/check-ins')
@@ -77,10 +89,12 @@ describe('Check-ins (e2e)', () => {
       .send({
         availabilityStart: hoursFromNow(0),
         availabilityEnd: hoursFromNow(3),
+        preparationMinutes: 20,
       })
       .expect(201);
     expect(res.body.status).toBe('available');
     expect(res.body.active).toBe(true);
+    expect(res.body.preparationMinutes).toBe(20);
     checkInId = res.body.id;
   });
 

@@ -10,6 +10,34 @@ export const MIN_WINDOW_MINUTES = 15;
 export const MAX_WINDOW_HOURS = 48;
 
 /**
+ * How long, in minutes, a user may say they need to get ready before heading out.
+ * These bounds are intentionally kept here as named constants so they can be tuned (or later
+ * moved to runtime config) without touching any caller — the product rule is "min 15, max 60,
+ * but flexible". The default is used when the client does not send an explicit value.
+ */
+export const MIN_PREPARATION_MINUTES = 15;
+export const MAX_PREPARATION_MINUTES = 60;
+export const DEFAULT_PREPARATION_MINUTES = 30;
+
+/**
+ * Validates the user's chosen preparation ("time to get ready") in whole minutes. Returns an error
+ * message, or null if valid. Pure so it can be unit-tested and reused by the matching feasibility
+ * math (prep time is subtracted from a user's usable window along with travel time).
+ */
+export function preparationTimeError(minutes: number): string | null {
+  if (!Number.isInteger(minutes)) {
+    return 'Preparation time must be a whole number of minutes';
+  }
+  if (minutes < MIN_PREPARATION_MINUTES) {
+    return `Preparation time must be at least ${MIN_PREPARATION_MINUTES} minutes`;
+  }
+  if (minutes > MAX_PREPARATION_MINUTES) {
+    return `Preparation time cannot exceed ${MAX_PREPARATION_MINUTES} minutes`;
+  }
+  return null;
+}
+
+/**
  * Validates an availability window. Returns an error message, or null if the window is valid.
  * Pure (no DB) so it can be unit-tested; callers supply the current time.
  */

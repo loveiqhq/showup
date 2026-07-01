@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -42,6 +42,45 @@ export class LocationService {
        ) AS within`,
       [a.lng, a.lat, b.lng, b.lat, radiusMeters],
     );
+    return Boolean(rows[0].within);
+  }
+
+  /**
+   * SHOWUP-43 — distance (metres) from a point to a stored venue. Reusable by meeting-spot
+   * suggestions and, later, arrival confirmation (SHOWUP-44). Throws if the venue does not exist.
+   */
+  async distanceToVenueMeters(point: LatLng, venueId: string): Promise<number> {
+    const rows = await this.dataSource.query<Array<{ meters: number }>>(
+      `SELECT ST_Distance(
+         v.location,
+         ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+       ) AS meters
+       FROM venues v WHERE v.id = $3`,
+      [point.lng, point.lat, venueId],
+    );
+    if (rows.length === 0) throw new NotFoundException('Venue not found');
+    return Number(rows[0].meters);
+  }
+
+  /**
+   * SHOWUP-43 — whether a point is within `radiusMeters` of a venue. The threshold is a caller
+   * argument (configurable/tunable, not hard-coded). Throws if the venue does not exist.
+   */
+  async isWithinVenue(
+    point: LatLng,
+    venueId: string,
+    radiusMeters: number,
+  ): Promise<boolean> {
+    const rows = await this.dataSource.query<Array<{ within: boolean }>>(
+      `SELECT ST_DWithin(
+         v.location,
+         ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+         $4
+       ) AS within
+       FROM venues v WHERE v.id = $3`,
+      [point.lng, point.lat, venueId, radiusMeters],
+    );
+    if (rows.length === 0) throw new NotFoundException('Venue not found');
     return Boolean(rows[0].within);
   }
 }

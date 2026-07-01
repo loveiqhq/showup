@@ -1,7 +1,10 @@
 import {
   CheckInStatus,
+  MAX_PREPARATION_MINUTES,
+  MIN_PREPARATION_MINUTES,
   availabilityWindowError,
   isActiveCheckIn,
+  preparationTimeError,
 } from './check-in';
 
 const at = (iso: string) => new Date(iso);
@@ -90,5 +93,31 @@ describe('isActiveCheckIn', () => {
     expect(
       isActiveCheckIn({ ...base, status: CheckInStatus.Expired }, now),
     ).toBe(false);
+  });
+});
+
+describe('preparationTimeError', () => {
+  it('accepts the minimum preparation time', () => {
+    expect(preparationTimeError(MIN_PREPARATION_MINUTES)).toBeNull();
+  });
+
+  it('accepts the maximum preparation time', () => {
+    expect(preparationTimeError(MAX_PREPARATION_MINUTES)).toBeNull();
+  });
+
+  it('accepts a typical value in range', () => {
+    expect(preparationTimeError(30)).toBeNull();
+  });
+
+  it('rejects a value below the minimum', () => {
+    expect(preparationTimeError(MIN_PREPARATION_MINUTES - 1)).not.toBeNull();
+  });
+
+  it('rejects a value above the maximum', () => {
+    expect(preparationTimeError(MAX_PREPARATION_MINUTES + 1)).not.toBeNull();
+  });
+
+  it('rejects a non-whole number of minutes', () => {
+    expect(preparationTimeError(20.5)).not.toBeNull();
   });
 });
