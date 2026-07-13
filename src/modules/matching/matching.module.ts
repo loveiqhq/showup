@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { CheckInsModule } from '../check-ins/check-ins.module';
+import { DatesModule } from '../dates/dates.module';
 import { Profile } from '../profiles/entities/profile.entity';
 import { User } from '../users/entities/user.entity';
 import { Like } from './entities/like.entity';
@@ -14,6 +15,7 @@ import { MatchingService } from './matching.service';
   imports: [
     TypeOrmModule.forFeature([Like, Match, Profile, User]),
     CheckInsModule,
+    DatesModule,
   ],
   controllers: [MatchingController],
   providers: [MatchingService],
