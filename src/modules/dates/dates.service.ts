@@ -9,9 +9,11 @@ import { Repository } from 'typeorm';
 
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { LocationService } from '../location/location.service';
+import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
 import { DateStatus, transitionError } from './util/date-lifecycle';
+import { ChatReason, chatWindowError } from './util/pre-date-chat';
 
 @Injectable()
 export class DatesService {
@@ -20,6 +22,8 @@ export class DatesService {
     private readonly dates: Repository<DateEntity>,
     @InjectRepository(DateStatusChange)
     private readonly history: Repository<DateStatusChange>,
+    @InjectRepository(DateChatMessage)
+    private readonly chat: Repository<DateChatMessage>,
     private readonly checkIns: CheckInsService,
     private readonly location: LocationService,
   ) {}
@@ -140,6 +144,49 @@ export class DatesService {
       await this.dates.save(date);
     }
     return date;
+  }
+
+  /**
+   * SHOWUP-115 — send a pre-date chat message. The sender always picks a preset reason and may add
+   * optional free text. Only a participant may send, only on a still-live (confirmed) date, and only
+   * once the chat window has opened (~1.5 h before). The reason tag is what later feeds analytics
+   * (Epic 11); the free-text body stays private between the two people.
+   */
+  async sendChatMessage(
+    dateId: string,
+    userId: string,
+    reason: ChatReason,
+    body?: string,
+  ): Promise<DateChatMessage> {
+    const date = await this.participantDate(dateId, userId);
+    if (date.status !== DateStatus.Confirmed) {
+      throw new BadRequestException(
+        'The chat is only open for an upcoming date',
+      );
+    }
+    const windowError = chatWindowError(date.scheduledAt);
+    if (windowError) throw new BadRequestException(windowError);
+
+    return this.chat.save(
+      this.chat.create({
+        dateId: date.id,
+        senderId: userId,
+        reason,
+        body: body ?? null,
+      }),
+    );
+  }
+
+  /** SHOWUP-115 — the chat messages on a date, oldest first. Only a participant may read them. */
+  async listChatMessages(
+    dateId: string,
+    userId: string,
+  ): Promise<DateChatMessage[]> {
+    await this.participantDate(dateId, userId);
+    return this.chat.find({
+      where: { dateId },
+      order: { createdAt: 'ASC' },
+    });
   }
 
   /** Load a date and confirm the caller is one of its two participants. */

@@ -11,7 +11,13 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
-import { CancelDateDto, ConfirmHappenedDto, DateDto } from './dto/date.dto';
+import {
+  CancelDateDto,
+  ChatMessageDto,
+  ConfirmHappenedDto,
+  DateDto,
+  SendChatMessageDto,
+} from './dto/date.dto';
 import { DatesService } from './dates.service';
 
 @ApiTags('dates')
@@ -52,5 +58,34 @@ export class DatesController {
   ): Promise<DateDto> {
     const date = await this.dates.confirmHappened(id, user.id, dto.rating);
     return DateDto.from(date, user.id);
+  }
+
+  /** The pre-date chat messages on a date, oldest first (SHOWUP-115). */
+  @Get('dates/:id/chat')
+  @ApiOkResponse({ type: [ChatMessageDto] })
+  async listChat(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ChatMessageDto[]> {
+    const messages = await this.dates.listChatMessages(id, user.id);
+    return messages.map((m) => ChatMessageDto.from(m, user.id));
+  }
+
+  /** Send a pre-date chat message: pick a preset reason, optionally add a note (SHOWUP-115). */
+  @Post('dates/:id/chat')
+  @HttpCode(201)
+  @ApiOkResponse({ type: ChatMessageDto })
+  async sendChat(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendChatMessageDto,
+  ): Promise<ChatMessageDto> {
+    const message = await this.dates.sendChatMessage(
+      id,
+      user.id,
+      dto.reason,
+      dto.body,
+    );
+    return ChatMessageDto.from(message, user.id);
   }
 }

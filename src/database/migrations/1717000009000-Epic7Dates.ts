@@ -4,6 +4,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Epic 7 — Date Scheduling & Lifecycle schema.
  *  - dates: a real-world date between two matched people, created already "confirmed"
  *  - date_status_changes: append-only history of every stage change (the state machine's audit log)
+ *  - date_chat_messages: pre-date chat (SHOWUP-115) — preset reason + optional free text, per date
  */
 export class Epic7Dates1717000009000 implements MigrationInterface {
   name = 'Epic7Dates1717000009000';
@@ -56,9 +57,28 @@ export class Epic7Dates1717000009000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "idx_date_status_changes_date" ON "date_status_changes" ("date_id");`,
     );
+
+    await queryRunner.query(
+      `CREATE TYPE "date_chat_reason_enum" AS ENUM ('change_meet_time', 'change_location', 'on_my_way', 'running_late', 'cant_find_you', 'cant_make_it_today');`,
+    );
+    await queryRunner.query(`
+      CREATE TABLE "date_chat_messages" (
+        "id"          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "date_id"     uuid NOT NULL REFERENCES "dates"("id") ON DELETE CASCADE,
+        "sender_id"   uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "reason"      "date_chat_reason_enum" NOT NULL,
+        "body"        varchar(1000),
+        "created_at"  timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await queryRunner.query(
+      `CREATE INDEX "idx_date_chat_messages_date" ON "date_chat_messages" ("date_id");`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE IF EXISTS "date_chat_messages";`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "date_chat_reason_enum";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "date_status_changes";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "dates";`);
     await queryRunner.query(`DROP TYPE IF EXISTS "dates_status_enum";`);
