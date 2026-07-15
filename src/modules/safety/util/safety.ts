@@ -29,6 +29,30 @@ export enum ModerationSubjectType {
   Photo = 'photo',
 }
 
+/**
+ * How a block came to be (SHOWUP-77). Recorded on each block so staff can trace *why* it happened.
+ * `manual` is a direct block by the user; the rest are the app flows that also create a block:
+ *  - not_interested   : tapped "Not interested" during search (Epic 6)
+ *  - felt_unsafe       : "I feel unsafe" during a date → AI safety call + date ended (Epic 7/8)
+ *  - not_as_claimed    : "My date is not who they claimed to be" → chose to leave (Epic 7/8)
+ *  - no_show           : "I waited, they did not show up" → chose to leave (Epic 7/8)
+ *  - reported_other    : "Something else" → chose to leave (Epic 7/8)
+ *  - date_cancelled    : a date was cancelled before it happened (Epic 7)
+ *  - ended_date        : "End date" (heading out early / no connection) (Epic 7/8)
+ *  - date_review       : "My date was not my vibe" in the date review (Epic 8)
+ */
+export enum BlockSource {
+  Manual = 'manual',
+  NotInterested = 'not_interested',
+  FeltUnsafe = 'felt_unsafe',
+  NotAsClaimed = 'not_as_claimed',
+  NoShow = 'no_show',
+  ReportedOther = 'reported_other',
+  DateCancelled = 'date_cancelled',
+  EndedDate = 'ended_date',
+  DateReview = 'date_review',
+}
+
 /** Standings that must be left out of discovery and matching (SHOWUP-79). */
 export const HIDDEN_FROM_DISCOVERY: ModerationStanding[] = [
   ModerationStanding.Limited,

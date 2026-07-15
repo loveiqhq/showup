@@ -13,6 +13,7 @@ import {
 import { ModerationService } from './../src/modules/safety/moderation.service';
 import { SafetyService } from './../src/modules/safety/safety.service';
 import {
+  BlockSource,
   ModerationStanding,
   ModerationSubjectType,
 } from './../src/modules/safety/util/safety';
@@ -134,6 +135,17 @@ describe('Safety (e2e)', () => {
     const first = await safety.block(id.a, id.c);
     const second = await safety.block(id.a, id.c);
     expect(second.id).toBe(first.id);
+  });
+
+  it('records how a block arose (default manual; a flow can pass its source)', async () => {
+    const manual = await safety.block(id.a, id.b);
+    expect(manual.source).toBe(BlockSource.Manual);
+    await safety.unblock(id.a, id.b);
+
+    // A date/search flow re-blocking supplies its trigger, and it is recorded.
+    const flow = await safety.block(id.a, id.b, BlockSource.NotInterested);
+    expect(flow.source).toBe(BlockSource.NotInterested);
+    await safety.unblock(id.a, id.b);
   });
 
   it('rejects a like to a user blocked in either direction', async () => {

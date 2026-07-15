@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 
 import { Block } from './entities/block.entity';
-import { dedupeBlockIds } from './util/safety';
+import { BlockSource, dedupeBlockIds } from './util/safety';
 
 /**
  * Blocking (SHOWUP-77). A block is directional and stored once per pair; unblocking is soft (sets
@@ -16,8 +16,16 @@ export class SafetyService {
     @InjectRepository(Block) private readonly blocks: Repository<Block>,
   ) {}
 
-  /** Block someone (idempotent; reactivates a previously-lifted block). Cannot block yourself. */
-  async block(blockerId: string, blockedId: string): Promise<Block> {
+  /**
+   * Block someone (idempotent; reactivates a previously-lifted block). Cannot block yourself.
+   * `source` records how the block arose — a direct tap by default, or one of the date/search flows
+   * (SHOWUP-77) when they call this. A single row hides the two from each other in both directions.
+   */
+  async block(
+    blockerId: string,
+    blockedId: string,
+    source: BlockSource = BlockSource.Manual,
+  ): Promise<Block> {
     if (blockerId === blockedId) {
       throw new BadRequestException('You cannot block yourself');
     }
@@ -27,12 +35,13 @@ export class SafetyService {
     if (existing) {
       if (existing.unblockedAt !== null) {
         existing.unblockedAt = null;
+        existing.source = source;
         return this.blocks.save(existing);
       }
       return existing;
     }
     return this.blocks.save(
-      this.blocks.create({ blockerId, blockedId, unblockedAt: null }),
+      this.blocks.create({ blockerId, blockedId, source, unblockedAt: null }),
     );
   }
 

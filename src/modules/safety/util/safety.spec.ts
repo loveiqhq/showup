@@ -1,4 +1,5 @@
 import {
+  BlockSource,
   dedupeBlockIds,
   evaluateVerification,
   isDiscoverable,
@@ -13,6 +14,20 @@ describe('ModerationStanding', () => {
     expect(ModerationStanding.Rejected).toBe('rejected');
     expect(ModerationStanding.Limited).toBe('limited');
     expect(ModerationStanding.Banned).toBe('banned');
+  });
+});
+
+describe('BlockSource', () => {
+  it('exposes the block sources (values must match the DB enum)', () => {
+    expect(BlockSource.Manual).toBe('manual');
+    expect(BlockSource.NotInterested).toBe('not_interested');
+    expect(BlockSource.FeltUnsafe).toBe('felt_unsafe');
+    expect(BlockSource.NotAsClaimed).toBe('not_as_claimed');
+    expect(BlockSource.NoShow).toBe('no_show');
+    expect(BlockSource.ReportedOther).toBe('reported_other');
+    expect(BlockSource.DateCancelled).toBe('date_cancelled');
+    expect(BlockSource.EndedDate).toBe('ended_date');
+    expect(BlockSource.DateReview).toBe('date_review');
   });
 });
 

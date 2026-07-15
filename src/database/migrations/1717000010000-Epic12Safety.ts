@@ -25,12 +25,16 @@ export class Epic12Safety1717000010000 implements MigrationInterface {
       `ALTER TABLE "profile_photos" ADD COLUMN "moderation_standing" "moderation_standing_enum" NOT NULL DEFAULT 'active';`,
     );
 
-    // Blocks (SHOWUP-77).
+    // Blocks (SHOWUP-77). `source` records how the block arose (direct tap or a date/search flow).
+    await queryRunner.query(
+      `CREATE TYPE "block_source_enum" AS ENUM ('manual', 'not_interested', 'felt_unsafe', 'not_as_claimed', 'no_show', 'reported_other', 'date_cancelled', 'ended_date', 'date_review');`,
+    );
     await queryRunner.query(`
       CREATE TABLE "blocks" (
         "id"           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "blocker_id"   uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
         "blocked_id"   uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "source"       "block_source_enum" NOT NULL DEFAULT 'manual',
         "created_at"   timestamptz NOT NULL DEFAULT now(),
         "unblocked_at" timestamptz,
         CONSTRAINT "uq_blocks_pair" UNIQUE ("blocker_id", "blocked_id")
@@ -95,6 +99,7 @@ export class Epic12Safety1717000010000 implements MigrationInterface {
     );
     await queryRunner.query(`DROP TYPE IF EXISTS "moderation_subject_enum";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "blocks";`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "block_source_enum";`);
     await queryRunner.query(
       `ALTER TABLE "profile_photos" DROP COLUMN IF EXISTS "moderation_standing";`,
     );
