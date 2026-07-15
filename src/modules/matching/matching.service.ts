@@ -9,6 +9,8 @@ import { DataSource, In, Repository } from 'typeorm';
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { LatLng } from '../location/location.geo';
 import { Profile } from '../profiles/entities/profile.entity';
+import { SafetyService } from '../safety/safety.service';
+import { isDiscoverable } from '../safety/util/safety';
 import { User, UserStatus } from '../users/entities/user.entity';
 import { CreateLikeDto } from './dto/create-like.dto';
 import { Like } from './entities/like.entity';
@@ -33,6 +35,7 @@ export class MatchingService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly checkIns: CheckInsService,
+    private readonly safety: SafetyService,
   ) {}
 
   /**
@@ -50,10 +53,16 @@ export class MatchingService {
 
     const target = await this.users.findOne({ where: { id: targetId } });
     if (!target) throw new NotFoundException('User not found');
-    if (INELIGIBLE_STATUSES.includes(target.status)) {
+    if (
+      INELIGIBLE_STATUSES.includes(target.status) ||
+      !isDiscoverable(target.moderationStanding)
+    ) {
       throw new BadRequestException('You cannot like this user');
     }
-    // TODO(Epic 12 / Safety): reject if the target is blocked.
+    // Safety (Epic 12, SHOWUP-77): a block in either direction prevents a like.
+    if (await this.safety.isBlockedEitherWay(senderId, targetId)) {
+      throw new BadRequestException('You cannot like this user');
+    }
     // TODO(Epic 9 / Payments): enforce premium before accepting a message, and enforce like limits.
 
     // Idempotent: reuse an existing like rather than erroring on the unique constraint.
@@ -137,7 +146,8 @@ export class MatchingService {
       center,
       radiusMeters,
       excludeUserId: userId,
-      blockedUserIds: [], // Epic 12 will supply the block list.
+      // Safety (Epic 12, SHOWUP-77): hide anyone blocked in either direction.
+      blockedUserIds: await this.safety.blockedUserIdsFor(userId),
     });
     if (nearby.length === 0) return [];
 

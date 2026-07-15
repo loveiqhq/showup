@@ -7,6 +7,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { ModerationStanding } from '../../safety/util/safety';
+
 /** Whether a profile/user has passed identity verification (trust & safety). */
 export enum ProfileVerificationStatus {
   None = 'none',
@@ -69,6 +71,16 @@ export class Profile {
 
   @Column({ name: 'verified_at', type: 'timestamptz', nullable: true })
   verifiedAt: Date | null;
+
+  /** Safety standing of the profile content (Epic 12, SHOWUP-79). */
+  @Column({
+    name: 'moderation_standing',
+    type: 'enum',
+    enum: ModerationStanding,
+    enumName: 'moderation_standing_enum',
+    default: ModerationStanding.Active,
+  })
+  moderationStanding: ModerationStanding;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
