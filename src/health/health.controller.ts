@@ -7,6 +7,7 @@ import {
 } from '@nestjs/terminus';
 
 import { Public } from '../modules/auth/decorators/public.decorator';
+import { RedisHealthIndicator } from '../queue/redis.health';
 
 @ApiTags('health')
 @Public()
@@ -15,6 +16,7 @@ export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly db: TypeOrmHealthIndicator,
+    private readonly redis: RedisHealthIndicator,
   ) {}
 
   /** Liveness probe — returns 200 whenever the process is up. */
@@ -25,13 +27,16 @@ export class HealthController {
     return this.health.check([]);
   }
 
-  /** Readiness probe — also pings the database so orchestrators can gate traffic. */
+  /** Readiness probe — pings the database and Redis so orchestrators can gate traffic. */
   @Get('ready')
   @HealthCheck()
   @ApiOkResponse({
-    description: 'Service and its dependencies (database) are ready',
+    description: 'Service and its dependencies (database, Redis) are ready',
   })
   readiness() {
-    return this.health.check([() => this.db.pingCheck('database')]);
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.redis.isHealthy('redis'),
+    ]);
   }
 }

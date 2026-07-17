@@ -7,6 +7,7 @@ import configuration from './config/configuration';
 import { validationSchema } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { QueueModule } from './queue/queue.module';
 import { LocationModule } from './modules/location/location.module';
 
 // Domain module placeholders — wired now so future epics drop straight in.
@@ -43,6 +44,7 @@ import { AdminModule } from './modules/admin/admin.module';
       }),
     }),
     DatabaseModule,
+    QueueModule,
     HealthModule,
     LocationModule,
     // Domain placeholders (Epics 2+)
