@@ -6,8 +6,10 @@ import { ProfilePhoto } from '../profiles/entities/profile-photo.entity';
 import { User } from '../users/entities/user.entity';
 import { Block } from './entities/block.entity';
 import { ModerationStatusChange } from './entities/moderation-status-change.entity';
+import { Report } from './entities/report.entity';
 import { VerificationAttempt } from './entities/verification-attempt.entity';
 import { ModerationService } from './moderation.service';
+import { ReportsService } from './reports.service';
 import { SafetyAdminController } from './safety-admin.controller';
 import { SafetyController } from './safety.controller';
 import { SafetyService } from './safety.service';
@@ -27,6 +29,7 @@ import {
     TypeOrmModule.forFeature([
       Block,
       ModerationStatusChange,
+      Report,
       VerificationAttempt,
       User,
       Profile,
@@ -37,6 +40,7 @@ import {
   providers: [
     SafetyService,
     ModerationService,
+    ReportsService,
     VerificationService,
     { provide: VERIFICATION_PROVIDER, useClass: StubVerificationProvider },
   ],

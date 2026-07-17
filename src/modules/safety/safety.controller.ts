@@ -13,18 +13,25 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { CreateBlockDto } from './dto/create-block.dto';
+import { CreateReportDto } from './dto/create-report.dto';
+import { ReportDto } from './dto/report.dto';
 import { RequestVerificationDto } from './dto/request-verification.dto';
 import { BlockDto, VerificationDto } from './dto/safety.dto';
+import { ReportsService } from './reports.service';
 import { SafetyService } from './safety.service';
 import { VerificationService } from './verification.service';
 
-/** User-facing safety actions: blocking (SHOWUP-77) and selfie verification (SHOWUP-110). */
+/**
+ * User-facing safety actions: blocking (SHOWUP-77), reporting (SHOWUP-78) and selfie verification
+ * (SHOWUP-110).
+ */
 @ApiTags('safety')
 @ApiBearerAuth()
 @Controller()
 export class SafetyController {
   constructor(
     private readonly safety: SafetyService,
+    private readonly reports: ReportsService,
     private readonly verification: VerificationService,
   ) {}
 
@@ -54,6 +61,16 @@ export class SafetyController {
   async myBlocks(@CurrentUser() user: User): Promise<BlockDto[]> {
     const blocks = await this.safety.listBlocks(user.id);
     return blocks.map((b) => BlockDto.from(b));
+  }
+
+  /** Report another user with a reason. The reason must be valid for where it's made from. */
+  @Post('reports')
+  @ApiOkResponse({ type: ReportDto })
+  async report(
+    @CurrentUser() user: User,
+    @Body() dto: CreateReportDto,
+  ): Promise<ReportDto> {
+    return ReportDto.from(await this.reports.create(user.id, dto));
   }
 
   /** Run a selfie-verification attempt (consent required). */
