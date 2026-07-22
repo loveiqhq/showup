@@ -83,4 +83,25 @@ export class LocationService {
     if (rows.length === 0) throw new NotFoundException('Venue not found');
     return Boolean(rows[0].within);
   }
+
+  /**
+   * The venue nearest to a point, or null if there are no venues. Used to suggest a meeting place
+   * for a date (Epic 7). Returns a derived distance, never coordinates.
+   */
+  async nearestVenue(
+    point: LatLng,
+  ): Promise<{ id: string; distanceMeters: number } | null> {
+    const rows = await this.dataSource.query<
+      Array<{ id: string; meters: number }>
+    >(
+      `SELECT v.id AS id,
+              ST_Distance(v.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS meters
+         FROM venues v
+        ORDER BY ST_Distance(v.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) ASC
+        LIMIT 1`,
+      [point.lng, point.lat],
+    );
+    if (rows.length === 0) return null;
+    return { id: rows[0].id, distanceMeters: Number(rows[0].meters) };
+  }
 }
