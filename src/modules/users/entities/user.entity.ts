@@ -6,6 +6,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { ModerationStanding } from '../../safety/util/safety';
+
 /**
  * Account lifecycle states (Story 2.1). `deletion_pending` and `deleted` drive the deletion flow
  * (Story 2.6); `suspended`/`deleted` users are rejected at login and by the auth guard.
@@ -86,6 +88,19 @@ export class User {
     default: UserRole.User,
   })
   role: UserRole;
+
+  /**
+   * Safety standing (Epic 12, SHOWUP-79). Distinct from `status` (account lifecycle): a `limited`
+   * or `banned` standing hides the user from discovery and matching without touching login.
+   */
+  @Column({
+    name: 'moderation_standing',
+    type: 'enum',
+    enum: ModerationStanding,
+    enumName: 'moderation_standing_enum',
+    default: ModerationStanding.Active,
+  })
+  moderationStanding: ModerationStanding;
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;

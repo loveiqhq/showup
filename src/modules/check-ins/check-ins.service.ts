@@ -107,12 +107,11 @@ export class CheckInsService {
    * SHOWUP-42 — users who are available RIGHT NOW within `radiusMeters` of a search centre.
    *
    * Filters: status available, a location is set, the availability window is currently open, the
-   * account is not suspended/deleted/leaving, and the user is not in the exclusion list (the viewer
-   * themselves plus any blocked users). Ordered nearest-first. Returns derived distance only —
-   * never coordinates.
+   * account is not suspended/deleted/leaving, the moderation standing is not limited/banned (Epic
+   * 12, SHOWUP-79), and the user is not in the exclusion list (the viewer themselves plus any
+   * blocked users). Ordered nearest-first. Returns derived distance only — never coordinates.
    *
-   * Note: the block list is passed in. A user-blocking table does not exist yet (Epic 12 / Safety);
-   * until it does, callers pass an empty `blockedUserIds`. The query is already block-ready.
+   * The block list is passed in by the caller (matching supplies it from SafetyService, Epic 12).
    */
   async findNearbyAvailable(params: {
     center: LatLng;
@@ -149,6 +148,7 @@ export class CheckInsService {
           AND c.availability_start <= $3
           AND c.availability_end   >  $3
           AND u.status NOT IN ('suspended', 'deleted', 'deletion_pending')
+          AND u.moderation_standing NOT IN ('limited', 'banned')
           AND c.user_id <> ALL($4::uuid[])
           AND ST_DWithin(c.location, ${center}, $5)
         ORDER BY ST_Distance(c.location, ${center}) ASC`,

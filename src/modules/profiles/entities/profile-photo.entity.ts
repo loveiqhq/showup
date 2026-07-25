@@ -6,6 +6,8 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
+import { ModerationStanding } from '../../safety/util/safety';
+
 /** Moderation state of an uploaded photo (reviewed for safety before it's shown). */
 export enum PhotoModerationStatus {
   Pending = 'pending',
@@ -44,6 +46,16 @@ export class ProfilePhoto {
     default: PhotoModerationStatus.Pending,
   })
   moderationStatus: PhotoModerationStatus;
+
+  /** Safety standing of the photo (Epic 12, SHOWUP-79) — separate from the pre-show review above. */
+  @Column({
+    name: 'moderation_standing',
+    type: 'enum',
+    enum: ModerationStanding,
+    enumName: 'moderation_standing_enum',
+    default: ModerationStanding.Active,
+  })
+  moderationStanding: ModerationStanding;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
