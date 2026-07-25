@@ -169,6 +169,27 @@ export class CheckInsService {
     }));
   }
 
+  /** The user's current check-in location (lat/lng), or null if they are not available now. */
+  async activeLocation(userId: string): Promise<LatLng | null> {
+    const now = new Date();
+    const rows = await this.dataSource.query<
+      Array<{ lat: string | number; lng: string | number }>
+    >(
+      `SELECT ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
+         FROM check_ins
+        WHERE user_id = $1
+          AND status = 'available'
+          AND location IS NOT NULL
+          AND availability_start <= $2
+          AND availability_end   >  $2
+        ORDER BY availability_end DESC
+        LIMIT 1`,
+      [userId, now],
+    );
+    if (rows.length === 0) return null;
+    return { lat: Number(rows[0].lat), lng: Number(rows[0].lng) };
+  }
+
   /** Cancel a check-in. Only the owner may cancel their own. */
   async cancel(userId: string, id: string): Promise<CheckIn> {
     const checkIn = await this.checkIns.findOne({ where: { id } });

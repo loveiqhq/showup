@@ -7,6 +7,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 
 import { CheckInsService } from '../check-ins/check-ins.service';
+import { DatesService } from '../dates/dates.service';
 import { LatLng } from '../location/location.geo';
 import { Profile } from '../profiles/entities/profile.entity';
 import { SafetyService } from '../safety/safety.service';
@@ -36,6 +37,7 @@ export class MatchingService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly checkIns: CheckInsService,
     private readonly safety: SafetyService,
+    private readonly dates: DatesService,
   ) {}
 
   /**
@@ -99,6 +101,13 @@ export class MatchingService {
       reciprocal.id,
     ]);
     like.status = LikeStatus.Matched;
+
+    // Auto-create the confirmed date for this new match (Epic 7, SHOWUP-51). Best-effort — it must
+    // never break matching, so any failure or "not enough info to suggest a date" is swallowed.
+    await this.dates
+      .createConfirmedDateForMatch(senderId, targetId)
+      .catch(() => undefined);
+
     return { like, match };
   }
 
