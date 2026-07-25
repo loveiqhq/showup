@@ -45,6 +45,19 @@ export const validationSchema = Joi.object({
   FCM_CLIENT_EMAIL: Joi.string().allow('').optional(),
   FCM_PRIVATE_KEY: Joi.string().allow('').optional(),
 
+  // Transactional email (Epic 10). 'log' = dev stub; 'ses' = AWS SES (eu-west-1).
+  EMAIL_PROVIDER: Joi.string().valid('log', 'ses').default('log'),
+  EMAIL_FROM: Joi.string().default('no-reply@showup.app'),
+  EMAIL_REPLY_TO: Joi.string().allow('').optional(),
+  AWS_SES_REGION: Joi.string().default('eu-west-1'),
+  AWS_ACCESS_KEY_ID: Joi.string().allow('').optional(),
+  AWS_SECRET_ACCESS_KEY: Joi.string().allow('').optional(),
+
+  // Notifications tuning (Epic 10)
+  DATE_REMINDER_LEAD_MINUTES: Joi.number().integer().positive().default(60),
+  CHECK_IN_EXPIRY_LEAD_MINUTES: Joi.number().integer().positive().default(10),
+  DEFAULT_LOCALE: Joi.string().valid('en', 'de').default('en'),
+
   // PostHog EU (Epic 11)
   POSTHOG_ENABLED: Joi.boolean().default(false),
   POSTHOG_API_KEY: Joi.string().allow('').optional(),

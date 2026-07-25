@@ -40,6 +40,31 @@ export default () => ({
     clientEmail: process.env.FCM_CLIENT_EMAIL || undefined,
     privateKey: process.env.FCM_PRIVATE_KEY || undefined,
   },
+  email: {
+    // 'log' = dev stub that logs instead of sending; 'ses' = real AWS SES (eu-west-1).
+    provider: process.env.EMAIL_PROVIDER ?? 'log',
+    from: process.env.EMAIL_FROM ?? 'no-reply@showup.app',
+    replyTo: process.env.EMAIL_REPLY_TO || undefined,
+    ses: {
+      region: process.env.AWS_SES_REGION ?? 'eu-west-1',
+      // Left undefined → the AWS SDK default credential chain (IAM role / shared config) is used.
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || undefined,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || undefined,
+    },
+  },
+  notifications: {
+    // Reminders fire this many minutes before the moment they concern.
+    dateReminderLeadMinutes: parseInt(
+      process.env.DATE_REMINDER_LEAD_MINUTES ?? '60',
+      10,
+    ),
+    checkInExpiryLeadMinutes: parseInt(
+      process.env.CHECK_IN_EXPIRY_LEAD_MINUTES ?? '10',
+      10,
+    ),
+    // Fallback language when a user has none set (background jobs have no request locale).
+    defaultLocale: process.env.DEFAULT_LOCALE ?? 'en',
+  },
   posthog: {
     enabled: process.env.POSTHOG_ENABLED === 'true',
     apiKey: process.env.POSTHOG_API_KEY || undefined,

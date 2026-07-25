@@ -6,6 +6,12 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 /** Queue names. One per kind of background chore. */
 export const QUEUE_CHECK_IN_EXPIRY = 'check-in-expiry';
 
+/** Date reminders (Epic 10, SHOWUP-69): one delayed job per date, fired shortly before it starts. */
+export const QUEUE_DATE_REMINDERS = 'date-reminders';
+
+/** Check-in expiry reminders (Epic 10, SHOWUP-70): one delayed job per check-in, before it ends. */
+export const QUEUE_CHECK_IN_EXPIRY_NOTIFY = 'check-in-expiry-notify';
+
 /**
  * Default options applied to every job (SHOWUP-94/95):
  *  - `attempts` + exponential `backoff`: a failed job is retried a few times, spaced further apart.

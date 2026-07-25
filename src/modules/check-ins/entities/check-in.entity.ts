@@ -50,6 +50,17 @@ export class CheckIn {
   @Column({ name: 'preparation_minutes', type: 'smallint', default: 30 })
   preparationMinutes: number;
 
+  /**
+   * When the "your check-in is about to expire" reminder was sent (Epic 10, SHOWUP-70). Null until
+   * the reminder scan handles this check-in; set once so the reminder never fires twice.
+   */
+  @Column({
+    name: 'expiry_reminder_sent_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  expiryReminderSentAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
