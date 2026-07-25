@@ -7,8 +7,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *  - push_tokens: per-device FCM registration tokens (unique token → upsert/dedupe).
  *  - notification_log: append-only record of every send attempt (survives user purge).
  */
-export class Epic10Notifications1717000009000 implements MigrationInterface {
-  name = 'Epic10Notifications1717000009000';
+export class Epic10Notifications1717000012000 implements MigrationInterface {
+  name = 'Epic10Notifications1717000012000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
