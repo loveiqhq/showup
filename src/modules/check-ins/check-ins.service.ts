@@ -217,4 +217,31 @@ export class CheckInsService {
     );
     return result.affected ?? 0;
   }
+
+  /**
+   * SHOWUP-70 — available check-ins whose window ends within `withinMinutes` and that have not yet
+   * been reminded. Cancelled/expired check-ins are excluded (status filter), and already-reminded
+   * ones are excluded (`expiry_reminder_sent_at IS NULL`), so the reminder scan is safe to re-run.
+   */
+  findExpiringSoon(
+    withinMinutes: number,
+    now: Date = new Date(),
+  ): Promise<CheckIn[]> {
+    const until = new Date(now.getTime() + withinMinutes * 60_000);
+    return this.checkIns
+      .createQueryBuilder('c')
+      .where('c.status = :status', { status: CheckInStatus.Available })
+      .andWhere('c.availabilityEnd > :now', { now })
+      .andWhere('c.availabilityEnd <= :until', { until })
+      .andWhere('c.expiryReminderSentAt IS NULL')
+      .getMany();
+  }
+
+  /** Record that the expiry reminder was sent for a check-in, so it is not sent again (SHOWUP-70). */
+  async markExpiryReminderSent(
+    id: string,
+    now: Date = new Date(),
+  ): Promise<void> {
+    await this.checkIns.update({ id }, { expiryReminderSentAt: now });
+  }
 }

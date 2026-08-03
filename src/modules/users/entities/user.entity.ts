@@ -105,6 +105,14 @@ export class User {
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;
 
+  /**
+   * Preferred language for notifications/emails (Epic 10). Stored (not derived from a request
+   * header) so background jobs — which have no HTTP request — can localise messages. Free-form
+   * varchar with an 'en' default; the message catalog falls back to English for anything it lacks.
+   */
+  @Column({ type: 'varchar', length: 8, default: 'en' })
+  locale: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
