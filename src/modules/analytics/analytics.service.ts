@@ -70,6 +70,7 @@ export class AnalyticsService {
 
       // Identity stitching: signed-in users are keyed by their hashed id, otherwise the anonymous id.
       const distinctId = userIdHashed ?? context.anonymousId;
+      if (!distinctId) return; // nothing to attribute the event to (no user id, no anonymous id)
 
       await this.sink.capture({
         distinctId,
@@ -81,5 +82,26 @@ export class AnalyticsService {
         `analytics track failed for "${input.eventName}": ${(err as Error).message}`,
       );
     }
+  }
+
+  /**
+   * Convenience for backend-emitted ("server") events about a signed-in user. Builds the server
+   * context (no client anonymous id) and routes through the same gated track() path. Consent is
+   * threaded through when known; until per-user consent is captured it defaults to the configured
+   * posture, so server events stay gated exactly like every other event.
+   */
+  trackServerEvent(params: {
+    userId: string;
+    eventName: string;
+    properties?: Record<string, unknown>;
+    consent?: boolean | null;
+  }): Promise<void> {
+    return this.track({
+      eventName: params.eventName,
+      context: { source: 'server' },
+      properties: params.properties,
+      userId: params.userId,
+      consent: params.consent,
+    });
   }
 }
