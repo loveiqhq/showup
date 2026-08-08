@@ -15,6 +15,8 @@ import {
   CheckInStatus,
   DEFAULT_PREPARATION_MINUTES,
   isActiveCheckIn,
+  locationError,
+  overlapsAnyWindow,
   preparationTimeError,
 } from './util/check-in';
 
@@ -54,22 +56,23 @@ export class CheckInsService {
     if (prepError) throw new BadRequestException(prepError);
 
     const { latitude, longitude } = dto;
-    if ((latitude == null) !== (longitude == null)) {
-      throw new BadRequestException(
-        'latitude and longitude must be provided together',
-      );
-    }
+    const locError = locationError(latitude, longitude);
+    if (locError) throw new BadRequestException(locError);
 
-    // Block stacking: any non-cancelled, not-yet-ended check-in counts as already active.
-    const existing = await this.checkIns.findOne({
+    // Multiple availability windows per day are allowed (no limit), but they must never overlap in
+    // time. Fetch the user's still-live windows (available and not yet ended) and reject only when
+    // the new one genuinely overlaps one of them; back-to-back windows are fine.
+    const liveWindows = await this.checkIns.find({
       where: {
         userId,
         status: CheckInStatus.Available,
         availabilityEnd: MoreThan(now),
       },
     });
-    if (existing) {
-      throw new BadRequestException('You already have an active check-in');
+    if (overlapsAnyWindow(start, end, liveWindows)) {
+      throw new BadRequestException(
+        'That availability window overlaps one you already have',
+      );
     }
 
     const checkIn = await this.checkIns.save(
