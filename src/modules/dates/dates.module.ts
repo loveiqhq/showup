@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { CheckInsModule } from '../check-ins/check-ins.module';
 import { LocationModule } from '../location/location.module';
 import { DatesController } from './dates.controller';
@@ -15,6 +16,7 @@ import { DateEntity } from './entities/date.entity';
     TypeOrmModule.forFeature([DateEntity, DateStatusChange, DateChatMessage]),
     CheckInsModule,
     LocationModule,
+    AnalyticsModule,
   ],
   controllers: [DatesController],
   providers: [DatesService],
