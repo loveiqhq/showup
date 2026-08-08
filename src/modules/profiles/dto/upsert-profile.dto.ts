@@ -25,12 +25,6 @@ export class UpsertProfileDto {
   @IsDateString()
   dateOfBirth?: string;
 
-  @ApiPropertyOptional({ example: 'Coffee, climbing, and bad puns.' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  bio?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

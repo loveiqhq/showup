@@ -15,9 +15,6 @@ export class ProfileDto {
   age: number | null;
 
   @ApiProperty({ nullable: true })
-  bio: string | null;
-
-  @ApiProperty({ nullable: true })
   gender: string | null;
 
   @ApiProperty({ nullable: true })
@@ -37,7 +34,6 @@ export class ProfileDto {
       id: profile.id,
       displayName: profile.displayName,
       age: ageFromDateOfBirth(profile.dateOfBirth),
-      bio: profile.bio,
       gender: profile.gender,
       lookingFor: profile.lookingFor,
       isVisible: profile.isVisible,
