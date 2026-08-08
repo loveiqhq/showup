@@ -58,7 +58,7 @@ export class OtpService {
     // Supersede any prior unconsumed challenge for this phone.
     await this.repo.delete({ phone, consumedAt: IsNull() });
 
-    const length = this.config.get<number>('auth.otpLength') ?? 4;
+    const length = this.config.get<number>('auth.otpLength') ?? 6;
     const code = randomInt(0, 10 ** length)
       .toString()
       .padStart(length, '0');
