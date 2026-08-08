@@ -1,5 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 
+import { AnalyticsService } from '../analytics/analytics.service';
+import { accountCreatedEvent } from '../analytics/events/server-events';
 import { UserDto } from '../users/dto/user.dto';
 import { User, UserStatus } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -29,6 +31,7 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly google: GoogleVerifier,
     private readonly apple: AppleVerifier,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   // ── Phone OTP ─────────────────────────────────────────────────────────────
@@ -43,10 +46,16 @@ export class AuthService {
     const phone = normalizePhone(dto.phone);
     await this.otp.verify(phone, dto.code);
 
-    let user = await this.users.findByPhone(phone);
-    user = user
-      ? await this.users.markPhoneVerified(user)
+    const existing = await this.users.findByPhone(phone);
+    const user = existing
+      ? await this.users.markPhoneVerified(existing)
       : await this.users.createFromPhone(phone);
+    if (!existing) {
+      void this.analytics.trackServerEvent({
+        userId: user.id,
+        ...accountCreatedEvent('phone'),
+      });
+    }
 
     this.ensureUsable(user);
     await this.users.touchLastLogin(user);
@@ -92,7 +101,12 @@ export class AuthService {
       const byEmail = await this.users.findByEmail(identity.email);
       if (byEmail) return this.users.linkSocial(byEmail, identity);
     }
-    return this.users.createFromSocial(identity, name);
+    const created = await this.users.createFromSocial(identity, name);
+    void this.analytics.trackServerEvent({
+      userId: created.id,
+      ...accountCreatedEvent(identity.provider),
+    });
+    return created;
   }
 
   private async finishSocialLogin(

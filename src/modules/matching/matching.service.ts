@@ -6,6 +6,11 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 
+import { AnalyticsService } from '../analytics/analytics.service';
+import {
+  likeSentEvent,
+  matchCreatedEvent,
+} from '../analytics/events/server-events';
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { DatesService } from '../dates/dates.service';
 import { LatLng } from '../location/location.geo';
@@ -38,6 +43,7 @@ export class MatchingService {
     private readonly checkIns: CheckInsService,
     private readonly safety: SafetyService,
     private readonly dates: DatesService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /**
@@ -82,6 +88,11 @@ export class MatchingService {
       );
     }
 
+    void this.analytics.trackServerEvent({
+      userId: senderId,
+      ...likeSentEvent({ hasMessage: (dto.message ?? null) != null }),
+    });
+
     // A match needs the interest to be mutual...
     const reciprocal = await this.likes.findOne({
       where: { senderId: targetId, receiverId: senderId },
@@ -100,6 +111,10 @@ export class MatchingService {
       like.id,
       reciprocal.id,
     ]);
+    void this.analytics.trackServerEvent({
+      userId: senderId,
+      ...matchCreatedEvent({ matchId: match.id }),
+    });
     like.status = LikeStatus.Matched;
 
     // Auto-create the confirmed date for this new match (Epic 7, SHOWUP-51). Best-effort — it must

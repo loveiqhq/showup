@@ -6,6 +6,7 @@ import {
   QUEUE_CHECK_IN_EXPIRY,
   QUEUE_CHECK_IN_EXPIRY_NOTIFY,
 } from '../../queue/queue.constants';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CheckInsController } from './check-ins.controller';
 import { CheckInsService } from './check-ins.service';
@@ -28,6 +29,7 @@ import { CheckInExpiryScheduler } from './jobs/check-in-expiry.scheduler';
       { name: QUEUE_CHECK_IN_EXPIRY_NOTIFY },
     ),
     NotificationsModule,
+    AnalyticsModule,
   ],
   controllers: [CheckInsController],
   providers: [

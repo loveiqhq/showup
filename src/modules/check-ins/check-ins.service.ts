@@ -7,6 +7,8 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, LessThanOrEqual, MoreThan, Repository } from 'typeorm';
 
+import { AnalyticsService } from '../analytics/analytics.service';
+import { checkInCreatedEvent } from '../analytics/events/server-events';
 import { LatLng } from '../location/location.geo';
 import { CreateCheckInDto } from './dto/create-check-in.dto';
 import { CheckIn } from './entities/check-in.entity';
@@ -34,6 +36,7 @@ export class CheckInsService {
     private readonly checkIns: Repository<CheckIn>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /**
@@ -89,6 +92,11 @@ export class CheckInsService {
         [longitude, latitude, checkIn.id],
       );
     }
+
+    void this.analytics.trackServerEvent({
+      userId,
+      ...checkInCreatedEvent({ hasLocation: latitude != null }),
+    });
 
     return checkIn;
   }
