@@ -60,6 +60,18 @@ export class DatesController {
     return DateDto.from(date, user.id);
   }
 
+  /** Report that the other person did not show up. A date outcome — separate from reporting a problem. */
+  @Post('dates/:id/no-show')
+  @HttpCode(200)
+  @ApiOkResponse({ type: DateDto })
+  async noShow(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<DateDto> {
+    const date = await this.dates.reportNoShow(id, user.id);
+    return DateDto.from(date, user.id);
+  }
+
   /** The pre-date chat messages on a date, oldest first (SHOWUP-115). */
   @Get('dates/:id/chat')
   @ApiOkResponse({ type: [ChatMessageDto] })

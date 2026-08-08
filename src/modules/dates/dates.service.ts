@@ -13,6 +13,7 @@ import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
 import { DateStatus, transitionError } from './util/date-lifecycle';
+import { noShowReportError } from './util/no-show';
 import { ChatReason, chatWindowError } from './util/pre-date-chat';
 
 @Injectable()
@@ -143,6 +144,27 @@ export class DatesService {
     } else {
       await this.dates.save(date);
     }
+    return date;
+  }
+
+  /**
+   * Report that the other person did not show up. This is a DATE OUTCOME, deliberately separate from
+   * the report / safety flow: it moves the date to "no-show reported" and records who reported it in
+   * the stage history. Only a participant may report, only from a still-confirmed date, and only once
+   * the date is actually due. Downstream effects (score, dispute, any block) are handled later, and
+   * the late-vs-no-show grace rule is a separate decision.
+   */
+  async reportNoShow(dateId: string, userId: string): Promise<DateEntity> {
+    const date = await this.participantDate(dateId, userId);
+    const error = transitionError(date.status, DateStatus.NoShowReported);
+    if (error) throw new BadRequestException(error);
+    const windowError = noShowReportError(date.scheduledAt, new Date());
+    if (windowError) throw new BadRequestException(windowError);
+
+    const from = date.status;
+    date.status = DateStatus.NoShowReported;
+    await this.dates.save(date);
+    await this.logChange(date.id, from, DateStatus.NoShowReported, userId);
     return date;
   }
 
