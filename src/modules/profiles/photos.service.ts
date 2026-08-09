@@ -9,7 +9,7 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import {
   PhotoModerationStatus,
@@ -17,6 +17,7 @@ import {
 } from './entities/profile-photo.entity';
 import { ProfilesService } from './profiles.service';
 import { STORAGE, type StorageService } from './storage/storage.interface';
+import { VISIBLE_PHOTO_STATUSES } from './util/photo-visibility';
 
 const ALLOWED_TYPES = new Map<string, string>([
   ['image/jpeg', 'jpg'],
@@ -85,6 +86,18 @@ export class PhotosService {
     });
   }
 
+  /**
+   * Photos to show to OTHER users — excludes rejected. Any path that serves a user's photos to
+   * someone other than the owner MUST use this. `list()` stays the owner's own full view (it keeps
+   * rejected photos so the owner can see the rejection and replace them).
+   */
+  listVisible(userId: string): Promise<ProfilePhoto[]> {
+    return this.photos.find({
+      where: { userId, moderationStatus: In(VISIBLE_PHOTO_STATUSES) },
+      order: { position: 'ASC', createdAt: 'ASC' },
+    });
+  }
+
   async remove(userId: string, photoId: string): Promise<void> {
     const photo = await this.photos.findOne({
       where: { id: photoId, userId },
@@ -103,7 +116,10 @@ export class PhotosService {
     const photo = await this.photos.findOne({ where: { id: photoId } });
     if (!photo) throw new NotFoundException('Photo not found');
     photo.moderationStatus = status;
-    return this.photos.save(photo);
+    const saved = await this.photos.save(photo);
+    // A rejection can drop the profile below the photo minimum, so recompute completeness.
+    await this.profiles.refreshCompletion(photo.userId);
+    return saved;
   }
 
   url(photo: ProfilePhoto): string {

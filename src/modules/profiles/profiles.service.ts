@@ -4,13 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { UpsertProfileDto } from './dto/upsert-profile.dto';
 import { ProfilePhoto } from './entities/profile-photo.entity';
 import { Profile, ProfileVerificationStatus } from './entities/profile.entity';
 import { isAtLeast18 } from './util/age';
 import { isProfileComplete } from './util/completion';
+import { VISIBLE_PHOTO_STATUSES } from './util/photo-visibility';
 
 @Injectable()
 export class ProfilesService {
@@ -53,7 +54,10 @@ export class ProfilesService {
     userId: string,
     profile: Profile,
   ): Promise<boolean> {
-    const photoCount = await this.photos.count({ where: { userId } });
+    // Rejected photos don't count toward completeness (they aren't shown to others).
+    const photoCount = await this.photos.count({
+      where: { userId, moderationStatus: In(VISIBLE_PHOTO_STATUSES) },
+    });
     return isProfileComplete({
       displayName: profile.displayName,
       dateOfBirth: profile.dateOfBirth,
