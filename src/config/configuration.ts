@@ -93,7 +93,7 @@ export default () => ({
     jwtSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-insecure-change-me-please',
     accessTtl: process.env.JWT_ACCESS_TTL ?? '15m',
     refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
-    otpLength: parseInt(process.env.OTP_LENGTH ?? '4', 10),
+    otpLength: parseInt(process.env.OTP_LENGTH ?? '6', 10),
     otpTtlSeconds: parseInt(process.env.OTP_TTL ?? '300', 10),
     otpMaxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
     otpResendCooldownSeconds: parseInt(
