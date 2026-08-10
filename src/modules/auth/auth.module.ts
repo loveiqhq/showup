@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { UsersModule } from '../users/users.module';
 import { AccountController } from './account.controller';
 import { AccountService } from './account.service';
@@ -51,6 +52,7 @@ import { parseDurationMs } from './util/duration';
       EmailVerification,
       User,
     ]),
+    AnalyticsModule,
   ],
   controllers: [AuthController, AccountController],
   providers: [

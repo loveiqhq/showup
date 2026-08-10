@@ -1,0 +1,63 @@
+{
+  "registry_version": "1.1.0",
+  "taxonomy_version": "1.2",
+  "source": "Cleaned/codegen-ready copy of the design handoff tracking/enums.json (06 Aug 2026).",
+  "_liq_revisions": {
+    "format": "Every value set is a proper array of strings (the shipped file had several run-together, un-parseable lists). Values verified against the design component files where those exist.",
+    "life_questions": "life_now uses the DESIGN screen values (screens-profile-life.jsx / Living status.html), which are the source of truth and differ from the shipped enums.json. Flagged for the boss to confirm.",
+    "life_ahead": "Present in the taxonomy but NO 'life ahead / future' design screen exists in this export. Kept for reference, marked planned — NOT emitted until a screen exists."
+  },
+  "field_id": {
+    "height": { "step": 1, "sensitivity_class": 0, "values": ["<150", "150_159", "160_164", "165_169", "170_174", "175_179", "180_184", "185_189", "190_199", "200+"], "note": "Numeric cm input (120-230), bucketed on device." },
+    "gender": { "step": 2, "sensitivity_class": 2, "values": ["woman", "man", "non_binary", "other"] },
+    "orientation": { "step": 3, "sensitivity_class": 2, "values": ["straight", "gay", "lesbian", "bisexual", "pansexual", "other"] },
+    "dating_language": { "step": 4, "sensitivity_class": 1, "values": ["german", "english", "spanish", "italian", "french", "turkish", "russian", "arabic"] },
+    "education": { "step": 5, "sensitivity_class": 1, "values": ["a_levels_abitur", "apprenticeship", "university_degree", "phd"] },
+    "religion": { "step": 6, "sensitivity_class": 2, "values": ["protestant", "catholic", "orthodox", "jewish", "buddhist", "hindu", "atheist", "spiritual_other"] },
+    "politics": { "step": 7, "sensitivity_class": 2, "values": ["left", "mid_left", "middle", "mid_right", "conservative", "right", "libertarian", "apolitical"] },
+    "habits": { "step": 9, "sensitivity_class": 2, "values": [], "note": "Opt-out only; answers travel on habit_answered per habit_id." },
+    "age": { "step": null, "sensitivity_class": 0, "values": [], "note": "Visibility switch on the DoB step; value lives as age_band." }
+  },
+  "step_id": ["name", "email", "email_verify", "dob", "height", "gender", "orientation", "dating_language", "education", "religion", "politics", "interests", "life_now", "life_ahead", "habits", "prompts", "photos", "media_voice", "media_video", "notifications", "reachability", "phonebook", "location"],
+  "tag_id": {
+    "evenings": ["gym", "cooking", "tv_series", "reading", "going_for_a_walk", "gaming", "live_music", "yoga", "board_games", "movie_nights"],
+    "weekends": ["weekend_trips", "brunch", "sports", "local_markets", "hiking", "cycling", "city_breaks", "museums", "brewery_hops", "bouldering"],
+    "workfree": ["beach", "all_inclusive", "wellness", "festivals", "retreats", "cruise_ships", "road_trips", "camping", "surf_trips", "backpacking"]
+  },
+  "life_now": {
+    "_source": "design screens (authoritative)",
+    "partnership": ["single", "open_relationship", "ethically_non_monogamous", "partnered", "married", "divorced"],
+    "family": ["no_children", "one_child", "multiple_children", "single_parent", "co_parenting", "empty_nester"],
+    "living": ["living_alone", "living_with_roommates", "living_with_family", "living_with_children"]
+  },
+  "life_ahead": {
+    "_status": "PLANNED — no design screen in this export; taxonomy values kept for reference, not emitted",
+    "partnership_ahead": ["long_term_partner", "monogamous_relationship", "open", "something_casual", "undecided"],
+    "family_ahead": ["want_kids", "open_to_children", "no_kids", "undecided"],
+    "living_ahead": ["cohabiting", "living_alone", "undecided"]
+  },
+  "habit_id": ["alcohol", "smoke", "cannabis", "drugs"],
+  "habit_frequency": ["yes", "no", "occasionally"],
+  "topic_id": ["first_date_i_want_to", "match_me_if_you", "dont_bother_matching_if_you", "what_im_actually_looking_for", "three_things_i_wont_compromise_on", "my_idea_of_commitment", "ill_talk_for_hours_about", "id_cross_town_for", "what_30_minutes_with_me_feels_like", "why_im_here_not_another_app", "fastest_way_to_my_attention", "im_proud_of"],
+  "shared": {
+    "result": ["pass", "fail"],
+    "rule": ["format", "disposable", "length", "invalid_prefix", "impossible"],
+    "method": ["phone", "apple", "google"],
+    "dismiss_method": ["cta", "swipe", "backdrop"],
+    "channel": ["push", "sms", "whatsapp", "email", "call"],
+    "band": ["trusted", "steady", "at_risk"],
+    "lead_time": ["24h", "2h", "1h", "15m"],
+    "decision": ["wait", "leave"],
+    "outcome": ["confirmed", "deferred", "hung_up"],
+    "placement": ["likes_received", "live_grid", "advanced_filters"],
+    "layout": ["one_up", "grid"],
+    "form_validation_rule": ["required_missing", "photos_below_minimum", "nothing_selected", "at_char_limit", "format", "impossible"],
+    "section": ["prompts", "interests", "habits", "essentials"],
+    "entry_point": ["cold", "push", "sms", "whatsapp", "email", "deeplink"]
+  },
+  "filter_id": {
+    "meet_gender": ["woman", "man", "non_binary", "other"],
+    "meet_orientation": ["straight", "gay", "lesbian", "bisexual", "pansexual", "other"],
+    "showup_band": ["trusted", "steady", "at_risk"]
+  }
+}

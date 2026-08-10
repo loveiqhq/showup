@@ -37,6 +37,7 @@ describe('NotificationDispatchService', () => {
       logRepo as any,
       pushSender,
       emailSender,
+      { trackServerEvent: jest.fn() } as any,
     );
 
   beforeEach(() => {

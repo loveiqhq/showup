@@ -7,6 +7,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
+import { AnalyticsService } from '../analytics/analytics.service';
+import {
+  dateCancelledEvent,
+  dateCompletedEvent,
+  dateConfirmedEvent,
+} from '../analytics/events/date-events';
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { LocationService } from '../location/location.service';
 import { DateChatMessage } from './entities/date-chat-message.entity';
@@ -29,6 +35,7 @@ export class DatesService {
     private readonly chat: Repository<DateChatMessage>,
     private readonly checkIns: CheckInsService,
     private readonly location: LocationService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /**
@@ -81,6 +88,11 @@ export class DatesService {
       }),
     );
     await this.logChange(date.id, null, DateStatus.Confirmed, null);
+    // Server event (counted once per date), keyed to the canonical first participant.
+    void this.analytics.trackServerEvent({
+      userId: userAId,
+      ...dateConfirmedEvent(date),
+    });
     return date;
   }
 
@@ -150,6 +162,10 @@ export class DatesService {
     date.status = DateStatus.Cancelled;
     await this.dates.save(date);
     await this.logChange(date.id, from, DateStatus.Cancelled, userId);
+    void this.analytics.trackServerEvent({
+      userId,
+      ...dateCancelledEvent(date),
+    });
     return date;
   }
 
@@ -184,6 +200,10 @@ export class DatesService {
       date.status = DateStatus.Completed;
       await this.dates.save(date);
       await this.logChange(date.id, from, DateStatus.Completed, userId);
+      void this.analytics.trackServerEvent({
+        userId,
+        ...dateCompletedEvent(date),
+      });
     } else {
       await this.dates.save(date);
     }

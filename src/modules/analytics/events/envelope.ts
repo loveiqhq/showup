@@ -10,7 +10,8 @@ export const SCHEMA_VERSION = '1.0.0';
 /** Global context attached to every event. Most fields originate on the client. */
 export interface AnalyticsContext {
   source: 'client' | 'server';
-  anonymousId: string;
+  /** Client-originated anonymous id. Omitted on pure server events, which are keyed by the user. */
+  anonymousId?: string;
   /** Salted server-side hash of the user id; null before sign-in. */
   userIdHashed?: string | null;
   sessionId?: string;

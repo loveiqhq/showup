@@ -20,6 +20,8 @@ import {
   NotificationType,
   shouldSend,
 } from '../util/preferences';
+import { AnalyticsService } from '../../analytics/analytics.service';
+import { notificationSentEvent } from '../../analytics/events/server-events';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { PushTokensService } from './push-tokens.service';
 
@@ -53,6 +55,7 @@ export class NotificationDispatchService {
     private readonly logRepo: Repository<NotificationLogEntry>,
     @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
     @Inject(EMAIL_SENDER) private readonly emailSender: EmailSender,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   async sendPush(
@@ -125,6 +128,12 @@ export class NotificationDispatchService {
       }
     }
     await this.pushTokens.prune(dead);
+    if (delivered > 0) {
+      void this.analytics.trackServerEvent({
+        userId,
+        ...notificationSentEvent('push', type),
+      });
+    }
     return { status: delivered > 0 ? 'sent' : 'failed', delivered };
   }
 
@@ -188,6 +197,10 @@ export class NotificationDispatchService {
           providerMessageId: res.messageId,
         },
       );
+      void this.analytics.trackServerEvent({
+        userId,
+        ...notificationSentEvent('email', type),
+      });
       return { status: 'sent', delivered: 1 };
     }
     await this.log(

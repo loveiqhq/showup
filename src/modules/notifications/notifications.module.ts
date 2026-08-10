@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { QUEUE_DATE_REMINDERS } from '../../queue/queue.constants';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { User } from '../users/entities/user.entity';
 import { NotificationPreferencesController } from './controllers/notification-preferences.controller';
 import { PushTokensController } from './controllers/push-tokens.controller';
@@ -32,6 +33,7 @@ import { PushTokensService } from './services/push-tokens.service';
       User,
     ]),
     BullModule.registerQueue({ name: QUEUE_DATE_REMINDERS }),
+    AnalyticsModule,
   ],
   controllers: [NotificationPreferencesController, PushTokensController],
   providers: [

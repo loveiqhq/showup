@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { CheckInsModule } from '../check-ins/check-ins.module';
 import { DatesModule } from '../dates/dates.module';
 import { Profile } from '../profiles/entities/profile.entity';
@@ -18,6 +19,7 @@ import { MatchingService } from './matching.service';
     CheckInsModule,
     SafetyModule,
     DatesModule,
+    AnalyticsModule,
   ],
   controllers: [MatchingController],
   providers: [MatchingService],
