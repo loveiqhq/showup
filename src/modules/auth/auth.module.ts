@@ -16,6 +16,10 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { FreshAuthGuard } from './guards/fresh-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OtpService } from './otp.service';
+import { EmailOtpService } from './email-otp.service';
+import { EmailVerification } from './entities/email-verification.entity';
+import { User } from '../users/entities/user.entity';
+import { emailSenderProvider } from '../notifications/email/email-sender.provider';
 import { LogSmsSender } from './sms/log-sms-sender';
 import { SMS_SENDER } from './sms/sms-sender.interface';
 import { AppleVerifier } from './social/apple-verifier';
@@ -40,7 +44,13 @@ import { parseDurationMs } from './util/duration';
         },
       }),
     }),
-    TypeOrmModule.forFeature([RefreshToken, PhoneVerification, AuditLog]),
+    TypeOrmModule.forFeature([
+      RefreshToken,
+      PhoneVerification,
+      AuditLog,
+      EmailVerification,
+      User,
+    ]),
   ],
   controllers: [AuthController, AccountController],
   providers: [
@@ -48,6 +58,8 @@ import { parseDurationMs } from './util/duration';
     AccountService,
     TokenService,
     OtpService,
+    EmailOtpService,
+    emailSenderProvider,
     AuditService,
     GoogleVerifier,
     AppleVerifier,
