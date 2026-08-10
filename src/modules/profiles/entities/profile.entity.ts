@@ -38,9 +38,6 @@ export class Profile {
   @Column({ name: 'date_of_birth', type: 'date', nullable: true })
   dateOfBirth: string | null;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  bio: string | null;
-
   @Column({ type: 'varchar', length: 40, nullable: true })
   gender: string | null;
 

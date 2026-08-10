@@ -43,9 +43,6 @@ export class DiscoveryProfileDto {
   displayName: string | null;
 
   @ApiProperty({ nullable: true })
-  bio: string | null;
-
-  @ApiProperty({ nullable: true })
   gender: string | null;
 
   @ApiProperty({ nullable: true })
@@ -63,7 +60,6 @@ export class DiscoveryProfileDto {
     return {
       userId: profile.userId,
       displayName: profile.displayName,
-      bio: profile.bio,
       gender: profile.gender,
       lookingFor: profile.lookingFor,
       verified:
