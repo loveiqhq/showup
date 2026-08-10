@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
@@ -18,7 +18,10 @@ import { LocationService } from '../location/location.service';
 import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
+import { reviewWindowError } from './util/date-review';
+import { dateLocksUser } from './util/date-lock';
 import { DateStatus, transitionError } from './util/date-lifecycle';
+import { noShowReportError } from './util/no-show';
 import { ChatReason, chatWindowError } from './util/pre-date-chat';
 
 @Injectable()
@@ -102,6 +105,43 @@ export class DatesService {
   }
 
   /**
+   * Whether a user is currently locked out of matching. A person is locked from the moment they are
+   * matched (a confirmed date exists) until they submit their OWN post-date review; there is no
+   * timed auto-release. Used by discovery so a person on a live date neither searches nor is shown.
+   */
+  async isLockedFromMatching(userId: string): Promise<boolean> {
+    const dates = await this.dates.find({
+      where: [
+        { userAId: userId, status: DateStatus.Confirmed },
+        { userBId: userId, status: DateStatus.Confirmed },
+      ],
+    });
+    return dates.some((d) => dateLocksUser(d, userId));
+  }
+
+  /** Of the given users, those currently locked out of matching (mid-date, review outstanding). */
+  async lockedUserIdsAmong(userIds: string[]): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const rows = await this.dates.find({
+      where: [
+        { userAId: In(userIds), status: DateStatus.Confirmed },
+        { userBId: In(userIds), status: DateStatus.Confirmed },
+      ],
+    });
+    const target = new Set(userIds);
+    const locked = new Set<string>();
+    for (const d of rows) {
+      if (target.has(d.userAId) && dateLocksUser(d, d.userAId)) {
+        locked.add(d.userAId);
+      }
+      if (target.has(d.userBId) && dateLocksUser(d, d.userBId)) {
+        locked.add(d.userBId);
+      }
+    }
+    return [...locked];
+  }
+
+  /**
    * SHOWUP-53 — cancel a date. Single cancellation type; it always records the canceller so the
    * scoring work (Epic 8) can penalise them. Only a participant may cancel, and only from a state
    * where cancelling is allowed.
@@ -143,6 +183,10 @@ export class DatesService {
       throw new BadRequestException('This date is not open for confirmation');
     }
 
+    // A date may only be reviewed AFTER it has finished — never before or during it.
+    const reviewError = reviewWindowError(date.scheduledAt, new Date());
+    if (reviewError) throw new BadRequestException(reviewError);
+
     if (date.userAId === userId) {
       date.aConfirmedHappened = true;
       date.aRating = rating;
@@ -163,6 +207,27 @@ export class DatesService {
     } else {
       await this.dates.save(date);
     }
+    return date;
+  }
+
+  /**
+   * Report that the other person did not show up. This is a DATE OUTCOME, deliberately separate from
+   * the report / safety flow: it moves the date to "no-show reported" and records who reported it in
+   * the stage history. Only a participant may report, only from a still-confirmed date, and only once
+   * the date is actually due. Downstream effects (score, dispute, any block) are handled later, and
+   * the late-vs-no-show grace rule is a separate decision.
+   */
+  async reportNoShow(dateId: string, userId: string): Promise<DateEntity> {
+    const date = await this.participantDate(dateId, userId);
+    const error = transitionError(date.status, DateStatus.NoShowReported);
+    if (error) throw new BadRequestException(error);
+    const windowError = noShowReportError(date.scheduledAt, new Date());
+    if (windowError) throw new BadRequestException(windowError);
+
+    const from = date.status;
+    date.status = DateStatus.NoShowReported;
+    await this.dates.save(date);
+    await this.logChange(date.id, from, DateStatus.NoShowReported, userId);
     return date;
   }
 

@@ -34,26 +34,24 @@ export class CreateCheckInDto {
   @IsInt()
   preparationMinutes?: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 52.5186,
     description:
-      'Latitude of the area the user wants to meet in (−90..90). ' +
-      'Must be sent together with longitude. Used only for proximity matching; never shown to others.',
+      'Latitude of the area the user wants to meet in (−90..90). Required — a location is ' +
+      'mandatory to check in. Used only for proximity matching; never shown to others.',
   })
-  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
-  latitude?: number;
+  latitude: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 13.3761,
     description:
-      'Longitude of the area the user wants to meet in (−180..180). Must be sent together with latitude.',
+      'Longitude of the area the user wants to meet in (−180..180). Required, together with latitude.',
   })
-  @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
-  longitude?: number;
+  longitude: number;
 }

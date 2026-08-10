@@ -58,6 +58,43 @@ export function availabilityWindowError(
   return null;
 }
 
+/** A time span with a start and end, used for overlap checks between availability windows. */
+export interface TimeWindow {
+  availabilityStart: Date;
+  availabilityEnd: Date;
+}
+
+/**
+ * Whether a proposed window [start, end) overlaps any of the user's existing windows. A person may
+ * hold any number of availability windows in a day (no limit), but they must never overlap in time.
+ * Windows are half-open, so two that only touch at an edge (11:00–13:00 then 13:00–14:00) do NOT
+ * overlap. Pure (no DB) so it can be unit-tested; the service supplies the user's still-live windows.
+ */
+export function overlapsAnyWindow(
+  start: Date,
+  end: Date,
+  existing: TimeWindow[],
+): boolean {
+  return existing.some(
+    (w) => start < w.availabilityEnd && w.availabilityStart < end,
+  );
+}
+
+/**
+ * Validates that a check-in carries a meeting location. Location is required to become available:
+ * without it a person can neither be shown to others nor run the date search (that search is centred
+ * on their own check-in location). Returns an error message, or null when both coordinates are set.
+ */
+export function locationError(
+  latitude?: number | null,
+  longitude?: number | null,
+): string | null {
+  if (latitude == null || longitude == null) {
+    return 'A meeting location (latitude and longitude) is required to check in';
+  }
+  return null;
+}
+
 /** The fields needed to decide whether a check-in is currently active. */
 export interface CheckInWindow {
   status: CheckInStatus;

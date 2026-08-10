@@ -39,7 +39,6 @@ export class ProfilesService {
       profile.dateOfBirth = dto.dateOfBirth;
     }
     if (dto.displayName !== undefined) profile.displayName = dto.displayName;
-    if (dto.bio !== undefined) profile.bio = dto.bio;
     if (dto.gender !== undefined) profile.gender = dto.gender;
     if (dto.lookingFor !== undefined) profile.lookingFor = dto.lookingFor;
     if (dto.isVisible !== undefined) profile.isVisible = dto.isVisible;

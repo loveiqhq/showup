@@ -1,6 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from 'crypto';
 
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Inject,
@@ -11,38 +12,63 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 
-import { PhoneVerification } from './entities/phone-verification.entity';
-import { SMS_SENDER, type SmsSender } from './sms/sms-sender.interface';
+import {
+  EMAIL_SENDER,
+  type EmailSender,
+} from '../notifications/email/email-sender.interface';
+import { User } from '../users/entities/user.entity';
+import { EmailVerification } from './entities/email-verification.entity';
 
-export interface OtpChallengeResult {
+/**
+ * Email codes are always six digits (design build item 08), independent of the phone SMS OTP length.
+ */
+const EMAIL_OTP_LENGTH = 6;
+
+export interface EmailChallengeResult {
   expiresAt: Date;
   resendAvailableAt: Date;
   /** Present only when AUTH_EXPOSE_OTP is on (non-prod) — for local/e2e testing. */
   devCode?: string;
 }
 
+/**
+ * Verifies that a user owns an email address, via a 6-digit code (support/contact only — email is
+ * NOT a sign-in or recovery credential). Mirrors OtpService; the code is HMAC-hashed, single-use,
+ * expiring, attempt-limited and rate-limited. On success the address is written to the user with an
+ * `emailVerifiedAt` stamp.
+ */
 @Injectable()
-export class OtpService {
+export class EmailOtpService {
   constructor(
-    @InjectRepository(PhoneVerification)
-    private readonly repo: Repository<PhoneVerification>,
+    @InjectRepository(EmailVerification)
+    private readonly repo: Repository<EmailVerification>,
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
     private readonly config: ConfigService,
-    @Inject(SMS_SENDER) private readonly sms: SmsSender,
+    @Inject(EMAIL_SENDER) private readonly email: EmailSender,
   ) {}
 
   /** HMAC the code with the server secret so a DB leak alone can't reveal codes. */
-  private hash(phone: string, code: string): string {
+  private hash(userId: string, code: string): string {
     const secret = this.config.get<string>('auth.jwtSecret') ?? '';
     return createHmac('sha256', secret)
-      .update(`${phone}:${code}`)
+      .update(`${userId}:${code}`)
       .digest('hex');
   }
 
-  async request(phone: string): Promise<OtpChallengeResult> {
+  async request(userId: string, email: string): Promise<EmailChallengeResult> {
+    const normalized = email.trim().toLowerCase();
+
+    // An email may belong to at most one account (it is unique on users).
+    const existing = await this.users.findOne({ where: { email: normalized } });
+    if (existing && existing.id !== userId) {
+      throw new BadRequestException('That email is already in use');
+    }
+
     const cooldownMs =
       (this.config.get<number>('auth.otpResendCooldownSeconds') ?? 60) * 1000;
     const latest = await this.repo.findOne({
-      where: { phone },
+      where: { userId },
       order: { createdAt: 'DESC' },
     });
     if (latest && !latest.consumedAt) {
@@ -55,26 +81,30 @@ export class OtpService {
         );
       }
     }
-    // Supersede any prior unconsumed challenge for this phone.
-    await this.repo.delete({ phone, consumedAt: IsNull() });
+    // Supersede any prior unconsumed challenge for this user.
+    await this.repo.delete({ userId, consumedAt: IsNull() });
 
-    const length = this.config.get<number>('auth.otpLength') ?? 6;
-    const code = randomInt(0, 10 ** length)
+    const code = randomInt(0, 10 ** EMAIL_OTP_LENGTH)
       .toString()
-      .padStart(length, '0');
+      .padStart(EMAIL_OTP_LENGTH, '0');
     const ttlMs = (this.config.get<number>('auth.otpTtlSeconds') ?? 300) * 1000;
     const now = Date.now();
     const expiresAt = new Date(now + ttlMs);
 
     await this.repo.save(
       this.repo.create({
-        phone,
-        codeHash: this.hash(phone, code),
+        userId,
+        email: normalized,
+        codeHash: this.hash(userId, code),
         expiresAt,
         attempts: 0,
       }),
     );
-    await this.sms.sendVerificationCode(phone, code);
+    await this.email.send({
+      to: normalized,
+      subject: 'Your Show Up verification code',
+      body: `Your Show Up email verification code is ${code}. It expires in 5 minutes.`,
+    });
 
     return {
       expiresAt,
@@ -84,9 +114,9 @@ export class OtpService {
     };
   }
 
-  async verify(phone: string, code: string): Promise<void> {
+  async verify(userId: string, code: string): Promise<void> {
     const challenge = await this.repo.findOne({
-      where: { phone, consumedAt: IsNull() },
+      where: { userId, consumedAt: IsNull() },
       order: { createdAt: 'DESC' },
     });
     if (!challenge) throw new UnauthorizedException('Invalid or expired code');
@@ -103,7 +133,7 @@ export class OtpService {
     challenge.attempts += 1;
 
     const expected = Buffer.from(challenge.codeHash);
-    const actual = Buffer.from(this.hash(phone, code));
+    const actual = Buffer.from(this.hash(userId, code));
     const matches =
       expected.length === actual.length && timingSafeEqual(expected, actual);
     if (!matches) {
@@ -113,5 +143,11 @@ export class OtpService {
 
     challenge.consumedAt = new Date();
     await this.repo.save(challenge);
+
+    // Record the verified email on the user (support/contact — not a sign-in credential).
+    await this.users.update(
+      { id: userId },
+      { email: challenge.email, emailVerifiedAt: new Date() },
+    );
   }
 }
