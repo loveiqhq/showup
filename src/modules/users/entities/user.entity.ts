@@ -11,10 +11,14 @@ import { ModerationStanding } from '../../safety/util/safety';
 /**
  * Account lifecycle states (Story 2.1). `deletion_pending` and `deleted` drive the deletion flow
  * (Story 2.6); `suspended`/`deleted` users are rejected at login and by the auth guard.
+ *
+ * There is deliberately no account-level `verified`: identity verification lives on the PROFILE
+ * (`ProfileVerificationStatus`, the selfie badge), which is the real one. An account-level copy was
+ * removed because it duplicated that concept, could not coexist with `active` (a status holds one
+ * value), and was never set or checked. Do not re-add it here.
  */
 export enum UserStatus {
   Registered = 'registered',
-  Verified = 'verified',
   Active = 'active',
   Restricted = 'restricted',
   Suspended = 'suspended',
