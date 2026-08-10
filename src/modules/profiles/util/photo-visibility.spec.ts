@@ -21,6 +21,8 @@ describe('photo visibility (post-moderation: hide only rejected)', () => {
         PhotoModerationStatus.Approved,
       ]),
     );
-    expect(VISIBLE_PHOTO_STATUSES).not.toContain(PhotoModerationStatus.Rejected);
+    expect(VISIBLE_PHOTO_STATUSES).not.toContain(
+      PhotoModerationStatus.Rejected,
+    );
   });
 });

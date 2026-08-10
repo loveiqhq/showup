@@ -25,7 +25,9 @@ describe('dateLocksUser', () => {
   });
 
   it('does not lock on a cancelled date', () => {
-    expect(dateLocksUser(row({ status: DateStatus.Cancelled }), 'A')).toBe(false);
+    expect(dateLocksUser(row({ status: DateStatus.Cancelled }), 'A')).toBe(
+      false,
+    );
   });
 
   it('does not lock on a completed date', () => {

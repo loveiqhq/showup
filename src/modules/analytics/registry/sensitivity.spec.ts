@@ -38,7 +38,10 @@ describe('SENSITIVITY_BY_FIELD stays in sync with enums.json (drift guard)', () 
 
   it('covers exactly the fields declared in the registry, with matching classes', () => {
     const fromRegistry = Object.fromEntries(
-      Object.entries(registry.field_id).map(([k, v]) => [k, v.sensitivity_class]),
+      Object.entries(registry.field_id).map(([k, v]) => [
+        k,
+        v.sensitivity_class,
+      ]),
     );
     expect(SENSITIVITY_BY_FIELD).toEqual(fromRegistry);
   });

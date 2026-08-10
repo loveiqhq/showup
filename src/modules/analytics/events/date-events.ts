@@ -37,6 +37,9 @@ export function dateCompletedEvent(date: DateEventInput): AnalyticsEventSpec {
 export function dateCancelledEvent(date: DateEventInput): AnalyticsEventSpec {
   return {
     eventName: DATE_CANCELLED,
-    properties: { date_id: date.id, had_reason: (date.cancelReason ?? null) != null },
+    properties: {
+      date_id: date.id,
+      had_reason: (date.cancelReason ?? null) != null,
+    },
   };
 }

@@ -200,13 +200,19 @@ export class MatchingService {
     if (candidateIds.length === 0) return [];
 
     // Hide anyone who is themselves locked (mid-date with a review still outstanding).
-    const lockedIds = new Set(await this.dates.lockedUserIdsAmong(candidateIds));
+    const lockedIds = new Set(
+      await this.dates.lockedUserIdsAmong(candidateIds),
+    );
     const openCandidateIds = candidateIds.filter((id) => !lockedIds.has(id));
     if (openCandidateIds.length === 0) return [];
 
     // Only surface complete, visible profiles — a profile is not discoverable until it is complete.
     const profiles = await this.profiles.find({
-      where: { userId: In(openCandidateIds), isVisible: true, isComplete: true },
+      where: {
+        userId: In(openCandidateIds),
+        isVisible: true,
+        isComplete: true,
+      },
     });
     const byUser = new Map(profiles.map((p) => [p.userId, p]));
 

@@ -15,11 +15,15 @@ export interface AnalyticsEventSpec {
 export const LIKE_SENT = 'like_sent';
 export const MATCH_CREATED = 'match_created';
 
-export function likeSentEvent(opts: { hasMessage: boolean }): AnalyticsEventSpec {
+export function likeSentEvent(opts: {
+  hasMessage: boolean;
+}): AnalyticsEventSpec {
   return { eventName: LIKE_SENT, properties: { has_message: opts.hasMessage } };
 }
 
-export function matchCreatedEvent(opts: { matchId: string }): AnalyticsEventSpec {
+export function matchCreatedEvent(opts: {
+  matchId: string;
+}): AnalyticsEventSpec {
   return { eventName: MATCH_CREATED, properties: { match_id: opts.matchId } };
 }
 
@@ -52,5 +56,8 @@ export function notificationSentEvent(
 export const ACCOUNT_CREATED = 'account_created';
 
 export function accountCreatedEvent(authMethod: string): AnalyticsEventSpec {
-  return { eventName: ACCOUNT_CREATED, properties: { auth_method: authMethod } };
+  return {
+    eventName: ACCOUNT_CREATED,
+    properties: { auth_method: authMethod },
+  };
 }

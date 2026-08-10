@@ -63,7 +63,10 @@ class FakeUsersRepo {
       this.rows.find((u) => u.email === where.email) ?? null,
     );
   }
-  update(criteria: any, patch: Partial<UserRow>): Promise<{ affected: number }> {
+  update(
+    criteria: any,
+    patch: Partial<UserRow>,
+  ): Promise<{ affected: number }> {
     const row = this.rows.find((u) => u.id === criteria.id);
     if (row) Object.assign(row, patch);
     return Promise.resolve({ affected: row ? 1 : 0 });
@@ -92,11 +95,13 @@ describe('EmailOtpService', () => {
   let email: { send: jest.Mock };
 
   const make = (over: Record<string, unknown> = {}) =>
-    new EmailOtpService(repo as any, users as any, config(over), email as any);
+    new EmailOtpService(repo as any, users as any, config(over), email);
 
   beforeEach(() => {
     repo = new FakeVerifRepo();
-    users = new FakeUsersRepo([{ id: USER_ID, email: null, emailVerifiedAt: null }]);
+    users = new FakeUsersRepo([
+      { id: USER_ID, email: null, emailVerifiedAt: null },
+    ]);
     email = { send: jest.fn().mockResolvedValue({ success: true }) };
   });
 
@@ -117,7 +122,9 @@ describe('EmailOtpService', () => {
   it('rejects an email already used by another account', async () => {
     users.rows.push({ id: 'other', email: EMAIL, emailVerifiedAt: new Date() });
     const svc = make();
-    await expect(svc.request(USER_ID, EMAIL)).rejects.toThrow(/already in use/i);
+    await expect(svc.request(USER_ID, EMAIL)).rejects.toThrow(
+      /already in use/i,
+    );
   });
 
   it('rejects a consumed code (single use)', async () => {

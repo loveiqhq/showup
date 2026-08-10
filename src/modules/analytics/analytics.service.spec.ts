@@ -2,7 +2,6 @@ import { ConfigService } from '@nestjs/config';
 
 import { AnalyticsService } from './analytics.service';
 import type { AnalyticsContext } from './events/envelope';
-import type { AnalyticsSink } from './sink/analytics-sink.interface';
 
 function makeConfig(overrides: Record<string, unknown> = {}): ConfigService {
   const values: Record<string, unknown> = {
@@ -13,7 +12,10 @@ function makeConfig(overrides: Record<string, unknown> = {}): ConfigService {
   return { get: (key: string) => values[key] } as unknown as ConfigService;
 }
 
-const ctx = (): AnalyticsContext => ({ source: 'server', anonymousId: 'anon-1' });
+const ctx = (): AnalyticsContext => ({
+  source: 'server',
+  anonymousId: 'anon-1',
+});
 
 describe('AnalyticsService (single gated tracking path)', () => {
   let sink: { capture: jest.Mock };
@@ -21,7 +23,7 @@ describe('AnalyticsService (single gated tracking path)', () => {
 
   beforeEach(() => {
     sink = { capture: jest.fn().mockResolvedValue(undefined) };
-    service = new AnalyticsService(sink as unknown as AnalyticsSink, makeConfig());
+    service = new AnalyticsService(sink, makeConfig());
   });
 
   it('does not send when consent is unset and the posture is opt-in (default false)', async () => {
@@ -30,7 +32,11 @@ describe('AnalyticsService (single gated tracking path)', () => {
   });
 
   it('sends when the user has explicitly consented', async () => {
-    await service.track({ eventName: 'like_sent', context: ctx(), consent: true });
+    await service.track({
+      eventName: 'like_sent',
+      context: ctx(),
+      consent: true,
+    });
     expect(sink.capture).toHaveBeenCalledTimes(1);
   });
 
@@ -49,7 +55,11 @@ describe('AnalyticsService (single gated tracking path)', () => {
   });
 
   it('falls back to the anonymous id before sign-in', async () => {
-    await service.track({ eventName: 'app_opened', context: ctx(), consent: true });
+    await service.track({
+      eventName: 'app_opened',
+      context: ctx(),
+      consent: true,
+    });
     expect(sink.capture.mock.calls[0][0].distinctId).toBe('anon-1');
   });
 
