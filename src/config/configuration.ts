@@ -70,6 +70,15 @@ export default () => ({
     apiKey: process.env.POSTHOG_API_KEY || undefined,
     host: process.env.POSTHOG_HOST ?? 'https://eu.i.posthog.com',
   },
+  analytics: {
+    // Secret salt used to hash user ids before they reach the analytics service. MUST be set in
+    // production; hashing throws on an empty salt. The dev default is intentionally weak.
+    salt: process.env.ANALYTICS_SALT ?? 'dev-insecure-analytics-salt-change-me',
+    // Consent posture when a user has not chosen: false = opt-in (default), true = opt-out.
+    // The final posture is pending legal review — this only sets the fallback.
+    consentDefault: process.env.ANALYTICS_CONSENT_DEFAULT === 'true',
+    schemaVersion: '1.0.0',
+  },
   sentry: {
     enabled: process.env.SENTRY_ENABLED === 'true',
     dsn: process.env.SENTRY_DSN || undefined,
@@ -84,7 +93,7 @@ export default () => ({
     jwtSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-insecure-change-me-please',
     accessTtl: process.env.JWT_ACCESS_TTL ?? '15m',
     refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
-    otpLength: parseInt(process.env.OTP_LENGTH ?? '4', 10),
+    otpLength: parseInt(process.env.OTP_LENGTH ?? '6', 10),
     otpTtlSeconds: parseInt(process.env.OTP_TTL ?? '300', 10),
     otpMaxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
     otpResendCooldownSeconds: parseInt(
