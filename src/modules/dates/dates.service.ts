@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { LocationService } from '../location/location.service';
@@ -13,6 +13,7 @@ import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
 import { reviewWindowError } from './util/date-review';
+import { dateLocksUser } from './util/date-lock';
 import { DateStatus, transitionError } from './util/date-lifecycle';
 import { ChatReason, chatWindowError } from './util/pre-date-chat';
 
@@ -88,6 +89,43 @@ export class DatesService {
       where: [{ userAId: userId }, { userBId: userId }],
       order: { scheduledAt: 'DESC' },
     });
+  }
+
+  /**
+   * Whether a user is currently locked out of matching. A person is locked from the moment they are
+   * matched (a confirmed date exists) until they submit their OWN post-date review; there is no
+   * timed auto-release. Used by discovery so a person on a live date neither searches nor is shown.
+   */
+  async isLockedFromMatching(userId: string): Promise<boolean> {
+    const dates = await this.dates.find({
+      where: [
+        { userAId: userId, status: DateStatus.Confirmed },
+        { userBId: userId, status: DateStatus.Confirmed },
+      ],
+    });
+    return dates.some((d) => dateLocksUser(d, userId));
+  }
+
+  /** Of the given users, those currently locked out of matching (mid-date, review outstanding). */
+  async lockedUserIdsAmong(userIds: string[]): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const rows = await this.dates.find({
+      where: [
+        { userAId: In(userIds), status: DateStatus.Confirmed },
+        { userBId: In(userIds), status: DateStatus.Confirmed },
+      ],
+    });
+    const target = new Set(userIds);
+    const locked = new Set<string>();
+    for (const d of rows) {
+      if (target.has(d.userAId) && dateLocksUser(d, d.userAId)) {
+        locked.add(d.userAId);
+      }
+      if (target.has(d.userBId) && dateLocksUser(d, d.userBId)) {
+        locked.add(d.userBId);
+      }
+    }
+    return [...locked];
   }
 
   /**

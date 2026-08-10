@@ -53,6 +53,13 @@ export class MatchingService {
       throw new BadRequestException('You cannot like yourself');
     }
 
+    // Locked out of matching until they review their current date — no looking for others meanwhile.
+    if (await this.dates.isLockedFromMatching(senderId)) {
+      throw new BadRequestException(
+        'Finish reviewing your current date before matching again',
+      );
+    }
+
     const target = await this.users.findOne({ where: { id: targetId } });
     if (!target) throw new NotFoundException('User not found');
     if (
@@ -148,6 +155,9 @@ export class MatchingService {
     userId: string,
     radiusMeters: number = DEFAULT_DISCOVERY_RADIUS_METERS,
   ): Promise<Array<{ profile: Profile; distanceMeters: number }>> {
+    // A person is out of the pool while they still owe a review on a live date (locked until review).
+    if (await this.dates.isLockedFromMatching(userId)) return [];
+
     const center = await this.activeCenter(userId);
     if (!center) return []; // Not checked in / not available → nothing to discover.
 
@@ -174,13 +184,19 @@ export class MatchingService {
       .filter((id) => !alreadyLiked.has(id));
     if (candidateIds.length === 0) return [];
 
+    // Hide anyone who is themselves locked (mid-date with a review still outstanding).
+    const lockedIds = new Set(await this.dates.lockedUserIdsAmong(candidateIds));
+    const openCandidateIds = candidateIds.filter((id) => !lockedIds.has(id));
+    if (openCandidateIds.length === 0) return [];
+
+    // Only surface complete, visible profiles — a profile is not discoverable until it is complete.
     const profiles = await this.profiles.find({
-      where: { userId: In(candidateIds), isVisible: true },
+      where: { userId: In(openCandidateIds), isVisible: true, isComplete: true },
     });
     const byUser = new Map(profiles.map((p) => [p.userId, p]));
 
     // Preserve the nearest-first ordering from the proximity search.
-    return candidateIds
+    return openCandidateIds
       .map((id) => byUser.get(id))
       .filter((p): p is Profile => Boolean(p))
       .map((p) => ({
