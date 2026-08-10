@@ -12,6 +12,7 @@ import { LocationService } from '../location/location.service';
 import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
+import { reviewWindowError } from './util/date-review';
 import { DateStatus, transitionError } from './util/date-lifecycle';
 import { ChatReason, chatWindowError } from './util/pre-date-chat';
 
@@ -126,6 +127,10 @@ export class DatesService {
     if (date.status !== DateStatus.Confirmed) {
       throw new BadRequestException('This date is not open for confirmation');
     }
+
+    // A date may only be reviewed AFTER it has finished — never before or during it.
+    const reviewError = reviewWindowError(date.scheduledAt, new Date());
+    if (reviewError) throw new BadRequestException(reviewError);
 
     if (date.userAId === userId) {
       date.aConfirmedHappened = true;
