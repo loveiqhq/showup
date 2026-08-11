@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { RequestIdMiddleware } from './common/logging/request-id.middleware';
 import configuration from './config/configuration';
 import { validationSchema } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
@@ -65,4 +66,12 @@ import { AdminModule } from './modules/admin/admin.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Every request gets an id before anything else runs, so all of its log lines can be tied together
+   * (Epic 16, SHOWUP-91).
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}
