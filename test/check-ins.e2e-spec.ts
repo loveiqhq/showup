@@ -13,6 +13,10 @@ const PHONE = '+491701234777';
 const hoursFromNow = (h: number) =>
   new Date(Date.now() + h * 3_600_000).toISOString();
 
+// A location is mandatory to check in (Epic 4). Sent on every request so each test fails for the
+// reason it is actually testing, rather than for a missing location.
+const BERLIN = { latitude: 52.5186, longitude: 13.3761 };
+
 describe('Check-ins (e2e)', () => {
   let app: INestApplication;
   let server: ReturnType<INestApplication['getHttpServer']>;
@@ -66,6 +70,7 @@ describe('Check-ins (e2e)', () => {
       .send({
         availabilityStart: hoursFromNow(4),
         availabilityEnd: hoursFromNow(2),
+        ...BERLIN,
       })
       .expect(400);
   });
@@ -78,6 +83,18 @@ describe('Check-ins (e2e)', () => {
         availabilityStart: hoursFromNow(0),
         availabilityEnd: hoursFromNow(3),
         preparationMinutes: 120,
+        ...BERLIN,
+      })
+      .expect(400);
+  });
+
+  it('rejects a check-in with no location, since one is mandatory', async () => {
+    await request(server)
+      .post('/me/check-ins')
+      .set('Authorization', bearer())
+      .send({
+        availabilityStart: hoursFromNow(0),
+        availabilityEnd: hoursFromNow(3),
       })
       .expect(400);
   });
@@ -90,6 +107,7 @@ describe('Check-ins (e2e)', () => {
         availabilityStart: hoursFromNow(0),
         availabilityEnd: hoursFromNow(3),
         preparationMinutes: 20,
+        ...BERLIN,
       })
       .expect(201);
     expect(res.body.status).toBe('available');
@@ -107,15 +125,28 @@ describe('Check-ins (e2e)', () => {
     expect(res.body.active).toBe(true);
   });
 
-  it('blocks a second active check-in', async () => {
+  it('blocks a second window that OVERLAPS the first', async () => {
     await request(server)
       .post('/me/check-ins')
       .set('Authorization', bearer())
       .send({
         availabilityStart: hoursFromNow(0),
         availabilityEnd: hoursFromNow(2),
+        ...BERLIN,
       })
       .expect(400);
+  });
+
+  it('allows a second window that does NOT overlap, with no limit on how many', async () => {
+    await request(server)
+      .post('/me/check-ins')
+      .set('Authorization', bearer())
+      .send({
+        availabilityStart: hoursFromNow(4),
+        availabilityEnd: hoursFromNow(6),
+        ...BERLIN,
+      })
+      .expect(201);
   });
 
   it('cancels the check-in', async () => {

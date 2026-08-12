@@ -56,8 +56,16 @@ describe('Safety (e2e)', () => {
     status = UserStatus.Active,
   ) => (await users.save(users.create({ phone, role, status }))).id;
 
+  // Discovery only surfaces COMPLETE profiles (Epic 3/6), so the seed must set it.
   const seedProfile = (userId: string, displayName: string) =>
-    profiles.save(profiles.create({ userId, displayName, isVisible: true }));
+    profiles.save(
+      profiles.create({
+        userId,
+        displayName,
+        isVisible: true,
+        isComplete: true,
+      }),
+    );
 
   const seedCheckIn = (userId: string, point: { lat: number; lng: number }) =>
     checkIns.create(userId, {

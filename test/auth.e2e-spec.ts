@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
 import { AppleVerifier } from './../src/modules/auth/social/apple-verifier';
@@ -40,6 +41,13 @@ describe('Auth (e2e)', () => {
     );
     await app.init();
     server = app.getHttpServer();
+
+    // The one-time-code resend cooldown lives in the database (60s per phone), so a previous run
+    // inside that window would rate-limit this one with a 429. Clearing any outstanding challenge
+    // keeps the suite re-runnable back to back.
+    await app
+      .get(DataSource)
+      .query(`DELETE FROM phone_verifications WHERE phone = $1`, [PHONE]);
   });
 
   afterAll(async () => {
@@ -56,7 +64,9 @@ describe('Auth (e2e)', () => {
       .post('/auth/phone/start')
       .send({ phone: PHONE })
       .expect(200);
-    expect(res.body.devCode).toMatch(/^\d{4}$/);
+    // Six digits is the product rule (Epic 2). Asserted end-to-end because the value comes from the
+    // validated environment, not from configuration.ts alone.
+    expect(res.body.devCode).toMatch(/^\d{6}$/);
     devCode = res.body.devCode;
   });
 

@@ -117,6 +117,16 @@ describe('Dates (e2e)', () => {
     await app.close();
   });
 
+  /**
+   * A date may only be reviewed once it has finished (30 minutes after its start), so any test that
+   * confirms a date first moves its start into the past.
+   */
+  const markDateFinished = (dateId: string) =>
+    dataSource.query(
+      `UPDATE dates SET scheduled_at = now() - interval '1 hour' WHERE id = $1`,
+      [dateId],
+    );
+
   it('creates a confirmed date for a matched pair, with a suggested venue', async () => {
     const date = await dates.createConfirmedDateForMatch(id.a, id.b);
     expect(date).not.toBeNull();
@@ -135,8 +145,16 @@ describe('Dates (e2e)', () => {
     expect(cancelled.cancelReason).toBe('Something came up');
   });
 
+  it('refuses a review before the date has finished', async () => {
+    const date = await dates.createConfirmedDateForMatch(id.a, id.b);
+    await expect(dates.confirmHappened(date!.id, id.a, 5)).rejects.toThrow(
+      /finished/i,
+    );
+  });
+
   it('completes only when BOTH people confirm it happened', async () => {
     const date = await dates.createConfirmedDateForMatch(id.a, id.b);
+    await markDateFinished(date!.id);
 
     const afterOne = await dates.confirmHappened(date!.id, id.a, 5);
     expect(afterOne.status).toBe(DateStatus.Confirmed); // still not complete

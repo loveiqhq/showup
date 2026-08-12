@@ -1,0 +1,96 @@
+name: CI
+
+# Runs on every pull request and every push to main, so a change that breaks the build, the linter or
+# any test cannot reach main unnoticed (Epic 18). Before this existed, the tests only ran when someone
+# remembered to type the command locally.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same branch cancels the previous run, so CI is not queued behind stale commits.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, build, unit & e2e tests
+    runs-on: ubuntu-latest
+
+    # The e2e suite runs the real app against a real database and Redis, so both are started alongside
+    # the job. Images match docker-compose.yml — PostGIS is required, not plain Postgres, because the
+    # proximity search uses it.
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: showup
+          POSTGRES_PASSWORD: showup
+          POSTGRES_DB: showup
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U showup -d showup"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=12
+
+    env:
+      NODE_ENV: test
+      # Only the database settings and the token secret are required by the env validation; everything
+      # else falls back to a safe default. No real external service is contacted: push, email,
+      # analytics and error monitoring all stay switched off, so CI needs no credentials of any kind.
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: showup
+      DB_PASSWORD: showup
+      DB_NAME: showup
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: ci-only-insecure-secret-not-used-anywhere-real
+      # The e2e suite reads the one-time code from the API response, which only happens when this is on.
+      AUTH_EXPOSE_OTP: 'true'
+      ANALYTICS_SALT: ci-only-insecure-analytics-salt
+      SWAGGER_ENABLED: 'false'
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` installs exactly what package-lock.json pins, and fails if the two have drifted apart.
+      - name: Install dependencies
+        run: npm ci
+
+      # The non-fixing linter: CI must report problems, never silently rewrite files.
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      # The CI database starts empty, so the schema has to be created before the e2e suite can run.
+      - name: Apply database migrations
+        run: npm run migration:run
+
+      - name: End-to-end tests
+        run: npm run test:e2e
