@@ -14,7 +14,8 @@ describe('HealthController', () => {
   let db: { pingCheck: jest.Mock };
   let redis: { isHealthy: jest.Mock };
 
-  const make = () => new HealthController(health as any, db as any, redis as any);
+  const make = () =>
+    new HealthController(health as any, db as any, redis as any);
 
   beforeEach(() => {
     health = {
@@ -23,8 +24,12 @@ describe('HealthController', () => {
         return { status: 'ok', details: Object.assign({}, ...results) };
       }),
     };
-    db = { pingCheck: jest.fn().mockResolvedValue({ database: { status: 'up' } }) };
-    redis = { isHealthy: jest.fn().mockResolvedValue({ redis: { status: 'up' } }) };
+    db = {
+      pingCheck: jest.fn().mockResolvedValue({ database: { status: 'up' } }),
+    };
+    redis = {
+      isHealthy: jest.fn().mockResolvedValue({ redis: { status: 'up' } }),
+    };
   });
 
   describe('liveness (GET /health)', () => {

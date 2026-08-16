@@ -85,8 +85,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Unit tests
-        run: npm test
+      # Runs with coverage rather than a bare `npm test`, because the coverage thresholds in
+      # package.json are only checked when coverage is collected. Without this the minimums would
+      # be enforced on a developer's machine but not here, which is the wrong way round.
+      - name: Unit tests (with coverage thresholds)
+        run: npm run test:cov
 
       # The CI database starts empty, so the schema has to be created before the e2e suite can run.
       - name: Apply database migrations

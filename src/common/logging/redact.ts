@@ -18,7 +18,9 @@ export function redactForLog(value: unknown): unknown {
 
   if (value !== null && typeof value === 'object') {
     const out: Record<string, unknown> = {};
-    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+    for (const [key, inner] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
       out[key] = isProhibitedKey(key) ? REDACTED : redactForLog(inner);
     }
     return out;

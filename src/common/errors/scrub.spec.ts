@@ -19,13 +19,17 @@ describe('scrubSentryEvent', () => {
   });
 
   it('drops cookies entirely', () => {
-    const event: any = scrubSentryEvent({ request: { cookies: { session: 'abc' } } });
+    const event: any = scrubSentryEvent({
+      request: { cookies: { session: 'abc' } },
+    });
     expect(event.request.cookies).toBeUndefined();
   });
 
   it('redacts prohibited fields in the request body', () => {
     const event: any = scrubSentryEvent({
-      request: { data: { phone: '+491701234567', code: '123456', deviceId: 'd1' } },
+      request: {
+        data: { phone: '+491701234567', code: '123456', deviceId: 'd1' },
+      },
     });
 
     expect(event.request.data.phone).toBe(REDACTED);

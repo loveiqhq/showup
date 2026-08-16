@@ -4,6 +4,7 @@
   "testEnvironment": "node",
   "maxWorkers": 1,
   "testRegex": ".e2e-spec.ts$",
+  "setupFilesAfterEnv": ["<rootDir>/reset-db.ts"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }

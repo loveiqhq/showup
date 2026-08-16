@@ -24,7 +24,9 @@ describe('request context', () => {
         await new Promise((resolve) => setTimeout(resolve, 5));
         return getRequestId();
       }),
-      runWithRequestId('req-b', async () => getRequestId()),
+      // Resolves immediately, unlike 'req-a' above which sleeps — that contrast is the point of the
+      // test. Written as an explicit Promise rather than an `async` arrow with nothing to await.
+      runWithRequestId('req-b', () => Promise.resolve(getRequestId())),
     ]);
 
     expect(a).toBe('req-a');

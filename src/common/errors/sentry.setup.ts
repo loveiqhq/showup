@@ -30,8 +30,7 @@ export function initSentry(
     environment: settings.environment,
     // Never let the SDK attach personal information of its own accord.
     sendDefaultPii: false,
-    beforeSend: (event) =>
-      scrubSentryEvent(event as unknown as Record<string, unknown>) as typeof event,
+    beforeSend: (event) => scrubSentryEvent(event) as typeof event,
   });
 
   return true;
