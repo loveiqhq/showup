@@ -76,7 +76,9 @@ export const validationSchema = Joi.object({
   JWT_ACCESS_SECRET: Joi.string().min(16).required(),
   JWT_ACCESS_TTL: Joi.string().default('15m'),
   JWT_REFRESH_TTL: Joi.string().default('30d'),
-  OTP_LENGTH: Joi.number().integer().min(4).max(8).default(4),
+  // 6 digits is the product rule. This default MUST match configuration.ts: the validated schema's
+  // defaults are applied back onto the environment, so a mismatch here silently wins over that file.
+  OTP_LENGTH: Joi.number().integer().min(4).max(8).default(6),
   OTP_TTL: Joi.number().integer().positive().default(300),
   OTP_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
   OTP_RESEND_COOLDOWN: Joi.number().integer().positive().default(60),

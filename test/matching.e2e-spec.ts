@@ -36,8 +36,16 @@ describe('Matching (e2e)', () => {
   const seedUser = async (phone: string, status = UserStatus.Active) =>
     (await users.save(users.create({ phone, status }))).id;
 
+  // Discovery only surfaces COMPLETE profiles (Epic 3/6), so the seed must set it.
   const seedProfile = (userId: string, displayName: string) =>
-    profiles.save(profiles.create({ userId, displayName, isVisible: true }));
+    profiles.save(
+      profiles.create({
+        userId,
+        displayName,
+        isVisible: true,
+        isComplete: true,
+      }),
+    );
 
   const seedCheckIn = (
     userId: string,
@@ -114,6 +122,13 @@ describe('Matching (e2e)', () => {
     expect(match).toBeUndefined();
   });
 
+  // Checked before the mutual like below, because once a match creates a confirmed date the sender is
+  // locked out of matching until they review it.
+  it('a repeated like is idempotent (no error, same like)', async () => {
+    const { like } = await matching.sendLike(id.a, { targetUserId: id.b });
+    expect(like.id).toBe(likeAtoB);
+  });
+
   it('discovery excludes people already liked', async () => {
     const ids = (await matching.getDiscovery(id.a)).map(
       (f) => f.profile.userId,
@@ -136,9 +151,12 @@ describe('Matching (e2e)', () => {
     expect(bMatches).toContain(id.a);
   });
 
-  it('a repeated like is idempotent (no error, same like)', async () => {
-    const { like } = await matching.sendLike(id.a, { targetUserId: id.b });
-    expect(like.id).toBe(likeAtoB);
+  it('locks the matched people out of matching until they review the date', async () => {
+    // The mutual like above auto-created a confirmed date for A and B, so neither may look further.
+    await expect(
+      matching.sendLike(id.a, { targetUserId: id.c }),
+    ).rejects.toThrow(/review/i);
+    expect(await matching.getDiscovery(id.a)).toEqual([]);
   });
 
   it('rejects liking yourself', async () => {
@@ -148,8 +166,10 @@ describe('Matching (e2e)', () => {
   });
 
   it('rejects liking a suspended user', async () => {
+    // Sent by C, not A: A is locked by the date above, which would refuse the like first and make
+    // this pass for the wrong reason.
     await expect(
-      matching.sendLike(id.a, { targetUserId: id.s }),
+      matching.sendLike(id.c, { targetUserId: id.s }),
     ).rejects.toThrow();
   });
 

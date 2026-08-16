@@ -3,10 +3,12 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 /**
  * SHOWUP-41 — adds the check-in's location for proximity matching.
  *
- * `location` is a PostGIS geography point (WGS84 / SRID 4326). It is a per-check-in snapshot of the
- * area the user wants to meet in (defaults to the phone's position, but the user may set a different
- * city). It is deliberately NOT mapped on the TypeORM entity: it is written and read only via
- * parameterised spatial SQL, never returned to other users, and never sent to analytics.
+ * `location` is a PostGIS geography point (WGS84 / SRID 4326). It is a per-check-in snapshot of where
+ * the person is at the moment they check in, taken from the device, not a meeting place they choose:
+ * it is used to find nearby people and to pick a nearby venue. The venue for a date is chosen by the
+ * backend and recommended to both people; nobody selects where to meet. It is deliberately NOT mapped
+ * on the TypeORM entity: it is written and read only via parameterised spatial SQL, never returned to
+ * other users, and never sent to analytics.
  *
  * The GiST index makes ST_DWithin ("who is within N metres") fast.
  */

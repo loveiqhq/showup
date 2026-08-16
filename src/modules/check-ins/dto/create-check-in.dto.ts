@@ -37,8 +37,10 @@ export class CreateCheckInDto {
   @ApiProperty({
     example: 52.5186,
     description:
-      'Latitude of the area the user wants to meet in (−90..90). Required — a location is ' +
-      'mandatory to check in. Used only for proximity matching; never shown to others.',
+      "Latitude of the person's location at check-in, read from the device (−90..90). Required — a " +
+      'location is mandatory to check in. Used only to find nearby people and to pick a nearby venue; ' +
+      'never shown to others, who receive a rounded distance instead. This is not a meeting place the ' +
+      'person chooses: the venue for a date is selected by the backend and recommended to both people.',
   })
   @IsNumber()
   @Min(-90)
@@ -48,7 +50,8 @@ export class CreateCheckInDto {
   @ApiProperty({
     example: 13.3761,
     description:
-      'Longitude of the area the user wants to meet in (−180..180). Required, together with latitude.',
+      "Longitude of the person's location at check-in, read from the device (−180..180). Required, " +
+      'together with latitude.',
   })
   @IsNumber()
   @Min(-180)
