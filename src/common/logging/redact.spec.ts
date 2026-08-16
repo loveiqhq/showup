@@ -19,7 +19,10 @@ describe('redactForLog', () => {
   });
 
   it('redacts private message content', () => {
-    const out = redactForLog({ message: 'see you at 8' }) as Record<string, unknown>;
+    const out = redactForLog({ message: 'see you at 8' }) as Record<
+      string,
+      unknown
+    >;
     expect(out.message).toBe(REDACTED);
   });
 

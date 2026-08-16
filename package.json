@@ -1,7 +1,7 @@
 {
   "name": "showup-backend",
   "version": "0.1.0",
-  "description": "ShowUp backend — NestJS + PostgreSQL/PostGIS API for real-world dating.",
+  "description": "ShowUp backend \u00e2\u20ac\u201d NestJS + PostgreSQL/PostGIS API for real-world dating.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -111,10 +111,10 @@
     "coverageDirectory": "../coverage",
     "coverageThreshold": {
       "global": {
-        "statements": 29,
-        "branches": 22,
-        "functions": 24,
-        "lines": 30
+        "statements": 34,
+        "branches": 25,
+        "functions": 29,
+        "lines": 35
       },
       "**/util/*.ts": {
         "statements": 90,

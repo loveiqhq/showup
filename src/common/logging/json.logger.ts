@@ -123,13 +123,17 @@ export class JsonLogger implements LoggerService {
 function safeStringify(value: unknown): string {
   const seen = new WeakSet<object>();
   try {
-    return JSON.stringify(value, (_key, inner) => {
-      if (inner !== null && typeof inner === 'object') {
-        if (seen.has(inner as object)) return '[circular]';
-        seen.add(inner as object);
-      }
-      return inner;
-    }) ?? String(value);
+    return (
+      // `inner` is typed as unknown rather than left implicitly `any`, so returning it is safe and
+      // the two object casts below are no longer needed — the typeof check narrows it.
+      JSON.stringify(value, (_key: string, inner: unknown) => {
+        if (inner !== null && typeof inner === 'object') {
+          if (seen.has(inner)) return '[circular]';
+          seen.add(inner);
+        }
+        return inner;
+      }) ?? String(value)
+    );
   } catch {
     return String(value);
   }

@@ -14,7 +14,9 @@ describe('RequestIdMiddleware', () => {
 
   it('generates an id and makes it available to everything downstream', () => {
     const { seen } = run({});
-    expect(seen).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(seen).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
   });
 
   it('returns the id on the response, so a caller can quote it in a bug report', () => {

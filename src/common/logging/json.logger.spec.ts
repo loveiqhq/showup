@@ -63,7 +63,11 @@ describe('JsonLogger', () => {
 
   it('merges structured metadata into the record', () => {
     const logger = make();
-    logger.log('notification dispatched', { channel: 'push', delivered: 2 }, 'Dispatch');
+    logger.log(
+      'notification dispatched',
+      { channel: 'push', delivered: 2 },
+      'Dispatch',
+    );
 
     expect(parsed()[0]).toMatchObject({
       msg: 'notification dispatched',
@@ -75,7 +79,11 @@ describe('JsonLogger', () => {
 
   it('redacts prohibited fields in metadata', () => {
     const logger = make();
-    logger.log('otp sent', { phone: '+491701234567', attempts: 1 }, 'OtpService');
+    logger.log(
+      'otp sent',
+      { phone: '+491701234567', attempts: 1 },
+      'OtpService',
+    );
 
     const record = parsed()[0];
     expect(record.phone).toBe(REDACTED);

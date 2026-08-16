@@ -10,7 +10,11 @@ describe('initSentry', () => {
 
   it('does nothing at all when the switch is off', () => {
     const started = initSentry(
-      { enabled: false, dsn: 'https://key@example.ingest.sentry.io/1', environment: 'local' },
+      {
+        enabled: false,
+        dsn: 'https://key@example.ingest.sentry.io/1',
+        environment: 'local',
+      },
       init,
     );
 
@@ -19,7 +23,10 @@ describe('initSentry', () => {
   });
 
   it('does nothing when switched on but no destination is configured', () => {
-    const started = initSentry({ enabled: true, dsn: undefined, environment: 'local' }, init);
+    const started = initSentry(
+      { enabled: true, dsn: undefined, environment: 'local' },
+      init,
+    );
 
     expect(started).toBe(false);
     expect(init).not.toHaveBeenCalled();
@@ -27,7 +34,11 @@ describe('initSentry', () => {
 
   it('starts when switched on with a destination, tagged with the environment', () => {
     const started = initSentry(
-      { enabled: true, dsn: 'https://key@example.ingest.sentry.io/1', environment: 'staging' },
+      {
+        enabled: true,
+        dsn: 'https://key@example.ingest.sentry.io/1',
+        environment: 'staging',
+      },
       init,
     );
 
@@ -42,13 +53,20 @@ describe('initSentry', () => {
 
   it('scrubs every outgoing report through beforeSend', () => {
     initSentry(
-      { enabled: true, dsn: 'https://key@example.ingest.sentry.io/1', environment: 'production' },
+      {
+        enabled: true,
+        dsn: 'https://key@example.ingest.sentry.io/1',
+        environment: 'production',
+      },
       init,
     );
 
     const { beforeSend } = init.mock.calls[0][0];
     const scrubbed: any = beforeSend({
-      request: { headers: { authorization: 'Bearer x' }, data: { phone: '+49' } },
+      request: {
+        headers: { authorization: 'Bearer x' },
+        data: { phone: '+49' },
+      },
       user: { id: 'u1', email: 'a@b.c' },
     });
 
