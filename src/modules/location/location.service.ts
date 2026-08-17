@@ -1,8 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { haversineMeters, LatLng } from './location.geo';
+import { TRAVEL_TIME_ESTIMATOR } from './travel-estimator.provider';
+// `import type`: it is only a type here, and a type in a decorated constructor signature must be
+// imported this way when isolatedModules and emitDecoratorMetadata are both on.
+import type { TravelTimeEstimator } from './util/travel';
+import { pickBalancedVenue } from './util/venue-choice';
+
+/**
+ * How many nearby venues are priced for travel time. A real routing lookup is billed per
+ * origin→destination pair, so this is two lookups per candidate per date. Small enough to stay cheap,
+ * wide enough that the fair option is not filtered out before it is considered.
+ */
+const VENUE_SHORTLIST_SIZE = 8;
 
 /**
  * Location & proximity logic (Epic 5 foundation).
@@ -13,7 +25,11 @@ import { haversineMeters, LatLng } from './location.geo';
  */
 @Injectable()
 export class LocationService {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(TRAVEL_TIME_ESTIMATOR)
+    private readonly travel: TravelTimeEstimator,
+  ) {}
 
   /** Quick, DB-free great-circle estimate (meters). */
   estimateDistanceMeters(a: LatLng, b: LatLng): number {
@@ -87,47 +103,77 @@ export class LocationService {
   /**
    * The venue that is fairest to BOTH people, or null if there are no venues.
    *
-   * "Fairest" is the venue whose *longer* journey is shortest — so neither person is sent much
-   * further than the other. A tie is broken by the shorter combined journey. This deliberately does
-   * not use the nearest venue to either person, and does not use the nearest venue to the midpoint
-   * either: a midpoint can easily still sit much closer to one of them, and it optimises the wrong
-   * thing. The complaint a user actually makes is "why am I the one travelling across town", which
-   * is exactly the longer journey.
+   * "Fairest" means both people travel for as close to the same TIME as possible — the venue sits
+   * between them in travel terms, not in map terms. Time rather than distance because a city is not
+   * flat: two kilometres along a direct train line is a shorter trip than one kilometre across a
+   * river with no bridge, and the person doing the crossing is the one who feels it.
    *
-   * Returns derived distances only, never coordinates, matching `nearestVenue`.
+   * Deliberately not the nearest venue to the midpoint. A midpoint can still sit much closer to one
+   * person, and it optimises map geometry rather than the thing anyone actually experiences.
    *
-   * Trade-off: ordering on the greater of two distances cannot use the spatial index, so this scans
-   * the venue table. That is fine while the venue list is a small curated set; if it grows to
-   * thousands, prefilter by a bounding box around the two points first.
+   * Two steps, for cost reasons. A shortlist of the closest candidates is taken in SQL (free), and
+   * only those are priced for travel time, because a real routing lookup is billed per
+   * origin→destination pair. Straight-line distance is a good enough filter to find candidates and a
+   * poor one to choose between them, which is exactly how it is used here.
+   *
+   * Returns derived distances and times only, never coordinates, matching `nearestVenue`.
    */
   async fairestVenue(
     a: LatLng,
     b: LatLng,
   ): Promise<{
     id: string;
+    minutesA: number;
+    minutesB: number;
     distanceMetersA: number;
     distanceMetersB: number;
   } | null> {
     const rows = await this.dataSource.query<
-      Array<{ id: string; a_meters: number; b_meters: number }>
+      Array<{
+        id: string;
+        lat: string | number;
+        lng: string | number;
+        a_meters: number;
+        b_meters: number;
+      }>
     >(
-      // The distances are computed once in the subquery so the ordering can reference them by name.
-      `SELECT id, a_meters, b_meters
+      // Shortlist by combined straight-line distance: cheap, and enough to discard anything far from
+      // both people. The real choice between these is made on travel time below.
+      `SELECT id, lat, lng, a_meters, b_meters
          FROM (
            SELECT v.id AS id,
+                  ST_Y(v.location::geometry) AS lat,
+                  ST_X(v.location::geometry) AS lng,
                   ST_Distance(v.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS a_meters,
                   ST_Distance(v.location, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography) AS b_meters
              FROM venues v
          ) d
-        ORDER BY GREATEST(a_meters, b_meters) ASC, (a_meters + b_meters) ASC
-        LIMIT 1`,
+        ORDER BY (a_meters + b_meters) ASC
+        LIMIT ${VENUE_SHORTLIST_SIZE}`,
       [a.lng, a.lat, b.lng, b.lat],
     );
     if (rows.length === 0) return null;
+
+    const priced = await Promise.all(
+      rows.map(async (r) => {
+        const at = { lat: Number(r.lat), lng: Number(r.lng) };
+        const [minutesA, minutesB] = await Promise.all([
+          this.travel.estimateMinutes(a, at),
+          this.travel.estimateMinutes(b, at),
+        ]);
+        return { id: r.id, minutesA, minutesB, row: r };
+      }),
+    );
+
+    const chosen = pickBalancedVenue(priced);
+    if (!chosen) return null;
+    const winner = priced.find((p) => p.id === chosen.id) ?? priced[0];
     return {
-      id: rows[0].id,
-      distanceMetersA: Number(rows[0].a_meters),
-      distanceMetersB: Number(rows[0].b_meters),
+      id: winner.id,
+      minutesA: winner.minutesA,
+      minutesB: winner.minutesB,
+      distanceMetersA: Number(winner.row.a_meters),
+      distanceMetersB: Number(winner.row.b_meters),
     };
   }
 

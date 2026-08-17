@@ -216,7 +216,14 @@ describe('Location & proximity (e2e)', () => {
     expect(fair!.id).not.toBe(nearWest);
     expect(fair!.id).not.toBe(nearEast);
 
-    // Neither person is sent much further than the other: the whole point of the change.
+    // Both people travel for close to the same time — the actual requirement. Times come from the
+    // travel-time seam, which uses the free rough estimate here because no maps key is configured,
+    // so no paid lookup happens in tests.
+    expect(Math.abs(fair!.minutesA - fair!.minutesB)).toBeLessThanOrEqual(5);
+    expect(fair!.minutesA).toBeGreaterThan(0);
+    expect(fair!.minutesB).toBeGreaterThan(0);
+
+    // Neither person is sent much further than the other.
     const gap = Math.abs(fair!.distanceMetersA - fair!.distanceMetersB);
     expect(gap).toBeLessThan(500);
 
