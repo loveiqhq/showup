@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { haversineMeters, LatLng } from './location.geo';
+import { venueSearchArea } from './util/venue-search-area';
 
 /**
  * Location & proximity logic (Epic 5 foundation).
@@ -85,30 +86,32 @@ export class LocationService {
   }
 
   /**
-   * The venue that is fairest to BOTH people, or null if there are no venues.
+   * The venue to propose for a date between two people, or null if there are no venues.
    *
-   * "Fairest" means both people have the same distance to travel: if they are 4 km apart, the aim is
-   * roughly 2 km each rather than 0 km and 4 km. Only approximate, because venues are a fixed
-   * curated list — the app picks the closest thing to even from what actually exists, which is why
-   * this returns both distances so a caller can see how even it turned out.
+   * The rule: **of the venues near the two of them, choose the one where whoever has furthest to go
+   * has the shortest journey.** Ties go to the more even split.
+   *
+   * That single rule delivers both things we want. It naturally lands in the middle when something is
+   * there — sending one person 4 km while the other walks 0 km is exactly the case it rejects, since
+   * the worst journey is 4 km. But it will not send two people 10 km each just to be perfectly
+   * symmetrical when there is a spot 1 km from both, because 10 km is a worse "worst journey" than
+   * 1 km. Being even is the point; being even *and far* is just worse for everybody.
+   *
+   * (An earlier version ranked purely on evenness and had exactly that bug: a perfectly equidistant
+   * venue 10 km away beat one 1.0 km / 1.2 km away, because 0 m of imbalance sorted ahead of 200 m.)
    *
    * Distance, deliberately, and not travel time. Travel time can only be estimated by assuming how
    * someone gets there — and we do not know that. Guessing public transport for a person who walks,
    * cycles or drives would quietly make the split unfair again, while distance is the same fact for
    * everyone regardless of how they choose to travel.
    *
-   * Also deliberately not "the venue nearest the midpoint". That is a different question: a venue can
-   * be near the midpoint on the map yet still be much closer to one of the two people. Comparing the
-   * two distances directly targets the imbalance itself.
-   *
-   * The tie-break matters: among equally even options the closer pair wins, so "both travel 5 km" can
-   * never beat "both travel 1 km". Equal-but-far is not fairer, only worse for both people.
+   * Candidates are limited to a circle between the two people (see `venueSearchArea`), which is what
+   * lets this use the GiST index on `venues.location` instead of measuring every venue in the table.
+   * If nothing at all falls inside — two people unusually far apart, or a thin venue list — it
+   * retries without the limit rather than proposing no venue, because correctness matters more than
+   * speed in a case this rare.
    *
    * Returns derived distances only, never coordinates, matching `nearestVenue`.
-   *
-   * Trade-off: ordering on the difference between two distances cannot use the spatial index, so this
-   * scans the venue table. Fine for a small curated list; prefilter by a bounding box around the two
-   * people if it ever grows to thousands.
    */
   async fairestVenue(
     a: LatLng,
@@ -118,21 +121,51 @@ export class LocationService {
     distanceMetersA: number;
     distanceMetersB: number;
   } | null> {
+    const { mid, radiusMeters } = venueSearchArea(a, b);
+
+    // The midpoint and radius are computed in TypeScript and passed as plain values, so ST_DWithin
+    // gets a constant to work with — that is the form the spatial index can be used for.
+    const withinArea = await this.rankedVenues(a, b, mid, radiusMeters);
+    if (withinArea) return withinArea;
+    return this.rankedVenues(a, b, mid, null);
+  }
+
+  /**
+   * Shared body of `fairestVenue`: the ranking, optionally narrowed to a circle. `radiusMeters` of
+   * null means "consider every venue", used only as the fallback when the circle came up empty.
+   */
+  private async rankedVenues(
+    a: LatLng,
+    b: LatLng,
+    mid: LatLng,
+    radiusMeters: number | null,
+  ): Promise<{
+    id: string;
+    distanceMetersA: number;
+    distanceMetersB: number;
+  } | null> {
     const rows = await this.dataSource.query<
       Array<{ id: string; a_meters: number; b_meters: number }>
     >(
       // Distances are computed once in the subquery so the ordering can refer to them by name.
-      // ABS(difference) first = the most even split; total second = the tie-break described above.
+      // GREATEST = the worst of the two journeys, which is what gets minimised; ABS(difference)
+      // breaks ties towards the more even option.
       `SELECT id, a_meters, b_meters
          FROM (
            SELECT v.id AS id,
                   ST_Distance(v.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS a_meters,
                   ST_Distance(v.location, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography) AS b_meters
              FROM venues v
+            WHERE $7::float8 IS NULL
+               OR ST_DWithin(
+                    v.location,
+                    ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography,
+                    $7::float8
+                  )
          ) d
-        ORDER BY ABS(a_meters - b_meters) ASC, (a_meters + b_meters) ASC
+        ORDER BY GREATEST(a_meters, b_meters) ASC, ABS(a_meters - b_meters) ASC
         LIMIT 1`,
-      [a.lng, a.lat, b.lng, b.lat],
+      [a.lng, a.lat, b.lng, b.lat, mid.lng, mid.lat, radiusMeters],
     );
     if (rows.length === 0) return null;
     return {

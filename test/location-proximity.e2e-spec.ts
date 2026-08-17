@@ -279,6 +279,50 @@ describe('Location & proximity (e2e)', () => {
     );
   });
 
+  it('does not send both people far away just to make the split exactly even', async () => {
+    await dataSource.query(`DELETE FROM venues`);
+    const west = { lat: 52.52, lng: 13.38 };
+    const east = { lat: 52.52, lng: 13.42 }; // ~2.7 km apart
+
+    // Perfectly equidistant from both — and 7.9 km away from each of them.
+    await dataSource.query(
+      `INSERT INTO venues (name, location)
+       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography)`,
+      ['E2E Far But Even', 13.4, 52.45],
+    );
+    // Close to both (1.29 km / 1.42 km) but 135 m off perfectly even.
+    const [{ id: closeEnough }] = await dataSource.query<Array<{ id: string }>>(
+      `INSERT INTO venues (name, location)
+       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) RETURNING id`,
+      ['E2E Near Nearly Even', 13.399, 52.52],
+    );
+
+    // Ranking purely on evenness would choose the far one, because 0 m of imbalance sorts ahead of
+    // 135 m. Nobody wants a fair journey; they want a short one that is also fair.
+    const fair = await locationService.fairestVenue(west, east);
+    expect(fair?.id).toBe(closeEnough);
+    expect(Math.max(fair!.distanceMetersA, fair!.distanceMetersB)).toBeLessThan(
+      2000,
+    );
+  });
+
+  it('still proposes a venue when nothing falls inside the search area', async () => {
+    await dataSource.query(`DELETE FROM venues`);
+    // Two people close together in Berlin, with the only venue in Cologne — far outside any sensible
+    // search radius. A suggestion is better than none, so the area limit must not swallow it.
+    const [{ id: onlyOne }] = await dataSource.query<Array<{ id: string }>>(
+      `INSERT INTO venues (name, location)
+       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) RETURNING id`,
+      ['E2E Only Cologne', COLOGNE.lng, COLOGNE.lat],
+    );
+
+    const fair = await locationService.fairestVenue(
+      BRANDENBURG_GATE,
+      ALEXANDERPLATZ,
+    );
+    expect(fair?.id).toBe(onlyOne);
+  });
+
   it('returns null when there are no venues at all', async () => {
     await dataSource.query(`DELETE FROM venues`);
     expect(
