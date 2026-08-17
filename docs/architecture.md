@@ -31,7 +31,7 @@ the backend decides what is allowed and what happens; the database remembers it.
 | **API documentation** | **Swagger / OpenAPI** | A browsable, always-current list of every endpoint | Generated from the code itself, so it cannot drift out of date. This is what the app developers will build against |
 | **Error monitoring** | **Sentry** | Reports crashes and unexpected failures with enough context to fix them | Behind a switch, off by default. Personal data is stripped before anything is sent |
 | **Analytics** | **PostHog** (EU-hosted) | Product measurement — what people actually do | EU hosting for data-protection reasons. User ids are hashed before they leave the backend |
-| **Hosting** | **AWS** (region to confirm) | Where the backend and database will run | Decided in principle; nothing is deployed yet. See section 5 |
+| **Hosting** | **AWS**, EU region **Ireland (eu-west-1)** | Where the backend and database will run | Nothing is deployed yet, but the provider and region are settled. AWS because three integrations are already written for it (email, photo checks, file storage). Ireland specifically because the live face check used for selfie verification is **only offered in that European region** — and a face is special-category personal data, so it cannot leave the EU. Frankfurt would otherwise be the natural choice for a German product; the verification feature decides it |
 
 ### The outside services
 
@@ -192,10 +192,28 @@ that completes it.
 | Gap | Consequence today | Handled in |
 |---|---|---|
 | **The mobile apps** | Nothing a user can install. The backend is exercised only by automated tests | App development |
-| **Hosting and deployment** | The backend runs on a developer machine and nowhere else. AWS is agreed in principle; region, services and cost are not | **Epic 20** |
+| **Hosting and deployment** | The backend runs on a developer machine and nowhere else. Provider and region are settled (AWS, Ireland); which services, what size and what it costs are not | **Epic 20** |
 | **Payments** | No premium features, no subscriptions. The module exists as an empty placeholder | **Epic 9** |
 | **Admin tools** | Moderators can act through API endpoints, but there is no screen to do it in | **Epic 19** |
 | **No-show consequences** | A date can be arranged and marked as a no-show, but nothing happens as a result. The rule (24 hours without matching) is designed and specified, not built | **Epic 8** |
+
+#### How to start on AWS without wasting money
+
+Recorded here so it is not lost, and to be pinned down properly in **Epic 20**. AWS charges whether
+or not anybody uses the app, and it gives you every option while configuring none of them — which is
+how small teams end up paying for an idle platform.
+
+**Start with the managed pieces on the smallest sizes:** a managed Postgres (with the PostGIS
+extension enabled), a managed Redis, and a simple container runner for the backend itself. Managed
+means Amazon handles backups, patching and failover rather than us — which matters a great deal when
+the same person is also building two mobile apps.
+
+**Turn on a billing alert on day one**, before anything else is created. It is the difference between
+noticing an unexpected cost in a day and noticing it on the monthly invoice.
+
+**Leave the expensive-by-default parts until there are real users.** Network address translation
+gateways, multi-zone redundancy and Kubernetes all cost real money every month and solve problems a
+pre-launch product does not have yet. They can be added later without rebuilding anything.
 
 ### Built but not connected
 
