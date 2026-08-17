@@ -86,10 +86,6 @@ export const validationSchema = Joi.object({
   THROTTLE_TTL_MS: Joi.number().integer().positive().default(60000),
   THROTTLE_LIMIT: Joi.number().integer().positive().default(60),
 
-  // Travel time for fair venue selection (Epic 5/7). Optional: without it the free rough estimate
-  // is used, so nothing breaks and no paid lookup is ever made.
-  GOOGLE_MAPS_API_KEY: Joi.string().allow('').optional(),
-
   // Social login (Epic 2) — comma-separated client IDs; optional until configured
   GOOGLE_CLIENT_IDS: Joi.string().allow('').optional(),
   APPLE_CLIENT_IDS: Joi.string().allow('').optional(),

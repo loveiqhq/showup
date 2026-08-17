@@ -216,24 +216,66 @@ describe('Location & proximity (e2e)', () => {
     expect(fair!.id).not.toBe(nearWest);
     expect(fair!.id).not.toBe(nearEast);
 
-    // Both people travel for close to the same time — the actual requirement. Times come from the
-    // travel-time seam, which uses the free rough estimate here because no maps key is configured,
-    // so no paid lookup happens in tests.
-    expect(Math.abs(fair!.minutesA - fair!.minutesB)).toBeLessThanOrEqual(5);
-    expect(fair!.minutesA).toBeGreaterThan(0);
-    expect(fair!.minutesB).toBeGreaterThan(0);
+    // The requirement: each person travels roughly half the distance between them, rather than one
+    // travelling the whole way. Checked against the actual separation, not a hard-coded number.
+    const apart = await locationService.distanceMeters(
+      BRANDENBURG_GATE,
+      ALEXANDERPLATZ,
+    );
+    const half = apart / 2;
+    for (const own of [fair!.distanceMetersA, fair!.distanceMetersB]) {
+      expect(own).toBeGreaterThan(half * 0.7);
+      expect(own).toBeLessThan(half * 1.4);
+    }
 
-    // Neither person is sent much further than the other.
+    // And the two distances are close to each other — the even split itself.
     const gap = Math.abs(fair!.distanceMetersA - fair!.distanceMetersB);
-    expect(gap).toBeLessThan(500);
+    expect(gap).toBeLessThan(apart * 0.2);
 
-    // And the longer of the two journeys really is shorter than either one-sided option.
+    // The longer journey also beats either one-sided option, which is what we replaced.
     const worst = Math.max(fair!.distanceMetersA, fair!.distanceMetersB);
     expect(worst).toBeLessThan(
       await locationService.distanceToVenueMeters(ALEXANDERPLATZ, nearWest),
     );
     expect(worst).toBeLessThan(
       await locationService.distanceToVenueMeters(BRANDENBURG_GATE, nearEast),
+    );
+  });
+
+  it('prefers the closer option when two venues are equally even', async () => {
+    await dataSource.query(`DELETE FROM venues`);
+
+    // Deliberately symmetric so both venues are EXACTLY equidistant (gap 0.0 m): the two people sit
+    // at the same latitude either side of longitude 13.40, and both venues sit on that line. Only
+    // the tie-break can decide between them, which is the whole point — an earlier version of this
+    // test used off-centre points, so the nearer venue won on evenness and the test would have
+    // passed even with the tie-break removed.
+    const west = { lat: 52.52, lng: 13.38 };
+    const east = { lat: 52.52, lng: 13.42 }; // ~2.7 km apart
+    const onTheLine = 13.4;
+
+    const addOnLine = async (name: string, lat: number) => {
+      const [{ id }] = await dataSource.query<Array<{ id: string }>>(
+        `INSERT INTO venues (name, location)
+         VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) RETURNING id`,
+        [name, onTheLine, lat],
+      );
+      return id;
+    };
+
+    // The FAR one is inserted first on purpose. Both tie on evenness, so without the tie-break the
+    // database is free to return either — and it would naturally return this one. Inserting it first
+    // means the test genuinely fails if the tie-break is ever dropped.
+    await addOnLine('E2E Even Far', 52.45); // ~7.9 km each — just as even, much worse
+    const near = await addOnLine('E2E Even Near', 52.52); // ~1.35 km each
+
+    const fair = await locationService.fairestVenue(west, east);
+    expect(fair?.id).toBe(near);
+    expect(
+      Math.abs(fair!.distanceMetersA - fair!.distanceMetersB),
+    ).toBeLessThan(5);
+    expect(Math.max(fair!.distanceMetersA, fair!.distanceMetersB)).toBeLessThan(
+      2000,
     );
   });
 

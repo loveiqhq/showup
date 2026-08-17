@@ -107,12 +107,6 @@ export default () => ({
     throttleTtlMs: parseInt(process.env.THROTTLE_TTL_MS ?? '60000', 10),
     throttleLimit: parseInt(process.env.THROTTLE_LIMIT ?? '60', 10),
   },
-  // Travel-time source for proposing a fair meeting venue (Epic 5/7). With no key the app uses the
-  // free rough estimate (distance × a fixed rate); with a key it uses real routes. Billed per
-  // origin→destination lookup, so callers must only ask about a shortlist of candidates.
-  maps: {
-    googleApiKey: process.env.GOOGLE_MAPS_API_KEY ?? '',
-  },
   social: {
     googleClientIds: (process.env.GOOGLE_CLIENT_IDS ?? '')
       .split(',')
