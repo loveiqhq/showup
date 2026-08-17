@@ -22,6 +22,10 @@ const PHONES = {
 const BRANDENBURG_GATE = { lat: 52.5163, lng: 13.3777 };
 const REICHSTAG = { lat: 52.5186, lng: 13.3761 }; // ~270 m from Brandenburg Gate
 const COLOGNE = { lat: 50.9413, lng: 6.9583 };
+// For the fair-venue test: a second person ~2.5 km east, with a venue beside each and one between.
+const ALEXANDERPLATZ = { lat: 52.5219, lng: 13.4132 };
+const TV_TOWER = { lat: 52.5208, lng: 13.4094 }; // beside Alexanderplatz
+const BEBELPLATZ = { lat: 52.5169, lng: 13.3958 }; // roughly midway between the two people
 
 const hoursFromNow = (h: number) =>
   new Date(Date.now() + h * 3_600_000).toISOString();
@@ -174,5 +178,111 @@ describe('Location & proximity (e2e)', () => {
     expect(
       await locationService.isWithinVenue(BRANDENBURG_GATE, venueId, 100),
     ).toBe(false);
+  });
+
+  it('picks the venue that is fairest to both people, not the one nearest to either', async () => {
+    // Start from a clean venue table: the test above seeds a venue at the Reichstag, which would
+    // otherwise tie with this test's own west-side venue and make "nearest" ambiguous.
+    await dataSource.query(`DELETE FROM venues`);
+
+    // Two people ~2.5 km apart, with a venue beside each of them and one in between.
+    const addVenue = async (name: string, p: { lat: number; lng: number }) => {
+      const [{ id }] = await dataSource.query<Array<{ id: string }>>(
+        `INSERT INTO venues (name, location)
+         VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography)
+         RETURNING id`,
+        [name, p.lng, p.lat],
+      );
+      return id;
+    };
+
+    const nearWest = await addVenue('E2E Fair West', REICHSTAG);
+    const nearEast = await addVenue('E2E Fair East', TV_TOWER);
+    const between = await addVenue('E2E Fair Between', BEBELPLATZ);
+
+    // The old behaviour, kept for the one-sided fallback: nearest to a single point favours
+    // whoever that point belongs to, which is exactly the unfairness being fixed.
+    expect((await locationService.nearestVenue(BRANDENBURG_GATE))?.id).toBe(
+      nearWest,
+    );
+
+    const fair = await locationService.fairestVenue(
+      BRANDENBURG_GATE,
+      ALEXANDERPLATZ,
+    );
+
+    expect(fair).not.toBeNull();
+    expect(fair!.id).toBe(between);
+    expect(fair!.id).not.toBe(nearWest);
+    expect(fair!.id).not.toBe(nearEast);
+
+    // The requirement: each person travels roughly half the distance between them, rather than one
+    // travelling the whole way. Checked against the actual separation, not a hard-coded number.
+    const apart = await locationService.distanceMeters(
+      BRANDENBURG_GATE,
+      ALEXANDERPLATZ,
+    );
+    const half = apart / 2;
+    for (const own of [fair!.distanceMetersA, fair!.distanceMetersB]) {
+      expect(own).toBeGreaterThan(half * 0.7);
+      expect(own).toBeLessThan(half * 1.4);
+    }
+
+    // And the two distances are close to each other — the even split itself.
+    const gap = Math.abs(fair!.distanceMetersA - fair!.distanceMetersB);
+    expect(gap).toBeLessThan(apart * 0.2);
+
+    // The longer journey also beats either one-sided option, which is what we replaced.
+    const worst = Math.max(fair!.distanceMetersA, fair!.distanceMetersB);
+    expect(worst).toBeLessThan(
+      await locationService.distanceToVenueMeters(ALEXANDERPLATZ, nearWest),
+    );
+    expect(worst).toBeLessThan(
+      await locationService.distanceToVenueMeters(BRANDENBURG_GATE, nearEast),
+    );
+  });
+
+  it('prefers the closer option when two venues are equally even', async () => {
+    await dataSource.query(`DELETE FROM venues`);
+
+    // Deliberately symmetric so both venues are EXACTLY equidistant (gap 0.0 m): the two people sit
+    // at the same latitude either side of longitude 13.40, and both venues sit on that line. Only
+    // the tie-break can decide between them, which is the whole point — an earlier version of this
+    // test used off-centre points, so the nearer venue won on evenness and the test would have
+    // passed even with the tie-break removed.
+    const west = { lat: 52.52, lng: 13.38 };
+    const east = { lat: 52.52, lng: 13.42 }; // ~2.7 km apart
+    const onTheLine = 13.4;
+
+    const addOnLine = async (name: string, lat: number) => {
+      const [{ id }] = await dataSource.query<Array<{ id: string }>>(
+        `INSERT INTO venues (name, location)
+         VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) RETURNING id`,
+        [name, onTheLine, lat],
+      );
+      return id;
+    };
+
+    // The FAR one is inserted first on purpose. Both tie on evenness, so without the tie-break the
+    // database is free to return either — and it would naturally return this one. Inserting it first
+    // means the test genuinely fails if the tie-break is ever dropped.
+    await addOnLine('E2E Even Far', 52.45); // ~7.9 km each — just as even, much worse
+    const near = await addOnLine('E2E Even Near', 52.52); // ~1.35 km each
+
+    const fair = await locationService.fairestVenue(west, east);
+    expect(fair?.id).toBe(near);
+    expect(
+      Math.abs(fair!.distanceMetersA - fair!.distanceMetersB),
+    ).toBeLessThan(5);
+    expect(Math.max(fair!.distanceMetersA, fair!.distanceMetersB)).toBeLessThan(
+      2000,
+    );
+  });
+
+  it('returns null when there are no venues at all', async () => {
+    await dataSource.query(`DELETE FROM venues`);
+    expect(
+      await locationService.fairestVenue(BRANDENBURG_GATE, ALEXANDERPLATZ),
+    ).toBeNull();
   });
 });

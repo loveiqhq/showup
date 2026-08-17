@@ -85,8 +85,67 @@ export class LocationService {
   }
 
   /**
-   * The venue nearest to a point, or null if there are no venues. Used to suggest a meeting place
-   * for a date (Epic 7). Returns a derived distance, never coordinates.
+   * The venue that is fairest to BOTH people, or null if there are no venues.
+   *
+   * "Fairest" means both people have the same distance to travel: if they are 4 km apart, the aim is
+   * roughly 2 km each rather than 0 km and 4 km. Only approximate, because venues are a fixed
+   * curated list — the app picks the closest thing to even from what actually exists, which is why
+   * this returns both distances so a caller can see how even it turned out.
+   *
+   * Distance, deliberately, and not travel time. Travel time can only be estimated by assuming how
+   * someone gets there — and we do not know that. Guessing public transport for a person who walks,
+   * cycles or drives would quietly make the split unfair again, while distance is the same fact for
+   * everyone regardless of how they choose to travel.
+   *
+   * Also deliberately not "the venue nearest the midpoint". That is a different question: a venue can
+   * be near the midpoint on the map yet still be much closer to one of the two people. Comparing the
+   * two distances directly targets the imbalance itself.
+   *
+   * The tie-break matters: among equally even options the closer pair wins, so "both travel 5 km" can
+   * never beat "both travel 1 km". Equal-but-far is not fairer, only worse for both people.
+   *
+   * Returns derived distances only, never coordinates, matching `nearestVenue`.
+   *
+   * Trade-off: ordering on the difference between two distances cannot use the spatial index, so this
+   * scans the venue table. Fine for a small curated list; prefilter by a bounding box around the two
+   * people if it ever grows to thousands.
+   */
+  async fairestVenue(
+    a: LatLng,
+    b: LatLng,
+  ): Promise<{
+    id: string;
+    distanceMetersA: number;
+    distanceMetersB: number;
+  } | null> {
+    const rows = await this.dataSource.query<
+      Array<{ id: string; a_meters: number; b_meters: number }>
+    >(
+      // Distances are computed once in the subquery so the ordering can refer to them by name.
+      // ABS(difference) first = the most even split; total second = the tie-break described above.
+      `SELECT id, a_meters, b_meters
+         FROM (
+           SELECT v.id AS id,
+                  ST_Distance(v.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS a_meters,
+                  ST_Distance(v.location, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography) AS b_meters
+             FROM venues v
+         ) d
+        ORDER BY ABS(a_meters - b_meters) ASC, (a_meters + b_meters) ASC
+        LIMIT 1`,
+      [a.lng, a.lat, b.lng, b.lat],
+    );
+    if (rows.length === 0) return null;
+    return {
+      id: rows[0].id,
+      distanceMetersA: Number(rows[0].a_meters),
+      distanceMetersB: Number(rows[0].b_meters),
+    };
+  }
+
+  /**
+   * The venue nearest to a point, or null if there are no venues. Kept for the one-sided fallback in
+   * date creation, when only one of the two people has a usable location — prefer `fairestVenue`
+   * whenever both are known. Returns a derived distance, never coordinates.
    */
   async nearestVenue(
     point: LatLng,
