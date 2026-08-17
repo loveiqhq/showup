@@ -40,7 +40,8 @@ export class DatesService {
 
   /**
    * SHOWUP-51 — create a confirmed date for a freshly matched pair. The app proposes the time (the
-   * start of the two people's overlapping availability) and a nearby venue; the date is created
+   * start of the two people's overlapping availability) and a venue chosen to be fair to both
+   * people rather than convenient for one of them; the date is created
    * already "confirmed", so nobody has to accept it. Best-effort: if the pair already has a live
    * date, or they are not both available, or there is no usable time, it returns without creating one
    * (so it can never break the matching flow that calls it).
@@ -74,8 +75,23 @@ export class DatesService {
     );
     if (startMs >= endMs) return null; // no overlapping time left
 
-    const centre = await this.checkIns.activeLocation(u1);
-    const venue = centre ? await this.location.nearestVenue(centre) : null;
+    // The venue is chosen fairly between the two people. It previously used only `u1`'s location,
+    // which meant the venue always landed next to whoever happened to send the like that completed
+    // the match, while the other person crossed town. That was arbitrary (it depended purely on who
+    // liked second) and systematically unfair to the same side every time.
+    const [locA, locB] = await Promise.all([
+      this.checkIns.activeLocation(u1),
+      this.checkIns.activeLocation(u2),
+    ]);
+    let venue: { id: string } | null = null;
+    if (locA && locB) {
+      venue = await this.location.fairestVenue(locA, locB);
+    } else {
+      // Only one usable location: fall back to nearest. Both people must have an active check-in to
+      // reach this point, and a location is mandatory at check-in, so this is defensive only.
+      const only = locA ?? locB;
+      if (only) venue = await this.location.nearestVenue(only);
+    }
 
     const date = await this.dates.save(
       this.dates.create({
