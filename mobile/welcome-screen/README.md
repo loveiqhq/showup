@@ -33,14 +33,57 @@ Same design, written twice because iPhone and Android are different platforms wi
 
 Both previews update instantly as the code changes — that's the fastest way to see and screenshot it.
 
-## Fonts
+## Fonts — included, not a dependency
 
-The design uses **Lora** (headline/wordmark) and **Manrope** (everything else). Add both font files
-to each project, then:
-- iOS: replace the `.custom("Lora-…" / "Manrope-…")` names — they already point at the right names.
-- Android: replace `FontFamily.Serif` / `FontFamily.SansSerif` with `FontFamily(Font(R.font.lora_…))`.
+**Lora** (wordmark, headline) and **Manrope** (everything else) are in `fonts/`. Both are SIL Open
+Font Licence, so they ship with the project; the licences are alongside them.
 
-Until the fonts are added, both files fall back to the system serif/sans so they still render.
+They are static cuts generated from the official variable fonts at exactly the weights the spec
+uses — 400/700 for Lora, 500/600/700 for Manrope. Static rather than variable because selecting a
+weight from a variable font needs Android API 26+, and below that it silently renders Regular.
+
+**iOS** — drag the seven `.ttf` files into the app target (tick *Copy items if needed* and the
+target under *Add to targets*), then list each filename under `UIAppFonts` in `Info.plist`.
+
+The names the code asks for are **PostScript names, not filenames**, and two are not what you would
+guess:
+
+| File | PostScript name to use |
+| --- | --- |
+| `Lora-Regular.ttf` | `Lora-Regular` |
+| `Lora-Bold.ttf` | `Lora-Bold` |
+| `Lora-Italic.ttf` | **`LoraItalic-Italic`** |
+| `Lora-BoldItalic.ttf` | **`LoraItalic-BoldItalic`** |
+| `Manrope-Medium.ttf` | `Manrope-Medium` |
+| `Manrope-SemiBold.ttf` | `Manrope-SemiBold` |
+| `Manrope-Bold.ttf` | `Manrope-Bold` |
+
+They are already correct in `WelcomeView.swift` (the `PS` enum). To confirm after adding them:
+
+```swift
+for f in UIFont.familyNames.sorted() { print(f, UIFont.fontNames(forFamilyName: f)) }
+```
+
+**Android** — copy the files into `app/src/main/res/font/`, renamed to lowercase with underscores
+(Android resource names allow nothing else):
+
+```
+Lora-Regular.ttf     -> lora_regular.ttf        Manrope-Medium.ttf   -> manrope_medium.ttf
+Lora-Bold.ttf        -> lora_bold.ttf           Manrope-SemiBold.ttf -> manrope_semibold.ttf
+Lora-Italic.ttf      -> lora_italic.ttf         Manrope-Bold.ttf     -> manrope_bold.ttf
+Lora-BoldItalic.ttf  -> lora_bold_italic.ttf
+```
+
+Both files now reference the fonts directly instead of falling back to the system typeface. A
+missing font therefore **fails the build** rather than quietly rendering in the wrong face, which
+is how a screen ships looking nothing like its spec.
+
+## The heart
+
+There is no image asset. The heart, its highlight, the two accent dots and the sparkle are all
+**drawn in code** from the same curves on both platforms — `HeartShape` in Swift, `heartPath()` in
+Kotlin, matching the design SVG's 200 × 190 coordinates. It is therefore resolution-independent,
+identical across platforms, and there is no PNG to export, scale at 2x/3x, or let drift.
 
 ## Still to wire (out of scope for this screen)
 

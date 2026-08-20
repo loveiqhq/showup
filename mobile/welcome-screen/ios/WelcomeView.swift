@@ -3,7 +3,10 @@
 //
 //  Faithful implementation of 00-welcome-spec-sheet.
 //  Drop this file into the iOS app target and preview it in Xcode (see the folder README).
-//  Fonts: the app should bundle Lora + Manrope; until then SwiftUI falls back to the system fonts.
+//
+//  Fonts: Lora + Manrope ship in ../fonts/. Add the .ttf files to the target and list them under
+//  UIAppFonts in Info.plist — see the folder README. The heart is drawn in code (HeartShape), so
+//  there is no asset to export and nothing to keep in sync at 2x/3x.
 
 import SwiftUI
 import UIKit
@@ -73,20 +76,32 @@ extension Color {
 
 // MARK: - Fonts (swap these names once Lora/Manrope are bundled)
 
+// The PostScript names of the bundled files — NOT the filenames, and not always what you would
+// guess. `Lora-Italic.ttf` reports itself as "LoraItalic-Italic"; asking for "Lora-Italic" fails
+// silently to the system font, which is exactly the kind of bug nobody notices. Verify with:
+//     for f in UIFont.familyNames.sorted() { print(f, UIFont.fontNames(forFamilyName: f)) }
+private enum PS {
+    static let loraRegular    = "Lora-Regular"
+    static let loraBold       = "Lora-Bold"
+    static let loraItalic     = "LoraItalic-Italic"
+    static let loraBoldItalic = "LoraItalic-BoldItalic"
+    static let manropeMedium  = "Manrope-Medium"
+    static let manropeSemi    = "Manrope-SemiBold"
+    static let manropeBold    = "Manrope-Bold"
+}
+
 private enum F {
     static func lora(_ size: CGFloat, bold: Bool = false, italic: Bool = false) -> Font {
-        // .custom() falls back to the system font if the family isn't bundled yet.
-        let name = bold ? (italic ? "Lora-BoldItalic" : "Lora-Bold")
-                        : (italic ? "Lora-Italic" : "Lora-Regular")
+        let name = bold ? (italic ? PS.loraBoldItalic : PS.loraBold)
+                        : (italic ? PS.loraItalic : PS.loraRegular)
         return .custom(name, size: size)
     }
     static func manrope(_ size: CGFloat, _ weight: Font.Weight) -> Font {
         let name: String
         switch weight {
-        case .bold, .heavy:  name = "Manrope-Bold"
-        case .semibold:      name = "Manrope-SemiBold"
-        case .medium:        name = "Manrope-Medium"
-        default:             name = "Manrope-Regular"
+        case .bold, .heavy:  name = PS.manropeBold
+        case .semibold:      name = PS.manropeSemi
+        default:             name = PS.manropeMedium
         }
         return .custom(name, size: size)
     }
@@ -143,19 +158,74 @@ private struct WelcomeBackground: View {
 
 // MARK: - ④ Hero heart (200 × 190, gradient orange → purple)
 
+/// The design's heart, drawn from its own curves in a 200 × 190 space and scaled to fit whatever
+/// box it is given. Drawn rather than exported as a PNG so it is resolution-independent, identical
+/// to the Android path, and cannot go stale against the design.
+private struct HeartShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let s = min(rect.width / 200, rect.height / 190)
+        let dx = (rect.width - 200 * s) / 2
+        let dy = (rect.height - 190 * s) / 2
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: dx + x * s, y: dy + y * s) }
+
+        var p = Path()
+        p.move(to: pt(100, 178))
+        p.addCurve(to: pt(20, 68),   control1: pt(96, 174),  control2: pt(20, 122))
+        p.addCurve(to: pt(72, 16),   control1: pt(20, 38),   control2: pt(44, 16))
+        p.addCurve(to: pt(100, 34),  control1: pt(88, 16),   control2: pt(96, 26))
+        p.addCurve(to: pt(128, 16),  control1: pt(104, 26),  control2: pt(112, 16))
+        p.addCurve(to: pt(180, 68),  control1: pt(156, 16),  control2: pt(180, 38))
+        p.addCurve(to: pt(100, 178), control1: pt(180, 122), control2: pt(104, 174))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Four-point sparkle. Also drawn — SF Symbols has no star of this shape.
+private struct SparkleShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        var p = Path()
+        p.move(to: CGPoint(x: w / 2, y: 0))
+        p.addLine(to: CGPoint(x: w * 0.58, y: h * 0.42))
+        p.addLine(to: CGPoint(x: w,        y: h / 2))
+        p.addLine(to: CGPoint(x: w * 0.58, y: h * 0.58))
+        p.addLine(to: CGPoint(x: w / 2,    y: h))
+        p.addLine(to: CGPoint(x: w * 0.42, y: h * 0.58))
+        p.addLine(to: CGPoint(x: 0,        y: h / 2))
+        p.addLine(to: CGPoint(x: w * 0.42, y: h * 0.42))
+        p.closeSubpath()
+        return p
+    }
+}
+
 private struct HeroHeart: View {
     var body: some View {
         ZStack {
-            Image(systemName: "heart.fill")
-                .resizable().scaledToFit()
-                .frame(width: 178, height: 168)
-                .foregroundStyle(LinearGradient(colors: [.liqOrange, Color(hex: 0xE0567A), .liqPurple],
-                                                startPoint: .topLeading, endPoint: .bottomTrailing))
+            // soft peach glow behind the heart
+            Ellipse()
+                .fill(RadialGradient(colors: [.liqOrange.opacity(0.26), .liqOrange.opacity(0)],
+                                     center: .center, startRadius: 0, endRadius: 96))
+                .frame(width: 192, height: 176)
+
+            HeartShape()
+                .fill(LinearGradient(colors: [.liqOrange, Color(hex: 0xE8565E), Color(hex: 0x9333D9)],
+                                     startPoint: UnitPoint(x: 0.18, y: 0.06),
+                                     endPoint:   UnitPoint(x: 0.82, y: 0.96)))
+                .frame(width: 200, height: 190)
                 .shadow(color: .liqPurple.opacity(0.25), radius: 22, y: 16)
-            Circle().fill(Color(hex: 0xA877E6)).frame(width: 9).offset(x: -76, y: -58)
-            Image(systemName: "sparkle").font(.system(size: 15))
-                .foregroundColor(Color(hex: 0xF6C96A)).offset(x: 76, y: -52)
-            Circle().fill(Color.liqOrange.opacity(0.7)).frame(width: 7).offset(x: 64, y: 40)
+
+            // highlight on the upper-left lobe
+            Ellipse().fill(Color.white.opacity(0.17))
+                .frame(width: 52, height: 32)
+                .rotationEffect(.degrees(-18))
+                .offset(x: -26, y: -33)
+
+            // floating accents — offsets are from the centre of the 200 × 190 box
+            Circle().fill(Color(hex: 0xA877E6)).frame(width: 9).offset(x: -74, y: -59)
+            Circle().fill(Color.liqOrange.opacity(0.7)).frame(width: 7).offset(x: 77, y: 25)
+            SparkleShape().fill(Color(hex: 0xFBBF4B))
+                .frame(width: 24, height: 26).offset(x: 80, y: -62)
         }
         .frame(width: 200, height: 190)
     }
@@ -194,10 +264,10 @@ struct WelcomeView: View {
                     Text(TypeMetrics.attributed(
                         runs: [
                             ("Welcome\nto ", TypeMetrics.uiFont(
-                                "Lora-Bold", 42,
+                                PS.loraBold, 42,
                                 fallback: .systemFont(ofSize: 42, weight: .bold))),
                             ("Show Up.", TypeMetrics.uiFont(
-                                "Lora-BoldItalic", 42,
+                                PS.loraBoldItalic, 42,
                                 fallback: UIFont(
                                     descriptor: UIFont.systemFont(ofSize: 42, weight: .bold)
                                         .fontDescriptor.withSymbolicTraits(.traitItalic)
@@ -230,7 +300,7 @@ struct WelcomeView: View {
                     //    platforms agree (Compose expresses this directly as lineHeight = 24.sp).
                     Text(TypeMetrics.attributed(
                         runs: [("Let us quickly explain how Show Up works.",
-                                TypeMetrics.uiFont("Manrope-Medium", 16,
+                                TypeMetrics.uiFont(PS.manropeMedium, 16,
                                                    fallback: .systemFont(ofSize: 16, weight: .medium)))],
                         size: 16,
                         multiple: 1.5,

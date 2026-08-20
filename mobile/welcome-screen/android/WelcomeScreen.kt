@@ -4,15 +4,20 @@
  *
  * Faithful implementation of 00-welcome-spec-sheet with Jetpack Compose.
  * Drop into the Android app, open the @Preview in Android Studio (see the folder README).
- * Fonts: replace FontFamily.Serif / SansSerif below with bundled Lora / Manrope when available.
+ *
+ * Fonts: Lora + Manrope ship in ../fonts/ and must be copied into app/src/main/res/font/ before
+ * this builds — see the mapping above the FontFamily declarations. The heart is drawn in code,
+ * so there is no asset to export.
  */
 package com.showup.onboarding
+
+// Adjust if the app's R class lives elsewhere (it follows the applicationId).
+import com.showup.R
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -23,14 +28,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -48,9 +54,33 @@ private val Fg      = Color(0xFF1D1129)
 private val Neutral = Color(0xFF4B3B5A)
 private val Subtle  = Color(0x751D1129)   // rgba(29,17,41,.46)
 
-// Swap for bundled fonts: FontFamily(Font(R.font.lora_bold, FontWeight.Bold), …)
-private val Lora    = FontFamily.Serif
-private val Manrope = FontFamily.SansSerif
+// ── Fonts ────────────────────────────────────────────────────────────────
+//
+// The .ttf files ship in ../fonts/. Copy them into app/src/main/res/font/ under these exact
+// names — Android resource names allow only lowercase and underscores:
+//
+//     Lora-Regular.ttf      ->  lora_regular.ttf
+//     Lora-Bold.ttf         ->  lora_bold.ttf
+//     Lora-Italic.ttf       ->  lora_italic.ttf
+//     Lora-BoldItalic.ttf   ->  lora_bold_italic.ttf
+//     Manrope-Medium.ttf    ->  manrope_medium.ttf
+//     Manrope-SemiBold.ttf  ->  manrope_semibold.ttf
+//     Manrope-Bold.ttf      ->  manrope_bold.ttf
+//
+// This references them directly rather than falling back to FontFamily.Serif/SansSerif. The
+// fallback compiled fine and rendered the wrong typeface with no warning, which is how a screen
+// ships in the wrong font. If the files are missing, this now fails to build — loudly.
+private val Lora = FontFamily(
+    Font(R.font.lora_regular,     FontWeight.Normal),
+    Font(R.font.lora_bold,        FontWeight.Bold),
+    Font(R.font.lora_italic,      FontWeight.Normal, FontStyle.Italic),
+    Font(R.font.lora_bold_italic, FontWeight.Bold,   FontStyle.Italic),
+)
+private val Manrope = FontFamily(
+    Font(R.font.manrope_medium,   FontWeight.Medium),
+    Font(R.font.manrope_semibold, FontWeight.SemiBold),
+    Font(R.font.manrope_bold,     FontWeight.Bold),
+)
 
 // ── ⑧ Reusable "sunset / lg" button ─────────────────────────────────────
 @Composable
@@ -77,45 +107,85 @@ fun SunsetButton(title: String, onClick: () -> Unit, modifier: Modifier = Modifi
 }
 
 // ── ④ Hero heart (200 × 190, gradient orange → purple) ───────────────────
+// The design's heart, drawn from its own curves rather than borrowed from Material's icon set.
+// Same coordinates as the iOS HeartShape and the design SVG — a 200 x 190 space, scaled to fit —
+// so both platforms render the identical shape and there is no PNG to export or go stale.
+private fun heartPath(w: Float, h: Float): Path {
+    val s = minOf(w / 200f, h / 190f)
+    val dx = (w - 200f * s) / 2f
+    val dy = (h - 190f * s) / 2f
+    fun x(v: Float) = dx + v * s
+    fun y(v: Float) = dy + v * s
+    return Path().apply {
+        moveTo(x(100f), y(178f))
+        cubicTo(x(96f), y(174f), x(20f), y(122f), x(20f), y(68f))
+        cubicTo(x(20f), y(38f), x(44f), y(16f), x(72f), y(16f))
+        cubicTo(x(88f), y(16f), x(96f), y(26f), x(100f), y(34f))
+        cubicTo(x(104f), y(26f), x(112f), y(16f), x(128f), y(16f))
+        cubicTo(x(156f), y(16f), x(180f), y(38f), x(180f), y(68f))
+        cubicTo(x(180f), y(122f), x(104f), y(174f), x(100f), y(178f))
+        close()
+    }
+}
+
 @Composable
 private fun HeroHeart(modifier: Modifier = Modifier) {
-    Box(modifier.size(width = 200.dp, height = 190.dp), contentAlignment = Alignment.Center) {
-        Icon(
-            imageVector = Icons.Filled.Favorite,
-            contentDescription = "Heart",
-            tint = Color.Black,                              // opaque base; gradient painted over it
-            modifier = Modifier
-                .size(176.dp)
-                .drawWithCache {
-                    val brush = Brush.linearGradient(
-                        colors = listOf(Orange, Color(0xFFE0567A), Purple),
-                        start = Offset(size.width * 0.2f, 0f),
-                        end = Offset(size.width * 0.6f, size.height),
-                    )
-                    onDrawWithContent {
-                        drawContent()
-                        drawRect(brush, blendMode = BlendMode.SrcAtop)
-                    }
-                },
-        )
-        Box(Modifier.size(9.dp).offset(x = (-76).dp, y = (-58).dp)
-            .background(Color(0xFFA877E6), CircleShape))
-        Box(Modifier.size(7.dp).offset(x = 64.dp, y = 40.dp)
-            .background(Orange.copy(alpha = 0.7f), CircleShape))
+    Box(modifier.size(width = 200.dp, height = 190.dp)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val s = minOf(size.width / 200f, size.height / 190f)
+            val dx = (size.width - 200f * s) / 2f
+            val dy = (size.height - 190f * s) / 2f
+            fun p(x: Float, y: Float) = Offset(dx + x * s, dy + y * s)
 
-        // Sparkle — iOS had one, Android did not. Drawn rather than taken from Material icons,
-        // which has no four-point sparkle of this shape.
-        Canvas(Modifier.size(16.dp).offset(x = 78.dp, y = (-56).dp)) {
-            val w = size.width
-            val h = size.height
-            val star = Path().apply {
-                moveTo(w / 2f, 0f)
-                lineTo(w * 0.58f, h * 0.42f); lineTo(w, h / 2f); lineTo(w * 0.58f, h * 0.58f)
-                lineTo(w / 2f, h)
-                lineTo(w * 0.42f, h * 0.58f); lineTo(0f, h / 2f); lineTo(w * 0.42f, h * 0.42f)
-                close()
+            // soft peach glow behind the heart
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0.00f to Orange.copy(alpha = 0.26f),
+                    1.00f to Color.Transparent,
+                    center = p(100f, 92f),
+                    radius = 96f * s,
+                ),
+                radius = 96f * s,
+                center = p(100f, 92f),
+            )
+
+            drawPath(
+                heartPath(size.width, size.height),
+                Brush.linearGradient(
+                    colors = listOf(Orange, Color(0xFFE8565E), Color(0xFF9333D9)),
+                    start = p(36f, 11f),
+                    end = p(164f, 182f),
+                ),
+            )
+
+            // highlight on the upper-left lobe
+            rotate(degrees = -18f, pivot = p(74f, 62f)) {
+                drawOval(
+                    color = Color.White.copy(alpha = 0.17f),
+                    topLeft = p(48f, 46f),
+                    size = Size(52f * s, 32f * s),
+                )
             }
-            drawPath(star, Color(0xFFF6C96A))
+
+            // floating accents
+            drawCircle(Color(0xFFA877E6), radius = 4.5f * s, center = p(26f, 36f))
+            drawCircle(Orange.copy(alpha = 0.7f), radius = 3.5f * s, center = p(177f, 120f))
+
+            // four-point sparkle — Material has no star of this shape
+            drawPath(
+                Path().apply {
+                    moveTo(p(179f, 20f).x, p(179f, 20f).y)
+                    lineTo(p(182.4f, 29.6f).x, p(182.4f, 29.6f).y)
+                    lineTo(p(192f, 33f).x, p(192f, 33f).y)
+                    lineTo(p(182.4f, 36.4f).x, p(182.4f, 36.4f).y)
+                    lineTo(p(179f, 46f).x, p(179f, 46f).y)
+                    lineTo(p(175.6f, 36.4f).x, p(175.6f, 36.4f).y)
+                    lineTo(p(166f, 33f).x, p(166f, 33f).y)
+                    lineTo(p(175.6f, 29.6f).x, p(175.6f, 29.6f).y)
+                    close()
+                },
+                Color(0xFFFBBF4B),
+            )
         }
     }
 }
