@@ -116,14 +116,18 @@ private fun heartPath(w: Float, h: Float): Path {
     val dy = (h - 190f * s) / 2f
     fun x(v: Float) = dx + v * s
     fun y(v: Float) = dy + v * s
+    // Curve fitted to the spec sheet's own silhouette, measured rather than eyeballed:
+    // aspect 1.035, widest 30% down, cleft 12.5% deep, and — the one that matters — the two lobe
+    // peaks sitting 65.8% of the width apart. The earlier path had them only 39.6% apart, which
+    // is what made the top read flat instead of as two lobes.
     return Path().apply {
-        moveTo(x(100f), y(178f))
-        cubicTo(x(96f), y(174f), x(20f), y(122f), x(20f), y(68f))
-        cubicTo(x(20f), y(38f), x(44f), y(16f), x(72f), y(16f))
-        cubicTo(x(88f), y(16f), x(96f), y(26f), x(100f), y(34f))
-        cubicTo(x(104f), y(26f), x(112f), y(16f), x(128f), y(16f))
-        cubicTo(x(156f), y(16f), x(180f), y(38f), x(180f), y(68f))
-        cubicTo(x(180f), y(122f), x(104f), y(174f), x(100f), y(178f))
+        moveTo(x(100f), y(172.6f))
+        cubicTo(x(86.6f), y(157.3f), x(18.9f), y(115.2f), x(20f), y(64.4f))
+        cubicTo(x(19.8f), y(45f), x(41.3f), y(18f), x(47.3f), y(18f))
+        cubicTo(x(79f), y(18.9f), x(98.2f), y(25.6f), x(100f), y(37.3f))
+        cubicTo(x(101.8f), y(25.6f), x(121f), y(18.9f), x(152.7f), y(18f))
+        cubicTo(x(158.7f), y(18f), x(180.2f), y(45f), x(180f), y(64.4f))
+        cubicTo(x(181.1f), y(115.2f), x(113.4f), y(157.3f), x(100f), y(172.6f))
         close()
     }
 }
@@ -159,17 +163,17 @@ private fun HeroHeart(modifier: Modifier = Modifier) {
             )
 
             // highlight on the upper-left lobe
-            rotate(degrees = -18f, pivot = p(74f, 62f)) {
+            rotate(degrees = -18f, pivot = p(70f, 55f)) {
                 drawOval(
                     color = Color.White.copy(alpha = 0.17f),
-                    topLeft = p(48f, 46f),
-                    size = Size(52f * s, 32f * s),
+                    topLeft = p(45f, 40f),
+                    size = Size(50f * s, 30f * s),
                 )
             }
 
-            // floating accents
-            drawCircle(Color(0xFFA877E6), radius = 4.5f * s, center = p(26f, 36f))
-            drawCircle(Orange.copy(alpha = 0.7f), radius = 3.5f * s, center = p(177f, 120f))
+            // floating accents — moved outward: the silhouette is wider than before
+            drawCircle(Color(0xFFA877E6), radius = 4.5f * s, center = p(15f, 32f))
+            drawCircle(Orange.copy(alpha = 0.7f), radius = 3.5f * s, center = p(172f, 118f))
 
             // four-point sparkle — Material has no star of this shape
             drawPath(

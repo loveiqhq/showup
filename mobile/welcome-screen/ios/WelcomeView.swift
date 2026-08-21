@@ -168,14 +168,18 @@ private struct HeartShape: Shape {
         let dy = (rect.height - 190 * s) / 2
         func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: dx + x * s, y: dy + y * s) }
 
+        // Curve fitted to the spec sheet's own silhouette, measured rather than eyeballed:
+        // aspect 1.035, widest 30% down, cleft 12.5% deep, and — the one that matters — the two
+        // lobe peaks sitting 65.8% of the width apart. The earlier path had them only 39.6%
+        // apart, which is what made the top read flat instead of as two lobes.
         var p = Path()
-        p.move(to: pt(100, 178))
-        p.addCurve(to: pt(20, 68),   control1: pt(96, 174),  control2: pt(20, 122))
-        p.addCurve(to: pt(72, 16),   control1: pt(20, 38),   control2: pt(44, 16))
-        p.addCurve(to: pt(100, 34),  control1: pt(88, 16),   control2: pt(96, 26))
-        p.addCurve(to: pt(128, 16),  control1: pt(104, 26),  control2: pt(112, 16))
-        p.addCurve(to: pt(180, 68),  control1: pt(156, 16),  control2: pt(180, 38))
-        p.addCurve(to: pt(100, 178), control1: pt(180, 122), control2: pt(104, 174))
+        p.move(to: pt(100, 172.6))
+        p.addCurve(to: pt(20, 64.4),    control1: pt(86.6, 157.3), control2: pt(18.9, 115.2))
+        p.addCurve(to: pt(47.3, 18),    control1: pt(19.8, 45),    control2: pt(41.3, 18))
+        p.addCurve(to: pt(100, 37.3),   control1: pt(79, 18.9),    control2: pt(98.2, 25.6))
+        p.addCurve(to: pt(152.7, 18),   control1: pt(101.8, 25.6), control2: pt(121, 18.9))
+        p.addCurve(to: pt(180, 64.4),   control1: pt(158.7, 18),   control2: pt(180.2, 45))
+        p.addCurve(to: pt(100, 172.6),  control1: pt(181.1, 115.2), control2: pt(113.4, 157.3))
         p.closeSubpath()
         return p
     }
@@ -217,13 +221,14 @@ private struct HeroHeart: View {
 
             // highlight on the upper-left lobe
             Ellipse().fill(Color.white.opacity(0.17))
-                .frame(width: 52, height: 32)
+                .frame(width: 50, height: 30)
                 .rotationEffect(.degrees(-18))
-                .offset(x: -26, y: -33)
+                .offset(x: -30, y: -40)
 
-            // floating accents — offsets are from the centre of the 200 × 190 box
-            Circle().fill(Color(hex: 0xA877E6)).frame(width: 9).offset(x: -74, y: -59)
-            Circle().fill(Color.liqOrange.opacity(0.7)).frame(width: 7).offset(x: 77, y: 25)
+            // floating accents — offsets from the centre of the 200 × 190 box. The silhouette is
+            // wider than before, so these moved outward to stay clear of it.
+            Circle().fill(Color(hex: 0xA877E6)).frame(width: 9).offset(x: -85, y: -63)
+            Circle().fill(Color.liqOrange.opacity(0.7)).frame(width: 7).offset(x: 72, y: 23)
             SparkleShape().fill(Color(hex: 0xFBBF4B))
                 .frame(width: 24, height: 26).offset(x: 80, y: -62)
         }
