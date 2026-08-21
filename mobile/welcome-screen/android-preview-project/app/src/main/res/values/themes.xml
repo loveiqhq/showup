@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Framework theme so the project needs no AppCompat dependency. Compose draws everything;
-         this only supplies the window background and removes the action bar. -->
+    <!-- Framework theme, so the project needs no AppCompat or Material XML dependency.
+         Compose draws everything; this only supplies the window background and removes the
+         action bar.
+
+         android:windowLightStatusBar is API 23+, which is safe at minSdk 24. Nothing here
+         requires a newer API than minSdk — a theme attribute introduced later would be
+         flagged by lint and ignored at runtime on older devices, so it is not worth the noise.
+         The status and navigation bar appearance is handled in code by enableEdgeToEdge(). -->
     <style name="Theme.ShowUp" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">#FFFBF7</item>
         <item name="android:navigationBarColor">#FFFBF7</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

@@ -31,14 +31,19 @@ will offer to create one.
 
 The versions here were pinned at the time of writing:
 
-| | Version |
-| --- | --- |
-| Android Gradle Plugin | 8.5.2 |
-| Kotlin | 2.0.21 |
-| Compose BOM | 2024.10.00 |
-| Gradle | 8.9 |
-| compileSdk / targetSdk | 35 |
-| minSdk | 24 |
+| | Version | Constraint |
+| --- | --- | --- |
+| Android Gradle Plugin | 8.7.3 | must be ≥ 8.6.0 for `compileSdk 35` |
+| Gradle | 8.9 | AGP 8.7 requires ≥ 8.9 |
+| Kotlin | 2.0.21 | must equal the Compose plugin version |
+| Compose compiler plugin | 2.0.21 | must equal Kotlin |
+| Compose BOM | 2024.10.00 | |
+| compileSdk / targetSdk | 35 | |
+| minSdk | 24 | |
+| JDK | 17 | bundled with Android Studio |
+
+These four move together — AGP, Gradle, Kotlin and the Compose plugin. Changing one usually means
+changing another, which is why the constraints are written down.
 
 If Android Studio is newer, it will offer an **AGP Upgrade Assistant** — accept it. That is the
 normal path and it edits the two `build.gradle.kts` files for you.
