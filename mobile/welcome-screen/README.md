@@ -15,23 +15,27 @@ Same design, written twice because iPhone and Android are different platforms wi
 
 - They are the **exact code for this one screen**, matching the spec (colours, type, layout, the
   sunset button, the two `flex:1` spacers, safe-area anchoring).
-- They are **not a runnable app on their own.** A screen lives *inside* an app project. A mobile
-  developer copies the file into the ShowUp iOS / Android project, and it becomes part of the app.
+- They are **not the ShowUp app.** When the real app repositories exist, these two source files move
+  into them and the two project folders here can be deleted.
 
-## How a developer previews it (this is where you SEE it)
+## How to run it
 
-**iPhone (SwiftUI) — needs a Mac + Xcode (both free):**
-1. Add `WelcomeView.swift` to the iOS project.
-2. Open it in **Xcode** → the **Preview canvas** on the right renders the screen live (from the
-   `#Preview` at the bottom of the file).
-3. Or press ▶ to run it on the **iPhone Simulator** (a virtual iPhone on screen).
+Both platforms have a ready-to-open project — nothing to assemble:
 
-**Android (Compose) — needs Android Studio (free, runs on Windows too):**
-1. Add `WelcomeScreen.kt` to the Android project.
-2. Open it in **Android Studio** → **Split/Design** view shows the **@Preview** live.
-3. Or press ▶ to run it on the **Android Emulator** (a virtual Android phone).
+| Platform | Open this | Needs |
+| --- | --- | --- |
+| Android | `android-preview-project/` | Android Studio (Windows, macOS or Linux) |
+| iOS | `ios-app/ShowUpWelcome.xcodeproj` | a Mac with Xcode |
+| Neither | `preview/open-me-offline.html` | just a browser — double-click it |
 
-Both previews update instantly as the code changes — that's the fastest way to see and screenshot it.
+Step-by-step instructions for both are in **`../README.md`** (the `mobile/` folder).
+
+Fonts are already wired into both projects. There are no third-party dependencies on either side —
+iOS uses only SwiftUI, Android only Compose.
+
+**The source of truth is `android/WelcomeScreen.kt` and `ios/WelcomeView.swift`.** The copies inside
+the project folders exist so the projects build; edit the source files and copy across, or the
+change is lost when the real app projects are created.
 
 ## Fonts — included, not a dependency
 
