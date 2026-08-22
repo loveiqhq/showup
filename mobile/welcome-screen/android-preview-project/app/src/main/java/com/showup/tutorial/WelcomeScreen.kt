@@ -5,14 +5,10 @@
  * Faithful implementation of 00-welcome-spec-sheet with Jetpack Compose.
  * Drop into the Android app, open the @Preview in Android Studio (see the folder README).
  *
- * Fonts: Lora + Manrope ship in ../fonts/ and must be copied into app/src/main/res/font/ before
- * this builds — see the mapping above the FontFamily declarations. The heart is drawn in code,
- * so there is no asset to export.
+ * Tokens, fonts and the analytics seam now live in shared/ — two screens cannot each declare
+ * their own Cream/Orange/Lora. The heart is drawn in code, so there is no asset to export.
  */
 package com.showup.tutorial
-
-// Adjust if the app's R class lives elsewhere (it follows the applicationId).
-import com.showup.R
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -37,7 +33,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -46,82 +41,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-
-// ── Analytics ────────────────────────────────────────────────────────────
-//
-// A seam, not an integration. Real code rather than a commented-out reminder: a comment claiming
-// something is tracked is indistinguishable from tracking that works, and this project has already
-// been bitten by that more than once.
-//
-// The default does nothing, and will keep doing nothing until there is somewhere to send events —
-// the backend's analytics module has no ingest endpoint yet, and consent capture is not built, so
-// AnalyticsService.track() would discard anything sent today. When both land, pass a real
-// implementation in and this screen needs no further change.
-interface AnalyticsTracker {
-    fun track(event: String, properties: Map<String, Any>)
-}
-
-object NoOpAnalytics : AnalyticsTracker {
-    override fun track(event: String, properties: Map<String, Any>) = Unit
-}
-
-/**
- * Names and properties for the tutorial flow.
- *
- * "Tutorial", deliberately not "onboarding" — onboarding is the separate flow where someone fills
- * in their profile. Conflating them makes the funnel unreadable later.
- *
- * Names follow the backend taxonomy: snake_case, `<noun>_<verb-ed>`, snake_case properties, no free
- * text and no personal data. Card number is a property rather than part of the event name so the
- * remaining cards reuse these two events instead of inventing ten more.
- */
-object TutorialAnalytics {
-    const val CARD_VIEWED = "tutorial_card_viewed"
-    const val CTA_TAPPED = "tutorial_cta_tapped"
-
-    /** Card 1. The spec sheet is named `00-welcome-spec-sheet`, but the ticket's tracking section
-     *  names this screen "Tutorial 1 - Welcome", so it is card 1. */
-    const val CARD = 1
-    const val CARD_NAME = "welcome"
-
-    val properties: Map<String, Any> = mapOf("card" to CARD, "card_name" to CARD_NAME)
-}
-
-// ── ① Design tokens (from the spec sheet) ───────────────────────────────
-private val Cream   = Color(0xFFFFFBF7)
-private val Orange  = Color(0xFFFE6839)
-private val Purple  = Color(0xFF812AEC)
-private val Fg      = Color(0xFF1D1129)
-private val Neutral = Color(0xFF4B3B5A)
-private val Subtle  = Color(0x751D1129)   // rgba(29,17,41,.46)
-
-// ── Fonts ────────────────────────────────────────────────────────────────
-//
-// The .ttf files ship in ../fonts/. Copy them into app/src/main/res/font/ under these exact
-// names — Android resource names allow only lowercase and underscores:
-//
-//     Lora-Regular.ttf      ->  lora_regular.ttf
-//     Lora-Bold.ttf         ->  lora_bold.ttf
-//     Lora-Italic.ttf       ->  lora_italic.ttf
-//     Lora-BoldItalic.ttf   ->  lora_bold_italic.ttf
-//     Manrope-Medium.ttf    ->  manrope_medium.ttf
-//     Manrope-SemiBold.ttf  ->  manrope_semibold.ttf
-//     Manrope-Bold.ttf      ->  manrope_bold.ttf
-//
-// This references them directly rather than falling back to FontFamily.Serif/SansSerif. The
-// fallback compiled fine and rendered the wrong typeface with no warning, which is how a screen
-// ships in the wrong font. If the files are missing, this now fails to build — loudly.
-private val Lora = FontFamily(
-    Font(R.font.lora_regular,     FontWeight.Normal),
-    Font(R.font.lora_bold,        FontWeight.Bold),
-    Font(R.font.lora_italic,      FontWeight.Normal, FontStyle.Italic),
-    Font(R.font.lora_bold_italic, FontWeight.Bold,   FontStyle.Italic),
-)
-private val Manrope = FontFamily(
-    Font(R.font.manrope_medium,   FontWeight.Medium),
-    Font(R.font.manrope_semibold, FontWeight.SemiBold),
-    Font(R.font.manrope_bold,     FontWeight.Bold),
-)
+import com.showup.designsystem.Cream
+import com.showup.designsystem.Fg
+import com.showup.designsystem.Lora
+import com.showup.designsystem.Manrope
+import com.showup.designsystem.Neutral
+import com.showup.designsystem.Orange
+import com.showup.designsystem.Purple
+import com.showup.designsystem.Subtle
 
 // ── ⑧ Reusable "sunset / lg" button ─────────────────────────────────────
 @Composable
@@ -340,7 +267,7 @@ fun WelcomeScreen(
 
             // ⑧⑨ button + caption
             SunsetButton(title = "Show me how", onClick = {
-                analytics.track(TutorialAnalytics.CTA_TAPPED, TutorialAnalytics.properties)
+                analytics.track(TutorialAnalytics.CTA_TAPPED, TutorialAnalytics.welcome)
                 onContinue()
             })
             Spacer(Modifier.height(10.dp))
@@ -350,7 +277,7 @@ fun WelcomeScreen(
         }
     }
     LaunchedEffect(Unit) {
-        analytics.track(TutorialAnalytics.CARD_VIEWED, TutorialAnalytics.properties)
+        analytics.track(TutorialAnalytics.CARD_VIEWED, TutorialAnalytics.welcome)
     }
 }
 
