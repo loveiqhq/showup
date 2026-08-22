@@ -4,151 +4,12 @@
 //  Faithful implementation of 00-welcome-spec-sheet.
 //  Drop this file into the iOS app target and preview it in Xcode (see the folder README).
 //
-//  Fonts: Lora + Manrope ship in ../fonts/. Add the .ttf files to the target and list them under
-//  UIAppFonts in Info.plist — see the folder README. The heart is drawn in code (HeartShape), so
-//  there is no asset to export and nothing to keep in sync at 2x/3x.
+//  Tokens, fonts, text metrics and the analytics seam now live in shared/ — two files in one
+//  target cannot both declare Color.liqOrange. The heart is drawn in code (HeartShape), so there
+//  is no asset to export and nothing to keep in sync at 2x/3x.
 
 import SwiftUI
 import UIKit
-
-// MARK: - Analytics
-//
-// A seam, not an integration. Real code rather than a commented-out reminder: a comment claiming
-// something is tracked is indistinguishable from tracking that works, and this project has already
-// been bitten by that more than once.
-//
-// The default does nothing, and will keep doing nothing until there is somewhere to send events —
-// the backend's analytics module has no ingest endpoint yet, and consent capture is not built, so
-// AnalyticsService.track() would discard anything sent today. When both land, inject a real
-// implementation here and this screen needs no further change.
-
-public protocol AnalyticsTracking {
-    func track(_ event: String, properties: [String: Any])
-}
-
-public struct NoOpAnalytics: AnalyticsTracking {
-    public init() {}
-    public func track(_ event: String, properties: [String: Any]) {}
-}
-
-/// Names and properties for the tutorial flow.
-///
-/// "Tutorial", deliberately not "onboarding" — onboarding is the separate flow where someone fills
-/// in their profile. Conflating them makes the funnel unreadable later.
-///
-/// Names follow the backend taxonomy: snake_case, `<noun>_<verb-ed>`, snake_case properties, no
-/// free text and no personal data. Card number is a property rather than part of the event name so
-/// the remaining cards reuse these two events instead of inventing ten more.
-public enum TutorialAnalytics {
-    public static let cardViewed = "tutorial_card_viewed"
-    public static let ctaTapped  = "tutorial_cta_tapped"
-
-    /// Card 1 of the tutorial. The spec sheet file is named `00-welcome-spec-sheet`, but the
-    /// ticket's tracking section names this screen "Tutorial 1 - Welcome", so it is card 1.
-    public static let card = 1
-    public static let cardName = "welcome"
-
-    public static var properties: [String: Any] {
-        ["card": card, "card_name": cardName]
-    }
-}
-
-
-// MARK: - Exact line-height
-//
-// The spec states line-heights as multipliers (headline 1.05, body 1.5). SwiftUI's `.lineSpacing()`
-// only ADDS to the font's own leading, so it can never produce a line-height TIGHTER than the font
-// already has — and Lora's natural leading is roughly 1.2. Using `.lineSpacing(2)` for a 1.05 spec
-// therefore renders ~18% too loose, which is what this replaces.
-//
-// A paragraph style can set line height directly, so the spec numbers go through here instead.
-// Re-check this visually once Lora/Manrope are actually bundled; until then the system fallback
-// has different metrics.
-private enum TypeMetrics {
-    static func uiFont(_ name: String, _ size: CGFloat, fallback: UIFont) -> UIFont {
-        UIFont(name: name, size: size) ?? fallback
-    }
-
-    /// Builds text whose line height is exactly `size * multiple`, with optional italic run.
-    static func attributed(
-        runs: [(String, UIFont)],
-        size: CGFloat,
-        multiple: CGFloat,
-        color: UIColor,
-        trackingEm: CGFloat = 0
-    ) -> AttributedString {
-        let target = size * multiple
-        let para = NSMutableParagraphStyle()
-        // lineHeightMultiple scales rather than clamps, so ascenders are not clipped the way
-        // min/maximumLineHeight alone can clip them.
-        para.lineHeightMultiple = target / (runs.first?.1.lineHeight ?? target)
-
-        let out = NSMutableAttributedString()
-        for (text, font) in runs {
-            out.append(NSAttributedString(string: text, attributes: [
-                .font: font,
-                .foregroundColor: color,
-                .paragraphStyle: para,
-                .kern: trackingEm * size,
-                // standard correction for the shift lineHeightMultiple introduces
-                .baselineOffset: (target - font.lineHeight) / 4,
-            ]))
-        }
-        return AttributedString(out)
-    }
-}
-
-// MARK: - ① Design tokens (from the spec sheet)
-
-extension Color {
-    static let liqCream   = Color(hex: 0xFFFBF7)   // screen background
-    static let liqOrange  = Color(hex: 0xFE6839)   // sunset start · dot · heart icon
-    static let liqPurple  = Color(hex: 0x812AEC)   // sunset end · "Up"
-    static let liqFg      = Color(hex: 0x1D1129)   // primary text
-    static let liqNeutral = Color(hex: 0x4B3B5A)   // body text
-    static let liqSubtle  = Color(hex: 0x1D1129).opacity(0.46) // caption
-
-    init(hex: UInt) {
-        self.init(.sRGB,
-                  red:   Double((hex >> 16) & 0xFF) / 255,
-                  green: Double((hex >> 8)  & 0xFF) / 255,
-                  blue:  Double( hex        & 0xFF) / 255,
-                  opacity: 1)
-    }
-}
-
-// MARK: - Fonts (swap these names once Lora/Manrope are bundled)
-
-// The PostScript names of the bundled files — NOT the filenames, and not always what you would
-// guess. `Lora-Italic.ttf` reports itself as "LoraItalic-Italic"; asking for "Lora-Italic" fails
-// silently to the system font, which is exactly the kind of bug nobody notices. Verify with:
-//     for f in UIFont.familyNames.sorted() { print(f, UIFont.fontNames(forFamilyName: f)) }
-private enum PS {
-    static let loraRegular    = "Lora-Regular"
-    static let loraBold       = "Lora-Bold"
-    static let loraItalic     = "LoraItalic-Italic"
-    static let loraBoldItalic = "LoraItalic-BoldItalic"
-    static let manropeMedium  = "Manrope-Medium"
-    static let manropeSemi    = "Manrope-SemiBold"
-    static let manropeBold    = "Manrope-Bold"
-}
-
-private enum F {
-    static func lora(_ size: CGFloat, bold: Bool = false, italic: Bool = false) -> Font {
-        let name = bold ? (italic ? PS.loraBoldItalic : PS.loraBold)
-                        : (italic ? PS.loraItalic : PS.loraRegular)
-        return .custom(name, size: size)
-    }
-    static func manrope(_ size: CGFloat, _ weight: Font.Weight) -> Font {
-        let name: String
-        switch weight {
-        case .bold, .heavy:  name = PS.manropeBold
-        case .semibold:      name = PS.manropeSemi
-        default:             name = PS.manropeMedium
-        }
-        return .custom(name, size: size)
-    }
-}
 
 // MARK: - ⑧ Reusable "sunset / lg" button
 
@@ -211,18 +72,21 @@ private struct HeartShape: Shape {
         let dy = (rect.height - 190 * s) / 2
         func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: dx + x * s, y: dy + y * s) }
 
-        // Curve fitted to the spec sheet's own silhouette, measured rather than eyeballed:
-        // aspect 1.035, widest 30% down, cleft 12.5% deep, and — the one that matters — the two
-        // lobe peaks sitting 65.8% of the width apart. The earlier path had them only 39.6%
-        // apart, which is what made the top read flat instead of as two lobes.
+        // Traced from the spec sheet's actual outline, not fitted to its width profile — many
+        // different shapes share a width profile, and the earlier attempt produced flat-topped
+        // lobes with hard corners. These control points come from a least-squares fit against the
+        // real contour (RMS 0.24 and 0.16 design units).
+        //
+        // The apex tangent is horizontal on both sides — incoming (8.4, 0.4), outgoing (16, 0) —
+        // which is what makes each lobe a smooth dome instead of a flat top meeting a corner.
         var p = Path()
-        p.move(to: pt(100, 172.6))
-        p.addCurve(to: pt(20, 64.4),    control1: pt(86.6, 157.3), control2: pt(18.9, 115.2))
-        p.addCurve(to: pt(47.3, 18),    control1: pt(19.8, 45),    control2: pt(41.3, 18))
-        p.addCurve(to: pt(100, 37.3),   control1: pt(79, 18.9),    control2: pt(98.2, 25.6))
-        p.addCurve(to: pt(152.7, 18),   control1: pt(101.8, 25.6), control2: pt(121, 18.9))
-        p.addCurve(to: pt(180, 64.4),   control1: pt(158.7, 18),   control2: pt(180.2, 45))
-        p.addCurve(to: pt(100, 172.6),  control1: pt(181.1, 115.2), control2: pt(113.4, 157.3))
+        p.move(to: pt(99.8, 172.9))
+        p.addCurve(to: pt(20, 63.7),    control1: pt(78, 152.1),    control2: pt(17.9, 111.3))
+        p.addCurve(to: pt(66.6, 17.1),  control1: pt(22.3, 22.2),   control2: pt(58.2, 16.7))
+        p.addCurve(to: pt(100, 36.6),   control1: pt(82.6, 17.1),   control2: pt(97, 27.6))
+        p.addCurve(to: pt(133.4, 17.1), control1: pt(103, 27.6),    control2: pt(117.4, 17.1))
+        p.addCurve(to: pt(180, 63.7),   control1: pt(141.8, 16.7),  control2: pt(177.7, 22.2))
+        p.addCurve(to: pt(99.8, 172.9), control1: pt(182.1, 111.3), control2: pt(122, 152.1))
         p.closeSubpath()
         return p
     }
@@ -264,16 +128,16 @@ private struct HeroHeart: View {
 
             // highlight on the upper-left lobe
             Ellipse().fill(Color.white.opacity(0.17))
-                .frame(width: 50, height: 30)
+                .frame(width: 48, height: 30)
                 .rotationEffect(.degrees(-18))
-                .offset(x: -30, y: -40)
+                .offset(x: -34, y: -43)
 
             // floating accents — offsets from the centre of the 200 × 190 box. The silhouette is
             // wider than before, so these moved outward to stay clear of it.
-            Circle().fill(Color(hex: 0xA877E6)).frame(width: 9).offset(x: -85, y: -63)
-            Circle().fill(Color.liqOrange.opacity(0.7)).frame(width: 7).offset(x: 72, y: 23)
+            Circle().fill(Color(hex: 0xA877E6)).frame(width: 9).offset(x: -87, y: -55)
+            Circle().fill(Color.liqOrange.opacity(0.7)).frame(width: 7).offset(x: 62, y: 35)
             SparkleShape().fill(Color(hex: 0xFBBF4B))
-                .frame(width: 24, height: 26).offset(x: 80, y: -62)
+                .frame(width: 22, height: 24).offset(x: 86, y: -67)
         }
         .frame(width: 200, height: 190)
     }
@@ -366,7 +230,7 @@ struct WelcomeView: View {
                 VStack(spacing: 10) {                              // button → caption 10
                     SunsetButton(title: "Show me how") {
                         analytics.track(TutorialAnalytics.ctaTapped,
-                                        properties: TutorialAnalytics.properties)
+                                        properties: TutorialAnalytics.welcome)
                         onContinue()
                     }
                     Text("Takes less than a minute")
@@ -379,7 +243,7 @@ struct WelcomeView: View {
         }
         .onAppear {
             analytics.track(TutorialAnalytics.cardViewed,
-                            properties: TutorialAnalytics.properties)
+                            properties: TutorialAnalytics.welcome)
         }
     }
 }

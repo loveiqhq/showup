@@ -1,8 +1,11 @@
 //  ShowUpWelcomeApp.swift
-//  ShowUp · Tutorial card 1 — app entry point
+//  ShowUp · Tutorial — app entry point
 //
-//  This target exists only to render the welcome card on a simulator or device. It is not the
-//  ShowUp app; when the real iOS app exists, WelcomeView.swift moves there and this goes away.
+//  This target exists only to render the tutorial screens on a simulator or device. It is not the
+//  ShowUp app; when the real iOS app exists these views move there and this goes away.
+//
+//  The navigation here is a placeholder: real routing arrives with the rest of the flow. It exists
+//  so "Show me how" actually goes somewhere in the simulator.
 
 import SwiftUI
 
@@ -10,9 +13,18 @@ import SwiftUI
 struct ShowUpWelcomeApp: App {
     var body: some Scene {
         WindowGroup {
-            WelcomeView(onContinue: {
-                // tutorial card 2 — not built yet (out of scope for SHOWUP-117)
-            })
+            TutorialFlow()
+        }
+    }
+}
+
+private struct TutorialFlow: View {
+    @State private var screen = 1
+
+    var body: some View {
+        switch screen {
+        case 1:  WelcomeView(onContinue: { screen = 2 })
+        default: MeetInRealLifeView(onNext: { /* tutorial screen 3 — not built yet */ })
         }
     }
 }

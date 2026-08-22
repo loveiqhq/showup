@@ -7,31 +7,39 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FEED00000000000000000016 /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000014 /* ShowUpWelcomeApp.swift */; };
-		FEED00000000000000000017 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* WelcomeView.swift */; };
+		FEED0000000000000000001A /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000014 /* ShowUpWelcomeApp.swift */; };
+		FEED0000000000000000001B /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* DesignSystem.swift */; };
+		FEED0000000000000000001C /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000016 /* TutorialAnalytics.swift */; };
+		FEED0000000000000000001D /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* TutorialShell.swift */; };
+		FEED0000000000000000001E /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* WelcomeView.swift */; };
+		FEED0000000000000000001F /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* MeetInRealLifeView.swift */; };
 		FEED00000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000009 /* Assets.xcassets */; };
-		FEED0000000000000000001F /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* Lora-Regular.ttf */; };
-		FEED00000000000000000020 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* Lora-Bold.ttf */; };
-		FEED00000000000000000021 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* Lora-Italic.ttf */; };
-		FEED00000000000000000022 /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* Lora-BoldItalic.ttf */; };
-		FEED00000000000000000023 /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* Manrope-Medium.ttf */; };
-		FEED00000000000000000024 /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* Manrope-SemiBold.ttf */; };
-		FEED00000000000000000025 /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* Manrope-Bold.ttf */; };
+		FEED00000000000000000027 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* Lora-Regular.ttf */; };
+		FEED00000000000000000028 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* Lora-Bold.ttf */; };
+		FEED00000000000000000029 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* Lora-Italic.ttf */; };
+		FEED0000000000000000002A /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* Lora-BoldItalic.ttf */; };
+		FEED0000000000000000002B /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000024 /* Manrope-Medium.ttf */; };
+		FEED0000000000000000002C /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000025 /* Manrope-SemiBold.ttf */; };
+		FEED0000000000000000002D /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000026 /* Manrope-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		FEED00000000000000000007 /* ShowUpWelcome.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowUpWelcome.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FEED00000000000000000014 /* ShowUpWelcomeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpWelcomeApp.swift; sourceTree = "<group>"; };
-		FEED00000000000000000015 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000015 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		FEED00000000000000000016 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
+		FEED00000000000000000017 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
+		FEED00000000000000000018 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000019 /* MeetInRealLifeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetInRealLifeView.swift; sourceTree = "<group>"; };
 		FEED00000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FEED00000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		FEED00000000000000000018 /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000019 /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000001A /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000001B /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000001C /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000001D /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000001E /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000020 /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000021 /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000022 /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000023 /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000024 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000025 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000026 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,7 +65,11 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000014 /* ShowUpWelcomeApp.swift */,
-				FEED00000000000000000015 /* WelcomeView.swift */,
+				FEED00000000000000000015 /* DesignSystem.swift */,
+				FEED00000000000000000016 /* TutorialAnalytics.swift */,
+				FEED00000000000000000017 /* TutorialShell.swift */,
+				FEED00000000000000000018 /* WelcomeView.swift */,
+				FEED00000000000000000019 /* MeetInRealLifeView.swift */,
 				FEED00000000000000000009 /* Assets.xcassets */,
 				FEED00000000000000000005 /* Fonts */,
 				FEED00000000000000000008 /* Info.plist */,
@@ -68,13 +80,13 @@
 		FEED00000000000000000005 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
-				FEED00000000000000000018 /* Lora-Regular.ttf */,
-				FEED00000000000000000019 /* Lora-Bold.ttf */,
-				FEED0000000000000000001A /* Lora-Italic.ttf */,
-				FEED0000000000000000001B /* Lora-BoldItalic.ttf */,
-				FEED0000000000000000001C /* Manrope-Medium.ttf */,
-				FEED0000000000000000001D /* Manrope-SemiBold.ttf */,
-				FEED0000000000000000001E /* Manrope-Bold.ttf */,
+				FEED00000000000000000020 /* Lora-Regular.ttf */,
+				FEED00000000000000000021 /* Lora-Bold.ttf */,
+				FEED00000000000000000022 /* Lora-Italic.ttf */,
+				FEED00000000000000000023 /* Lora-BoldItalic.ttf */,
+				FEED00000000000000000024 /* Manrope-Medium.ttf */,
+				FEED00000000000000000025 /* Manrope-SemiBold.ttf */,
+				FEED00000000000000000026 /* Manrope-Bold.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -146,13 +158,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				FEED00000000000000000013 /* Assets.xcassets in Resources */,
-				FEED0000000000000000001F /* Lora-Regular.ttf in Resources */,
-				FEED00000000000000000020 /* Lora-Bold.ttf in Resources */,
-				FEED00000000000000000021 /* Lora-Italic.ttf in Resources */,
-				FEED00000000000000000022 /* Lora-BoldItalic.ttf in Resources */,
-				FEED00000000000000000023 /* Manrope-Medium.ttf in Resources */,
-				FEED00000000000000000024 /* Manrope-SemiBold.ttf in Resources */,
-				FEED00000000000000000025 /* Manrope-Bold.ttf in Resources */,
+				FEED00000000000000000027 /* Lora-Regular.ttf in Resources */,
+				FEED00000000000000000028 /* Lora-Bold.ttf in Resources */,
+				FEED00000000000000000029 /* Lora-Italic.ttf in Resources */,
+				FEED0000000000000000002A /* Lora-BoldItalic.ttf in Resources */,
+				FEED0000000000000000002B /* Manrope-Medium.ttf in Resources */,
+				FEED0000000000000000002C /* Manrope-SemiBold.ttf in Resources */,
+				FEED0000000000000000002D /* Manrope-Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -163,8 +175,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000016 /* ShowUpWelcomeApp.swift in Sources */,
-				FEED00000000000000000017 /* WelcomeView.swift in Sources */,
+				FEED0000000000000000001A /* ShowUpWelcomeApp.swift in Sources */,
+				FEED0000000000000000001B /* DesignSystem.swift in Sources */,
+				FEED0000000000000000001C /* TutorialAnalytics.swift in Sources */,
+				FEED0000000000000000001D /* TutorialShell.swift in Sources */,
+				FEED0000000000000000001E /* WelcomeView.swift in Sources */,
+				FEED0000000000000000001F /* MeetInRealLifeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

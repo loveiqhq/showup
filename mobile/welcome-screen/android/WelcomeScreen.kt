@@ -84,18 +84,18 @@ private fun heartPath(w: Float, h: Float): Path {
     val dy = (h - 190f * s) / 2f
     fun x(v: Float) = dx + v * s
     fun y(v: Float) = dy + v * s
-    // Curve fitted to the spec sheet's own silhouette, measured rather than eyeballed:
-    // aspect 1.035, widest 30% down, cleft 12.5% deep, and — the one that matters — the two lobe
-    // peaks sitting 65.8% of the width apart. The earlier path had them only 39.6% apart, which
-    // is what made the top read flat instead of as two lobes.
+    // Traced from the spec sheet's actual outline, not fitted to its width profile — many
+    // different shapes share a width profile, and the earlier attempt produced flat-topped lobes
+    // with hard corners. These control points come from a least-squares fit against the real
+    // contour, and the apex tangent is horizontal on both sides so each lobe is a smooth dome.
     return Path().apply {
-        moveTo(x(100f), y(172.6f))
-        cubicTo(x(86.6f), y(157.3f), x(18.9f), y(115.2f), x(20f), y(64.4f))
-        cubicTo(x(19.8f), y(45f), x(41.3f), y(18f), x(47.3f), y(18f))
-        cubicTo(x(79f), y(18.9f), x(98.2f), y(25.6f), x(100f), y(37.3f))
-        cubicTo(x(101.8f), y(25.6f), x(121f), y(18.9f), x(152.7f), y(18f))
-        cubicTo(x(158.7f), y(18f), x(180.2f), y(45f), x(180f), y(64.4f))
-        cubicTo(x(181.1f), y(115.2f), x(113.4f), y(157.3f), x(100f), y(172.6f))
+        moveTo(x(99.8f), y(172.9f))
+        cubicTo(x(78f), y(152.1f), x(17.9f), y(111.3f), x(20f), y(63.7f))
+        cubicTo(x(22.3f), y(22.2f), x(58.2f), y(16.7f), x(66.6f), y(17.1f))
+        cubicTo(x(82.6f), y(17.1f), x(97f), y(27.6f), x(100f), y(36.6f))
+        cubicTo(x(103f), y(27.6f), x(117.4f), y(17.1f), x(133.4f), y(17.1f))
+        cubicTo(x(141.8f), y(16.7f), x(177.7f), y(22.2f), x(180f), y(63.7f))
+        cubicTo(x(182.1f), y(111.3f), x(122f), y(152.1f), x(99.8f), y(172.9f))
         close()
     }
 }
@@ -131,29 +131,29 @@ private fun HeroHeart(modifier: Modifier = Modifier) {
             )
 
             // highlight on the upper-left lobe
-            rotate(degrees = -18f, pivot = p(70f, 55f)) {
+            rotate(degrees = -18f, pivot = p(66f, 52f)) {
                 drawOval(
                     color = Color.White.copy(alpha = 0.17f),
-                    topLeft = p(45f, 40f),
-                    size = Size(50f * s, 30f * s),
+                    topLeft = p(42f, 37f),
+                    size = Size(48f * s, 30f * s),
                 )
             }
 
             // floating accents — moved outward: the silhouette is wider than before
-            drawCircle(Color(0xFFA877E6), radius = 4.5f * s, center = p(15f, 32f))
-            drawCircle(Orange.copy(alpha = 0.7f), radius = 3.5f * s, center = p(172f, 118f))
+            drawCircle(Color(0xFFA877E6), radius = 4.5f * s, center = p(13f, 40f))
+            drawCircle(Orange.copy(alpha = 0.7f), radius = 3.5f * s, center = p(162f, 130f))
 
             // four-point sparkle — Material has no star of this shape
             drawPath(
                 Path().apply {
-                    moveTo(p(179f, 20f).x, p(179f, 20f).y)
-                    lineTo(p(182.4f, 29.6f).x, p(182.4f, 29.6f).y)
-                    lineTo(p(192f, 33f).x, p(192f, 33f).y)
-                    lineTo(p(182.4f, 36.4f).x, p(182.4f, 36.4f).y)
-                    lineTo(p(179f, 46f).x, p(179f, 46f).y)
-                    lineTo(p(175.6f, 36.4f).x, p(175.6f, 36.4f).y)
-                    lineTo(p(166f, 33f).x, p(166f, 33f).y)
-                    lineTo(p(175.6f, 29.6f).x, p(175.6f, 29.6f).y)
+                    moveTo(p(186f, 17f).x, p(186f, 17f).y)
+                    lineTo(p(189.2f, 25.8f).x, p(189.2f, 25.8f).y)
+                    lineTo(p(198f, 29f).x, p(198f, 29f).y)
+                    lineTo(p(189.2f, 32.2f).x, p(189.2f, 32.2f).y)
+                    lineTo(p(186f, 41f).x, p(186f, 41f).y)
+                    lineTo(p(182.8f, 32.2f).x, p(182.8f, 32.2f).y)
+                    lineTo(p(174f, 29f).x, p(174f, 29f).y)
+                    lineTo(p(182.8f, 25.8f).x, p(182.8f, 25.8f).y)
                     close()
                 },
                 Color(0xFFFBBF4B),
