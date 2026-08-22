@@ -1,5 +1,5 @@
 //  WelcomeView.swift
-//  ShowUp · Onboarding 00 — Welcome screen (SHOWUP-117)
+//  ShowUp · Tutorial card 1 — Welcome screen (SHOWUP-117)
 //
 //  Faithful implementation of 00-welcome-spec-sheet.
 //  Drop this file into the iOS app target and preview it in Xcode (see the folder README).
@@ -10,6 +10,49 @@
 
 import SwiftUI
 import UIKit
+
+// MARK: - Analytics
+//
+// A seam, not an integration. Real code rather than a commented-out reminder: a comment claiming
+// something is tracked is indistinguishable from tracking that works, and this project has already
+// been bitten by that more than once.
+//
+// The default does nothing, and will keep doing nothing until there is somewhere to send events —
+// the backend's analytics module has no ingest endpoint yet, and consent capture is not built, so
+// AnalyticsService.track() would discard anything sent today. When both land, inject a real
+// implementation here and this screen needs no further change.
+
+public protocol AnalyticsTracking {
+    func track(_ event: String, properties: [String: Any])
+}
+
+public struct NoOpAnalytics: AnalyticsTracking {
+    public init() {}
+    public func track(_ event: String, properties: [String: Any]) {}
+}
+
+/// Names and properties for the tutorial flow.
+///
+/// "Tutorial", deliberately not "onboarding" — onboarding is the separate flow where someone fills
+/// in their profile. Conflating them makes the funnel unreadable later.
+///
+/// Names follow the backend taxonomy: snake_case, `<noun>_<verb-ed>`, snake_case properties, no
+/// free text and no personal data. Card number is a property rather than part of the event name so
+/// the remaining cards reuse these two events instead of inventing ten more.
+public enum TutorialAnalytics {
+    public static let cardViewed = "tutorial_card_viewed"
+    public static let ctaTapped  = "tutorial_cta_tapped"
+
+    /// Card 1 of the tutorial. The spec sheet file is named `00-welcome-spec-sheet`, but the
+    /// ticket's tracking section names this screen "Tutorial 1 - Welcome", so it is card 1.
+    public static let card = 1
+    public static let cardName = "welcome"
+
+    public static var properties: [String: Any] {
+        ["card": card, "card_name": cardName]
+    }
+}
+
 
 // MARK: - Exact line-height
 //
@@ -239,8 +282,11 @@ private struct HeroHeart: View {
 // MARK: - The screen
 
 struct WelcomeView: View {
-    /// Navigation into onboarding card 01 (wired by the caller).
+    /// Navigation into tutorial card 2 (wired by the caller).
     var onContinue: () -> Void = {}
+
+    /// Swap in a real tracker once there is an endpoint to send to.
+    var analytics: AnalyticsTracking = NoOpAnalytics()
 
     var body: some View {
         ZStack {
@@ -319,7 +365,8 @@ struct WelcomeView: View {
                 // ⑧⑨ Button + caption — bottom-anchored (20 above floor)
                 VStack(spacing: 10) {                              // button → caption 10
                     SunsetButton(title: "Show me how") {
-                        // Analytics.track("cta_click", ["screen": "onboarding_welcome"])
+                        analytics.track(TutorialAnalytics.ctaTapped,
+                                        properties: TutorialAnalytics.properties)
                         onContinue()
                     }
                     Text("Takes less than a minute")
@@ -331,7 +378,8 @@ struct WelcomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .onAppear {
-            // Analytics.track("screen_view", ["screen": "onboarding_welcome"])
+            analytics.track(TutorialAnalytics.cardViewed,
+                            properties: TutorialAnalytics.properties)
         }
     }
 }

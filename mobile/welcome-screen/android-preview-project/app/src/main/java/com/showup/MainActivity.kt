@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.showup.onboarding.WelcomeScreen
+import com.showup.tutorial.WelcomeScreen
 
 /**
  * Host for the welcome card. Edge-to-edge so the screen's own safe-area handling is what
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            WelcomeScreen(onContinue = { /* onboarding card 01 — not built yet */ })
+            WelcomeScreen(onContinue = { /* tutorial card 2 — not built yet */ })
         }
     }
 }

@@ -1,6 +1,6 @@
 /*
  * WelcomeScreen.kt
- * ShowUp · Onboarding 00 — Welcome screen (SHOWUP-117)
+ * ShowUp · Tutorial card 1 — Welcome screen (SHOWUP-117)
  *
  * Faithful implementation of 00-welcome-spec-sheet with Jetpack Compose.
  * Drop into the Android app, open the @Preview in Android Studio (see the folder README).
@@ -9,7 +9,7 @@
  * this builds — see the mapping above the FontFamily declarations. The heart is drawn in code,
  * so there is no asset to export.
  */
-package com.showup.onboarding
+package com.showup.tutorial
 
 // Adjust if the app's R class lives elsewhere (it follows the applicationId).
 import com.showup.R
@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +46,46 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+
+// ── Analytics ────────────────────────────────────────────────────────────
+//
+// A seam, not an integration. Real code rather than a commented-out reminder: a comment claiming
+// something is tracked is indistinguishable from tracking that works, and this project has already
+// been bitten by that more than once.
+//
+// The default does nothing, and will keep doing nothing until there is somewhere to send events —
+// the backend's analytics module has no ingest endpoint yet, and consent capture is not built, so
+// AnalyticsService.track() would discard anything sent today. When both land, pass a real
+// implementation in and this screen needs no further change.
+interface AnalyticsTracker {
+    fun track(event: String, properties: Map<String, Any>)
+}
+
+object NoOpAnalytics : AnalyticsTracker {
+    override fun track(event: String, properties: Map<String, Any>) = Unit
+}
+
+/**
+ * Names and properties for the tutorial flow.
+ *
+ * "Tutorial", deliberately not "onboarding" — onboarding is the separate flow where someone fills
+ * in their profile. Conflating them makes the funnel unreadable later.
+ *
+ * Names follow the backend taxonomy: snake_case, `<noun>_<verb-ed>`, snake_case properties, no free
+ * text and no personal data. Card number is a property rather than part of the event name so the
+ * remaining cards reuse these two events instead of inventing ten more.
+ */
+object TutorialAnalytics {
+    const val CARD_VIEWED = "tutorial_card_viewed"
+    const val CTA_TAPPED = "tutorial_cta_tapped"
+
+    /** Card 1. The spec sheet is named `00-welcome-spec-sheet`, but the ticket's tracking section
+     *  names this screen "Tutorial 1 - Welcome", so it is card 1. */
+    const val CARD = 1
+    const val CARD_NAME = "welcome"
+
+    val properties: Map<String, Any> = mapOf("card" to CARD, "card_name" to CARD_NAME)
+}
 
 // ── ① Design tokens (from the spec sheet) ───────────────────────────────
 private val Cream   = Color(0xFFFFFBF7)
@@ -196,7 +237,10 @@ private fun HeroHeart(modifier: Modifier = Modifier) {
 
 // ── The screen ───────────────────────────────────────────────────────────
 @Composable
-fun WelcomeScreen(onContinue: () -> Unit = {}) {
+fun WelcomeScreen(
+    onContinue: () -> Unit = {},
+    analytics: AnalyticsTracker = NoOpAnalytics,
+) {
     Box(Modifier.fillMaxSize().background(Cream)) {
 
         // ② peach top fade + two soft orbs
@@ -296,7 +340,7 @@ fun WelcomeScreen(onContinue: () -> Unit = {}) {
 
             // ⑧⑨ button + caption
             SunsetButton(title = "Show me how", onClick = {
-                // Analytics.track("cta_click", mapOf("screen" to "onboarding_welcome"))
+                analytics.track(TutorialAnalytics.CTA_TAPPED, TutorialAnalytics.properties)
                 onContinue()
             })
             Spacer(Modifier.height(10.dp))
@@ -305,7 +349,9 @@ fun WelcomeScreen(onContinue: () -> Unit = {}) {
                  modifier = Modifier.align(Alignment.CenterHorizontally))
         }
     }
-    // LaunchedEffect(Unit) { Analytics.track("screen_view", mapOf("screen" to "onboarding_welcome")) }
+    LaunchedEffect(Unit) {
+        analytics.track(TutorialAnalytics.CARD_VIEWED, TutorialAnalytics.properties)
+    }
 }
 
 // The three frames the acceptance criteria name. All content must be visible on each, with

@@ -4,7 +4,11 @@ Screen implementations for the ShowUp iOS and Android apps, kept here until thos
 repositories exist. **Nothing in this folder is built or run by the backend.**
 
 Right now there is one screen: the welcome card that appears after account creation
-(**SHOWUP-117**, onboarding card 00).
+(**SHOWUP-117**, tutorial card 1).
+
+Note the wording: this is the **tutorial**, the short tour explaining how Show Up works. It is not
+*onboarding*, which is the separate flow where someone completes their profile. The two are tracked
+separately, so keeping the names apart matters.
 
 ```
 mobile/welcome-screen/
@@ -68,7 +72,7 @@ In the toolbar at the top there is a device dropdown. If it is empty:
 Press the green **▶ Run** button. The emulator boots and the welcome card appears.
 
 **Or skip the emulator:** open
-`app/src/main/java/com/showup/onboarding/WelcomeScreen.kt` and click **Split** at the top right.
+`app/src/main/java/com/showup/tutorial/WelcomeScreen.kt` and click **Split** at the top right.
 Previews for all three device sizes render instantly, without an emulator.
 
 **Fonts:** nothing to do. They are already in `app/src/main/res/font/`.
@@ -118,10 +122,10 @@ and pick your team.
 
 One screen, on its own. There is no ShowUp app to tap through yet.
 
-- **The button goes nowhere on purpose.** Onboarding card 01 does not exist yet; it is out of scope
+- **The button goes nowhere on purpose.** Tutorial card 2 does not exist yet; it is out of scope
   for SHOWUP-117.
-- **No analytics fire.** Tracking is deliberately not wired — there is no ingest endpoint or
-  consent capture yet.
+- **No analytics reach anywhere.** The call sites are real code now (`TutorialAnalytics`), but the
+  default tracker does nothing — there is no ingest endpoint and no consent capture yet.
 - The screen must show all its content with nothing clipped and no scrolling at **375 × 667**,
   **390 × 844** and **430 × 932**. Compare against `welcome-screen/screenshots/`.
 

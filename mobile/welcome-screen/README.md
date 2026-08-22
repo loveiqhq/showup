@@ -91,9 +91,10 @@ identical across platforms, and there is no PNG to export, scale at 2x/3x, or le
 
 ## Still to wire (out of scope for this screen)
 
-- Navigation: `onContinue` should push **onboarding card 01**.
-- Analytics: the two tracking calls (`screen_view`, `cta_click`) are marked as comments — connect
-  them to PostHog when analytics is set up.
+- Navigation: `onContinue` should push **tutorial card 2**.
+- Analytics: the two call sites are wired to `TutorialAnalytics` (`tutorial_card_viewed`,
+  `tutorial_cta_tapped`) behind an `AnalyticsTracking` seam whose default does nothing. Inject a
+  real tracker once the backend has an ingest endpoint and consent capture.
 - The shared design-system `Button` (variant `sunset`, size `lg`) — here it's a local `SunsetButton`;
   fold it into the app's component library when that exists.
 

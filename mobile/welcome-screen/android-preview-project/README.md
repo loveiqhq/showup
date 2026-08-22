@@ -18,7 +18,7 @@ criteria.
    file inside it — this folder.
 3. Wait for **Gradle sync**. First time it downloads Gradle and the Compose libraries, so give it
    5–15 minutes. The progress bar is at the bottom.
-4. Open `app/src/main/java/com/showup/onboarding/WelcomeScreen.kt`.
+4. Open `app/src/main/java/com/showup/tutorial/WelcomeScreen.kt`.
 5. Click **Split** or **Design** at the top right of the editor. The three previews render on the
    right — 375 × 667, 390 × 844 and 430 × 932.
 
@@ -77,7 +77,7 @@ If the Android render differs, the Android render is what is wrong.
 
 ## Known — not bugs
 
-- **The CTA goes nowhere.** Onboarding card 01 does not exist yet, so `onContinue` is empty.
+- **The CTA goes nowhere.** Tutorial card 2 does not exist yet, so `onContinue` is empty.
 - **Tracking is commented out.** Analytics events are out of scope for this ticket, and there is no
   ingest endpoint or consent capture yet.
 - **`SunsetButton` is local to this file.** It becomes a shared design-system component with variant
