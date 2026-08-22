@@ -35,6 +35,10 @@ object NoOpAnalytics : AnalyticsTracker {
 object TutorialAnalytics {
     const val CARD_VIEWED = "tutorial_card_viewed"
     const val CTA_TAPPED = "tutorial_cta_tapped"
+    const val BACK_TAPPED = "tutorial_back_tapped"
+
+    /** Fired once, from the final screen's CTA. Completion of the whole flow, not of one screen. */
+    const val COMPLETED = "tutorial_completed"
 
     private fun props(card: Int, name: String): Map<String, Any> =
         mapOf("card" to card, "card_name" to name)
@@ -45,4 +49,16 @@ object TutorialAnalytics {
 
     /** Card 2 — SHOWUP-135, "Tutorial 2 - Meet". Screen 1 of the 5-segment tour. */
     val meet = props(2, "meet")
+
+    /** Card 3 — SHOWUP-136, "Tutorial 3 - Match". */
+    val match = props(3, "match")
+
+    /** Card 4 — SHOWUP-137, "Tutorial 4 - Match means meet". */
+    val binding = props(4, "match_means_meet")
+
+    /** Card 5 — SHOWUP-138, "Tutorial 5 - 30min". */
+    val thirty = props(5, "thirty_minutes")
+
+    /** Card 6 — SHOWUP-139, "Tutorial 6 - ShowUpRate". The terminal screen. */
+    val showUpRate = props(6, "show_up_rate")
 }

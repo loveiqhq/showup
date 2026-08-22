@@ -33,6 +33,10 @@ public struct NoOpAnalytics: AnalyticsTracking {
 public enum TutorialAnalytics {
     public static let cardViewed = "tutorial_card_viewed"
     public static let ctaTapped  = "tutorial_cta_tapped"
+    public static let backTapped = "tutorial_back_tapped"
+
+    /// Fired once, from the final screen's CTA. Completion of the whole flow, not of one screen.
+    public static let completed  = "tutorial_completed"
 
     private static func props(_ card: Int, _ name: String) -> [String: Any] {
         ["card": card, "card_name": name]
@@ -44,4 +48,16 @@ public enum TutorialAnalytics {
 
     /// Card 2 — SHOWUP-135, "Tutorial 2 - Meet". Screen 1 of the 5-segment tour.
     public static let meet = props(2, "meet")
+
+    /// Card 3 — SHOWUP-136, "Tutorial 3 - Match".
+    public static let match = props(3, "match")
+
+    /// Card 4 — SHOWUP-137, "Tutorial 4 - Match means meet".
+    public static let binding = props(4, "match_means_meet")
+
+    /// Card 5 — SHOWUP-138, "Tutorial 5 - 30min".
+    public static let thirty = props(5, "thirty_minutes")
+
+    /// Card 6 — SHOWUP-139, "Tutorial 6 - ShowUpRate". The terminal screen.
+    public static let showUpRate = props(6, "show_up_rate")
 }

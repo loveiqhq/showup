@@ -8,15 +8,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.showup.tutorial.MatchMeansMeetScreen
+import com.showup.tutorial.MatchOnAvailabilityScreen
 import com.showup.tutorial.MeetInRealLifeScreen
+import com.showup.tutorial.ShowUpEveryTimeScreen
+import com.showup.tutorial.ThirtyMinutesScreen
 import com.showup.tutorial.WelcomeScreen
 
 /**
- * Host for the tutorial screens. Edge-to-edge so each screen's own safe-area handling is what
+ * Host for the six tutorial screens. Edge-to-edge so each screen's own safe-area handling is what
  * positions the content — which is the thing worth checking on a device.
  *
- * The navigation here is a placeholder: real routing arrives with the rest of the flow. It exists
- * so "Show me how" actually goes somewhere in the emulator.
+ * The navigation here is a placeholder: real routing arrives with the rest of the app. It exists so
+ * the flow can be walked end to end in the emulator.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,7 +30,14 @@ class MainActivity : ComponentActivity() {
             var screen by remember { mutableIntStateOf(1) }
             when (screen) {
                 1 -> WelcomeScreen(onContinue = { screen = 2 })
-                else -> MeetInRealLifeScreen(onNext = { /* tutorial screen 3 — not built yet */ })
+                2 -> MeetInRealLifeScreen(onNext = { screen = 3 })
+                3 -> MatchOnAvailabilityScreen(onNext = { screen = 4 }, onBack = { screen = 2 })
+                4 -> MatchMeansMeetScreen(onNext = { screen = 5 }, onBack = { screen = 3 })
+                5 -> ThirtyMinutesScreen(onNext = { screen = 6 }, onBack = { screen = 4 })
+                else -> ShowUpEveryTimeScreen(
+                    onFinish = { screen = 1 },   // real destination TBC — restarts the tour for now
+                    onBack = { screen = 5 },
+                )
             }
         }
     }

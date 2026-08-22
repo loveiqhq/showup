@@ -15,6 +15,10 @@
  */
 package com.showup.tutorial
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,13 +32,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.designsystem.EyebrowBg
+import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Orange
@@ -85,9 +94,22 @@ fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Which circle the nav row's forward action wears.
+ *
+ * A variant on the shared button, not a forked nav row — screen 6 is the only terminal screen, and
+ * forking would mean its progress bar and Back slot drift from the other five.
+ */
+enum class NextVariant { Orange, Sunset }
+
 /** ⑨ Next — label plus a 56dp circular arrow, gap 14. */
 @Composable
-fun NextButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun NextButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    variant: NextVariant = NextVariant.Orange,
+) {
     Row(
         modifier.clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
@@ -95,7 +117,17 @@ fun NextButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
     ) {
         Text(label, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Box(
-            Modifier.size(56.dp).clip(CircleShape).background(Orange),
+            Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .then(
+                    when (variant) {
+                        NextVariant.Orange -> Modifier.background(Orange)
+                        NextVariant.Sunset -> Modifier.background(
+                            Brush.linearGradient(listOf(Orange, Color(0xFFD05976), Purple))
+                        )
+                    }
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -103,6 +135,48 @@ fun NextButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
                 tint = Color.White, modifier = Modifier.size(20.dp),
             )
         }
+    }
+}
+
+/**
+ * ⑤ A rule row: dot · rule · faint dash · purple consequence.
+ *
+ * Shared because four screens use it. Screen 2 sets `wraps = false` (spec: nowrap, single line);
+ * screens 3-5 wrap to two lines, which is why the flag exists rather than a hard-coded rule.
+ */
+@Composable
+fun RuleRow(rule: String, consequence: String, wraps: Boolean = true) {
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        // 6dp dot, offset 6 from the top so it sits on the first line's optical centre
+        Box(Modifier.padding(top = 6.dp).size(6.dp).background(Orange, CircleShape))
+        Text(
+            buildAnnotatedString {
+                append(rule)
+                withStyle(SpanStyle(color = Faint, fontWeight = FontWeight.Medium)) { append(" — ") }
+                withStyle(SpanStyle(color = Purple)) { append(consequence) }
+            },
+            color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp, lineHeight = 18.2.sp, letterSpacing = (-0.01).em,
+            maxLines = if (wraps) Int.MAX_VALUE else 1,
+            softWrap = wraps,
+        )
+    }
+}
+
+/**
+ * Screen 6 only: a plain statement row, single colour.
+ *
+ * Deliberately NOT the two-tone rule/consequence pattern — that sells a benefit, this states
+ * policy. 14.5 / 1.42, 7dp dot at offset 7, gap 12 to the text.
+ */
+@Composable
+fun StatementRow(text: String) {
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.padding(top = 7.dp).size(7.dp).background(Orange, CircleShape))
+        Text(
+            text, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+            fontSize = 14.5.sp, lineHeight = 20.6.sp,
+        )
     }
 }
 
@@ -125,6 +199,7 @@ fun TutorialShell(
     eyebrow: String,
     nextLabel: String,
     onNext: () -> Unit,
+    nextVariant: NextVariant = NextVariant.Orange,
     modifier: Modifier = Modifier,
     showBack: Boolean = true,
     onBack: () -> Unit = {},
@@ -177,9 +252,61 @@ fun TutorialShell(
                     fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                     modifier = if (showBack) Modifier.clickable(onClick = onBack) else Modifier,
                 )
-                NextButton(nextLabel, onNext)
+                NextButton(nextLabel, onNext, variant = nextVariant)
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * ⑧ Placeholder for the artwork design will supply.
+ *
+ * It holds the exact block the real asset gets — 248 x 210, centred, shrinking with the frame — so
+ * dropping the image in later changes nothing about the layout. Replace the Canvas with an
+ * Image(painterResource(...)) and the surrounding code is unchanged.
+ *
+ * `scale` exists for screen 6, which is drawn at 0.62 because its text block is the tallest of the
+ * set and would not otherwise fit.
+ */
+@Composable
+fun IllustrationPlaceholder(scale: Float = 1f) {
+    Box(contentAlignment = Alignment.Center) {
+        // radial glow, 220 x 190 — kept so the "no banding" criterion stays testable
+        Canvas(Modifier.matchParentSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0.00f to Orange.copy(alpha = 0.16f),
+                    0.26f to Orange.copy(alpha = 0.13f),
+                    0.48f to Purple.copy(alpha = 0.10f),
+                    0.70f to Color.Transparent,
+                    1.00f to Color.Transparent,
+                ),
+                radius = size.minDimension * 0.62f,
+            )
+        }
+        Box(
+            Modifier.fillMaxHeight().heightIn(max = 230.dp * scale).aspectRatio(248f / 210f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.matchParentSize()) {
+                drawRoundRect(
+                    color = Purple.copy(alpha = 0.38f),
+                    cornerRadius = CornerRadius(18.dp.toPx()),
+                    style = Stroke(
+                        width = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(
+                            floatArrayOf(7.dp.toPx(), 6.dp.toPx()), 0f,
+                        ),
+                    ),
+                )
+            }
+            Text(
+                "ILLUSTRATION\n248 × 210",
+                color = Purple.copy(alpha = 0.75f), fontFamily = Manrope,
+                fontWeight = FontWeight.Bold, fontSize = 11.sp, lineHeight = 16.sp,
+                letterSpacing = 0.07.em,
+            )
         }
     }
 }

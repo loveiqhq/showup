@@ -12,89 +12,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - ⑤ One rule row: dot · rule · faint dash · purple consequence
-
-private struct RuleRow: View {
-    let rule: String
-    let consequence: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 9) {
-            Circle()
-                .fill(Color.liqOrange)
-                .frame(width: 6, height: 6)
-                .padding(.top, 6)              // sits on the first line's optical centre
-            Text(TypeMetrics.attributed(
-                colouredRuns: [
-                    (rule, TypeMetrics.uiFont(PS.manropeSemi, 13,
-                                              fallback: .systemFont(ofSize: 13, weight: .semibold)),
-                     UIColor(Color.liqFg)),
-                    (" — ", TypeMetrics.uiFont(PS.manropeMedium, 13,
-                                               fallback: .systemFont(ofSize: 13, weight: .medium)),
-                     UIColor(Color.liqFaint)),
-                    (consequence, TypeMetrics.uiFont(PS.manropeSemi, 13,
-                                                     fallback: .systemFont(ofSize: 13, weight: .semibold)),
-                     UIColor(Color.liqPurple)),
-                ],
-                size: 13, multiple: 1.4, trackingEm: -0.01
-            ))
-            .lineLimit(1)                       // spec: no wrap. Verified to fit at 375 width.
-            .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-    }
-}
-
-// MARK: - ⑧ Placeholder for the artwork design will supply
-//
-// It holds the exact block the real asset gets — 248 x 210, centred, shrinking with the frame — so
-// dropping the image in later changes nothing about the layout. Replace the placeholder with
-// Image(...).resizable().scaledToFit() and the surrounding code is unchanged.
-
-private struct IllustrationPlaceholder: View {
-    var body: some View {
-        ZStack {
-            // radial glow — kept so the "no banding" criterion stays testable
-            RadialGradient(
-                gradient: Gradient(stops: [
-                    .init(color: .liqOrange.opacity(0.16), location: 0.00),
-                    .init(color: .liqOrange.opacity(0.13), location: 0.26),
-                    .init(color: .liqPurple.opacity(0.10), location: 0.48),
-                    .init(color: .liqPurple.opacity(0.00), location: 0.70),
-                ]),
-                center: .center, startRadius: 0, endRadius: 120
-            )
-            .blur(radius: 6)
-
-            GeometryReader { geo in
-                let side = min(geo.size.height, 230)
-                RoundedRectangle(cornerRadius: 18)
-                    .strokeBorder(
-                        Color.liqPurple.opacity(0.38),
-                        style: StrokeStyle(lineWidth: 1.5, dash: [7, 6])
-                    )
-                    .overlay(
-                        VStack(spacing: 3) {
-                            Image(systemName: "photo")
-                                .font(.system(size: 24, weight: .light))
-                                .foregroundColor(.liqPurple.opacity(0.5))
-                            Text("ILLUSTRATION")
-                                .font(F.manrope(11, .bold))
-                                .tracking(0.07 * 11)
-                                .foregroundColor(.liqPurple.opacity(0.75))
-                            Text("248 × 210")
-                                .font(F.manrope(10.5, .semibold))
-                                .foregroundColor(.liqSubtle)
-                        }
-                    )
-                    .frame(width: side * (248.0 / 210.0), height: side)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            }
-        }
-        .frame(maxHeight: 230)
-    }
-}
-
 // MARK: - The screen
 
 struct MeetInRealLifeView: View {
@@ -133,9 +50,9 @@ struct MeetInRealLifeView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // ⑤ rule list — 3 rows, gap 8, block gap below 16
                     VStack(alignment: .leading, spacing: 8) {
-                        RuleRow(rule: "No texting for weeks", consequence: "date in real life instead")
-                        RuleRow(rule: "No ghosting", consequence: "we penalize unreliability")
-                        RuleRow(rule: "No collecting matches", consequence: "you meet who you match")
+                        RuleRow(rule: "No texting for weeks", consequence: "date in real life instead", wraps: false)
+                        RuleRow(rule: "No ghosting", consequence: "we penalize unreliability", wraps: false)
+                        RuleRow(rule: "No collecting matches", consequence: "you meet who you match", wraps: false)
                     }
                     Spacer().frame(height: 16)
 
