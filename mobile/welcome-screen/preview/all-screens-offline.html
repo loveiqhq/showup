@@ -1,0 +1,262 @@
+<meta charset="utf-8">
+<title>ShowUp — Tutorial screens 2–6 (offline)</title>
+<style>
+/* Fonts resolve local() first — the copies installed on this machine — then the .ttf files in
+   ../fonts/. No internet needed either way, so this works from a double-click. */
+@font-face { font-family:"ShowUpLora"; font-weight:400; font-style:normal;
+  src: local("Lora Regular"), local("Lora"), url("../fonts/Lora-Regular.ttf") format("truetype"); }
+@font-face { font-family:"ShowUpLora"; font-weight:700; font-style:normal;
+  src: local("Lora Bold"), url("../fonts/Lora-Bold.ttf") format("truetype"); }
+@font-face { font-family:"ShowUpLora"; font-weight:400; font-style:italic;
+  src: local("Lora Italic"), url("../fonts/Lora-Italic.ttf") format("truetype"); }
+@font-face { font-family:"ShowUpLora"; font-weight:700; font-style:italic;
+  src: local("Lora Bold Italic"), url("../fonts/Lora-BoldItalic.ttf") format("truetype"); }
+@font-face { font-family:"ShowUpManrope"; font-weight:500;
+  src: local("Manrope Medium"), url("../fonts/Manrope-Medium.ttf") format("truetype"); }
+@font-face { font-family:"ShowUpManrope"; font-weight:600;
+  src: local("Manrope SemiBold"), url("../fonts/Manrope-SemiBold.ttf") format("truetype"); }
+@font-face { font-family:"ShowUpManrope"; font-weight:700;
+  src: local("Manrope Bold"), local("Manrope"), url("../fonts/Manrope-Bold.ttf") format("truetype"); }
+</style>
+<style>
+  :root {
+    --page-bg:#F4F2F7; --page-fg:#1D1129; --page-mute:#6B6377; --page-rule:#DFDAE6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --page-bg:#14111A; --page-fg:#ECE8F2; --page-mute:#9990A6; --page-rule:#2B2634; }
+  }
+  :root[data-theme="dark"] { --page-bg:#14111A; --page-fg:#ECE8F2; --page-mute:#9990A6; --page-rule:#2B2634; }
+
+  /* product tokens */
+  :root {
+    --liq-bg:#FFFBF7; --liq-orange-500:#FE6839; --liq-primary-500:#812AEC;
+    --liq-fg:#1D1129; --liq-neutral-200:#4B3B5A;
+    --liq-fg-faint:rgba(29,17,41,.24); --liq-fg-subtle:rgba(29,17,41,.46);
+    --liq-track:rgba(29,17,41,.12); --liq-eyebrow-bg:rgba(167,139,250,.16);
+    --liq-serif:"ShowUpLora","Lora",Georgia,serif;
+    --liq-sans:"ShowUpManrope","Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; padding:0 24px 72px; background:var(--page-bg); color:var(--page-fg); font-family:var(--liq-sans); -webkit-font-smoothing:antialiased; }
+  .page { max-width:1560px; margin:0 auto; display:flex; flex-direction:column; gap:3rem; }
+  header { padding-top:3.5rem; display:flex; flex-direction:column; gap:.6rem; }
+  .eyebrow-page { margin:0; font-size:.7rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--liq-orange-500); }
+  h1.page-title { margin:0; font-family:var(--liq-serif); font-weight:700; font-size:clamp(1.9rem,4vw,2.6rem); line-height:1.1; letter-spacing:-.02em; }
+  .sub { margin:0; color:var(--page-mute); max-width:66ch; line-height:1.6; font-size:.98rem; }
+
+  section.screen-block { display:flex; flex-direction:column; gap:1rem; padding-top:1.75rem; border-top:1px solid var(--page-rule); }
+  section.screen-block > h3.block-title { margin:0; font-family:var(--liq-serif); font-size:1.4rem; font-weight:700; letter-spacing:-.01em; }
+  section.screen-block .meta { margin:0; font-size:.85rem; color:var(--page-mute); }
+  .rail { display:flex; flex-wrap:wrap; gap:2.25rem; align-items:flex-start; }
+  figure.device { margin:0; display:flex; flex-direction:column; gap:.7rem; }
+  figcaption { font-size:.78rem; color:var(--page-mute); font-variant-numeric:tabular-nums; }
+
+  /* ══════════ THE SHELL — identical for every screen ══════════ */
+  .screen { position:relative; width:var(--w); height:var(--h); flex:none; overflow:hidden;
+    background:var(--liq-bg); border-radius:var(--radius,42px);
+    box-shadow:0 0 0 1px var(--page-rule), 0 22px 50px -18px rgba(29,17,41,.4); isolation:isolate; }
+  .statusbar { position:absolute; top:0; left:0; right:0; height:var(--safe-top); z-index:3;
+    display:flex; align-items:center; justify-content:space-between; padding:0 30px;
+    font-size:15px; font-weight:700; color:var(--liq-fg); font-variant-numeric:tabular-nums; }
+  .statusbar.compact { padding:0 18px; font-size:13px; }
+  .statusbar .icons { display:flex; align-items:center; gap:5px; }
+  .home-indicator { position:absolute; left:50%; transform:translateX(-50%); bottom:9px;
+    width:140px; height:5px; border-radius:3px; background:rgba(29,17,41,.85); z-index:3; }
+
+  .shell { position:relative; z-index:2; height:100%; display:flex; flex-direction:column;
+    padding: calc(var(--safe-top) + 8px) 24px var(--safe-bottom); }
+
+  .progress { flex:none; display:flex; gap:6px; margin-bottom:24px; }
+  .progress span { flex:1 1 0; height:5px; border-radius:999px; background:var(--liq-track); }
+  .progress span.on { background:var(--liq-primary-500); }
+
+  .eyebrow { flex:none; align-self:flex-start; display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:999px; background:var(--liq-eyebrow-bg);
+    font-family:var(--liq-sans); font-weight:700; font-size:11px; line-height:1.2;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--liq-primary-500); }
+  .eyebrow i { width:5px; height:5px; border-radius:50%; background:var(--liq-orange-500); flex:none; }
+
+  .headline { flex:none; position:relative; margin:14px 0 28px;
+    font-family:var(--liq-serif); font-weight:700; font-size:34px; line-height:1.1;
+    letter-spacing:-.015em; color:var(--liq-fg); text-wrap:pretty; }
+  .headline em { font-style:italic; }
+  .headline::after { content:""; position:absolute; left:2px; bottom:-4px; width:var(--ul,186px); height:10px; border-radius:50%;
+    background:linear-gradient(90deg, rgba(254,104,57,0) 0%, rgba(254,104,57,.5) 28%, rgba(224,86,122,.4) 64%, rgba(129,42,236,0) 100%);
+    filter:blur(4px); }
+
+  /* ⑧ illustration block — the only flexible element */
+  .art { flex:0 1 var(--art-h,230px); min-height:0; margin-top:24px;
+    display:flex; align-items:center; justify-content:center; position:relative; }
+  .art .glow { position:absolute; width:220px; height:190px; pointer-events:none;
+    background:radial-gradient(circle, rgba(254,104,57,.16) 0%, rgba(254,104,57,.13) 26%, rgba(129,42,236,.10) 48%, rgba(129,42,236,.04) 60%, rgba(0,0,0,0) 70%);
+    filter:blur(6px); }
+  .art-slot-box { position:relative; height:100%; aspect-ratio:248/210; max-width:100%;
+    border:1.5px dashed rgba(129,42,236,.38); border-radius:18px; background:rgba(167,139,250,.07);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    font-family:var(--liq-sans); color:var(--liq-primary-500); overflow:hidden; }
+  .art-slot-box svg { width:26px; height:26px; opacity:.5; flex:none; }
+  .art-slot-box b { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; white-space:nowrap; }
+  .art-slot-box i { font-style:normal; font-size:10.5px; font-weight:600; color:var(--liq-fg-subtle);
+    font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+  .spacer { flex:1 1 0; min-height:0; }
+
+  .nav { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:24px; }
+  .back { background:none; border:0; padding:0; cursor:pointer;
+    font-family:var(--liq-sans); font-weight:600; font-size:14px; color:var(--liq-fg-subtle); }
+  .back[data-hidden="true"] { color:transparent; pointer-events:none; }
+  .next { display:flex; align-items:center; gap:14px; background:none; border:0; padding:0; cursor:pointer; }
+  .next span { font-family:var(--liq-sans); font-weight:700; font-size:17px; color:var(--liq-fg); }
+  .next i { width:56px; height:56px; border-radius:50%; background:var(--liq-orange-500);
+    display:flex; align-items:center; justify-content:center; flex:none;
+    box-shadow:0 10px 24px -8px rgba(254,104,57,.65), 0 2px 6px rgba(254,104,57,.3); }
+  /* terminal CTA variant — sunset gradient + violet shadow (screen 6 only) */
+  .next.terminal i { background:linear-gradient(135deg,#FE6839 0%,#D05976 55%,#812AEC 100%);
+    box-shadow:0 10px 26px -8px rgba(129,42,236,.6), 0 2px 8px rgba(129,42,236,.35); }
+  .next svg { width:20px; height:20px; }
+
+  /* ══════════ per-screen content ══════════ */
+  .rules { flex:none; display:flex; flex-direction:column; gap:var(--rule-gap,8px); margin-bottom:var(--rules-mb,0px); }
+  .rules > div { display:flex; align-items:flex-start; gap:9px; }
+  .rules i { width:6px; height:6px; border-radius:50%; background:var(--liq-orange-500); flex:none; margin-top:6px; }
+  .rules p { margin:0; font-family:var(--liq-sans); font-weight:600; font-size:13px; line-height:1.4;
+    letter-spacing:-.01em; color:var(--liq-fg); }
+  .rules.nowrap p { white-space:nowrap; }
+  .rules .dash { color:var(--liq-fg-faint); font-weight:500; }
+  .rules .consequence { color:var(--liq-primary-500); }
+
+  .body-copy { flex:none; font-family:var(--liq-sans); font-weight:500; font-size:16px; line-height:1.5;
+    color:var(--liq-neutral-200); text-wrap:pretty; }
+  .body-copy p { margin:0; }
+  .body-copy p + p { margin-top:10px; }
+  .body-copy em { font-style:italic; font-weight:700; }
+  .body-copy strong { font-weight:700; }
+
+  /* screen 6 — statements, one colour, 14.5 / 1.42, gap 11, 7px dot offset 7, gap 12 */
+  .statements { flex:none; display:flex; flex-direction:column; gap:11px; }
+  .statements > div { display:flex; align-items:flex-start; gap:12px; }
+  .statements i { width:7px; height:7px; border-radius:50%; background:var(--liq-orange-500); flex:none; margin-top:7px; }
+  .statements p { margin:0; font-family:var(--liq-sans); font-weight:600; font-size:14.5px; line-height:1.42; color:var(--liq-fg); }
+  .closing { flex:none; margin-top:5px; font-family:var(--liq-sans); font-weight:500; font-size:14.5px;
+    line-height:1.5; color:var(--liq-neutral-200); text-wrap:pretty; }
+  .closing strong { font-weight:700; color:var(--liq-fg); }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow-page">SHOWUP-135 · 136 · 137 · 138 · 139</p>
+    <h1 class="page-title">Tutorial screens 2–6</h1>
+    <p class="sub">Every screen below is the same shell — step progress, eyebrow pill, headline,
+      illustration block, one <code>flex: 1</code> spacer and the nav row. Only the content changes,
+      plus two documented variations on the last screen: the terminal CTA and a single-colour
+      statement list. Illustrations are placeholders awaiting artwork.</p>
+  </header>
+  <div id="out"></div>
+</div>
+
+<script>
+const DEVICES = [
+  { w:375, h:667, safeTop:20, safeBottom:0,  radius:34, compact:true,  home:false, label:"iPhone SE" },
+  { w:390, h:844, safeTop:54, safeBottom:28, radius:42, compact:false, home:true,  label:"reference frame" },
+  { w:430, h:932, safeTop:54, safeBottom:28, radius:48, compact:false, home:true,  label:"iPhone Pro Max" },
+];
+
+const ICONS = `<svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5.5" width="3" height="6.5" rx="1"/><rect x="9" y="3" width="3" height="9" rx="1"/><rect x="13.5" width="3" height="12" rx="1"/></svg>
+  <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 11.2 5.9 8.9a3 3 0 0 1 4.2 0zM3.2 6.2 1.4 4.3a9.4 9.4 0 0 1 13.2 0l-1.8 1.9a6.8 6.8 0 0 0-9.6 0z"/></svg>
+  <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".6" y=".6" width="20" height="10.8" rx="3" stroke="currentColor" stroke-opacity=".4"/><rect x="2.2" y="2.2" width="16.8" height="7.6" rx="1.8" fill="currentColor"/><path d="M22.4 4.2v3.6a2 2 0 0 0 0-3.6" fill="currentColor" fill-opacity=".45"/></svg>`;
+
+const ART = `<div class="art"><div class="glow"></div>
+  <div class="art-slot-box" role="img" aria-label="Illustration placeholder">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-6 6-2-2-5 5"/></svg>
+    <b>Illustration</b><i>248 × 210</i></div></div>`;
+
+const rules = (rows, gap, mb, nowrap) =>
+  `<div class="rules${nowrap ? ' nowrap' : ''}" style="--rule-gap:${gap}px;--rules-mb:${mb}px">` +
+  rows.map(([a,b]) => `<div><i></i><p>${a}<span class="dash"> — </span><span class="consequence">${b}</span></p></div>`).join('') +
+  `</div>`;
+
+const SCREENS = [
+  { key:"SHOWUP-135", n:2, ticket:"Tutorial 2 · Meet", step:1, back:false, ul:186,
+    eyebrow:"Meet people in real life",
+    headline:`We want you to <em>actually</em> meet.`,
+    content:
+      rules([["No texting for weeks","date in real life instead"],
+             ["No ghosting","we penalize unreliability"],
+             ["No collecting matches","you meet who you match"]], 8, 16, true) +
+      `<div class="body-copy"><p>If you match here, you <em>will meet</em> in real life. A match is a committed date — not a maybe.</p>
+       <p><strong>Showing up to dates boosts your profile</strong> by highlighting your reliability and increasing your visibility. <strong>Missing dates without fair notice upfront</strong> reduces your visibility for others.</p></div>` },
+
+  { key:"SHOWUP-136", n:3, ticket:"Tutorial 3 · Match", step:2, back:true, ul:210,
+    eyebrow:"Match on availability",
+    headline:`Match people who are <em>free to date</em> when you are.`,
+    content: rules([["Visible only when you’re free to date","check in and state your available times to meet"],
+                    ["Synchronised schedules","we only show you people to date who are available when you are"],
+                    ["Different day, different vibe","match on what you’re in the mood for right now, not a static bio"]], 12, 0, false) },
+
+  { key:"SHOWUP-137", n:4, ticket:"Tutorial 4 · Match means meet", step:3, back:true, ul:170,
+    eyebrow:"Match means meet",
+    headline:`A match is a <em>binding</em> date.`,
+    content: rules([["You decide who you like","if you match, you will meet"],
+                    ["We suggest the time","a date and time that works for both of your schedules"],
+                    ["We pick the place","a safe, public spot halfway between you"]], 12, 0, false) },
+
+  { key:"SHOWUP-138", n:5, ticket:"Tutorial 5 · 30 min", step:4, back:true, ul:150,
+    eyebrow:"30 minutes, no pressure",
+    headline:`Just <em>thirty minutes</em>.`,
+    content: rules([["Low-pressure 30-minute dates","quick, relaxed meetups to see if you click in real life"],
+                    ["30 minutes up","stay if you’re vibing, or leave with a smile — no hard feelings"],
+                    ["Built-in icebreakers","fun, easy prompts to keep the conversation flowing"]], 12, 0, false) },
+
+  { key:"SHOWUP-139", n:6, ticket:"Tutorial 6 · Show-up Rate", step:5, back:true, ul:196,
+    terminal:true, nextLabel:"I’m ready to show up", artScale:0.62,
+    eyebrow:"Show up, every time",
+    headline:`If you don’t show up, <em>there’s a cost</em>.`,
+    content:
+      `<div class="statements">` +
+      ["Every profile has a Show-up Rate.",
+       "Showing up to dates is reflected positively.",
+       "Not showing up is reflected negatively.",
+       "A persistently low Show-up Rate reduces your visibility to others.",
+       "Miss a date without fair notice and you can’t search for new dates for 24 hours."]
+       .map(t => `<div><i></i><p>${t}</p></div>`).join('') +
+      `</div>
+       <p class="closing"><strong>Show Up is for reliable people.</strong> Life happens. Stay fair and show respect for each other, and your Show-up Rate will reflect it.</p>` },
+];
+
+const out = document.getElementById('out');
+SCREENS.forEach(sc => {
+  const sec = document.createElement('section');
+  sec.className = 'screen-block';
+  sec.innerHTML = `<h3 class="block-title">Screen ${sc.n} — ${sc.eyebrow}</h3>
+    <p class="meta">${sc.key} · ${sc.ticket} · progress ${sc.step}/5 · back ${sc.back ? 'active' : 'hidden'}${sc.terminal ? ' · terminal CTA' : ''}${sc.artScale ? ' · art scale ' + sc.artScale : ''}</p>
+    <div class="rail"></div>`;
+  const rail = sec.querySelector('.rail');
+
+  DEVICES.forEach(d => {
+    const artH = Math.round(230 * (sc.artScale || 1));
+    const fig = document.createElement('figure');
+    fig.className = 'device';
+    fig.innerHTML = `
+      <div class="screen" data-screen="${sc.n}" style="--w:${d.w}px;--h:${d.h}px;--safe-top:${d.safeTop}px;--safe-bottom:${d.safeBottom}px;--radius:${d.radius}px;--art-h:${artH}px;">
+        <div class="statusbar${d.compact ? ' compact' : ''}"><span>4:20</span><span class="icons">${ICONS}</span></div>
+        <div class="shell">
+          <div class="progress">${Array.from({length:5},(_,i)=>`<span class="${i < sc.step ? 'on' : ''}"></span>`).join('')}</div>
+          <div class="eyebrow"><i></i>${sc.eyebrow}</div>
+          <h2 class="headline" style="--ul:${sc.ul}px">${sc.headline}</h2>
+          ${sc.content}
+          ${ART}
+          <div class="spacer"></div>
+          <div class="nav">
+            <button class="back" ${sc.back ? '' : 'data-hidden="true" tabindex="-1" aria-hidden="true"'}>Back</button>
+            <button class="next${sc.terminal ? ' terminal' : ''}" type="button"><span>${sc.nextLabel || 'Next'}</span><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></i></button>
+          </div>
+        </div>
+        ${d.home ? '<div class="home-indicator"></div>' : ''}
+      </div>
+      <figcaption>${d.w} × ${d.h} · ${d.label}</figcaption>`;
+    rail.appendChild(fig);
+  });
+  out.appendChild(sec);
+});
+</script>
