@@ -42,6 +42,8 @@ fun MatchOnAvailabilityScreen(
         step = 2,
         totalSteps = 5,
         eyebrow = "Match on availability",
+            // accent under "free to date"
+            underlineWidth = 210.dp,
         nextLabel = "Next",
         showBack = true,
         onNext = {

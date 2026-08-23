@@ -6,7 +6,7 @@
  * enforced, and the CTA is the moment the user accepts it.
  *
  * Three documented variations on the shell, all of them parameters rather than forks:
- *   1. Terminal CTA  — "I'm ready to show up" with the sunset-gradient circle.
+ *   1. Terminal CTA  — "I’m ready to show up" with the sunset-gradient circle.
  *   2. Statement list — five single-colour rows, NOT the two-tone rule/consequence pattern of
  *      screens 2-5. That pattern sells a benefit; this states policy. Do not "fix" it to match.
  *   3. A closing paragraph, the only body paragraph in screens 3-6.
@@ -54,6 +54,8 @@ fun ShowUpEveryTimeScreen(
         step = 5,                                   // all five segments filled
         totalSteps = 5,
         eyebrow = "Show up, every time",
+            // accent under "there’s a cost"
+            underlineWidth = 196.dp,
         nextLabel = "I’m ready to show up",
         nextVariant = NextVariant.Sunset,           // variation 1
         showBack = true,

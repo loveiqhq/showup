@@ -20,6 +20,8 @@ struct ThirtyMinutesView: View {
             step: 4,
             totalSteps: 5,
             eyebrow: "30 minutes, no pressure",
+            // accent under "thirty minutes"
+            underlineWidth: 150,
             nextLabel: "Next",
             showBack: true,
             onNext: {

@@ -20,6 +20,8 @@ struct MatchMeansMeetView: View {
             step: 3,
             totalSteps: 5,
             eyebrow: "Match means meet",
+            // accent under "binding"
+            underlineWidth: 170,
             nextLabel: "Next",
             showBack: true,
             onNext: {

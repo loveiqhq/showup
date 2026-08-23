@@ -207,7 +207,7 @@ struct WelcomeView: View {
                     }
 
                     HStack(spacing: 8) {                            // ⑥ subhead
-                        Text("We're happy to see you").font(F.manrope(18, .semibold)).foregroundColor(.liqFg)
+                        Text("We’re happy to see you").font(F.manrope(18, .semibold)).foregroundColor(.liqFg)
                         Image(systemName: "heart.fill").font(.system(size: 20)).foregroundColor(.liqOrange)
                     }
 

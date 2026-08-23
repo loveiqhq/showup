@@ -24,16 +24,37 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
+import android.provider.Settings
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -51,17 +72,42 @@ import com.showup.designsystem.Purple
 import com.showup.designsystem.Subtle
 import com.showup.designsystem.Track
 
-/** ② Step progress — 5 segments, height 5, gap 6, full content width. */
+/**
+ * ② Step progress — 5 segments, height 5, gap 6, full content width.
+ *
+ * The segment colour animates rather than snapping, so advancing a card reads as progress being
+ * made rather than as the bar being redrawn. It is one colour tween per segment, which costs
+ * nothing and is skipped entirely when the device asks for no motion.
+ *
+ * Semantics: the bar is one node reporting "Step N of 5", not five anonymous boxes. Without this a
+ * screen reader announces nothing at all here — the segments carry no text.
+ */
 @Composable
 fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    val motion = rememberMotion()
+    Row(
+        modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                progressBarRangeInfo =
+                    ProgressBarRangeInfo(current.toFloat(), 0f..steps.toFloat(), steps)
+                contentDescription = "Step " + current + " of " + steps
+            },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         repeat(steps) { i ->
+            val target = if (i < current) Purple else Track
+            val segment by animateColorAsState(
+                targetValue = target,
+                animationSpec = tween(durationMillis = if (motion.enabled) 320 else 0),
+                label = "segment",
+            )
             Box(
                 Modifier
                     .weight(1f)
                     .height(5.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (i < current) Purple else Track)
+                    .background(segment)
             )
         }
     }
@@ -102,7 +148,62 @@ fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
  */
 enum class NextVariant { Orange, Sunset }
 
-/** ⑨ Next — label plus a 56dp circular arrow, gap 14. */
+/**
+ * Whether this device wants motion.
+ *
+ * Android has no single "reduce motion" flag. The honest signal is the system animator duration
+ * scale, which the OS sets to 0 when someone turns animations off — either in Accessibility >
+ * Remove animations, or in Developer options. Respecting it keeps the flow usable for people who
+ * get motion sick, and has the useful side effect of holding the screens still under UI tests.
+ */
+@Immutable
+data class Motion(val enabled: Boolean)
+
+@Composable
+fun rememberMotion(): Motion {
+    val context = LocalContext.current
+    return remember(context) {
+        val scale = runCatching {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        }.getOrDefault(1f)
+        Motion(enabled = scale > 0f)
+    }
+}
+
+/**
+ * The spec's arrow — a 2px stroke with round caps, not a filled glyph.
+ *
+ * Material's `Icons.AutoMirrored.Filled.ArrowForward` is a solid shape with a different silhouette;
+ * at 56dp against a saturated circle the difference is plainly visible, so the arrow is drawn.
+ */
+@Composable
+private fun ArrowRight(size: Dp) {
+    Canvas(Modifier.size(size)) {
+        val s = this.size.width
+        val midY = this.size.height / 2f
+        val w = 2.dp.toPx()
+        drawLine(
+            Color.White, Offset(s * 0.10f, midY), Offset(s * 0.84f, midY),
+            strokeWidth = w, cap = StrokeCap.Round,
+        )
+        drawPath(
+            Path().apply {
+                moveTo(s * 0.56f, midY - s * 0.25f)
+                lineTo(s * 0.86f, midY)
+                lineTo(s * 0.56f, midY + s * 0.25f)
+            },
+            Color.White,
+            style = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+    }
+}
+
+/**
+ * ⑨ Next — label plus a 56dp circular arrow, gap 14.
+ *
+ * Card 05 is the only terminal card. Its circle takes the sunset gradient and a violet shadow, and
+ * its arrow is 22 rather than 20 — both variants on this one button, never a forked nav row.
+ */
 @Composable
 fun NextButton(
     label: String,
@@ -110,30 +211,52 @@ fun NextButton(
     modifier: Modifier = Modifier,
     variant: NextVariant = NextVariant.Orange,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val motion = rememberMotion()
+    // 0.94 reads as a press without the circle appearing to shrink away from the finger.
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && motion.enabled) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 900f),
+        label = "nextPress",
+    )
+    val glow = if (variant == NextVariant.Sunset) Purple else Orange
     Row(
-        modifier.clickable(onClick = onClick),
+        modifier
+            .clip(RoundedCornerShape(50))
+            .clickable(
+                interactionSource = interaction,
+                indication = null,          // the scale IS the feedback; a ripple would fight it
+                role = Role.Button,
+                onClick = onClick,
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text(label, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Box(
             Modifier
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                // --liq-shadow-cta on cards 01-04, --liq-shadow-violet on card 05
+                .shadow(14.dp, CircleShape, ambientColor = glow, spotColor = glow)
                 .size(56.dp)
                 .clip(CircleShape)
                 .then(
                     when (variant) {
                         NextVariant.Orange -> Modifier.background(Orange)
+                        // 135 degrees, midpoint at 38% - deliberately not an even three-stop ramp
                         NextVariant.Sunset -> Modifier.background(
-                            Brush.linearGradient(listOf(Orange, Color(0xFFD05976), Purple))
+                            Brush.linearGradient(
+                                0.00f to Orange,
+                                0.38f to Color(0xFFD05976),
+                                1.00f to Purple,
+                            )
                         )
                     }
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
-                tint = Color.White, modifier = Modifier.size(20.dp),
-            )
+            ArrowRight(size = if (variant == NextVariant.Sunset) 22.dp else 20.dp)
         }
     }
 }
@@ -190,7 +313,11 @@ fun StatementRow(text: String) {
  *                      width, but is invisible and non-interactive
  * @param headline      the Lora headline, passed in so each screen can style its own italic run
  * @param content       ⑤⑥⑦ the per-screen body — rule rows, paragraphs
- * @param art           ⑧ the illustration block, 342 x 230, the only element allowed to shrink
+ * @param art           ⑧ the illustration block, 342 x 230, the only element allowed to shrink.
+ *                      BoxScope, not ColumnScope: art is invoked inside the flexible Box below.
+ *                      Compose marks every layout scope with @LayoutScopeMarker (a @DslMarker), so
+ *                      opening a Box scope hides the enclosing ColumnScope — a ColumnScope receiver
+ *                      here has nothing to resolve against and fails to compile.
  */
 @Composable
 fun TutorialShell(
@@ -202,10 +329,16 @@ fun TutorialShell(
     nextVariant: NextVariant = NextVariant.Orange,
     modifier: Modifier = Modifier,
     showBack: Boolean = true,
+    /**
+     * Width of the headline underline accent. It underlines the italic phrase, so the width is
+     * per-card rather than derived: the italic run sits at a different place in every headline.
+     * 0 draws nothing.
+     */
+    underlineWidth: Dp = 0.dp,
     onBack: () -> Unit = {},
     headline: @Composable ColumnScope.() -> Unit,
     content: @Composable ColumnScope.() -> Unit,
-    art: @Composable ColumnScope.() -> Unit,
+    art: @Composable BoxScope.() -> Unit,
 ) {
     Box(modifier.fillMaxSize().background(Cream)) {
         Column(
@@ -221,7 +354,32 @@ fun TutorialShell(
             EyebrowPill(eyebrow)
             Spacer(Modifier.height(14.dp))          // eyebrow -> headline
 
-            headline()
+            // ④ headline + the underline accent. Every card's AC asks for it; only the Welcome
+            //    screen had one.
+            //
+            //    The bar is a child of a Box wrapping just the headline, bottom-aligned and nudged
+            //    down 4. Modifier.offset places without re-measuring, so the accent cannot change
+            //    the headline's measured height — the column's 14 / 28 margins are untouched.
+            Box {
+                Column { headline() }
+                if (underlineWidth > 0.dp) {
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(y = 4.dp)
+                            .size(width = underlineWidth, height = 10.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    0.00f to Color.Transparent,
+                                    0.28f to Orange.copy(alpha = 0.50f),
+                                    0.64f to Color(0xFFE0567A).copy(alpha = 0.40f),
+                                    1.00f to Color.Transparent,
+                                ),
+                                RoundedCornerShape(50),
+                            )
+                    )
+                }
+            }
             Spacer(Modifier.height(28.dp))          // headline -> content
 
             content()
@@ -246,12 +404,28 @@ fun TutorialShell(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    "Back",
-                    color = if (showBack) Subtle else Color.Transparent,
-                    fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                    modifier = if (showBack) Modifier.clickable(onClick = onBack) else Modifier,
-                )
+                // The label is ~20dp tall; 48dp is Android's minimum touch target, so the box
+                // carries the target and the text sits at its leading edge — same pixels, a
+                // tappable area that passes an accessibility scan. When the slot is reserved but
+                // invisible (card 01) it is also cleared from the semantics tree, so a screen
+                // reader does not announce a "Back" that cannot be pressed.
+                Box(
+                    Modifier
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .then(
+                            if (showBack) Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable(role = Role.Button, onClick = onBack)
+                            else Modifier.clearAndSetSemantics { }
+                        ),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Text(
+                        "Back",
+                        color = if (showBack) Subtle else Color.Transparent,
+                        fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                    )
+                }
                 NextButton(nextLabel, onNext, variant = nextVariant)
             }
             Spacer(Modifier.height(24.dp))
@@ -271,13 +445,19 @@ fun TutorialShell(
  */
 @Composable
 fun IllustrationPlaceholder(scale: Float = 1f) {
-    Box(contentAlignment = Alignment.Center) {
-        // radial glow, 220 x 190 — kept so the "no banding" criterion stays testable
+    // Decorative: it carries no information the copy does not already state, so it is cleared from
+    // the semantics tree rather than given a label a screen reader would have to read past.
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.clearAndSetSemantics { }) {
+        // Radial glow — kept so the "no banding" criterion stays testable.
+        //
+        // Three stops exactly as the reference: sunset .16 at the centre, violet .10 at 48%,
+        // transparent by 70%. An earlier build carried a fourth stop at 26% that exists in no
+        // source; it flattened the falloff and is the kind of drift that makes a gradient
+        // "nearly right" forever.
         Canvas(Modifier.matchParentSize()) {
             drawCircle(
                 brush = Brush.radialGradient(
                     0.00f to Orange.copy(alpha = 0.16f),
-                    0.26f to Orange.copy(alpha = 0.13f),
                     0.48f to Purple.copy(alpha = 0.10f),
                     0.70f to Color.Transparent,
                     1.00f to Color.Transparent,

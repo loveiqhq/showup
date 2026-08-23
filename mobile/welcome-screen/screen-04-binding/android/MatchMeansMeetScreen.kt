@@ -42,6 +42,8 @@ fun MatchMeansMeetScreen(
         step = 3,
         totalSteps = 5,
         eyebrow = "Match means meet",
+            // accent under "binding"
+            underlineWidth = 170.dp,
         nextLabel = "Next",
         showBack = true,
         onNext = {

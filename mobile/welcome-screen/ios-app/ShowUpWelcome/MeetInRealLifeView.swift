@@ -23,6 +23,8 @@ struct MeetInRealLifeView: View {
             step: 1,                          // first of the 5-segment tour
             totalSteps: 5,
             eyebrow: "Meet people in real life",
+            // accent under "actually"
+            underlineWidth: 186,
             nextLabel: "Next",
             showBack: false,                  // first screen of the tour — slot reserved, invisible
             onNext: {

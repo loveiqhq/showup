@@ -28,6 +28,8 @@ struct ShowUpEveryTimeView: View {
             step: 5,                              // all five segments filled
             totalSteps: 5,
             eyebrow: "Show up, every time",
+            // accent under "there’s a cost"
+            underlineWidth: 196,
             nextLabel: "I’m ready to show up",
             nextVariant: .sunset,                 // variation 1
             showBack: true,

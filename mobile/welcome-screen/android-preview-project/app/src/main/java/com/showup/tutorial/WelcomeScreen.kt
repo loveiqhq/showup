@@ -252,7 +252,7 @@ fun WelcomeScreen(
             }
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("We're happy to see you", color = Fg, fontFamily = Manrope,
+                Text("We’re happy to see you", color = Fg, fontFamily = Manrope,
                      fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.Filled.Favorite, contentDescription = null, tint = Orange,

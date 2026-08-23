@@ -1,0 +1,265 @@
+# -*- coding: utf-8 -*-
+"""Spec conformance check for tutorial screens 1-6.
+
+Reads values back out of the Kotlin and Swift sources and compares them against the design handoff.
+Run after any change to the screens:
+
+    python audit/verify-spec.py
+
+Sources of truth, in the handoff README's own order of authority:
+  1. screen-onboarding-reference.jsx  - wins on numbers
+  2. tickets/01..05.md                - wins on behaviour, scope, copy
+  3. spec-sheets/*.png                - summary only, never measured
+
+A check here is not decoration: findings 1-11 in AUDIT-2026-08-23.md were all things that looked
+right in review and were wrong in the source.
+"""
+import io
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KT = os.path.join(ROOT, "android-preview-project/app/src/main/java/com/showup")
+SW = os.path.join(ROOT, "ios-app/ShowUpWelcome")
+
+fails = []
+checks = 0
+CURLY = chr(0x2019)
+STRAIGHT = chr(0x27)
+DQ = chr(0x22)
+
+
+def read(path):
+    return io.open(path, encoding="utf-8").read()
+
+
+def check(name, ok):
+    global checks
+    checks += 1
+    if not ok:
+        fails.append(name)
+
+
+def code_only(src):
+    """Source with comments removed.
+
+    Needed for the "this must NOT appear" checks: both platforms carry a comment explaining why the
+    arrow is drawn rather than taken from the system icon set, and that comment necessarily names
+    the icon it replaced. Searching raw text flags the explanation as the defect it warns about.
+    """
+    out = []
+    for line in src.split("\n"):
+        stripped = line.lstrip()
+        if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+# ------------------------------------------------------------------ colour tokens
+kt_tok = read(os.path.join(KT, "designsystem/DesignSystem.kt"))
+sw_tok = read(os.path.join(SW, "DesignSystem.swift"))
+
+for name, kt_hex, sw_hex in [
+    ("bg #FFFBF7", "0xFFFFFBF7", "0xFFFBF7"),
+    ("orange #FE6839", "0xFFFE6839", "0xFE6839"),
+    ("purple #812AEC", "0xFF812AEC", "0x812AEC"),
+    ("fg #1D1129", "0xFF1D1129", "0x1D1129"),
+    ("neutral #4B3B5A", "0xFF4B3B5A", "0x4B3B5A"),
+]:
+    check("token " + name + " (kotlin)", kt_hex in kt_tok)
+    check("token " + name + " (swift)", sw_hex in sw_tok)
+
+# alpha tokens: subtle .46, faint .24, track .12, eyebrow fill .16
+for name, byte, opacity in [
+    ("subtle .46", "0x751D1129", "0.46"),
+    ("faint .24", "0x3D1D1129", "0.24"),
+    ("track .12", "0x1F1D1129", "0.12"),
+    ("eyebrowBg .16", "0x29A78BFA", "0.16"),
+]:
+    check("alpha " + name + " (kotlin)", byte in kt_tok)
+    check("alpha " + name + " (swift)", opacity in sw_tok)
+
+# ------------------------------------------------------------------ shared shell
+kt = read(os.path.join(KT, "tutorial/TutorialShell.kt"))
+sw = read(os.path.join(SW, "TutorialShell.swift"))
+
+# The fixed spacing every spec sheet repeats: gutter 24, pad-top 8, 24 / 14 / 28, nav 24.
+for label, kt_pat, sw_pat in [
+    ("progress->eyebrow 24", "Spacer(Modifier.height(24.dp))", "Spacer().frame(height: 24)"),
+    ("eyebrow->headline 14", "Spacer(Modifier.height(14.dp))", "Spacer().frame(height: 14)"),
+    ("headline->content 28", "Spacer(Modifier.height(28.dp))", "Spacer().frame(height: 28)"),
+    ("gutter 24", "start = 24.dp, end = 24.dp", ".padding(.horizontal, 24)"),
+]:
+    check("spacing " + label + " (kotlin)", kt_pat in kt)
+    check("spacing " + label + " (swift)", sw_pat in sw)
+
+check("pad-top 8 (kotlin)", "top = 8.dp" in kt)
+check("pad-top 8 (swift)", ".padding(.top, 8)" in sw)
+
+# progress bar
+check("progress h5 (kotlin)", "height(5.dp)" in kt)
+check("progress h5 (swift)", "frame(height: 5)" in sw)
+check("progress gap 6 (kotlin)", "spacedBy(6.dp)" in kt)
+check("progress gap 6 (swift)", "HStack(spacing: 6)" in sw)
+
+# eyebrow pill
+check("eyebrow 11 (kotlin)", "fontSize = 11.sp" in kt)
+check("eyebrow 11 (swift)", "manrope(11, .bold)" in sw)
+check("eyebrow tracking .08 (kotlin)", "0.08.em" in kt)
+check("eyebrow tracking .08 (swift)", "0.08 * 11" in sw)
+check("eyebrow pad 5/10 (kotlin)", "horizontal = 10.dp, vertical = 5.dp" in kt)
+check("eyebrow pad 5/10 (swift)", ".padding(.horizontal, 10)" in sw and ".padding(.vertical, 5)" in sw)
+check("eyebrow dot 5 (kotlin)", "size(5.dp)" in kt)
+check("eyebrow dot 5 (swift)", "width: 5, height: 5" in sw)
+check("eyebrow hug-width (kotlin)", "align(Alignment.Start)" in kt)
+
+# rule row: 13 / 1.4 = 18.2, tracking -0.01em, dot 6 at offset 6, gap 9
+check("rule 13 (kotlin)", "fontSize = 13.sp" in kt)
+check("rule 18.2 lh (kotlin)", "18.2.sp" in kt)
+check("rule tracking -0.01 (kotlin)", "(-0.01).em" in kt)
+check("rule dot 6 offset 6 (kotlin)", "padding(top = 6.dp).size(6.dp)" in kt)
+check("rule gap 9 (kotlin)", "spacedBy(9.dp)" in kt)
+check("rule 1.4 (swift)", "multiple: 1.4" in sw)
+check("rule tracking -0.01 (swift)", "trackingEm: -0.01" in sw)
+
+# statement row (card 05 only): 14.5 / 1.42 = 20.59, dot 7 at offset 7, gap 12, NO tracking
+check("statement 14.5 (kotlin)", "fontSize = 14.5.sp" in kt)
+check("statement 20.6 lh (kotlin)", "20.6.sp" in kt)
+check("statement dot 7 offset 7 (kotlin)", "padding(top = 7.dp).size(7.dp)" in kt)
+check("statement gap 12 (kotlin)", "spacedBy(12.dp)" in kt)
+check("statement 1.42 (swift)", "multiple: 1.42" in sw)
+if "fun StatementRow" in kt:
+    body = kt.split("fun StatementRow")[1][:600]
+    check("statement has no negative tracking (kotlin)", "letterSpacing" not in body)
+
+# nav row / CTA
+check("CTA circle 56 (kotlin)", "size(56.dp)" in kt)
+check("CTA circle 56 (swift)", "width: 56, height: 56" in sw)
+check("CTA gap 14 (kotlin)", "spacedBy(14.dp)" in kt)
+check("CTA gap 14 (swift)", "HStack(spacing: 14)" in sw)
+check("CTA label 17 (kotlin)", "fontSize = 17.sp" in kt)
+check("CTA label 17 (swift)", "manrope(17, .bold)" in sw)
+check("nav 24 above floor (kotlin)", "padding(.bottom" not in kt or "24.dp" in kt)
+check("nav 24 above floor (swift)", ".padding(.bottom, 24)" in sw)
+
+# terminal CTA variant: arrow 22 (not 20), sunset midpoint at 38% (not an even ramp)
+check("arrow 22 on sunset (kotlin)", "22.dp else 20.dp" in kt)
+check("arrow 22 on sunset (swift)", "? 22 : 20" in sw)
+check("sunset midpoint 38% (kotlin)", "0.38f to Color(0xFFD05976)" in kt)
+check("sunset midpoint 38% (swift)", "location: 0.38" in sw)
+check("arrow stroke 2 (kotlin)", "2.dp.toPx()" in kt)
+check("arrow stroke 2 (swift)", "lineWidth: 2" in sw)
+check("arrow is drawn not a glyph (kotlin)", "ArrowForward" not in code_only(kt))
+check("arrow is drawn not a glyph (swift)", 'systemName: "arrow.right"' not in code_only(sw))
+check("CTA shadow (kotlin)", ".shadow(" in kt)
+check("CTA shadow (swift)", ".shadow(color:" in sw)
+
+# radial glow: exactly the reference's stops, no invented fourth
+check("glow no .13 stop (kotlin)", "alpha = 0.13f" not in code_only(kt))
+check("glow no .13 stop (swift)", "opacity(0.13)" not in code_only(sw))
+check("glow .16 and .10 (kotlin)", "alpha = 0.16f" in kt and "alpha = 0.10f" in kt)
+check("glow .16 and .10 (swift)", "opacity(0.16)" in sw and "opacity(0.10)" in sw)
+
+# headline underline accent - an AC on all five cards
+check("underline param (kotlin)", "underlineWidth" in kt)
+check("underline param (swift)", "underlineWidth" in sw)
+
+# accessibility
+check("progress announced (kotlin)", "progressBarRangeInfo" in kt)
+check("progress announced (swift)", "accessibilityLabel" in sw)
+check("back 48dp target (kotlin)", "minWidth = 48.dp, minHeight = 48.dp" in kt)
+check("back 44pt target (swift)", "minWidth: 44, minHeight: 44" in sw)
+check("button role (kotlin)", "Role.Button" in kt)
+check("button trait (swift)", ".isButton" in sw)
+check("art decorative (kotlin)", "clearAndSetSemantics" in kt)
+check("art decorative (swift)", "accessibilityHidden(true)" in sw)
+
+# reduce-motion honoured on both platforms
+check("reduce-motion (kotlin)", "ANIMATOR_DURATION_SCALE" in kt)
+check("reduce-motion (swift)", "accessibilityReduceMotion" in sw)
+
+# ------------------------------------------------------------------ per-card values
+CARDS = [
+    ("MeetInRealLifeScreen", 1, 186, 8, ["showBack = false"]),
+    ("MatchOnAvailabilityScreen", 2, 210, 12, []),
+    ("MatchMeansMeetScreen", 3, 170, 12, []),
+    ("ThirtyMinutesScreen", 4, 150, 12, []),
+    ("ShowUpEveryTimeScreen", 5, 196, 11,
+     ["NextVariant.Sunset", "IllustrationPlaceholder(scale = 0.62f)"]),
+]
+for stem, step, ul, gap, extras in CARDS:
+    src = read(os.path.join(KT, "tutorial", stem + ".kt"))
+    check(stem + " step " + str(step), ("step = " + str(step)) in src)
+    check(stem + " underline " + str(ul), ("underlineWidth = " + str(ul) + ".dp") in src)
+    check(stem + " row gap " + str(gap), ("spacedBy(" + str(gap) + ".dp)") in src)
+    for needle in extras:
+        check(stem + " has " + needle, needle in src)
+
+# card 01's rows are specced nowrap; cards 02-04 wrap
+meet = read(os.path.join(KT, "tutorial", "MeetInRealLifeScreen.kt"))
+check("card 01 three nowrap rules", meet.count("wraps = false") == 3)
+for stem in ("MatchOnAvailabilityScreen", "MatchMeansMeetScreen", "ThirtyMinutesScreen"):
+    check(stem + " rules wrap", "wraps = false" not in read(os.path.join(KT, "tutorial", stem + ".kt")))
+
+# ------------------------------------------------------------------ copy, exactly
+COPY = {
+    "MeetInRealLifeScreen": [
+        "No texting for weeks", "date in real life instead",
+        "No ghosting", "we penalize unreliability",
+        "No collecting matches", "you meet who you match",
+    ],
+    "MatchOnAvailabilityScreen": [
+        "Visible only when you" + CURLY + "re free to date",
+        "Synchronised schedules", "Different day, different vibe",
+    ],
+    "MatchMeansMeetScreen": [
+        "You decide who you like", "We suggest the time", "We pick the place",
+        "a safe, public spot halfway between you",
+    ],
+    "ThirtyMinutesScreen": [
+        "Low-pressure 30-minute dates", "30 minutes up", "Built-in icebreakers",
+    ],
+    "ShowUpEveryTimeScreen": [
+        "Every profile has a Show-up Rate.",
+        "Showing up to dates is reflected positively.",
+        "Not showing up is reflected negatively.",
+        "A persistently low Show-up Rate reduces your visibility to others.",
+        "Miss a date without fair notice and you can" + CURLY + "t search for new dates for 24 hours.",
+        "Show Up is for reliable people.",
+        "I" + CURLY + "m ready to show up",
+    ],
+}
+for stem, strings in COPY.items():
+    kt_src = read(os.path.join(KT, "tutorial", stem + ".kt"))
+    sw_src = read(os.path.join(SW, stem.replace("Screen", "View") + ".swift"))
+    for s in strings:
+        check("copy kotlin " + stem + ": " + s[:32], s in kt_src)
+        check("copy swift  " + stem + ": " + s[:32], s in sw_src)
+
+# The product term is "Show-up Rate" - lowercase "up", hyphenated. It must match the profile.
+for stem in COPY:
+    kt_src = read(os.path.join(KT, "tutorial", stem + ".kt"))
+    sw_src = read(os.path.join(SW, stem.replace("Screen", "View") + ".swift"))
+    check("no 'Show-Up Rate' " + stem + " (kotlin)", "Show-Up Rate" not in kt_src)
+    check("no 'Show-Up Rate' " + stem + " (swift)", "Show-Up Rate" not in sw_src)
+
+# shipped strings use the typographic apostrophe, never the straight one
+QUOTED = re.compile(DQ + "([^" + DQ + "]*)" + DQ)
+for stem in list(COPY) + ["TutorialShell", "WelcomeScreen"]:
+    path = os.path.join(KT, "tutorial", stem + ".kt")
+    if not os.path.exists(path):
+        continue
+    for lit in QUOTED.findall(read(path)):
+        if STRAIGHT in lit and len(lit) > 3:
+            check("straight apostrophe in " + stem + ": " + lit[:28], False)
+
+# ------------------------------------------------------------------ report
+print("spec conformance: " + str(checks) + " checks")
+if fails:
+    print("FAILED " + str(len(fails)) + ":")
+    for name in fails:
+        print("  x " + name)
+    sys.exit(1)
+print("all passed")
