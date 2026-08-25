@@ -365,27 +365,45 @@ fun VerifyCodeScreen(
         PillButton("Verify code", onVerify, enabled = digits.length == 6)
 
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
+        // A mistyped code must not cost another 24s wait, so the mismatch state releases the
+        // cooldown to 0 and the resend becomes a live button.
+        val resendLive = mismatch || cooldownSeconds <= 0
         Column(
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
         ) {
-            Text("Didn’t receive a code?", color = Muted, fontFamily = Manrope,
-                 fontWeight = FontWeight.Medium, fontSize = 14.sp)
-            // A mistyped code must not cost another 24s wait, so the mismatch state releases the
-            // cooldown to 0 and the resend becomes a live button.
-            if (mismatch || cooldownSeconds <= 0) {
-                Text(
-                    "Send a new code",
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onResend),
-                    color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp, textDecoration = TextDecoration.Underline,
-                )
-            } else {
-                Text(
-                    "Send a new code in 0:%02d".format(cooldownSeconds),
-                    color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                )
+            // The question and the action are ONE target while the resend is live, so the whole
+            // block is tappable rather than just the underlined phrase. While cooling it is inert
+            // on purpose: the sheet allows no silent resend, so a tappable label during the
+            // cooldown would be either a dead control or a rule broken.
+            Column(
+                Modifier
+                    .then(
+                        if (resendLive) Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(role = Role.Button, onClick = onResend)
+                        else Modifier
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .semantics(mergeDescendants = true) {},
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+            ) {
+                Text("Didn’t receive a code?", color = Muted, fontFamily = Manrope,
+                     fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                if (resendLive) {
+                    Text(
+                        "Send a new code",
+                        color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp, textDecoration = TextDecoration.Underline,
+                    )
+                } else {
+                    Text(
+                        "Send a new code in 0:%02d".format(cooldownSeconds),
+                        color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                    )
+                }
             }
             Row(
                 Modifier
@@ -440,3 +458,21 @@ fun VerifyCodeScreen(
 
 @Preview(name = "D · mismatch · 430", showBackground = true, widthDp = 430, heightDp = 932)
 @Composable private fun VD430() { VerifyCodeScreen(digits = "482170", mismatch = true) }
+
+// The twelve previews above render each state on its own: no window, so WindowInsets.safeDrawing
+// is zero and the content sits higher than it will on a phone. They answer "does it fit".
+//
+// These four draw the real status and navigation bars, which also makes the insets real. It matters
+// more on this screen than on any other in the flow, because the keyboard defines how much room is
+// left and the sheet's own budget assumes a real one rather than the artboard's 214pt mock.
+@Preview(name = "A · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
+@Composable private fun VASystemUi() { PhoneNumberScreen() }
+
+@Preview(name = "B · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
+@Composable private fun VBSystemUi() { PhoneNumberScreen(value = "0151 2", invalid = true) }
+
+@Preview(name = "C · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
+@Composable private fun VCSystemUi() { VerifyCodeScreen() }
+
+@Preview(name = "D · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
+@Composable private fun VDSystemUi() { VerifyCodeScreen(digits = "482170", mismatch = true) }

@@ -257,18 +257,34 @@ struct VerifyCodeView: View {
 
                 Spacer().frame(height: compact ? 12 : 22)
                 VStack(spacing: compact ? 8 : 10) {
-                    Text("Didn’t receive a code?")
-                        .font(F.manrope(14, .medium)).foregroundColor(.liqMuted)
                     // A mistyped code must not cost another 24s wait, so the mismatch state releases
                     // the cooldown to 0 and the resend becomes a live button.
-                    if mismatch || cooldownSeconds <= 0 {
-                        Button("Send a new code", action: onResend)
-                            .font(F.manrope(14, .bold)).foregroundColor(.liqPurple).underline()
-                    } else {
-                        Text(String(format: "Send a new code in 0:%02d", cooldownSeconds))
-                            .font(F.manrope(14, .semibold)).monospacedDigit()
-                            .foregroundColor(.liqSubtle)
+                    //
+                    // The question and the action are ONE target while the resend is live, so the
+                    // whole block is tappable rather than just the underlined phrase. While cooling
+                    // it is inert on purpose: the sheet allows no silent resend, so a tappable label
+                    // during the cooldown would be either a dead control or a rule broken.
+                    let resendLive = mismatch || cooldownSeconds <= 0
+                    Button(action: { if resendLive { onResend() } }) {
+                        VStack(spacing: compact ? 8 : 10) {
+                            Text("Didn’t receive a code?")
+                                .font(F.manrope(14, .medium)).foregroundColor(.liqMuted)
+                            if resendLive {
+                                Text("Send a new code")
+                                    .font(F.manrope(14, .bold)).foregroundColor(.liqPurple).underline()
+                            } else {
+                                Text(String(format: "Send a new code in 0:%02d", cooldownSeconds))
+                                    .font(F.manrope(14, .semibold)).monospacedDigit()
+                                    .foregroundColor(.liqSubtle)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(PressScale())
+                    .disabled(!resendLive)
+                    .accessibilityLabel(Text(resendLive ? "Send a new code" : "Send a new code, waiting"))
                     Button(action: onEditNumber) {
                         HStack(spacing: 6) {
                             BrandIconView(icon: .pencil, size: 13, stroke: 1.8, tint: .liqMuted)
