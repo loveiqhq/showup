@@ -106,6 +106,24 @@ correction** — tracked separately so this ticket's scope stays honest.
 (`linear-gradient(96deg, #812AEC 0%, #D05976 55%, #FE6839 100%)`) clipped to the text. The Welcome
 screen shipped with a flat violet `Up`.
 
+### 6 — The italic weight the tokens require is not in the font set
+
+`tokens/colors_and_type.css` puts the `em` inside `.su-underlined` at **font-weight 500**, lighter
+than the 700 around it. The bundled Lora set has two italic cuts only:
+
+| file | weight |
+|---|---|
+| `Lora-Italic.ttf` | 400 |
+| `Lora-BoldItalic.ttf` | 700 |
+
+Neither is 500, and there is no variable Lora in the repo to instance one from — I checked; the
+static cuts carry no `fvar` table. Both platforms therefore resolve to the nearest available cut
+rather than synthesising a weight, which is the honest behaviour: a faux-bolded 400 would be worse
+than a real 400.
+
+It reads correctly against the surrounding 700. A genuine 500 italic would be closer still.
+**Ask design for a Lora Medium Italic cut**, or for confirmation that 400 is acceptable.
+
 ---
 
 ## Verified correct

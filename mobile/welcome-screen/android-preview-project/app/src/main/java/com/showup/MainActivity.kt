@@ -23,6 +23,11 @@ import com.showup.tutorial.MeetInRealLifeScreen
 import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
 import com.showup.tutorial.WelcomeScreen
+import com.showup.welcome.AuthMethod
+import com.showup.welcome.PhoneNumberScreen
+import com.showup.welcome.StartupScreen
+import com.showup.welcome.VerifyCodeScreen
+import com.showup.welcome.WelcomeBackScreen
 import com.showup.tutorial.rememberMotion
 
 /**
@@ -39,13 +44,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             // rememberSaveable, not remember: a rotation or a process death mid-tutorial should not
             // silently drop the user back to card 1.
-            var screen by rememberSaveable { mutableIntStateOf(1) }
+            // Negative ids are the pre-account flow, positive ones the tutorial. The demo opens
+            // where a real first run opens: Startup.
+            var screen by rememberSaveable { mutableIntStateOf(-4) }
             val motion = rememberMotion()
 
             // The system back gesture mirrors the on-screen Back, so hardware back never drops
             // someone out of the tutorial from the middle of it. On card 1 it is left alone, so
             // back exits as usual.
-            BackHandler(enabled = screen > 1) { screen -= 1 }
+            BackHandler(enabled = screen > 1 || screen < -4) { screen -= 1 }
 
             AnimatedContent(
                 targetState = screen,
@@ -70,6 +77,24 @@ class MainActivity : ComponentActivity() {
                 },
             ) { current ->
                 when (current) {
+                    // Welcome & sign-up (SHOWUP-140/142/143) runs before the tutorial, which is
+                    // the real order: you sign up, then you are shown how the product works.
+                    -4 -> StartupScreen(
+                        onCreateAccount = { screen = -2 },
+                        onLogin = { screen = -3 },
+                    )
+                    -3 -> WelcomeBackScreen(
+                        onContinue = { m -> screen = if (m == AuthMethod.Phone) -2 else 1 },
+                        onUseDifferentAccount = { screen = -4 },
+                    )
+                    -2 -> PhoneNumberScreen(
+                        onBack = { screen = -4 },
+                        onSubmit = { screen = -1 },
+                    )
+                    -1 -> VerifyCodeScreen(
+                        onBack = { screen = -2 },
+                        onVerify = { screen = 1 },      // verified -> into the tutorial
+                    )
                     1 -> WelcomeScreen(onContinue = { screen = 2 })
                     2 -> MeetInRealLifeScreen(onNext = { screen = 3 })
                     3 -> MatchOnAvailabilityScreen(onNext = { screen = 4 }, onBack = { screen = 2 })

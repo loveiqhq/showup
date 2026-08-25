@@ -193,6 +193,8 @@ fun WashHeadline(
     val text = buildAnnotatedString {
         parts.forEach { (t, italic) ->
             if (italic) {
+                // The token file puts the em at 500. The bundled Lora family declares 400 and 700
+                // only, so this resolves to the nearest cut rather than synthesising a 500.
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Medium)) { append(t) }
             } else {
                 append(t)
