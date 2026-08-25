@@ -18,7 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -45,6 +47,9 @@ import com.showup.designsystem.Subtle
 fun StartupScreen(
     onCreateAccount: () -> Unit = {},
     onLogin: () -> Unit = {},
+    onTerms: () -> Unit = {},
+    onPrivacy: () -> Unit = {},
+    onLegalNotice: () -> Unit = {},
     showSocialProof: Boolean = true,
 ) {
     WelcomeScaffold {
@@ -106,15 +111,27 @@ fun StartupScreen(
 
         Spacer(Modifier.weight(1f))
 
-        // The three phrases ship as real links with their own hit areas (SHOWUP-140).
+        // Three real tappable links, each with its own hit area (SHOWUP-140).
+        //
+        // LinkAnnotation rather than three separate Text composables in a Row: the sentence has to
+        // wrap as one paragraph, and a Row of Texts cannot wrap mid-sentence. This keeps it a
+        // single laid-out paragraph while giving each phrase its own touch target and its own
+        // "link" role for a screen reader.
+        val linkStyle = SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)
         Text(
             buildAnnotatedString {
                 append("By creating an account, you agree to our ")
-                withStyle(SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)) { append("Terms & Conditions") }
+                withLink(LinkAnnotation.Clickable("terms") { onTerms() }) {
+                    withStyle(linkStyle) { append("Terms & Conditions") }
+                }
                 append(" and acknowledge that you have read our ")
-                withStyle(SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)) { append("Privacy Policy") }
+                withLink(LinkAnnotation.Clickable("privacy") { onPrivacy() }) {
+                    withStyle(linkStyle) { append("Privacy Policy") }
+                }
                 append(". See our ")
-                withStyle(SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)) { append("Legal Notice") }
+                withLink(LinkAnnotation.Clickable("legal") { onLegalNotice() }) {
+                    withStyle(linkStyle) { append("Legal Notice") }
+                }
                 append(".")
             },
             modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),

@@ -212,6 +212,42 @@ check("143 no keypad built (swift)", "NumericKeypad" not in code_only(ver_sw))
 check("143 flag drawn, not emoji (kotlin)", "GermanFlag" in ver_kt)
 check("143 flag drawn, not emoji (swift)", "GermanFlag" in ver_sw)
 
+# ── every named control is actually tappable ───────────────────────────────
+# SHOWUP-140: "Terms & Conditions, Privacy Policy, and Legal Notice are real tappable links"
+# and "each legal link has its own hit area". They were styled but inert on the first pass.
+check("140 CTA tappable (kotlin)", "PillButton(\"Create free account\"" in start_kt)
+check("140 CTA tappable (swift)", "PillButton(\"Create free account\"" in start_sw)
+check("140 Log in tappable (kotlin)", "onClick = onLogin" in start_kt)
+check("140 Log in tappable (swift)", "Button(action: onLogin)" in start_sw)
+for target in ("onTerms", "onPrivacy", "onLegalNotice"):
+    check("140 " + target + " wired (kotlin)", target in start_kt)
+    check("140 " + target + " wired (swift)", target in start_sw)
+check("140 legal links are real links (kotlin)", start_kt.count("LinkAnnotation.Clickable") == 3)
+check("140 legal links are real links (swift)", start_sw.count("a.link = URL") >= 1
+      and "OpenURLAction" in start_sw)
+# and they must wrap as one paragraph, not sit in a Row that cannot break
+check("140 legal line is one paragraph (kotlin)", "buildAnnotatedString" in start_kt)
+check("140 legal line is one paragraph (swift)", "AttributedString" in start_sw)
+
+# SHOWUP-142: Get help / Use a different account / Legal Notice / Privacy Policy
+for target in ("onGetHelp", "onUseDifferentAccount", "onLegal", "onPrivacy"):
+    check("142 " + target + " wired (kotlin)", target in back_kt)
+    check("142 " + target + " wired (swift)", target in back_sw)
+check("142 links are real links (kotlin)", back_kt.count("LinkAnnotation.Clickable") == 4)
+check("142 links are real links (swift)", "OpenURLAction" in back_sw)
+check("142 four method buttons tappable (kotlin)", "onContinue(primary)" in back_kt
+      and "onContinue(m)" in back_kt)
+check("142 four method buttons tappable (swift)", "onContinue(primary)" in back_sw
+      and "onContinue(m)" in back_sw)
+
+# SHOWUP-143
+for target in ("onSubmit", "onOpenCountryList", "onBack"):
+    check("143 " + target + " wired (kotlin)", target in ver_kt)
+    check("143 " + target + " wired (swift)", target in ver_sw)
+for target in ("onVerify", "onResend", "onEditNumber"):
+    check("143 " + target + " wired (kotlin)", target in ver_kt)
+    check("143 " + target + " wired (swift)", target in ver_sw)
+
 # ── copy, character for character ───────────────────────────────────────────
 COPY = [
     (start_kt, start_sw, [

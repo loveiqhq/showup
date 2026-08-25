@@ -12,6 +12,9 @@ import SwiftUI
 struct StartupView: View {
     var onCreateAccount: () -> Void = {}
     var onLogin: () -> Void = {}
+    var onTerms: () -> Void = {}
+    var onPrivacy: () -> Void = {}
+    var onLegalNotice: () -> Void = {}
     /// The dates figure is dynamic and gated: SHOWUP-140 requires a toggle, because the claim only
     /// appears once enough dates have actually been organised.
     var showSocialProof: Bool = true
@@ -88,20 +91,51 @@ struct StartupView: View {
         .ignoresSafeArea(.keyboard)
     }
 
+    /// Three real tappable links, each with its own hit area (SHOWUP-140).
+    ///
+    /// AttributedString links rather than three Buttons in an HStack: the sentence has to wrap as
+    /// one paragraph, and an HStack cannot wrap mid-sentence. `openURL` intercepts the taps, so
+    /// these stay in-app actions — the scheme is deliberately never registered with the system.
     private var legalLine: some View {
-        let body = Text("By creating an account, you agree to our ").foregroundColor(.liqSubtle)
-            + Text("Terms & Conditions").font(F.manrope(12, .semibold)).foregroundColor(.liqFg)
-            + Text(" and acknowledge that you have read our ").foregroundColor(.liqSubtle)
-            + Text("Privacy Policy").font(F.manrope(12, .semibold)).foregroundColor(.liqFg)
-            + Text(". See our ").foregroundColor(.liqSubtle)
-            + Text("Legal Notice").font(F.manrope(12, .semibold)).foregroundColor(.liqFg)
-            + Text(".").foregroundColor(.liqSubtle)
-        return body
+        Text(legalAttributed)
             .font(F.manrope(12, .medium))
             .lineSpacing(12 * 0.45)
             .multilineTextAlignment(.center)
+            .tint(.liqFg)                 // link colour; SwiftUI would use accentColor otherwise
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
+            .environment(\.openURL, OpenURLAction { url in
+                switch url.host {
+                case "terms":   onTerms()
+                case "privacy": onPrivacy()
+                case "legal":   onLegalNotice()
+                default:        break
+                }
+                return .handled
+            })
+    }
+
+    private var legalAttributed: AttributedString {
+        func plain(_ t: String) -> AttributedString {
+            var a = AttributedString(t)
+            a.foregroundColor = .liqSubtle
+            return a
+        }
+        func link(_ t: String, _ target: String) -> AttributedString {
+            var a = AttributedString(t)
+            a.link = URL(string: "showup-legal://" + target)
+            a.foregroundColor = .liqFg
+            a.font = F.manrope(12, .semibold)
+            return a
+        }
+        var out = plain("By creating an account, you agree to our ")
+        out.append(link("Terms & Conditions", "terms"))
+        out.append(plain(" and acknowledge that you have read our "))
+        out.append(link("Privacy Policy", "privacy"))
+        out.append(plain(". See our "))
+        out.append(link("Legal Notice", "legal"))
+        out.append(plain("."))
+        return out
     }
 }
 

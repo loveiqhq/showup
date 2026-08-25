@@ -21,7 +21,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -142,45 +144,45 @@ fun WelcomeBackScreen(
         Spacer(Modifier.weight(1f))
 
         // Both phrases are real links with their own hit areas (SHOWUP-142).
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                "Trouble signing in? ", color = Subtle, fontFamily = Manrope,
-                fontSize = 12.sp, lineHeight = 17.4.sp,
-            )
-            Text(
-                "Get help", modifier = Modifier.clickable(role = Role.Button, onClick = onGetHelp),
-                color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp, lineHeight = 17.4.sp,
-            )
-            Text(" or ", color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp)
-            Text(
-                "Use a different account",
-                modifier = Modifier.clickable(role = Role.Button, onClick = onUseDifferentAccount),
-                color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp, lineHeight = 17.4.sp,
-            )
-        }
+        //
+        // One paragraph with LinkAnnotation rather than a Row of Texts: a Row cannot wrap
+        // mid-sentence, so on a narrow frame the line would clip instead of flowing.
+        val helpLink = SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)
+        Text(
+            buildAnnotatedString {
+                append("Trouble signing in? ")
+                withLink(LinkAnnotation.Clickable("help") { onGetHelp() }) {
+                    withStyle(helpLink) { append("Get help") }
+                }
+                append(" or ")
+                withLink(LinkAnnotation.Clickable("switch") { onUseDifferentAccount() }) {
+                    withStyle(helpLink) { append("Use a different account") }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
+            textAlign = TextAlign.Center,
+        )
 
         // No Terms & Conditions on this screen — consent was given at sign-up.
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                "Legal Notice", modifier = Modifier.clickable(role = Role.Button, onClick = onLegal),
-                color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                fontSize = 11.5.sp, textDecoration = TextDecoration.Underline,
-            )
-            Text(" · ", color = Subtle, fontFamily = Manrope, fontSize = 11.5.sp)
-            Text(
-                "Privacy Policy", modifier = Modifier.clickable(role = Role.Button, onClick = onPrivacy),
-                color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                fontSize = 11.5.sp, textDecoration = TextDecoration.Underline,
-            )
-        }
+        val legalLink = SpanStyle(
+            color = Muted, fontWeight = FontWeight.SemiBold,
+            textDecoration = TextDecoration.Underline,
+        )
+        Text(
+            buildAnnotatedString {
+                withLink(LinkAnnotation.Clickable("legal") { onLegal() }) {
+                    withStyle(legalLink) { append("Legal Notice") }
+                }
+                append(" · ")
+                withLink(LinkAnnotation.Clickable("privacy") { onPrivacy() }) {
+                    withStyle(legalLink) { append("Privacy Policy") }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            color = Subtle, fontFamily = Manrope, fontSize = 11.5.sp,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

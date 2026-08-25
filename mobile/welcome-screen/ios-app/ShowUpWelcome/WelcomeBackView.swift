@@ -107,31 +107,73 @@ struct WelcomeBackView: View {
 
                 Spacer(minLength: 0)
 
-                HStack(spacing: 0) {
-                    Text("Trouble signing in? ").foregroundColor(.liqSubtle)
-                    Button("Get help", action: onGetHelp)
-                        .font(F.manrope(12, .semibold)).foregroundColor(.liqFg)
-                    Text(" or ").foregroundColor(.liqSubtle)
-                    Button("Use a different account", action: onUseDifferentAccount)
-                        .font(F.manrope(12, .semibold)).foregroundColor(.liqFg)
-                }
-                .font(F.manrope(12, .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 8)
+                // One wrapping paragraph with real links, not an HStack of Buttons — an HStack
+                // cannot wrap mid-sentence, so a narrow frame would clip it instead of flowing.
+                Text(helpAttributed)
+                    .font(F.manrope(12, .medium))
+                    .multilineTextAlignment(.center)
+                    .tint(.liqFg)
+                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 8)
 
                 // No Terms & Conditions here — consent was given at sign-up.
-                HStack(spacing: 0) {
-                    Button("Legal Notice", action: onLegal)
-                        .font(F.manrope(11.5, .semibold)).foregroundColor(.liqMuted).underline()
-                    Text(" · ").foregroundColor(.liqSubtle).font(F.manrope(11.5, .medium))
-                    Button("Privacy Policy", action: onPrivacy)
-                        .font(F.manrope(11.5, .semibold)).foregroundColor(.liqMuted).underline()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 8)
+                Text(legalAttributed)
+                    .font(F.manrope(11.5, .medium))
+                    .multilineTextAlignment(.center)
+                    .tint(.liqMuted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 8)
             }
         }
         .ignoresSafeArea(.keyboard)
+        .environment(\.openURL, OpenURLAction { url in
+            switch url.host {
+            case "help":    onGetHelp()
+            case "switch":  onUseDifferentAccount()
+            case "legal":   onLegal()
+            case "privacy": onPrivacy()
+            default:        break
+            }
+            return .handled
+        })
+    }
+
+    private var helpAttributed: AttributedString {
+        func plain(_ t: String) -> AttributedString {
+            var a = AttributedString(t)
+            a.foregroundColor = .liqSubtle
+            return a
+        }
+        func link(_ t: String, _ target: String) -> AttributedString {
+            var a = AttributedString(t)
+            a.link = URL(string: "showup-legal://" + target)
+            a.foregroundColor = .liqFg
+            a.font = F.manrope(12, .semibold)
+            return a
+        }
+        var out = plain("Trouble signing in? ")
+        out.append(link("Get help", "help"))
+        out.append(plain(" or "))
+        out.append(link("Use a different account", "switch"))
+        return out
+    }
+
+    private var legalAttributed: AttributedString {
+        func link(_ t: String, _ target: String) -> AttributedString {
+            var a = AttributedString(t)
+            a.link = URL(string: "showup-legal://" + target)
+            a.foregroundColor = .liqMuted
+            a.font = F.manrope(11.5, .semibold)
+            a.underlineStyle = .single
+            return a
+        }
+        var out = link("Legal Notice", "legal")
+        var dot = AttributedString(" · ")
+        dot.foregroundColor = .liqSubtle
+        out.append(dot)
+        out.append(link("Privacy Policy", "privacy"))
+        return out
     }
 }
 
