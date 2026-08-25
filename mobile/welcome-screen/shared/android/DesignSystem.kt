@@ -29,6 +29,22 @@ val Faint = Color(0x3D1D1129)          // --liq-fg-faint    · rgba(29,17,41,.24
 val Track = Color(0x1F1D1129)          // rgba(29,17,41,.12) — unfilled progress segments
 val EyebrowBg = Color(0x29A78BFA)      // rgba(167,139,250,.16) — eyebrow pill fill
 
+// Added for the welcome & sign-up flow (SHOWUP-140/142/143). Values are verbatim from
+// design_handoff_showup/tokens/colors_and_type.css, which is the authoritative token file.
+val Elevated = Color(0xFFFFFFFF)       // --liq-bg-elevated · input and slot fills
+val Muted = Color(0x9E1D1129)          // --liq-fg-muted    · rgba(29,17,41,.62)
+val Border = Color(0x1F1D1129)         // --liq-border      · rgba(29,17,41,.12)
+val Danger = Color(0xFFFB323B)         // --liq-danger      · invalid borders, the ! glyph
+val DangerFg = Color(0xFFB71F26)       // --liq-danger-fg   · error helper text
+val DangerDigit = Color(0xFF7A1F26)    // mismatch digit colour — a one-off, not a token
+val Lavender = Color(0xFFA78BFA)       // --liq-lavender-400
+
+/** --su-grad-sunset · 135°, midpoint at 38%. Not an even three-stop ramp. */
+val SunsetStops = listOf(0.00f to Color(0xFFFE6839), 0.38f to Color(0xFFD05976), 1.00f to Color(0xFF812AEC))
+
+/** --su-grad-wordmark · 96°. The "Up" in the wordmark is filled with this, never flat violet. */
+val WordmarkStops = listOf(0.00f to Color(0xFF812AEC), 0.55f to Color(0xFFD05976), 1.00f to Color(0xFFFE6839))
+
 // ── Type ─────────────────────────────────────────────────────────────────
 //
 // The .ttf files ship in ../../fonts/. Copy them into app/src/main/res/font/ under these exact

@@ -89,3 +89,21 @@ private fun ThirtyMinutesPreviewReference() { ThirtyMinutesScreen() }
 @Preview(name = "430 x 932 - Pro Max", showBackground = true, widthDp = 430, heightDp = 932)
 @Composable
 private fun ThirtyMinutesPreviewLarge() { ThirtyMinutesScreen() }
+
+// The three previews above render the composable on its own. There is no window behind them, so
+// WindowInsets.safeDrawing resolves to zero and the progress bar sits flush against the very top
+// edge -- which is not where it lands on a phone. Those three answer "does it fit"; they are
+// misleading about vertical position.
+//
+// This one asks the preview to draw the real status and navigation bars. That also makes the
+// insets real, so it shows where the content actually sits once the system bars take their space.
+// Slower to render than the others, which is why it is on the reference size only.
+@Preview(
+    name = "390 x 844 - with system bars",
+    showSystemUi = true,
+    device = "spec:width=390dp,height=844dp",
+)
+@Composable
+private fun ThirtyMinutesPreviewSystemUi() {
+    ThirtyMinutesScreen()
+}

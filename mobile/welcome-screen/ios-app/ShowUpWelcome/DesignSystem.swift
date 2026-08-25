@@ -24,6 +24,16 @@ extension Color {
     static let liqTrack    = Color(hex: 0x1D1129).opacity(0.12)      // unfilled progress segments
     static let liqEyebrowBg = Color(hex: 0xA78BFA).opacity(0.16)     // eyebrow pill fill
 
+    // Added for the welcome & sign-up flow (SHOWUP-140/142/143). Verbatim from
+    // design_handoff_showup/tokens/colors_and_type.css, the authoritative token file.
+    static let liqElevated   = Color(hex: 0xFFFFFF)                  // input and slot fills
+    static let liqMuted      = Color(hex: 0x1D1129).opacity(0.62)    // --liq-fg-muted
+    static let liqBorder     = Color(hex: 0x1D1129).opacity(0.12)    // --liq-border
+    static let liqDanger     = Color(hex: 0xFB323B)                  // invalid borders, the ! glyph
+    static let liqDangerFg   = Color(hex: 0xB71F26)                  // error helper text
+    static let liqDangerDigit = Color(hex: 0x7A1F26)                 // mismatch digits - a one-off
+    static let liqLavender   = Color(hex: 0xA78BFA)
+
     init(hex: UInt) {
         self.init(.sRGB,
                   red:   Double((hex >> 16) & 0xFF) / 255,
