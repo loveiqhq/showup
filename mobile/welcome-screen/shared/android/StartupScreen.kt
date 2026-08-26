@@ -135,7 +135,9 @@ fun StartupScreen(
                 append(".")
             },
             modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-            color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
+            // Muted (62%, 5.03:1), not Subtle (46%, 3.04:1) — Subtle fails WCAG 2.1 AA and this
+            // is the sentence where the user accepts the Terms. See audit finding 7.
+            color = Muted, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
             textAlign = TextAlign.Center,
         )
 

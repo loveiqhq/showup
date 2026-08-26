@@ -185,8 +185,8 @@ check("143 border 1.5 (swift)", "lineWidth: 1.5" in ver_sw)
 check("143 helper A/B reserved at 20 (kotlin)", "heightIn(min = 20.dp)" in ver_kt)
 check("143 helper A/B reserved at 20 (swift)", "minHeight: 20" in ver_sw)
 # see finding 1 -- 42 cannot hold the specified copy, so the reserve is the measured height
-check("143 helper C/D reserved (kotlin)", "heightIn(min = 59.dp)" in ver_kt)
-check("143 helper C/D reserved (swift)", "minHeight: 59" in ver_sw)
+check("143 helper C/D reserved (kotlin)", "heightIn(min = 42.dp)" in ver_kt)
+check("143 helper C/D reserved (swift)", "minHeight: 42" in ver_sw)
 check("143 slots 49x62 (kotlin)", "49.dp" in ver_kt and "62.dp" in ver_kt)
 check("143 slots 49x62 (swift)", "49" in ver_sw and "62" in ver_sw)
 check("143 slots shrink to 44x56 (kotlin)", "44.dp" in ver_kt and "56.dp" in ver_kt)
@@ -248,6 +248,17 @@ for target in ("onVerify", "onResend", "onEditNumber"):
     check("143 " + target + " wired (kotlin)", target in ver_kt)
     check("143 " + target + " wired (swift)", target in ver_sw)
 
+# ── contrast · readable text must not use the token that fails WCAG AA ─────
+# --liq-fg-subtle is ink 46% = 3.04:1, under the 4.5:1 needed for normal text. --liq-fg-muted is
+# ink 62% = 5.03:1 and passes. Body and legal text takes Muted. See audit finding 7.
+for label, kt_src, sw_src in [("140", start_kt, start_sw), ("142", back_kt, back_sw),
+                              ("143", ver_kt, ver_sw)]:
+    check(label + " no readable text on the failing token (kotlin)",
+          "color = Subtle" not in code_only(kt_src))
+    check(label + " no readable text on the failing token (swift)",
+          "foregroundColor = .liqSubtle" not in code_only(sw_src)
+          and "foregroundColor(.liqSubtle)" not in code_only(sw_src))
+
 # ── copy, character for character ───────────────────────────────────────────
 COPY = [
     (start_kt, start_sw, [
@@ -276,7 +287,7 @@ COPY = [
         "Send me the code",
         "Enter your ", "code",
         "We just sent a 6-digit code to ",
-        "Code doesn" + CURLY + "t match. Please check or request a new code.",
+        "That code didn" + CURLY + "t match. Try again.",
         "Verify code", "Didn" + CURLY + "t receive a code?",
         "Send a new code", "Edit phone number",
     ]),

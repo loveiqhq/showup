@@ -131,12 +131,12 @@ fun PhoneNumberScreen(
     val compact = LocalConfiguration.current.screenHeightDp < 700
     VerificationFrame(onBack) {
         Eyebrow()
-        Spacer(Modifier.height(if (compact) 4.dp else 14.dp))
+        Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("What’s your " to false, "number" to true, "?" to false),
             fontSize = 38.sp,
         )
-        Spacer(Modifier.height(if (compact) 6.dp else 10.dp))
+        Spacer(Modifier.height(if (compact) 4.dp else 10.dp))
         Text(
             "We’ll send a 6-digit code to verify it is you.",
             modifier = Modifier.widthIn(max = 320.dp),
@@ -144,7 +144,7 @@ fun PhoneNumberScreen(
             fontSize = 15.sp, lineHeight = 21.75.sp,
         )
 
-        Spacer(Modifier.height(if (compact) 14.dp else 22.dp))
+        Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Country pill. DE / +49 is the mock default only — the real default comes from device
             // locale, and tapping it opens a country list that is out of scope here.
@@ -203,14 +203,15 @@ fun PhoneNumberScreen(
             Text(
                 if (invalid) "Please enter a valid number e.g. 176 123 45 678"
                 else "Standard message rates may apply.",
-                color = if (invalid) DangerFg else Subtle,
+                // Muted, not Subtle — helper text has to be readable. See audit finding 7.
+                color = if (invalid) DangerFg else Muted,
                 fontFamily = Manrope,
                 fontWeight = if (invalid) FontWeight.SemiBold else FontWeight.Medium,
                 fontSize = 13.sp, lineHeight = 17.55.sp,
             )
         }
 
-        Spacer(Modifier.height(if (compact) 14.dp else 22.dp))
+        Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
         // Validation runs on submit, not per keystroke, so the CTA is only disabled after a failure
         // and re-enables the moment the value changes.
         PillButton("Send me the code", onSubmit, enabled = !invalid)
@@ -264,12 +265,12 @@ fun VerifyCodeScreen(
 
     VerificationFrame(onBack) {
         Eyebrow()
-        Spacer(Modifier.height(if (compact) 4.dp else 14.dp))
+        Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("Enter your " to false, "code" to true, "." to false),
             fontSize = 38.sp,
         )
-        Spacer(Modifier.height(if (compact) 6.dp else 10.dp))
+        Spacer(Modifier.height(if (compact) 4.dp else 10.dp))
         Text(
             buildAnnotatedString {
                 append("We just sent a 6-digit code to ")
@@ -287,7 +288,7 @@ fun VerifyCodeScreen(
         // the shrink the sheet names.
         val slotW = if (compact) 44.dp else 49.dp
         val slotH = if (compact) 56.dp else 62.dp
-        Spacer(Modifier.height(if (compact) 14.dp else 26.dp))
+        Spacer(Modifier.height(if (compact) 8.dp else 26.dp))
         Row(
             Modifier
                 .fillMaxWidth()
@@ -338,8 +339,11 @@ fun VerifyCodeScreen(
         Box(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 59.dp)
-                .padding(top = if (compact) 10.dp else 14.dp, start = 2.dp)
+                // Back to the sheet's 42. The shortened message is one line at every width, so
+                // the reserve holds it and the CTA still does not move — which is the outcome the
+                // sheet and the ticket were always both describing.
+                .heightIn(min = 42.dp)
+                .padding(top = if (compact) 6.dp else 14.dp, start = 2.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
             if (mismatch) {
@@ -356,7 +360,7 @@ fun VerifyCodeScreen(
                     }
                     // informative, never "Wrong" / "Failed" / "Error"
                     Text(
-                        "Code doesn’t match. Please check or request a new code.",
+                        "That code didn’t match. Try again.",
                         color = DangerFg, fontFamily = Manrope, fontWeight = FontWeight.Medium,
                         fontSize = 13.5.sp, lineHeight = 18.9.sp,
                     )
@@ -364,19 +368,19 @@ fun VerifyCodeScreen(
             }
         }
 
-        Spacer(Modifier.height(if (compact) 12.dp else 16.dp))
+        Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         // Disabled until all six digits are in. In mismatch the digits are still there, so it stays
         // enabled — the user edits one digit and resubmits.
         PillButton("Verify code", onVerify, enabled = digits.length == 6)
 
-        Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
+        Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
         // A mistyped code must not cost another 24s wait, so the mismatch state releases the
         // cooldown to 0 and the resend becomes a live button.
         val resendLive = mismatch || cooldownSeconds <= 0
         Column(
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
         ) {
             // The question and the action are ONE target while the resend is live, so the whole
             // block is tappable rather than just the underlined phrase. While cooling it is inert
@@ -393,7 +397,7 @@ fun VerifyCodeScreen(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
                     .semantics(mergeDescendants = true) {},
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
             ) {
                 Text("Didn’t receive a code?", color = Muted, fontFamily = Manrope,
                      fontWeight = FontWeight.Medium, fontSize = 14.sp)
@@ -406,7 +410,7 @@ fun VerifyCodeScreen(
                 } else {
                     Text(
                         "Send a new code in 0:%02d".format(cooldownSeconds),
-                        color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                        color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                     )
                 }
             }

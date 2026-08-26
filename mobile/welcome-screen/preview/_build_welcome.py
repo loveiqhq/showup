@@ -116,7 +116,7 @@ white-space:nowrap;width:100%;border:0;transition:transform 180ms var(--ease),fi
 /* ── shared type ─────────────────────────────────────────────────────── */
 .h1{margin:0;font-family:var(--serif);font-weight:700;letter-spacing:-.02em;line-height:1.05;
 color:var(--fg);text-wrap:balance;flex:none}
-.legal{margin:0;font-size:12px;color:var(--subtle);text-align:center;line-height:1.45;flex:none}
+.legal{margin:0;font-size:12px;color:var(--muted);text-align:center;line-height:1.45;flex:none}
 .legal b{color:var(--fg);font-weight:600}
 .eyebrow{flex:none;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;
 padding:5px 10px;border-radius:9999px;background:rgba(167,139,250,.16);font-weight:700;font-size:11px;
@@ -154,7 +154,7 @@ color:var(--neutral200);max-width:280px;text-wrap:pretty;flex:none}
 box-shadow:0 0 0 3px rgba(254,104,57,.18);flex:none}
 .s142 .hint span{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.01em}
 .s142 .help{margin:0 0 8px}
-.s142 .legal2{margin:0 0 8px;font-size:11.5px;color:var(--subtle);text-align:center;line-height:1.45;flex:none}
+.s142 .legal2{margin:0 0 8px;font-size:11.5px;color:var(--muted);text-align:center;line-height:1.45;flex:none}
 .s142 .legal2 b{color:var(--muted);font-weight:600;text-decoration:underline;text-underline-offset:2px}
 """
 
@@ -187,7 +187,7 @@ font-family:var(--serif);font-weight:700;font-size:14px;display:flex;align-items
 justify-content:center;flex:none;margin-left:auto}
 /* helper regions are RESERVED, never conditional -- the CTA must not move */
 .s143 .help20{min-height:20px;margin-top:10px;padding-left:4px;font-family:var(--sans);font-weight:500;
-font-size:13px;line-height:1.35;color:var(--subtle);flex:none}
+font-size:13px;line-height:1.35;color:var(--muted);flex:none}
 .s143 .help20.err{font-weight:600;color:var(--danger-fg)}
 /* The sheet reserves 42 here. The error string it specifies wraps to two lines at every one
    of the three widths, making the box 59 -- so a 42 reserve lets the CTA jump 17px, which
@@ -195,19 +195,19 @@ font-size:13px;line-height:1.35;color:var(--subtle);flex:none}
    state on either screen." The ticket wins on behaviour, so the region is reserved at the
    height the specified copy actually needs. Design to confirm whether the 42 or the string
    is the one to change. */
-.s143 .help42{min-height:59px;margin-top:14px;padding-left:2px;flex:none}
+.s143 .help42{min-height:42px;margin-top:14px;padding-left:2px;flex:none}
 .s143 .cta{margin-top:22px;flex:none}
 .s143 .cta.c{margin-top:16px}
 /* 375 x 667: the keyboard leaves the least room of the three frames. The sheet fixes the order in
    which things give -- eyebrow->headline margin first, then the slot row 49x62 -> 44x56 gap 6.
    The CTA never drops below 56 and neither helper region is ever hidden. */
-.s143.tight .h1{margin:4px 0 6px}
-.s143.tight .slots{margin-top:14px;gap:6px}
-.s143.tight .cta.c{margin-top:12px}
-.s143.tight .sec{margin-top:12px;gap:8px}
-.s143.tight .help42{margin-top:10px}
-.s143.tight .row{margin-top:14px}
-.s143.tight .cta{margin-top:14px}
+.s143.tight .h1{margin:2px 0 4px}
+.s143.tight .slots{margin-top:8px;gap:6px}
+.s143.tight .cta.c{margin-top:8px}
+.s143.tight .sec{margin-top:8px;gap:4px}
+.s143.tight .help42{margin-top:6px}
+.s143.tight .row{margin-top:12px}
+.s143.tight .cta{margin-top:12px}
 /* code slots */
 .s143 .slots{display:flex;gap:8px;justify-content:space-between;margin-top:26px;flex:none}
 .s143 .slot{width:var(--sw,49px);height:var(--sh,62px);border-radius:14px;background:#fff;
@@ -226,9 +226,9 @@ font-family:var(--serif);font-weight:700;font-size:12px;display:flex;align-items
 justify-content:center;flex:none}
 .s143 .errbox span{font-family:var(--sans);font-weight:500;font-size:13.5px;line-height:1.4;color:var(--danger-fg)}
 /* secondary actions */
-.s143 .sec{margin-top:22px;display:flex;flex-direction:column;gap:10px;align-items:center;flex:none}
+.s143 .sec{margin-top:14px;display:flex;flex-direction:column;gap:6px;align-items:center;flex:none}
 .s143 .sec .q{font-family:var(--sans);font-weight:500;font-size:14px;color:var(--muted)}
-.s143 .sec .cool{font-family:var(--sans);font-weight:600;font-size:14px;color:var(--subtle);font-variant-numeric:tabular-nums}
+.s143 .sec .cool{font-family:var(--sans);font-weight:600;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .s143 .sec .live{font-family:var(--sans);font-weight:700;font-size:14px;color:var(--primary);
 text-decoration:underline;text-underline-offset:3px}
 .s143 .sec .edit{display:flex;align-items:center;gap:6px;font-family:var(--sans);font-weight:600;
@@ -427,7 +427,7 @@ def verify(w, sm, home, state):
         row = ('<div class="slots%s" aria-label="Enter your 6-digit verification code">%s</div>'
                % (" bad" if bad else "", "".join(slots)))
         helper = ('<div class="help42"><div class="errbox"><i>!</i>'
-                  '<span>Code doesn&#8217;t match. Please check or request a new code.</span></div></div>'
+                  '<span>That code didn&#8217;t match. Try again.</span></div></div>'
                   if bad else '<div class="help42"></div>')
         resend = ('<span class="live">Send a new code</span>' if bad
                   else '<span class="cool">Send a new code in 0:21</span>')

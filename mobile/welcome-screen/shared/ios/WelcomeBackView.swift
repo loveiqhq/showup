@@ -142,7 +142,7 @@ struct WelcomeBackView: View {
     private var helpAttributed: AttributedString {
         func plain(_ t: String) -> AttributedString {
             var a = AttributedString(t)
-            a.foregroundColor = .liqSubtle
+            a.foregroundColor = .liqMuted      // see audit finding 7
             return a
         }
         func link(_ t: String, _ target: String) -> AttributedString {
@@ -170,7 +170,7 @@ struct WelcomeBackView: View {
         }
         var out = link("Legal Notice", "legal")
         var dot = AttributedString(" · ")
-        dot.foregroundColor = .liqSubtle
+        dot.foregroundColor = .liqMuted
         out.append(dot)
         out.append(link("Privacy Policy", "privacy"))
         return out

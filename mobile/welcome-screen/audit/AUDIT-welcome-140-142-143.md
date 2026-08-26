@@ -14,7 +14,7 @@ are. Everything for 143 is therefore held to the ticket rather than to a referen
 
 ## Findings
 
-### 1 — The helper region reserve cannot hold the copy it must hold  · SHOWUP-143 · **spec conflict**
+### 1 — The helper region reserve cannot hold the copy it must hold  · SHOWUP-143 · **RESOLVED**
 
 The sheet reserves **42** for the C/D helper region, and the ticket requires:
 
@@ -37,7 +37,7 @@ AC forbids. The two cannot both be satisfied.
 specified copy actually needs. **Design to confirm which one changes** — the 42, or the string. A
 one-line error message would make both true at once.
 
-### 2 — States C and D do not fit at 375 × 667  · SHOWUP-143 · **needs a design decision**
+### 2 — States C and D do not fit at 375 × 667  · SHOWUP-143 · **RESOLVED**
 
 With every reduction the sheet permits already applied — eyebrow→headline margin collapsed first,
 slot row down from 49 × 62 to 44 × 56 with gap 6, CTA never below 56, neither helper region hidden,
@@ -124,7 +124,7 @@ than a real 400.
 It reads correctly against the surrounding 700. A genuine 500 italic would be closer still.
 **Ask design for a Lora Medium Italic cut**, or for confirmation that 400 is acceptable.
 
-### 7 — Three colours fail WCAG 2.1 AA, and one of them is the consent text · **legal exposure**
+### 7 — Three colours fail WCAG 2.1 AA, and one of them is the consent text · **text FIXED**
 
 Measured, not estimated. Contrast computed against the `#FFFBF7` canvas:
 
@@ -179,6 +179,33 @@ This is a deliberate reading of two requirements that collide. The sheet says th
 scrolls; the ticket says the CTA is always visible and accessible. With a keyboard occupying half a
 small screen, only one can hold — and a button the user cannot reach is the worse failure. Once the
 findings 1 and 2 decisions land the content fits and the scroll never engages.
+
+---
+
+## Decisions taken 27 Aug 2026, and what they changed
+
+**Findings 1 and 2 — resolved together.** The error message was shortened to
+`That code didn't match. Try again.`, which is **one line at all three widths (41px)** and therefore
+fits the sheet's original **42** reserve. With the reserve back at 42, the secondary-actions block
+tightened, and the small compact gives applied at 375, **all 23 frames now fit with no overflow
+anywhere** and the CTA is fixed across all six default/error pairs.
+
+That is the outcome the sheet and the ticket were both describing all along — they only conflicted
+because the specified sentence was too long for the space specified to hold it. The copy is
+provisional and design owns it; any one-line replacement works.
+
+**Finding 7 — the text is fixed; the borders are not.** Every piece of readable text on these three
+screens now takes `--liq-fg-muted` (ink 62%, **5.03:1**) rather than `--liq-fg-subtle` (ink 46%,
+**3.04:1**). No shared token was changed — the failing text was simply pointed at the token that
+already passed, so nothing outside this flow moved.
+
+`--liq-border` at **1.28:1** against a 3:1 requirement is still open. It cannot be fixed by alpha
+alone: even at 32% it only reaches 2.06:1, and the input background (`#FFFFFF` on `#FFFBF7`) is
+1.03:1, so the border is the only thing identifying the field. That is a real design change, not a
+token nudge. **Still needs design.**
+
+**Note for the tutorial screens.** They use `--liq-fg-subtle` for the Welcome caption and the Back
+label and will have the same failure. Out of scope here, tracked for whoever picks that up.
 
 ---
 

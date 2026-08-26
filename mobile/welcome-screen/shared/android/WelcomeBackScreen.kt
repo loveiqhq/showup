@@ -160,7 +160,8 @@ fun WelcomeBackScreen(
                 }
             },
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
+            // Muted, not Subtle — see audit finding 7.
+            color = Muted, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
             textAlign = TextAlign.Center,
         )
 
@@ -180,7 +181,7 @@ fun WelcomeBackScreen(
                 }
             },
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            color = Subtle, fontFamily = Manrope, fontSize = 11.5.sp,
+            color = Muted, fontFamily = Manrope, fontSize = 11.5.sp,
             textAlign = TextAlign.Center,
         )
     }

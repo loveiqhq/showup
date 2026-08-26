@@ -118,7 +118,9 @@ struct StartupView: View {
     private var legalAttributed: AttributedString {
         func plain(_ t: String) -> AttributedString {
             var a = AttributedString(t)
-            a.foregroundColor = .liqSubtle
+            // Muted (62%, 5.03:1), not Subtle (46%, 3.04:1) — Subtle fails WCAG 2.1 AA and this
+            // is the sentence where the user accepts the Terms. See audit finding 7.
+            a.foregroundColor = .liqMuted
             return a
         }
         func link(_ t: String, _ target: String) -> AttributedString {

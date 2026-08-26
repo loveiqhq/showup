@@ -79,18 +79,18 @@ struct PhoneNumberView: View {
             let compact = geo.size.height < 700
             VerificationFrame(onBack: onBack) {
                 VerificationEyebrow()
-                Spacer().frame(height: compact ? 4 : 14)
+                Spacer().frame(height: compact ? 2 : 14)
                 WashHeadline(parts: [("What’s your ", false), ("number", true), ("?", false)],
                              fontSize: 38)
                     .frame(height: 38 * 1.05 * 2)
-                Spacer().frame(height: compact ? 6 : 10)
+                Spacer().frame(height: compact ? 4 : 10)
                 Text("We’ll send a 6-digit code to verify it is you.")
                     .font(F.manrope(15, .medium))
                     .lineSpacing(15 * 0.45)
                     .foregroundColor(.liqNeutral)
                     .frame(maxWidth: 320, alignment: .leading)
 
-                Spacer().frame(height: compact ? 14 : 22)
+                Spacer().frame(height: compact ? 12 : 22)
                 HStack(spacing: 8) {
                     // DE / +49 is the mock default only — the real default comes from device locale,
                     // and tapping opens a country list that is out of scope here.
@@ -140,13 +140,14 @@ struct PhoneNumberView: View {
                 Text(invalid ? "Please enter a valid number e.g. 176 123 45 678"
                              : "Standard message rates may apply.")
                     .font(F.manrope(13, invalid ? .semibold : .medium))
-                    .foregroundColor(invalid ? .liqDangerFg : .liqSubtle)
+                    // Muted, not Subtle — helper text has to be readable. Audit finding 7.
+                    .foregroundColor(invalid ? .liqDangerFg : .liqMuted)
                     .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
                     .padding(.top, 10)
                     .padding(.leading, 4)
                     .accessibilityAddTraits(.updatesFrequently)
 
-                Spacer().frame(height: compact ? 14 : 22)
+                Spacer().frame(height: compact ? 12 : 22)
                 // Validation runs on submit, not per keystroke, so the CTA is only disabled after a
                 // failure and re-enables the moment the value changes.
                 PillButton("Send me the code", enabled: !invalid, action: onSubmit)
@@ -193,11 +194,11 @@ struct VerifyCodeView: View {
 
             VerificationFrame(onBack: onBack) {
                 VerificationEyebrow()
-                Spacer().frame(height: compact ? 4 : 14)
+                Spacer().frame(height: compact ? 2 : 14)
                 WashHeadline(parts: [("Enter your ", false), ("code", true), (".", false)],
                              fontSize: 38)
                     .frame(height: 38 * 1.05)
-                Spacer().frame(height: compact ? 6 : 10)
+                Spacer().frame(height: compact ? 4 : 10)
                 (Text("We just sent a 6-digit code to ").foregroundColor(.liqNeutral)
                  // must be the number actually submitted on A — the user's only chance to catch a
                  // typo before waiting for an SMS that will never arrive
@@ -208,7 +209,7 @@ struct VerifyCodeView: View {
                     .frame(maxWidth: 320, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Spacer().frame(height: compact ? 14 : 26)
+                Spacer().frame(height: compact ? 8 : 26)
                 HStack(spacing: compact ? 6 : 8) {
                     ForEach(0..<6, id: \.self) { i in
                         slot(index: i, width: slotW, height: slotH)
@@ -239,7 +240,7 @@ struct VerifyCodeView: View {
                                 Text("!").font(.custom(PS.loraBold, size: 12)).foregroundColor(.white)
                             }
                             // informative, never "Wrong" / "Failed" / "Error"
-                            Text("Code doesn’t match. Please check or request a new code.")
+                            Text("That code didn’t match. Try again.")
                                 .font(F.manrope(13.5, .medium))
                                 .lineSpacing(13.5 * 0.4)
                                 .foregroundColor(.liqDangerFg)
@@ -252,18 +253,19 @@ struct VerifyCodeView: View {
                             .strokeBorder(Color.liqDanger.opacity(0.18), lineWidth: 1))
                     }
                 }
-                .frame(maxWidth: .infinity, minHeight: 59, alignment: .topLeading)
-                .padding(.top, compact ? 10 : 14)
+                // Back to the sheet's 42 — the shortened message is one line at every width.
+                .frame(maxWidth: .infinity, minHeight: 42, alignment: .topLeading)
+                .padding(.top, compact ? 6 : 14)
                 .padding(.leading, 2)
                 .accessibilityAddTraits(.updatesFrequently)
 
-                Spacer().frame(height: compact ? 12 : 16)
+                Spacer().frame(height: compact ? 8 : 16)
                 // Disabled until all six digits are in. In mismatch the digits are still there, so
                 // it stays enabled — the user edits one digit and resubmits.
                 PillButton("Verify code", enabled: digits.count == 6, action: onVerify)
 
-                Spacer().frame(height: compact ? 12 : 22)
-                VStack(spacing: compact ? 8 : 10) {
+                Spacer().frame(height: compact ? 8 : 14)
+                VStack(spacing: compact ? 4 : 6) {
                     // A mistyped code must not cost another 24s wait, so the mismatch state releases
                     // the cooldown to 0 and the resend becomes a live button.
                     //
@@ -273,7 +275,7 @@ struct VerifyCodeView: View {
                     // during the cooldown would be either a dead control or a rule broken.
                     let resendLive = mismatch || cooldownSeconds <= 0
                     Button(action: { if resendLive { onResend() } }) {
-                        VStack(spacing: compact ? 8 : 10) {
+                        VStack(spacing: compact ? 4 : 6) {
                             Text("Didn’t receive a code?")
                                 .font(F.manrope(14, .medium)).foregroundColor(.liqMuted)
                             if resendLive {
@@ -282,7 +284,7 @@ struct VerifyCodeView: View {
                             } else {
                                 Text(String(format: "Send a new code in 0:%02d", cooldownSeconds))
                                     .font(F.manrope(14, .semibold)).monospacedDigit()
-                                    .foregroundColor(.liqSubtle)
+                                    .foregroundColor(.liqMuted)
                             }
                         }
                         .padding(.horizontal, 10)
