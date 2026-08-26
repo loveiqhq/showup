@@ -79,6 +79,18 @@ struct WelcomeScaffold<Content: View>: View {
     var topWeighted: Bool = false
     var orangeAlpha: Double = 0.32
     var violetAlpha: Double = 0.28
+    var topPadding: CGFloat = 20
+    /// Scroll only as a last resort, for screens that share the frame with a keyboard.
+    ///
+    /// The handoff says these screens never scroll, and once the SHOWUP-143 design decisions land
+    /// they will not: the content fits and this does nothing. But "never scroll" and "the CTA is
+    /// always visible and accessible" are both requirements, and when the keyboard takes half a
+    /// small screen only one can hold. Between a CTA the user cannot reach and a few points of
+    /// scroll, the scroll is the right failure.
+    ///
+    /// The inner stack is floored at the viewport height, so when everything fits there is nothing
+    /// to scroll and the bottom spacer still does its job — the layout is unchanged.
+    var scrollWhenTight: Bool = false
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -87,10 +99,26 @@ struct WelcomeScaffold<Content: View>: View {
             WelcomeBackdrop(peachWash: peachWash, topWeighted: topWeighted,
                             orangeAlpha: orangeAlpha, violetAlpha: violetAlpha)
                 .ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 0) { content() }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            if scrollWhenTight {
+                GeometryReader { geo in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) { content() }
+                            .padding(.horizontal, 24)
+                            .padding(.top, topPadding)
+                            .frame(minHeight: geo.size.height, alignment: .top)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    // Bounce off means a screen that fits does not rubber-band, so it reads as a
+                    // fixed layout rather than a scroll view that happens to be full.
+                    .scrollBounceBehavior(.basedOnSize)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 0) { content() }
+                    .padding(.horizontal, 24)
+                    .padding(.top, topPadding)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
         }
     }
 }

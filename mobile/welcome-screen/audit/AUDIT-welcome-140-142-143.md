@@ -124,6 +124,62 @@ than a real 400.
 It reads correctly against the surrounding 700. A genuine 500 italic would be closer still.
 **Ask design for a Lora Medium Italic cut**, or for confirmation that 400 is acceptable.
 
+### 7 — Three colours fail WCAG 2.1 AA, and one of them is the consent text · **legal exposure**
+
+Measured, not estimated. Contrast computed against the `#FFFBF7` canvas:
+
+| token | ratio | needs | | used for |
+|---|---|---|---|---|
+| `--liq-fg` `#1D1129` | 17.51:1 | 3.0 | pass | headlines |
+| `--liq-neutral-200` `#4B3B5A` | 9.84:1 | 4.5 | pass | body copy |
+| `--liq-fg-muted` ink 62% | 5.03:1 | 4.5 | pass | hints |
+| **`--liq-fg-subtle` ink 46%** | **3.04:1** | **4.5** | **FAIL** | **the legal line, 12px** |
+| `--liq-fg-faint` ink 24% | 1.68:1 | 4.5 | FAIL | input placeholder |
+| `--liq-border` ink 12% | 1.28:1 | 3.0 | FAIL | input and slot borders |
+| `--liq-primary-500` `#812AEC` | 5.87:1 | 4.5 | pass | links |
+| `--liq-danger-fg` `#B71F26` | 6.30:1 | 4.5 | pass | error text |
+
+Why this one is not merely cosmetic:
+
+- The **BFSG** — Germany's transposition of the European Accessibility Act — has applied to
+  consumer-facing apps since **28 June 2025**, and names **WCAG 2.1 AA** as the standard. Market
+  surveillance sits with the Länder; penalties run to **€100,000** and can extend to a sales ban.
+- The failing text is the sentence where the user agrees to the Terms & Conditions. Under
+  **§ 305(2) BGB**, terms are only incorporated where the customer had a *reasonable opportunity to
+  take notice* of them. Consent text that fails the statutory legibility standard is a poor place to
+  be arguing that point.
+
+`--liq-fg-faint` at 1.68:1 is a placeholder, so it is arguably exempt (WCAG 1.4.3 excludes inactive
+controls) — but a 1.68:1 placeholder is unreadable for most people regardless. `--liq-border` at
+1.28:1 fails 1.4.11 for the input and slot outlines, which is how the invalid state is signalled.
+
+**Not fixed here.** These are design-system tokens; changing them moves every screen in the product,
+which is not this ticket's scope. Raising `--liq-fg-subtle` from 46% to roughly **60%** clears 4.5:1
+and is a small visual change. **This needs a decision, and it is the one item on the list with a
+number attached to getting it wrong.**
+
+### 8 — The CTA could sit under the keyboard · **fixed**
+
+Two separate defects, one per platform, both of which put the primary button out of reach on the
+one screen that has a text field above it.
+
+**Android.** The activity declared no `windowSoftInputMode`. `WindowInsets.safeDrawing` includes the
+IME, but only reports it when the window is in resize mode; the default (`adjustUnspecified`) leaves
+that to the OEM. Fixed by declaring `adjustResize` in the manifest.
+
+**iOS.** SwiftUI's automatic keyboard avoidance guarantees the *focused field* is visible and says
+nothing about anything below it — and the CTA is below it. Fixed by making the column reachable
+rather than relying on avoidance.
+
+Both now use `scrollWhenTight`: the content is floored at the viewport height, so when everything
+fits there is nothing to scroll and the layout is unchanged, and it only engages when the
+alternative is an unreachable button.
+
+This is a deliberate reading of two requirements that collide. The sheet says the content never
+scrolls; the ticket says the CTA is always visible and accessible. With a keyboard occupying half a
+small screen, only one can hold — and a button the user cannot reach is the worse failure. Once the
+findings 1 and 2 decisions land the content fits and the scroll never engages.
+
 ---
 
 ## Verified correct

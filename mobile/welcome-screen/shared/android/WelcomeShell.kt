@@ -20,6 +20,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -449,6 +451,21 @@ fun WelcomeScaffold(
     topWeighted: Boolean = false,
     orangeAlpha: Float = 0.32f,
     violetAlpha: Float = 0.28f,
+    topPadding: Dp = 20.dp,
+    /**
+     * Scroll only as a last resort, for screens that share the frame with a keyboard.
+     *
+     * The handoff says these screens never scroll, and with the design decisions on SHOWUP-143
+     * settled they will not: the content fits and this does nothing. But "never scroll" and "the
+     * CTA is always visible and accessible" are both requirements, and when the keyboard takes half
+     * the screen on a small device only one of them can hold. Between a CTA the user cannot reach
+     * and a few pixels of scroll, the scroll is the right failure.
+     *
+     * The inner column is floored at the viewport height, so when everything fits there is nothing
+     * to scroll and the weighted spacer still pushes the bottom row down — the layout is byte-for-
+     * byte what it was. It only engages when the alternative is an unreachable button.
+     */
+    scrollWhenTight: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Box(modifier.fillMaxSize().background(Cream)) {
@@ -456,12 +473,22 @@ fun WelcomeScaffold(
             peachWash = peachWash, topWeighted = topWeighted,
             orangeAlpha = orangeAlpha, violetAlpha = violetAlpha,
         )
-        Column(
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(start = 24.dp, end = 24.dp, top = 20.dp),
-            content = content,
-        )
+        // safeDrawing = system bars + display cutout + IME, so the column sits above the keyboard.
+        // It only reports the IME when the activity is in adjustResize; the manifest sets that.
+        val insets = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(start = 24.dp, end = 24.dp, top = topPadding)
+
+        if (scrollWhenTight) {
+            BoxWithConstraints(insets) {
+                val viewport = maxHeight
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Column(Modifier.heightIn(min = viewport), content = content)
+                }
+            }
+        } else {
+            Column(insets, content = content)
+        }
     }
 }

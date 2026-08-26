@@ -75,7 +75,12 @@ private fun VerificationFrame(
 ) {
     // C and D drop the backdrop to .22 / .20 — the code screen is deliberately calmer than the
     // entry screen, and the keyboard owns the bottom half so nothing should glow behind it.
-    WelcomeScaffold(peachWash = false, topWeighted = true, orangeAlpha = 0.26f, violetAlpha = 0.22f) {
+    WelcomeScaffold(
+        peachWash = false, topWeighted = true,
+        orangeAlpha = 0.26f, violetAlpha = 0.22f,
+        topPadding = 4.dp,          // content pad-top 4 on this screen, not the launch screens' 20
+        scrollWhenTight = true,     // the keyboard shares this frame; the CTA must stay reachable
+    ) {
         Box(
             Modifier
                 .size(44.dp)

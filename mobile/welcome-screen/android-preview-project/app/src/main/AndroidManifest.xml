@@ -6,9 +6,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ShowUp">
 
+        <!--
+            adjustResize is required, not optional. The phone-verification screen puts a text field
+            above its CTA, and WindowInsets.safeDrawing only reports the keyboard as an inset when
+            the window is in resize mode. Without this the CTA can end up underneath the keyboard
+            with no way to reach it — and the default (adjustUnspecified) leaves that to the OEM.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.ShowUp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

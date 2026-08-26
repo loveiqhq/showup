@@ -24,7 +24,14 @@ private struct VerificationFrame<Content: View>: View {
     var body: some View {
         // C and D drop the backdrop to .22 / .20 — the code screen is deliberately calmer, and the
         // keyboard owns the bottom half so nothing should glow behind it.
-        WelcomeScaffold(peachWash: false, topWeighted: true, orangeAlpha: 0.26, violetAlpha: 0.22) {
+        //
+        // SwiftUI's automatic keyboard avoidance only guarantees the *focused field* is visible —
+        // it says nothing about the CTA below it. scrollWhenTight makes the whole column reachable
+        // instead, so the button cannot end up stranded under the keyboard.
+        WelcomeScaffold(peachWash: false, topWeighted: true,
+                        orangeAlpha: 0.26, violetAlpha: 0.22,
+                        topPadding: 4,          // pad-top 4 here, not the launch screens' 20
+                        scrollWhenTight: true) {
             Button(action: onBack) {
                 BrandIconView(icon: .arrowLeft, size: 22, stroke: 2, tint: .liqFg)
                     .frame(width: 44, height: 44, alignment: .leading)
