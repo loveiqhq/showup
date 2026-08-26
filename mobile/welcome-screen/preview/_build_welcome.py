@@ -51,6 +51,11 @@ CSS = """
 --bg:#FFFBF7;--elevated:#FFFFFF;--fg:#1D1129;
 --muted:rgba(29,17,41,.62);--subtle:rgba(29,17,41,.46);--faint:rgba(29,17,41,.24);
 --border:rgba(29,17,41,.12);
+/* Field outlines take ink 46%, not the 12% border token. WCAG 1.4.11 wants 3:1 for the
+   boundary that identifies a control, and the white fill is 1.03:1 against the canvas —
+   the outline is doing all the work. 12% is 1.28:1; 46% is 3.04 against the page and
+   3.14 against the fill. */
+--field-outline:rgba(29,17,41,.46);
 --primary:#812AEC;--lavender:#A78BFA;--orange:#FE6839;--neutral200:#4B3B5A;
 --danger:#FB323B;--danger-fg:#B71F26;
 --grad-sunset:linear-gradient(135deg,#FE6839 0%,#D05976 38%,#812AEC 100%);
@@ -110,6 +115,12 @@ justify-content:center;gap:8px;font-family:var(--sans);font-weight:700;font-size
 white-space:nowrap;width:100%;border:0;transition:transform 180ms var(--ease),filter 180ms;flex:none}
 .btn.sunset{background:var(--grad-sunset);color:#fff;box-shadow:var(--shadow-violet)}
 .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+/* Each provider dictates its own button. Google forbids recolouring or resizing the G and
+   requires a white background; Meta requires its mark in white or #1877F2. The uniform
+   ghost row the design specified breaks both. */
+.btn.apple{background:#000;color:#fff}
+.btn.google{background:#fff;color:#1F1F1F;border:1px solid #747775}
+.btn.facebook{background:#1877F2;color:#fff}
 .btn.off{opacity:.45}
 .btn svg{flex:none}
 
@@ -169,13 +180,13 @@ CSS_143 = """
 color:var(--neutral200);max-width:320px;flex:none}
 .s143 .sub b{font-weight:700;color:var(--fg);white-space:nowrap}
 .s143 .row{display:flex;gap:8px;margin-top:22px;flex:none}
-.s143 .cc{height:56px;border-radius:14px;background:#fff;border:1.5px solid var(--border);
+.s143 .cc{height:56px;border-radius:14px;background:#fff;border:1.5px solid var(--field-outline);
 padding:0 14px;display:flex;align-items:center;gap:8px;flex:none}
 .s143 .cc .flag{width:22px;height:14px;border-radius:2px;overflow:hidden;display:flex;flex:none;
 box-shadow:0 0 0 .5px rgba(29,17,41,.35)}
 .s143 .cc .flag b{flex:1}
 .s143 .cc .code{font-family:var(--sans);font-weight:600;font-size:16px;color:var(--fg)}
-.s143 .inp{flex:1;height:56px;border-radius:14px;background:#fff;border:1.5px solid var(--border);
+.s143 .inp{flex:1;height:56px;border-radius:14px;background:#fff;border:1.5px solid var(--field-outline);
 padding:0 18px;display:flex;align-items:center;font-family:var(--sans);font-weight:600;font-size:17px;
 font-variant-numeric:tabular-nums;letter-spacing:.3px;color:var(--fg);overflow:hidden;white-space:nowrap;
 transition:border-color 180ms var(--ease),box-shadow 180ms var(--ease)}
@@ -211,7 +222,7 @@ font-size:13px;line-height:1.35;color:var(--muted);flex:none}
 /* code slots */
 .s143 .slots{display:flex;gap:8px;justify-content:space-between;margin-top:26px;flex:none}
 .s143 .slot{width:var(--sw,49px);height:var(--sh,62px);border-radius:14px;background:#fff;
-border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;
+border:1.5px solid var(--field-outline);display:flex;align-items:center;justify-content:center;
 font-family:var(--serif);font-weight:700;font-size:30px;color:var(--fg);font-variant-numeric:tabular-nums;
 box-shadow:0 1px 2px rgba(46,1,71,.04);transition:border-color 180ms var(--ease),box-shadow 180ms var(--ease)}
 .s143 .slot.filled{border-color:rgba(29,17,41,.32)}
@@ -273,6 +284,8 @@ def ico(name, size=20, stroke=1.7):
             'stroke-linecap="round" stroke-linejoin="round" style="display:block;flex:none">%s</svg>'
             % (size, size, fill, stroke, P))
 
+
+GOOGLE_G = '<svg width="18" height="18" viewBox="0 0 24 24" style="display:block;flex:none"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>'
 
 WORDMARK = '<div class="wm">Show<span class="up">Up</span><span class="dot">.</span></div>'
 
@@ -345,10 +358,23 @@ def welcomeback(w, sm, home, wgap, last_used="phone", name="Leo"):
     rest = [k for k in CANONICAL if k != primary]
     head = ('Welcome back <em>%s</em>' % name) if name else "Welcome back"
     hint = ('<div class="hint"><i></i><span>%s</span></div>' % METHODS[primary][2]) if known else ""
+    # Phone is ours to style; the other three each follow their provider's rules.
+    PROVIDER = {"apple": "apple", "google": "google", "facebook": "facebook", "phone": "ghost"}
+    def provider_btn(k):
+        cls = PROVIDER[k]
+        if k == "google":
+            mark = GOOGLE_G                      # never tinted
+        elif k in ("apple", "facebook"):
+            mark = ico(METHODS[k][1], 18).replace('stroke="currentColor"', 'stroke="#fff"') \
+                                          .replace('fill="currentColor"', 'fill="#fff"')
+        else:
+            mark = ico(METHODS[k][1], 18)
+        return '<button class="btn %s">%s<span>%s</span></button>' % (cls, mark, METHODS[k][0])
+
     btns = '<button class="btn sunset">%s<span>%s</span></button>' % (
         ico(METHODS[primary][1], 18), METHODS[primary][0])
     for k in rest:
-        btns += '<button class="btn ghost">%s<span>%s</span></button>' % (ico(METHODS[k][1], 18), METHODS[k][0])
+        btns += provider_btn(k)
     return ('<div class="screen s142" style="--w:%dpx;--h:%dpx;--st:%dpx;--sbm:%dpx;--r:%dpx;--wgap:%dpx">'
             '%s%s<div class="body">%s'
             '<div class="stack">'

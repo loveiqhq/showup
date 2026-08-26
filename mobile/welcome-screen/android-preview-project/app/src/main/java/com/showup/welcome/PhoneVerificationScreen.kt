@@ -48,6 +48,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Border
+// FieldOutline: the input and slot borders take Subtle (ink 46%), not Border (ink 12%).
+// WCAG 1.4.11 wants 3:1 for the boundary that identifies a control, and the field's white fill is
+// 1.03:1 against the canvas -- the outline is doing all the work. Border is 1.28:1 and fails;
+// Subtle is 3.04 against the page and 3.14 against the fill. See audit finding 7.
 import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerDigit
 import com.showup.designsystem.DangerFg
@@ -153,7 +157,7 @@ fun PhoneNumberScreen(
                     .height(56.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Elevated)
-                    .border(1.5.dp, Border, RoundedCornerShape(14.dp))
+                    .border(1.5.dp, Subtle, RoundedCornerShape(14.dp))
                     .clickable(role = Role.Button, onClick = onOpenCountryList)
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -172,7 +176,7 @@ fun PhoneNumberScreen(
                     .height(56.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Elevated)
-                    .border(1.5.dp, if (invalid) Danger else Border, RoundedCornerShape(14.dp))
+                    .border(1.5.dp, if (invalid) Danger else Subtle, RoundedCornerShape(14.dp))
                     .padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

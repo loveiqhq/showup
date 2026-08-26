@@ -281,7 +281,16 @@ final class WashLabel: UILabel {
 
 // MARK: - ④ Buttons — always pills (9999), never rounded rectangles
 
-enum PillVariant { case sunset, ghost }
+/// Button treatments.
+///
+/// `.apple`, `.google` and `.facebook` are not style choices — each provider dictates the appearance
+/// of its own sign-in button and enforces it. Google forbids recolouring or resizing the G and
+/// requires a white background, making compliance a condition of app verification; Meta requires its
+/// mark in white or #1877F2 and prohibits recolouring to a host brand's palette. The uniform ghost
+/// treatment the design specified breaks both.
+///
+/// The pill silhouette, the 56 height and the Manrope label stay — those are ours.
+enum PillVariant { case sunset, ghost, apple, google, facebook }
 
 /// `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
 /// Manrope 700 16, gap 8.
@@ -302,14 +311,18 @@ struct PillButton<Leading: View>: View {
                 Text(label)
                     .font(F.manrope(16, .bold))
                     .lineLimit(1)
-                    .foregroundColor(variant == .sunset ? .white : .liqFg)
+                    .foregroundColor(labelColor)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .padding(.horizontal, 28)
             .background(background)
             .clipShape(Capsule())
-            .overlay(variant == .ghost ? Capsule().strokeBorder(Color.liqBorder, lineWidth: 1) : nil)
+            .overlay(
+                variant == .ghost ? Capsule().strokeBorder(Color.liqBorder, lineWidth: 1)
+                : variant == .google ? Capsule().strokeBorder(Color(hex: 0x747775), lineWidth: 1)
+                : nil
+            )
             .shadow(color: variant == .sunset ? Color.liqPurple.opacity(0.28) : .clear,
                     radius: 10, y: 8)
             .opacity(enabled ? 1 : 0.45)
@@ -318,6 +331,14 @@ struct PillButton<Leading: View>: View {
         .disabled(!enabled)
         .accessibilityLabel(Text(label))
         .accessibilityAddTraits(.isButton)
+    }
+
+    private var labelColor: Color {
+        switch variant {
+        case .sunset, .apple, .facebook: return .white
+        case .google: return Color(hex: 0x1F1F1F)     // Google's specified label colour
+        case .ghost: return .liqFg
+        }
     }
 
     @ViewBuilder private var background: some View {
@@ -333,6 +354,15 @@ struct PillButton<Leading: View>: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing)
         case .ghost:
             Color.clear
+        // Black is one of the three appearances Apple's guidelines allow.
+        case .apple:
+            Color.black
+        // A white background is required, not preferred — the G may not sit on anything else.
+        case .google:
+            Color.white
+        // Facebook Blue. Recolouring to our palette is explicitly prohibited.
+        case .facebook:
+            Color(hex: 0x1877F2)
         }
     }
 }
@@ -419,7 +449,13 @@ struct BrandIconView: View {
             case .apple:
                 filled = true; p = Self.applePath
             case .google:
-                filled = true; p = Self.googlePath
+                // The four-colour G, drawn as four fills. It ignores `tint` by design — recolouring
+                // it is the thing the branding guidelines forbid most explicitly.
+                ctx.fill(Self.googleBlue.applying(t), with: .color(Color(hex: 0x4285F4)))
+                ctx.fill(Self.googleGreen.applying(t), with: .color(Color(hex: 0x34A853)))
+                ctx.fill(Self.googleYellow.applying(t), with: .color(Color(hex: 0xFBBC05)))
+                ctx.fill(Self.googleRed.applying(t), with: .color(Color(hex: 0xEA4335)))
+                return
             case .facebook:
                 filled = true; p = Self.facebookPath
             }
@@ -474,37 +510,46 @@ struct BrandIconView: View {
         b.closeSubpath()
     }
 
-    static let googlePath = Path { b in
-        b.move(to: .init(x: 22, y: 12.2))
-        b.addCurve(to: .init(x: 21.8, y: 10.2), control1: .init(x: 22, y: 11.4), control2: .init(x: 21.9, y: 10.8))
-        b.addLine(to: .init(x: 12, y: 10.2)); b.addLine(to: .init(x: 12, y: 14.1))
-        b.addLine(to: .init(x: 17.6, y: 14.1))
-        b.addCurve(to: .init(x: 15.6, y: 17.1), control1: .init(x: 17.4, y: 15.4), control2: .init(x: 16.6, y: 16.4))
-        b.addLine(to: .init(x: 15.6, y: 19.6)); b.addLine(to: .init(x: 18.9, y: 19.6))
-        b.addCurve(to: .init(x: 22, y: 12.2), control1: .init(x: 20.8, y: 17.8), control2: .init(x: 22, y: 15.2))
+    // Google's own path data, one shape per colour. Not redrawn or simplified: the guidelines
+    // forbid altering the mark, and "close enough" is altering it.
+    static let googleBlue = Path { b in
+        b.move(to: .init(x: 22.56, y: 12.25))
+        b.addCurve(to: .init(x: 22.36, y: 10), control1: .init(x: 22.56, y: 11.47), control2: .init(x: 22.49, y: 10.72))
+        b.addLine(to: .init(x: 12, y: 10)); b.addLine(to: .init(x: 12, y: 14.26))
+        b.addLine(to: .init(x: 17.92, y: 14.26))
+        b.addCurve(to: .init(x: 15.71, y: 17.57), control1: .init(x: 17.66, y: 15.63), control2: .init(x: 16.88, y: 16.79))
+        b.addLine(to: .init(x: 15.71, y: 20.34)); b.addLine(to: .init(x: 19.28, y: 20.34))
+        b.addCurve(to: .init(x: 22.56, y: 12.25), control1: .init(x: 21.36, y: 18.42), control2: .init(x: 22.56, y: 15.6))
         b.closeSubpath()
-        b.move(to: .init(x: 12, y: 22))
-        b.addCurve(to: .init(x: 18.7, y: 19.6), control1: .init(x: 14.7, y: 22), control2: .init(x: 17, y: 21.1))
-        b.addLine(to: .init(x: 15.4, y: 17.1))
-        b.addCurve(to: .init(x: 12, y: 18.1), control1: .init(x: 14.5, y: 17.7), control2: .init(x: 13.4, y: 18.1))
-        b.addCurve(to: .init(x: 6.3, y: 13.9), control1: .init(x: 9.4, y: 18.1), control2: .init(x: 7.1, y: 16.3))
-        b.addLine(to: .init(x: 2.9, y: 13.9)); b.addLine(to: .init(x: 2.9, y: 16.5))
-        b.addCurve(to: .init(x: 12, y: 22), control1: .init(x: 4.6, y: 19.9), control2: .init(x: 8, y: 22))
+    }
+    static let googleGreen = Path { b in
+        b.move(to: .init(x: 12, y: 23))
+        b.addCurve(to: .init(x: 19.28, y: 20.34), control1: .init(x: 14.97, y: 23), control2: .init(x: 17.46, y: 22.02))
+        b.addLine(to: .init(x: 15.71, y: 17.57))
+        b.addCurve(to: .init(x: 12, y: 18.63), control1: .init(x: 14.73, y: 18.23), control2: .init(x: 13.48, y: 18.63))
+        b.addCurve(to: .init(x: 5.84, y: 14.1), control1: .init(x: 9.14, y: 18.63), control2: .init(x: 6.71, y: 16.7))
+        b.addLine(to: .init(x: 2.18, y: 14.1)); b.addLine(to: .init(x: 2.18, y: 16.94))
+        b.addCurve(to: .init(x: 12, y: 23), control1: .init(x: 3.99, y: 20.53), control2: .init(x: 7.7, y: 23))
         b.closeSubpath()
-        b.move(to: .init(x: 6.3, y: 13.9))
-        b.addCurve(to: .init(x: 6, y: 12), control1: .init(x: 6.1, y: 13.3), control2: .init(x: 6, y: 12.6))
-        b.addCurve(to: .init(x: 6.3, y: 10.1), control1: .init(x: 6, y: 11.4), control2: .init(x: 6.1, y: 10.7))
-        b.addLine(to: .init(x: 6.3, y: 7.5)); b.addLine(to: .init(x: 2.9, y: 7.5))
-        b.addCurve(to: .init(x: 2, y: 12), control1: .init(x: 2.3, y: 8.9), control2: .init(x: 2, y: 10.4))
-        b.addCurve(to: .init(x: 2.9, y: 16.5), control1: .init(x: 2, y: 13.6), control2: .init(x: 2.3, y: 15.1))
+    }
+    static let googleYellow = Path { b in
+        b.move(to: .init(x: 5.84, y: 14.09))
+        b.addCurve(to: .init(x: 5.49, y: 12), control1: .init(x: 5.62, y: 13.43), control2: .init(x: 5.49, y: 12.73))
+        b.addCurve(to: .init(x: 5.84, y: 9.91), control1: .init(x: 5.49, y: 11.27), control2: .init(x: 5.62, y: 10.57))
+        b.addLine(to: .init(x: 5.84, y: 7.07)); b.addLine(to: .init(x: 2.18, y: 7.07))
+        b.addCurve(to: .init(x: 1, y: 12), control1: .init(x: 1.43, y: 8.55), control2: .init(x: 1, y: 10.22))
+        b.addCurve(to: .init(x: 2.18, y: 16.93), control1: .init(x: 1, y: 13.78), control2: .init(x: 1.43, y: 15.45))
+        b.addLine(to: .init(x: 5.03, y: 14.71))
         b.closeSubpath()
-        b.move(to: .init(x: 12, y: 5.9))
-        b.addCurve(to: .init(x: 15.9, y: 7.4), control1: .init(x: 13.5, y: 5.9), control2: .init(x: 14.8, y: 6.4))
-        b.addLine(to: .init(x: 18.8, y: 4.5))
-        b.addCurve(to: .init(x: 12, y: 2), control1: .init(x: 17, y: 2.9), control2: .init(x: 14.7, y: 2))
-        b.addCurve(to: .init(x: 2.9, y: 7.5), control1: .init(x: 8, y: 2), control2: .init(x: 4.6, y: 4.1))
-        b.addLine(to: .init(x: 6.3, y: 10.1))
-        b.addCurve(to: .init(x: 12, y: 5.9), control1: .init(x: 7.1, y: 7.7), control2: .init(x: 9.4, y: 5.9))
+    }
+    static let googleRed = Path { b in
+        b.move(to: .init(x: 12, y: 5.38))
+        b.addCurve(to: .init(x: 16.21, y: 7.02), control1: .init(x: 13.62, y: 5.38), control2: .init(x: 15.06, y: 5.94))
+        b.addLine(to: .init(x: 19.36, y: 3.87))
+        b.addCurve(to: .init(x: 12, y: 1), control1: .init(x: 17.45, y: 2.09), control2: .init(x: 14.97, y: 1))
+        b.addCurve(to: .init(x: 2.18, y: 7.07), control1: .init(x: 7.7, y: 1), control2: .init(x: 3.99, y: 3.47))
+        b.addLine(to: .init(x: 5.84, y: 9.91))
+        b.addCurve(to: .init(x: 12, y: 5.38), control1: .init(x: 6.71, y: 7.31), control2: .init(x: 9.14, y: 5.38))
         b.closeSubpath()
     }
 

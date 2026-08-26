@@ -53,6 +53,20 @@ private val CANONICAL = listOf(AuthMethod.Phone, AuthMethod.Apple, AuthMethod.Go
 
 private data class MethodSpec(val label: String, val icon: BrandIcon, val hint: String)
 
+/** Phone is ours to style; the other three are each governed by their provider. */
+private fun providerVariant(m: AuthMethod) = when (m) {
+    AuthMethod.Apple -> PillVariant.Apple
+    AuthMethod.Google -> PillVariant.Google
+    AuthMethod.Facebook -> PillVariant.Facebook
+    else -> PillVariant.Ghost
+}
+
+/** The Google G ignores this — it is drawn in its own four colours. */
+private fun providerTint(m: AuthMethod) = when (m) {
+    AuthMethod.Apple, AuthMethod.Facebook -> Color.White
+    else -> Fg
+}
+
 private val METHODS = mapOf(
     AuthMethod.Phone to MethodSpec("Continue with phone number", BrandIcon.Phone, "Last login was via phone"),
     AuthMethod.Apple to MethodSpec("Continue with Apple", BrandIcon.Apple, "Last login was via Apple"),
@@ -132,11 +146,13 @@ fun WelcomeBackScreen(
                 variant = PillVariant.Sunset,
                 leading = { Icon(METHODS.getValue(primary).icon, 18.dp, tint = Color.White) },
             )
+            // Each provider's own treatment, not a uniform ghost row. Google and Meta both
+            // forbid the uniform version outright; see audit finding 9.
             rest.forEach { m ->
                 PillButton(
                     METHODS.getValue(m).label, { onContinue(m) },
-                    variant = PillVariant.Ghost,
-                    leading = { Icon(METHODS.getValue(m).icon, 18.dp, tint = Fg) },
+                    variant = providerVariant(m),
+                    leading = { Icon(METHODS.getValue(m).icon, 18.dp, tint = providerTint(m)) },
                 )
             }
         }

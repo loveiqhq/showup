@@ -259,7 +259,19 @@ fun WashHeadline(
 // ④ Buttons — always pills (9999), never rounded rectangles
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum class PillVariant { Sunset, Ghost }
+/**
+ * Button treatments.
+ *
+ * [Apple], [Google] and [Facebook] are not style choices — each provider dictates the appearance of
+ * its own sign-in button and enforces it. Google forbids recolouring or resizing the G and requires
+ * a white background, and makes compliance a condition of app verification; Meta requires its mark
+ * in white or #1877F2 and prohibits recolouring to a host brand's palette. The uniform ghost
+ * treatment the design specified breaks both.
+ *
+ * The pill silhouette, the 56 height and the Manrope label are kept — those are ours, and neither
+ * provider constrains them.
+ */
+enum class PillVariant { Sunset, Ghost, Apple, Google, Facebook }
 
 /**
  * `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
@@ -301,6 +313,16 @@ fun PillButton(
                     PillVariant.Ghost -> Modifier
                         .clip(shape)
                         .border(1.dp, Border, shape)
+                    // Black is one of the three appearances Apple's guidelines allow.
+                    PillVariant.Apple -> Modifier.clip(shape).background(Color.Black)
+                    // White background is required, not preferred — the G may not sit on anything
+                    // else. #747775 is the border colour from Google's own button.
+                    PillVariant.Google -> Modifier
+                        .clip(shape)
+                        .background(Color.White)
+                        .border(1.dp, Color(0xFF747775), shape)
+                    // Facebook Blue. Recolouring to our palette is explicitly prohibited.
+                    PillVariant.Facebook -> Modifier.clip(shape).background(Color(0xFF1877F2))
                 }
             )
             .clickable(
@@ -314,7 +336,11 @@ fun PillButton(
         leading?.invoke()
         Text(
             label,
-            color = if (variant == PillVariant.Sunset) Color.White else Fg,
+            color = when (variant) {
+                PillVariant.Sunset, PillVariant.Apple, PillVariant.Facebook -> Color.White
+                PillVariant.Google -> Color(0xFF1F1F1F)   // Google's specified label colour
+                PillVariant.Ghost -> Fg
+            },
             fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.sp,
             maxLines = 1,
         )
@@ -365,7 +391,14 @@ fun Icon(icon: BrandIcon, size: Dp, tint: Color = Fg, strokeWidth: Dp = 1.7.dp) 
                 // Brand marks are filled in the source rather than stroked.
                 BrandIcon.Phone -> drawPath(phonePath(), tint, style = stroke)
                 BrandIcon.Apple -> drawPath(applePath(), tint)
-                BrandIcon.Google -> drawPath(googlePath(), tint)
+                // The four-colour G. Never tinted — recolouring it is the thing the branding
+                // guidelines forbid most explicitly, so this ignores the tint argument by design.
+                BrandIcon.Google -> {
+                    drawPath(googleBlue(), Color(0xFF4285F4))
+                    drawPath(googleGreen(), Color(0xFF34A853))
+                    drawPath(googleYellow(), Color(0xFFFBBC05))
+                    drawPath(googleRed(), Color(0xFFEA4335))
+                }
                 BrandIcon.Facebook -> drawPath(facebookPath(), tint)
             }
         }
@@ -409,20 +442,53 @@ private fun applePath() = androidx.compose.ui.graphics.Path().apply {
     cubicTo(16.2f, 12.2f, 16.5f, 12.7f, 18.4f, 13.5f); close()
 }
 
-private fun googlePath() = androidx.compose.ui.graphics.Path().apply {
-    moveTo(22f, 12.2f); cubicTo(22f, 11.4f, 21.9f, 10.8f, 21.8f, 10.2f)
-    lineTo(12f, 10.2f); lineTo(12f, 14.1f); lineTo(17.6f, 14.1f)
-    cubicTo(17.4f, 15.4f, 16.6f, 16.4f, 15.6f, 17.1f); lineTo(15.6f, 19.6f); lineTo(18.9f, 19.6f)
-    cubicTo(20.8f, 17.8f, 22f, 15.2f, 22f, 12.2f); close()
-    moveTo(12f, 22f); cubicTo(14.7f, 22f, 17f, 21.1f, 18.7f, 19.6f); lineTo(15.4f, 17.1f)
-    cubicTo(14.5f, 17.7f, 13.4f, 18.1f, 12f, 18.1f); cubicTo(9.4f, 18.1f, 7.1f, 16.3f, 6.3f, 13.9f)
-    lineTo(2.9f, 13.9f); lineTo(2.9f, 16.5f); cubicTo(4.6f, 19.9f, 8f, 22f, 12f, 22f); close()
-    moveTo(6.3f, 13.9f); cubicTo(6.1f, 13.3f, 6f, 12.6f, 6f, 12f); cubicTo(6f, 11.4f, 6.1f, 10.7f, 6.3f, 10.1f)
-    lineTo(6.3f, 7.5f); lineTo(2.9f, 7.5f); cubicTo(2.3f, 8.9f, 2f, 10.4f, 2f, 12f)
-    cubicTo(2f, 13.6f, 2.3f, 15.1f, 2.9f, 16.5f); close()
-    moveTo(12f, 5.9f); cubicTo(13.5f, 5.9f, 14.8f, 6.4f, 15.9f, 7.4f); lineTo(18.8f, 4.5f)
-    cubicTo(17f, 2.9f, 14.7f, 2f, 12f, 2f); cubicTo(8f, 2f, 4.6f, 4.1f, 2.9f, 7.5f)
-    lineTo(6.3f, 10.1f); cubicTo(7.1f, 7.7f, 9.4f, 5.9f, 12f, 5.9f); close()
+/*
+ * The official four-colour Google G, one path per colour, on the 24 grid.
+ *
+ * These are Google's own path data. They are not redrawn or simplified: the branding guidelines
+ * forbid altering the mark, and "close enough" is altering it.
+ */
+private fun googleBlue() = androidx.compose.ui.graphics.Path().apply {
+    moveTo(22.56f, 12.25f)
+    cubicTo(22.56f, 11.47f, 22.49f, 10.72f, 22.36f, 10f)
+    lineTo(12f, 10f); lineTo(12f, 14.26f); lineTo(17.92f, 14.26f)
+    cubicTo(17.66f, 15.63f, 16.88f, 16.79f, 15.71f, 17.57f)
+    lineTo(15.71f, 20.34f); lineTo(19.28f, 20.34f)
+    cubicTo(21.36f, 18.42f, 22.56f, 15.6f, 22.56f, 12.25f)
+    close()
+}
+
+private fun googleGreen() = androidx.compose.ui.graphics.Path().apply {
+    moveTo(12f, 23f)
+    cubicTo(14.97f, 23f, 17.46f, 22.02f, 19.28f, 20.34f)
+    lineTo(15.71f, 17.57f)
+    cubicTo(14.73f, 18.23f, 13.48f, 18.63f, 12f, 18.63f)
+    cubicTo(9.14f, 18.63f, 6.71f, 16.7f, 5.84f, 14.1f)
+    lineTo(2.18f, 14.1f); lineTo(2.18f, 16.94f)
+    cubicTo(3.99f, 20.53f, 7.7f, 23f, 12f, 23f)
+    close()
+}
+
+private fun googleYellow() = androidx.compose.ui.graphics.Path().apply {
+    moveTo(5.84f, 14.09f)
+    cubicTo(5.62f, 13.43f, 5.49f, 12.73f, 5.49f, 12f)
+    cubicTo(5.49f, 11.27f, 5.62f, 10.57f, 5.84f, 9.91f)
+    lineTo(5.84f, 7.07f); lineTo(2.18f, 7.07f)
+    cubicTo(1.43f, 8.55f, 1f, 10.22f, 1f, 12f)
+    cubicTo(1f, 13.78f, 1.43f, 15.45f, 2.18f, 16.93f)
+    lineTo(5.03f, 14.71f)
+    close()
+}
+
+private fun googleRed() = androidx.compose.ui.graphics.Path().apply {
+    moveTo(12f, 5.38f)
+    cubicTo(13.62f, 5.38f, 15.06f, 5.94f, 16.21f, 7.02f)
+    lineTo(19.36f, 3.87f)
+    cubicTo(17.45f, 2.09f, 14.97f, 1f, 12f, 1f)
+    cubicTo(7.7f, 1f, 3.99f, 3.47f, 2.18f, 7.07f)
+    lineTo(5.84f, 9.91f)
+    cubicTo(6.71f, 7.31f, 9.14f, 5.38f, 12f, 5.38f)
+    close()
 }
 
 private fun facebookPath() = androidx.compose.ui.graphics.Path().apply {

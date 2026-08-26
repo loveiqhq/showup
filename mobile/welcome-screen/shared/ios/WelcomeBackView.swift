@@ -30,6 +30,24 @@ private let METHODS: [AuthMethod: MethodSpec] = [
     .facebook: .init(label: "Continue with Facebook",     icon: .facebook, hint: "Last login was via Facebook"),
 ]
 
+/// Phone is ours to style; the other three are each governed by their provider.
+private func providerVariant(_ m: AuthMethod) -> PillVariant {
+    switch m {
+    case .apple: return .apple
+    case .google: return .google
+    case .facebook: return .facebook
+    default: return .ghost
+    }
+}
+
+/// The Google G ignores this — it is drawn in its own four colours.
+private func providerTint(_ m: AuthMethod) -> Color {
+    switch m {
+    case .apple, .facebook: return .white
+    default: return .liqFg
+    }
+}
+
 struct WelcomeBackView: View {
     var name: String = "Leo"
     var lastUsed: AuthMethod = .phone
@@ -96,10 +114,12 @@ struct WelcomeBackView: View {
                                action: { onContinue(primary) }) {
                         BrandIconView(icon: METHODS[primary]!.icon, size: 18, tint: .white)
                     }
+                    // Each provider's own treatment, not a uniform ghost row — Google and
+                    // Meta both forbid the uniform version. See audit finding 9.
                     ForEach(rest, id: \.self) { m in
-                        PillButton(label: METHODS[m]!.label, variant: .ghost,
+                        PillButton(label: METHODS[m]!.label, variant: providerVariant(m),
                                    action: { onContinue(m) }) {
-                            BrandIconView(icon: METHODS[m]!.icon, size: 18, tint: .liqFg)
+                            BrandIconView(icon: METHODS[m]!.icon, size: 18, tint: providerTint(m))
                         }
                     }
                 }

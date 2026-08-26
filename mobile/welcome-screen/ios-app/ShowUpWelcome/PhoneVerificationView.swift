@@ -104,7 +104,9 @@ struct PhoneNumberView: View {
                         .frame(height: 56)
                         .background(RoundedRectangle(cornerRadius: 14).fill(Color.liqElevated))
                         .overlay(RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.liqBorder, lineWidth: 1.5))
+                            // Subtle (46%), not Border (12%) — the outline is the only thing identifying the
+                            // field, and Border is 1.28:1 against a 3:1 rule. Audit finding 7.
+                            .strokeBorder(Color.liqSubtle, lineWidth: 1.5))
                     }
                     .buttonStyle(PressScale())
 
@@ -129,7 +131,7 @@ struct PhoneNumberView: View {
                     .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color.liqElevated))
                     .overlay(RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(invalid ? Color.liqDanger : Color.liqBorder, lineWidth: 1.5))
+                        .strokeBorder(invalid ? Color.liqDanger : Color.liqSubtle, lineWidth: 1.5))
                     .overlay(invalid ? RoundedRectangle(cornerRadius: 14)
                         .strokeBorder(Color.liqDanger.opacity(0.10), lineWidth: 4)
                         .padding(-2.75) : nil)
@@ -322,7 +324,7 @@ struct VerifyCodeView: View {
                     mismatch ? Color.liqDanger
                         : active ? Color.liqPurple
                         : ch != nil ? Color.liqFg.opacity(0.32)
-                        : Color.liqBorder,
+                        : Color.liqSubtle,
                     lineWidth: 1.5)
             if let ch {
                 Text(String(ch))
