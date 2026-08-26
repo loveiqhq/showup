@@ -22,13 +22,14 @@
 		FEED0000000000000000002E /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* WelcomeBackView.swift */; };
 		FEED0000000000000000002F /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* PhoneVerificationView.swift */; };
 		FEED00000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000009 /* Assets.xcassets */; };
-		FEED00000000000000000037 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* Lora-Regular.ttf */; };
-		FEED00000000000000000038 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* Lora-Bold.ttf */; };
-		FEED00000000000000000039 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* Lora-Italic.ttf */; };
-		FEED0000000000000000003A /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* Lora-BoldItalic.ttf */; };
-		FEED0000000000000000003B /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* Manrope-Medium.ttf */; };
-		FEED0000000000000000003C /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* Manrope-SemiBold.ttf */; };
-		FEED0000000000000000003D /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* Manrope-Bold.ttf */; };
+		FEED00000000000000000038 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* Lora-Regular.ttf */; };
+		FEED00000000000000000039 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* Lora-Bold.ttf */; };
+		FEED0000000000000000003A /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* Lora-Italic.ttf */; };
+		FEED0000000000000000003B /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* Lora-BoldItalic.ttf */; };
+		FEED0000000000000000003C /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* Lora-MediumItalic.ttf */; };
+		FEED0000000000000000003D /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* Manrope-Medium.ttf */; };
+		FEED0000000000000000003E /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* Manrope-SemiBold.ttf */; };
+		FEED0000000000000000003F /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* Manrope-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,9 +54,10 @@
 		FEED00000000000000000031 /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
 		FEED00000000000000000032 /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
 		FEED00000000000000000033 /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000034 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000035 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000036 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000034 /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000035 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000036 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000037 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,9 +110,10 @@
 				FEED00000000000000000031 /* Lora-Bold.ttf */,
 				FEED00000000000000000032 /* Lora-Italic.ttf */,
 				FEED00000000000000000033 /* Lora-BoldItalic.ttf */,
-				FEED00000000000000000034 /* Manrope-Medium.ttf */,
-				FEED00000000000000000035 /* Manrope-SemiBold.ttf */,
-				FEED00000000000000000036 /* Manrope-Bold.ttf */,
+				FEED00000000000000000034 /* Lora-MediumItalic.ttf */,
+				FEED00000000000000000035 /* Manrope-Medium.ttf */,
+				FEED00000000000000000036 /* Manrope-SemiBold.ttf */,
+				FEED00000000000000000037 /* Manrope-Bold.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -182,13 +185,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				FEED00000000000000000013 /* Assets.xcassets in Resources */,
-				FEED00000000000000000037 /* Lora-Regular.ttf in Resources */,
-				FEED00000000000000000038 /* Lora-Bold.ttf in Resources */,
-				FEED00000000000000000039 /* Lora-Italic.ttf in Resources */,
-				FEED0000000000000000003A /* Lora-BoldItalic.ttf in Resources */,
-				FEED0000000000000000003B /* Manrope-Medium.ttf in Resources */,
-				FEED0000000000000000003C /* Manrope-SemiBold.ttf in Resources */,
-				FEED0000000000000000003D /* Manrope-Bold.ttf in Resources */,
+				FEED00000000000000000038 /* Lora-Regular.ttf in Resources */,
+				FEED00000000000000000039 /* Lora-Bold.ttf in Resources */,
+				FEED0000000000000000003A /* Lora-Italic.ttf in Resources */,
+				FEED0000000000000000003B /* Lora-BoldItalic.ttf in Resources */,
+				FEED0000000000000000003C /* Lora-MediumItalic.ttf in Resources */,
+				FEED0000000000000000003D /* Manrope-Medium.ttf in Resources */,
+				FEED0000000000000000003E /* Manrope-SemiBold.ttf in Resources */,
+				FEED0000000000000000003F /* Manrope-Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

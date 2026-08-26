@@ -21,6 +21,7 @@ FACES = "".join([
     face("SULora", 400, "normal", "Lora-Regular.ttf"),
     face("SULora", 700, "normal", "Lora-Bold.ttf"),
     face("SULora", 400, "italic", "Lora-Italic.ttf"),
+    face("SULora", 500, "italic", "Lora-MediumItalic.ttf"),   # generated — see fonts/README
     face("SULora", 700, "italic", "Lora-BoldItalic.ttf"),
     face("SUManrope", 500, "normal", "Manrope-Medium.ttf"),
     face("SUManrope", 600, "normal", "Manrope-SemiBold.ttf"),
@@ -75,7 +76,7 @@ section{display:flex;flex-direction:column;gap:1rem;padding-top:1.6rem;border-to
 .spec em::after{content:"";position:absolute;left:-2px;right:-2px;bottom:-.08em;height:.32em;z-index:-1;
 background:radial-gradient(ellipse at 50% 100%,rgba(254,104,57,.55) 0%,rgba(254,104,57,0) 70%)}
 .w400 em{font-weight:400}
-.w500 em{font-weight:400;-webkit-text-stroke:.32px #1D1129}
+.w500 em{font-weight:500}
 .w700 em{font-weight:700}
 .big{font-size:76px}
 /* buttons */
@@ -124,18 +125,19 @@ doc = [
     '<div class="card"><div class="row">'
     '<div><p class="lbl">400 &#183; what we use now</p>'
     '<div class="spec w400">Start <em>meeting</em> today.</div></div>'
-    '<div><p class="lbl">500 &#183; what the design asks for</p>'
+    '<div><p class="lbl">500 &#183; the real file, generated</p>'
     '<div class="spec w500">Start <em>meeting</em> today.</div></div>'
     '<div><p class="lbl">700 &#183; too heavy</p>'
     '<div class="spec w700">Start <em>meeting</em> today.</div></div>'
     '</div></div>'
-    '<p class="meta"><b>Important caveat:</b> the middle one is a <i>simulation</i>. We do not have '
-    'the real 500 file, so that specimen is the 400 with a hairline added to approximate the extra '
-    'weight. A genuine Lora Medium Italic would be slightly different in the letter shapes, not just '
-    'the thickness. It is close enough to judge whether the difference matters to you.</p>'
+    '<p class="meta"><b>The middle one is now a real font.</b> The two cuts we were given turned out '
+    'to interpolate cleanly — 889 glyphs, identical structure — so the missing 500 was generated '
+    'from them rather than faked. Every point is a genuine interpolation between two real masters, '
+    'which is the same arithmetic a variable font performs. It is not what the foundry would ship, '
+    'since a type designer may hand-correct an intermediate master, but it is a legitimate 500.</p>'
     '<div class="card" style="margin-top:.5rem"><div class="row">'
     '<div><p class="lbl">400 at large size</p><div class="spec w400 big"><em>meeting</em></div></div>'
-    '<div><p class="lbl">500 simulated</p><div class="spec w500 big"><em>meeting</em></div></div>'
+    '<div><p class="lbl">500 &#183; real</p><div class="spec w500 big"><em>meeting</em></div></div>'
     '<div><p class="lbl">700</p><div class="spec w700 big"><em>meeting</em></div></div>'
     '</div></div>'
     '<p class="meta"><b>The decision:</b> either design sends one file &#8212; '

@@ -65,6 +65,10 @@ val Lora = FontFamily(
     Font(R.font.lora_regular,     FontWeight.Normal),
     Font(R.font.lora_bold,        FontWeight.Bold),
     Font(R.font.lora_italic,      FontWeight.Normal, FontStyle.Italic),
+    // Weight 500 italic — what the token file specifies for the emphasised word in a
+    // headline. The handoff shipped 400 and 700 only; this cut was interpolated from those
+    // two masters. See fonts/README-medium-italic.md. Replace if design ships a real one.
+    Font(R.font.lora_mediumitalic, FontWeight.Medium, FontStyle.Italic),
     Font(R.font.lora_bold_italic, FontWeight.Bold,   FontStyle.Italic),
 )
 

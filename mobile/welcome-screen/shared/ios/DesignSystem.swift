@@ -55,6 +55,9 @@ enum PS {
     static let loraBold       = "Lora-Bold"
     static let loraItalic     = "LoraItalic-Italic"
     static let loraBoldItalic = "LoraItalic-BoldItalic"
+    /// Weight 500 italic, interpolated from the 400 and 700 masters. See
+    /// fonts/README-medium-italic.md. Replace if design ships a foundry file.
+    static let loraMediumItalic = "Lora-MediumItalic"
     static let manropeMedium  = "Manrope-Medium"
     static let manropeSemi    = "Manrope-SemiBold"
     static let manropeBold    = "Manrope-Bold"

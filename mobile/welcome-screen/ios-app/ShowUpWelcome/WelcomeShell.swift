@@ -191,11 +191,10 @@ struct WashHeadline: UIViewRepresentable {
     func updateUIView(_ v: WashLabel, context: Context) {
         let regular = TypeMetrics.uiFont(PS.loraBold, fontSize,
                                          fallback: .systemFont(ofSize: fontSize, weight: .bold))
-        // The token file puts the em at weight 500 — lighter than the surrounding 700. The bundled
-        // Lora set has 400 and 700 italic only and there is no variable source to instance a 500
-        // from, so the nearest cut is used. It reads correctly against the 700 around it; a real
-        // 500 italic would be closer still. See the audit.
-        let italic = TypeMetrics.uiFont(PS.loraItalic, fontSize,
+        // Weight 500, as the token file specifies. The handoff shipped 400 and 700 only, so this
+        // cut was interpolated from those two masters — a real 500, not a synthetic embolden.
+        // See fonts/README-medium-italic.md.
+        let italic = TypeMetrics.uiFont(PS.loraMediumItalic, fontSize,
                                         fallback: TypeMetrics.italicSystem(fontSize))
         let para = NSMutableParagraphStyle()
         para.lineHeightMultiple = lineHeightMultiple

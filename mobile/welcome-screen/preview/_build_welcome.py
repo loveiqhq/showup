@@ -31,11 +31,11 @@ def face(family, weight, style, filename):
 
 FACES = "".join([
     face("SULora", 400, "normal", "Lora-Regular.ttf"),
-    face("SULora", 500, "normal", "Lora-Medium.ttf") if os.path.exists(
-        os.path.join(FONTS, "Lora-Medium.ttf")) else face("SULora", 500, "normal", "Lora-Regular.ttf"),
+    face("SULora", 500, "normal", "Lora-Regular.ttf"),
+    # weight 500 italic — the weight the token file specifies for the emphasised word
+    face("SULora", 500, "italic", "Lora-MediumItalic.ttf"),
     face("SULora", 700, "normal", "Lora-Bold.ttf"),
     face("SULora", 400, "italic", "Lora-Italic.ttf"),
-    face("SULora", 500, "italic", "Lora-Italic.ttf"),
     face("SULora", 700, "italic", "Lora-BoldItalic.ttf"),
     face("SUManrope", 500, "normal", "Manrope-Medium.ttf"),
     face("SUManrope", 600, "normal", "Manrope-SemiBold.ttf"),
