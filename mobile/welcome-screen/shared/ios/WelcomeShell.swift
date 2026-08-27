@@ -111,7 +111,11 @@ struct WelcomeScaffold<Content: View>: View {
                     }
                     // Bounce off means a screen that fits does not rubber-band, so it reads as a
                     // fixed layout rather than a scroll view that happens to be full.
-                    .scrollBounceBehavior(.basedOnSize)
+                    //
+                    // iOS 16.4+. The deployment target is 16.0, so this is gated rather than
+                    // dropped: it is a refinement, and on 16.0-16.3 the only difference is that a
+                    // screen which already fits can still be dragged a few points.
+                    .modifier(NoBounceWhenItFits())
                 }
             } else {
                 VStack(alignment: .leading, spacing: 0) { content() }
@@ -119,6 +123,21 @@ struct WelcomeScaffold<Content: View>: View {
                     .padding(.top, topPadding)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
+        }
+    }
+}
+
+/// `scrollBounceBehavior(.basedOnSize)` where the OS has it, nothing where it does not.
+///
+/// Applying an unavailable modifier inline would need `if #available` around the whole view, which
+/// forks the layout into two branches that then have to be kept identical. A ViewModifier keeps the
+/// fork to one line and the layout to one definition.
+private struct NoBounceWhenItFits: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.scrollBounceBehavior(.basedOnSize)
+        } else {
+            content
         }
     }
 }
@@ -400,8 +419,8 @@ struct BrandIconView: View {
     var body: some View {
         Canvas { ctx, _ in
             let s = size / 24
-            var t = CGAffineTransform(scaleX: s, y: s)
-            let style = StrokeStyle(lineWidth: stroke / s, lineCap: .round, lineJoin: .round)
+            // Every path below is authored on a 24-unit grid; this scales it to the requested size.
+            let t = CGAffineTransform(scaleX: s, y: s)
             let filled: Bool
             let p: Path
             switch icon {
@@ -464,7 +483,6 @@ struct BrandIconView: View {
             } else {
                 ctx.stroke(scaled, with: .color(tint), style: StrokeStyle(lineWidth: stroke, lineCap: .round, lineJoin: .round))
             }
-            _ = t
         }
         .frame(width: size, height: size)
     }
