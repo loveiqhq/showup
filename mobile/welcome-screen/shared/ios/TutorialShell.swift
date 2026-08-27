@@ -178,13 +178,17 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
     let step: Int
     let totalSteps: Int
     let eyebrow: String
-    let nextLabel: String
-    var nextVariant: NextVariant = .orange
-    var showBack: Bool = true
+    // Declared here, before nextLabel, because that is where every call site passes it.
+    // Swift's memberwise init requires arguments in declaration order — unlike Kotlin,
+    // where named arguments may appear in any order. That difference is why Android
+    // compiled this happily while Xcode rejected it.
     /// Width of the headline underline accent. It underlines the italic phrase, which sits in a
     /// different place in every headline, so the width is per-card rather than derived. 0 draws
     /// nothing.
     var underlineWidth: CGFloat = 0
+    let nextLabel: String
+    var nextVariant: NextVariant = .orange
+    var showBack: Bool = true
     var onNext: () -> Void = {}
     var onBack: () -> Void = {}
     @ViewBuilder let headline: () -> Headline
