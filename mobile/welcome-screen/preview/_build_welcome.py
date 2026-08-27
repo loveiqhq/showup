@@ -371,8 +371,15 @@ def welcomeback(w, sm, home, wgap, last_used="phone", name="Leo"):
             mark = ico(METHODS[k][1], 18)
         return '<button class="btn %s">%s<span>%s</span></button>' % (cls, mark, METHODS[k][0])
 
-    btns = '<button class="btn sunset">%s<span>%s</span></button>' % (
-        ico(METHODS[primary][1], 18), METHODS[primary][0])
+    # Only phone takes the sunset pill, and only while it is the promoted method. A provider
+    # keeps its own livery in every position -- the promotion is carried by position and by the
+    # hint row above. Epic note: "gradient reserved for our own CTAs".
+    if primary == "phone":
+        btns = '<button class="btn sunset">%s<span>%s</span></button>' % (
+            ico(METHODS[primary][1], 18).replace('stroke="currentColor"', 'stroke="#fff"'),
+            METHODS[primary][0])
+    else:
+        btns = provider_btn(primary)
     for k in rest:
         btns += provider_btn(k)
     return ('<div class="screen s142" style="--w:%dpx;--h:%dpx;--st:%dpx;--sbm:%dpx;--r:%dpx;--wgap:%dpx">'
@@ -474,66 +481,67 @@ def verify(w, sm, home, state):
 
 
 # ── assemble ────────────────────────────────────────────────────────────────
-html = [
-    '<meta charset="utf-8"><title>ShowUp Welcome and Sign-up</title>',
-    '<style>%s%s%s%s%s</style>' % (FACES, CSS, CSS_140, CSS_142, CSS_143),
-    '<div class="page"><header>',
-    '<p class="kicker">SHOWUP-140 &#183; 142 &#183; 143</p>',
-    '<h1>Welcome &amp; sign-up</h1>',
-    '<p class="lede">Every screen at the three device sizes in the acceptance criteria. Startup and '
-    'Welcome back share one backdrop and one wordmark at 26 &#8212; they are meant to read as the same '
-    'space. Phone verification is four states of one column, with both helper regions reserved so the '
-    'CTA never moves. Fonts are embedded: this file works offline.</p></header>',
-]
+if __name__ == "__main__":
+    html = [
+        '<meta charset="utf-8"><title>ShowUp Welcome and Sign-up</title>',
+        '<style>%s%s%s%s%s</style>' % (FACES, CSS, CSS_140, CSS_142, CSS_143),
+        '<div class="page"><header>',
+        '<p class="kicker">SHOWUP-140 &#183; 142 &#183; 143</p>',
+        '<h1>Welcome &amp; sign-up</h1>',
+        '<p class="lede">Every screen at the three device sizes in the acceptance criteria. Startup and '
+        'Welcome back share one backdrop and one wordmark at 26 &#8212; they are meant to read as the same '
+        'space. Phone verification is four states of one column, with both helper regions reserved so the '
+        'CTA never moves. Fonts are embedded: this file works offline.</p></header>',
+    ]
 
-html.append('<section><h2 class="title">SHOWUP-140 &#8212; Startup (first run)</h2>'
-            '<p class="meta">wordmark 26 &#183; 132 flexible gap &#183; two flex:1 spacers around the '
-            'social-proof row &#183; sunset CTA</p><div class="rail">')
-for d in DEVICES:
-    gap = 132 if d[0] != 375 else 72        # the 132 gap is the element that yields on short frames
-    html.append('<figure>%s<figcaption>%d &#215; %d &#183; %s%s</figcaption></figure>'
-                % (startup(d, d[5], d[6], gap), d[0], d[1], d[7],
-                   " &#183; gap 132&#8594;72" if d[0] == 375 else ""))
-html.append('</div></section>')
-
-html.append('<section><h2 class="title">SHOWUP-142 &#8212; Welcome back (re-login)</h2>'
-            '<p class="meta">same backdrop and wordmark as Startup &#183; 120 flexible gap &#183; '
-            'four methods, canonical order, only the last-used one is sunset</p><div class="rail">')
-for d in DEVICES:
-    gap = 120 if d[0] != 375 else 60
-    html.append('<figure>%s<figcaption>%d &#215; %d &#183; %s%s</figcaption></figure>'
-                % (welcomeback(d, d[5], d[6], gap), d[0], d[1], d[7],
-                   " &#183; gap 120&#8594;60" if d[0] == 375 else ""))
-html.append('</div></section>')
-
-html.append('<section><h2 class="title">SHOWUP-142 &#8212; the other lastUsed values</h2>'
-            '<p class="meta">at 390 &#215; 844 &#183; always four buttons, no duplicates, no reordering '
-            'beyond lifting the primary &#183; unknown falls back to phone and hides the hint row</p>'
-            '<div class="rail">')
-D390 = DEVICES[1]
-for lu, cap in [("apple", "lastUsed = apple"), ("google", "lastUsed = google"),
-                ("facebook", "lastUsed = facebook"), ("nope", "lastUsed = unknown &#8594; phone, no hint"),
-                ("phone", "no name &#8594; no italic span")]:
-    nm = "" if cap.startswith("no name") else "Leo"
-    html.append('<figure>%s<figcaption>%s</figcaption></figure>'
-                % (welcomeback(D390, D390[5], D390[6], 120, lu, nm), cap))
-html.append('</div></section>')
-
-for state, title, note in [
-    ("A", "State A &#8212; enter number", "helper region reserved at 20 &#183; CTA enabled"),
-    ("B", "State B &#8212; invalid number", "digits preserved &#183; danger border + 4px halo + inline ! &#183; CTA disabled at 0.45 &#183; CTA has not moved"),
-    ("C", "State C &#8212; enter code", "six slots 49&#215;62 &#183; first active with violet caret &#183; helper region reserved at 42 &#183; CTA disabled"),
-    ("D", "State D &#8212; code mismatch", "digits kept &#183; 4% wash, never a solid fill &#183; error glued to the slots &#183; CTA stays enabled &#183; cooldown released to 0"),
-]:
-    html.append('<section><h2 class="title">SHOWUP-143 &#8212; %s</h2><p class="meta">%s</p><div class="rail">'
-                % (title, note))
+    html.append('<section><h2 class="title">SHOWUP-140 &#8212; Startup (first run)</h2>'
+                '<p class="meta">wordmark 26 &#183; 132 flexible gap &#183; two flex:1 spacers around the '
+                'social-proof row &#183; sunset CTA</p><div class="rail">')
     for d in DEVICES:
-        extra = " &#183; slots 44&#215;56" if d[0] == 375 else ""
+        gap = 132 if d[0] != 375 else 72        # the 132 gap is the element that yields on short frames
         html.append('<figure>%s<figcaption>%d &#215; %d &#183; %s%s</figcaption></figure>'
-                    % (verify(d, d[5], d[6], state), d[0], d[1], d[7], extra))
+                    % (startup(d, d[5], d[6], gap), d[0], d[1], d[7],
+                       " &#183; gap 132&#8594;72" if d[0] == 375 else ""))
     html.append('</div></section>')
 
-html.append('</div>')
-io.open(OUT, "w", encoding="utf-8", newline="\n").write("\n".join(html))
-print("wrote: %s" % OUT)
-print("size : %.1f MB" % (os.path.getsize(OUT) / 1024.0 / 1024.0))
+    html.append('<section><h2 class="title">SHOWUP-142 &#8212; Welcome back (re-login)</h2>'
+                '<p class="meta">same backdrop and wordmark as Startup &#183; 120 flexible gap &#183; '
+                'four methods, canonical order, only the last-used one is sunset</p><div class="rail">')
+    for d in DEVICES:
+        gap = 120 if d[0] != 375 else 60
+        html.append('<figure>%s<figcaption>%d &#215; %d &#183; %s%s</figcaption></figure>'
+                    % (welcomeback(d, d[5], d[6], gap), d[0], d[1], d[7],
+                       " &#183; gap 120&#8594;60" if d[0] == 375 else ""))
+    html.append('</div></section>')
+
+    html.append('<section><h2 class="title">SHOWUP-142 &#8212; the other lastUsed values</h2>'
+                '<p class="meta">at 390 &#215; 844 &#183; always four buttons, no duplicates, no reordering '
+                'beyond lifting the primary &#183; unknown falls back to phone and hides the hint row</p>'
+                '<div class="rail">')
+    D390 = DEVICES[1]
+    for lu, cap in [("apple", "lastUsed = apple"), ("google", "lastUsed = google"),
+                    ("facebook", "lastUsed = facebook"), ("nope", "lastUsed = unknown &#8594; phone, no hint"),
+                    ("phone", "no name &#8594; no italic span")]:
+        nm = "" if cap.startswith("no name") else "Leo"
+        html.append('<figure>%s<figcaption>%s</figcaption></figure>'
+                    % (welcomeback(D390, D390[5], D390[6], 120, lu, nm), cap))
+    html.append('</div></section>')
+
+    for state, title, note in [
+        ("A", "State A &#8212; enter number", "helper region reserved at 20 &#183; CTA enabled"),
+        ("B", "State B &#8212; invalid number", "digits preserved &#183; danger border + 4px halo + inline ! &#183; CTA disabled at 0.45 &#183; CTA has not moved"),
+        ("C", "State C &#8212; enter code", "six slots 49&#215;62 &#183; first active with violet caret &#183; helper region reserved at 42 &#183; CTA disabled"),
+        ("D", "State D &#8212; code mismatch", "digits kept &#183; 4% wash, never a solid fill &#183; error glued to the slots &#183; CTA stays enabled &#183; cooldown released to 0"),
+    ]:
+        html.append('<section><h2 class="title">SHOWUP-143 &#8212; %s</h2><p class="meta">%s</p><div class="rail">'
+                    % (title, note))
+        for d in DEVICES:
+            extra = " &#183; slots 44&#215;56" if d[0] == 375 else ""
+            html.append('<figure>%s<figcaption>%d &#215; %d &#183; %s%s</figcaption></figure>'
+                        % (verify(d, d[5], d[6], state), d[0], d[1], d[7], extra))
+        html.append('</div></section>')
+
+    html.append('</div>')
+    io.open(OUT, "w", encoding="utf-8", newline="\n").write("\n".join(html))
+    print("wrote: %s" % OUT)
+    print("size : %.1f MB" % (os.path.getsize(OUT) / 1024.0 / 1024.0))

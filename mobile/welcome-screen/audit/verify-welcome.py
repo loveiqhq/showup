@@ -64,6 +64,15 @@ ver_sw = read(SW, "PhoneVerificationView.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
 
+# The method list moved out of the two screens and into a component shared with Connect
+# (SHOWUP-145: "the same component and the same ordered data source as welcome 04"). The 142 checks
+# below therefore look at the screen AND the shared list, because that is now where the buttons,
+# the canonical order and the labels live.
+list_kt = read(KT, "welcome/AuthMethodList.kt")
+list_sw = read(SW, "AuthMethodList.swift")
+back_kt_all = back_kt + list_kt
+back_sw_all = back_sw + list_sw
+
 # ── tokens added for this flow ──────────────────────────────────────────────
 for name, kt, sw in [
     ("elevated #FFFFFF", "0xFFFFFFFF", "0xFFFFFF"),
@@ -94,11 +103,11 @@ check("wash tracks the run (swift)", "enumerateEnclosingRects" in shell_kt or
       "enumerateEnclosingRects" in shell_sw)
 
 # ── button — components/shared.jsx size lg ──────────────────────────────────
-check("button height 56 (kotlin)", "height(56.dp)" in shell_kt)
-check("button height 56 (swift)", "height: 56" in shell_sw)
+check("button height 56 (kotlin)", "height: Dp = 56.dp" in shell_kt)
+check("button height 56 (swift)", "var height: CGFloat = 56" in shell_sw)
 check("button pad 28 (kotlin)", "horizontal = 28.dp" in shell_kt)
 check("button pad 28 (swift)", ".padding(.horizontal, 28)" in shell_sw)
-check("button label 16 bold (kotlin)", "fontSize = 16.sp" in shell_kt)
+check("button label 16 bold (kotlin)", "else 16.sp" in shell_kt)
 check("button label 16 bold (swift)", "manrope(16, .bold)" in shell_sw)
 check("button gap 8 (kotlin)", "spacedBy(8.dp" in shell_kt)
 check("button gap 8 (swift)", "HStack(spacing: 8)" in shell_sw)
@@ -161,10 +170,11 @@ check("142 sub 17 medium (swift)", "manrope(17, .medium)" in back_sw)
 check("142 sub max 280 (kotlin)", "widthIn(max = 280.dp)" in back_kt)
 check("142 sub max 280 (swift)", "maxWidth: 280" in back_sw)
 check("142 canonical order (kotlin)",
-      "AuthMethod.Phone, AuthMethod.Apple, AuthMethod.Google, AuthMethod.Facebook" in back_kt)
-check("142 canonical order (swift)", "[.phone, .apple, .google, .facebook]" in back_sw)
-check("142 unknown falls back to phone (kotlin)", "else AuthMethod.Phone" in back_kt)
-check("142 unknown falls back to phone (swift)", "known ? lastUsed : .phone" in back_sw)
+      "AuthMethod.Phone, AuthMethod.Apple, AuthMethod.Google, AuthMethod.Facebook" in back_kt_all)
+check("142 canonical order (swift)", "[.phone, .apple, .google, .facebook]" in back_sw_all)
+check("142 unknown falls back to phone (kotlin)", "?: AuthMethod.Phone" in back_kt)
+check("142 unknown falls back to phone (swift)",
+      "known ? lastUsed : (methods.first ?? .phone)" in back_sw)
 check("142 unknown hides the hint (kotlin)", "if (known)" in back_kt)
 check("142 unknown hides the hint (swift)", "if known" in back_sw)
 check("142 hint 12 semibold (kotlin)", "fontSize = 12.sp" in back_kt)
@@ -235,10 +245,10 @@ for target in ("onGetHelp", "onUseDifferentAccount", "onLegal", "onPrivacy"):
     check("142 " + target + " wired (swift)", target in back_sw)
 check("142 links are real links (kotlin)", back_kt.count("LinkAnnotation.Clickable") == 4)
 check("142 links are real links (swift)", "OpenURLAction" in back_sw)
-check("142 four method buttons tappable (kotlin)", "onContinue(primary)" in back_kt
-      and "onContinue(m)" in back_kt)
-check("142 four method buttons tappable (swift)", "onContinue(primary)" in back_sw
-      and "onContinue(m)" in back_sw)
+check("142 four method buttons tappable (kotlin)", "onSelect = onContinue" in back_kt
+      and "onSelect(method)" in list_kt)
+check("142 four method buttons tappable (swift)", "onSelect: onContinue" in back_sw
+      and "onSelect(method)" in list_sw)
 
 # SHOWUP-143
 for target in ("onSubmit", "onOpenCountryList", "onBack"):
@@ -269,7 +279,7 @@ COPY = [
         "Create free account", "Already have an account? ", "Log in",
         "Terms & Conditions", "Privacy Policy", "Legal Notice",
     ]),
-    (back_kt, back_sw, [
+    (back_kt_all, back_sw_all, [
         "Welcome back ",
         "Sign back in to check your availability and see who" + CURLY + "s free today.",
         "Continue with phone number", "Continue with Apple",

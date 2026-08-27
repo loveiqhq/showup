@@ -69,7 +69,10 @@ private struct TutorialFlow: View {
                     onContinue: { m in go(to: m == .phone ? -2 : 1) },
                     onUseDifferentAccount: { go(to: -4) })
                 case -2: PhoneNumberView(onBack: { go(to: -4) }, onSubmit: { go(to: -1) })
-                case -1: VerifyCodeView(onBack: { go(to: -2) }, onVerify: { go(to: 1) })
+                case -1: VerifyCodeView(onBack: { go(to: -2) }, onVerify: { go(to: 0) })
+                // SHOWUP-144. The only entry point is a successful code verify, and the only exits
+                // are the skip, the success CTA and a resolved conflict.
+                case 0: ConnectFlowHost(onDone: { go(to: 1) })
                 case 1: WelcomeView(onContinue: { go(to: 2) })
                 case 2: MeetInRealLifeView(onNext: { go(to: 3) })
                 case 3: MatchOnAvailabilityView(onNext: { go(to: 4) }, onBack: { go(to: 2) })
@@ -85,6 +88,67 @@ private struct TutorialFlow: View {
             // transitions.
             .id(screen)
             .transition(transition)
+        }
+    }
+}
+
+/// Demo driver for SHOWUP-144, so the ten states can be walked without a backend.
+///
+/// **Scaffolding, not product.** The real screen is `ConnectAccountView`, which is pure: it takes a
+/// state and renders it. This host fakes the round trip that a provider SDK and our link-identity
+/// endpoint would drive, and it deliberately cycles through a different ending on each attempt —
+/// success, cancel, network error, declined, conflict — so a reviewer can reach every branch by
+/// tapping the same button five times instead of needing five broken accounts.
+private struct ConnectFlowHost: View {
+    let onDone: () -> Void
+
+    @State private var state: ConnectState = .idle
+    @State private var provider: AuthMethod = .apple
+    @State private var kind: ErrorKind = .network
+    @State private var attempt = 0
+
+    var body: some View {
+        ConnectAccountView(
+            state: state,
+            provider: provider,
+            kind: kind,
+            onSelect: { m in
+                provider = m
+                Task { await run() }
+            },
+            onSkip: onDone,
+            onContinue: onDone,
+            // The 8s cap firing is a real transition, not a demo shortcut.
+            onLinkingTimeout: { kind = .network; state = .error },
+            onResolveConflict: { _ in onDone() },
+            onUseDifferentAccount: { state = .idle }
+        )
+    }
+
+    private func run() async {
+        state = .tapped
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        state = .handoff
+        try? await Task.sleep(nanoseconds: 1_400_000_000)
+
+        defer { attempt += 1 }
+        switch attempt % 5 {
+        case 0:
+            state = .linking
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            state = .success
+        case 1:
+            state = .cancelled
+        case 2:
+            kind = .network
+            state = .error
+        case 3:
+            kind = .declined
+            state = .error
+        default:
+            state = .linking
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            state = .conflict
         }
     }
 }

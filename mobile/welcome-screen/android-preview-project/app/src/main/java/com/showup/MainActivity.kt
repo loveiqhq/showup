@@ -27,6 +27,7 @@ import com.showup.welcome.AuthMethod
 import com.showup.welcome.PhoneNumberScreen
 import com.showup.welcome.StartupScreen
 import com.showup.welcome.VerifyCodeScreen
+import com.showup.welcome.ConnectFlowHost
 import com.showup.welcome.WelcomeBackScreen
 import com.showup.tutorial.rememberMotion
 
@@ -93,8 +94,11 @@ class MainActivity : ComponentActivity() {
                     )
                     -1 -> VerifyCodeScreen(
                         onBack = { screen = -2 },
-                        onVerify = { screen = 1 },      // verified -> into the tutorial
+                        // SHOWUP-144: a successful verify is the only entry to Connect, and
+                        // Connect is the only thing between verification and the tutorial.
+                        onVerify = { screen = 0 },
                     )
+                    0 -> ConnectFlowHost(onDone = { screen = 1 })
                     1 -> WelcomeScreen(onContinue = { screen = 2 })
                     2 -> MeetInRealLifeScreen(onNext = { screen = 3 })
                     3 -> MatchOnAvailabilityScreen(onNext = { screen = 4 }, onBack = { screen = 2 })

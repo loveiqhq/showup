@@ -7,57 +7,61 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FEED00000000000000000022 /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000014 /* ShowUpWelcomeApp.swift */; };
-		FEED00000000000000000023 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* DesignSystem.swift */; };
-		FEED00000000000000000024 /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000016 /* TutorialAnalytics.swift */; };
-		FEED00000000000000000025 /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* TutorialShell.swift */; };
-		FEED00000000000000000026 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* WelcomeView.swift */; };
-		FEED00000000000000000027 /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* MeetInRealLifeView.swift */; };
-		FEED00000000000000000028 /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* MatchOnAvailabilityView.swift */; };
-		FEED00000000000000000029 /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* MatchMeansMeetView.swift */; };
-		FEED0000000000000000002A /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* ThirtyMinutesView.swift */; };
-		FEED0000000000000000002B /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* ShowUpEveryTimeView.swift */; };
-		FEED0000000000000000002C /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* WelcomeShell.swift */; };
-		FEED0000000000000000002D /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* StartupView.swift */; };
-		FEED0000000000000000002E /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* WelcomeBackView.swift */; };
-		FEED0000000000000000002F /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* PhoneVerificationView.swift */; };
+		FEED00000000000000000024 /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000014 /* ShowUpWelcomeApp.swift */; };
+		FEED00000000000000000025 /* AuthMethodList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* AuthMethodList.swift */; };
+		FEED00000000000000000026 /* ConnectAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000016 /* ConnectAccountView.swift */; };
+		FEED00000000000000000027 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* DesignSystem.swift */; };
+		FEED00000000000000000028 /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* MatchMeansMeetView.swift */; };
+		FEED00000000000000000029 /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* MatchOnAvailabilityView.swift */; };
+		FEED0000000000000000002A /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* MeetInRealLifeView.swift */; };
+		FEED0000000000000000002B /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* PhoneVerificationView.swift */; };
+		FEED0000000000000000002C /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* ShowUpEveryTimeView.swift */; };
+		FEED0000000000000000002D /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* StartupView.swift */; };
+		FEED0000000000000000002E /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* ThirtyMinutesView.swift */; };
+		FEED0000000000000000002F /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* TutorialAnalytics.swift */; };
+		FEED00000000000000000030 /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* TutorialShell.swift */; };
+		FEED00000000000000000031 /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* WelcomeBackView.swift */; };
+		FEED00000000000000000032 /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* WelcomeShell.swift */; };
+		FEED00000000000000000033 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* WelcomeView.swift */; };
 		FEED00000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000009 /* Assets.xcassets */; };
-		FEED00000000000000000038 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* Lora-Regular.ttf */; };
-		FEED00000000000000000039 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* Lora-Bold.ttf */; };
-		FEED0000000000000000003A /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* Lora-Italic.ttf */; };
-		FEED0000000000000000003B /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* Lora-BoldItalic.ttf */; };
-		FEED0000000000000000003C /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* Lora-MediumItalic.ttf */; };
-		FEED0000000000000000003D /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* Manrope-Medium.ttf */; };
-		FEED0000000000000000003E /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* Manrope-SemiBold.ttf */; };
-		FEED0000000000000000003F /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* Manrope-Bold.ttf */; };
+		FEED0000000000000000003C /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* Lora-Bold.ttf */; };
+		FEED0000000000000000003D /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* Lora-BoldItalic.ttf */; };
+		FEED0000000000000000003E /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* Lora-Italic.ttf */; };
+		FEED0000000000000000003F /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* Lora-MediumItalic.ttf */; };
+		FEED00000000000000000040 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000038 /* Lora-Regular.ttf */; };
+		FEED00000000000000000041 /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000039 /* Manrope-Bold.ttf */; };
+		FEED00000000000000000042 /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003A /* Manrope-Medium.ttf */; };
+		FEED00000000000000000043 /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003B /* Manrope-SemiBold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		FEED00000000000000000007 /* ShowUpWelcome.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowUpWelcome.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FEED00000000000000000014 /* ShowUpWelcomeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpWelcomeApp.swift; sourceTree = "<group>"; };
-		FEED00000000000000000015 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
-		FEED00000000000000000016 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
-		FEED00000000000000000017 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
-		FEED00000000000000000018 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000019 /* MeetInRealLifeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetInRealLifeView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001A /* MatchOnAvailabilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchOnAvailabilityView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001B /* MatchMeansMeetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchMeansMeetView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001C /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001D /* ShowUpEveryTimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpEveryTimeView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001E /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001F /* StartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000020 /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000021 /* PhoneVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerificationView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000015 /* AuthMethodList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthMethodList.swift; sourceTree = "<group>"; };
+		FEED00000000000000000016 /* ConnectAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAccountView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000017 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		FEED00000000000000000018 /* MatchMeansMeetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchMeansMeetView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000019 /* MatchOnAvailabilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchOnAvailabilityView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001A /* MeetInRealLifeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetInRealLifeView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001B /* PhoneVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerificationView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001C /* ShowUpEveryTimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpEveryTimeView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001D /* StartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001E /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001F /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
+		FEED00000000000000000020 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
+		FEED00000000000000000021 /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000022 /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
+		FEED00000000000000000023 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		FEED00000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FEED00000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		FEED00000000000000000030 /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000031 /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000032 /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000033 /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000034 /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000035 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000036 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000037 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000034 /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000035 /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000036 /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000037 /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000038 /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000039 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000003A /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000003B /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,19 +87,21 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000014 /* ShowUpWelcomeApp.swift */,
-				FEED00000000000000000015 /* DesignSystem.swift */,
-				FEED00000000000000000016 /* TutorialAnalytics.swift */,
-				FEED00000000000000000017 /* TutorialShell.swift */,
-				FEED00000000000000000018 /* WelcomeView.swift */,
-				FEED00000000000000000019 /* MeetInRealLifeView.swift */,
-				FEED0000000000000000001A /* MatchOnAvailabilityView.swift */,
-				FEED0000000000000000001B /* MatchMeansMeetView.swift */,
-				FEED0000000000000000001C /* ThirtyMinutesView.swift */,
-				FEED0000000000000000001D /* ShowUpEveryTimeView.swift */,
-				FEED0000000000000000001E /* WelcomeShell.swift */,
-				FEED0000000000000000001F /* StartupView.swift */,
-				FEED00000000000000000020 /* WelcomeBackView.swift */,
-				FEED00000000000000000021 /* PhoneVerificationView.swift */,
+				FEED00000000000000000015 /* AuthMethodList.swift */,
+				FEED00000000000000000016 /* ConnectAccountView.swift */,
+				FEED00000000000000000017 /* DesignSystem.swift */,
+				FEED00000000000000000018 /* MatchMeansMeetView.swift */,
+				FEED00000000000000000019 /* MatchOnAvailabilityView.swift */,
+				FEED0000000000000000001A /* MeetInRealLifeView.swift */,
+				FEED0000000000000000001B /* PhoneVerificationView.swift */,
+				FEED0000000000000000001C /* ShowUpEveryTimeView.swift */,
+				FEED0000000000000000001D /* StartupView.swift */,
+				FEED0000000000000000001E /* ThirtyMinutesView.swift */,
+				FEED0000000000000000001F /* TutorialAnalytics.swift */,
+				FEED00000000000000000020 /* TutorialShell.swift */,
+				FEED00000000000000000021 /* WelcomeBackView.swift */,
+				FEED00000000000000000022 /* WelcomeShell.swift */,
+				FEED00000000000000000023 /* WelcomeView.swift */,
 				FEED00000000000000000009 /* Assets.xcassets */,
 				FEED00000000000000000005 /* Fonts */,
 				FEED00000000000000000008 /* Info.plist */,
@@ -106,14 +112,14 @@
 		FEED00000000000000000005 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
-				FEED00000000000000000030 /* Lora-Regular.ttf */,
-				FEED00000000000000000031 /* Lora-Bold.ttf */,
-				FEED00000000000000000032 /* Lora-Italic.ttf */,
-				FEED00000000000000000033 /* Lora-BoldItalic.ttf */,
-				FEED00000000000000000034 /* Lora-MediumItalic.ttf */,
-				FEED00000000000000000035 /* Manrope-Medium.ttf */,
-				FEED00000000000000000036 /* Manrope-SemiBold.ttf */,
-				FEED00000000000000000037 /* Manrope-Bold.ttf */,
+				FEED00000000000000000034 /* Lora-Bold.ttf */,
+				FEED00000000000000000035 /* Lora-BoldItalic.ttf */,
+				FEED00000000000000000036 /* Lora-Italic.ttf */,
+				FEED00000000000000000037 /* Lora-MediumItalic.ttf */,
+				FEED00000000000000000038 /* Lora-Regular.ttf */,
+				FEED00000000000000000039 /* Manrope-Bold.ttf */,
+				FEED0000000000000000003A /* Manrope-Medium.ttf */,
+				FEED0000000000000000003B /* Manrope-SemiBold.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -185,14 +191,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				FEED00000000000000000013 /* Assets.xcassets in Resources */,
-				FEED00000000000000000038 /* Lora-Regular.ttf in Resources */,
-				FEED00000000000000000039 /* Lora-Bold.ttf in Resources */,
-				FEED0000000000000000003A /* Lora-Italic.ttf in Resources */,
-				FEED0000000000000000003B /* Lora-BoldItalic.ttf in Resources */,
-				FEED0000000000000000003C /* Lora-MediumItalic.ttf in Resources */,
-				FEED0000000000000000003D /* Manrope-Medium.ttf in Resources */,
-				FEED0000000000000000003E /* Manrope-SemiBold.ttf in Resources */,
-				FEED0000000000000000003F /* Manrope-Bold.ttf in Resources */,
+				FEED0000000000000000003C /* Lora-Bold.ttf in Resources */,
+				FEED0000000000000000003D /* Lora-BoldItalic.ttf in Resources */,
+				FEED0000000000000000003E /* Lora-Italic.ttf in Resources */,
+				FEED0000000000000000003F /* Lora-MediumItalic.ttf in Resources */,
+				FEED00000000000000000040 /* Lora-Regular.ttf in Resources */,
+				FEED00000000000000000041 /* Manrope-Bold.ttf in Resources */,
+				FEED00000000000000000042 /* Manrope-Medium.ttf in Resources */,
+				FEED00000000000000000043 /* Manrope-SemiBold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -203,20 +209,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000022 /* ShowUpWelcomeApp.swift in Sources */,
-				FEED00000000000000000023 /* DesignSystem.swift in Sources */,
-				FEED00000000000000000024 /* TutorialAnalytics.swift in Sources */,
-				FEED00000000000000000025 /* TutorialShell.swift in Sources */,
-				FEED00000000000000000026 /* WelcomeView.swift in Sources */,
-				FEED00000000000000000027 /* MeetInRealLifeView.swift in Sources */,
-				FEED00000000000000000028 /* MatchOnAvailabilityView.swift in Sources */,
-				FEED00000000000000000029 /* MatchMeansMeetView.swift in Sources */,
-				FEED0000000000000000002A /* ThirtyMinutesView.swift in Sources */,
-				FEED0000000000000000002B /* ShowUpEveryTimeView.swift in Sources */,
-				FEED0000000000000000002C /* WelcomeShell.swift in Sources */,
+				FEED00000000000000000024 /* ShowUpWelcomeApp.swift in Sources */,
+				FEED00000000000000000025 /* AuthMethodList.swift in Sources */,
+				FEED00000000000000000026 /* ConnectAccountView.swift in Sources */,
+				FEED00000000000000000027 /* DesignSystem.swift in Sources */,
+				FEED00000000000000000028 /* MatchMeansMeetView.swift in Sources */,
+				FEED00000000000000000029 /* MatchOnAvailabilityView.swift in Sources */,
+				FEED0000000000000000002A /* MeetInRealLifeView.swift in Sources */,
+				FEED0000000000000000002B /* PhoneVerificationView.swift in Sources */,
+				FEED0000000000000000002C /* ShowUpEveryTimeView.swift in Sources */,
 				FEED0000000000000000002D /* StartupView.swift in Sources */,
-				FEED0000000000000000002E /* WelcomeBackView.swift in Sources */,
-				FEED0000000000000000002F /* PhoneVerificationView.swift in Sources */,
+				FEED0000000000000000002E /* ThirtyMinutesView.swift in Sources */,
+				FEED0000000000000000002F /* TutorialAnalytics.swift in Sources */,
+				FEED00000000000000000030 /* TutorialShell.swift in Sources */,
+				FEED00000000000000000031 /* WelcomeBackView.swift in Sources */,
+				FEED00000000000000000032 /* WelcomeShell.swift in Sources */,
+				FEED00000000000000000033 /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

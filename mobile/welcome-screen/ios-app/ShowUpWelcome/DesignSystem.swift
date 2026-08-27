@@ -27,6 +27,9 @@ extension Color {
     // Added for the welcome & sign-up flow (SHOWUP-140/142/143). Verbatim from
     // design_handoff_showup/tokens/colors_and_type.css, the authoritative token file.
     static let liqElevated   = Color(hex: 0xFFFFFF)                  // input and slot fills
+    static let liqRaised     = Color(hex: 0xF7F2FA)                  // --liq-bg-raised, the notice
+    static let liqBorderSoft = Color(hex: 0x1D1129).opacity(0.06)    // --liq-border-soft
+    static let liqSuccess    = Color(hex: 0x00AB55)                  // --liq-success, the badge
     static let liqMuted      = Color(hex: 0x1D1129).opacity(0.62)    // --liq-fg-muted
     static let liqBorder     = Color(hex: 0x1D1129).opacity(0.12)    // --liq-border
     static let liqDanger     = Color(hex: 0xFB323B)                  // invalid borders, the ! glyph

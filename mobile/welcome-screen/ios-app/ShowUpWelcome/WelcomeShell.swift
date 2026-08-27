@@ -308,7 +308,9 @@ final class WashLabel: UILabel {
 /// treatment the design specified breaks both.
 ///
 /// The pill silhouette, the 56 height and the Manrope label stay — those are ours.
-enum PillVariant { case sunset, ghost, apple, google, facebook }
+/// `.plain` is not a provider treatment and never carries one: it is the conflict modal's
+/// secondary, which has no border precisely so the pair does not read as two equal choices.
+enum PillVariant { case sunset, ghost, plain, apple, google, facebook }
 
 /// `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
 /// Manrope 700 16, gap 8.
@@ -319,6 +321,10 @@ struct PillButton<Leading: View>: View {
     let label: String
     var variant: PillVariant = .sunset
     var enabled: Bool = true
+    /// 56 everywhere except the conflict modal's resolve CTA, which the reference draws at 54.
+    /// Both clear every provider's published minimum (Apple's is 44pt), so this is a layout
+    /// choice rather than a compliance question.
+    var height: CGFloat = 56
     var action: () -> Void
     @ViewBuilder var leading: () -> Leading
 
@@ -327,12 +333,14 @@ struct PillButton<Leading: View>: View {
             HStack(spacing: 8) {
                 leading()
                 Text(label)
-                    .font(F.manrope(16, .bold))
+                    // The plain secondary is 600/15 — one step down from the 700/16 every real
+                    // button carries, which is what stops the modal reading as two equal choices.
+                    .font(variant == .plain ? F.manrope(15, .semibold) : F.manrope(16, .bold))
                     .lineLimit(1)
                     .foregroundColor(labelColor)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
+            .frame(height: height)
             .padding(.horizontal, 28)
             .background(background)
             .clipShape(Capsule())
@@ -356,6 +364,7 @@ struct PillButton<Leading: View>: View {
         case .sunset, .apple, .facebook: return .white
         case .google: return Color(hex: 0x1F1F1F)     // Google's specified label colour
         case .ghost: return .liqFg
+        case .plain: return .liqMuted
         }
     }
 
@@ -370,7 +379,7 @@ struct PillButton<Leading: View>: View {
                     .init(color: .liqPurple, location: 1.00),
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .ghost:
+        case .ghost, .plain:
             Color.clear
         // Black is one of the three appearances Apple's guidelines allow.
         case .apple:
@@ -386,9 +395,11 @@ struct PillButton<Leading: View>: View {
 }
 
 extension PillButton where Leading == EmptyView {
+    // Argument order mirrors the stored properties, because Swift's memberwise init is positional
+    // and a call site that reorders them will not compile. See audit/check-swift-arg-order.py.
     init(_ label: String, variant: PillVariant = .sunset, enabled: Bool = true,
-         action: @escaping () -> Void) {
-        self.init(label: label, variant: variant, enabled: enabled, action: action,
+         height: CGFloat = 56, action: @escaping () -> Void) {
+        self.init(label: label, variant: variant, enabled: enabled, height: height, action: action,
                   leading: { EmptyView() })
     }
 }
@@ -408,7 +419,8 @@ struct PressScale: ButtonStyle {
 
 /// Drawn rather than imported: CLAUDE.md requires inline stroke-only SVG at Lucide geometry and
 /// forbids icon fonts, PNGs and unicode glyphs as icons.
-enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, arrowLeft, pencil }
+enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, arrowLeft, arrowRight,
+                 pencil, close, check, shield, heart }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -445,6 +457,45 @@ struct BrandIconView: View {
                     b.move(to: .init(x: 19, y: 12)); b.addLine(to: .init(x: 5, y: 12))
                     b.move(to: .init(x: 12, y: 19)); b.addLine(to: .init(x: 5, y: 12))
                     b.addLine(to: .init(x: 12, y: 5))
+                }
+            case .arrowRight:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 5, y: 12)); b.addLine(to: .init(x: 19, y: 12))
+                    b.move(to: .init(x: 12, y: 5)); b.addLine(to: .init(x: 19, y: 12))
+                    b.addLine(to: .init(x: 12, y: 19))
+                }
+            case .close:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 18, y: 6)); b.addLine(to: .init(x: 6, y: 18))
+                    b.move(to: .init(x: 6, y: 6)); b.addLine(to: .init(x: 18, y: 18))
+                }
+            case .check:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 20, y: 6)); b.addLine(to: .init(x: 9, y: 17))
+                    b.addLine(to: .init(x: 4, y: 12))
+                }
+            case .shield:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 12, y: 22))
+                    b.addCurve(to: .init(x: 20, y: 12), control1: .init(x: 12, y: 22), control2: .init(x: 20, y: 18))
+                    b.addLine(to: .init(x: 20, y: 5)); b.addLine(to: .init(x: 12, y: 2))
+                    b.addLine(to: .init(x: 4, y: 5)); b.addLine(to: .init(x: 4, y: 12))
+                    b.addCurve(to: .init(x: 12, y: 22), control1: .init(x: 4, y: 18), control2: .init(x: 12, y: 22))
+                    b.closeSubpath()
+                }
+            case .heart:
+                filled = true
+                p = Path { b in
+                    b.move(to: .init(x: 12, y: 21))
+                    b.addCurve(to: .init(x: 3.5, y: 10), control1: .init(x: 12, y: 21), control2: .init(x: 3.5, y: 15.4))
+                    b.addCurve(to: .init(x: 12, y: 7.2), control1: .init(x: 3.5, y: 6.5), control2: .init(x: 8.5, y: 4.7))
+                    b.addCurve(to: .init(x: 20.5, y: 10), control1: .init(x: 15.5, y: 4.7), control2: .init(x: 20.5, y: 6.5))
+                    b.addCurve(to: .init(x: 12, y: 21), control1: .init(x: 20.5, y: 15.4), control2: .init(x: 12, y: 21))
+                    b.closeSubpath()
                 }
             case .pencil:
                 filled = false

@@ -1,0 +1,316 @@
+# -*- coding: utf-8 -*-
+"""Generate a minimal, standard ShowUpWelcome.xcodeproj/project.pbxproj.
+
+Run from this directory:
+
+    python gen_pbxproj.py
+
+Sources and fonts are DISCOVERED from disk rather than listed here. They used to be a hardcoded
+list, which meant a new .swift file compiled fine locally and then silently never reached the Xcode
+target — the symptom is "cannot find X in scope" for a type that plainly exists. Scanning removes
+that failure mode: if the file is in ShowUpWelcome/, it is in the target.
+
+ShowUpWelcomeApp.swift is forced first only so the diff stays stable; Swift itself does not care
+about file order.
+"""
+import io, os
+
+_n = [0]
+def uid():
+    _n[0] += 1
+    return "FEED%020X" % _n[0]          # 24 hex chars, unique and deterministic
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SRCDIR = os.path.join(HERE, "ShowUpWelcome")
+FONTDIR = os.path.join(SRCDIR, "Fonts")
+
+FIRST = "ShowUpWelcomeApp.swift"
+_found = sorted(f for f in os.listdir(SRCDIR) if f.endswith(".swift"))
+sources = ([FIRST] if FIRST in _found else []) + [f for f in _found if f != FIRST]
+fonts = sorted(f for f in os.listdir(FONTDIR) if f.lower().endswith((".ttf", ".otf")))
+
+if not sources:
+    raise SystemExit("no .swift files found in " + SRCDIR)
+print("sources: %d, fonts: %d" % (len(sources), len(fonts)))
+
+PROJECT, TARGET, ROOTGRP, APPGRP, FONTGRP, PRODGRP = (uid() for _ in range(6))
+APPREF, PLISTREF, ASSETREF = uid(), uid(), uid()
+SRCPHASE, FRMPHASE, RESPHASE = uid(), uid(), uid()
+CFG_PROJ, CFG_TGT = uid(), uid()
+CFG_PD, CFG_PR, CFG_TD, CFG_TR = (uid() for _ in range(4))
+ASSETBUILD = uid()
+src_ref = {f: uid() for f in sources}
+src_bld = {f: uid() for f in sources}
+fnt_ref = {f: uid() for f in fonts}
+fnt_bld = {f: uid() for f in fonts}
+
+T = "\t"
+L = []
+w = L.append
+
+w("// !$*UTF8*$!")
+w("{")
+w(T + "archiveVersion = 1;")
+w(T + "classes = {")
+w(T + "};")
+w(T + "objectVersion = 56;")
+w(T + "objects = {")
+
+w("")
+w("/* Begin PBXBuildFile section */")
+for f in sources:
+    w(T*2 + "%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };"
+      % (src_bld[f], f, src_ref[f], f))
+w(T*2 + "%s /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = %s /* Assets.xcassets */; };"
+  % (ASSETBUILD, ASSETREF))
+for f in fonts:
+    w(T*2 + "%s /* %s in Resources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };"
+      % (fnt_bld[f], f, fnt_ref[f], f))
+w("/* End PBXBuildFile section */")
+
+w("")
+w("/* Begin PBXFileReference section */")
+w(T*2 + "%s /* ShowUpWelcome.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; "
+        "includeInIndex = 0; path = ShowUpWelcome.app; sourceTree = BUILT_PRODUCTS_DIR; };" % APPREF)
+for f in sources:
+    w(T*2 + '%s /* %s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = %s; sourceTree = "<group>"; };'
+      % (src_ref[f], f, f))
+w(T*2 + '%s /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };' % PLISTREF)
+w(T*2 + '%s /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };' % ASSETREF)
+for f in fonts:
+    w(T*2 + '%s /* %s */ = {isa = PBXFileReference; lastKnownFileType = file; path = %s; sourceTree = "<group>"; };'
+      % (fnt_ref[f], f, f))
+w("/* End PBXFileReference section */")
+
+w("")
+w("/* Begin PBXFrameworksBuildPhase section */")
+w(T*2 + "%s /* Frameworks */ = {" % FRMPHASE)
+w(T*3 + "isa = PBXFrameworksBuildPhase;")
+w(T*3 + "buildActionMask = 2147483647;")
+w(T*3 + "files = (")
+w(T*3 + ");")
+w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
+w(T*2 + "};")
+w("/* End PBXFrameworksBuildPhase section */")
+
+w("")
+w("/* Begin PBXGroup section */")
+w(T*2 + "%s = {" % ROOTGRP)
+w(T*3 + "isa = PBXGroup;")
+w(T*3 + "children = (")
+w(T*4 + "%s /* ShowUpWelcome */," % APPGRP)
+w(T*4 + "%s /* Products */," % PRODGRP)
+w(T*3 + ");")
+w(T*3 + 'sourceTree = "<group>";')
+w(T*2 + "};")
+
+w(T*2 + "%s /* ShowUpWelcome */ = {" % APPGRP)
+w(T*3 + "isa = PBXGroup;")
+w(T*3 + "children = (")
+for f in sources:
+    w(T*4 + "%s /* %s */," % (src_ref[f], f))
+w(T*4 + "%s /* Assets.xcassets */," % ASSETREF)
+w(T*4 + "%s /* Fonts */," % FONTGRP)
+w(T*4 + "%s /* Info.plist */," % PLISTREF)
+w(T*3 + ");")
+w(T*3 + "path = ShowUpWelcome;")
+w(T*3 + 'sourceTree = "<group>";')
+w(T*2 + "};")
+
+w(T*2 + "%s /* Fonts */ = {" % FONTGRP)
+w(T*3 + "isa = PBXGroup;")
+w(T*3 + "children = (")
+for f in fonts:
+    w(T*4 + "%s /* %s */," % (fnt_ref[f], f))
+w(T*3 + ");")
+w(T*3 + "path = Fonts;")
+w(T*3 + 'sourceTree = "<group>";')
+w(T*2 + "};")
+
+w(T*2 + "%s /* Products */ = {" % PRODGRP)
+w(T*3 + "isa = PBXGroup;")
+w(T*3 + "children = (")
+w(T*4 + "%s /* ShowUpWelcome.app */," % APPREF)
+w(T*3 + ");")
+w(T*3 + "name = Products;")
+w(T*3 + 'sourceTree = "<group>";')
+w(T*2 + "};")
+w("/* End PBXGroup section */")
+
+w("")
+w("/* Begin PBXNativeTarget section */")
+w(T*2 + "%s /* ShowUpWelcome */ = {" % TARGET)
+w(T*3 + "isa = PBXNativeTarget;")
+w(T*3 + 'buildConfigurationList = %s /* Build configuration list for PBXNativeTarget "ShowUpWelcome" */;' % CFG_TGT)
+w(T*3 + "buildPhases = (")
+w(T*4 + "%s /* Sources */," % SRCPHASE)
+w(T*4 + "%s /* Frameworks */," % FRMPHASE)
+w(T*4 + "%s /* Resources */," % RESPHASE)
+w(T*3 + ");")
+w(T*3 + "buildRules = (")
+w(T*3 + ");")
+w(T*3 + "dependencies = (")
+w(T*3 + ");")
+w(T*3 + "name = ShowUpWelcome;")
+w(T*3 + "productName = ShowUpWelcome;")
+w(T*3 + "productReference = %s /* ShowUpWelcome.app */;" % APPREF)
+w(T*3 + 'productType = "com.apple.product-type.application";')
+w(T*2 + "};")
+w("/* End PBXNativeTarget section */")
+
+w("")
+w("/* Begin PBXProject section */")
+w(T*2 + "%s /* Project object */ = {" % PROJECT)
+w(T*3 + "isa = PBXProject;")
+w(T*3 + "attributes = {")
+w(T*4 + "BuildIndependentTargetsInParallel = 1;")
+w(T*4 + "LastSwiftUpdateCheck = 1500;")
+w(T*4 + "LastUpgradeCheck = 1500;")
+w(T*4 + "TargetAttributes = {")
+w(T*5 + "%s = {" % TARGET)
+w(T*6 + "CreatedOnToolsVersion = 15.0;")
+w(T*5 + "};")
+w(T*4 + "};")
+w(T*3 + "};")
+w(T*3 + 'buildConfigurationList = %s /* Build configuration list for PBXProject "ShowUpWelcome" */;' % CFG_PROJ)
+w(T*3 + 'compatibilityVersion = "Xcode 14.0";')
+w(T*3 + "developmentRegion = en;")
+w(T*3 + "hasScannedForEncodings = 0;")
+w(T*3 + "knownRegions = (")
+w(T*4 + "en,")
+w(T*4 + "Base,")
+w(T*3 + ");")
+w(T*3 + "mainGroup = %s;" % ROOTGRP)
+w(T*3 + "productRefGroup = %s /* Products */;" % PRODGRP)
+w(T*3 + 'projectDirPath = "";')
+w(T*3 + 'projectRoot = "";')
+w(T*3 + "targets = (")
+w(T*4 + "%s /* ShowUpWelcome */," % TARGET)
+w(T*3 + ");")
+w(T*2 + "};")
+w("/* End PBXProject section */")
+
+w("")
+w("/* Begin PBXResourcesBuildPhase section */")
+w(T*2 + "%s /* Resources */ = {" % RESPHASE)
+w(T*3 + "isa = PBXResourcesBuildPhase;")
+w(T*3 + "buildActionMask = 2147483647;")
+w(T*3 + "files = (")
+w(T*4 + "%s /* Assets.xcassets in Resources */," % ASSETBUILD)
+for f in fonts:
+    w(T*4 + "%s /* %s in Resources */," % (fnt_bld[f], f))
+w(T*3 + ");")
+w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
+w(T*2 + "};")
+w("/* End PBXResourcesBuildPhase section */")
+
+w("")
+w("/* Begin PBXSourcesBuildPhase section */")
+w(T*2 + "%s /* Sources */ = {" % SRCPHASE)
+w(T*3 + "isa = PBXSourcesBuildPhase;")
+w(T*3 + "buildActionMask = 2147483647;")
+w(T*3 + "files = (")
+for f in sources:
+    w(T*4 + "%s /* %s in Sources */," % (src_bld[f], f))
+w(T*3 + ");")
+w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
+w(T*2 + "};")
+w("/* End PBXSourcesBuildPhase section */")
+
+PROJ_COMMON = [
+    "ALWAYS_SEARCH_USER_PATHS = NO;",
+    "CLANG_ANALYZER_NONNULL = YES;",
+    "CLANG_ENABLE_MODULES = YES;",
+    "CLANG_ENABLE_OBJC_ARC = YES;",
+    "CLANG_WARN_BOOL_CONVERSION = YES;",
+    "CLANG_WARN_DOCUMENTATION_COMMENTS = YES;",
+    "CLANG_WARN_EMPTY_BODY = YES;",
+    "CLANG_WARN_UNREACHABLE_CODE = YES;",
+    "COPY_PHASE_STRIP = NO;",
+    "ENABLE_STRICT_OBJC_MSGSEND = YES;",
+    "GCC_C_LANGUAGE_STANDARD = gnu17;",
+    "GCC_NO_COMMON_BLOCKS = YES;",
+    "GCC_WARN_UNUSED_VARIABLE = YES;",
+    "IPHONEOS_DEPLOYMENT_TARGET = 16.0;",
+    "SDKROOT = iphoneos;",
+]
+DEBUG_EXTRA = [
+    "DEBUG_INFORMATION_FORMAT = dwarf;",
+    "ENABLE_TESTABILITY = YES;",
+    "GCC_OPTIMIZATION_LEVEL = 0;",
+    "MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;",
+    "ONLY_ACTIVE_ARCH = YES;",
+    'SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";',
+    'SWIFT_OPTIMIZATION_LEVEL = "-Onone";',
+]
+RELEASE_EXTRA = [
+    'DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";',
+    "ENABLE_NS_ASSERTIONS = NO;",
+    "MTL_ENABLE_DEBUG_INFO = NO;",
+    "SWIFT_COMPILATION_MODE = wholemodule;",
+    "VALIDATE_PRODUCT = YES;",
+]
+
+def build_cfg(cfg_id, name, settings):
+    w(T*2 + "%s /* %s */ = {" % (cfg_id, name))
+    w(T*3 + "isa = XCBuildConfiguration;")
+    w(T*3 + "buildSettings = {")
+    for line in settings:
+        w(T*4 + line)
+    w(T*3 + "};")
+    w(T*3 + "name = %s;" % name)
+    w(T*2 + "};")
+
+TGT_COMMON = [
+    "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;",
+    "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;",
+    "CODE_SIGN_STYLE = Automatic;",
+    "CURRENT_PROJECT_VERSION = 1;",
+    "ENABLE_PREVIEWS = YES;",
+    "GENERATE_INFOPLIST_FILE = NO;",
+    "INFOPLIST_FILE = ShowUpWelcome/Info.plist;",
+    "LD_RUNPATH_SEARCH_PATHS = (",
+    '\t"$(inherited)",',
+    '\t"@executable_path/Frameworks",',
+    ");",
+    "MARKETING_VERSION = 0.1;",
+    "PRODUCT_BUNDLE_IDENTIFIER = org.loveiq.showup.welcomepreview;",
+    'PRODUCT_NAME = "$(TARGET_NAME)";',
+    "SWIFT_EMIT_LOC_STRINGS = YES;",
+    "SWIFT_VERSION = 5.0;",
+    "TARGETED_DEVICE_FAMILY = 1;",
+]
+
+w("")
+w("/* Begin XCBuildConfiguration section */")
+build_cfg(CFG_PD, "Debug", PROJ_COMMON + DEBUG_EXTRA)
+build_cfg(CFG_PR, "Release", PROJ_COMMON + RELEASE_EXTRA)
+build_cfg(CFG_TD, "Debug", TGT_COMMON)
+build_cfg(CFG_TR, "Release", TGT_COMMON)
+w("/* End XCBuildConfiguration section */")
+
+w("")
+w("/* Begin XCConfigurationList section */")
+for cfg_id, label, d, r in [
+    (CFG_PROJ, 'Build configuration list for PBXProject "ShowUpWelcome"', CFG_PD, CFG_PR),
+    (CFG_TGT, 'Build configuration list for PBXNativeTarget "ShowUpWelcome"', CFG_TD, CFG_TR),
+]:
+    w(T*2 + "%s /* %s */ = {" % (cfg_id, label))
+    w(T*3 + "isa = XCConfigurationList;")
+    w(T*3 + "buildConfigurations = (")
+    w(T*4 + "%s /* Debug */," % d)
+    w(T*4 + "%s /* Release */," % r)
+    w(T*3 + ");")
+    w(T*3 + "defaultConfigurationIsVisible = 0;")
+    w(T*3 + "defaultConfigurationName = Release;")
+    w(T*2 + "};")
+w("/* End XCConfigurationList section */")
+
+w(T + "};")
+w(T + "rootObject = %s /* Project object */;" % PROJECT)
+w("}")
+
+out = os.path.join("ShowUpWelcome.xcodeproj", "project.pbxproj")
+os.makedirs("ShowUpWelcome.xcodeproj", exist_ok=True)
+io.open(out, "w", encoding="utf-8", newline="\n").write("\n".join(L) + "\n")
+print("wrote %s (%d bytes, %d objects)" % (out, os.path.getsize(out), _n[0]))

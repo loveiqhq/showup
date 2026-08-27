@@ -32,6 +32,7 @@ MINIMUM = {
     "containerRelativeFrame":      (17, 0),
     "scrollIndicatorsFlash":       (17, 0),
     "defaultScrollAnchor":         (17, 0),
+    "ContentUnavailableView":      (17, 0),
     "TextRenderer":                (18, 0),
     "onScrollGeometryChange":      (18, 0),
     "scrollBounceBehavior(_:axes:)": (16, 4),
@@ -39,6 +40,10 @@ MINIMUM = {
     "AnyLayout":                   (16, 0),
     "Grid(":                       (16, 0),
     "ShareLink":                   (16, 0),
+    # NOT in this list, deliberately: `#Preview`. The macro is declared @available(iOS 17), but its
+    # expansion carries that attribute itself, so it compiles against a lower deployment target —
+    # confirmed by the 35 existing uses in this target, none of which appeared in the Xcode build
+    # log that did report `scrollBounceBehavior`. Adding it here produces false positives.
 }
 
 NL = chr(10)

@@ -14,52 +14,26 @@ import SwiftUI
 /// method we are guessing at would be a lie.
 enum AuthMethod: CaseIterable { case phone, apple, google, facebook, unknown }
 
-private struct MethodSpec {
-    let label: String
-    let icon: BrandIcon
-    let hint: String
-}
-
-/// Canonical order — phone, Apple, Google, Facebook. Never reordered beyond lifting the primary.
-private let CANONICAL: [AuthMethod] = [.phone, .apple, .google, .facebook]
-
-private let METHODS: [AuthMethod: MethodSpec] = [
-    .phone:    .init(label: "Continue with phone number", icon: .phone,    hint: "Last login was via phone"),
-    .apple:    .init(label: "Continue with Apple",        icon: .apple,    hint: "Last login was via Apple"),
-    .google:   .init(label: "Continue with Google",       icon: .google,   hint: "Last login was via Google"),
-    .facebook: .init(label: "Continue with Facebook",     icon: .facebook, hint: "Last login was via Facebook"),
-]
-
-/// Phone is ours to style; the other three are each governed by their provider.
-private func providerVariant(_ m: AuthMethod) -> PillVariant {
-    switch m {
-    case .apple: return .apple
-    case .google: return .google
-    case .facebook: return .facebook
-    default: return .ghost
-    }
-}
-
-/// The Google G ignores this — it is drawn in its own four colours.
-private func providerTint(_ m: AuthMethod) -> Color {
-    switch m {
-    case .apple, .facebook: return .white
-    default: return .liqFg
-    }
-}
+// MethodSpec, the canonical order and the provider treatments now live in AuthMethodList.swift,
+// shared with the Connect screen. SHOWUP-145 requires exactly that: "The method list uses the same
+// component and the same ordered data source as welcome 04."
 
 struct WelcomeBackView: View {
     var name: String = "Leo"
     var lastUsed: AuthMethod = .phone
+    /// Which providers have finished credential setup. The rest are hidden, not greyed out.
+    var configured: Set<AuthMethod> = Set(LOGIN_METHODS)
     var onContinue: (AuthMethod) -> Void = { _ in }
     var onGetHelp: () -> Void = {}
     var onUseDifferentAccount: () -> Void = {}
     var onLegal: () -> Void = {}
     var onPrivacy: () -> Void = {}
 
-    private var known: Bool { lastUsed != .unknown }
-    private var primary: AuthMethod { known ? lastUsed : .phone }
-    private var rest: [AuthMethod] { CANONICAL.filter { $0 != primary } }
+    // A provider whose credential setup is not finished is hidden, not disabled (SHOWUP-145).
+    // With all four configured this is still exactly four buttons, which is the other rule.
+    private var methods: [AuthMethod] { availableMethods(LOGIN_METHODS, configured: configured) }
+    private var known: Bool { lastUsed != .unknown && methods.contains(lastUsed) }
+    private var primary: AuthMethod { known ? lastUsed : (methods.first ?? .phone) }
 
     var body: some View {
         GeometryReader { geo in
@@ -101,7 +75,7 @@ struct WelcomeBackView: View {
                             // growing it, so the dot stays 6.
                             Circle().fill(Color.liqOrange).frame(width: 6, height: 6)
                                 .overlay(Circle().stroke(Color.liqOrange.opacity(0.18), lineWidth: 3))
-                            Text(METHODS[primary]!.hint)
+                            Text(methodSpec(primary).hint)
                                 .font(F.manrope(12, .semibold))
                                 .foregroundColor(.liqMuted)
                         }
@@ -109,21 +83,10 @@ struct WelcomeBackView: View {
                         .padding(.bottom, 2)
                     }
 
-                    // Exactly four buttons, always. Only the last-used one is sunset.
-                    PillButton(label: METHODS[primary]!.label, variant: .sunset,
-                               action: { onContinue(primary) }) {
-                        BrandIconView(icon: METHODS[primary]!.icon, size: 18, tint: .white)
-                    }
-                    // Each provider's own treatment, not a uniform ghost row — Google and
-                    // Meta both forbid the uniform version. See audit finding 9.
-                    ForEach(rest, id: \.self) { m in
-                        PillButton(label: METHODS[m]!.label, variant: providerVariant(m),
-                                   action: { onContinue(m) }) {
-                            BrandIconView(icon: METHODS[m]!.icon, size: 18, tint: providerTint(m))
-                        }
-                    }
+                    // The same component and the same ordered data source as Connect — SHOWUP-145.
+                    // No skip here: Welcome back has no way past sign-in.
+                    AuthMethodList(methods: methods, suggested: primary, onSelect: onContinue)
                 }
-                .padding(.bottom, 12)
 
                 Spacer(minLength: 0)
 

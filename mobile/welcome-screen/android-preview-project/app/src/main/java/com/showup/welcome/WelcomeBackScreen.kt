@@ -48,45 +48,26 @@ import com.showup.designsystem.Subtle
  */
 enum class AuthMethod { Phone, Apple, Google, Facebook, Unknown }
 
-/** Canonical order — phone, Apple, Google, Facebook. Never reordered beyond lifting the primary. */
-private val CANONICAL = listOf(AuthMethod.Phone, AuthMethod.Apple, AuthMethod.Google, AuthMethod.Facebook)
-
-private data class MethodSpec(val label: String, val icon: BrandIcon, val hint: String)
-
-/** Phone is ours to style; the other three are each governed by their provider. */
-private fun providerVariant(m: AuthMethod) = when (m) {
-    AuthMethod.Apple -> PillVariant.Apple
-    AuthMethod.Google -> PillVariant.Google
-    AuthMethod.Facebook -> PillVariant.Facebook
-    else -> PillVariant.Ghost
-}
-
-/** The Google G ignores this — it is drawn in its own four colours. */
-private fun providerTint(m: AuthMethod) = when (m) {
-    AuthMethod.Apple, AuthMethod.Facebook -> Color.White
-    else -> Fg
-}
-
-private val METHODS = mapOf(
-    AuthMethod.Phone to MethodSpec("Continue with phone number", BrandIcon.Phone, "Last login was via phone"),
-    AuthMethod.Apple to MethodSpec("Continue with Apple", BrandIcon.Apple, "Last login was via Apple"),
-    AuthMethod.Google to MethodSpec("Continue with Google", BrandIcon.Google, "Last login was via Google"),
-    AuthMethod.Facebook to MethodSpec("Continue with Facebook", BrandIcon.Facebook, "Last login was via Facebook"),
-)
+// MethodSpec, the canonical order and the provider treatments now live in
+// AuthMethodList.kt, shared with the Connect screen. SHOWUP-145 requires exactly that:
+// "The method list uses the same component and the same ordered data source as welcome 04."
 
 @Composable
 fun WelcomeBackScreen(
     name: String = "Leo",
     lastUsed: AuthMethod = AuthMethod.Phone,
+    /** Which providers have finished credential setup. The rest are hidden, not greyed out. */
+    configured: Set<AuthMethod> = LOGIN_METHODS.toSet(),
     onContinue: (AuthMethod) -> Unit = {},
     onGetHelp: () -> Unit = {},
     onUseDifferentAccount: () -> Unit = {},
     onLegal: () -> Unit = {},
     onPrivacy: () -> Unit = {},
 ) {
-    val known = lastUsed != AuthMethod.Unknown
-    val primary = if (known) lastUsed else AuthMethod.Phone
-    val rest = CANONICAL.filter { it != primary }
+    // A provider whose credential setup is not finished is hidden, not disabled (SHOWUP-145).
+    val methods = availableMethods(LOGIN_METHODS, configured)
+    val known = lastUsed != AuthMethod.Unknown && lastUsed in methods
+    val primary = if (known) lastUsed else methods.firstOrNull() ?: AuthMethod.Phone
 
     WelcomeScaffold {
         val compact = LocalConfiguration.current.screenHeightDp < 700
@@ -114,10 +95,7 @@ fun WelcomeBackScreen(
         Spacer(Modifier.weight(1f))
 
         // The stack floats between two equal spacers — centred in the lower band, not pinned.
-        Column(
-            Modifier.padding(bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
+        Column {
             if (known) {
                 Row(
                     Modifier.fillMaxWidth().padding(bottom = 2.dp),
@@ -134,27 +112,19 @@ fun WelcomeBackScreen(
                         }
                     )
                     Text(
-                        METHODS.getValue(primary).hint,
+                        methodSpec(primary).hint,
                         color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                     )
                 }
             }
 
-            // Exactly four buttons, always. The last-used one is the only sunset button on screen.
-            PillButton(
-                METHODS.getValue(primary).label, { onContinue(primary) },
-                variant = PillVariant.Sunset,
-                leading = { Icon(METHODS.getValue(primary).icon, 18.dp, tint = Color.White) },
+            // The same component and the same ordered data source as Connect — SHOWUP-145.
+            // No skip here: Welcome back has no way past sign-in.
+            AuthMethodList(
+                methods = methods,
+                onSelect = onContinue,
+                suggested = primary,
             )
-            // Each provider's own treatment, not a uniform ghost row. Google and Meta both
-            // forbid the uniform version outright; see audit finding 9.
-            rest.forEach { m ->
-                PillButton(
-                    METHODS.getValue(m).label, { onContinue(m) },
-                    variant = providerVariant(m),
-                    leading = { Icon(METHODS.getValue(m).icon, 18.dp, tint = providerTint(m)) },
-                )
-            }
         }
 
         Spacer(Modifier.weight(1f))

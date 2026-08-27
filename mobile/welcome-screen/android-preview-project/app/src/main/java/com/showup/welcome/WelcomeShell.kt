@@ -64,6 +64,7 @@ import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
+import com.showup.designsystem.Muted
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
 import com.showup.designsystem.SunsetStops
@@ -271,7 +272,11 @@ fun WashHeadline(
  * The pill silhouette, the 56 height and the Manrope label are kept — those are ours, and neither
  * provider constrains them.
  */
-enum class PillVariant { Sunset, Ghost, Apple, Google, Facebook }
+/**
+ * [Plain] is not a provider treatment and never carries one: it is the conflict modal's
+ * secondary, which has no border precisely so the pair does not read as two equal choices.
+ */
+enum class PillVariant { Sunset, Ghost, Plain, Apple, Google, Facebook }
 
 /**
  * `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
@@ -287,6 +292,12 @@ fun PillButton(
     modifier: Modifier = Modifier,
     variant: PillVariant = PillVariant.Sunset,
     enabled: Boolean = true,
+    /**
+     * 56 everywhere except the conflict modal's resolve CTA, which the reference draws at 54.
+     * Both clear every provider's published minimum (Apple's is 44pt), so the smaller one is a
+     * layout choice rather than a compliance question.
+     */
+    height: Dp = 56.dp,
     leading: (@Composable () -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -301,7 +312,7 @@ fun PillButton(
     Row(
         modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(height)
             .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.45f }
             .then(
                 when (variant) {
@@ -313,6 +324,7 @@ fun PillButton(
                     PillVariant.Ghost -> Modifier
                         .clip(shape)
                         .border(1.dp, Border, shape)
+                    PillVariant.Plain -> Modifier.clip(shape)
                     // Black is one of the three appearances Apple's guidelines allow.
                     PillVariant.Apple -> Modifier.clip(shape).background(Color.Black)
                     // White background is required, not preferred — the G may not sit on anything
@@ -340,8 +352,13 @@ fun PillButton(
                 PillVariant.Sunset, PillVariant.Apple, PillVariant.Facebook -> Color.White
                 PillVariant.Google -> Color(0xFF1F1F1F)   // Google's specified label colour
                 PillVariant.Ghost -> Fg
+                PillVariant.Plain -> Muted
             },
-            fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+            fontFamily = Manrope,
+            // The plain secondary is 600/15 — one step down from the 700/16 every real button
+            // carries, which is what stops the modal reading as two equal choices.
+            fontWeight = if (variant == PillVariant.Plain) FontWeight.SemiBold else FontWeight.Bold,
+            fontSize = if (variant == PillVariant.Plain) 15.sp else 16.sp,
             maxLines = 1,
         )
     }
@@ -359,7 +376,8 @@ val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 
  * forbids icon fonts, PNGs and unicode glyphs. The brand marks (Apple, Google, Facebook) are filled
  * paths in the source, so they are drawn filled here.
  */
-enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ArrowLeft, Pencil }
+enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ArrowLeft, ArrowRight,
+                       Pencil, Close, Check, Shield, Heart }
 
 @Composable
 fun Icon(icon: BrandIcon, size: Dp, tint: Color = Fg, strokeWidth: Dp = 1.7.dp) {
@@ -384,6 +402,33 @@ fun Icon(icon: BrandIcon, size: Dp, tint: Color = Fg, strokeWidth: Dp = 1.7.dp) 
                     drawLine(tint, Offset(19f, 12f), Offset(5f, 12f), stroke.width, StrokeCap.Round)
                     drawPath(path(listOf(12f to 19f, 5f to 12f, 12f to 5f)), tint, style = stroke)
                 }
+                BrandIcon.ArrowRight -> {
+                    drawLine(tint, Offset(5f, 12f), Offset(19f, 12f), stroke.width, StrokeCap.Round)
+                    drawPath(path(listOf(12f to 5f, 19f to 12f, 12f to 19f)), tint, style = stroke)
+                }
+                BrandIcon.Close -> {
+                    drawLine(tint, Offset(18f, 6f), Offset(6f, 18f), stroke.width, StrokeCap.Round)
+                    drawLine(tint, Offset(6f, 6f), Offset(18f, 18f), stroke.width, StrokeCap.Round)
+                }
+                BrandIcon.Check -> drawPath(path(listOf(20f to 6f, 9f to 17f, 4f to 12f)), tint, style = stroke)
+                BrandIcon.Shield -> drawPath(
+                    androidx.compose.ui.graphics.Path().apply {
+                        moveTo(12f, 22f)
+                        cubicTo(12f, 22f, 20f, 18f, 20f, 12f)
+                        lineTo(20f, 5f); lineTo(12f, 2f); lineTo(4f, 5f); lineTo(4f, 12f)
+                        cubicTo(4f, 18f, 12f, 22f, 12f, 22f)
+                        close()
+                    }, tint, style = stroke)
+                BrandIcon.Heart -> drawPath(
+                    androidx.compose.ui.graphics.Path().apply {
+                        moveTo(12f, 21f)
+                        cubicTo(12f, 21f, 3.5f, 15.4f, 3.5f, 10f)
+                        cubicTo(3.5f, 6.5f, 8.5f, 4.7f, 12f, 7.2f)
+                        cubicTo(15.5f, 4.7f, 20.5f, 6.5f, 20.5f, 10f)
+                        cubicTo(20.5f, 15.4f, 12f, 21f, 12f, 21f)
+                        close()
+                    }, tint)
+                
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
                     drawPath(path(listOf(18.5f to 2.5f, 21.5f to 5.5f, 12f to 15f, 8f to 16f, 9f to 12f), close = true), tint, style = stroke)

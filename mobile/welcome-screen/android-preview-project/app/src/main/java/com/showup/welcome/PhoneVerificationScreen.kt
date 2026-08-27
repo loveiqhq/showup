@@ -343,9 +343,21 @@ fun VerifyCodeScreen(
         Box(
             Modifier
                 .fillMaxWidth()
-                // Back to the sheet's 42. The shortened message is one line at every width, so
-                // the reserve holds it and the CTA still does not move — which is the outcome the
-                // sheet and the ticket were always both describing.
+                // 42, and it agrees with the reference rather than contradicting it.
+                //
+                // screen-phone-reference.jsx reserves 62 here and says why: "62 because the verify
+                // error box is 60". So the rule is `reserve = error box + 2`, and the box height
+                // follows from the copy:
+                //
+                //   reference copy  "Code doesn't match. Please check or request a new code."
+                //                   wraps to two lines -> 10 + 18.9x2 + 10 + 2 borders = 60 -> 62
+                //   our copy        "That code didn't match. Try again."
+                //                   one line at every width -> 10 + 18.9 + 10 + 2      = 41 -> 42
+                //
+                // Same rule, different string. Reserving 62 for a 41 box would pad 21dp of dead
+                // space into every state and push the CTA down for no reason — the reserve exists
+                // so the CTA does not move, not to hit a particular number. If the longer string
+                // is ever restored, this goes back to 62 with it; the two move together.
                 .heightIn(min = 42.dp)
                 .padding(top = if (compact) 6.dp else 14.dp, start = 2.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },

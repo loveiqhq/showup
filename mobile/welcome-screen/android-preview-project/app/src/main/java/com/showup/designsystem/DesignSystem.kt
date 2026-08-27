@@ -32,6 +32,9 @@ val EyebrowBg = Color(0x29A78BFA)      // rgba(167,139,250,.16) — eyebrow pill
 // Added for the welcome & sign-up flow (SHOWUP-140/142/143). Values are verbatim from
 // design_handoff_showup/tokens/colors_and_type.css, which is the authoritative token file.
 val Elevated = Color(0xFFFFFFFF)       // --liq-bg-elevated · input and slot fills
+val Raised = Color(0xFFF7F2FA)         // --liq-bg-raised   · raised chrome; the neutral notice
+val BorderSoft = Color(0x0F1D1129)     // --liq-border-soft · rgba(29,17,41,.06)
+val Success = Color(0xFF00AB55)        // --liq-success     · the connected badge
 val Muted = Color(0x9E1D1129)          // --liq-fg-muted    · rgba(29,17,41,.62)
 val Border = Color(0x1F1D1129)         // --liq-border      · rgba(29,17,41,.12)
 val Danger = Color(0xFFFB323B)         // --liq-danger      · invalid borders, the ! glyph
