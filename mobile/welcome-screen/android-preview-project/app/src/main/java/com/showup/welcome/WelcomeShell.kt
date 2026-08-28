@@ -22,6 +22,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -47,6 +49,8 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -185,6 +189,9 @@ fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier) {
  * Compose's radial gradients are circular, so the canvas is scaled to turn the circle into the
  * ellipse the CSS asks for.
  */
+/** U+00A0. Named, because an invisible literal in source is one tidy-up away from vanishing. */
+private const val NBSP = '\u00A0'
+
 @Composable
 fun WashHeadline(
     parts: List<Pair<String, Boolean>>,      // text → is this the italic run?
@@ -192,30 +199,77 @@ fun WashHeadline(
     modifier: Modifier = Modifier,
     lineHeight: TextUnit = (fontSize.value * 1.05f).sp,
     letterSpacing: TextUnit = (-0.02).em,
+    /**
+     * An icon that trails the headline, sitting on the baseline of whatever line the text ends on.
+     *
+     * Part of the text, not a sibling in a Row. The sheet and the ticket both put the heart on
+     * SHOWUP-144 "on the baseline" at the end of the headline, and being in the flow is the only
+     * way it lands there whichever line the text happens to end on. It also removes a whole class
+     * of bug: a sibling in a Row reserves its width against every line, so the headline had less
+     * room than it appeared to, wrapped badly, and pushed the icon past the edge.
+     */
+    trailing: BrandIcon? = null,
+    trailingSize: Dp = 30.dp,
+    trailingTint: Color = Orange,
+    trailingGap: Dp = 12.dp,
 ) {
+    // `white-space: nowrap` on the emphasis span — the token file sets it on `.su-underlined em`
+    // and the ticket restates it: "an emphasis phrase never breaks across lines". A plain space is
+    // a legal break point, so it is swapped for a non-breaking one here, at the single place that
+    // builds the string, rather than trusted to every call site. Without it "Show Up" can split
+    // across two lines and the wash paints under two disconnected fragments.
+    val safe = parts.map { (t, italic) -> (if (italic) t.replace(' ', NBSP) else t) to italic }
+
     val text = buildAnnotatedString {
-        parts.forEach { (t, italic) ->
+        safe.forEach { (t, italic) ->
             if (italic) {
-                // The token file puts the em at 500. The bundled Lora family declares 400 and 700
-                // only, so this resolves to the nearest cut rather than synthesising a 500.
+                // Weight 500, as the token file specifies — the bundled family now carries a real
+                // Medium Italic cut. See fonts/README-medium-italic.md.
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Medium)) { append(t) }
             } else {
                 append(t)
             }
         }
     }
+    val TRAIL = "trail"
+    val textWithIcon = if (trailing == null) text else buildAnnotatedString {
+        append(text)
+        // U+FFFC OBJECT REPLACEMENT CHARACTER -- the placeholder Compose lays the icon into.
+        appendInlineContent(TRAIL, "\uFFFC")
+    }
+
+    // The gap is inside the placeholder rather than a padding on the icon, so the line breaker
+    // accounts for it: the icon can never be pulled to a line that has no room for the space
+    // before it.
+    val inline = if (trailing == null) mapOf() else mapOf(
+        TRAIL to InlineTextContent(
+            Placeholder(
+                width = with(LocalDensity.current) { (trailingGap + trailingSize).toSp() },
+                height = with(LocalDensity.current) { trailingSize.toSp() },
+                // Bottom of the box on the baseline -- which is what "on the baseline" means for
+                // a solid shape with no descender.
+                placeholderVerticalAlign = PlaceholderVerticalAlign.AboveBaseline,
+            )
+        ) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Spacer(Modifier.width(trailingGap))
+                Icon(trailing, trailingSize, tint = trailingTint)
+            }
+        }
+    )
+
     // character range of the italic run, if there is one
     var start = -1
     var end = -1
     var cursor = 0
-    parts.forEach { (t, italic) ->
+    safe.forEach { (t, italic) ->
         if (italic && start < 0) { start = cursor; end = cursor + t.length }
         cursor += t.length
     }
 
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     Text(
-        text = text,
+        text = textWithIcon,
         modifier = modifier.drawBehind {
             val lr = layout ?: return@drawBehind
             if (start < 0 || end <= start) return@drawBehind
@@ -247,6 +301,7 @@ fun WashHeadline(
             }
         },
         onTextLayout = { layout = it },
+        inlineContent = inline,
         color = Fg,
         fontFamily = Lora,
         fontWeight = FontWeight.Bold,

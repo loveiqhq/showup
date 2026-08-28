@@ -159,14 +159,15 @@ private struct MethodListLayout: View {
                 Spacer().frame(height: compact ? 44 : 96)
 
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 12) {
-                        WashHeadline(
-                            parts: [("Welcome to ", false), ("Show Up", true)],
-                            fontSize: compact ? 34 : 40
-                        )
-                        BrandIconView(icon: .heart, size: 30, tint: .liqOrange)
-                        Spacer(minLength: 0)
-                    }
+                    // The heart trails the headline INSIDE the text, on the baseline of whatever
+                    // line the text ends on -- see WashHeadline's `trailing`. It used to be a
+                    // sibling in an HStack, which reserved its width against every line: the
+                    // headline wrapped badly and the heart was pushed off the right edge.
+                    WashHeadline(
+                        parts: [("Welcome to ", false), ("Show Up", true)],
+                        fontSize: compact ? 34 : 40,
+                        trailing: .heart
+                    )
 
                     // A hard break, not a wrap: the ticket specifies two lines and names the break.
                     Text("Connect an account for easier future sign-ins.\nOr continue and start creating your profile.")

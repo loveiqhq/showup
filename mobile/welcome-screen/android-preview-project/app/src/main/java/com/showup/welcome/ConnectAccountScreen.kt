@@ -216,19 +216,15 @@ private fun MethodListLayout(
         Spacer(Modifier.height(if (compact) 44.dp else 96.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                // fill = false lets the headline take only what it needs, so the heart sits
-                // against the text rather than being pushed to the far edge.
-                WashHeadline(
-                    parts = listOf("Welcome to " to false, "Show Up" to true),
-                    fontSize = if (compact) 34.sp else 40.sp,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                Icon(BrandIcon.Heart, 30.dp, tint = Orange)
-            }
+            // The heart trails the headline INSIDE the text, on the baseline of whatever line
+            // the text ends on -- see WashHeadline's `trailing`. It used to be a sibling in a Row,
+            // which reserved its width against every line: the headline wrapped badly and the
+            // heart was pushed off the right edge.
+            WashHeadline(
+                parts = listOf("Welcome to " to false, "Show Up" to true),
+                fontSize = if (compact) 34.sp else 40.sp,
+                trailing = BrandIcon.Heart,
+            )
             Text(
                 // A hard break, not a wrap: the ticket specifies two lines and names the break.
                 "Connect an account for easier future sign-ins.\nOr continue and start creating your profile.",

@@ -330,12 +330,45 @@ check("welcome back defaults to four (swift)", "Set(LOGIN_METHODS)" in back_sw)
 check("no absolute Y (kotlin)", "absoluteOffset" not in conn_kt_code)
 check("no absolute Y (swift)", ".position(" not in conn_sw_code)
 
+# ── the headline's trailing heart ──────────────────────────────────────────
+# It sits INSIDE the text, on the baseline of the last line -- the sheet draws it there and the
+# ticket says "heart-filled 30 on the baseline". As a sibling in a Row/HStack it reserved its
+# width against every line, so the headline wrapped badly and the heart was pushed off the right
+# edge. That was a real, visible clipping bug, so it is asserted rather than left to the eye.
+check("heart is inside the text flow (kotlin)",
+      "trailing = BrandIcon.Heart" in conn_kt)
+check("heart is inside the text flow (swift)",
+      "trailing: .heart" in conn_sw)
+check("heart is NOT a Row sibling (kotlin)",
+      "Icon(BrandIcon.Heart" not in code_only(conn_kt))
+check("heart is NOT an HStack sibling (swift)",
+      "BrandIconView(icon: .heart" not in code_only(conn_sw))
+check("headline supports a trailing icon (kotlin)", "trailing: BrandIcon? = null" in shell_kt)
+check("trailing mark is 30 (kotlin)", "trailingSize: Dp = 30.dp" in shell_kt)
+check("trailing gap is 12 (kotlin)", "trailingGap: Dp = 12.dp" in shell_kt)
+check("headline supports a trailing icon (swift)", "var trailing: BrandIcon? = nil" in shell_sw)
+check("trailing mark is 30 (swift)", "var trailingSize: CGFloat = 30" in shell_sw)
+check("trailing gap is 12 (swift)", "var trailingGap: CGFloat = 12" in shell_sw)
+# ...and the gap travels with the icon, so it can never be orphaned onto its own line.
+check("trailing gap is unbreakable (kotlin)", "appendInlineContent" in shell_kt)
+check("trailing gap is unbreakable (swift)", "u{00A0}" in shell_sw)
+
+# The emphasis phrase never breaks across lines -- the token file sets white-space: nowrap on
+# `.su-underlined em` and both tickets restate it. A plain space is a legal break point, so the
+# rule only holds if the space inside an italic run is a non-breaking one.
+check("emphasis phrase cannot break (kotlin)", "t.replace(' ', NBSP)" in shell_kt)
+check("emphasis phrase cannot break (swift)",
+      'rawText.replacingOccurrences(of: " "' in shell_sw)
+
+# SwiftUI needs to be told how wide the headline wants to be at a given width; without it a
+# UILabel-backed representable reports its ONE-LINE width and squeezes out whatever sits beside it.
+check("headline reports a wrapped size (swift)", "func sizeThatFits(_ proposal: ProposedViewSize" in shell_sw)
+
 # ── numbers, from the reference ─────────────────────────────────────────────
 for name, kt, sw in [
     ("wordmark to headline 96", "96.dp", "compact ? 44 : 96"),
     ("headline 40, 34 compact", "34.sp else 40.sp", "compact ? 34 : 40"),
     ("headline block gap 16", "spacedBy(16.dp)", "spacing: 16"),
-    ("heart 30", "BrandIcon.Heart, 30.dp", "icon: .heart, size: 30"),
     ("sub max 310", "widthIn(max = 310.dp)", "maxWidth: 310"),
     ("linking ring 120", "size(120.dp)", "width: 120, height: 120"),
     ("linking inner 84", "size(84.dp)", "width: 84, height: 84"),

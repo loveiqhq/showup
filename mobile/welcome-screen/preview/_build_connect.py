@@ -53,8 +53,17 @@ CSS144 = """
 .s144 .body{padding:20px 24px 0}
 .s144 .wgap{height:var(--wgap);flex:none}
 .s144 .stack{display:flex;flex-direction:column;gap:16px;flex:none}
-.s144 .hrow{display:flex;align-items:center;gap:12px}
-.s144 .h1{font-size:var(--hs);line-height:1.05}
+/* The heart is INSIDE the text flow, not a flex sibling.
+   The sheet and the ticket both put it "on the baseline" at the end of the headline, and making it
+   part of the sentence is the only way it lands there on whichever line the text happens to end.
+   It also removes a whole class of bug: a sibling in a flex row reserves its width on EVERY line
+   and, because a flex item defaults to min-width:auto -- "never get narrower than my longest
+   unbreakable run" -- the nowrap emphasis span made that floor the full line. The headline then
+   refused to wrap, overflowed, and pushed the heart off the screen. In the flow it cannot. */
+.s144 .h1{font-size:var(--hs);line-height:1.05;text-wrap:balance}
+/* The emphasis and the heart travel together, so the heart is never orphaned onto its own line. */
+.s144 .h1 .nb{white-space:nowrap}
+.s144 .h1 .nb .heart{display:inline-block;vertical-align:baseline;margin-left:12px}
 .s144 .sub{margin:0;font-family:var(--sans);font-weight:500;font-size:16px;line-height:1.45;
 color:var(--neutral);max-width:310px}
 .s144 .methods{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;flex:none}
@@ -142,7 +151,7 @@ color:var(--muted);font-family:var(--sans);font-weight:600;font-size:15px}
 
 SHORT = {"apple": "Apple", "google": "Google", "facebook": "Facebook"}
 CONNECT_ORDER = ["apple", "google", "facebook"]
-HEART = ('<svg width="30" height="30" viewBox="0 0 24 24" style="display:block;flex:none">'
+HEART = ('<svg class="heart" width="30" height="30" viewBox="0 0 24 24">'
          '<path d="M12 21S3.5 15.4 3.5 10C3.5 6.5 8.5 4.7 12 7.2C15.5 4.7 20.5 6.5 20.5 10'
          'C20.5 15.4 12 21 12 21Z" fill="#FE6839"/></svg>')
 CHECK = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
@@ -199,8 +208,8 @@ def methods_block(loading=None, suggested=None, banner=None, notice=None):
 
 
 def header(hs):
-    return ('<div class="stack"><div class="hrow">'
-            '<h1 class="h1 ul">Welcome to <em>Show Up</em></h1>%s</div>'
+    return ('<div class="stack">'
+            '<h1 class="h1 ul">Welcome to <span class="nb"><em>Show Up</em>%s</span></h1>'
             '<p class="sub">Connect an account for easier future sign-ins.<br>'
             'Or continue and start creating your profile.</p></div>' % HEART)
 

@@ -198,6 +198,17 @@ struct WashHeadline: UIViewRepresentable {
     let fontSize: CGFloat
     var lineHeightMultiple: CGFloat = 1.05
     var trackingEm: CGFloat = -0.02
+    /// An icon that trails the headline, sitting on the baseline of whatever line the text ends on.
+    ///
+    /// Part of the text, not a sibling in an HStack. The sheet and the ticket both put the heart on
+    /// SHOWUP-144 "on the baseline" at the end of the headline, and being in the flow is the only
+    /// way it lands there whichever line the text happens to end on. It also removes a whole class
+    /// of bug: a sibling in an HStack reserves its width against every line, so the headline had
+    /// less room than it appeared to, wrapped badly, and pushed the icon past the edge.
+    var trailing: BrandIcon? = nil
+    var trailingSize: CGFloat = 30
+    var trailingTint: Color = .liqOrange
+    var trailingGap: CGFloat = 12
 
     func makeUIView(context: Context) -> WashLabel {
         let v = WashLabel()
@@ -205,6 +216,39 @@ struct WashHeadline: UIViewRepresentable {
         v.setContentCompressionResistancePriority(.required, for: .vertical)
         v.setContentHuggingPriority(.required, for: .vertical)
         return v
+    }
+
+
+    /// The trailing mark as a bitmap, so it can travel inside an attributed string.
+    ///
+    /// Only the filled marks are supported, because only those are ever used here. An unhandled
+    /// icon returns nil and the headline simply renders without a trailing mark rather than
+    /// drawing something wrong.
+    private func rasterisedIcon(_ icon: BrandIcon) -> UIImage? {
+        let path: Path
+        switch icon {
+        case .heart: path = BrandIconView.heartPath
+        default: return nil
+        }
+        return BrandIconView.filledImage(path, size: trailingSize, tint: UIColor(trailingTint))
+    }
+
+    /// Report the size this headline needs **at the width it is being offered**.
+    ///
+    /// Without this, SwiftUI falls back to the UILabel's intrinsicContentSize, and a label with
+    /// numberOfLines = 0 and no preferredMaxLayoutWidth reports its ONE-LINE width -- however long
+    /// that is. On its own in a VStack nothing goes wrong, because the full width is offered
+    /// anyway. Inside an HStack next to the heart on Connect, the label claims the whole row, the
+    /// heart gets pushed past the edge and the text is clipped.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView v: WashLabel, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0, width < .infinity else {
+            // No width offered yet: this is the "how big would you like to be" pass, and the
+            // honest answer is one line. SwiftUI then offers a real width and asks again.
+            return nil
+        }
+        v.preferredMaxLayoutWidth = width
+        let fit = v.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: min(fit.width, width), height: fit.height)
     }
 
     func updateUIView(_ v: WashLabel, context: Context) {
@@ -220,7 +264,11 @@ struct WashHeadline: UIViewRepresentable {
 
         let out = NSMutableAttributedString()
         var italicRange = NSRange(location: NSNotFound, length: 0)
-        for (text, isItalic) in parts {
+        for (rawText, isItalic) in parts {
+            // `white-space: nowrap` on the emphasis span, expressed the only way an attributed
+            // string can: a space that is not a break opportunity. Without it "Show Up" can split
+            // across two lines and the wash paints under two disconnected fragments.
+            let text = isItalic ? rawText.replacingOccurrences(of: " ", with: "\u{00A0}") : rawText
             let start = out.length
             out.append(NSAttributedString(string: text, attributes: [
                 .font: isItalic ? italic : regular,
@@ -232,6 +280,20 @@ struct WashHeadline: UIViewRepresentable {
                 italicRange = NSRange(location: start, length: text.count)
             }
         }
+        // The trailing icon rides in the string as an attachment, so the line breaker treats
+        // it as part of the last word. bounds.origin.y = 0 puts its bottom on the baseline,
+        // which is what "on the baseline" means for a solid shape with no descender. The gap
+        // is a NON-BREAKING space, so the icon can never be pulled onto a line by itself.
+        if let trailing, let mark = rasterisedIcon(trailing) {
+            out.append(NSAttributedString(
+                string: "\u{00A0}",
+                attributes: [.font: UIFont.systemFont(ofSize: trailingGap)]))
+            let attachment = NSTextAttachment()
+            attachment.image = mark
+            attachment.bounds = CGRect(x: 0, y: 0, width: trailingSize, height: trailingSize)
+            out.append(NSAttributedString(attachment: attachment))
+        }
+
         v.attributedText = out
         v.italicRange = italicRange
         v.emSize = fontSize
@@ -488,15 +550,7 @@ struct BrandIconView: View {
                     b.closeSubpath()
                 }
             case .heart:
-                filled = true
-                p = Path { b in
-                    b.move(to: .init(x: 12, y: 21))
-                    b.addCurve(to: .init(x: 3.5, y: 10), control1: .init(x: 12, y: 21), control2: .init(x: 3.5, y: 15.4))
-                    b.addCurve(to: .init(x: 12, y: 7.2), control1: .init(x: 3.5, y: 6.5), control2: .init(x: 8.5, y: 4.7))
-                    b.addCurve(to: .init(x: 20.5, y: 10), control1: .init(x: 15.5, y: 4.7), control2: .init(x: 20.5, y: 6.5))
-                    b.addCurve(to: .init(x: 12, y: 21), control1: .init(x: 20.5, y: 15.4), control2: .init(x: 12, y: 21))
-                    b.closeSubpath()
-                }
+                filled = true; p = Self.heartPath
             case .pencil:
                 filled = false
                 p = Path { b in
@@ -536,6 +590,31 @@ struct BrandIconView: View {
             }
         }
         .frame(width: size, height: size)
+    }
+
+    /// On the same 24-unit grid as every other icon here. Hoisted to a static because the
+    /// headline's trailing mark rasterises it through UIKit -- one copy of the geometry, drawn two
+    /// ways, so the two cannot drift.
+    static let heartPath = Path { b in
+        b.move(to: .init(x: 12, y: 21))
+        b.addCurve(to: .init(x: 3.5, y: 10), control1: .init(x: 12, y: 21), control2: .init(x: 3.5, y: 15.4))
+        b.addCurve(to: .init(x: 12, y: 7.2), control1: .init(x: 3.5, y: 6.5), control2: .init(x: 8.5, y: 4.7))
+        b.addCurve(to: .init(x: 20.5, y: 10), control1: .init(x: 15.5, y: 4.7), control2: .init(x: 20.5, y: 6.5))
+        b.addCurve(to: .init(x: 12, y: 21), control1: .init(x: 20.5, y: 15.4), control2: .init(x: 12, y: 21))
+        b.closeSubpath()
+    }
+
+    /// The same path, rasterised through UIKit for use as a text attachment.
+    ///
+    /// Deliberately NOT ImageRenderer: that is @MainActor, `updateUIView` is not annotated as such
+    /// in the Swift 5 language mode this target builds in, and the resulting isolation error would
+    /// only surface on the Mac. UIGraphicsImageRenderer has no such constraint.
+    static func filledImage(_ path: Path, size: CGFloat, tint: UIColor) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { _ in
+            let scaled = path.applying(CGAffineTransform(scaleX: size / 24, y: size / 24))
+            tint.setFill()
+            UIBezierPath(cgPath: scaled.cgPath).fill()
+        }
     }
 
     static let phonePath = Path { b in
