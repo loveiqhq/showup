@@ -145,7 +145,9 @@ white-space:nowrap;width:100%;border:0;transition:transform 180ms var(--ease),fi
 /* ── shared type ─────────────────────────────────────────────────────── */
 .h1{margin:0;font-family:var(--serif);font-weight:700;letter-spacing:-.02em;line-height:1.05;
 color:var(--fg);text-wrap:balance;flex:none}
-.legal{margin:0;font-size:12px;color:var(--muted);text-align:center;line-height:1.45;flex:none}
+/* --subtle, as the design system and both reference files specify. Briefly --muted for
+   WCAG 1.4.3; reverted on request 28 Aug 2026 -- see AUDIT-connect-144-145 finding 7. */
+.legal{margin:0;font-size:12px;color:var(--subtle);text-align:center;line-height:1.45;flex:none}
 .legal b{color:var(--fg);font-weight:600}
 .eyebrow{flex:none;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;
 padding:5px 10px;border-radius:9999px;background:rgba(167,139,250,.16);font-weight:700;font-size:11px;
@@ -183,7 +185,7 @@ color:var(--neutral200);max-width:280px;text-wrap:pretty;flex:none}
 box-shadow:0 0 0 3px rgba(254,104,57,.18);flex:none}
 .s142 .hint span{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.01em}
 .s142 .help{margin:0 0 8px}
-.s142 .legal2{margin:0 0 8px;font-size:11.5px;color:var(--muted);text-align:center;line-height:1.45;flex:none}
+.s142 .legal2{margin:0 0 8px;font-size:11.5px;color:var(--subtle);text-align:center;line-height:1.45;flex:none}
 .s142 .legal2 b{color:var(--muted);font-weight:600;text-decoration:underline;text-underline-offset:2px}
 """
 

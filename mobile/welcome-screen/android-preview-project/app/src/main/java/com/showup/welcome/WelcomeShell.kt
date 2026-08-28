@@ -331,6 +331,31 @@ fun WashHeadline(
  * [Plain] is not a provider treatment and never carries one: it is the conflict modal's
  * secondary, which has no border precisely so the pair does not read as two equal choices.
  */
+/**
+ * How far a mark's ink is from the centre of its artboard, in 24-grid units.
+ *
+ * Only the provider logos are handled: they are the only marks ever shown standing alone. Anything
+ * else returns zero, so an un-tabulated icon is drawn exactly as authored rather than nudged by a
+ * guess.
+ */
+private fun inkOffset(icon: BrandIcon): Offset {
+    val paths = when (icon) {
+        BrandIcon.Apple -> listOf(applePath())
+        BrandIcon.Facebook -> listOf(facebookPath())
+        BrandIcon.Google -> listOf(googleBlue(), googleGreen(), googleYellow(), googleRed())
+        else -> return Offset.Zero
+    }
+    var left = Float.MAX_VALUE; var top = Float.MAX_VALUE
+    var right = -Float.MAX_VALUE; var bottom = -Float.MAX_VALUE
+    paths.forEach {
+        val b = it.getBounds()
+        left = minOf(left, b.left); top = minOf(top, b.top)
+        right = maxOf(right, b.right); bottom = maxOf(bottom, b.bottom)
+    }
+    if (left > right) return Offset.Zero
+    return Offset(12f - (left + right) / 2f, 12f - (top + bottom) / 2f)
+}
+
 enum class PillVariant { Sunset, Ghost, Plain, Apple, Google, Facebook }
 
 /**
@@ -435,11 +460,27 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ar
                        Pencil, Close, Check, Shield, Heart }
 
 @Composable
-fun Icon(icon: BrandIcon, size: Dp, tint: Color = Fg, strokeWidth: Dp = 1.7.dp) {
+/**
+ * @param opticalCentre centre the mark on its own ink rather than on its 24-unit artboard.
+ *
+ * The provider logos are drawn to sit optically correct BESIDE a text label, which leaves them a
+ * little high in their own box -- Apple's occupies y 3.8..16.5, so its centre is ~1.8 units above
+ * the artboard's. Against a label that is invisible. Alone inside a 120dp ring it is not, which is
+ * exactly where the linking and success heroes put it. Measured from the path rather than tabulated
+ * per icon, so it stays right if the artwork is ever replaced.
+ */
+fun Icon(
+    icon: BrandIcon,
+    size: Dp,
+    tint: Color = Fg,
+    strokeWidth: Dp = 1.7.dp,
+    opticalCentre: Boolean = false,
+) {
     Canvas(Modifier.size(size)) {
         val s = this.size.width / 24f                      // all paths are authored on a 24 grid
         val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        withTransform({ scale(s, s, pivot = Offset.Zero) }) {
+        val nudge = if (opticalCentre) inkOffset(icon) else Offset.Zero
+        withTransform({ scale(s, s, pivot = Offset.Zero); translate(nudge.x, nudge.y) }) {
             when (icon) {
                 BrandIcon.Calendar -> {
                     drawRoundRect(

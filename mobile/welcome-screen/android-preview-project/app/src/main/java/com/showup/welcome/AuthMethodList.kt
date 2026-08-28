@@ -244,15 +244,15 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
             .height(52.dp)
             .clip(shape)
             .background(Elevated)
-            // 1.5px dashed, per the reference. Compose has no dashed `border`, so it is stroked by
-            // hand. The ink is Subtle (46%) rather than Border (12%) for the same reason the input
-            // outlines were moved: bg-elevated on bg is 1.03:1, so this border is the only thing
-            // that identifies the control, and WCAG 1.4.11 wants 3:1 for that. 12% gives 1.28:1.
-            // The dash lengths are not in the reference; 6/4 reads as dashed at every density.
+            // Border (ink 12%), as the design system draws it. It was briefly Subtle (ink 46%)
+            // for WCAG 1.4.11, which wants 3:1 for the boundary that identifies a control -- see
+            // audit/AUDIT-connect-144-145.md finding 7. Reverted on request: this is the designed
+            // look, the label and arrow carry the control's identity at 5.03:1, and the deviation
+            // is recorded rather than made silently.
             .drawBehind {
                 val w = 1.5.dp.toPx()
                 drawRoundRect(
-                    color = Subtle,
+                    color = Border,
                     topLeft = androidx.compose.ui.geometry.Offset(w / 2f, w / 2f),
                     size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx() - w / 2f),

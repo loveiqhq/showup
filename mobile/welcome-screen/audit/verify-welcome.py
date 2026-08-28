@@ -266,16 +266,27 @@ for target in ("onVerify", "onResend", "onEditNumber"):
     check("143 " + target + " wired (kotlin)", target in ver_kt)
     check("143 " + target + " wired (swift)", target in ver_sw)
 
-# ── contrast · readable text must not use the token that fails WCAG AA ─────
-# --liq-fg-subtle is ink 46% = 3.04:1, under the 4.5:1 needed for normal text. --liq-fg-muted is
-# ink 62% = 5.03:1 and passes. Body and legal text takes Muted. See audit finding 7.
-for label, kt_src, sw_src in [("140", start_kt, start_sw), ("142", back_kt, back_sw),
-                              ("143", ver_kt, ver_sw)]:
-    check(label + " no readable text on the failing token (kotlin)",
-          "color = Subtle" not in code_only(kt_src))
-    check(label + " no readable text on the failing token (swift)",
-          "foregroundColor = .liqSubtle" not in code_only(sw_src)
-          and "foregroundColor(.liqSubtle)" not in code_only(sw_src))
+# ── contrast · a RECORDED deviation, not an accident ───────────────────────
+# --liq-fg-subtle is ink 46% = 3.04:1, under the 4.5:1 WCAG 1.4.3 wants for normal text. It was
+# briefly swapped for --liq-fg-muted (ink 62%, 5.03:1) across the small print, then reverted on
+# request on 28 Aug 2026: the subtle token is what the design system and both reference files
+# specify, and matching the design won.
+#
+# These checks assert the DESIGN value, so the flow cannot drift back by accident -- and they are
+# written this way round so the deviation stays visible in the file rather than disappearing when
+# the rule that flagged it was deleted. See audit/AUDIT-connect-144-145.md finding 7.
+check("140 legal line uses the design token (kotlin)", "color = Subtle" in start_kt)
+check("140 legal line uses the design token (swift)", ".liqSubtle" in start_sw)
+check("142 help + legal lines use the design token (kotlin)", back_kt.count("color = Subtle") >= 2)
+check("142 help + legal lines use the design token (swift)", back_sw.count(".liqSubtle") >= 2)
+# 142's legal LINKS are fg-muted per screen-login-reference.jsx -- only the surrounding text is
+# subtle, so this is not a blanket substitution.
+check("142 legal links stay fg-muted (kotlin)", "color = Muted" in back_kt)
+check("142 legal links stay fg-muted (swift)", ".liqMuted" in back_sw)
+# 143 has no reference file, so there is no design value to revert to. Its helper line, which is
+# the only thing that reports a validation failure, stays on the readable token.
+check("143 helper text stays readable (kotlin)", "else Muted" in ver_kt)
+check("143 helper text stays readable (swift)", ".liqMuted" in ver_sw)
 
 # ── copy, character for character ───────────────────────────────────────────
 COPY = [

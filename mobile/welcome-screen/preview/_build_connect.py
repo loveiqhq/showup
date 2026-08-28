@@ -70,8 +70,13 @@ color:var(--neutral);max-width:310px}
 
 /* The skip: a different shape and weight from the three connect buttons so it never reads as a
    fourth provider. Dashed 1.5, and NEVER disabled or dimmed. */
+/* --border (ink 12%) as the reference draws it. It was briefly darkened to ink 46% for
+   WCAG 1.4.11, which wants 3:1 for the boundary that identifies a control -- see
+   audit/AUDIT-connect-144-145.md finding 7. Reverted on request: this is the designed look, the
+   label and arrow carry the control's identity at 5.03:1, and the deviation is recorded rather
+   than made silently. */
 .s144 .skip{margin-top:4px;height:52px;border-radius:16px;background:var(--elevated);
-border:1.5px dashed rgba(29,17,41,.46);display:inline-flex;align-items:center;justify-content:center;
+border:1.5px dashed var(--border);display:inline-flex;align-items:center;justify-content:center;
 gap:8px;font-family:var(--sans);font-weight:600;font-size:15px;color:var(--muted)}
 .s144 .skip.hot{color:var(--fg)}
 
@@ -218,13 +223,14 @@ LEGAL = ('<p class="legal">By continuing you agree to our <b>Terms</b> and '
          '<b>Privacy Policy</b>.</p>')
 
 
-def frame(w, inner, extra=""):
+def frame(w, inner, extra="", wordmarkGap=True):
     sb, hi = chrome(w[5], w[6])
     compact = w[1] < 700
     return ('<div class="screen s144" style="--w:%dpx;--h:%dpx;--st:%dpx;--sbm:%dpx;--r:%dpx;'
             '--wgap:%dpx;--hs:%dpx">%s%s<div class="body">%s</div>%s%s</div>'
             % (w[0], w[1], w[2], w[3], w[4], 44 if compact else 96, 34 if compact else 40,
-               backdrop(), sb, WORDMARK + '<div class="wgap"></div>' + inner, hi, extra))
+               backdrop(), sb,
+               WORDMARK + ('<div class="wgap"></div>' if wordmarkGap else '') + inner, hi, extra))
 
 
 def list_state(w, loading=None, suggested=None, banner=None, notice=None, extra=""):
@@ -258,7 +264,7 @@ def linking(w, provider="apple"):
             '<p class="herosub">Verifying your %s and setting things up. This takes a second.</p>'
             '</div>' % (ring, subj))
     return frame(w, '<div class="hero" style="--herogap:24px;--h2s:28px;--h2lh:1.15;--subw:none">%s</div>'
-                    '<p class="legal">Don&#8217;t close the app.</p>' % body)
+                    '<p class="legal">Don&#8217;t close the app.</p>' % body, wordmarkGap=False)
 
 
 def success(w, provider="apple", name="Leo"):
@@ -276,7 +282,7 @@ def success(w, provider="apple", name="Leo"):
            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
            '<path d="M5 12h14M12 5l7 7-7 7"/></svg></span></span></div>')
     return frame(w, '<div class="hero" style="--herogap:28px;--h2s:32px;--h2lh:1.1;--subw:280px">%s</div>%s'
-                 % (body, cta))
+                 % (body, cta), wordmarkGap=False)
 
 
 def conflict(w, email="leo@gmail.com", owner="google"):
@@ -385,6 +391,33 @@ CONNECT_ORDER[:] = _saved
 html.append('</div></section>')
 
 html.append('</div>')
+
+# Re-centre each hero mark on its own ink.
+#
+# The provider logos are authored to sit optically correct BESIDE a text label, which leaves them a
+# little high in their own 24-unit artboard -- Apple's occupies y 3.8..16.5, so its centre is ~1.8
+# units above the box centre. Against a label that is invisible; alone inside a 120px ring it is
+# not. The apps do the same thing from the path bounds (BrandIconView.inkOffset / Icon's
+# opticalCentre); here the browser measures it, so there are no per-icon constants to drift.
+html.append("<script>")
+html.append("for (const svg of document.querySelectorAll('.puck svg')) {")
+html.append("  const ps = [...svg.querySelectorAll('path')];")
+html.append("  if (!ps.length) continue;")
+html.append("  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;")
+html.append("  for (const p of ps) {")
+html.append("    const b = p.getBBox();")
+html.append("    x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);")
+html.append("    x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);")
+html.append("  }")
+html.append("  const dx = (12 - (x0 + x1) / 2).toFixed(2);")
+html.append("  const dy = (12 - (y0 + y1) / 2).toFixed(2);")
+html.append("  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');")
+html.append("  g.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');")
+html.append("  while (svg.firstChild) { g.appendChild(svg.firstChild); }")
+html.append("  svg.appendChild(g);")
+html.append("}")
+html.append("</script>")
+
 io.open(OUT, "w", encoding="utf-8", newline="\n").write("\n".join(html))
 print("wrote: %s" % OUT)
 print("size : %.1f MB" % (os.path.getsize(OUT) / 1024.0 / 1024.0))

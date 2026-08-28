@@ -214,9 +214,8 @@ private struct LegalLine: View {
         Text(attributed)
             .font(F.manrope(12, .medium))
             .multilineTextAlignment(.center)
-            // Muted rather than the reference's fg-subtle: 46% ink measures 3.04:1 and 1.4.3 wants
-            // 4.5 for body text. Same substitution as on 140/142/143 — see audit finding 7.
-            .foregroundColor(.liqMuted)
+            // fg-subtle, as the design system draws it -- see the note in AuthMethodList.
+            .foregroundColor(.liqSubtle)
             .tint(.liqFg)
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
@@ -263,7 +262,8 @@ private struct LinkingHero: View {
                         .shadow(color: Color.liqPurple.opacity(0.10), radius: 6, y: 4)
                         .overlay(
                             BrandIconView(icon: methodSpec(provider).icon, size: 42,
-                                          tint: provider == .apple ? .black : .liqFg)
+                                          tint: provider == .apple ? .black : .liqFg,
+                                          opticalCentre: true)
                         )
                 }
                 .frame(width: 120, height: 120)
@@ -354,7 +354,8 @@ private struct SuccessHero: View {
                         .shadow(color: Color.liqSuccess.opacity(0.18), radius: 12, y: 8)
                         .overlay(
                             BrandIconView(icon: methodSpec(provider).icon, size: 44,
-                                          tint: provider == .apple ? .black : .liqFg)
+                                          tint: provider == .apple ? .black : .liqFg,
+                                          opticalCentre: true)
                         )
                     // The 3pt ring is the page background, not white — it has to disappear into
                     // the canvas rather than read as a second badge outline.

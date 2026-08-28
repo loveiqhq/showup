@@ -223,13 +223,13 @@ private struct SkipRow: View {
             .background(Color.liqElevated)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
-                // 1.5pt dashed, per the reference. The ink is fg-subtle (46%) rather than the
-                // border token (12%) for the same reason the input outlines were moved:
-                // bg-elevated on bg is 1.03:1, so this border is the only thing that identifies
-                // the control, and WCAG 1.4.11 wants 3:1 for that. 12% gives 1.28:1.
-                // The dash lengths are not in the reference; 6/4 reads as dashed at every scale.
+                // .liqBorder (ink 12%), as the design system draws it. It was briefly
+                // .liqSubtle (ink 46%) for WCAG 1.4.11, which wants 3:1 for the boundary that
+                // identifies a control -- see audit/AUDIT-connect-144-145.md finding 7. Reverted
+                // on request: this is the designed look, the label and arrow carry the control's
+                // identity at 5.03:1, and the deviation is recorded rather than made silently.
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.liqSubtle,
+                    .strokeBorder(Color.liqBorder,
                                   style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
             )
             .padding(.top, 4)

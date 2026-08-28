@@ -125,7 +125,9 @@ struct WelcomeBackView: View {
     private var helpAttributed: AttributedString {
         func plain(_ t: String) -> AttributedString {
             var a = AttributedString(t)
-            a.foregroundColor = .liqMuted      // see audit finding 7
+            // fg-subtle, as screen-login-reference.jsx specifies. Briefly darkened to
+            // fg-muted for WCAG 1.4.3; reverted on request -- see AUDIT-connect-144-145 finding 7.
+            a.foregroundColor = .liqSubtle
             return a
         }
         func link(_ t: String, _ target: String) -> AttributedString {
@@ -153,7 +155,7 @@ struct WelcomeBackView: View {
         }
         var out = link("Legal Notice", "legal")
         var dot = AttributedString(" · ")
-        dot.foregroundColor = .liqMuted
+        dot.foregroundColor = .liqSubtle
         out.append(dot)
         out.append(link("Privacy Policy", "privacy"))
         return out

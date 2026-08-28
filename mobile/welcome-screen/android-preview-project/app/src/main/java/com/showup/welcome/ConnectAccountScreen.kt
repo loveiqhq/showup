@@ -72,6 +72,7 @@ import com.showup.designsystem.Cream
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
+import com.showup.designsystem.Subtle
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Orange
@@ -283,7 +284,7 @@ private fun LegalLine(onTerms: () -> Unit, onPrivacy: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         // Muted rather than the reference's fg-subtle: 46% ink measures 3.04:1 and 1.4.3 wants
         // 4.5 for body text. Same substitution as on 140/142/143 — see audit finding 7.
-        color = Muted, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
+        color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
         textAlign = TextAlign.Center,
     )
 }
@@ -313,6 +314,7 @@ private fun LinkingHero(provider: AuthMethod) {
                     Icon(
                         methodSpec(provider).icon, 42.dp,
                         tint = if (provider == AuthMethod.Apple) Color.Black else Fg,
+                        opticalCentre = true,
                     )
                 }
             }
@@ -335,7 +337,7 @@ private fun LinkingHero(provider: AuthMethod) {
         Text(
             "Don't close the app.",
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            color = Muted, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
+            color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
             textAlign = TextAlign.Center,
         )
     }
@@ -409,6 +411,7 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
                     Icon(
                         methodSpec(provider).icon, 44.dp,
                         tint = if (provider == AuthMethod.Apple) Color.Black else Fg,
+                        opticalCentre = true,
                     )
                 }
                 // The 3dp ring is the page background, not white — it has to disappear into the

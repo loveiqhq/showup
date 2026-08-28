@@ -489,12 +489,27 @@ struct BrandIconView: View {
     var size: CGFloat = 20
     var stroke: CGFloat = 1.7
     var tint: Color = .liqFg
+    /// Centre the mark on its own ink rather than on its 24-unit artboard.
+    ///
+    /// The provider logos are drawn to sit optically correct BESIDE a text label, which leaves them
+    /// a little high in their own box -- Apple's occupies y 3.8..16.5, so its centre is ~1.8 units
+    /// above the artboard's. Against a label that is invisible. Alone inside a 120pt ring it is
+    /// not, which is exactly where the linking and success heroes put it. Measured from the path
+    /// rather than tabulated per icon, so it stays right if the artwork is ever replaced.
+    ///
+    /// Declared LAST: Swift's memberwise init is positional, and every existing call site passes
+    /// icon / size / stroke / tint in that order.
+    var opticalCentre: Bool = false
 
     var body: some View {
         Canvas { ctx, _ in
             let s = size / 24
+            let nudge = opticalCentre ? Self.inkOffset(icon) : .zero
             // Every path below is authored on a 24-unit grid; this scales it to the requested size.
-            let t = CGAffineTransform(scaleX: s, y: s)
+            // Nudge in 24-grid units first, then scale the whole thing to the requested size.
+            // `concatenating` reads left to right, so this is translate-then-scale.
+            let t = CGAffineTransform(translationX: nudge.x, y: nudge.y)
+                .concatenating(CGAffineTransform(scaleX: s, y: s))
             let filled: Bool
             let p: Path
             switch icon {
@@ -595,6 +610,24 @@ struct BrandIconView: View {
     /// On the same 24-unit grid as every other icon here. Hoisted to a static because the
     /// headline's trailing mark rasterises it through UIKit -- one copy of the geometry, drawn two
     /// ways, so the two cannot drift.
+    /// How far a mark's ink is from the centre of its artboard, in 24-grid units.
+    ///
+    /// Only the provider logos are handled: they are the only marks ever shown standing alone.
+    /// Anything else returns zero, so an un-tabulated icon is drawn exactly as authored rather
+    /// than nudged by a guess.
+    static func inkOffset(_ icon: BrandIcon) -> CGPoint {
+        let paths: [Path]
+        switch icon {
+        case .apple: paths = [applePath]
+        case .facebook: paths = [facebookPath]
+        case .google: paths = [googleBlue, googleGreen, googleYellow, googleRed]
+        default: return .zero
+        }
+        let box = paths.map(\.boundingRect).reduce(CGRect.null) { $0.union($1) }
+        guard !box.isNull, !box.isEmpty else { return .zero }
+        return CGPoint(x: 12 - box.midX, y: 12 - box.midY)
+    }
+
     static let heartPath = Path { b in
         b.move(to: .init(x: 12, y: 21))
         b.addCurve(to: .init(x: 3.5, y: 10), control1: .init(x: 12, y: 21), control2: .init(x: 3.5, y: 15.4))

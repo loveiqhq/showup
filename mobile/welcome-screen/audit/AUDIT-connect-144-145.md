@@ -105,21 +105,62 @@ The reference puts the connected badge at `right: 4 / bottom: 4` inside the 120 
 had it flush at 0. Android now offsets `(-4, -4)` from `BottomEnd`; iOS offsets 38 from centre
 (60 + 38 + 18 = 116, i.e. 4 from 120).
 
-### 7 · The skip button's dashed border failed contrast — **fixed**
+### 7 · The skip button's border and the small print — **reverted to the design, 28 Aug**
 
-The reference draws the skip with `1.5px dashed var(--liq-border)`. That border is the only thing
-identifying the control: its `--liq-bg-elevated` fill against `--liq-bg` measures **1.03:1**, so the
-button is otherwise invisible. `--liq-border` at 12% ink gives **1.28:1** against WCAG 1.4.11's 3:1
-for a non-text UI component.
+The reference draws the skip with `1.5px dashed var(--liq-border)` and the small print in
+`--liq-fg-subtle`. Both were briefly darkened for contrast, then put back on request. Recording it
+properly, because it is now a deliberate, known deviation rather than an oversight:
 
-Moved to `--liq-fg-subtle` (46% ink, **3.04:1**), which is the same substitution already made for
-the input and slot outlines on 143. Dash lengths are not specified anywhere in the handoff; 6/4 was
-chosen because it reads as dashed at every density.
+| | Design value | Measures | Rule | Verdict |
+|---|---|---|---|---|
+| Skip button border | `--liq-border`, ink 12% | 1.28:1 | 1.4.11 wants 3:1 for a control's boundary | arguable — see below |
+| Legal / help lines | `--liq-fg-subtle`, ink 46% | 3.04:1 | 1.4.3 wants 4.5:1 for body text | **fails** |
 
-### 8 · The legal line repeats the 140/142/143 contrast fix — **applied**
+**The skip border is defensible.** 1.4.11 asks for 3:1 on the visual information *required to
+identify* a component. This button carries a full-contrast label and an arrow, both well over the
+threshold, so the dashed rule is decoration rather than the thing that identifies it.
 
-`--liq-fg-subtle` at **3.04:1** fails 1.4.3's 4.5:1 for body text. The legal line takes
-`--liq-fg-muted` (**5.03:1**), consistent with audit finding 7 on the earlier three screens.
+**The small print is a real failure**, and no reading gets around it: it is body text at 12px and
+11.5px, and 3.04:1 is under 4.5:1. It ships that way because it matches the design, and that is a
+legitimate call for the product owner to make — but it should be made knowingly, so it is written
+here rather than quietly fixed in code.
+
+`verify-welcome.py` now asserts the **design** values, so nothing drifts back by accident, and the
+measurement stays in the file so the trade-off is not forgotten.
+
+Two things were NOT reverted, because there is no design value to revert to:
+
+- **143's input and slot outlines.** The field's white fill is 1.03:1 against the canvas, so the
+  outline genuinely is the only thing identifying it — there is no label doing that job.
+- **143's helper line**, which is the only thing that reports a validation failure. 143 has no
+  reference `.jsx`, so nothing specifies a colour for either.
+
+### 8 · The heart was beside the headline, not in it — **fixed 28 Aug**
+
+The Connect headline was a row of `[text] [heart]`. A sibling in a flex row reserves its width
+against **every** line, and the emphasis span is deliberately unbreakable, so the headline had ~42px
+less room than it appeared to: it refused to wrap, overflowed, and pushed the heart off the right
+edge on all three frames.
+
+The heart is now inside the text — inline content on Compose, an `NSTextAttachment` on iOS, an
+inline SVG in the preview — which is where the sheet draws it and what the ticket means by
+*"heart-filled 30 on the baseline"*. Something inside the text cannot be pushed outside it.
+
+Two related defects surfaced with it: nothing enforced the emphasis no-break rule on either
+platform, and the iOS headline reported its one-line width to SwiftUI because the representable had
+no `sizeThatFits`. Both fixed; 13 guards added.
+
+### 8b · The linking and success heroes sat ~96px too low — **fixed 28 Aug, preview only**
+
+The preview inserted the wordmark→headline gap into *every* frame, including the two that replace
+the header with a centred hero. The reference goes straight from the wordmark into a `flex: 1`
+hero. Measured after the fix: the ring centre lands at 45.6 / 46.9 / 47.2 % of screen height across
+the three frames, against 46.5 % measured off the spec sheet. Both apps were already correct.
+
+The provider mark inside the ring is now centred on its **own ink** rather than on its 24-unit
+artboard. The logos are drawn to sit optically right beside a label, which leaves Apple's ~1.8 units
+high — invisible on a button, visible inside a 120px ring. Measured from the path at run time on all
+three platforms, so there are no per-icon constants to drift.
 
 ### 9 · A new Swift file would have silently never compiled — **fixed**
 

@@ -61,7 +61,7 @@ struct StartupView: View {
                     HStack(spacing: 8) {
                         BrandIconView(icon: .calendar, size: 16, stroke: 2, tint: .liqOrange)
                         (Text("234.000 Dates").font(F.manrope(13, .bold)).foregroundColor(.liqFg)
-                         + Text(" already organized").font(F.manrope(13, .medium)).foregroundColor(.liqMuted))
+                         + Text(" already organized").font(F.manrope(13, .medium)).foregroundColor(.liqSubtle))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 14)
@@ -79,7 +79,7 @@ struct StartupView: View {
                 // The reference's own hit area is ~31; the ticket requires at least 44 without
                 // changing the 14pt type, so the frame carries the target.
                 Button(action: onLogin) {
-                    (Text("Already have an account? ").foregroundColor(.liqMuted)
+                    (Text("Already have an account? ").foregroundColor(.liqSubtle)
                      + Text("Log in").foregroundColor(.liqPurple).underline())
                         .font(F.manrope(14, .semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
