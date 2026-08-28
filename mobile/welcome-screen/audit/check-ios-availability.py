@@ -27,7 +27,7 @@ MINIMUM = {
     "contentMargins":              (17, 0),
     "scrollTargetBehavior":        (17, 0),
     "scrollPosition":              (17, 0),
-    "onChange(of:initial:":        (17, 0),   # the two-parameter closure form
+    "Locale.current.region":       (16, 0),
     "symbolEffect":                (17, 0),
     "containerRelativeFrame":      (17, 0),
     "scrollIndicatorsFlash":       (17, 0),
@@ -99,6 +99,26 @@ print("  APIs in the list : %d  (curated, not exhaustive — see the note at the
 print()
 
 problems = []
+
+# ── shape checks: APIs whose NAME is fine but whose form is version-gated ────
+#
+# A name-only scan cannot see these. `onChange(of:)` exists from iOS 14, but the two-parameter
+# closure `{ old, new in }` is a separate iOS 17 overload -- so the call compiles or does not
+# depending on how many arguments the closure takes, not on the modifier's name. This is the same
+# class of error as scrollBounceBehavior and equally invisible from Windows.
+SHAPE = []
+ONCHANGE = re.compile(r"\.onChange\(of:[^)]*\)\s*\{([^}\n]*?)\bin\b")
+for fn in sorted(os.listdir(SRC)):
+    if not fn.endswith(".swift"):
+        continue
+    src = io.open(os.path.join(SRC, fn), encoding="utf-8").read()
+    for m in ONCHANGE.finditer(src):
+        if "," in m.group(1) and (17, 0) > target:
+            line_no = src[:m.start()].count(NL) + 1
+            SHAPE.append((fn, line_no, "onChange two-parameter closure", (17, 0),
+                          src.split(NL)[line_no - 1].strip()[:74]))
+problems.extend(SHAPE)
+
 for fn in sorted(os.listdir(SRC)):
     if not fn.endswith(".swift"):
         continue

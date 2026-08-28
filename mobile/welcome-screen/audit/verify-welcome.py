@@ -218,9 +218,17 @@ check("143 slot row has an aria label (swift)", "Enter your 6-digit verification
 # the keypad is a mock and must not be shipped
 check("143 no keypad built (kotlin)", "NumericKeypad" not in code_only(ver_kt))
 check("143 no keypad built (swift)", "NumericKeypad" not in code_only(ver_sw))
-# no emoji flag
-check("143 flag drawn, not emoji (kotlin)", "GermanFlag" in ver_kt)
-check("143 flag drawn, not emoji (swift)", "GermanFlag" in ver_sw)
+# No emoji flag. The mark used to be a hard-coded GermanFlag; it is now the generic Flag/FlagView
+# driven by the country table, so the check follows the component AND asserts what actually
+# matters -- that every flag is drawn from rects or a code chip, never a Unicode regional pair.
+flag_kt = read(KT, "welcome/CountryPicker.kt")
+flag_sw = read(SW, "CountryPicker.swift")
+check("143 flag is drawn (kotlin)", "fun Flag(" in flag_kt and "Flag(country)" in ver_kt)
+check("143 flag is drawn (swift)", "struct FlagView" in flag_sw and "FlagView(country: country)" in ver_sw)
+for label, src in [("kotlin", flag_kt), ("swift", flag_sw)]:
+    # regional indicator symbols U+1F1E6..U+1F1FF are how an emoji flag is spelled
+    check("143 no emoji flag (" + label + ")",
+          not any(0x1F1E6 <= ord(c) <= 0x1F1FF for c in src))
 
 # ── every named control is actually tappable ───────────────────────────────
 # SHOWUP-140: "Terms & Conditions, Privacy Policy, and Legal Notice are real tappable links"
@@ -293,7 +301,9 @@ COPY = [
         "What" + CURLY + "s your ", "number",
         "We" + CURLY + "ll send a 6-digit code to verify it is you.",
         "Standard message rates may apply.",
-        "Please enter a valid number e.g. 176 123 45 678",
+        # The single hard-coded German example is gone: the messages now name the country the
+        # user actually picked, which the ticket lists as an open concern about that string.
+        # verify-connect.py has no equivalent because 144 has no free-text input.
         "Send me the code",
         "Enter your ", "code",
         "We just sent a 6-digit code to ",
@@ -306,6 +316,19 @@ for kt_src, sw_src, strings in COPY:
     for s in strings:
         check("copy kotlin: " + s[:34], s in kt_src)
         check("copy swift : " + s[:34], s in sw_src)
+
+# The validation messages, which replaced the one hard-coded German example.
+codes_kt = read(KT, "welcome/CountryCodes.kt")
+codes_sw = read(SW, "CountryCodes.swift")
+for msg in ["Enter your phone number to continue.",
+            "Numbers only, please.",
+            "already covers it.",
+            "That looks too short for ",
+            "That looks too long for "]:
+    check("143 message kotlin: " + msg[:30], msg in codes_kt)
+    check("143 message swift : " + msg[:30], msg in codes_sw)
+check("143 country list is free, offline data (kotlin)", "val COUNTRIES" in codes_kt)
+check("143 country list is free, offline data (swift)", "let COUNTRIES" in codes_sw)
 
 # no emoji anywhere -- CLAUDE.md states it as a non-negotiable
 for label, src in [("kotlin shell", shell_kt), ("swift shell", shell_sw),

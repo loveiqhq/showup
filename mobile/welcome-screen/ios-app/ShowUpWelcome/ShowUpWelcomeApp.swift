@@ -62,17 +62,10 @@ private struct TutorialFlow: View {
         ZStack {
             Group {
                 switch screen {
-                // Welcome & sign-up (SHOWUP-140/142/143) runs before the tutorial, which is the
-                // real order: you sign up, then you are shown how the product works.
-                case -4: StartupView(onCreateAccount: { go(to: -2) }, onLogin: { go(to: -3) })
-                case -3: WelcomeBackView(
-                    onContinue: { m in go(to: m == .phone ? -2 : 1) },
-                    onUseDifferentAccount: { go(to: -4) })
-                case -2: PhoneNumberView(onBack: { go(to: -4) }, onSubmit: { go(to: -1) })
-                case -1: VerifyCodeView(onBack: { go(to: -2) }, onVerify: { go(to: 0) })
-                // SHOWUP-144. The only entry point is a successful code verify, and the only exits
-                // are the skip, the success CTA and a resolved conflict.
-                case 0: ConnectFlowHost(onDone: { go(to: 1) })
+                // Welcome & sign-up (SHOWUP-140/142/143/144) runs before the tutorial,
+                // which is the real order: you sign up, then you are shown how it works.
+                // SignUpFlowView owns every step and every piece of state inside it.
+                case -4: SignUpFlowView(onFinished: { go(to: 1) })
                 case 1: WelcomeView(onContinue: { go(to: 2) })
                 case 2: MeetInRealLifeView(onNext: { go(to: 3) })
                 case 3: MatchOnAvailabilityView(onNext: { go(to: 4) }, onBack: { go(to: 2) })

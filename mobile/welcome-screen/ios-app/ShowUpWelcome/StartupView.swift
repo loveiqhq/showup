@@ -16,8 +16,9 @@ struct StartupView: View {
     var onPrivacy: () -> Void = {}
     var onLegalNotice: () -> Void = {}
     /// The dates figure is dynamic and gated: SHOWUP-140 requires a toggle, because the claim only
-    /// appears once enough dates have actually been organised.
-    var showSocialProof: Bool = true
+    /// appears once enough dates have actually been organised. It defaults OFF -- the minimum has
+    /// not been decided, and shipping a number nobody has agreed to would be inventing it.
+    var showSocialProof: Bool = false
 
     @Environment(\.verticalSizeClass) private var vSize
 

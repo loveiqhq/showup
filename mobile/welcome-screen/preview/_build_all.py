@@ -13,6 +13,7 @@ The tutorial screens are also brought up to the values settled since they were b
 weight-500 italic, the radial-ellipse underline wash sized in em rather than a fixed-width bar, and
 the wordmark gradient.
 """
+import glob
 import io
 import os
 import re
@@ -20,7 +21,24 @@ import runpy
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DESKTOP = os.environ.get("SHOWUP_DESKTOP") or os.path.join(os.environ["USERPROFILE"], "Desktop")
+def _desktop():
+    """The Desktop the user actually sees.
+
+    Windows redirects Desktop into OneDrive on managed accounts, and then %USERPROFILE%\Desktop
+    still exists as an empty leftover -- so writing there succeeds and the file is invisible.
+    Prefer a OneDrive Desktop when one exists, and take the most recently used if several do.
+    """
+    if os.environ.get("SHOWUP_DESKTOP"):
+        return os.environ["SHOWUP_DESKTOP"]
+    home = os.environ["USERPROFILE"]
+    candidates = [p for p in glob.glob(os.path.join(home, "OneDrive*", "Desktop"))
+                  if os.path.isdir(p)]
+    if candidates:
+        return max(candidates, key=os.path.getmtime)
+    return os.path.join(home, "Desktop")
+
+
+DESKTOP = _desktop()
 OUT = os.path.join(DESKTOP, "ShowUp - ALL SCREENS final.html")
 
 # Both generators rewrap sys.stdout for UTF-8 output. Running them in one process means the second

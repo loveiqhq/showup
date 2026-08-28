@@ -18,6 +18,9 @@ package com.showup.welcome
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +32,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -125,14 +138,22 @@ private fun ColumnScope.Eyebrow() {
 
 @Composable
 fun PhoneNumberScreen(
-    value: String = "176 123 45 678",
-    invalid: Boolean = false,
-    countryCode: String = "+49",
+    /** Digits only, no spaces and no dial code -- the pill carries that. */
+    value: String = "",
+    onValueChange: (String) -> Unit = {},
+    country: Country = DEFAULT_COUNTRY,
+    error: PhoneError? = null,
     onBack: () -> Unit = {},
     onSubmit: () -> Unit = {},
     onOpenCountryList: () -> Unit = {},
 ) {
     val compact = LocalConfiguration.current.screenHeightDp < 700
+    val focus = remember { FocusRequester() }
+    val invalid = error != null
+
+    // The keyboard is why the user is here, so it opens with the screen rather than after a tap.
+    LaunchedEffect(Unit) { focus.requestFocus() }
+
     VerificationFrame(onBack) {
         Eyebrow()
         Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
@@ -150,8 +171,7 @@ fun PhoneNumberScreen(
 
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Country pill. DE / +49 is the mock default only — the real default comes from device
-            // locale, and tapping it opens a country list that is out of scope here.
+            // Country pill -- opens the list. The default comes from device locale; see SignUpFlow.
             Row(
                 Modifier
                     .height(56.dp)
@@ -163,13 +183,14 @@ fun PhoneNumberScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                GermanFlag()
-                Text(countryCode, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Flag(country)
+                Text(country.dial, color = Fg, fontFamily = Manrope,
+                     fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Icon(BrandIcon.ChevronDown, 16.dp, tint = Muted, strokeWidth = 2.dp)
             }
 
             // The invalid field keeps the same geometry as the default one, so it does not move
-            // when it fails — and the digits are preserved, never cleared.
+            // when it fails -- and the digits are preserved, never cleared.
             Row(
                 Modifier
                     .weight(1f)
@@ -180,23 +201,51 @@ fun PhoneNumberScreen(
                     .padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    value.ifBlank { "176 123 45 678" },
-                    color = if (value.isBlank()) Faint else Fg,
-                    fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                    letterSpacing = 0.3.sp, maxLines = 1,
+                BasicTextField(
+                    value = value,
+                    // Digits only at the source, so nothing downstream has to strip characters
+                    // that were never allowed in. Capped at the country’s longest real number.
+                    onValueChange = { raw ->
+                        onValueChange(raw.filter { it.isDigit() }.take(country.nsnMax))
+                    },
+                    modifier = Modifier.weight(1f).focusRequester(focus),
+                    textStyle = TextStyle(
+                        color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp, letterSpacing = 0.3.sp,
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(Purple),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done,
+                    ),
+                    // Enter submits, so the user never has to dismiss the keyboard to reach the CTA.
+                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+                    visualTransformation = remember(country) { GroupedDigits(country) },
+                    decorationBox = { inner ->
+                        if (value.isEmpty()) {
+                            Text(
+                                country.sample, color = Faint, fontFamily = Manrope,
+                                fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                                letterSpacing = 0.3.sp, maxLines = 1,
+                            )
+                        }
+                        inner()
+                    },
                 )
                 if (invalid) {
-                    Spacer(Modifier.weight(1f))
-                    Box(Modifier.size(22.dp).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
-                        Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Box(Modifier.size(22.dp).background(Danger, CircleShape),
+                        contentAlignment = Alignment.Center) {
+                        Text("!", color = Color.White, fontFamily = Lora,
+                             fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }
         }
 
-        // ⑥/⑩ the helper row is RESERVED at 20 — the error replaces the text in the same row so
-        // nothing below it moves.
+        // The helper row is RESERVED at 20 -- the error replaces the text in the same row so
+        // nothing below it moves. The messages name the country now, so the reserve is a minimum
+        // rather than a fixed height and a two-line message grows downward into the spacer.
         Box(
             Modifier
                 .fillMaxWidth()
@@ -205,9 +254,8 @@ fun PhoneNumberScreen(
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
             Text(
-                if (invalid) "Please enter a valid number e.g. 176 123 45 678"
-                else "Standard message rates may apply.",
-                // Muted, not Subtle — helper text has to be readable. See audit finding 7.
+                error?.message(country) ?: "Standard message rates may apply.",
+                // Muted, not Subtle -- helper text has to be readable. See audit finding 7.
                 color = if (invalid) DangerFg else Muted,
                 fontFamily = Manrope,
                 fontWeight = if (invalid) FontWeight.SemiBold else FontWeight.Medium,
@@ -216,26 +264,46 @@ fun PhoneNumberScreen(
         }
 
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
-        // Validation runs on submit, not per keystroke, so the CTA is only disabled after a failure
-        // and re-enables the moment the value changes.
-        PillButton("Send me the code", onSubmit, enabled = !invalid)
+        // Validation runs on submit, not per keystroke. The button stays live so the user can ask
+        // for the check -- what changes on failure is the message, not the availability of the
+        // action. A disabled CTA cannot explain itself, which the ticket lists as an open concern.
+        PillButton("Send me the code", onSubmit)
     }
 }
 
-/** Drawn as three rects with a hairline. CLAUDE.md forbids emoji anywhere, flags included. */
-@Composable
-private fun GermanFlag() {
-    Column(
-        Modifier
-            .size(width = 22.dp, height = 14.dp)
-            .clip(RoundedCornerShape(2.dp))
-            .border(0.5.dp, Color(0x591D1129), RoundedCornerShape(2.dp))
-    ) {
-        Box(Modifier.weight(1f).fillMaxWidth().background(Color(0xFF000000)))
-        Box(Modifier.weight(1f).fillMaxWidth().background(Color(0xFFDD0000)))
-        Box(Modifier.weight(1f).fillMaxWidth().background(Color(0xFFFFCE00)))
+/**
+ * Groups the digits the way that country writes them, without changing the stored value.
+ *
+ * A VisualTransformation rather than reformatting the state on every keystroke: the field holds
+ * plain digits, the spaces are painted on, and the OffsetMapping keeps the caret where the user
+ * put it. Reformatting the value itself is what makes a phone field jump the cursor to the end.
+ */
+private class GroupedDigits(private val country: Country) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = text.text
+        val shown = formatNational(digits, country)
+
+        // digit index -> index in the painted string, plus one entry for one-past-the-end
+        val toShown = IntArray(digits.length + 1)
+        var d = 0
+        shown.forEachIndexed { i, c -> if (c.isDigit()) { toShown[d] = i; d++ } }
+        toShown[digits.length] = shown.length
+
+        return TransformedText(
+            AnnotatedString(shown),
+            object : OffsetMapping {
+                override fun originalToTransformed(offset: Int) =
+                    toShown[offset.coerceIn(0, digits.length)]
+
+                override fun transformedToOriginal(offset: Int) =
+                    shown.take(offset.coerceIn(0, shown.length)).count { it.isDigit() }
+            },
+        )
     }
 }
+
+// The flag moved to CountryPicker.kt as `Flag`, which draws any of them from the country table
+// rather than hard-coding Germany. Still rects, never emoji.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // States C and D — enter code / code mismatch
@@ -245,6 +313,7 @@ private fun GermanFlag() {
 fun VerifyCodeScreen(
     phone: String = "+49 176 123 45 678",
     digits: String = "",
+    onDigitsChange: (String) -> Unit = {},
     mismatch: Boolean = false,
     cooldownSeconds: Int = 21,
     onBack: () -> Unit = {},
@@ -254,6 +323,11 @@ fun VerifyCodeScreen(
 ) {
     val compact = LocalConfiguration.current.screenHeightDp < 700
     val motion = rememberMotion()
+    val focus = remember { FocusRequester() }
+
+    // Same reasoning as state A: this screen exists to be typed into, so the keyboard opens with
+    // it rather than waiting for the user to discover that the slots are tappable.
+    LaunchedEffect(Unit) { focus.requestFocus() }
 
     // ⑯ one-shot shake, 480ms, on entering the mismatch state — then still. There is no looping
     // animation anywhere in this flow.
@@ -290,12 +364,20 @@ fun VerifyCodeScreen(
 
         // ⑬ six slots. 49 x 62 at 390 and above; 44 x 56 with gap 6 on the short frame, which is
         // the shrink the sheet names.
+        //
+        // ONE text field behind all six, not six fields. Six would mean six focus targets, and
+        // then backspace, paste and SMS autofill each have to be taught to hop between them —
+        // which is exactly where per-digit OTP inputs usually break. Here the field holds the
+        // whole code and the slots are its decoration, so paste and autofill work for free.
         val slotW = if (compact) 44.dp else 49.dp
         val slotH = if (compact) 56.dp else 62.dp
         Spacer(Modifier.height(if (compact) 8.dp else 26.dp))
-        Row(
-            Modifier
+        BasicTextField(
+            value = digits,
+            onValueChange = { raw -> onDigitsChange(raw.filter { it.isDigit() }.take(6)) },
+            modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(focus)
                 .graphicsLayer {
                     // +/- 6px, three cycles, decaying to nothing
                     val t = shake.value
@@ -303,41 +385,52 @@ fun VerifyCodeScreen(
                     else (kotlin.math.sin(t * 3f * 2f * Math.PI).toFloat() * 6.dp.toPx() * (1f - t))
                 }
                 .semantics { contentDescription = "Enter your 6-digit verification code" },
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            repeat(6) { i ->
-                val ch = digits.getOrNull(i)
-                val active = !mismatch && i == digits.length && digits.length < 6
-                Box(
-                    Modifier
-                        .size(width = slotW, height = slotH)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(if (mismatch) Danger.copy(alpha = 0.04f) else Elevated)
-                        .border(
-                            1.5.dp,
-                            when {
-                                mismatch -> Danger
-                                active -> Purple
-                                ch != null -> Fg.copy(alpha = 0.32f)
-                                else -> Border
-                            },
-                            RoundedCornerShape(14.dp),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (ch != null) {
-                        Text(
-                            ch.toString(),
-                            color = if (mismatch) DangerDigit else Fg,
-                            fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 30.sp,
-                        )
-                    } else if (active) {
-                        // 2 x 28 violet caret. No caret at all while in error.
-                        Box(Modifier.size(width = 2.dp, height = 28.dp).background(Purple))
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { if (digits.length == 6) onVerify() }),
+            singleLine = true,
+            // The glyphs are painted by the slots, so the field itself draws nothing — no text and
+            // no system caret. The violet caret in the active slot is ours.
+            textStyle = TextStyle(color = Color.Transparent),
+            cursorBrush = SolidColor(Color.Transparent),
+            decorationBox = {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    repeat(6) { i ->
+                        val ch = digits.getOrNull(i)
+                        val active = !mismatch && i == digits.length && digits.length < 6
+                        Box(
+                            Modifier
+                                .size(width = slotW, height = slotH)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (mismatch) Danger.copy(alpha = 0.04f) else Elevated)
+                                .border(
+                                    1.5.dp,
+                                    when {
+                                        mismatch -> Danger
+                                        active -> Purple
+                                        ch != null -> Fg.copy(alpha = 0.32f)
+                                        else -> Border
+                                    },
+                                    RoundedCornerShape(14.dp),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (ch != null) {
+                                Text(
+                                    ch.toString(),
+                                    color = if (mismatch) DangerDigit else Fg,
+                                    fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 30.sp,
+                                )
+                            } else if (active) {
+                                // 2 x 28 violet caret. No caret at all while in error.
+                                Box(Modifier.size(width = 2.dp, height = 28.dp).background(Purple))
+                            }
+                        }
                     }
                 }
-            }
-        }
+            },
+        )
 
         // ⑭/⑰ reserved helper region — see the file header and the audit note.
         Box(
@@ -458,13 +551,13 @@ fun VerifyCodeScreen(
 @Composable private fun VA430() { PhoneNumberScreen() }
 
 @Preview(name = "B · invalid · 375", showBackground = true, widthDp = 375, heightDp = 667)
-@Composable private fun VB375() { PhoneNumberScreen(value = "0151 2", invalid = true) }
+@Composable private fun VB375() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
 
 @Preview(name = "B · invalid · 390", showBackground = true, widthDp = 390, heightDp = 844)
-@Composable private fun VB390() { PhoneNumberScreen(value = "0151 2", invalid = true) }
+@Composable private fun VB390() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
 
 @Preview(name = "B · invalid · 430", showBackground = true, widthDp = 430, heightDp = 932)
-@Composable private fun VB430() { PhoneNumberScreen(value = "0151 2", invalid = true) }
+@Composable private fun VB430() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
 
 @Preview(name = "C · code · 375", showBackground = true, widthDp = 375, heightDp = 667)
 @Composable private fun VC375() { VerifyCodeScreen() }
@@ -494,7 +587,7 @@ fun VerifyCodeScreen(
 @Composable private fun VASystemUi() { PhoneNumberScreen() }
 
 @Preview(name = "B · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
-@Composable private fun VBSystemUi() { PhoneNumberScreen(value = "0151 2", invalid = true) }
+@Composable private fun VBSystemUi() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
 
 @Preview(name = "C · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
 @Composable private fun VCSystemUi() { VerifyCodeScreen() }

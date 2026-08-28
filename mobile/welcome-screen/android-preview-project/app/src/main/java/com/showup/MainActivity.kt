@@ -22,13 +22,8 @@ import com.showup.tutorial.MatchOnAvailabilityScreen
 import com.showup.tutorial.MeetInRealLifeScreen
 import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
+import com.showup.welcome.SignUpFlow
 import com.showup.tutorial.WelcomeScreen
-import com.showup.welcome.AuthMethod
-import com.showup.welcome.PhoneNumberScreen
-import com.showup.welcome.StartupScreen
-import com.showup.welcome.VerifyCodeScreen
-import com.showup.welcome.ConnectFlowHost
-import com.showup.welcome.WelcomeBackScreen
 import com.showup.tutorial.rememberMotion
 
 /**
@@ -78,27 +73,10 @@ class MainActivity : ComponentActivity() {
                 },
             ) { current ->
                 when (current) {
-                    // Welcome & sign-up (SHOWUP-140/142/143) runs before the tutorial, which is
-                    // the real order: you sign up, then you are shown how the product works.
-                    -4 -> StartupScreen(
-                        onCreateAccount = { screen = -2 },
-                        onLogin = { screen = -3 },
-                    )
-                    -3 -> WelcomeBackScreen(
-                        onContinue = { m -> screen = if (m == AuthMethod.Phone) -2 else 1 },
-                        onUseDifferentAccount = { screen = -4 },
-                    )
-                    -2 -> PhoneNumberScreen(
-                        onBack = { screen = -4 },
-                        onSubmit = { screen = -1 },
-                    )
-                    -1 -> VerifyCodeScreen(
-                        onBack = { screen = -2 },
-                        // SHOWUP-144: a successful verify is the only entry to Connect, and
-                        // Connect is the only thing between verification and the tutorial.
-                        onVerify = { screen = 0 },
-                    )
-                    0 -> ConnectFlowHost(onDone = { screen = 1 })
+                    // Welcome & sign-up (SHOWUP-140/142/143/144) runs before the tutorial,
+                    // which is the real order: you sign up, then you are shown how it works.
+                    // SignUpFlow owns every step and every piece of state inside it.
+                    -4 -> SignUpFlow(onFinished = { screen = 1 })
                     1 -> WelcomeScreen(onContinue = { screen = 2 })
                     2 -> MeetInRealLifeScreen(onNext = { screen = 3 })
                     3 -> MatchOnAvailabilityScreen(onNext = { screen = 4 }, onBack = { screen = 2 })

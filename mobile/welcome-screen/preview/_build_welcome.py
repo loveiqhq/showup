@@ -10,6 +10,7 @@ Screen 03 has no reference .jsx -- it is not yet ticketed in the handoff -- so i
 from SHOWUP-143's acceptance criteria and the annotated sheet, which is the only source there is.
 """
 import base64
+import glob
 import io
 import os
 import sys
@@ -18,7 +19,24 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 
 REPO = r"C:\Users\krnji\showup\mobile\welcome-screen"
 FONTS = os.path.join(REPO, "fonts")
-DESKTOP = os.environ.get("SHOWUP_DESKTOP") or os.path.join(os.environ["USERPROFILE"], "Desktop")
+def _desktop():
+    """The Desktop the user actually sees.
+
+    Windows redirects Desktop into OneDrive on managed accounts, and then %USERPROFILE%\Desktop
+    still exists as an empty leftover -- so writing there succeeds and the file is invisible.
+    Prefer a OneDrive Desktop when one exists, and take the most recently used if several do.
+    """
+    if os.environ.get("SHOWUP_DESKTOP"):
+        return os.environ["SHOWUP_DESKTOP"]
+    home = os.environ["USERPROFILE"]
+    candidates = [p for p in glob.glob(os.path.join(home, "OneDrive*", "Desktop"))
+                  if os.path.isdir(p)]
+    if candidates:
+        return max(candidates, key=os.path.getmtime)
+    return os.path.join(home, "Desktop")
+
+
+DESKTOP = _desktop()
 OUT = os.path.join(DESKTOP, "ShowUp - welcome & sign-up.html")
 
 
@@ -321,24 +339,27 @@ def backdrop143(dim=False):
 
 
 # ── screen 140 ──────────────────────────────────────────────────────────────
-def startup(w, sm, home, wgap):
+def startup(w, sm, home, wgap, show_proof=False):
     sb, hi = chrome(sm, home)
+    # SHOWUP-140 calls the dates figure dynamic and gated: it appears only once enough dates exist,
+    # and the minimum is still undecided. OFF by default, matching the app. The two flex spacers
+    # stay either way, so this is the layout that ships -- not a version with a hole in it.
+    proof = ('<div class="proof"><span style="color:var(--orange)">%s</span>'
+             '<span><b>234.000 Dates</b> already organized</span></div>'
+             % ico("calendar", 16, 2)) if show_proof else ''
     return ('<div class="screen s140" style="--w:%dpx;--h:%dpx;--st:%dpx;--sbm:%dpx;--r:%dpx;--wgap:%dpx">'
             '%s%s<div class="body">%s'
             '<div class="stack">'
             '<h1 class="h1 ul"><span class="l1">Stop texting for days.</span>Start <em>meeting</em> today.</h1>'
             '<p class="sub">Your availability. Your intent. Your date &#8212; today or tomorrow.</p>'
             '</div>'
-            '<div class="gap"></div>'
-            '<div class="proof"><span style="color:var(--orange)">%s</span>'
-            '<span><b>234.000 Dates</b> already organized</span></div>'
-            '<div class="gap"></div>'
+            '<div class="gap"></div>%s<div class="gap"></div>'
             '<p class="legal">By creating an account, you agree to our <b>Terms &amp; Conditions</b> and '
             'acknowledge that you have read our <b>Privacy Policy</b>. See our <b>Legal Notice</b>.</p>'
             '<div class="cta"><button class="btn sunset">Create free account</button></div>'
             '<div class="login"><button>Already have an account? <u>Log in</u></button></div>'
             '</div>%s</div>'
-            % (w[0], w[1], w[2], w[3], w[4], wgap, backdrop(), sb, WORDMARK, ico("calendar", 16, 2), hi))
+            % (w[0], w[1], w[2], w[3], w[4], wgap, backdrop(), sb, WORDMARK, proof, hi))
 
 
 # ── screen 142 ──────────────────────────────────────────────────────────────

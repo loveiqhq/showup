@@ -13,6 +13,7 @@ instead of two.
 
     python preview/_build_connect.py
 """
+import glob
 import io
 import os
 import sys
@@ -27,7 +28,24 @@ from _build_welcome import (  # noqa: E402
 # UTF-8 wrapper, and wrapping that wrapper closes the underlying buffer when the first one is
 # collected -- the print at the end then dies with "I/O operation on closed file".
 
-DESKTOP = os.environ.get("SHOWUP_DESKTOP") or os.path.join(os.environ["USERPROFILE"], "Desktop")
+def _desktop():
+    """The Desktop the user actually sees.
+
+    Windows redirects Desktop into OneDrive on managed accounts, and then %USERPROFILE%\Desktop
+    still exists as an empty leftover -- so writing there succeeds and the file is invisible.
+    Prefer a OneDrive Desktop when one exists, and take the most recently used if several do.
+    """
+    if os.environ.get("SHOWUP_DESKTOP"):
+        return os.environ["SHOWUP_DESKTOP"]
+    home = os.environ["USERPROFILE"]
+    candidates = [p for p in glob.glob(os.path.join(home, "OneDrive*", "Desktop"))
+                  if os.path.isdir(p)]
+    if candidates:
+        return max(candidates, key=os.path.getmtime)
+    return os.path.join(home, "Desktop")
+
+
+DESKTOP = _desktop()
 OUT = os.path.join(DESKTOP, "ShowUp - connect account.html")
 
 # ── connect-only CSS. Everything else is inherited from the welcome sheet. ──

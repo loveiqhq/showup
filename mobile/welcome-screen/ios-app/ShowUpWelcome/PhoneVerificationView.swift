@@ -67,12 +67,16 @@ private struct VerificationEyebrow: View {
 // MARK: - States A and B
 
 struct PhoneNumberView: View {
-    var value: String = "176 123 45 678"
-    var invalid: Bool = false
-    var countryCode: String = "+49"
+    /// Digits only, no spaces and no dial code -- the pill carries that.
+    @Binding var value: String
+    var country: Country = DEFAULT_COUNTRY
+    var error: PhoneError? = nil
     var onBack: () -> Void = {}
     var onSubmit: () -> Void = {}
     var onOpenCountryList: () -> Void = {}
+
+    @FocusState private var focused: Bool
+    private var invalid: Bool { error != nil }
 
     var body: some View {
         GeometryReader { geo in
@@ -92,12 +96,11 @@ struct PhoneNumberView: View {
 
                 Spacer().frame(height: compact ? 12 : 22)
                 HStack(spacing: 8) {
-                    // DE / +49 is the mock default only — the real default comes from device locale,
-                    // and tapping opens a country list that is out of scope here.
+                    // The default comes from device locale; see SignUpFlowView.
                     Button(action: onOpenCountryList) {
                         HStack(spacing: 8) {
-                            GermanFlag()
-                            Text(countryCode).font(F.manrope(16, .semibold)).foregroundColor(.liqFg)
+                            FlagView(country: country)
+                            Text(country.dial).font(F.manrope(16, .semibold)).foregroundColor(.liqFg)
                             BrandIconView(icon: .chevronDown, size: 16, stroke: 2, tint: .liqMuted)
                         }
                         .padding(.horizontal, 14)
@@ -113,12 +116,27 @@ struct PhoneNumberView: View {
                     // Same geometry as the default field, so it does not move when it fails — and
                     // the digits are preserved, never cleared.
                     HStack(spacing: 0) {
-                        Text(value.isEmpty ? "176 123 45 678" : value)
-                            .font(F.manrope(17, .semibold))
-                            .monospacedDigit()
-                            .tracking(0.3)
-                            .foregroundColor(value.isEmpty ? .liqFaint : .liqFg)
-                            .lineLimit(1)
+                        // Bound to the raw digits; the grouping is applied on every change so
+                        // the field always displays the country's own habits. Assigning back only
+                        // when the value actually differs stops the binding looping.
+                        TextField(country.sample, text: Binding(
+                            get: { formatNational(value, country) },
+                            set: { typed in
+                                let digits = String(typed.filter(\.isNumber).prefix(country.nsnMax))
+                                if digits != value { value = digits }
+                            }
+                        ))
+                        .keyboardType(.phonePad)
+                        .textContentType(.telephoneNumber)
+                        .focused($focused)
+                        .font(F.manrope(17, .semibold))
+                        .monospacedDigit()
+                        .tracking(0.3)
+                        .foregroundColor(.liqFg)
+                        .tint(.liqPurple)
+                        .lineLimit(1)
+                        .submitLabel(.done)
+                        .onSubmit(onSubmit)
                         if invalid {
                             Spacer(minLength: 0)
                             ZStack {
@@ -139,8 +157,7 @@ struct PhoneNumberView: View {
 
                 // Reserved at 20 — the error replaces the text in the same row, so nothing below
                 // it moves and the CTA stays put.
-                Text(invalid ? "Please enter a valid number e.g. 176 123 45 678"
-                             : "Standard message rates may apply.")
+                Text(error?.message(country) ?? "Standard message rates may apply.")
                     .font(F.manrope(13, invalid ? .semibold : .medium))
                     // Muted, not Subtle — helper text has to be readable. Audit finding 7.
                     .foregroundColor(invalid ? .liqDangerFg : .liqMuted)
@@ -150,34 +167,25 @@ struct PhoneNumberView: View {
                     .accessibilityAddTraits(.updatesFrequently)
 
                 Spacer().frame(height: compact ? 12 : 22)
-                // Validation runs on submit, not per keystroke, so the CTA is only disabled after a
-                // failure and re-enables the moment the value changes.
-                PillButton("Send me the code", enabled: !invalid, action: onSubmit)
+                // Validation runs on submit, not per keystroke. The button stays live so the
+                // user can ask for the check -- what changes on failure is the message, not the
+                // availability of the action.
+                PillButton("Send me the code", action: onSubmit)
             }
+            // The keyboard is why the user is here, so it opens with the screen.
+            .onAppear { focused = true }
         }
     }
 }
 
-/// Three rects with a hairline. CLAUDE.md forbids emoji anywhere, flags included.
-private struct GermanFlag: View {
-    var body: some View {
-        VStack(spacing: 0) {
-            Color.black
-            Color(hex: 0xDD0000)
-            Color(hex: 0xFFCE00)
-        }
-        .frame(width: 22, height: 14)
-        .clipShape(RoundedRectangle(cornerRadius: 2))
-        .overlay(RoundedRectangle(cornerRadius: 2)
-            .strokeBorder(Color.liqFg.opacity(0.35), lineWidth: 0.5))
-    }
-}
+// The flag moved to CountryPicker.swift as `FlagView`, which draws any of them from the
+// country table rather than hard-coding Germany. Still rects, never emoji.
 
 // MARK: - States C and D
 
 struct VerifyCodeView: View {
     var phone: String = "+49 176 123 45 678"
-    var digits: String = ""
+    @Binding var digits: String
     var mismatch: Bool = false
     var cooldownSeconds: Int = 21
     var onBack: () -> Void = {}
@@ -187,6 +195,7 @@ struct VerifyCodeView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shake: CGFloat = 0
+    @FocusState private var focused: Bool
 
     var body: some View {
         GeometryReader { geo in
@@ -212,16 +221,43 @@ struct VerifyCodeView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 Spacer().frame(height: compact ? 8 : 26)
-                HStack(spacing: compact ? 6 : 8) {
-                    ForEach(0..<6, id: \.self) { i in
-                        slot(index: i, width: slotW, height: slotH)
+                // ONE text field behind all six slots, not six fields. Six would mean six focus
+                // targets, and then backspace, paste and SMS autofill each have to be taught to
+                // hop between them — which is exactly where per-digit OTP inputs usually break.
+                // Here the field holds the whole code and the slots are its decoration, so paste
+                // and iOS's own one-time-code autofill work for free.
+                ZStack {
+                    TextField("", text: Binding(
+                        get: { digits },
+                        set: { digits = String($0.filter(\.isNumber).prefix(6)) }
+                    ))
+                    .keyboardType(.numberPad)
+                    .textContentType(.oneTimeCode)
+                    .focused($focused)
+                    // The glyphs are painted by the slots, so the field itself draws nothing.
+                    .foregroundColor(.clear)
+                    .tint(.clear)
+                    .accentColor(.clear)
+                    .frame(maxWidth: .infinity, minHeight: slotH)
+
+                    HStack(spacing: compact ? 6 : 8) {
+                        ForEach(0..<6, id: \.self) { i in
+                            slot(index: i, width: slotW, height: slotH)
+                        }
                     }
+                    .allowsHitTesting(false)
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { focused = true }
+                .onAppear { focused = true }
                 .frame(maxWidth: .infinity)
                 .offset(x: shake)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Enter your 6-digit verification code")
-                .onChange(of: mismatch) { _, isBad in
+                // One parameter, not two. The two-parameter closure — `{ old, new in }` — is the
+                // iOS 17 overload, and this target deploys to 16.0. Same trap as
+                // scrollBounceBehavior: valid Swift that needs a newer OS than we claim to support.
+                .onChange(of: mismatch) { isBad in
                     // One shot, 480ms, then still. There is no looping animation in this flow.
                     guard isBad, !reduceMotion else { shake = 0; return }
                     withAnimation(.linear(duration: 0.48)) { shake = 0 }

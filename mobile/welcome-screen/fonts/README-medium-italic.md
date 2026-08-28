@@ -1,57 +1,63 @@
-# Lora-MediumItalic.ttf — generated, not shipped by the foundry
+# Lora-MediumItalic.ttf — the official cut, instanced from the variable font
 
 `tokens/colors_and_type.css` puts the italic run inside `.su-underlined` at **weight 500**. The
-design handoff shipped two italic cuts only:
+design handoff ships static cuts at 400 and 700 only, and no 500.
 
-| file | weight |
+That gap is now closed properly. **This file is the foundry's own Medium Italic**, not a
+reconstruction.
+
+## Where it comes from
+
+The design system's own stylesheet asks for Lora as a **variable font**:
+
+```
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&…');
+```
+
+A variable font covering 400–700 italic contains every weight in that range as a real, designed
+position — including 500, which Lora declares as a **named instance called "Medium Italic"**. The
+weight was never missing; only the static file was.
+
+So: the upstream `Lora-Italic[wght].ttf` (version 3.008, from `google/fonts`) is kept here as
+`_source-Lora-Italic-variable.ttf`, and this file is that font instanced at `wght=500` with
+`fontTools.varLib.instancer`. It is exactly what Google Fonts serves a browser that asks for Lora
+italic at 500 — the same bytes the design mockups render with.
+
+To rebuild it:
+
+```python
+from fontTools.ttLib import TTFont
+from fontTools.varLib import instancer
+f = TTFont("_source-Lora-Italic-variable.ttf")
+inst = instancer.instantiateVariableFont(f, {"wght": 500}, updateFontNames=True)
+inst["OS/2"].usWeightClass = 500
+inst.save("Lora-MediumItalic.ttf")
+```
+
+## What this replaced
+
+Before the variable font was available, this file was built by interpolating between the shipped
+400 and 700 static masters — merging them into a two-master variable font and instancing at 500.
+That reconstruction has now been checked against the official cut, across all **889 glyphs**:
+
+| | Result |
 |---|---|
-| `Lora-Italic.ttf` | 400 |
-| `Lora-BoldItalic.ttf` | 700 |
+| Advance widths | **identical** — 0 units difference on every glyph sampled |
+| Glyph outlines | largest deviation **1 unit** on a 1000-unit em, on one glyph (`foundry`) |
+| Kerning | 458 pair sets in both |
 
-No 500, and no variable master to instance one from. That left "use 400" or "wait for design" —
-except the two masters turned out to interpolate cleanly.
+So the reconstruction was correct, and no rendering changes with this swap. It is replaced anyway
+because provenance matters more than pixels: this one is the designer's file, carries the real
+version string, and needs no explanation to anyone reviewing the licence or the build.
 
-## How it was made
+## Licence
 
-Verified first: both files carry **889 glyphs**, identical names, identical contour and point
-structure in identical order. When two masters are compatible like that, every weight between them
-can be constructed — it is the same arithmetic a variable font performs at runtime.
+SIL Open Font License 1.1, same as every other font here — see `OFL-Lora.txt`. Instancing a
+variable font is explicitly permitted; the OFL reserved-name rules are satisfied because the family
+name stays "Lora".
 
-`../../../audit/../scratchpad` is gone, so the procedure, for anyone repeating it:
+## If design ever supplies their own file
 
-1. Strip `GSUB` / `GPOS` / `GDEF` from copies of both masters. The bold carries an `rvrn` feature
-   the regular does not, and `varLib` refuses to merge masters whose feature lists differ at all.
-   `rvrn` only means anything inside a variable font, so it is noise here.
-2. Build a two-master variable font on a `wght` axis from 400 to 700.
-3. Instance it at **500** and drop the variation tables, leaving a static font.
-4. Restore the layout tables from the **400** master, so ligatures and kerning survive.
-5. Set the names and `usWeightClass` to 500.
-
-## Evidence it is a real interpolation
-
-The advance width of `n` lands between the two masters rather than on top of either:
-
-| weight | advance |
-|---|---|
-| 400 | 615 |
-| **500** | **613** |
-| 700 | 610 |
-
-A synthetic embolden would not do that — it would keep the 400 metrics and thicken the strokes.
-
-## What it is not
-
-It is **not** what the foundry would ship as Lora Medium Italic. A type designer may hand-correct an
-intermediate master rather than take the pure interpolation. The difference at headline sizes is not
-visible, but it is a difference.
-
-## Kerning
-
-Comes from the 400 master rather than being interpolated, because the layout tables could not be
-merged. At the sizes this is used — one italic word in a 38–44pt headline — that is not detectable.
-
-## Replace it
-
-The moment design supplies a real `Lora-MediumItalic.ttf`, drop it in over this file. Nothing else
-changes: the PostScript name (`Lora-MediumItalic`), the Android resource name
-(`lora_mediumitalic`), the `Info.plist` entry and the Xcode reference all stay the same.
+Drop it in over this one. Nothing else changes: the PostScript name (`Lora-MediumItalic`), the
+Android resource name (`lora_mediumitalic`), the `Info.plist` entry and the Xcode reference all
+stay as they are.
