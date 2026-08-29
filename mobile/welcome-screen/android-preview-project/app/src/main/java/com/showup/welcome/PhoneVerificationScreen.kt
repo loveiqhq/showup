@@ -498,37 +498,38 @@ fun VerifyCodeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
         ) {
-            // The question and the action are ONE target while the resend is live, so the whole
-            // block is tappable rather than just the underlined phrase. While cooling it is inert
-            // on purpose: the sheet allows no silent resend, so a tappable label during the
-            // cooldown would be either a dead control or a rule broken.
-            Column(
-                Modifier
-                    .then(
-                        if (resendLive) Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(role = Role.Button, onClick = onResend)
-                        else Modifier
-                    )
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                    .semantics(mergeDescendants = true) {},
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
-            ) {
-                Text("Didn’t receive a code?", color = Muted, fontFamily = Manrope,
-                     fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                if (resendLive) {
-                    Text(
-                        "Send a new code",
-                        color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp, textDecoration = TextDecoration.Underline,
-                    )
-                } else {
-                    Text(
-                        "Send a new code in 0:%02d".format(cooldownSeconds),
-                        color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                    )
-                }
+            // "Didn't receive a code?" is a LABEL, not a control. It introduces the action below
+            // it and does nothing on its own.
+            //
+            // It was briefly merged with the action into one tap target, which meant tapping the
+            // question sent another SMS — a question that silently spends money and restarts the
+            // cooldown, with nothing on screen to suggest it would. The reference has it as plain
+            // text and the button as a button, which is the right shape.
+            Text("Didn’t receive a code?", color = Muted, fontFamily = Manrope,
+                 fontWeight = FontWeight.Medium, fontSize = 14.sp)
+
+            if (resendLive) {
+                Text(
+                    "Send a new code",
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(role = Role.Button, onClick = onResend)
+                        // 44dp is the smallest comfortable touch target; the text alone is ~20.
+                        .heightIn(min = 44.dp)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp, textDecoration = TextDecoration.Underline,
+                )
+            } else {
+                // Inert while cooling, on purpose: the ticket allows no silent resend, so a
+                // tappable label during the cooldown would be either a dead control or a rule
+                // broken. tabular figures so the countdown does not jitter as it ticks.
+                Text(
+                    "Send a new code in 0:%02d".format(cooldownSeconds),
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                )
             }
             Row(
                 Modifier

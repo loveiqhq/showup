@@ -15,6 +15,20 @@ struct FlagView: View {
 
     private var height: CGFloat { width * 14 / 22 }
 
+    /// A five-pointed star, point upward: outer and inner radii alternating every 36 degrees.
+    static func star(_ cx: CGFloat, _ cy: CGFloat, _ outer: CGFloat) -> Path {
+        let inner = outer * 0.382          // the ratio a regular pentagram gives
+        var p = Path()
+        for i in 0..<10 {
+            let r = i % 2 == 0 ? outer : inner
+            let a = (-90.0 + Double(i) * 36.0) * .pi / 180
+            let pt = CGPoint(x: cx + r * CGFloat(cos(a)), y: cy + r * CGFloat(sin(a)))
+            if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+        }
+        p.closeSubpath()
+        return p
+    }
+
     var body: some View {
         Group {
             switch country.flag {
@@ -47,6 +61,67 @@ struct FlagView: View {
                         let thin = t * 0.45
                         Color(hex: inner).frame(height: thin).offset(y: (height - thin) / 2)
                         Color(hex: inner).frame(width: thin).offset(x: vx + (t - thin) / 2)
+                    }
+                }
+
+            // Everything that is not just stripes: a hoist triangle, a canton, a crescent, a
+            // leaf. Drawn from fractions of the box, so one description is right at any size.
+            case let .layers(shapes):
+                Canvas { ctx, size in
+                    let w = size.width, h = size.height
+                    for shape in shapes {
+                        switch shape {
+                        case let .fill(c):
+                            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(hex: c)))
+
+                        case let .stripes(horizontal, colors):
+                            let n = CGFloat(colors.count)
+                            for (i, c) in colors.enumerated() {
+                                // +1 closes the hairline seams rounding leaves between bands.
+                                let r = horizontal
+                                    ? CGRect(x: 0, y: h * CGFloat(i) / n, width: w, height: h / n + 1)
+                                    : CGRect(x: w * CGFloat(i) / n, y: 0, width: w / n + 1, height: h)
+                                ctx.fill(Path(r), with: .color(Color(hex: c)))
+                            }
+
+                        case let .box(x, y, bw, bh, c):
+                            ctx.fill(Path(CGRect(x: x * w, y: y * h, width: bw * w, height: bh * h)),
+                                     with: .color(Color(hex: c)))
+
+                        case let .poly(pts, c):
+                            var p = Path()
+                            for (i, pt) in pts.enumerated() {
+                                let cg = CGPoint(x: pt.0 * w, y: pt.1 * h)
+                                if i == 0 { p.move(to: cg) } else { p.addLine(to: cg) }
+                            }
+                            p.closeSubpath()
+                            ctx.fill(p, with: .color(Color(hex: c)))
+
+                        case let .disc(cx, cy, r, c):
+                            ctx.fill(Path(ellipseIn: CGRect(x: cx * w - r * h, y: cy * h - r * h,
+                                                            width: r * h * 2, height: r * h * 2)),
+                                     with: .color(Color(hex: c)))
+
+                        case let .ring(cx, cy, r, sw, c):
+                            ctx.stroke(Path(ellipseIn: CGRect(x: cx * w - r * h, y: cy * h - r * h,
+                                                              width: r * h * 2, height: r * h * 2)),
+                                       with: .color(Color(hex: c)), lineWidth: sw * h)
+
+                        case let .star(cx, cy, r, c):
+                            ctx.fill(FlagView.star(cx * w, cy * h, r * h), with: .color(Color(hex: c)))
+
+                        case let .checks(x, y, cw0, ch0, n, a, b):
+                            let cw = cw0 * w / CGFloat(n), ch = ch0 * h / CGFloat(n)
+                            for row in 0..<n {
+                                for col in 0..<n {
+                                    let c = (row + col) % 2 == 0 ? a : b
+                                    ctx.fill(Path(CGRect(x: x * w + CGFloat(col) * cw,
+                                                         y: y * h + CGFloat(row) * ch,
+                                                         width: cw + 0.5, height: ch + 0.5)),
+                                             with: .color(Color(hex: c)))
+                                }
+                            }
+                        }
                     }
                 }
 

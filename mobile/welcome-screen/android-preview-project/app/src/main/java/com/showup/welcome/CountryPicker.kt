@@ -9,6 +9,10 @@
  */
 package com.showup.welcome
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +40,24 @@ import com.showup.designsystem.Muted
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Raised
+
+/** A five-pointed star, point upward: outer and inner radii alternating every 36 degrees. */
+private fun starPath(s: FlagShape.Star, w: Float, h: Float): androidx.compose.ui.graphics.Path {
+    val cx = s.cx * w
+    val cy = s.cy * h
+    val outer = s.r * h
+    val inner = outer * 0.382f            // the ratio a regular pentagram gives
+    return androidx.compose.ui.graphics.Path().apply {
+        for (i in 0 until 10) {
+            val r = if (i % 2 == 0) outer else inner
+            val a = Math.toRadians(-90.0 + i * 36.0)
+            val px = cx + (r * kotlin.math.cos(a)).toFloat()
+            val py = cy + (r * kotlin.math.sin(a)).toFloat()
+            if (i == 0) moveTo(px, py) else lineTo(px, py)
+        }
+        close()
+    }
+}
 
 /** 22 x 14 with a hairline, so a white stripe against a white field still reads as a flag. */
 @Composable
@@ -80,6 +102,69 @@ fun Flag(country: Country, width: Dp = 22.dp) {
                         .background(Color(art.inner)))
                     Box(Modifier.align(Alignment.TopStart).offset(x = vx + (arm - thin) / 2)
                         .width(thin).fillMaxHeight().background(Color(art.inner)))
+                }
+            }
+        }
+
+        // Everything that is not just stripes: a hoist triangle, a canton, a crescent, a leaf.
+        // Drawn on a Canvas from fractions of the box, so one description is correct at any size.
+        is FlagArt.Layers -> Canvas(outline) {
+            val w = size.width
+            val h = size.height
+            art.shapes.forEach { shape ->
+                when (shape) {
+                    is FlagShape.Fill -> drawRect(Color(shape.c))
+
+                    is FlagShape.Stripes -> {
+                        val n = shape.colors.size
+                        shape.colors.forEachIndexed { i, c ->
+                            if (shape.horizontal) {
+                                // +1 on the height closes the hairline seams that rounding leaves
+                                // between adjacent bands.
+                                drawRect(Color(c), Offset(0f, h * i / n), Size(w, h / n + 1f))
+                            } else {
+                                drawRect(Color(c), Offset(w * i / n, 0f), Size(w / n + 1f, h))
+                            }
+                        }
+                    }
+
+                    is FlagShape.Box -> drawRect(
+                        Color(shape.c),
+                        Offset(shape.x * w, shape.y * h),
+                        Size(shape.w * w, shape.h * h),
+                    )
+
+                    is FlagShape.Poly -> drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            shape.pts.forEachIndexed { i, (px, py) ->
+                                if (i == 0) moveTo(px * w, py * h) else lineTo(px * w, py * h)
+                            }
+                            close()
+                        },
+                        Color(shape.c),
+                    )
+
+                    is FlagShape.Disc ->
+                        drawCircle(Color(shape.c), shape.r * h, Offset(shape.cx * w, shape.cy * h))
+
+                    is FlagShape.Ring -> drawCircle(
+                        Color(shape.c), shape.r * h, Offset(shape.cx * w, shape.cy * h),
+                        style = Stroke(shape.w * h),
+                    )
+
+                    is FlagShape.Star -> drawPath(starPath(shape, w, h), Color(shape.c))
+
+                    is FlagShape.Checks -> {
+                        val cw = shape.w * w / shape.n
+                        val ch = shape.h * h / shape.n
+                        for (row in 0 until shape.n) for (col in 0 until shape.n) {
+                            drawRect(
+                                Color(if ((row + col) % 2 == 0) shape.a else shape.b),
+                                Offset(shape.x * w + col * cw, shape.y * h + row * ch),
+                                Size(cw + 0.5f, ch + 0.5f),
+                            )
+                        }
+                    }
                 }
             }
         }

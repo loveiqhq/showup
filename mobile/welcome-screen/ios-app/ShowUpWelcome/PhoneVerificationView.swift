@@ -311,31 +311,40 @@ struct VerifyCodeView: View {
                     // A mistyped code must not cost another 24s wait, so the mismatch state releases
                     // the cooldown to 0 and the resend becomes a live button.
                     //
-                    // The question and the action are ONE target while the resend is live, so the
-                    // whole block is tappable rather than just the underlined phrase. While cooling
-                    // it is inert on purpose: the sheet allows no silent resend, so a tappable label
-                    // during the cooldown would be either a dead control or a rule broken.
+                    // "Didn't receive a code?" is a LABEL, not a control. It introduces the action
+                    // below it and does nothing on its own.
+                    //
+                    // It was briefly merged with the action into one tap target, which meant
+                    // tapping the question sent another SMS — a question that silently spends
+                    // money and restarts the cooldown, with nothing on screen to suggest it would.
+                    // The reference has it as plain text and the button as a button.
                     let resendLive = mismatch || cooldownSeconds <= 0
-                    Button(action: { if resendLive { onResend() } }) {
-                        VStack(spacing: compact ? 4 : 6) {
-                            Text("Didn’t receive a code?")
-                                .font(F.manrope(14, .medium)).foregroundColor(.liqMuted)
-                            if resendLive {
-                                Text("Send a new code")
-                                    .font(F.manrope(14, .bold)).foregroundColor(.liqPurple).underline()
-                            } else {
-                                Text(String(format: "Send a new code in 0:%02d", cooldownSeconds))
-                                    .font(F.manrope(14, .semibold)).monospacedDigit()
-                                    .foregroundColor(.liqMuted)
-                            }
+                    Text("Didn’t receive a code?")
+                        .font(F.manrope(14, .medium))
+                        .foregroundColor(.liqMuted)
+
+                    if resendLive {
+                        Button(action: onResend) {
+                            Text("Send a new code")
+                                .font(F.manrope(14, .bold))
+                                .foregroundColor(.liqPurple)
+                                .underline()
+                                // 44pt is Apple's own minimum touch target; the text alone is ~20.
+                                .frame(minHeight: 44)
+                                .padding(.horizontal, 12)
+                                .contentShape(Rectangle())
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
+                        .buttonStyle(PressScale())
+                    } else {
+                        // Inert while cooling, on purpose: the ticket allows no silent resend, so a
+                        // tappable label during the cooldown would be either a dead control or a
+                        // rule broken. Tabular figures so the countdown does not jitter.
+                        Text(String(format: "Send a new code in 0:%02d", cooldownSeconds))
+                            .font(F.manrope(14, .semibold))
+                            .monospacedDigit()
+                            .foregroundColor(.liqMuted)
+                            .padding(.vertical, 4)
                     }
-                    .buttonStyle(PressScale())
-                    .disabled(!resendLive)
-                    .accessibilityLabel(Text(resendLive ? "Send a new code" : "Send a new code, waiting"))
                     Button(action: onEditNumber) {
                         HStack(spacing: 6) {
                             BrandIconView(icon: .pencil, size: 13, stroke: 1.8, tint: .liqMuted)

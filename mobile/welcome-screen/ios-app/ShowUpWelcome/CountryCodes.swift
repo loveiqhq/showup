@@ -26,12 +26,36 @@ enum FlagArt {
     case bands(horizontal: Bool, stripes: [(UInt32, Int)])
     /// The Nordic cross — offset left, not centred. `inner` draws a second, thinner cross.
     case cross(bg: UInt32, arm: UInt32, inner: UInt32? = nil, centred: Bool = false)
-    /// The ISO code on a neutral chip, for flags we cannot draw honestly.
+    /// An ordered list of shapes on a 0..1 unit square, painted back to front.
     ///
-    /// A Union Jack or a Stars and Stripes approximated out of rectangles is worse than no flag: it
-    /// reads as a bug, and for some countries an inaccurate flag is a genuine offence. The code is
-    /// unambiguous and always correct.
+    /// Bands and cross cover the flags that are just stripes; this covers the rest — a triangle
+    /// from the hoist, a canton, a crescent, a leaf. Everything is a fraction of the flag rather
+    /// than a point, so one description renders correctly at any size and on either platform.
+    case layers([FlagShape])
+    /// The ISO code on a neutral chip, for the few flags that cannot be drawn honestly.
+    ///
+    /// Reserved for flags whose identity depends on a coat of arms — Slovakia and Slovenia are
+    /// both white-blue-red and are told apart ONLY by their arms, so drawing the stripes alone
+    /// would render two different countries identically. Australia needs a Union Jack plus the
+    /// Southern Cross at a size where neither survives. A wrong flag is worse than an honest code.
     case code
+}
+
+/// One shape in a `.layers` flag. All coordinates are fractions of the flag, 0..1.
+enum FlagShape {
+    case fill(UInt32)
+    /// Equal stripes, painted in order. `horizontal: false` means vertical.
+    case stripes(horizontal: Bool, colors: [UInt32])
+    case box(CGFloat, CGFloat, CGFloat, CGFloat, UInt32)
+    /// A filled polygon — a hoist triangle, a maple leaf, a diagonal of a Union Jack.
+    case poly([(CGFloat, CGFloat)], UInt32)
+    case disc(CGFloat, CGFloat, CGFloat, UInt32)
+    /// The fourth value is the stroke width as a fraction of the flag height.
+    case ring(CGFloat, CGFloat, CGFloat, CGFloat, UInt32)
+    /// A five-pointed star, point upward. The third value is the outer radius.
+    case star(CGFloat, CGFloat, CGFloat, UInt32)
+    /// n x n alternating squares — Croatia's shield, which is what tells it from the Dutch.
+    case checks(CGFloat, CGFloat, CGFloat, CGFloat, Int, UInt32, UInt32)
 }
 
 struct Country: Identifiable, Equatable {
@@ -76,7 +100,10 @@ let COUNTRIES: [Country] = [
     .init(iso: "CH", name: "Switzerland", dial: "+41", nsnMin: 9, nsnMax: 9,
           flag: .cross(bg: 0xDA291C, arm: 0xFFFFFF, centred: true), sample: "78 123 45 67"),
     .init(iso: "CZ", name: "Czechia", dial: "+420", nsnMin: 9, nsnMax: 9,
-          flag: .code, sample: "601 123 456"),
+          flag: .layers([
+        .stripes(horizontal: true, colors: [0xFFFFFF, 0xD7141A]),
+        .poly([(0, 0), (0.5, 0.5), (0, 1)], 0x11457E),
+    ]), sample: "601 123 456"),
     .init(iso: "DE", name: "Germany", dial: "+49", nsnMin: 10, nsnMax: 11,
           flag: bandsH(0x000000, 0xDD0000, 0xFFCE00), sample: "176 123 45 678"),
     .init(iso: "DK", name: "Denmark", dial: "+45", nsnMin: 8, nsnMax: 8,
@@ -91,11 +118,33 @@ let COUNTRIES: [Country] = [
     .init(iso: "FR", name: "France", dial: "+33", nsnMin: 9, nsnMax: 9,
           flag: bandsV(0x002395, 0xFFFFFF, 0xED2939), sample: "6 12 34 56 78"),
     .init(iso: "GB", name: "United Kingdom", dial: "+44", nsnMin: 10, nsnMax: 10,
-          flag: .code, sample: "7400 123456"),
+          flag: .layers([
+        .fill(0x012169),
+        .poly([(0, 0), (0.16, 0), (1, 1), (0.84, 1)], 0xFFFFFF),
+        .poly([(1, 0), (0.84, 0), (0, 1), (0.16, 1)], 0xFFFFFF),
+        .poly([(0, 0), (0.09, 0), (1, 1), (0.91, 1)], 0xC8102E),
+        .poly([(1, 0), (0.91, 0), (0, 1), (0.09, 1)], 0xC8102E),
+        .box(0, 0.33, 1, 0.34, 0xFFFFFF),
+        .box(0.39, 0, 0.22, 1, 0xFFFFFF),
+        .box(0, 0.40, 1, 0.20, 0xC8102E),
+        .box(0.435, 0, 0.13, 1, 0xC8102E),
+    ]), sample: "7400 123456"),
     .init(iso: "GR", name: "Greece", dial: "+30", nsnMin: 10, nsnMax: 10,
-          flag: .code, sample: "691 234 5678"),
+          flag: .layers([
+        .stripes(horizontal: true, colors: [
+            0x0D5EAF, 0xFFFFFF, 0x0D5EAF, 0xFFFFFF, 0x0D5EAF,
+            0xFFFFFF, 0x0D5EAF, 0xFFFFFF, 0x0D5EAF,
+        ]),
+        .box(0, 0, 5.0 / 9 * 14 / 22, 5.0 / 9, 0x0D5EAF),
+        .box(0, 5.0 / 9 * 0.4, 5.0 / 9 * 14 / 22, 5.0 / 9 * 0.2, 0xFFFFFF),
+        .box(5.0 / 9 * 14 / 22 * 0.4, 0, 5.0 / 9 * 14 / 22 * 0.2, 5.0 / 9, 0xFFFFFF),
+    ]), sample: "691 234 5678"),
     .init(iso: "HR", name: "Croatia", dial: "+385", nsnMin: 8, nsnMax: 9,
-          flag: .code, sample: "91 234 5678"),
+          flag: .layers([
+        .stripes(horizontal: true, colors: [0xFF0000, 0xFFFFFF, 0x171796]),
+        .box(0.39, 0.22, 0.22, 0.56, 0xFFFFFF),
+        .checks(0.39, 0.22, 0.22, 0.56, 4, 0xFF0000, 0xFFFFFF),
+    ]), sample: "91 234 5678"),
     .init(iso: "HU", name: "Hungary", dial: "+36", nsnMin: 9, nsnMax: 9,
           flag: bandsH(0xCD2A3E, 0xFFFFFF, 0x436F4D), sample: "20 123 4567"),
     .init(iso: "IE", name: "Ireland", dial: "+353", nsnMin: 9, nsnMax: 9,
@@ -116,11 +165,18 @@ let COUNTRIES: [Country] = [
     .init(iso: "PL", name: "Poland", dial: "+48", nsnMin: 9, nsnMax: 9,
           flag: bandsH(0xFFFFFF, 0xDC143C), sample: "512 345 678"),
     .init(iso: "PT", name: "Portugal", dial: "+351", nsnMin: 9, nsnMax: 9,
-          flag: .code, sample: "912 345 678"),
+          flag: .layers([
+        .stripes(horizontal: false, colors: [0x006600, 0x006600, 0xFF0000, 0xFF0000, 0xFF0000]),
+        // The armillary sphere reduces to its ring. A shield drawn inside it at this size reads
+        // as a logo rather than a coat of arms, so it is left off.
+        .ring(0.40, 0.5, 0.28, 0.10, 0xFFE900),
+    ]), sample: "912 345 678"),
     .init(iso: "RO", name: "Romania", dial: "+40", nsnMin: 9, nsnMax: 9,
           flag: bandsV(0x002B7F, 0xFCD116, 0xCE1126), sample: "712 345 678"),
     .init(iso: "RS", name: "Serbia", dial: "+381", nsnMin: 8, nsnMax: 9,
-          flag: .code, sample: "60 1234567"),
+          flag: .layers([
+        .stripes(horizontal: true, colors: [0xC6363C, 0x0C4076, 0xFFFFFF]),
+    ]), sample: "60 1234567"),
     .init(iso: "SE", name: "Sweden", dial: "+46", nsnMin: 9, nsnMax: 9,
           flag: .cross(bg: 0x006AA7, arm: 0xFECC00), sample: "70 123 45 67"),
     .init(iso: "SI", name: "Slovenia", dial: "+386", nsnMin: 8, nsnMax: 8,
@@ -128,11 +184,22 @@ let COUNTRIES: [Country] = [
     .init(iso: "SK", name: "Slovakia", dial: "+421", nsnMin: 9, nsnMax: 9,
           flag: .code, sample: "912 123 456"),
     .init(iso: "TR", name: "Türkiye", dial: "+90", nsnMin: 10, nsnMax: 10,
-          flag: .code, sample: "501 234 56 78"),
+          flag: .layers([
+        .fill(0xE30A17),
+        .disc(0.40, 0.5, 0.26, 0xFFFFFF),
+        .disc(0.455, 0.5, 0.21, 0xE30A17),
+        .star(0.63, 0.5, 0.13, 0xFFFFFF),
+    ]), sample: "501 234 56 78"),
     .init(iso: "UA", name: "Ukraine", dial: "+380", nsnMin: 9, nsnMax: 9,
           flag: bandsH(0x0057B7, 0xFFDD00), sample: "50 123 4567"),
     .init(iso: "US", name: "United States", dial: "+1", nsnMin: 10, nsnMax: 10,
-          flag: .code, sample: "201 555 0123"),
+          flag: .layers([
+        .stripes(horizontal: true, colors: [
+            0xB31942, 0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942,
+            0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942,
+        ]),
+        .box(0, 0, 0.40, 7.0 / 13, 0x0A3161),
+    ]), sample: "201 555 0123"),
 ]
 
 /// Germany is the launch market, so it is the fallback when the device locale says nothing useful.
