@@ -122,7 +122,11 @@ struct PhoneNumberView: View {
                         TextField(country.sample, text: Binding(
                             get: { formatNational(value, country) },
                             set: { typed in
-                                let digits = String(typed.filter(\.isNumber).prefix(country.nsnMax))
+                                // maximum PLUS an allowance, never the maximum itself -- see
+                                // OVERTYPE_ALLOWANCE. Capping exactly at the limit makes the
+                                // too-long error unreachable.
+                                let digits = String(typed.filter(\.isNumber)
+                                    .prefix(country.nsnMax + OVERTYPE_ALLOWANCE))
                                 if digits != value { value = digits }
                             }
                         ))

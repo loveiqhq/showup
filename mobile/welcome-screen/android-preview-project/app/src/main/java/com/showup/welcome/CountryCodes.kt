@@ -39,8 +39,13 @@ sealed interface FlagArt {
 }
 
 /**
- * @param nsnMin/[nsnMax] length of the national significant number — the digits after the dial
+ * @param nsnMin/[nsnMax] length of a MOBILE national significant number — the digits after the dial
  *        code, with any national trunk "0" already stripped.
+ *
+ * Mobile, not "any number in that country". This screen exists to send an SMS, so a number that
+ * cannot receive one is not valid input however real it is. The distinction is not academic: German
+ * landlines start at six digits, and while this table said 6 a number like 49 6 12345 was accepted,
+ * verified against nothing, and would have sat waiting for a code that could never arrive.
  */
 data class Country(
     val iso: String,
@@ -61,29 +66,29 @@ private fun bandsV(vararg c: Long) = FlagArt.Bands(false, c.map { it to 1 })
  * rather than a placeholder, so adding a country is one line.
  */
 val COUNTRIES: List<Country> = listOf(
-    Country("AT", "Austria", "+43", 6, 13, bandsH(0xFFED2939, 0xFFFFFFFF, 0xFFED2939), "664 123456"),
+    Country("AT", "Austria", "+43", 10, 13, bandsH(0xFFED2939, 0xFFFFFFFF, 0xFFED2939), "664 1234567"),
     Country("AU", "Australia", "+61", 9, 9, FlagArt.Code, "412 345 678"),
     Country("BA", "Bosnia and Herzegovina", "+387", 8, 8, FlagArt.Code, "61 123 456"),
-    Country("BE", "Belgium", "+32", 8, 9, bandsV(0xFF000000, 0xFFFAE042, 0xFFED2939), "470 12 34 56"),
+    Country("BE", "Belgium", "+32", 9, 9, bandsV(0xFF000000, 0xFFFAE042, 0xFFED2939), "470 12 34 56"),
     Country("BG", "Bulgaria", "+359", 8, 9, bandsH(0xFFFFFFFF, 0xFF00966E, 0xFFD62612), "48 123 456"),
     Country("CA", "Canada", "+1", 10, 10, FlagArt.Code, "506 234 5678"),
     Country("CH", "Switzerland", "+41", 9, 9, FlagArt.Cross(0xFFDA291C, 0xFFFFFFFF, centred = true), "78 123 45 67"),
     Country("CZ", "Czechia", "+420", 9, 9, FlagArt.Code, "601 123 456"),
-    Country("DE", "Germany", "+49", 6, 11, bandsH(0xFF000000, 0xFFDD0000, 0xFFFFCE00), "176 123 45 678"),
+    Country("DE", "Germany", "+49", 10, 11, bandsH(0xFF000000, 0xFFDD0000, 0xFFFFCE00), "176 123 45 678"),
     Country("DK", "Denmark", "+45", 8, 8, FlagArt.Cross(0xFFC8102E, 0xFFFFFFFF), "32 12 34 56"),
     Country("EE", "Estonia", "+372", 7, 8, bandsH(0xFF0072CE, 0xFF000000, 0xFFFFFFFF), "5123 4567"),
     Country("ES", "Spain", "+34", 9, 9,
         FlagArt.Bands(true, listOf(0xFFAA151BL to 1, 0xFFF1BF00L to 2, 0xFFAA151BL to 1)), "612 34 56 78"),
-    Country("FI", "Finland", "+358", 5, 12, FlagArt.Cross(0xFFFFFFFF, 0xFF003580), "41 2345678"),
+    Country("FI", "Finland", "+358", 9, 10, FlagArt.Cross(0xFFFFFFFF, 0xFF003580), "41 2345678"),
     Country("FR", "France", "+33", 9, 9, bandsV(0xFF002395, 0xFFFFFFFF, 0xFFED2939), "6 12 34 56 78"),
-    Country("GB", "United Kingdom", "+44", 9, 10, FlagArt.Code, "7400 123456"),
+    Country("GB", "United Kingdom", "+44", 10, 10, FlagArt.Code, "7400 123456"),
     Country("GR", "Greece", "+30", 10, 10, FlagArt.Code, "691 234 5678"),
     Country("HR", "Croatia", "+385", 8, 9, FlagArt.Code, "91 234 5678"),
-    Country("HU", "Hungary", "+36", 8, 9, bandsH(0xFFCD2A3E, 0xFFFFFFFF, 0xFF436F4D), "20 123 4567"),
-    Country("IE", "Ireland", "+353", 7, 9, bandsV(0xFF169B62, 0xFFFFFFFF, 0xFFFF883E), "85 012 3456"),
-    Country("IT", "Italy", "+39", 6, 11, bandsV(0xFF008C45, 0xFFF4F5F0, 0xFFCD212A), "312 345 6789"),
+    Country("HU", "Hungary", "+36", 9, 9, bandsH(0xFFCD2A3E, 0xFFFFFFFF, 0xFF436F4D), "20 123 4567"),
+    Country("IE", "Ireland", "+353", 9, 9, bandsV(0xFF169B62, 0xFFFFFFFF, 0xFFFF883E), "85 012 3456"),
+    Country("IT", "Italy", "+39", 9, 10, bandsV(0xFF008C45, 0xFFF4F5F0, 0xFFCD212A), "312 345 6789"),
     Country("LT", "Lithuania", "+370", 8, 8, bandsH(0xFFFDB913, 0xFF006A44, 0xFFC1272D), "612 34567"),
-    Country("LU", "Luxembourg", "+352", 4, 11, bandsH(0xFFED2939, 0xFFFFFFFF, 0xFF00A1DE), "628 123 456"),
+    Country("LU", "Luxembourg", "+352", 9, 9, bandsH(0xFFED2939, 0xFFFFFFFF, 0xFF00A1DE), "628 123 456"),
     Country("LV", "Latvia", "+371", 8, 8,
         FlagArt.Bands(true, listOf(0xFF9E3039L to 2, 0xFFFFFFFFL to 1, 0xFF9E3039L to 2)), "21 234 567"),
     Country("NL", "Netherlands", "+31", 9, 9, bandsH(0xFFAE1C28, 0xFFFFFFFF, 0xFF21468B), "6 12345678"),
@@ -92,7 +97,7 @@ val COUNTRIES: List<Country> = listOf(
     Country("PT", "Portugal", "+351", 9, 9, FlagArt.Code, "912 345 678"),
     Country("RO", "Romania", "+40", 9, 9, bandsV(0xFF002B7F, 0xFFFCD116, 0xFFCE1126), "712 345 678"),
     Country("RS", "Serbia", "+381", 8, 9, FlagArt.Code, "60 1234567"),
-    Country("SE", "Sweden", "+46", 7, 13, FlagArt.Cross(0xFF006AA7, 0xFFFECC00), "70 123 45 67"),
+    Country("SE", "Sweden", "+46", 9, 9, FlagArt.Cross(0xFF006AA7, 0xFFFECC00), "70 123 45 67"),
     Country("SI", "Slovenia", "+386", 8, 8, FlagArt.Code, "31 234 567"),
     Country("SK", "Slovakia", "+421", 9, 9, FlagArt.Code, "912 123 456"),
     Country("TR", "Türkiye", "+90", 10, 10, FlagArt.Code, "501 234 56 78"),
@@ -116,15 +121,30 @@ fun countryForRegion(region: String?): Country =
 enum class PhoneError { Empty, TooShort, TooLong, LeadingZero, NotANumber }
 
 /**
+ * How many digits past the country's maximum the field will accept before it stops taking input.
+ *
+ * Not zero, and that is the point. The field used to cap at exactly the maximum, which silently ate
+ * every extra keystroke — so a too-long number could not be typed, [PhoneError.TooLong] could never
+ * fire, and the user watched their own digits disappear with no explanation. Letting a few through
+ * makes the error reachable and lets the message do the explaining.
+ */
+const val OVERTYPE_ALLOWANCE = 4
+
+/**
  * Validation, run on submit rather than per keystroke — SHOWUP-143 requires that, and it is also
  * the kinder behaviour: nobody wants to be told their number is wrong while they are still typing.
  */
 fun validate(raw: String, country: Country): PhoneError? {
     val digits = raw.filter { it.isDigit() }
     return when {
-        digits.isEmpty() -> PhoneError.Empty
-        // A number the user typed as letters, or mostly punctuation.
+        // Letters first. Stripping them and then reporting "empty" would answer a question the
+        // user did not ask -- they typed something, it was just the wrong something.
+        //
+        // The field filters to digits as they are entered, so today nothing can reach this. It
+        // stays as the guard for a value arriving from somewhere that does not filter: a paste,
+        // an autofill suggestion, or a caller that has not been written yet.
         raw.any { it.isLetter() } -> PhoneError.NotANumber
+        digits.isEmpty() -> PhoneError.Empty
         // Every country in this list uses 0 as a national trunk prefix, and it is dropped when the
         // dial code is supplied separately. Catching it explicitly is worth it: writing 0176... is
         // the single most common way a German user gets this wrong.

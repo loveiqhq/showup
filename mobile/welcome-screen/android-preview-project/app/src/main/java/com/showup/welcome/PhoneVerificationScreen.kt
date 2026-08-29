@@ -204,9 +204,16 @@ fun PhoneNumberScreen(
                 BasicTextField(
                     value = value,
                     // Digits only at the source, so nothing downstream has to strip characters
-                    // that were never allowed in. Capped at the country’s longest real number.
+                    // that were never allowed in.
+                    //
+                    // The cap is the country's maximum PLUS an allowance, never the maximum itself:
+                    // capping exactly at the limit silently swallows the extra keystrokes, so a
+                    // too-long number cannot be typed and the error that exists for it can never
+                    // fire. See OVERTYPE_ALLOWANCE.
                     onValueChange = { raw ->
-                        onValueChange(raw.filter { it.isDigit() }.take(country.nsnMax))
+                        onValueChange(
+                            raw.filter { it.isDigit() }.take(country.nsnMax + OVERTYPE_ALLOWANCE)
+                        )
                     },
                     modifier = Modifier.weight(1f).focusRequester(focus),
                     textStyle = TextStyle(
