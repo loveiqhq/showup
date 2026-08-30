@@ -46,7 +46,8 @@ enum ConnectExit: CaseIterable {
     /// A provider was linked and "Continue" was tapped on the success state.
     case connected
     /// The provider account was already attached to a different Show Up account, and the user
-    /// chose to go to that account instead of this one. See `outcomeOf` for where that lands.
+    /// chose to go to that account instead of this one. That makes them a returning member -- see
+    /// `outcomeOf`, where the reasoning and the date it was decided are recorded.
     case resolvedConflict
 }
 
@@ -60,11 +61,13 @@ enum SignUpOutcome {
 
 /// SHOWUP-146, entire.
 ///
-/// One case here is an inference rather than a quotation, and it is flagged in the audit notes:
-/// resolving an account conflict. The ticket lists three ways to leave Connect and a conflict is
-/// not one of them, but resolving one means abandoning the account just created and continuing as
-/// the owner of an older one. That person has used Show Up before, so the returning-member rule
-/// covers them and showing the tutorial would be showing it to someone who has already seen it.
+/// The conflict case is a decision, not a quotation. The ticket lists three ways to leave Connect
+/// and an account conflict is not one of them, so it was put to the product side on 2026-08-30 and
+/// answered: resolving a conflict means abandoning the account just created and continuing as the
+/// owner of an older one, and that person is a returning member. They have seen the tour already.
+///
+/// Still worth adding to the ticket text -- the rule now lives here and in the tests, but a reader
+/// of SHOWUP-146 alone would not find it.
 func outcomeOf(_ entry: Entry, _ connectExit: ConnectExit?) -> SignUpOutcome {
     if entry == .logIn { return .returningMember }
     if connectExit == .resolvedConflict { return .returningMember }

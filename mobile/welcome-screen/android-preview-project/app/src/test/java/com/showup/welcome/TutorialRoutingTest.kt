@@ -81,12 +81,13 @@ class TutorialRoutingTest {
         assertEquals(SignUpOutcome.ReturningMember, outcomeOf(Entry.LogIn, null))
     }
 
-    // ── the case the ticket does not cover ──────────────────────────────────
+    // ── the case the ticket does not cover, decided separately ──────────────
 
     @Test
     fun `resolving an account conflict is treated as a returning member`() {
-        // Not quoted from the ticket -- inferred, and flagged for the PO. Resolving a conflict
-        // means continuing as the owner of an older account, and that person has seen the tour.
+        // Not quoted from the ticket. Raised as a gap and decided on 2026-08-30: resolving a
+        // conflict means continuing as the owner of an older account, and that person has seen the
+        // tour. The ticket text still does not say so, which is why this test spells it out.
         assertEquals(
             SignUpOutcome.ReturningMember,
             outcomeOf(Entry.CreateAccount, ConnectExit.ResolvedConflict),

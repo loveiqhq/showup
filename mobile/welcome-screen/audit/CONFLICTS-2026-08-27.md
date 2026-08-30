@@ -1,6 +1,7 @@
 # Requirements conflict review — every screen built so far
 
-27 August 2026 · SHOWUP-117, 135, 136, 137, 138, 139 (tutorial) and 140, 142, 143, 144, 145 (welcome & sign-up)
+27 August 2026, updated 30 August · SHOWUP-117, 135, 136, 137, 138, 139 (tutorial) and 140,
+142, 143, 144, 145, 146 (welcome & sign-up)
 
 Requested check: *"double check that there are no conflicts in the requirements … between ticket
 description, ui spec png and zip file content."*
@@ -10,8 +11,9 @@ disagree with Jira, Jira is treated as authoritative and the disagreement is lis
 than silently resolved. Where Jira contradicts *itself* — or one Jira ticket contradicts another —
 that is listed too, because no order of authority resolves it.
 
-Verified against the code, not from memory. 717 automated checks pass across the three verifiers
-(`verify-spec.py` 166, `verify-welcome.py` 257, `verify-connect.py` 294).
+Verified against the code, not from memory. As of 30 August 2026, 809 automated checks pass across
+the five verifiers (`verify-spec.py` 166, `verify-welcome.py` 282, `verify-connect.py` 307,
+`check-country-data.py` 16, `check-tutorial-routing.py` 38), alongside 28 unit tests.
 
 ---
 
@@ -155,6 +157,34 @@ the conflict is a modal over it, not a route. So the natural instrumentation is 
 with a `state` property**, not ten screenviews.
 
 **Decision:** confirm that is what he wants, because it changes what the funnel looks like.
+
+---
+
+## A9 · SHOWUP-146 does not say what happens when an account conflict is resolved
+
+*Raised 30 August 2026. Decided the same day — recorded here so the decision is not lost, and so
+the ticket can be updated to match.*
+
+146 lists three ways to leave the Connect screen and says all three lead to the tutorial:
+
+* skipped without trying
+* connected successfully, then Continue
+* tried, failed, then skipped
+
+There is a **fourth** exit that 144 builds and 146 does not mention: the account conflict. The user
+creates an account, taps Apple, and Apple is already attached to a different Show Up account. They
+choose to continue as the owner of that older account.
+
+That person is a **returning member** — they have used Show Up before and have already seen the
+tour — so 146's returning-user rule covers them even though its list of exits does not.
+
+**Built:** resolving a conflict is treated as a returning member. No tutorial.
+
+**Decision:** taken 30 August 2026. Confirmed as above.
+
+**Still open:** the ticket description does not carry this. Anyone reading SHOWUP-146 on its own
+will not find the rule, and anyone testing against the description will not think to try it. The
+description should gain a line, and the acceptance evidence should include this fifth path.
 
 ---
 
