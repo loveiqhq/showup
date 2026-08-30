@@ -20,6 +20,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -83,12 +84,16 @@ fun HomePlaceholderScreen(outcome: SignUpOutcome, onStartOver: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(max = 280.dp).padding(top = 6.dp),
             )
+            // 44dp minimum, found by ScreenFitTest: 12dp of padding around a 14sp label came to
+            // 43dp, one short of the smallest comfortable tap target on any phone.
             Box(
                 Modifier
                     .padding(top = 10.dp)
+                    .defaultMinSize(minHeight = 48.dp)
                     .border(1.dp, Border, RoundedCornerShape(50))
                     .clickable(onClick = onStartOver)
                     .padding(horizontal = 22.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text("Start over", fontFamily = Manrope, fontSize = 14.sp, color = Fg)
             }

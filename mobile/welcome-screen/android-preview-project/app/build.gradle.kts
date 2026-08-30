@@ -33,6 +33,10 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        // Robolectric needs the real resources -- fonts and the drawable the welcome card uses.
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -53,6 +57,13 @@ dependencies {
 
     // The phone rules are pure JVM logic, so they are tested off-device.
     testImplementation("junit:junit:4.13.2")
+
+    // Layout verification without a device. Robolectric runs the real Compose runtime on the JVM,
+    // so every screen can be measured at every phone size in seconds -- which an emulator on one
+    // machine cannot do, and which @Preview cannot assert on.
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // Needed for the @Preview panel to render inside Android Studio
     implementation("androidx.compose.ui:ui-tooling-preview")
