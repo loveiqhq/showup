@@ -212,7 +212,7 @@ fun PhoneNumberScreen(
                     // fire. See OVERTYPE_ALLOWANCE.
                     onValueChange = { raw ->
                         onValueChange(
-                            raw.filter { it.isDigit() }.take(country.nsnMax + OVERTYPE_ALLOWANCE)
+                            raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
                         )
                     },
                     modifier = Modifier.weight(1f).focusRequester(focus),
@@ -559,13 +559,13 @@ fun VerifyCodeScreen(
 @Composable private fun VA430() { PhoneNumberScreen() }
 
 @Preview(name = "B · invalid · 375", showBackground = true, widthDp = 375, heightDp = 667)
-@Composable private fun VB375() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
+@Composable private fun VB375() { PhoneNumberScreen(value = "30123456", error = PhoneError.NotMobile) }
 
 @Preview(name = "B · invalid · 390", showBackground = true, widthDp = 390, heightDp = 844)
-@Composable private fun VB390() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
+@Composable private fun VB390() { PhoneNumberScreen(value = "30123456", error = PhoneError.NotMobile) }
 
 @Preview(name = "B · invalid · 430", showBackground = true, widthDp = 430, heightDp = 932)
-@Composable private fun VB430() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
+@Composable private fun VB430() { PhoneNumberScreen(value = "30123456", error = PhoneError.NotMobile) }
 
 @Preview(name = "C · code · 375", showBackground = true, widthDp = 375, heightDp = 667)
 @Composable private fun VC375() { VerifyCodeScreen() }
@@ -595,7 +595,7 @@ fun VerifyCodeScreen(
 @Composable private fun VASystemUi() { PhoneNumberScreen() }
 
 @Preview(name = "B · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
-@Composable private fun VBSystemUi() { PhoneNumberScreen(value = "01512", error = PhoneError.LeadingZero) }
+@Composable private fun VBSystemUi() { PhoneNumberScreen(value = "30123456", error = PhoneError.NotMobile) }
 
 @Preview(name = "C · with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
 @Composable private fun VCSystemUi() { VerifyCodeScreen() }

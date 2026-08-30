@@ -13,6 +13,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +29,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,145 +48,61 @@ import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Raised
 
-/** A five-pointed star, point upward: outer and inner radii alternating every 36 degrees. */
-private fun starPath(s: FlagShape.Star, w: Float, h: Float): androidx.compose.ui.graphics.Path {
-    val cx = s.cx * w
-    val cy = s.cy * h
-    val outer = s.r * h
-    val inner = outer * 0.382f            // the ratio a regular pentagram gives
-    return androidx.compose.ui.graphics.Path().apply {
-        for (i in 0 until 10) {
-            val r = if (i % 2 == 0) outer else inner
-            val a = Math.toRadians(-90.0 + i * 36.0)
-            val px = cx + (r * kotlin.math.cos(a)).toFloat()
-            val py = cy + (r * kotlin.math.sin(a)).toFloat()
-            if (i == 0) moveTo(px, py) else lineTo(px, py)
-        }
-        close()
-    }
-}
-
-/** 22 x 14 with a hairline, so a white stripe against a white field still reads as a flag. */
+/**
+ * The flag for a country, from the bundled artwork.
+ *
+ * Drawn flags were replaced by real artwork once the list went from 35 countries to every country.
+ * Hand-drawing did not scale and was not honest about it: nine were drawn by hand and two came out
+ * wrong — Canada as a spiky asterisk, Portugal as a logo. At 250 that rate means dozens wrong, and
+ * a wrong national flag is not a cosmetic bug.
+ *
+ * These are the flag-icons set (MIT, see assets/flags/LICENSE-flag-icons.txt), rasterised to 96x72
+ * — enough for a 22dp mark at four times density. 257 files, 479 KB in total, about 1.9 KB each.
+ *
+ * A country with no artwork falls back to its ISO code rather than an empty box, so a gap looks
+ * deliberate instead of broken.
+ */
 @Composable
 fun Flag(country: Country, width: Dp = 22.dp) {
     val height = width * 14f / 22f
     val shape = RoundedCornerShape(2.dp)
-    val outline = Modifier
+    val context = LocalContext.current
+
+    // Decoded once per country and kept: the picker scrolls through hundreds of rows, and decoding
+    // a bitmap on every frame of a fling is exactly how a list starts to stutter.
+    val bitmap = remember(country.iso) { loadFlag(context, country.iso) }
+
+    val box = Modifier
         .size(width = width, height = height)
         .clip(shape)
         .border(0.5.dp, Color(0x591D1129), shape)
 
-    when (val art = country.flag) {
-        is FlagArt.Bands -> {
-            if (art.horizontal) {
-                Column(outline) {
-                    art.stripes.forEach { (c, w) ->
-                        Box(Modifier.weight(w.toFloat()).fillMaxWidth().background(Color(c)))
-                    }
-                }
-            } else {
-                Row(outline) {
-                    art.stripes.forEach { (c, w) ->
-                        Box(Modifier.weight(w.toFloat()).fillMaxHeight().background(Color(c)))
-                    }
-                }
-            }
-        }
-
-        is FlagArt.Cross -> {
-            Box(outline.background(Color(art.bg))) {
-                // The Nordic cross sits left of centre; the Swiss one is centred. Arm thickness is
-                // ~2/9 of the height either way, which is close enough at 14px to read correctly.
-                val arm = height * 0.22f
-                val vx = if (art.centred) (width - arm) / 2 else width * 0.30f - arm / 2
-                Box(Modifier.fillMaxWidth().height(arm).align(Alignment.CenterStart)
-                    .background(Color(art.arm)))
-                Box(Modifier.align(Alignment.TopStart).offset(x = vx).width(arm).fillMaxHeight()
-                    .background(Color(art.arm)))
-                if (art.inner != null) {
-                    val thin = arm * 0.45f
-                    Box(Modifier.align(Alignment.Center).fillMaxWidth().height(thin)
-                        .background(Color(art.inner)))
-                    Box(Modifier.align(Alignment.TopStart).offset(x = vx + (arm - thin) / 2)
-                        .width(thin).fillMaxHeight().background(Color(art.inner)))
-                }
-            }
-        }
-
-        // Everything that is not just stripes: a hoist triangle, a canton, a crescent, a leaf.
-        // Drawn on a Canvas from fractions of the box, so one description is correct at any size.
-        is FlagArt.Layers -> Canvas(outline) {
-            val w = size.width
-            val h = size.height
-            art.shapes.forEach { shape ->
-                when (shape) {
-                    is FlagShape.Fill -> drawRect(Color(shape.c))
-
-                    is FlagShape.Stripes -> {
-                        val n = shape.colors.size
-                        shape.colors.forEachIndexed { i, c ->
-                            if (shape.horizontal) {
-                                // +1 on the height closes the hairline seams that rounding leaves
-                                // between adjacent bands.
-                                drawRect(Color(c), Offset(0f, h * i / n), Size(w, h / n + 1f))
-                            } else {
-                                drawRect(Color(c), Offset(w * i / n, 0f), Size(w / n + 1f, h))
-                            }
-                        }
-                    }
-
-                    is FlagShape.Box -> drawRect(
-                        Color(shape.c),
-                        Offset(shape.x * w, shape.y * h),
-                        Size(shape.w * w, shape.h * h),
-                    )
-
-                    is FlagShape.Poly -> drawPath(
-                        androidx.compose.ui.graphics.Path().apply {
-                            shape.pts.forEachIndexed { i, (px, py) ->
-                                if (i == 0) moveTo(px * w, py * h) else lineTo(px * w, py * h)
-                            }
-                            close()
-                        },
-                        Color(shape.c),
-                    )
-
-                    is FlagShape.Disc ->
-                        drawCircle(Color(shape.c), shape.r * h, Offset(shape.cx * w, shape.cy * h))
-
-                    is FlagShape.Ring -> drawCircle(
-                        Color(shape.c), shape.r * h, Offset(shape.cx * w, shape.cy * h),
-                        style = Stroke(shape.w * h),
-                    )
-
-                    is FlagShape.Star -> drawPath(starPath(shape, w, h), Color(shape.c))
-
-                    is FlagShape.Checks -> {
-                        val cw = shape.w * w / shape.n
-                        val ch = shape.h * h / shape.n
-                        for (row in 0 until shape.n) for (col in 0 until shape.n) {
-                            drawRect(
-                                Color(if ((row + col) % 2 == 0) shape.a else shape.b),
-                                Offset(shape.x * w + col * cw, shape.y * h + row * ch),
-                                Size(cw + 0.5f, ch + 0.5f),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Honest fallback. See the note on FlagArt.Code.
-        FlagArt.Code -> Box(
-            outline.background(Raised),
-            contentAlignment = Alignment.Center,
-        ) {
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            // Decorative: the country's name sits next to it in the list, and the dial code is on
+            // the pill, so a screen reader gains nothing from "flag of Germany".
+            contentDescription = null,
+            modifier = box,
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        Box(box.background(Raised), contentAlignment = Alignment.Center) {
             Text(
                 country.iso, color = Muted, fontFamily = Manrope,
                 fontWeight = FontWeight.Bold, fontSize = 8.sp, letterSpacing = 0.5.sp,
             )
         }
     }
+}
+
+/** Null when the country has no bundled flag, which the caller renders as the ISO code. */
+private fun loadFlag(context: android.content.Context, iso: String): ImageBitmap? = try {
+    context.assets.open("flags/" + iso.uppercase() + ".png").use { stream ->
+        BitmapFactory.decodeStream(stream)?.asImageBitmap()
+    }
+} catch (e: java.io.IOException) {
+    null
 }
 
 /**

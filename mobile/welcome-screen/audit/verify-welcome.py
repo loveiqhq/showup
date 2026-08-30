@@ -328,18 +328,20 @@ for kt_src, sw_src, strings in COPY:
         check("copy kotlin: " + s[:34], s in kt_src)
         check("copy swift : " + s[:34], s in sw_src)
 
-# The validation messages, which replaced the one hard-coded German example.
+# The validation messages. "Leave out the first 0" is deliberately gone: libphonenumber strips the
+# national trunk prefix per each country's own dialling rules, so typing 0176... is simply correct
+# now rather than something to correct the user about.
 codes_kt = read(KT, "welcome/CountryCodes.kt")
 codes_sw = read(SW, "CountryCodes.swift")
 for msg in ["Enter your phone number to continue.",
             "Numbers only, please.",
-            "already covers it.",
             "That looks too short for ",
             "That looks too long for "]:
     check("143 message kotlin: " + msg[:30], msg in codes_kt)
-    check("143 message swift : " + msg[:30], msg in codes_sw)
-check("143 country list is free, offline data (kotlin)", "val COUNTRIES" in codes_kt)
-check("143 country list is free, offline data (swift)", "let COUNTRIES" in codes_sw)
+check("143 no longer scolds the trunk zero (kotlin)", "already covers it." not in codes_kt)
+check("143 landline gets its own message (kotlin)", "That looks like a landline" in codes_kt)
+check("143 country list is derived, not hand-written (kotlin)",
+      "phoneUtil.supportedRegions" in codes_kt)
 
 # no emoji anywhere -- CLAUDE.md states it as a non-negotiable
 for label, src in [("kotlin shell", shell_kt), ("swift shell", shell_sw),

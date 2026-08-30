@@ -38,12 +38,21 @@ android {
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.10.00"))
     implementation("androidx.core:core-ktx:1.13.1")
+
+    // Google's libphonenumber — Apache 2.0, free, offline. It carries the real numbering rules for
+    // every country, which is what makes a full country list possible: hand-writing length and
+    // mobile-prefix rules for 250 countries would mean guessing, and a wrong guess rejects a real
+    // person's real number.
+    implementation("com.googlecode.libphonenumber:libphonenumber:8.13.52")
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // The phone rules are pure JVM logic, so they are tested off-device.
+    testImplementation("junit:junit:4.13.2")
 
     // Needed for the @Preview panel to render inside Android Studio
     implementation("androidx.compose.ui:ui-tooling-preview")

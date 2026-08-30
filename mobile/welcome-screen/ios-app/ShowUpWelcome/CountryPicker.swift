@@ -8,125 +8,34 @@
 
 import SwiftUI
 
-/// 22 x 14 with a hairline, so a white stripe against a white field still reads as a flag.
+/// The flag for a country, from the bundled artwork.
+///
+/// Drawn flags were replaced by real artwork once the list went from 35 countries to every country.
+/// Hand-drawing did not scale and was not honest about it: nine were drawn by hand and two came out
+/// wrong — Canada as a spiky asterisk, Portugal as a logo. At 250 that rate means dozens wrong, and
+/// a wrong national flag is not a cosmetic bug.
+///
+/// These are the flag-icons set (MIT, see Flags/LICENSE-flag-icons.txt), rasterised to 96x72 —
+/// enough for a 22pt mark at three times density. 257 files, 479 KB in total.
+///
+/// A country with no artwork falls back to its ISO code rather than an empty box, so a gap looks
+/// deliberate instead of broken.
 struct FlagView: View {
     let country: Country
     var width: CGFloat = 22
 
     private var height: CGFloat { width * 14 / 22 }
 
-    /// A five-pointed star, point upward: outer and inner radii alternating every 36 degrees.
-    static func star(_ cx: CGFloat, _ cy: CGFloat, _ outer: CGFloat) -> Path {
-        let inner = outer * 0.382          // the ratio a regular pentagram gives
-        var p = Path()
-        for i in 0..<10 {
-            let r = i % 2 == 0 ? outer : inner
-            let a = (-90.0 + Double(i) * 36.0) * .pi / 180
-            let pt = CGPoint(x: cx + r * CGFloat(cos(a)), y: cy + r * CGFloat(sin(a)))
-            if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
-        }
-        p.closeSubpath()
-        return p
-    }
-
     var body: some View {
         Group {
-            switch country.flag {
-            case let .bands(horizontal, stripes):
-                let total = CGFloat(stripes.reduce(0) { $0 + $1.1 })
-                if horizontal {
-                    VStack(spacing: 0) {
-                        ForEach(Array(stripes.enumerated()), id: \.offset) { _, s in
-                            Color(hex: s.0).frame(height: height * CGFloat(s.1) / total)
-                        }
-                    }
-                } else {
-                    HStack(spacing: 0) {
-                        ForEach(Array(stripes.enumerated()), id: \.offset) { _, s in
-                            Color(hex: s.0).frame(width: width * CGFloat(s.1) / total)
-                        }
-                    }
-                }
-
-            case let .cross(bg, arm, inner, centred):
-                // The Nordic cross sits left of centre; the Swiss one is centred. Arm thickness is
-                // ~2/9 of the height either way, which reads correctly at this size.
-                let t = height * 0.22
-                let vx = centred ? (width - t) / 2 : width * 0.30 - t / 2
-                ZStack(alignment: .topLeading) {
-                    Color(hex: bg)
-                    Color(hex: arm).frame(height: t).offset(y: (height - t) / 2)
-                    Color(hex: arm).frame(width: t).offset(x: vx)
-                    if let inner {
-                        let thin = t * 0.45
-                        Color(hex: inner).frame(height: thin).offset(y: (height - thin) / 2)
-                        Color(hex: inner).frame(width: thin).offset(x: vx + (t - thin) / 2)
-                    }
-                }
-
-            // Everything that is not just stripes: a hoist triangle, a canton, a crescent, a
-            // leaf. Drawn from fractions of the box, so one description is right at any size.
-            case let .layers(shapes):
-                Canvas { ctx, size in
-                    let w = size.width, h = size.height
-                    for shape in shapes {
-                        switch shape {
-                        case let .fill(c):
-                            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(hex: c)))
-
-                        case let .stripes(horizontal, colors):
-                            let n = CGFloat(colors.count)
-                            for (i, c) in colors.enumerated() {
-                                // +1 closes the hairline seams rounding leaves between bands.
-                                let r = horizontal
-                                    ? CGRect(x: 0, y: h * CGFloat(i) / n, width: w, height: h / n + 1)
-                                    : CGRect(x: w * CGFloat(i) / n, y: 0, width: w / n + 1, height: h)
-                                ctx.fill(Path(r), with: .color(Color(hex: c)))
-                            }
-
-                        case let .box(x, y, bw, bh, c):
-                            ctx.fill(Path(CGRect(x: x * w, y: y * h, width: bw * w, height: bh * h)),
-                                     with: .color(Color(hex: c)))
-
-                        case let .poly(pts, c):
-                            var p = Path()
-                            for (i, pt) in pts.enumerated() {
-                                let cg = CGPoint(x: pt.0 * w, y: pt.1 * h)
-                                if i == 0 { p.move(to: cg) } else { p.addLine(to: cg) }
-                            }
-                            p.closeSubpath()
-                            ctx.fill(p, with: .color(Color(hex: c)))
-
-                        case let .disc(cx, cy, r, c):
-                            ctx.fill(Path(ellipseIn: CGRect(x: cx * w - r * h, y: cy * h - r * h,
-                                                            width: r * h * 2, height: r * h * 2)),
-                                     with: .color(Color(hex: c)))
-
-                        case let .ring(cx, cy, r, sw, c):
-                            ctx.stroke(Path(ellipseIn: CGRect(x: cx * w - r * h, y: cy * h - r * h,
-                                                              width: r * h * 2, height: r * h * 2)),
-                                       with: .color(Color(hex: c)), lineWidth: sw * h)
-
-                        case let .star(cx, cy, r, c):
-                            ctx.fill(FlagView.star(cx * w, cy * h, r * h), with: .color(Color(hex: c)))
-
-                        case let .checks(x, y, cw0, ch0, n, a, b):
-                            let cw = cw0 * w / CGFloat(n), ch = ch0 * h / CGFloat(n)
-                            for row in 0..<n {
-                                for col in 0..<n {
-                                    let c = (row + col) % 2 == 0 ? a : b
-                                    ctx.fill(Path(CGRect(x: x * w + CGFloat(col) * cw,
-                                                         y: y * h + CGFloat(row) * ch,
-                                                         width: cw + 0.5, height: ch + 0.5)),
-                                             with: .color(Color(hex: c)))
-                                }
-                            }
-                        }
-                    }
-                }
-
-            // Honest fallback. See the note on FlagArt.code.
-            case .code:
+            if let image = FlagView.image(country.iso) {
+                Image(uiImage: image)
+                    .resizable()
+                    // Decorative: the country's name sits next to it in the list and the dial code
+                    // is on the pill, so a screen reader gains nothing from "flag of Germany".
+                    .accessibilityHidden(true)
+                    .scaledToFill()
+            } else {
                 ZStack {
                     Color.liqRaised
                     Text(country.iso)
@@ -142,6 +51,21 @@ struct FlagView: View {
             RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .strokeBorder(Color.liqFg.opacity(0.35), lineWidth: 0.5)
         )
+    }
+
+    /// Decoded once per country and kept. The picker scrolls through hundreds of rows, and decoding
+    /// a bitmap on every frame of a fling is exactly how a list starts to stutter.
+    private static var cache: [String: UIImage] = [:]
+
+    static func image(_ iso: String) -> UIImage? {
+        let key = iso.uppercased()
+        if let hit = cache[key] { return hit }
+        guard let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "Flags"),
+              let data = try? Data(contentsOf: url),
+              let image = UIImage(data: data)
+        else { return nil }
+        cache[key] = image
+        return image
     }
 }
 

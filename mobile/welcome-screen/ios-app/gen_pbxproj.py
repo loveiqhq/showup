@@ -39,6 +39,7 @@ SRCPHASE, FRMPHASE, RESPHASE = uid(), uid(), uid()
 CFG_PROJ, CFG_TGT = uid(), uid()
 CFG_PD, CFG_PR, CFG_TD, CFG_TR = (uid() for _ in range(4))
 ASSETBUILD = uid()
+FLAGSREF, FLAGSBUILD = uid(), uid()
 src_ref = {f: uid() for f in sources}
 src_bld = {f: uid() for f in sources}
 fnt_ref = {f: uid() for f in fonts}
@@ -66,6 +67,8 @@ w(T*2 + "%s /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 
 for f in fonts:
     w(T*2 + "%s /* %s in Resources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };"
       % (fnt_bld[f], f, fnt_ref[f], f))
+w(T*2 + '%s /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = %s /* Flags */; };'
+  % (FLAGSBUILD, FLAGSREF))
 w("/* End PBXBuildFile section */")
 
 w("")
@@ -77,6 +80,10 @@ for f in sources:
       % (src_ref[f], f, f))
 w(T*2 + '%s /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };' % PLISTREF)
 w(T*2 + '%s /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };' % ASSETREF)
+# lastKnownFileType = folder makes this a FOLDER reference: Xcode copies the directory into the
+# bundle as-is, so the 257 flag files need no entries of their own and adding one needs no change
+# here. They are read at runtime by name -- Flags/DE.png -- in CountryPicker.swift.
+w(T*2 + '%s /* Flags */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Flags; sourceTree = "<group>"; };' % FLAGSREF)
 for f in fonts:
     w(T*2 + '%s /* %s */ = {isa = PBXFileReference; lastKnownFileType = file; path = %s; sourceTree = "<group>"; };'
       % (fnt_ref[f], f, f))
@@ -110,6 +117,7 @@ w(T*3 + "children = (")
 for f in sources:
     w(T*4 + "%s /* %s */," % (src_ref[f], f))
 w(T*4 + "%s /* Assets.xcassets */," % ASSETREF)
+w(T*4 + "%s /* Flags */," % FLAGSREF)
 w(T*4 + "%s /* Fonts */," % FONTGRP)
 w(T*4 + "%s /* Info.plist */," % PLISTREF)
 w(T*3 + ");")
@@ -197,6 +205,9 @@ w(T*3 + "isa = PBXResourcesBuildPhase;")
 w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
 w(T*4 + "%s /* Assets.xcassets in Resources */," % ASSETBUILD)
+# The flag artwork, as a FOLDER reference: 257 files copied wholesale rather than 257 entries
+# here, so adding or removing a flag needs no change to the project file.
+w(T*4 + "%s /* Flags in Resources */," % FLAGSBUILD)
 for f in fonts:
     w(T*4 + "%s /* %s in Resources */," % (fnt_bld[f], f))
 w(T*3 + ");")

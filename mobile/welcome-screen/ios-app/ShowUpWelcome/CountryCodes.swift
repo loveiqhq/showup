@@ -1,22 +1,31 @@
 //  CountryCodes.swift
 //  ShowUp · the country list behind the dial-code pill (SHOWUP-143)
 //
-//  NOTHING HERE COSTS MONEY.
+//  ⚠️ THIS FILE IS ONE STEP BEHIND ANDROID, AND THE STEP NEEDS A MAC.
 //
-//  Country calling codes are public assignments published by the ITU (recommendation E.164). They
-//  are not licensed, not metered, and not behind anyone's API — the table below is just data, and
-//  it works offline. The paid service in this flow is Twilio, and it is paid for *delivering the
-//  SMS*, not for knowing that Germany is +49.
+//  Android now derives every country and every rule from Google's libphonenumber: ~250 countries,
+//  real per-country mobile lengths, landline detection, and as-you-type grouping — all covered by
+//  app/src/test/java/com/showup/welcome/PhoneValidationTest.kt, which tests against libphonenumber's
+//  own data.
 //
-//  The one thing worth buying later is deeper validation — "is this a real, reachable mobile number
-//  on a live carrier". Even that has a free answer first: Google's libphonenumber (Apache 2.0,
-//  free, offline) knows every country's real number formats and is what production should use.
-//  Twilio's Lookup API is charged per query and only earns its keep for carrier and portability
-//  checks.
+//  The Swift equivalent is PhoneNumberKit (MIT, same underlying metadata). It installs through
+//  Xcode's Swift Package Manager, and resolving a package needs Xcode — it cannot be done or
+//  verified from Windows. Writing the integration blind is precisely the fix-by-fix loop this
+//  project agreed to avoid, so it is left for the Mac rather than guessed at.
 //
-//  Until libphonenumber is added, `validate` applies the plain length and prefix rules below. They
-//  are deliberately simple and explainable rather than clever: rejecting a number a real user holds
-//  is a much worse failure than accepting one that later bounces.
+//  WHAT THIS MEANS TODAY: iOS offers the 35 hand-written countries below with hand-written length
+//  rules. Android offers every country with correct ones. That divergence is deliberate and
+//  temporary, and it is the only thing standing between the two platforms on this screen.
+//
+//  THE JOB, when Xcode is available:
+//    1. File > Add Package Dependencies… > https://github.com/PhoneNumberKit/PhoneNumberKit
+//    2. Replace COUNTRIES with PhoneNumberKit's allCountries, mapped the way CountryCodes.kt does
+//    3. Replace validate() with the same order Android uses — TYPE first, then length, because a
+//       short landline otherwise reports "too short" instead of "we need a mobile"
+//    4. Replace formatNational() with PartialFormatter
+//    5. Port PhoneValidationTest.kt; it is the specification, and it should pass unchanged
+//
+//  The flag artwork is already done on both sides and needs no package — see CountryPicker.swift.
 
 import SwiftUI
 
