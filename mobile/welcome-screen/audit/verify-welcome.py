@@ -343,6 +343,36 @@ check("143 landline gets its own message (kotlin)", "That looks like a landline"
 check("143 country list is derived, not hand-written (kotlin)",
       "phoneUtil.supportedRegions" in codes_kt)
 
+# ── a device that remembers nobody must not greet anyone ───────────────────
+# Reported: tapping "Log in" on Startup showed "Welcome back Leo" and "Last login was via phone" on
+# a device that had never been signed in on. Both were fabricated -- the screen handled the case
+# correctly, but its DEFAULTS were the preview's demo values, and the flow passed nothing, so the
+# demo values leaked into the product. The defaults are now the safe case.
+flow_kt = read(KT, "welcome/SignUpFlow.kt")
+flow_sw = read(SW, "SignUpFlow.swift")
+check("142 default name is empty, not a person (kotlin)", 'name: String = ""' in back_kt)
+check("142 default name is empty, not a person (swift)", 'var name: String = ""' in back_sw)
+check("142 default method is unknown (kotlin)", "lastUsed: AuthMethod = AuthMethod.Unknown" in back_kt)
+check("142 default method is unknown (swift)", "var lastUsed: AuthMethod = .unknown" in back_sw)
+check("142 no demo name survives as a default (kotlin)", 'name: String = "Leo"' not in back_kt)
+check("142 no demo name survives as a default (swift)", 'var name: String = "Leo"' not in back_sw)
+
+# The flow has to model "does this device remember anyone" as a real state, not leave it implied.
+check("the flow models a remembered account (kotlin)", "RememberedAccount" in flow_kt)
+check("the flow models a remembered account (swift)", "RememberedAccount" in flow_sw)
+check("no account means no name (kotlin)", "account?.name.orEmpty()" in flow_kt)
+check("no account means no name (swift)", 'account?.name ?? ""' in flow_sw)
+check("no account means no hint (kotlin)", "account?.lastUsed ?: AuthMethod.Unknown" in flow_kt)
+check("no account means no hint (swift)", "account?.lastUsed ?? .unknown" in flow_sw)
+# "Use a different account" must actually forget, or coming back still knows the old name.
+check("use-a-different-account forgets (kotlin)", "account = null" in flow_kt)
+check("use-a-different-account forgets (swift)", "account = nil" in flow_sw)
+# Launch routing: SHOWUP-140 says Startup renders on first launch only.
+check("launch routes on whether anyone is remembered (kotlin)",
+      "if (remembered != null) Step.WelcomeBack else Step.Startup" in flow_kt)
+check("launch routes on whether anyone is remembered (swift)",
+      "remembered != nil ? .welcomeBack : .startup" in flow_sw)
+
 # no emoji anywhere -- CLAUDE.md states it as a non-negotiable
 for label, src in [("kotlin shell", shell_kt), ("swift shell", shell_sw),
                    ("140 kt", start_kt), ("140 sw", start_sw),

@@ -36,9 +36,22 @@ enum DevAuth {
 /// Where the user is. One flat enum — this flow has no nesting and no side routes.
 private enum Step { case startup, welcomeBack, phone, code, connect }
 
+/// What the device remembers about the last person to sign in on it.
+///
+/// Nil means nobody — a fresh install, or after "Use a different account" cleared it. That is a
+/// real state, not a missing value, and it decides two things: which screen launch opens, and
+/// whether Welcome back can greet anyone by name.
+struct RememberedAccount {
+    let name: String
+    let lastUsed: AuthMethod
+}
+
 struct SignUpFlowView: View {
-    /// Startup on a fresh device, Welcome back when an account is remembered.
-    var startAtWelcomeBack: Bool = false
+    /// Nil on a device that has never been signed in on, which is where a new install starts.
+    ///
+    /// SHOWUP-140: "Renders on first launch only. If a device already has an account, the app
+    /// opens Welcome back instead." This is that condition.
+    var remembered: RememberedAccount? = nil
     var onFinished: () -> Void = {}
     var onOpenLegal: (String) -> Void = { _ in }
 
@@ -52,13 +65,16 @@ struct SignUpFlowView: View {
     @State private var codeMismatch = false
     @State private var cooldown = DevAuth.resendCooldown
 
-    init(startAtWelcomeBack: Bool = false,
+    @State private var account: RememberedAccount?
+
+    init(remembered: RememberedAccount? = nil,
          onFinished: @escaping () -> Void = {},
          onOpenLegal: @escaping (String) -> Void = { _ in }) {
-        self.startAtWelcomeBack = startAtWelcomeBack
+        self.remembered = remembered
         self.onFinished = onFinished
         self.onOpenLegal = onOpenLegal
-        _step = State(initialValue: startAtWelcomeBack ? .welcomeBack : .startup)
+        _step = State(initialValue: remembered != nil ? .welcomeBack : .startup)
+        _account = State(initialValue: remembered)
     }
 
     /// The number as it is shown back to the user on the code screen.
@@ -84,6 +100,13 @@ struct SignUpFlowView: View {
 
             case .welcomeBack:
                 WelcomeBackView(
+                    // Empty name and .unknown when the device remembers nobody — which is exactly
+                    // what tapping "Log in" on Startup means: someone who has an account but not
+                    // on THIS device. The view already handles it: the headline drops to a plain
+                    // "Welcome back" with no name, and the "last login was via…" hint disappears
+                    // rather than claiming a method that never happened here.
+                    name: account?.name ?? "",
+                    lastUsed: account?.lastUsed ?? .unknown,
                     onContinue: { method in
                         // Phone is the one method that goes anywhere: it is ours, and 143 is built.
                         // The three providers are live targets with nothing behind them yet — their
@@ -95,7 +118,9 @@ struct SignUpFlowView: View {
                     },
                     onGetHelp: { onOpenLegal("Get help") },
                     // Clears the remembered account and returns to Startup, per SHOWUP-142.
-                    onUseDifferentAccount: { step = .startup },
+                    // Clearing it is the point -- coming back here afterwards must not still know
+                    // the old name.
+                    onUseDifferentAccount: { account = nil; step = .startup },
                     onLegal: { onOpenLegal("Legal Notice") },
                     onPrivacy: { onOpenLegal("Privacy Policy") }
                 )

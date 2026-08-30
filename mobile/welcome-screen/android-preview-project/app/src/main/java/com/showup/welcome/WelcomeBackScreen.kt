@@ -54,8 +54,17 @@ enum class AuthMethod { Phone, Apple, Google, Facebook, Unknown }
 
 @Composable
 fun WelcomeBackScreen(
-    name: String = "Leo",
-    lastUsed: AuthMethod = AuthMethod.Phone,
+    /**
+     * The remembered member's first name, or empty when the device remembers nobody.
+     *
+     * Empty is the DEFAULT on purpose. It used to be "Leo", which is fine in a preview and wrong
+     * everywhere else: a caller that forgot to pass anything greeted a stranger by name. The
+     * defaults now describe a device that has never been signed in on, so forgetting to pass
+     * something produces the honest screen rather than a fabricated one.
+     */
+    name: String = "",
+    /** Device state. [AuthMethod.Unknown] means nobody has signed in here, so no hint is shown. */
+    lastUsed: AuthMethod = AuthMethod.Unknown,
     /** Which providers have finished credential setup. The rest are hidden, not greyed out. */
     configured: Set<AuthMethod> = LOGIN_METHODS.toSet(),
     onContinue: (AuthMethod) -> Unit = {},
@@ -173,42 +182,53 @@ fun WelcomeBackScreen(
     }
 }
 
+/**
+ * The state a device is in when someone taps "Log in" on Startup having never signed in here.
+ *
+ * No name in the headline and no "last login was via…" hint, because neither is true. This is the
+ * default the screen ships with, so a caller that passes nothing gets this rather than a greeting
+ * addressed to a stranger.
+ */
+@Preview(name = "no account on this device", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun WBPreviewNoAccount() { WelcomeBackScreen() }
+
 @Preview(name = "375 x 667 - iPhone SE", showBackground = true, widthDp = 375, heightDp = 667)
 @Composable
-private fun WBPreviewSmall() { WelcomeBackScreen() }
+private fun WBPreviewSmall() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Phone) }
 
 @Preview(name = "390 x 844 - reference", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun WBPreviewReference() { WelcomeBackScreen() }
+private fun WBPreviewReference() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Phone) }
 
 @Preview(name = "430 x 932 - Pro Max", showBackground = true, widthDp = 430, heightDp = 932)
 @Composable
-private fun WBPreviewLarge() { WelcomeBackScreen() }
+private fun WBPreviewLarge() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Phone) }
 
 @Preview(name = "lastUsed = Apple", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun WBPreviewApple() { WelcomeBackScreen(lastUsed = AuthMethod.Apple) }
+private fun WBPreviewApple() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Apple) }
 
 @Preview(name = "lastUsed = Google", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun WBPreviewGoogle() { WelcomeBackScreen(lastUsed = AuthMethod.Google) }
+private fun WBPreviewGoogle() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Google) }
 
 @Preview(name = "lastUsed = Facebook", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun WBPreviewFacebook() { WelcomeBackScreen(lastUsed = AuthMethod.Facebook) }
+private fun WBPreviewFacebook() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Facebook) }
 
 @Preview(name = "lastUsed = unknown - no hint row", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun WBPreviewUnknown() { WelcomeBackScreen(lastUsed = AuthMethod.Unknown) }
+private fun WBPreviewUnknown() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Unknown) }
 
 @Preview(name = "no name - no italic span", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun WBPreviewNoName() { WelcomeBackScreen(name = "") }
+private fun WBPreviewNoName() { WelcomeBackScreen(name = "", lastUsed = AuthMethod.Phone) }
 
 @Preview(name = "24-character name", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun WBPreviewLongName() { WelcomeBackScreen(name = "Maximiliana Konstantina") }
+private fun WBPreviewLongName() { WelcomeBackScreen(name = "Maximiliana Konstantina", lastUsed = AuthMethod.Phone) }
 
 @Preview(name = "390 x 844 - with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
 @Composable
-private fun WBPreviewSystemUi() { WelcomeBackScreen() }
+private fun WBPreviewSystemUi() { WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Phone) }

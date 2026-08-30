@@ -19,8 +19,15 @@ enum AuthMethod: CaseIterable { case phone, apple, google, facebook, unknown }
 // component and the same ordered data source as welcome 04."
 
 struct WelcomeBackView: View {
-    var name: String = "Leo"
-    var lastUsed: AuthMethod = .phone
+    /// The remembered member's first name, or empty when the device remembers nobody.
+    ///
+    /// Empty is the DEFAULT on purpose. It used to be "Leo", which is fine in a preview and wrong
+    /// everywhere else: a caller that forgot to pass anything greeted a stranger by name. The
+    /// defaults now describe a device that has never been signed in on, so forgetting to pass
+    /// something produces the honest screen rather than a fabricated one.
+    var name: String = ""
+    /// Device state. `.unknown` means nobody has signed in here, so no hint row is shown.
+    var lastUsed: AuthMethod = .unknown
     /// Which providers have finished credential setup. The rest are hidden, not greyed out.
     var configured: Set<AuthMethod> = Set(LOGIN_METHODS)
     var onContinue: (AuthMethod) -> Void = { _ in }
@@ -162,12 +169,20 @@ struct WelcomeBackView: View {
     }
 }
 
-#Preview("375 x 667 - iPhone SE") { WelcomeBackView() }
-#Preview("390 x 844 - reference") { WelcomeBackView() }
-#Preview("430 x 932 - Pro Max") { WelcomeBackView() }
-#Preview("lastUsed = Apple") { WelcomeBackView(lastUsed: .apple) }
-#Preview("lastUsed = Google") { WelcomeBackView(lastUsed: .google) }
-#Preview("lastUsed = Facebook") { WelcomeBackView(lastUsed: .facebook) }
-#Preview("lastUsed = unknown") { WelcomeBackView(lastUsed: .unknown) }
-#Preview("no name") { WelcomeBackView(name: "") }
-#Preview("24-character name") { WelcomeBackView(name: "Maximiliana Konstantina") }
+/// The state a device is in when someone taps "Log in" on Startup having never signed in here.
+///
+/// No name in the headline and no "last login was via…" hint, because neither is true. This is the
+/// default the view ships with, so a caller that passes nothing gets this rather than a greeting
+/// addressed to a stranger.
+#Preview("no account on this device") { WelcomeBackView() }
+
+// The rest supply a remembered member, because that is what they are showing.
+#Preview("375 x 667 - iPhone SE") { WelcomeBackView(name: "Leo", lastUsed: .phone) }
+#Preview("390 x 844 - reference") { WelcomeBackView(name: "Leo", lastUsed: .phone) }
+#Preview("430 x 932 - Pro Max") { WelcomeBackView(name: "Leo", lastUsed: .phone) }
+#Preview("lastUsed = Apple") { WelcomeBackView(name: "Leo", lastUsed: .apple) }
+#Preview("lastUsed = Google") { WelcomeBackView(name: "Leo", lastUsed: .google) }
+#Preview("lastUsed = Facebook") { WelcomeBackView(name: "Leo", lastUsed: .facebook) }
+#Preview("lastUsed = unknown") { WelcomeBackView(name: "Leo", lastUsed: .unknown) }
+#Preview("no name") { WelcomeBackView(name: "", lastUsed: .phone) }
+#Preview("24-character name") { WelcomeBackView(name: "Maximiliana Konstantina", lastUsed: .phone) }

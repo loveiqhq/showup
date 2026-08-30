@@ -68,14 +68,29 @@ object DevAuth {
 /** Where the user is. One flat enum — this flow has no nesting and no side routes. */
 private enum class Step { Startup, WelcomeBack, Phone, Code, Connect }
 
+/**
+ * What the device remembers about the last person to sign in on it.
+ *
+ * Null means nobody — a fresh install, or after "Use a different account" cleared it. That is a
+ * real state, not a missing value, and it decides two things: which screen launch opens, and
+ * whether Welcome back can greet anyone by name.
+ */
+data class RememberedAccount(val name: String, val lastUsed: AuthMethod)
+
 @Composable
 fun SignUpFlow(
-    /** Startup on a fresh device, Welcome back when an account is remembered. */
-    startAtWelcomeBack: Boolean = false,
+    /**
+     * Null on a device that has never been signed in on, which is where a new install starts.
+     *
+     * SHOWUP-140: "Renders on first launch only. If a device already has an account, the app opens
+     * Welcome back instead." This is that condition.
+     */
+    remembered: RememberedAccount? = null,
     onFinished: () -> Unit = {},
     onOpenLegal: (String) -> Unit = {},
 ) {
-    var step by rememberSaveable { mutableStateOf(if (startAtWelcomeBack) Step.WelcomeBack else Step.Startup) }
+    var step by rememberSaveable { mutableStateOf(if (remembered != null) Step.WelcomeBack else Step.Startup) }
+    var account by remember { mutableStateOf(remembered) }
 
     // rememberSaveable throughout: a rotation must not empty the field the user is typing into.
     var country by rememberSaveable(stateSaver = CountrySaver) {
@@ -123,6 +138,13 @@ fun SignUpFlow(
             )
 
             Step.WelcomeBack -> WelcomeBackScreen(
+                // Empty name and Unknown method when the device remembers nobody — which is
+                // exactly what tapping "Log in" on Startup means: someone who has an account but
+                // not on THIS device. The screen already handles it: the headline drops to a plain
+                // "Welcome back" with no name, and the "last login was via…" hint disappears
+                // rather than claiming a method that never happened here.
+                name = account?.name.orEmpty(),
+                lastUsed = account?.lastUsed ?: AuthMethod.Unknown,
                 onContinue = { method ->
                     // Phone is the one method that goes anywhere: it is ours, and 143 is built.
                     // The three providers are live targets with nothing behind them yet — their
@@ -133,8 +155,10 @@ fun SignUpFlow(
                     }
                 },
                 onGetHelp = { onOpenLegal("Get help") },
-                // Clears the remembered account and returns to Startup, per SHOWUP-142.
-                onUseDifferentAccount = { step = Step.Startup },
+                // Clears the remembered account and returns to Startup, per SHOWUP-142. Clearing
+                // it is the point -- coming back to this screen afterwards must not still know
+                // the old name.
+                onUseDifferentAccount = { account = null; step = Step.Startup },
                 onLegal = { onOpenLegal("Legal Notice") },
                 onPrivacy = { onOpenLegal("Privacy Policy") },
             )
