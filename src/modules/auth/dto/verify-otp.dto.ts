@@ -10,7 +10,7 @@ export class VerifyOtpDto {
   @MaxLength(32)
   phone: string;
 
-  @ApiProperty({ example: '4821' })
+  @ApiProperty({ example: '482159' })
   @IsString()
   @Length(4, 8)
   code: string;
