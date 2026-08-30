@@ -86,11 +86,22 @@ fun SignUpFlow(
      * Welcome back instead." This is that condition.
      */
     remembered: RememberedAccount? = null,
-    onFinished: () -> Unit = {},
+    /**
+     * Where the flow leaves the user. SHOWUP-146: [SignUpOutcome.NewAccount] is shown the
+     * tutorial, [SignUpOutcome.ReturningMember] goes straight into the app.
+     */
+    onFinished: (SignUpOutcome) -> Unit = {},
     onOpenLegal: (String) -> Unit = {},
 ) {
     var step by rememberSaveable { mutableStateOf(if (remembered != null) Step.WelcomeBack else Step.Startup) }
     var account by remember { mutableStateOf(remembered) }
+
+    // SHOWUP-146. Which door the user came through decides, at the far end, whether they are
+    // shown the tutorial. A launch straight onto Welcome back is a log-in by definition -- the
+    // device would not remember anyone otherwise.
+    var entry by rememberSaveable {
+        mutableStateOf(if (remembered != null) Entry.LogIn else Entry.CreateAccount)
+    }
 
     // rememberSaveable throughout: a rotation must not empty the field the user is typing into.
     var country by rememberSaveable(stateSaver = CountrySaver) {
@@ -130,8 +141,8 @@ fun SignUpFlow(
                 // The dates figure is hidden until the number is worth showing — the minimum is
                 // still to be decided, so the toggle is off rather than the figure invented.
                 showSocialProof = false,
-                onCreateAccount = { step = Step.Phone },
-                onLogin = { step = Step.WelcomeBack },
+                onCreateAccount = { entry = Entry.CreateAccount; step = Step.Phone },
+                onLogin = { entry = Entry.LogIn; step = Step.WelcomeBack },
                 onTerms = { onOpenLegal("Terms & Conditions") },
                 onPrivacy = { onOpenLegal("Privacy Policy") },
                 onLegalNotice = { onOpenLegal("Legal Notice") },
@@ -150,6 +161,9 @@ fun SignUpFlow(
                     // The three providers are live targets with nothing behind them yet — their
                     // SDK work is the sub-tasks on SHOWUP-144.
                     if (method == AuthMethod.Phone) {
+                        // Reaching this screen at all means logging in, whether the user tapped
+                        // "Log in" on Startup or the app opened here on a remembered device.
+                        entry = Entry.LogIn
                         phoneError = null
                         step = Step.Phone
                     }
@@ -206,7 +220,15 @@ fun SignUpFlow(
                     onBack = { step = Step.Phone },
                     onVerify = {
                         if (codeDigits == DevAuth.TEST_CODE) {
-                            step = Step.Connect
+                            // SHOWUP-146. Connect (SHOWUP-144) belongs to account creation: it is
+                            // where a brand-new account is offered a provider to link. Someone
+                            // signing back in has been past it already, so they skip both it and
+                            // the tutorial and land in the app.
+                            if (entry == Entry.LogIn) {
+                                onFinished(outcomeOf(entry, null))
+                            } else {
+                                step = Step.Connect
+                            }
                         } else {
                             codeMismatch = true
                             // A mistyped code must not cost another wait — the ticket says the
@@ -223,9 +245,11 @@ fun SignUpFlow(
                 )
             }
 
-            // SHOWUP-144. Its own host drives the ten states; a resolved conflict or a skip both
-            // leave the sign-up flow entirely.
-            Step.Connect -> ConnectFlowHost(onDone = onFinished)
+            // SHOWUP-144. Its own host drives the ten states. Every one of its exits leaves the
+            // sign-up flow; SHOWUP-146 decides which of the two destinations it leaves for.
+            Step.Connect -> ConnectFlowHost(
+                onDone = { exit -> onFinished(outcomeOf(entry, exit)) },
+            )
         }
 
         if (showCountrySheet) {

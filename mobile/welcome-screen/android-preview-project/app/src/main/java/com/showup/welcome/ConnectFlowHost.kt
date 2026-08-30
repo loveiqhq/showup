@@ -23,7 +23,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 
 @Composable
-fun ConnectFlowHost(onDone: () -> Unit) {
+fun ConnectFlowHost(onDone: (ConnectExit) -> Unit) {
     var state by remember { mutableStateOf(ConnectState.Idle) }
     var provider by remember { mutableStateOf(AuthMethod.Apple) }
     var kind by remember { mutableStateOf(ErrorKind.Network) }
@@ -62,11 +62,13 @@ fun ConnectFlowHost(onDone: () -> Unit) {
         provider = provider,
         kind = kind,
         onSelect = { m -> provider = m; running = true },
-        onSkip = onDone,
-        onContinue = onDone,
+        // SHOWUP-146 needs to tell these three apart, so the host reports which one
+        // happened rather than collapsing them into a bare "done".
+        onSkip = { onDone(ConnectExit.Skipped) },
+        onContinue = { onDone(ConnectExit.Connected) },
         // The 8s cap firing is a real transition, not a demo shortcut.
         onLinkingTimeout = { kind = ErrorKind.Network; state = ConnectState.Error },
-        onResolveConflict = { onDone() },
+        onResolveConflict = { onDone(ConnectExit.ResolvedConflict) },
         onUseDifferentAccount = { state = ConnectState.Idle },
     )
 }

@@ -52,7 +52,9 @@ struct SignUpFlowView: View {
     /// SHOWUP-140: "Renders on first launch only. If a device already has an account, the app
     /// opens Welcome back instead." This is that condition.
     var remembered: RememberedAccount? = nil
-    var onFinished: () -> Void = {}
+    /// Where the flow leaves the user. SHOWUP-146: `.newAccount` is shown the tutorial,
+    /// `.returningMember` goes straight into the app.
+    var onFinished: (SignUpOutcome) -> Void = { _ in }
     var onOpenLegal: (String) -> Void = { _ in }
 
     @State private var step: Step
@@ -67,14 +69,20 @@ struct SignUpFlowView: View {
 
     @State private var account: RememberedAccount?
 
+    /// SHOWUP-146. Which door the user came through decides, at the far end, whether they are
+    /// shown the tutorial. A launch straight onto Welcome back is a log-in by definition -- the
+    /// device would not remember anyone otherwise.
+    @State private var entry: Entry
+
     init(remembered: RememberedAccount? = nil,
-         onFinished: @escaping () -> Void = {},
+         onFinished: @escaping (SignUpOutcome) -> Void = { _ in },
          onOpenLegal: @escaping (String) -> Void = { _ in }) {
         self.remembered = remembered
         self.onFinished = onFinished
         self.onOpenLegal = onOpenLegal
         _step = State(initialValue: remembered != nil ? .welcomeBack : .startup)
         _account = State(initialValue: remembered)
+        _entry = State(initialValue: remembered != nil ? .logIn : .createAccount)
     }
 
     /// The number as it is shown back to the user on the code screen.
@@ -91,8 +99,8 @@ struct SignUpFlowView: View {
                     // The dates figure is hidden until the number is worth showing — the minimum
                     // is still to be decided, so the toggle is off rather than the figure invented.
                     showSocialProof: false,
-                    onCreateAccount: { step = .phone },
-                    onLogin: { step = .welcomeBack },
+                    onCreateAccount: { entry = .createAccount; step = .phone },
+                    onLogin: { entry = .logIn; step = .welcomeBack },
                     onTerms: { onOpenLegal("Terms & Conditions") },
                     onPrivacy: { onOpenLegal("Privacy Policy") },
                     onLegalNotice: { onOpenLegal("Legal Notice") }
@@ -112,6 +120,10 @@ struct SignUpFlowView: View {
                         // The three providers are live targets with nothing behind them yet — their
                         // SDK work is the sub-tasks on SHOWUP-144.
                         if method == .phone {
+                            // Reaching this screen at all means logging in, whether the user
+                            // tapped "Log in" on Startup or the app opened here on a remembered
+                            // device.
+                            entry = .logIn
                             phoneError = nil
                             step = .phone
                         }
@@ -169,7 +181,15 @@ struct SignUpFlowView: View {
                     onBack: { step = .phone },
                     onVerify: {
                         if codeDigits == DevAuth.testCode {
-                            step = .connect
+                            // SHOWUP-146. Connect (SHOWUP-144) belongs to account creation: it is
+                            // where a brand-new account is offered a provider to link. Someone
+                            // signing back in has been past it already, so they skip both it and
+                            // the tutorial and land in the app.
+                            if entry == .logIn {
+                                onFinished(outcomeOf(entry, nil))
+                            } else {
+                                step = .connect
+                            }
                         } else {
                             codeMismatch = true
                             // A mistyped code must not cost another wait — the ticket says the
@@ -185,10 +205,10 @@ struct SignUpFlowView: View {
                     onEditNumber: { step = .phone }
                 )
 
-            // SHOWUP-144. Its own host drives the ten states; a resolved conflict or a skip both
-            // leave the sign-up flow entirely.
+            // SHOWUP-144. Its own host drives the ten states. Every one of its exits leaves the
+            // sign-up flow; SHOWUP-146 decides which of the two destinations it leaves for.
             case .connect:
-                ConnectFlowHost(onDone: onFinished)
+                ConnectFlowHost(onDone: { onFinished(outcomeOf(entry, $0)) })
             }
 
             devStrip
