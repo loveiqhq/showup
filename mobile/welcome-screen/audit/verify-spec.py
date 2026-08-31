@@ -162,9 +162,16 @@ check("glow no .13 stop (swift)", "opacity(0.13)" not in code_only(sw))
 check("glow .16 and .10 (kotlin)", "alpha = 0.16f" in kt and "alpha = 0.10f" in kt)
 check("glow .16 and .10 (swift)", "opacity(0.16)" in sw and "opacity(0.10)" in sw)
 
-# headline underline accent - an AC on all five cards
-check("underline param (kotlin)", "underlineWidth" in kt)
-check("underline param (swift)", "underlineWidth" in sw)
+# headline underline accent - an AC on all five cards.
+#
+# These used to assert a per-card `underlineWidth` in dp, which pinned the bug in place: a bar of
+# fixed width, bottom-aligned to the whole headline block, cannot land under the emphasised words.
+# On a three-line headline it sat under the third line. The wash is now measured from the laid-out
+# italic run by WashHeadline, so the checks assert that instead -- and that the hand-tuned widths
+# have not come back.
+# A fixed width cannot know where the italic run is; the wash is measured now.
+check("no fixed-width underline survives (kotlin)", "underlineWidth" not in kt)
+check("no fixed-width underline survives (swift)", "underlineWidth" not in sw)
 
 # accessibility
 check("progress announced (kotlin)", "progressBarRangeInfo" in kt)
@@ -181,21 +188,38 @@ check("reduce-motion (kotlin)", "ANIMATOR_DURATION_SCALE" in kt)
 check("reduce-motion (swift)", "accessibilityReduceMotion" in sw)
 
 # ------------------------------------------------------------------ per-card values
+# The emphasised phrase per card, from the design handoff. One italicised phrase per headline,
+# always carrying the wash -- `CLAUDE.md`: "Lora italics get the orange underline wash."
 CARDS = [
-    ("MeetInRealLifeScreen", 1, 186, 8, ["showBack = false"]),
-    ("MatchOnAvailabilityScreen", 2, 210, 12, []),
-    ("MatchMeansMeetScreen", 3, 170, 12, []),
-    ("ThirtyMinutesScreen", 4, 150, 12, []),
-    ("ShowUpEveryTimeScreen", 5, 196, 11,
+    ("MeetInRealLifeScreen", 1, "actually", 8, ["showBack = false"]),
+    ("MatchOnAvailabilityScreen", 2, "free to date", 12, []),
+    ("MatchMeansMeetScreen", 3, "binding", 12, []),
+    ("ThirtyMinutesScreen", 4, "thirty minutes", 12, []),
+    ("ShowUpEveryTimeScreen", 5, u"there’s a cost", 11,
      ["NextVariant.Sunset", "IllustrationPlaceholder(scale = 0.62f)"]),
 ]
-for stem, step, ul, gap, extras in CARDS:
+SWIFT_CARDS = {
+    "MeetInRealLifeScreen": "MeetInRealLifeView",
+    "MatchOnAvailabilityScreen": "MatchOnAvailabilityView",
+    "MatchMeansMeetScreen": "MatchMeansMeetView",
+    "ThirtyMinutesScreen": "ThirtyMinutesView",
+    "ShowUpEveryTimeScreen": "ShowUpEveryTimeView",
+}
+for stem, step, phrase, gap, extras in CARDS:
     src = read(os.path.join(KT, "tutorial", stem + ".kt"))
     check(stem + " step " + str(step), ("step = " + str(step)) in src)
-    check(stem + " underline " + str(ul), ("underlineWidth = " + str(ul) + ".dp") in src)
+    check(stem + " uses the measured wash", "WashHeadline(" in src)
+    check(stem + " emphasises " + phrase, ('"' + phrase + '" to true') in src)
     check(stem + " row gap " + str(gap), ("spacedBy(" + str(gap) + ".dp)") in src)
     for needle in extras:
         check(stem + " has " + needle, needle in src)
+
+    # The same phrase must be emphasised on iOS, or the two platforms disagree about the design.
+    ssrc = read(os.path.join(SW, SWIFT_CARDS[stem] + ".swift"))
+    check(SWIFT_CARDS[stem] + " uses the measured wash", "WashHeadline(" in ssrc)
+    check(SWIFT_CARDS[stem] + " emphasises " + phrase, ('("' + phrase + '", true)') in ssrc)
+    # The emphasis is weight 500, not the surrounding 700.
+    check(SWIFT_CARDS[stem] + " no bold italic emphasis", "loraBoldItalic, 34" not in ssrc)
 
 # card 01's rows are specced nowrap; cards 02-04 wrap
 meet = read(os.path.join(KT, "tutorial", "MeetInRealLifeScreen.kt"))

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import com.showup.designsystem.Fg
+import com.showup.welcome.WashHeadline
 import com.showup.designsystem.Lora
 
 @Composable
@@ -42,8 +43,6 @@ fun MatchMeansMeetScreen(
         step = 3,
         totalSteps = 5,
         eyebrow = "Match means meet",
-            // accent under "binding"
-            underlineWidth = 170.dp,
         nextLabel = "Next",
         showBack = true,
         onNext = {
@@ -55,13 +54,12 @@ fun MatchMeansMeetScreen(
             onBack()
         },
         headline = {
-            Text(
-                buildAnnotatedString {
-                    append("A match is a ")
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("binding") }
-                    append(" date.")
-                },
-                color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
+            WashHeadline(
+                parts = listOf(
+                    "A match is a " to false,
+                    "binding" to true,
+                    " date." to false,
+                ),
                 fontSize = 34.sp, lineHeight = 37.4.sp, letterSpacing = (-0.015).em,
             )
         },

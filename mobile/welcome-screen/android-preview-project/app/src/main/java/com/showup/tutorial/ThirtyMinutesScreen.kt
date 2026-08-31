@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import com.showup.designsystem.Fg
+import com.showup.welcome.WashHeadline
 import com.showup.designsystem.Lora
 
 @Composable
@@ -42,8 +43,6 @@ fun ThirtyMinutesScreen(
         step = 4,
         totalSteps = 5,
         eyebrow = "30 minutes, no pressure",
-            // accent under "thirty minutes"
-            underlineWidth = 150.dp,
         nextLabel = "Next",
         showBack = true,
         onNext = {
@@ -55,13 +54,12 @@ fun ThirtyMinutesScreen(
             onBack()
         },
         headline = {
-            Text(
-                buildAnnotatedString {
-                    append("Just ")
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("thirty minutes") }
-                    append(".")
-                },
-                color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
+            WashHeadline(
+                parts = listOf(
+                    "Just " to false,
+                    "thirty minutes" to true,
+                    "." to false,
+                ),
                 fontSize = 34.sp, lineHeight = 37.4.sp, letterSpacing = (-0.015).em,
             )
         },

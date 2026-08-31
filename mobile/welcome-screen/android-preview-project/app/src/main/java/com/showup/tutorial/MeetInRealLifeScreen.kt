@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Fg
+import com.showup.welcome.WashHeadline
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Neutral
@@ -45,8 +46,6 @@ fun MeetInRealLifeScreen(
         step = 1,                       // first of the 5-segment tour
         totalSteps = 5,
         eyebrow = "Meet people in real life",
-            // accent under "actually"
-            underlineWidth = 186.dp,
         nextLabel = "Next",
         showBack = false,               // first screen of the tour — slot reserved, invisible
         onNext = {
@@ -55,13 +54,12 @@ fun MeetInRealLifeScreen(
         },
         headline = {
             // ④ Lora 700 / 34 / 1.1 / -0.015em, "actually" italic
-            Text(
-                buildAnnotatedString {
-                    append("We want you to ")
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("actually") }
-                    append(" meet.")
-                },
-                color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
+            WashHeadline(
+                parts = listOf(
+                    "We want you to " to false,
+                    "actually" to true,
+                    " meet." to false,
+                ),
                 fontSize = 34.sp, lineHeight = 37.4.sp, letterSpacing = (-0.015).em,
             )
         },

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import com.showup.designsystem.Fg
+import com.showup.welcome.WashHeadline
 import com.showup.designsystem.Lora
 
 @Composable
@@ -42,8 +43,6 @@ fun MatchOnAvailabilityScreen(
         step = 2,
         totalSteps = 5,
         eyebrow = "Match on availability",
-            // accent under "free to date"
-            underlineWidth = 210.dp,
         nextLabel = "Next",
         showBack = true,
         onNext = {
@@ -55,13 +54,12 @@ fun MatchOnAvailabilityScreen(
             onBack()
         },
         headline = {
-            Text(
-                buildAnnotatedString {
-                    append("Match people who are ")
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("free to date") }
-                    append(" when you are.")
-                },
-                color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
+            WashHeadline(
+                parts = listOf(
+                    "Match people who are " to false,
+                    "free to date" to true,
+                    " when you are." to false,
+                ),
                 fontSize = 34.sp, lineHeight = 37.4.sp, letterSpacing = (-0.015).em,
             )
         },

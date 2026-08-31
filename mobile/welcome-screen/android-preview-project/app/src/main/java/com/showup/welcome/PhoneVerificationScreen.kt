@@ -152,7 +152,11 @@ fun PhoneNumberScreen(
     val invalid = error != null
 
     // The keyboard is why the user is here, so it opens with the screen rather than after a tap.
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    // runCatching, because a focus request is a convenience and must never be fatal. It throws
+    // whenever the field is not attached to a window at the moment it runs -- which is every
+    // headless render, and is why ScreenFitTest could not measure this screen at all until now.
+    // On a device nothing changes: the keyboard still opens with the screen.
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     VerificationFrame(onBack) {
         Eyebrow()
@@ -215,7 +219,13 @@ fun PhoneNumberScreen(
                             raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
                         )
                     },
-                    modifier = Modifier.weight(1f).focusRequester(focus),
+                    // fillMaxHeight, so the touch target matches the field a person can see.
+                    //
+                    // Without it the field measured to the height of its own text -- 23dp inside
+                    // a 56dp row -- and the row centred it. The input LOOKED 56dp tall while only
+                    // the middle 23dp of it would take a tap, so tapping near the top or bottom
+                    // edge did nothing at all. Found by ScreenFitTest on 15 of 18 phone sizes.
+                    modifier = Modifier.weight(1f).fillMaxHeight().focusRequester(focus),
                     textStyle = TextStyle(
                         color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
                         fontSize = 17.sp, letterSpacing = 0.3.sp,
@@ -228,15 +238,19 @@ fun PhoneNumberScreen(
                     // Enter submits, so the user never has to dismiss the keyboard to reach the CTA.
                     keyboardActions = KeyboardActions(onDone = { onSubmit() }),
                     visualTransformation = remember(country) { GroupedDigits(country) },
+                    // The field now fills the row's full 56dp so that all of it is tappable, which
+                    // means the text has to be centred here instead of riding the top edge.
                     decorationBox = { inner ->
-                        if (value.isEmpty()) {
-                            Text(
-                                country.sample, color = Faint, fontFamily = Manrope,
-                                fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                                letterSpacing = 0.3.sp, maxLines = 1,
-                            )
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (value.isEmpty()) {
+                                Text(
+                                    country.sample, color = Faint, fontFamily = Manrope,
+                                    fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                                    letterSpacing = 0.3.sp, maxLines = 1,
+                                )
+                            }
+                            inner()
                         }
-                        inner()
                     },
                 )
                 if (invalid) {
@@ -334,7 +348,11 @@ fun VerifyCodeScreen(
 
     // Same reasoning as state A: this screen exists to be typed into, so the keyboard opens with
     // it rather than waiting for the user to discover that the slots are tappable.
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    // runCatching, because a focus request is a convenience and must never be fatal. It throws
+    // whenever the field is not attached to a window at the moment it runs -- which is every
+    // headless render, and is why ScreenFitTest could not measure this screen at all until now.
+    // On a device nothing changes: the keyboard still opens with the screen.
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     // ⑯ one-shot shake, 480ms, on entering the mismatch state — then still. There is no looping
     // animation anywhere in this flow.
@@ -535,6 +553,11 @@ fun VerifyCodeScreen(
                 Modifier
                     .clip(RoundedCornerShape(50))
                     .clickable(role = Role.Button, onClick = onEditNumber)
+                    // 44dp minimum, found by ScreenFitTest: a 13dp icon beside a 13sp label with
+                    // 4dp of padding came to 27dp. The row stays visually the same size -- the
+                    // minimum only grows the area that answers to a finger, which is what the
+                    // guideline is about.
+                    .defaultMinSize(minHeight = 44.dp)
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),

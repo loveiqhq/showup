@@ -20,8 +20,6 @@ struct MatchOnAvailabilityView: View {
             step: 2,
             totalSteps: 5,
             eyebrow: "Match on availability",
-            // accent under "free to date"
-            underlineWidth: 210,
             nextLabel: "Next",
             showBack: true,
             onNext: {
@@ -33,18 +31,12 @@ struct MatchOnAvailabilityView: View {
                 onBack()
             },
             headline: {
-                Text(TypeMetrics.attributed(
-                    runs: [
-                        ("Match people who are ", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                        ("free to date", TypeMetrics.uiFont(PS.loraBoldItalic, 34,
-                            fallback: TypeMetrics.italicSystem(34))),
-                        (" when you are.", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                    ],
-                    size: 34, multiple: 1.1,
-                    color: UIColor(Color.liqFg), trackingEm: -0.015))
-                    .fixedSize(horizontal: false, vertical: true)
+                WashHeadline(
+                    parts: [("Match people who are ", false),
+                            ("free to date", true),
+                            (" when you are.", false)],
+                    fontSize: 34, lineHeightMultiple: 1.1, trackingEm: -0.015
+                )
             },
             content: {
                 // ⑤ rule list — gap 12, rows wrap. No body paragraphs here: the slot is simply

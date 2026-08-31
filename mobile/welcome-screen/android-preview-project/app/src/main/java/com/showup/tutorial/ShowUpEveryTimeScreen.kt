@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Fg
+import com.showup.welcome.WashHeadline
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Neutral
@@ -54,8 +55,6 @@ fun ShowUpEveryTimeScreen(
         step = 5,                                   // all five segments filled
         totalSteps = 5,
         eyebrow = "Show up, every time",
-            // accent under "there’s a cost"
-            underlineWidth = 196.dp,
         nextLabel = "I’m ready to show up",
         nextVariant = NextVariant.Sunset,           // variation 1
         showBack = true,
@@ -69,13 +68,12 @@ fun ShowUpEveryTimeScreen(
             onBack()
         },
         headline = {
-            Text(
-                buildAnnotatedString {
-                    append("If you don’t show up, ")
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("there’s a cost") }
-                    append(".")
-                },
-                color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
+            WashHeadline(
+                parts = listOf(
+                    "If you don’t show up, " to false,
+                    "there’s a cost" to true,
+                    "." to false,
+                ),
                 fontSize = 34.sp, lineHeight = 37.4.sp, letterSpacing = (-0.015).em,
             )
         },

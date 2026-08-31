@@ -20,8 +20,6 @@ struct ThirtyMinutesView: View {
             step: 4,
             totalSteps: 5,
             eyebrow: "30 minutes, no pressure",
-            // accent under "thirty minutes"
-            underlineWidth: 150,
             nextLabel: "Next",
             showBack: true,
             onNext: {
@@ -33,18 +31,12 @@ struct ThirtyMinutesView: View {
                 onBack()
             },
             headline: {
-                Text(TypeMetrics.attributed(
-                    runs: [
-                        ("Just ", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                        ("thirty minutes", TypeMetrics.uiFont(PS.loraBoldItalic, 34,
-                            fallback: TypeMetrics.italicSystem(34))),
-                        (".", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                    ],
-                    size: 34, multiple: 1.1,
-                    color: UIColor(Color.liqFg), trackingEm: -0.015))
-                    .fixedSize(horizontal: false, vertical: true)
+                WashHeadline(
+                    parts: [("Just ", false),
+                            ("thirty minutes", true),
+                            (".", false)],
+                    fontSize: 34, lineHeightMultiple: 1.1, trackingEm: -0.015
+                )
             },
             content: {
                 // ⑤ rule list — gap 12, rows wrap. No body paragraphs here: the slot is simply

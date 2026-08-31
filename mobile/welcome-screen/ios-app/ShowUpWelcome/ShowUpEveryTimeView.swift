@@ -28,8 +28,6 @@ struct ShowUpEveryTimeView: View {
             step: 5,                              // all five segments filled
             totalSteps: 5,
             eyebrow: "Show up, every time",
-            // accent under "there’s a cost"
-            underlineWidth: 196,
             nextLabel: "I’m ready to show up",
             nextVariant: .sunset,                 // variation 1
             showBack: true,
@@ -43,18 +41,12 @@ struct ShowUpEveryTimeView: View {
                 onBack()
             },
             headline: {
-                Text(TypeMetrics.attributed(
-                    runs: [
-                        ("If you don’t show up, ", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                        ("there’s a cost", TypeMetrics.uiFont(PS.loraBoldItalic, 34,
-                            fallback: TypeMetrics.italicSystem(34))),
-                        (".", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                    ],
-                    size: 34, multiple: 1.1,
-                    color: UIColor(Color.liqFg), trackingEm: -0.015))
-                    .fixedSize(horizontal: false, vertical: true)
+                WashHeadline(
+                    parts: [("If you don’t show up, ", false),
+                            ("there’s a cost", true),
+                            (".", false)],
+                    fontSize: 34, lineHeightMultiple: 1.1, trackingEm: -0.015
+                )
             },
             content: {
                 VStack(alignment: .leading, spacing: 0) {

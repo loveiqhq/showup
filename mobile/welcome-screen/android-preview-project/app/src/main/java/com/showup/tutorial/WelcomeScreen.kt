@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
+import com.showup.welcome.Wordmark
+import com.showup.welcome.WashHeadline
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Neutral
@@ -209,47 +211,27 @@ fun WelcomeScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing)   // safe area
                 .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 20.dp), // 20 / 24 / 0(+20)
         ) {
-            // ③ Wordmark
-            Text(
-                buildAnnotatedString {
-                    withStyle(SpanStyle(color = Fg)) { append("Show ") }
-                    withStyle(SpanStyle(color = Purple, fontStyle = FontStyle.Italic)) { append("Up") }
-                    withStyle(SpanStyle(color = Orange)) { append(".") }
-                },
-                fontFamily = Lora, fontSize = 26.sp, lineHeight = 26.sp,
-            )
+            // ③ Wordmark -- the shared one, not a local copy.
+            //
+            // The local copy had drifted from the token file in three ways at once: flat purple
+            // instead of the wordmark gradient, no 700 weight, and no -0.02em tracking. That is
+            // what a second copy of a brand mark does, and it is why there is now only one.
+            Wordmark(size = 26.sp)
 
             Spacer(Modifier.weight(1f))                          // flex:1
 
             // ④⑤⑥⑦ cluster
             HeroHeart(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 20.dp))
-            // ⑤ Headline + the underline accent the spec calls for. No blur here either — the
-            //    gradient's own alpha falloff carries the softness on every API level.
-            Box {
-                Text(
-                    buildAnnotatedString {
-                        append("Welcome\nto ")
-                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("Show Up.") }
-                    },
-                    color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
-                    fontSize = 42.sp, lineHeight = 44.sp, letterSpacing = (-0.02).em,
-                )
-                Box(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .offset(y = 6.dp)
-                        .size(width = 210.dp, height = 12.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                0.00f to Color.Transparent,
-                                0.26f to Orange.copy(alpha = 0.45f),
-                                0.62f to Color(0xFFE0567A).copy(alpha = 0.35f),
-                                1.00f to Color.Transparent,
-                            ),
-                            RoundedCornerShape(50),
-                        )
-                )
-            }
+            // ⑤ Headline. The orange wash belongs to the italic run, and WashHeadline measures
+            //    where that run actually landed before drawing it.
+            //
+            //    This was a 210dp bar pinned to the bottom of the headline block. A fixed width
+            //    cannot know where the words are: it sat under the whole last line instead of
+            //    under "Show Up.", and it was wrong by a different amount on every screen size.
+            WashHeadline(
+                parts = listOf("Welcome\nto " to false, "Show Up." to true),
+                fontSize = 42.sp, lineHeight = 44.sp,
+            )
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("We’re happy to see you", color = Fg, fontFamily = Manrope,

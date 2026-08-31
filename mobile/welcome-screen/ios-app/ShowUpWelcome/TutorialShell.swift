@@ -182,10 +182,6 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
     // Swift's memberwise init requires arguments in declaration order — unlike Kotlin,
     // where named arguments may appear in any order. That difference is why Android
     // compiled this happily while Xcode rejected it.
-    /// Width of the headline underline accent. It underlines the italic phrase, which sits in a
-    /// different place in every headline, so the width is per-card rather than derived. 0 draws
-    /// nothing.
-    var underlineWidth: CGFloat = 0
     let nextLabel: String
     var nextVariant: NextVariant = .orange
     var showBack: Bool = true
@@ -212,30 +208,13 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
 
                 Spacer().frame(height: 14)                 // eyebrow -> headline
 
-                // ④ headline + the underline accent every card's AC calls for. It was on the
-                // Welcome screen only.
-                //
-                // An overlay, so it cannot affect the headline's measured height - the 14 / 28
-                // margins around it are untouched.
+                // ④ headline. The orange wash belongs to the italic run, and WashHeadline
+                // measures where that run actually landed before drawing it. This was a
+                // fixed-width bar pinned to the bottom-leading corner of the whole headline: a
+                // fixed width cannot know where the words are, so it sat under the last line
+                // instead of under the emphasised phrase, and was wrong by a different amount at
+                // every screen size.
                 headline()
-                    .overlay(alignment: .bottomLeading) {
-                        if underlineWidth > 0 {
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .clear, location: 0.00),
-                                    .init(color: Color.liqOrange.opacity(0.50), location: 0.28),
-                                    .init(color: Color(hex: 0xE0567A).opacity(0.40), location: 0.64),
-                                    .init(color: .clear, location: 1.00),
-                                ],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                            .frame(width: underlineWidth, height: 10)
-                            .clipShape(Capsule())
-                            .offset(y: 4)
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                        }
-                    }
 
                 Spacer().frame(height: 28)                 // headline -> content
 

@@ -329,12 +329,6 @@ fun TutorialShell(
     nextVariant: NextVariant = NextVariant.Orange,
     modifier: Modifier = Modifier,
     showBack: Boolean = true,
-    /**
-     * Width of the headline underline accent. It underlines the italic phrase, so the width is
-     * per-card rather than derived: the italic run sits at a different place in every headline.
-     * 0 draws nothing.
-     */
-    underlineWidth: Dp = 0.dp,
     onBack: () -> Unit = {},
     headline: @Composable ColumnScope.() -> Unit,
     content: @Composable ColumnScope.() -> Unit,
@@ -360,26 +354,7 @@ fun TutorialShell(
             //    The bar is a child of a Box wrapping just the headline, bottom-aligned and nudged
             //    down 4. Modifier.offset places without re-measuring, so the accent cannot change
             //    the headline's measured height — the column's 14 / 28 margins are untouched.
-            Box {
-                Column { headline() }
-                if (underlineWidth > 0.dp) {
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .offset(y = 4.dp)
-                            .size(width = underlineWidth, height = 10.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    0.00f to Color.Transparent,
-                                    0.28f to Orange.copy(alpha = 0.50f),
-                                    0.64f to Color(0xFFE0567A).copy(alpha = 0.40f),
-                                    1.00f to Color.Transparent,
-                                ),
-                                RoundedCornerShape(50),
-                            )
-                    )
-                }
-            }
+            Column { headline() }
             Spacer(Modifier.height(28.dp))          // headline -> content
 
             content()

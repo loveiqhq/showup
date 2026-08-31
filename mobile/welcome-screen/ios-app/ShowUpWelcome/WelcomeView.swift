@@ -159,11 +159,12 @@ struct WelcomeView: View {
             // Nested flex columns — SwiftUI Spacers are the two `flex: 1` spacers.
             VStack(alignment: .leading, spacing: 0) {
 
-                // ③ Wordmark — top-anchored (safe area + 20)
-                (Text("Show ").foregroundColor(.liqFg)
-                 + Text("Up").foregroundColor(.liqPurple).italic()
-                 + Text(".").foregroundColor(.liqOrange))
-                    .font(F.lora(26))
+                // ③ Wordmark -- the shared one, not a local copy.
+                //
+                // The local copy had drifted from the token file in three ways at once: flat
+                // purple instead of the wordmark gradient, no 700 weight, and no -0.02em
+                // tracking. That is what a second copy of a brand mark does.
+                Wordmark(size: 26)
                     .padding(.top, 20)
 
                 Spacer(minLength: 8)                               // flex:1
@@ -174,37 +175,16 @@ struct WelcomeView: View {
                         .frame(maxWidth: .infinity, alignment: .center)  // heart centred
                         .padding(.bottom, 4)
 
-                    // ⑤ Headline — line-height 1.05 set absolutely (see TypeMetrics), italic
-                    //    "Show Up.", plus the underline accent the spec calls for.
-                    Text(TypeMetrics.attributed(
-                        runs: [
-                            ("Welcome\nto ", TypeMetrics.uiFont(
-                                PS.loraBold, 42,
-                                fallback: .systemFont(ofSize: 42, weight: .bold))),
-                            ("Show Up.", TypeMetrics.uiFont(
-                                PS.loraBoldItalic, 42,
-                                fallback: UIFont(
-                                    descriptor: UIFont.systemFont(ofSize: 42, weight: .bold)
-                                        .fontDescriptor.withSymbolicTraits(.traitItalic)
-                                        ?? UIFont.systemFont(ofSize: 42, weight: .bold).fontDescriptor,
-                                    size: 42))),
-                        ],
-                        size: 42,
-                        multiple: 1.05,
-                        color: UIColor(Color.liqFg),
-                        trackingEm: -0.02
-                    ))
-                    .overlay(alignment: .bottomLeading) {           // ⑤ underline accent
-                        Capsule()
-                            .fill(LinearGradient(
-                                colors: [.liqOrange.opacity(0), .liqOrange.opacity(0.55),
-                                         Color(hex: 0xE0567A).opacity(0.45), .liqPurple.opacity(0)],
-                                startPoint: .leading, endPoint: .trailing))
-                            .frame(width: 210, height: 12)
-                            .blur(radius: 5)
-                            .offset(y: 6)
-                            .allowsHitTesting(false)
-                    }
+                    // ⑤ Headline. The orange wash belongs to the italic run, and WashHeadline
+                    //    measures where that run actually landed before drawing it.
+                    //
+                    //    This was a 210dp blurred capsule pinned to the bottom-leading corner of
+                    //    the headline. A fixed width cannot know where the words are: it sat under
+                    //    the whole last line rather than under "Show Up.".
+                    WashHeadline(
+                        parts: [("Welcome\nto ", false), ("Show Up.", true)],
+                        fontSize: 42, lineHeightMultiple: 1.05, trackingEm: -0.02
+                    )
 
                     HStack(spacing: 8) {                            // ⑥ subhead
                         Text("We’re happy to see you").font(F.manrope(18, .semibold)).foregroundColor(.liqFg)

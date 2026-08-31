@@ -23,8 +23,6 @@ struct MeetInRealLifeView: View {
             step: 1,                          // first of the 5-segment tour
             totalSteps: 5,
             eyebrow: "Meet people in real life",
-            // accent under "actually"
-            underlineWidth: 186,
             nextLabel: "Next",
             showBack: false,                  // first screen of the tour — slot reserved, invisible
             onNext: {
@@ -34,19 +32,12 @@ struct MeetInRealLifeView: View {
             },
             headline: {
                 // ④ Lora 700 / 34 / 1.1 / -0.015em, "actually" italic
-                Text(TypeMetrics.attributed(
-                    runs: [
-                        ("We want you to ", TypeMetrics.uiFont(
-                            PS.loraBold, 34, fallback: .systemFont(ofSize: 34, weight: .bold))),
-                        ("actually", TypeMetrics.uiFont(
-                            PS.loraBoldItalic, 34, fallback: TypeMetrics.italicSystem(34))),
-                        (" meet.", TypeMetrics.uiFont(
-                            PS.loraBold, 34, fallback: .systemFont(ofSize: 34, weight: .bold))),
-                    ],
-                    size: 34, multiple: 1.1,
-                    color: UIColor(Color.liqFg), trackingEm: -0.015
-                ))
-                .fixedSize(horizontal: false, vertical: true)
+                WashHeadline(
+                    parts: [("We want you to ", false),
+                            ("actually", true),
+                            (" meet.", false)],
+                    fontSize: 34, lineHeightMultiple: 1.1, trackingEm: -0.015
+                )
             },
             content: {
                 VStack(alignment: .leading, spacing: 0) {

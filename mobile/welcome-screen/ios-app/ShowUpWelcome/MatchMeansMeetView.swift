@@ -20,8 +20,6 @@ struct MatchMeansMeetView: View {
             step: 3,
             totalSteps: 5,
             eyebrow: "Match means meet",
-            // accent under "binding"
-            underlineWidth: 170,
             nextLabel: "Next",
             showBack: true,
             onNext: {
@@ -33,18 +31,12 @@ struct MatchMeansMeetView: View {
                 onBack()
             },
             headline: {
-                Text(TypeMetrics.attributed(
-                    runs: [
-                        ("A match is a ", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                        ("binding", TypeMetrics.uiFont(PS.loraBoldItalic, 34,
-                            fallback: TypeMetrics.italicSystem(34))),
-                        (" date.", TypeMetrics.uiFont(PS.loraBold, 34,
-                            fallback: .systemFont(ofSize: 34, weight: .bold))),
-                    ],
-                    size: 34, multiple: 1.1,
-                    color: UIColor(Color.liqFg), trackingEm: -0.015))
-                    .fixedSize(horizontal: false, vertical: true)
+                WashHeadline(
+                    parts: [("A match is a ", false),
+                            ("binding", true),
+                            (" date.", false)],
+                    fontSize: 34, lineHeightMultiple: 1.1, trackingEm: -0.015
+                )
             },
             content: {
                 // ⑤ rule list — gap 12, rows wrap. No body paragraphs here: the slot is simply
