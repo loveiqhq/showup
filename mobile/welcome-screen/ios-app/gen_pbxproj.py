@@ -288,6 +288,18 @@ TGT_COMMON = [
     "PRODUCT_BUNDLE_IDENTIFIER = org.loveiq.showup.welcomepreview;",
     'PRODUCT_NAME = "$(TARGET_NAME)";',
     "SWIFT_EMIT_LOC_STRINGS = YES;",
+    # Step one of the Swift 6 migration, and the only step that can be taken without a compiler.
+    #
+    # `complete` reports every data-race problem Swift 6 will REFUSE to build, but reports them as
+    # warnings, because the language mode below is still 5.0. So this cannot break the build: it
+    # turns an invisible future problem into a visible present list.
+    #
+    # Step two is fixing what it reports, and that needs someone who can see the messages. Doing it
+    # blind would mean changing code to satisfy errors nobody has read.
+    #
+    # When the list is clear, change SWIFT_VERSION to 6.0 and the warnings become the guarantee.
+    # Worth doing while this target has a dozen files rather than a hundred.
+    "SWIFT_STRICT_CONCURRENCY = complete;",
     "SWIFT_VERSION = 5.0;",
     "TARGETED_DEVICE_FAMILY = 1;",
 ]

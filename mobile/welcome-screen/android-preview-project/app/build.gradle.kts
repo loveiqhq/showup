@@ -21,7 +21,19 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // On now rather than later, deliberately. R8 breaks the things it cannot see -- data
+            // loaded by a name built at runtime, anything reached by reflection -- and it breaks
+            // them ONLY in release, so a debug build keeps working and the failure waits until the
+            // build that goes to the store. Switching it on while the app is five screens means
+            // any such breakage is found today, against code we still remember.
+            isMinifyEnabled = true
+            // Unused drawables, layouts and strings as well as unused code. Our 245 flag PNGs are
+            // in assets/, which is never shrunk, so they are unaffected.
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
