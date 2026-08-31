@@ -122,6 +122,16 @@ check("the android rule is tested", "class TutorialRoutingTest" in kt_tests)
 check("the ios gap is declared, not forgotten", "NOT AT PARITY" in sw_rule,
       "iOS has no test bundle; that must be written down where the next reader will see it")
 
+# The Swift tests exist but have never been compiled. Checking they are PRESENT is worth something
+# -- it stops them being quietly deleted -- but it is not a substitute for running them, and the
+# file says so at the top rather than pretending otherwise.
+ios_tests = read(os.path.join(ROOT, "ios-app/ShowUpWelcomeTests"), "TutorialRoutingTests.swift")
+check("the ios tests are written, ready for a Mac", "final class TutorialRoutingTests" in ios_tests)
+check("and they are honest about never having run", "NOT YET RUN" in ios_tests)
+check("they cover the same cases as Android",
+      ios_tests.count("func test") == kt_tests.count("fun `"),
+      "%d swift vs %d kotlin" % (ios_tests.count("func test"), kt_tests.count("fun `")))
+
 print()
 print("  %d checks" % checks)
 if fails:
