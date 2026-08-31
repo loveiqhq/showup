@@ -12,37 +12,45 @@ later, the traps that are specific to native mobile, and a concrete bar for "goo
 
 These are not "before you build" items. They are live now, and two of them affect ShowUp directly.
 
-## 0.1 · Google Play's target API deadline is TODAY, and we are below it
+## 0.1 · Google Play's target API deadline — DONE
 
 As of **31 August 2026**, new apps and app updates must target **Android 16 (API 36)** to be
-published on Google Play. Existing apps must target at least API 35 to stay visible to new users on
-newer devices.
+published on Google Play.
 
-Our Android project currently declares:
+**Moved on 31 August 2026.** The project now declares:
 
 ```kotlin
-compileSdk = 35
-targetSdk  = 35     // below the requirement as of today
-minSdk     = 24
+compileSdk = 36
+targetSdk  = 36
+minSdk     = 24     // still worth raising, see 1.1
 ```
 
-This does not break anything right now — the preview project is not on the Play Store. But **the
-first real submission will be rejected** unless we move to 36. An extension is available through
-the Play Console until **1 November 2026** if needed.
+API 36 needs a newer toolchain than we had, so three things moved together — AGP 8.7.3 to 8.9.3,
+Gradle 8.9 to 8.11.1, and the SDK levels. The app builds and all tests pass.
 
-Raising `targetSdk` is never a one-line change: each level brings behaviour changes that have to be
-tested (permissions, background limits, storage). Budget real time for it, and do it *before* the
-app is otherwise finished, not as a release-week surprise.
+Done early on purpose. Raising `targetSdk` is never really a one-line change — each level brings
+behaviour changes around permissions, background work and storage — and it is far cheaper to
+absorb those now, on five screens, than in a release week.
 
 ## 0.2 · Dating apps must block under-18s on Google Play
 
 Since **January 2026**, Google Play requires dating apps to block under-18 users via the *Restrict
 Declared Minors* setting in Play Console.
 
-This is a product requirement, not a checkbox: it needs a date of birth (or an age signal) captured
-during sign-up, and a decision about what happens to someone who fails. **Our sign-up flow does not
-currently collect one.** SHOWUP-140/142/143/144 go phone → code → connect → profile with no age
-gate anywhere.
+**Correction — we already have this, and I was wrong to say otherwise.** The backend collects
+`date_of_birth` on the profile, enforces 18+ in `profiles.service.ts` via `isAtLeast18`, and the
+public profile DTO exposes only a derived `age`, never the raw date. That last detail is good
+privacy design and was already there.
+
+What is true is narrower: the gate lives at **profile creation**, not in the sign-up flow. Someone
+can create an account and verify a phone number before anything asks their age. For Play's
+*Restrict Declared Minors* setting that is very likely fine — the account cannot become usable
+without passing the check — but two things still need doing, and neither is code:
+
+- The **Play Console setting itself** has to be switched on. It is a policy toggle, not something
+  the app can satisfy on its own.
+- Someone should confirm that gating at profile creation rather than at sign-up is acceptable,
+  since the store's wording is about users, not profiles.
 
 Separately, Apple has been tightening this: apps with user profiles or messaging need a high age
 rating, and from February 2026 Apple blocks 18+ downloads in several countries unless the user has
@@ -224,6 +232,17 @@ standing on users/profiles/photos, blocks and reports. That is the right shape. 
 sure of is that a photo is genuinely never displayed while `pending` — reviewers test this by
 uploading something and looking.
 
+## 4.1 · One gap found while checking this
+
+A profile is only *discoverable* once it is complete — `matching.service.ts` filters candidates on
+`isComplete: true`, which is right. But that is the only place completeness is checked anywhere in
+the backend, and it constrains who can be **seen**, not who can **look**.
+
+So today, as far as the code goes, somebody with a half-finished profile can still browse other
+people. Whether that is intended is a product decision: some apps deliberately let you look before
+you commit, others require you to put yourself on the table before you see anyone. Worth settling
+explicitly rather than by omission — and if the answer is "no", it is a guard on three endpoints.
+
 Two more:
 
 - **Location privacy.** Never expose precise coordinates of another user to the client. Distance
@@ -279,6 +298,13 @@ Not aspirational. This is the floor.
 - [ ] Staged rollout, and a tested rollback plan
 - [ ] Signing keys backed up somewhere that survives a laptop dying
 
+## Privacy of other people's data
+- [ ] Never send another user's precise coordinates to the client. Distance bands computed
+      server-side, always — a client-side "1.2 km away" is an address waiting to be
+      reverse-engineered from three readings
+- [ ] Photos never leave the server while `pending` moderation
+- [ ] Biometric data (Face Liveness) has an explicit consent and a stated retention period
+
 ## Compliance
 - [ ] In-app account deletion that genuinely deletes
 - [ ] Privacy manifest complete, including every SDK
@@ -292,16 +318,20 @@ Not aspirational. This is the floor.
 
 # 6 · What I would do next, in order
 
-1. **Move Android to `targetSdk` 36.** The deadline is today. Do it while the app is small.
-2. **Decide the age gate.** Play has required it for dating apps since January. It changes the
-   sign-up flow, so it is cheaper to decide before more of that flow is built.
-3. **Turn on R8** in the release build now, so the breakage is found early.
-4. **Adopt Swift 6 strict concurrency now**, while there are twelve Swift files instead of a hundred.
-5. **Get a Mac into CI.** It is the root cause behind a whole category of our current problems: no
-   iOS build, no iOS tests, no iOS layout verification, and a static checker standing in for a
-   compiler.
-6. **Revisit native-×2 vs Kotlin Multiplatform** before the screen count doubles.
-7. **Raise `minSdk`** from 24 to 26 or 28.
+Ordered for the current plan: **no new UI screens until there is a Mac.** That is the right call —
+every screen built now is a screen built blind on half the product — and it also makes this a good
+window for the work below, none of which needs one.
+
+1. ~~Move Android to `targetSdk` 36.~~ **Done, 31 August 2026.**
+2. **Switch on *Restrict Declared Minors* in Play Console.** The code side is already there; this
+   is the part the app cannot do for itself.
+3. **Turn on R8** in the release build, so the breakage is found while there is little code to fix.
+4. **Adopt Swift 6 strict concurrency**, while there are twelve Swift files instead of a hundred.
+   Cheap now, weeks later.
+5. **Decide whether an incomplete profile may browse.** See 4.1 — today it may.
+6. **Raise `minSdk`** from 24 to 26 or 28.
+7. **When the Mac arrives:** iOS build and tests in CI first, then the iOS half of the layout
+   audit, then reconsider native-×2 vs Kotlin Multiplatform before the screen count doubles.
 
 ---
 

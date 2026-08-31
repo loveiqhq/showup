@@ -7,12 +7,14 @@ plugins {
 android {
     // Must match the `import com.showup.R` in WelcomeScreen.kt
     namespace = "com.showup"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.showup"
         minSdk = 24          // deliberately low: the orbs must look right on old devices too
-        targetSdk = 35
+        // API 36 (Android 16). Google Play has required this of new apps and updates since
+        // 31 August 2026 -- below it, the first submission is simply rejected.
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1"
     }
