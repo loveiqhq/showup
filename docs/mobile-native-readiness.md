@@ -60,7 +60,52 @@ been confirmed as an adult. The EU is pushing member states toward age verificat
 **Decision needed:** where the age gate lives in the flow, what we collect, and whether
 self-declaration is enough for launch. This is a product and legal question, not an engineering one.
 
-## 0.3 · Apple requires in-app account deletion
+## 0.3 · Sign in with Apple cannot be dropped, and it is not free
+
+**Recorded 31 August 2026 so it is not rediscovered late.**
+
+App Store guideline **4.8** applies the moment an app uses a third-party login to set up the primary
+account. We use two — Google and Facebook — so we must *also* offer a login that:
+
+* limits data collection to the user's name and email address, and
+* lets the user keep their email address private, and
+* does not collect in-app behaviour for advertising without consent.
+
+Sign in with Apple satisfies all three. It is not literally mandatory — any provider meeting the
+criteria counts — but in practice it is the answer, and it is already in the design.
+
+**The consequence to remember: the Apple button is a condition of offering the Google and Facebook
+ones.** If a release is ever running late, dropping Apple sign-in to save time is not an option; it
+would take Google and Facebook down with it, leaving only phone. Anyone tempted by that trade needs
+to know it is not available.
+
+**And it is a paid entitlement.** Sign in with Apple is not in Apple's free developer tier, so the
+$99/year Apple Developer Program is needed as soon as the Apple button is wired up — a sub-task on
+SHOWUP-144 — not at release.
+
+### Developer accounts, what each is actually for
+
+Publishing and signing-in are separate concerns, and conflating them causes people to think they are
+blocked when they are not.
+
+| Account | Cost | Needed for |
+|---|---|---|
+| Google Play Console | **$25 once, never again** | Publishing on Android. **Not** needed for Google sign-in |
+| Apple Developer Program | **$99 per year** | Publishing on iOS **and** Sign in with Apple |
+| Google Cloud project | free | Google sign-in (OAuth client) |
+| Meta developer account | free | Facebook login |
+
+Two lead-time traps:
+
+* **An organisation Play account needs a D-U-N-S number** — a free business identifier from Dun &
+  Bradstreet — plus incorporation or tax documents. Obtaining one is not instant. Start it before
+  it is on the critical path.
+* **Google sign-in breaks between testing and the store** unless one step is done. Google re-signs
+  the app when it is published, which changes its signing fingerprint, and Google sign-in checks
+  that fingerprint. The certificate from Play Console has to be added to the Google Cloud OAuth
+  client at release. Five minutes, and it fails in exactly the build nobody tests by hand.
+
+## 0.4 · Apple requires in-app account deletion
 
 Guideline **5.1.1(v)**: any app that lets you create an account must let you delete it *from inside
 the app*. Not by email, not by a web form.
