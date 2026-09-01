@@ -127,18 +127,14 @@ struct WelcomeScaffold<Content: View>: View {
     }
 }
 
-/// `scrollBounceBehavior(.basedOnSize)` where the OS has it, nothing where it does not.
+/// `scrollBounceBehavior(.basedOnSize)` -- no scroll bounce when the content already fits.
 ///
-/// Applying an unavailable modifier inline would need `if #available` around the whole view, which
-/// forks the layout into two branches that then have to be kept identical. A ViewModifier keeps the
-/// fork to one line and the layout to one definition.
+/// This used to carry an `if #available(iOS 16.4)` fork, because the project deployed to 16.0.
+/// At a 17.0 floor the modifier is simply always there, so the fork and the second branch that had
+/// to be kept identical to the first are both gone.
 private struct NoBounceWhenItFits: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 16.4, *) {
-            content.scrollBounceBehavior(.basedOnSize)
-        } else {
-            content
-        }
+        content.scrollBounceBehavior(.basedOnSize)
     }
 }
 

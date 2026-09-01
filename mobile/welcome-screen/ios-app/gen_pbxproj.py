@@ -242,7 +242,10 @@ PROJ_COMMON = [
     "GCC_C_LANGUAGE_STANDARD = gnu17;",
     "GCC_NO_COMMON_BLOCKS = YES;",
     "GCC_WARN_UNUSED_VARIABLE = YES;",
-    "IPHONEOS_DEPLOYMENT_TARGET = 16.0;",
+    # 17.0, confirmed by the product side on 2026-09-01. It drops iPhone X and older, and in
+    # exchange removes a whole class of bug this project hit twice: valid Swift that needs a newer
+    # OS than the target claims. Two availability forks were deleted outright when it moved.
+    "IPHONEOS_DEPLOYMENT_TARGET = 17.0;",
     "SDKROOT = iphoneos;",
 ]
 DEBUG_EXTRA = [

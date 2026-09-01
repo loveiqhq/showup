@@ -263,16 +263,34 @@ struct VerifyCodeView: View {
                 .offset(x: shake)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Enter your 6-digit verification code")
-                // One parameter, not two. The two-parameter closure — `{ old, new in }` — is the
-                // iOS 17 overload, and this target deploys to 16.0. Same trap as
-                // scrollBounceBehavior: valid Swift that needs a newer OS than we claim to support.
-                .onChange(of: mismatch) { isBad in
+                // Two parameters now the target is iOS 17. The single-parameter closure is
+                // deprecated from 17 onwards; it was used here only because the project deployed
+                // to 16.0, where the two-parameter overload does not exist.
+                .onChange(of: mismatch) { _, isBad in
                     // One shot, 480ms, then still. There is no looping animation in this flow.
                     guard isBad, !reduceMotion else { shake = 0; return }
                     withAnimation(.linear(duration: 0.48)) { shake = 0 }
                     let steps: [CGFloat] = [6, -6, 5, -5, 3, -3, 0]
-                    for (n, dx) in steps.enumerated() {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + Double(n) * 0.068) {
+
+                    // Absolute deadlines measured from one start point, NOT a chain of sleeps.
+                    //
+                    // The obvious rewrite -- sleep 68ms, move, sleep 68ms, move -- is wrong in a
+                    // way that only shows on a device: each wait carries its own small scheduling
+                    // error and they accumulate, so by the seventh step the shake visibly lags.
+                    // Offsetting every step from `start` keeps the exact timing the DispatchQueue
+                    // version had, which is the point: this is a mechanical swap of the scheduling
+                    // mechanism, not a redesign of the animation.
+                    //
+                    // The mechanism had to change because Swift 6 will not allow a DispatchQueue
+                    // closure to touch view state -- it cannot see that the closure runs on the
+                    // main actor. A Task can be told, and is.
+                    let start = ContinuousClock.now
+                    Task { @MainActor in
+                        for (n, dx) in steps.enumerated() {
+                            try? await Task.sleep(
+                                until: start + .seconds(Double(n) * 0.068),
+                                clock: .continuous,
+                            )
                             withAnimation(.easeInOut(duration: 0.068)) { shake = dx }
                         }
                     }
