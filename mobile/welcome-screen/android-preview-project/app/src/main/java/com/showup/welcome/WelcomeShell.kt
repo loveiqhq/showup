@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -124,6 +125,53 @@ fun WelcomeBackdrop(
             )
         }
     }
+}
+
+/**
+ * The CSS drop shadow under a round CTA, DRAWN rather than cast by the platform.
+ *
+ * `--liq-shadow-cta` is two shadows offset straight down and spread evenly around the shape:
+ *
+ *     0 8px 20px rgba(254,104,57,.32)
+ *     0 2px  6px rgba(254,104,57,.20)
+ *
+ * `Modifier.shadow` cannot produce that. Android casts elevation shadows from a virtual light at
+ * the top-centre of the WINDOW, so the direction depends on where the view sits on screen: a button
+ * near the right edge throws its shadow down and to the LEFT, which is exactly what the Next circle
+ * was doing. The design asks for a glow, which has no light source and no direction.
+ *
+ * Same reasoning as the backdrop orbs and for the same reason as avoiding `Modifier.blur`: a radial
+ * gradient's own alpha falloff is soft on every API level and is under our control.
+ *
+ * @param radius the circle's radius, in px
+ * @param centre the circle's centre, in px
+ */
+private fun DrawScope.ctaShadow(centre: Offset, radius: Float, color: Color) {
+    // (downward offset, blur, alpha) — the two layers of the token, in CSS pixels.
+    val layers = listOf(
+        Triple(8.dp.toPx(), 20.dp.toPx(), 0.32f),
+        Triple(2.dp.toPx(), 6.dp.toPx(), 0.20f),
+    )
+    for ((dy, blur, alpha) in layers) {
+        // A CSS blur of B fades across roughly B, centred on the edge: solid until B/2 inside the
+        // edge, gone by B/2 outside it.
+        val outer = radius + blur / 2f
+        val solid = ((radius - blur / 2f) / outer).coerceIn(0f, 0.99f)
+        drawCircle(
+            brush = Brush.radialGradient(
+                solid to color.copy(alpha = alpha),
+                1.00f to Color.Transparent,
+                center = Offset(centre.x, centre.y + dy), radius = outer,
+            ),
+            radius = outer,
+            center = Offset(centre.x, centre.y + dy),
+        )
+    }
+}
+
+/** Draws [ctaShadow] behind a circular control that fills this node. */
+fun Modifier.ctaGlow(color: Color): Modifier = drawBehind {
+    ctaShadow(Offset(size.width / 2f, size.height / 2f), size.minDimension / 2f, color)
 }
 
 /** One orb. The stop at 65% is where the reference puts full transparency. */
@@ -288,20 +336,34 @@ fun WashHeadline(
             val w = right - left
             val rx = w / 2f
 
-            withTransform({
-                translate(left, bottom - h)
-                // ellipse at 50% 100%: horizontal radius w/2, vertical radius h
-                scale(scaleX = 1f, scaleY = h / rx, pivot = Offset(rx, h))
-            }) {
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        0.0f to Orange.copy(alpha = 0.55f),
-                        0.7f to Color.Transparent,
-                        1.0f to Color.Transparent,
-                        center = Offset(rx, h), radius = rx,
-                    ),
-                    radius = rx, center = Offset(rx, h),
-                )
+            // Clipped to the band, which the CSS gets for free and this did not.
+            //
+            // The gradient is an ellipse centred on the BOTTOM edge with a vertical radius of h,
+            // so it spans h above that edge and h below it. In CSS the ::after box is only the h
+            // above, and everything past it is clipped away -- which is what makes the wash read
+            // as a band with an edge. Unclipped, the lower half bled down into the line below and
+            // the whole thing looked like a smudge rather than an underline.
+            clipRect(left = left, top = bottom - h, right = right, bottom = bottom) {
+                withTransform({
+                    translate(left, bottom - h)
+                    // ellipse at 50% 100%: horizontal radius w/2, vertical radius h
+                    scale(scaleX = 1f, scaleY = h / rx, pivot = Offset(rx, h))
+                }) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            // Transparent at 1.0, not at 0.7. The stop is a fraction of the
+                            // radius, and the radius is half the phrase -- so stopping at 0.7 put
+                            // the last visible ink at 70% of the way out, and because alpha falls
+                            // off the whole way the eye lost it around 56%. Measured against the
+                            // design's own render, which reaches about 78%: the wash sat under the
+                            // middle of "free to date" instead of under all of it.
+                            0.0f to Orange.copy(alpha = 0.55f),
+                            1.0f to Color.Transparent,
+                            center = Offset(rx, h), radius = rx,
+                        ),
+                        radius = rx, center = Offset(rx, h),
+                    )
+                }
             }
         },
         onTextLayout = { layout = it },

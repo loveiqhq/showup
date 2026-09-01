@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
+import com.showup.welcome.ctaGlow
 import com.showup.designsystem.EyebrowBg
 import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
@@ -237,9 +238,15 @@ fun NextButton(
         Box(
             Modifier
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                // --liq-shadow-cta on cards 01-04, --liq-shadow-violet on card 05
-                .shadow(14.dp, CircleShape, ambientColor = glow, spotColor = glow)
+                // --liq-shadow-cta on cards 01-04, --liq-shadow-violet on card 05.
+                //
+                // Drawn, not cast. Modifier.shadow uses Android's elevation system, whose light
+                // sits at the top-centre of the WINDOW -- so the shadow's direction depends on
+                // where the control happens to sit on screen, and this circle lives at the right
+                // edge, which threw its glow down and to the LEFT. The token is a glow: no light
+                // source, no direction, spread evenly and pushed straight down.
                 .size(56.dp)
+                .ctaGlow(glow)
                 .clip(CircleShape)
                 .then(
                     when (variant) {

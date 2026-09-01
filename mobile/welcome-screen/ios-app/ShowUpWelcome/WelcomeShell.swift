@@ -341,13 +341,25 @@ final class WashLabel: UILabel {
         let rx = w / 2
 
         ctx.saveGState()
+        // Clipped to the band, which the CSS gets for free and this did not.
+        //
+        // The gradient is an ellipse centred on the BOTTOM edge with a vertical radius of h, so it
+        // spans h above that edge and h below it. In CSS the ::after box is only the h above, and
+        // the rest is clipped away -- which is what makes the wash read as a band with an edge.
+        // Unclipped, the lower half bled into the line below and it looked like a smudge.
+        ctx.clip(to: CGRect(x: left, y: bottom - h, width: w, height: h))
         // ellipse at 50% 100%: horizontal radius w/2, vertical radius h
         ctx.translateBy(x: left + rx, y: bottom)
         ctx.scaleBy(x: 1, y: h / rx)
         let colors = [UIColor(Color.liqOrange).withAlphaComponent(0.55).cgColor,
                       UIColor(Color.liqOrange).withAlphaComponent(0.0).cgColor] as CFArray
+        // Transparent at 1.0, not at 0.7. The stop is a fraction of the radius, and the radius is
+        // half the phrase -- so stopping at 0.7 put the last ink at 70% of the way out, and
+        // because alpha falls off the whole way the eye lost it around 56%. Measured against the
+        // design's own render, which reaches about 78%: the wash sat under the middle of the
+        // emphasised phrase rather than under all of it.
         if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                              colors: colors, locations: [0.0, 0.7]) {
+                              colors: colors, locations: [0.0, 1.0]) {
             ctx.drawRadialGradient(g, startCenter: .zero, startRadius: 0,
                                    endCenter: .zero, endRadius: rx, options: [])
         }
