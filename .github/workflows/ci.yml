@@ -97,3 +97,72 @@ jobs:
 
       - name: End-to-end tests
         run: npm run test:e2e
+
+  # ── the mobile half ────────────────────────────────────────────────────────
+  #
+  # Added when the iOS and Android projects were merged into main. Until then CI covered the
+  # backend only, so main could hold mobile code that nothing had built -- the app compiled on one
+  # laptop and nowhere else, and a broken screen would have reached main unnoticed.
+  #
+  # This runs on every pull request rather than only when mobile/ changes. It costs a few minutes on
+  # backend-only PRs, and it is the safer trade: a per-path filter combined with a required status
+  # check is a well-known way to leave a pull request waiting forever for a job that will never run.
+  mobile:
+    name: Android build, unit tests & design conformance
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: mobile/welcome-screen
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      # JDK 21: what AGP 8.9 and Gradle 8.11 are built against. The Android SDK itself is already
+      # present on the runner image, and AGP downloads the API 36 platform if it is missing.
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Caches the Gradle distribution and the dependency cache between runs. Without it every run
+      # re-downloads Compose, libphonenumber and the Android build tools from scratch.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The repository is developed on Windows, where the executable bit does not exist. It is set
+      # in the index, and this is the belt to that pair of braces: if it is ever lost by a commit
+      # from a Windows machine, CI still runs instead of failing with "permission denied".
+      - name: Make the Gradle wrapper executable
+        run: chmod +x android-preview-project/gradlew
+
+      # assembleRelease as well as debug, deliberately. R8 only runs on release, and it removes
+      # anything it cannot see being used -- which is how libphonenumber's country data nearly went
+      # missing, in a build that a debug-only CI would have passed happily.
+      - name: Build and test the Android app
+        working-directory: mobile/welcome-screen/android-preview-project
+        run: ./gradlew :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest --no-daemon
+
+      # The design conformance checkers. Pure Python, a couple of seconds, and the only automated
+      # check the iOS half has at all -- there is no Mac here, so these read the Swift sources
+      # rather than compiling them. They are why the two platforms have not silently diverged.
+      - name: Design conformance and cross-platform parity
+        run: |
+          for f in verify-spec verify-welcome verify-connect check-country-data \
+                   check-tutorial-routing check-swift-structure check-swift-arg-order \
+                   check-ios-availability; do
+            echo "── $f"
+            python3 "audit/$f.py"
+          done
+
+      # Kept when the run fails, so a layout or conformance failure can be read without rerunning
+      # anything locally -- which matters most for the iOS side, where nobody can reproduce it.
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: mobile/welcome-screen/android-preview-project/app/build/reports/
+          retention-days: 7
