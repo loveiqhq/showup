@@ -388,7 +388,14 @@ fun VerifyCodeScreen(
                 append("We just sent a 6-digit code to ")
                 // must be the number actually submitted on A — the user's only chance to catch a
                 // typo before waiting for an SMS that will never arrive
-                withStyle(SpanStyle(color = Fg, fontWeight = FontWeight.Bold)) { append(phone) }
+                //
+                // Every space inside it is made non-breaking, so the number wraps as one thing.
+                // With ordinary spaces the line broke wherever it happened to run out of room,
+                // which left "+1" stranded on the first line and the digits on the second. A
+                // number split across two lines is exactly what a person is here to read back.
+                withStyle(SpanStyle(color = Fg, fontWeight = FontWeight.Bold)) {
+                    append(phone.replace(' ', NBSP))
+                }
                 append(".")
             },
             modifier = Modifier.widthIn(max = 320.dp),
