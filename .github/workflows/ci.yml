@@ -152,7 +152,7 @@ jobs:
         run: |
           for f in verify-spec verify-welcome verify-connect check-country-data \
                    check-tutorial-routing check-swift-structure check-swift-arg-order \
-                   check-ios-availability; do
+                   check-ios-availability check-swift-concurrency; do
             echo "── $f"
             python3 "audit/$f.py"
           done
