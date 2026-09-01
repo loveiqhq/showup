@@ -162,19 +162,32 @@ final class ScreenFitTests: XCTestCase {
 
     func testTheCTAIsOnScreenOnEveryDevice() throws {
         // A CTA that never moves because it is off the bottom of the screen would pass the tests
-        // above and fail every user. Both screens scroll when the keyboard is up, so this measures
-        // the keyboard-free layout: if it does not fit here it fits nowhere.
+        // above and fail every user.
+        //
+        // Every screen in the flow that carries a sunset CTA is swept, not just the two above: the
+        // primary action being reachable is the one thing that has to hold on all seventeen, and
+        // the tight end of the matrix -- a 640pt-tall phone -- is where a bottom band runs out of
+        // room. The tutorial cards are absent because their Next control is a circle in the corner
+        // rather than a pill, and a probe tuned to the gradient would not see it.
         var offscreen: [String] = []
         for device in devices {
-            for (label, image) in [
+            let screens: [(String, CGImage)] = [
+                ("Startup", try render(StartupView(), on: device)),
+                ("Welcome back", try render(WelcomeBackView(name: "Alexandra"), on: device)),
                 ("Phone", try render(PhoneNumberView(value: .constant("201555")), on: device)),
+                ("Phone rejected", try render(
+                    PhoneNumberView(value: .constant("201"), error: .tooShort), on: device)),
                 ("Code", try render(VerifyCodeView(digits: .constant("482170")), on: device)),
-            ] {
+                ("Code mismatch", try render(
+                    VerifyCodeView(digits: .constant("482170"), mismatch: true), on: device)),
+                ("Tutorial card 1", try render(WelcomeView(), on: device)),
+            ]
+            for (label, image) in screens {
                 guard let rows = ctaRows(in: image) else {
-                    offscreen.append("\(device.name) \(label): CTA not drawn"); continue
+                    offscreen.append("\(device.name) / \(label): CTA not drawn at all"); continue
                 }
                 if rows.upperBound >= Int(device.height) - 1 {
-                    offscreen.append("\(device.name) \(label): CTA reaches the bottom edge")
+                    offscreen.append("\(device.name) / \(label): CTA runs off the bottom edge")
                 }
             }
         }

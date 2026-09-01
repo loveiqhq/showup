@@ -289,12 +289,19 @@ fun PhoneNumberScreen(
         // The padding goes BEFORE the height. Compose applies modifiers outside-in, so
         // `.height(36).padding(top = 10)` reserves 36 and then spends 10 of it on padding, leaving
         // the text 26dp and clipping the second line -- ScreenFitTest caught exactly that on 14 of
-        // the 18 devices. This order reserves 36dp of TEXT and puts the 10 outside it.
+        // the 18 devices. This order reserves the height for TEXT and puts the 10 outside it.
+        //
+        // 40 rather than the 36 the iOS twin uses, and the difference is deliberate. Two lines here
+        // are 2 x 17.55sp = 35.1dp exactly, because this Text sets lineHeight explicitly; 36 would
+        // leave 0.9dp of margin, and whether font padding eats that depends on the text engine --
+        // which is precisely how this row came to render differently on Linux and on Windows. iOS
+        // needs no such margin because it can shrink a long message to fit; Compose 1.7 has no
+        // autoSize, so the room has to be real.
         Box(
             Modifier
                 .fillMaxWidth()
                 .padding(top = 10.dp, start = 4.dp)
-                .height(36.dp)
+                .height(40.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
             Text(

@@ -64,17 +64,19 @@ class ScreenFitTest {
         "Already have an account", "By continuing you agree", "Continue with",
         "Legal Notice", "Skip and continue", "Trouble signing in",
         "ready to show up", "Takes less than a minute",
-        // Added 2026-09-01, and not like the others: found by CI on Linux, does NOT reproduce on
-        // Windows. Same code, same devices -- the two platforms lay text out fractionally
-        // differently and these messages sit exactly on the boundary between two lines and three.
-        // That they render at all on a given machine is luck, which makes this a real defect
-        // rather than a tight fit. See audit/FIT-2026-08-31.md section D.
+        // The phone-error family was baselined here on 2026-09-01 and is deliberately gone again.
         //
-        // Two patterns, not five separate messages, because the whole family shares one cause: the
-        // phone errors that carry an example number are the long ones, and the example is the most
-        // useful part of them. Baselining them individually would have meant five CI rounds to
-        // discover one problem.
-        "For example", "looks like a landline",
+        // It was never a boundary between two lines and three. The helper row was written as
+        // `.height(36.dp).padding(top = 10.dp)`, and Compose applies modifiers outside-in: that
+        // reserves 36 and then spends 10 of it, leaving the text 26. Two lines of 17.55sp need
+        // 35.1, so they overflowed by ~9dp -- which is the "20px of text below the cut, 2 line(s)
+        // drawn" CI reported, exactly. Putting the padding outside the height gives the text the
+        // 36 it was always meant to have and the findings go with it.
+        //
+        // Worth recording because the baseline was reasonable and still wrong: the report said two
+        // lines were drawn, and two lines have never been the problem. Nothing here is masked now,
+        // which is the point -- "For example" appears in five of the seven phone errors, so
+        // suppressing it would have blinded this suite to the whole family.
     )
 
     /** Short labels are matched whole, so "Next" cannot swallow an unrelated future finding. */

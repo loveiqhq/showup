@@ -257,8 +257,12 @@ check("143 border 1.5 (kotlin)", "1.5.dp" in ver_kt)
 check("143 border 1.5 (swift)", "lineWidth: 1.5" in ver_sw)
 # A/B reserves TWO lines, pinned, not one as a minimum. Every message names the country and wraps;
 # reserving one line let the CTA drop 15.7pt on rejection, measured on an iPhone 17 Pro.
+# The two numbers differ on purpose and the reasoning is at both sites: Compose sets lineHeight
+# explicitly and cannot shrink text, so it needs real headroom over the 35.1dp two lines take;
+# SwiftUI's two lines are smaller and it can scale a long message down. What has to match is that
+# both reserve two lines and neither can grow.
 check("143 helper A/B reserves two lines (kotlin)",
-      "height(36.dp)" in ver_kt and "maxLines = 2" in ver_kt)
+      "height(40.dp)" in ver_kt and "maxLines = 2" in ver_kt)
 check("143 helper A/B reserves two lines (swift)",
       "minHeight: 36, maxHeight: 36" in ver_sw and "lineLimit(2)" in ver_sw)
 # see finding 1 -- 42 cannot hold the specified copy, so the reserve is the measured height
