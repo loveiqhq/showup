@@ -189,8 +189,12 @@ fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier) {
  * Compose's radial gradients are circular, so the canvas is scaled to turn the circle into the
  * ellipse the CSS asks for.
  */
-/** U+00A0. Named, because an invisible literal in source is one tidy-up away from vanishing. */
-private const val NBSP = '\u00A0'
+/**
+ * U+00A0. Named, because an invisible literal in source is one tidy-up away from vanishing.
+ *
+ * Not private: the code screen needs it too, to stop a phone number breaking across two lines.
+ */
+internal const val NBSP = '\u00A0'
 
 @Composable
 fun WashHeadline(

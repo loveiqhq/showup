@@ -222,7 +222,13 @@ struct VerifyCodeView: View {
                 (Text("We just sent a 6-digit code to ").foregroundColor(.liqNeutral)
                  // must be the number actually submitted on A — the user's only chance to catch a
                  // typo before waiting for an SMS that will never arrive
-                 + Text(phone).font(F.manrope(15, .bold)).foregroundColor(.liqFg)
+                 //
+                 // Every space inside it is made non-breaking, so the number wraps as one thing.
+                 // With ordinary spaces the line broke wherever it ran out of room, leaving "+1"
+                 // stranded on the first line and the digits on the second. A number split across
+                 // two lines is exactly what a person is here to read back and check.
+                 + Text(phone.replacingOccurrences(of: " ", with: "\u{00A0}"))
+                     .font(F.manrope(15, .bold)).foregroundColor(.liqFg)
                  + Text(".").foregroundColor(.liqNeutral))
                     .font(F.manrope(15, .medium))
                     .lineSpacing(15 * 0.45)
