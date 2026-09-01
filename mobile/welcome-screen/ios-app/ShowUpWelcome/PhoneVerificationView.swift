@@ -59,11 +59,13 @@ private struct VerificationEyebrow: View {
             Text("PHONE VERIFICATION")
                 .font(F.manrope(11, .bold))
                 .tracking(0.08 * 11)
-                .foregroundColor(.liqPurple)
+                // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on
+                // both of these screens; lavender is the tutorial's and was taken by default.
+                .foregroundColor(.liqOrange)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(Capsule().fill(Color.liqEyebrowBg))
+        .background(Capsule().fill(Color.liqEyebrowOrangeBg))
     }
 }
 

@@ -22,7 +22,9 @@ extension Color {
     static let liqSubtle   = Color(hex: 0x1D1129).opacity(0.46)      // captions, Back label
     static let liqFaint    = Color(hex: 0x1D1129).opacity(0.24)      // the " — " dash in rule rows
     static let liqTrack    = Color(hex: 0x1D1129).opacity(0.12)      // unfilled progress segments
-    static let liqEyebrowBg = Color(hex: 0xA78BFA).opacity(0.16)     // eyebrow pill fill
+    static let liqEyebrowBg = Color(hex: 0xA78BFA).opacity(0.16)     // eyebrow pill, lavender tone
+    // The tone is per screen, not global: tutorial cards lavender, phone screens orange.
+    static let liqEyebrowOrangeBg = Color(hex: 0xFE6839).opacity(0.12) // eyebrow pill, orange tone
 
     // Added for the welcome & sign-up flow (SHOWUP-140/142/143). Verbatim from
     // design_handoff_showup/tokens/colors_and_type.css, the authoritative token file.

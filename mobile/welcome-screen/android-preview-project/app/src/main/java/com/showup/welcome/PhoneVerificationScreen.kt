@@ -69,7 +69,7 @@ import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerDigit
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
-import com.showup.designsystem.EyebrowBg
+import com.showup.designsystem.EyebrowOrangeBg
 import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
@@ -126,14 +126,16 @@ private fun ColumnScope.Eyebrow() {
         Modifier
             .align(Alignment.Start)
             .clip(RoundedCornerShape(50))
-            .background(EyebrowBg)
+            // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on both
+            // of these screens; lavender is the tutorial's tone and was taken here by default.
+            .background(EyebrowOrangeBg)
             .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(Modifier.size(5.dp).background(Orange, CircleShape))
         Text(
-            "PHONE VERIFICATION", color = Purple, fontFamily = Manrope,
+            "PHONE VERIFICATION", color = Orange, fontFamily = Manrope,
             fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.88.sp,
         )
     }

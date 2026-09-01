@@ -27,7 +27,10 @@ val Neutral = Color(0xFF4B3B5A)        // --liq-neutral-200 · body text
 val Subtle = Color(0x751D1129)         // --liq-fg-subtle   · rgba(29,17,41,.46)
 val Faint = Color(0x3D1D1129)          // --liq-fg-faint    · rgba(29,17,41,.24) — the " — " dash
 val Track = Color(0x1F1D1129)          // rgba(29,17,41,.12) — unfilled progress segments
-val EyebrowBg = Color(0x29A78BFA)      // rgba(167,139,250,.16) — eyebrow pill fill
+val EyebrowBg = Color(0x29A78BFA)      // rgba(167,139,250,.16) — eyebrow pill fill, lavender tone
+// The eyebrow has three tones in the handoff and the tone is per screen, not global: the tutorial
+// cards use lavender, the phone screens use orange. Two tokens, because one pill cannot be both.
+val EyebrowOrangeBg = Color(0x1FFE6839) // rgba(254,104,57,.12) — eyebrow pill fill, orange tone
 
 // Added for the welcome & sign-up flow (SHOWUP-140/142/143). Values are verbatim from
 // design_handoff_showup/tokens/colors_and_type.css, which is the authoritative token file.

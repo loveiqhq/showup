@@ -139,16 +139,14 @@ check("wordmark 26 (swift)", "size: CGFloat = 26" in shell_sw)
 # compiled, rendered and looked deliberate -- just heavier than the design, and wrong. Nothing
 # would ever have caught that except someone holding the two pictures side by side, which is
 # exactly why it is pinned here now.
-phone_kt = read(KT, "welcome/PhoneVerificationScreen.kt")
-phone_sw = read(SW, "PhoneVerificationView.swift")
-check("back is a chevron, not an arrow (kotlin)", "BrandIcon.ChevronLeft" in phone_kt)
-check("back is a chevron, not an arrow (swift)", "icon: .chevronLeft" in phone_sw)
-check("the arrow is not used for back (kotlin)", "BrandIcon.ArrowLeft" not in phone_kt)
-check("the arrow is not used for back (swift)", ".arrowLeft" not in phone_sw)
-check("back chevron is 24 (kotlin)", "BrandIcon.ChevronLeft, 24.dp" in phone_kt)
-check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in phone_sw)
-check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in phone_kt)
-check("back chevron stroke 2 (swift)", "stroke: 2" in phone_sw)
+check("back is a chevron, not an arrow (kotlin)", "BrandIcon.ChevronLeft" in ver_kt)
+check("back is a chevron, not an arrow (swift)", "icon: .chevronLeft" in ver_sw)
+check("the arrow is not used for back (kotlin)", "BrandIcon.ArrowLeft" not in ver_kt)
+check("the arrow is not used for back (swift)", ".arrowLeft" not in ver_sw)
+check("back chevron is 24 (kotlin)", "BrandIcon.ChevronLeft, 24.dp" in ver_kt)
+check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in ver_sw)
+check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in ver_kt)
+check("back chevron stroke 2 (swift)", "stroke: 2" in ver_sw)
 
 # The SHAPE, not just the name. Naming the right enum case proves nothing if that case draws the
 # wrong path -- and the two icons live three lines apart, which is exactly where a mis-paste lands.
@@ -160,6 +158,24 @@ check("the chevron draws the handoff's path (swift)",
 # The arrow keeps its shaft, so the two stay genuinely different icons rather than converging.
 check("the arrow still has its shaft (kotlin)",
       "Offset(19f, 12f), Offset(5f, 12f)" in shell_kt)
+
+# ── the eyebrow tone on 143 ─────────────────────────────────────────────────
+#
+# The handoff's Eyebrow has three tones and the tone is chosen PER SCREEN:
+# screen-phone-reference.jsx uses <Eyebrow color="orange"> on both phone screens (lines 182, 440),
+# while the tutorial cards use lavender. Both platforms took lavender here, which is the component
+# default -- so the pill and its text came out purple on a screen the design paints orange.
+check("eyebrow uses the orange tone (kotlin)", "EyebrowOrangeBg" in ver_kt)
+check("eyebrow uses the orange tone (swift)", "liqEyebrowOrangeBg" in ver_sw)
+check("eyebrow text is orange (kotlin)", '"PHONE VERIFICATION", color = Orange' in ver_kt)
+check("eyebrow text is orange (swift)", ".foregroundColor(.liqOrange)" in ver_sw)
+check("the lavender tone is not used here (kotlin)", "EyebrowBg" not in ver_kt)
+check("the lavender tone is not used here (swift)", "liqEyebrowBg)" not in ver_sw)
+# rgba(254,104,57,.12) and rgba(167,139,250,.16) -- two tokens, so neither screen can drift.
+check("orange tone is 12 percent (kotlin)", "EyebrowOrangeBg = Color(0x1FFE6839)" in tok_kt)
+check("orange tone is 12 percent (swift)",
+      "Color(hex: 0xFE6839).opacity(0.12)" in tok_sw)
+check("lavender tone survives for the tutorial (kotlin)", "EyebrowBg = Color(0x29A78BFA)" in tok_kt)
 
 # ── backdrop shared between 140 and 142 ─────────────────────────────────────
 check("one backdrop component (kotlin)", "WelcomeBackdrop" in shell_kt)
