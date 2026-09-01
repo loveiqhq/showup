@@ -1,288 +1,198 @@
 //  CountryCodes.swift
-//  ShowUp · the country list behind the dial-code pill (SHOWUP-143)
+//  ShowUp · every country, and the rules for each (SHOWUP-143)
 //
-//  ⚠️ THIS FILE IS ONE STEP BEHIND ANDROID, AND THE STEP NEEDS A MAC.
+//  NOTHING HERE COSTS MONEY.
 //
-//  Android now derives every country and every rule from Google's libphonenumber: ~250 countries,
-//  real per-country mobile lengths, landline detection, and as-you-type grouping — all covered by
-//  app/src/test/java/com/showup/welcome/PhoneValidationTest.kt, which tests against libphonenumber's
-//  own data.
+//  Country calling codes are public ITU assignments (recommendation E.164) — not licensed, not
+//  metered, not behind anyone's API. The rules come from Google's libphonenumber metadata, carried
+//  here by PhoneNumberKit, which is MIT: it ships inside the app, so there is no server to meter
+//  and nothing to bill. The paid service in this flow is Twilio, and it is paid for *delivering the
+//  SMS*.
 //
-//  The Swift equivalent is PhoneNumberKit (MIT, same underlying metadata). It installs through
-//  Xcode's Swift Package Manager, and resolving a package needs Xcode — it cannot be done or
-//  verified from Windows. Writing the integration blind is precisely the fix-by-fix loop this
-//  project agreed to avoid, so it is left for the Mac rather than guessed at.
+//  WHY IT REPLACED A HAND-WRITTEN TABLE
 //
-//  WHAT THIS MEANS TODAY: iOS offers the 35 hand-written countries below with hand-written length
-//  rules. Android offers every country with correct ones. That divergence is deliberate and
-//  temporary, and it is the only thing standing between the two platforms on this screen.
+//  This file used to carry 35 countries with hand-written length rules — a third of the world, and
+//  the rules were wrong twice over. Both were shipped bugs: the lengths described every kind of
+//  number rather than mobiles (so a six-digit German landline passed as a number we could text),
+//  and 250 countries could never have been maintained this way. Writing those rules by hand means
+//  guessing, and a wrong guess REJECTS A REAL PERSON'S REAL NUMBER, which is the worst failure this
+//  screen has.
 //
-//  THE JOB, when Xcode is available:
-//    1. File > Add Package Dependencies… > https://github.com/PhoneNumberKit/PhoneNumberKit
-//    2. Replace COUNTRIES with PhoneNumberKit's allCountries, mapped the way CountryCodes.kt does
-//    3. Replace validate() with the same order Android uses — TYPE first, then length, because a
-//       short landline otherwise reports "too short" instead of "we need a mobile"
-//    4. Replace formatNational() with PartialFormatter
-//    5. Port PhoneValidationTest.kt; it is the specification, and it should pass unchanged
-//
-//  The flag artwork is already done on both sides and needs no package — see CountryPicker.swift.
+//  This is the deliberate twin of CountryCodes.kt, which has been on libphonenumber since it was
+//  written. Android had every country and iOS had 35; that was the last real gap between the two
+//  platforms on this screen, and it is closed. Both now derive the list, the names, the lengths,
+//  the type, the trunk prefix and the grouping from the same metadata.
 
-import SwiftUI
+import Foundation
+import PhoneNumberKit
 
-/// How a flag is drawn. No emoji anywhere, flags included — CLAUDE.md states it as a rule.
-enum FlagArt {
-    /// Equal or weighted stripes. `horizontal: false` means vertical stripes.
-    case bands(horizontal: Bool, stripes: [(UInt32, Int)])
-    /// The Nordic cross — offset left, not centred. `inner` draws a second, thinner cross.
-    case cross(bg: UInt32, arm: UInt32, inner: UInt32? = nil, centred: Bool = false)
-    /// An ordered list of shapes on a 0..1 unit square, painted back to front.
-    ///
-    /// Bands and cross cover the flags that are just stripes; this covers the rest — a triangle
-    /// from the hoist, a canton, a crescent, a leaf. Everything is a fraction of the flag rather
-    /// than a point, so one description renders correctly at any size and on either platform.
-    case layers([FlagShape])
-    /// The ISO code on a neutral chip, for the few flags that cannot be drawn honestly.
-    ///
-    /// Reserved for flags whose identity depends on a coat of arms — Slovakia and Slovenia are
-    /// both white-blue-red and are told apart ONLY by their arms, so drawing the stripes alone
-    /// would render two different countries identically. Australia needs a Union Jack plus the
-    /// Southern Cross at a size where neither survives. A wrong flag is worse than an honest code.
-    case code
-}
+// `PhoneNumberUtility` is a final class with no Sendable conformance, so a plain global would be a
+// data-race error the day the language mode moves to 6. It is on the main actor instead, which is
+// where every caller already is: this screen and its tests. Parsing the metadata is not cheap, so
+// it is built once rather than per call.
+@MainActor let phoneUtility = PhoneNumberUtility()
 
-/// One shape in a `.layers` flag. All coordinates are fractions of the flag, 0..1.
-enum FlagShape {
-    case fill(UInt32)
-    /// Equal stripes, painted in order. `horizontal: false` means vertical.
-    case stripes(horizontal: Bool, colors: [UInt32])
-    case box(CGFloat, CGFloat, CGFloat, CGFloat, UInt32)
-    /// A filled polygon — a hoist triangle, a maple leaf, a diagonal of a Union Jack.
-    case poly([(CGFloat, CGFloat)], UInt32)
-    case disc(CGFloat, CGFloat, CGFloat, UInt32)
-    /// The fourth value is the stroke width as a fraction of the flag height.
-    case ring(CGFloat, CGFloat, CGFloat, CGFloat, UInt32)
-    /// A five-pointed star, point upward. The third value is the outer radius.
-    case star(CGFloat, CGFloat, CGFloat, UInt32)
-    /// n x n alternating squares — Croatia's shield, which is what tells it from the Dutch.
-    case checks(CGFloat, CGFloat, CGFloat, CGFloat, Int, UInt32, UInt32)
-}
-
+/// One country in the picker.
+///
+/// Everything is derived: `name` from the device's own locale data, so it appears in the user's
+/// language; `dial` and every rule from the phone metadata. The flag is looked up by `iso` against
+/// the bundled artwork — see CountryPicker.swift.
 struct Country: Identifiable, Equatable {
     let iso: String
     let name: String
     let dial: String
-    /// Length of a MOBILE national significant number — the digits after the dial code, with any
-    /// national trunk "0" already stripped.
-    ///
-    /// Mobile, not "any number in that country". This screen exists to send an SMS, so a number
-    /// that cannot receive one is not valid input however real it is. German landlines start at six
-    /// digits, and while this table said 6 a number like 49 6 12345 was accepted and would have sat
-    /// waiting for a code that could never arrive.
-    let nsnMin: Int
-    let nsnMax: Int
-    let flag: FlagArt
-    /// Placeholder shown in the empty field, in that country's own habits.
-    let sample: String
 
     var id: String { iso }
-    static func == (a: Country, b: Country) -> Bool { a.iso == b.iso }
+
+    /// An example mobile number for this country, shown in the empty field.
+    ///
+    /// Fetched on demand rather than stored: building 250 of these up front costs real time at
+    /// launch, and only the selected country's example is ever shown.
+    @MainActor var sample: String { exampleMobile(iso) }
 }
 
-private func bandsH(_ c: UInt32...) -> FlagArt { .bands(horizontal: true, stripes: c.map { ($0, 1) }) }
-private func bandsV(_ c: UInt32...) -> FlagArt { .bands(horizontal: false, stripes: c.map { ($0, 1) }) }
-
-/// Sorted by name. Weighted toward the launch market and its neighbours; every entry is real data
-/// rather than a placeholder, so adding a country is one line.
-let COUNTRIES: [Country] = [
-    .init(iso: "AT", name: "Austria", dial: "+43", nsnMin: 10, nsnMax: 13,
-          flag: bandsH(0xED2939, 0xFFFFFF, 0xED2939), sample: "664 1234567"),
-    .init(iso: "AU", name: "Australia", dial: "+61", nsnMin: 9, nsnMax: 9,
-          flag: .code, sample: "412 345 678"),
-    .init(iso: "BA", name: "Bosnia and Herzegovina", dial: "+387", nsnMin: 8, nsnMax: 8,
-          flag: .code, sample: "61 123 456"),
-    .init(iso: "BE", name: "Belgium", dial: "+32", nsnMin: 9, nsnMax: 9,
-          flag: bandsV(0x000000, 0xFAE042, 0xED2939), sample: "470 12 34 56"),
-    .init(iso: "BG", name: "Bulgaria", dial: "+359", nsnMin: 8, nsnMax: 9,
-          flag: bandsH(0xFFFFFF, 0x00966E, 0xD62612), sample: "48 123 456"),
-    .init(iso: "CA", name: "Canada", dial: "+1", nsnMin: 10, nsnMax: 10,
-          flag: .code, sample: "506 234 5678"),
-    .init(iso: "CH", name: "Switzerland", dial: "+41", nsnMin: 9, nsnMax: 9,
-          flag: .cross(bg: 0xDA291C, arm: 0xFFFFFF, centred: true), sample: "78 123 45 67"),
-    .init(iso: "CZ", name: "Czechia", dial: "+420", nsnMin: 9, nsnMax: 9,
-          flag: .layers([
-        .stripes(horizontal: true, colors: [0xFFFFFF, 0xD7141A]),
-        .poly([(0, 0), (0.5, 0.5), (0, 1)], 0x11457E),
-    ]), sample: "601 123 456"),
-    .init(iso: "DE", name: "Germany", dial: "+49", nsnMin: 10, nsnMax: 11,
-          flag: bandsH(0x000000, 0xDD0000, 0xFFCE00), sample: "176 123 45 678"),
-    .init(iso: "DK", name: "Denmark", dial: "+45", nsnMin: 8, nsnMax: 8,
-          flag: .cross(bg: 0xC8102E, arm: 0xFFFFFF), sample: "32 12 34 56"),
-    .init(iso: "EE", name: "Estonia", dial: "+372", nsnMin: 7, nsnMax: 8,
-          flag: bandsH(0x0072CE, 0x000000, 0xFFFFFF), sample: "5123 4567"),
-    .init(iso: "ES", name: "Spain", dial: "+34", nsnMin: 9, nsnMax: 9,
-          flag: .bands(horizontal: true, stripes: [(0xAA151B, 1), (0xF1BF00, 2), (0xAA151B, 1)]),
-          sample: "612 34 56 78"),
-    .init(iso: "FI", name: "Finland", dial: "+358", nsnMin: 9, nsnMax: 10,
-          flag: .cross(bg: 0xFFFFFF, arm: 0x003580), sample: "41 2345678"),
-    .init(iso: "FR", name: "France", dial: "+33", nsnMin: 9, nsnMax: 9,
-          flag: bandsV(0x002395, 0xFFFFFF, 0xED2939), sample: "6 12 34 56 78"),
-    .init(iso: "GB", name: "United Kingdom", dial: "+44", nsnMin: 10, nsnMax: 10,
-          flag: .layers([
-        .fill(0x012169),
-        .poly([(0, 0), (0.16, 0), (1, 1), (0.84, 1)], 0xFFFFFF),
-        .poly([(1, 0), (0.84, 0), (0, 1), (0.16, 1)], 0xFFFFFF),
-        .poly([(0, 0), (0.09, 0), (1, 1), (0.91, 1)], 0xC8102E),
-        .poly([(1, 0), (0.91, 0), (0, 1), (0.09, 1)], 0xC8102E),
-        .box(0, 0.33, 1, 0.34, 0xFFFFFF),
-        .box(0.39, 0, 0.22, 1, 0xFFFFFF),
-        .box(0, 0.40, 1, 0.20, 0xC8102E),
-        .box(0.435, 0, 0.13, 1, 0xC8102E),
-    ]), sample: "7400 123456"),
-    .init(iso: "GR", name: "Greece", dial: "+30", nsnMin: 10, nsnMax: 10,
-          flag: .layers([
-        .stripes(horizontal: true, colors: [
-            0x0D5EAF, 0xFFFFFF, 0x0D5EAF, 0xFFFFFF, 0x0D5EAF,
-            0xFFFFFF, 0x0D5EAF, 0xFFFFFF, 0x0D5EAF,
-        ]),
-        .box(0, 0, 5.0 / 9 * 14 / 22, 5.0 / 9, 0x0D5EAF),
-        .box(0, 5.0 / 9 * 0.4, 5.0 / 9 * 14 / 22, 5.0 / 9 * 0.2, 0xFFFFFF),
-        .box(5.0 / 9 * 14 / 22 * 0.4, 0, 5.0 / 9 * 14 / 22 * 0.2, 5.0 / 9, 0xFFFFFF),
-    ]), sample: "691 234 5678"),
-    .init(iso: "HR", name: "Croatia", dial: "+385", nsnMin: 8, nsnMax: 9,
-          flag: .layers([
-        .stripes(horizontal: true, colors: [0xFF0000, 0xFFFFFF, 0x171796]),
-        .box(0.39, 0.22, 0.22, 0.56, 0xFFFFFF),
-        .checks(0.39, 0.22, 0.22, 0.56, 4, 0xFF0000, 0xFFFFFF),
-    ]), sample: "91 234 5678"),
-    .init(iso: "HU", name: "Hungary", dial: "+36", nsnMin: 9, nsnMax: 9,
-          flag: bandsH(0xCD2A3E, 0xFFFFFF, 0x436F4D), sample: "20 123 4567"),
-    .init(iso: "IE", name: "Ireland", dial: "+353", nsnMin: 9, nsnMax: 9,
-          flag: bandsV(0x169B62, 0xFFFFFF, 0xFF883E), sample: "85 012 3456"),
-    .init(iso: "IT", name: "Italy", dial: "+39", nsnMin: 9, nsnMax: 10,
-          flag: bandsV(0x008C45, 0xF4F5F0, 0xCD212A), sample: "312 345 6789"),
-    .init(iso: "LT", name: "Lithuania", dial: "+370", nsnMin: 8, nsnMax: 8,
-          flag: bandsH(0xFDB913, 0x006A44, 0xC1272D), sample: "612 34567"),
-    .init(iso: "LU", name: "Luxembourg", dial: "+352", nsnMin: 9, nsnMax: 9,
-          flag: bandsH(0xED2939, 0xFFFFFF, 0x00A1DE), sample: "628 123 456"),
-    .init(iso: "LV", name: "Latvia", dial: "+371", nsnMin: 8, nsnMax: 8,
-          flag: .bands(horizontal: true, stripes: [(0x9E3039, 2), (0xFFFFFF, 1), (0x9E3039, 2)]),
-          sample: "21 234 567"),
-    .init(iso: "NL", name: "Netherlands", dial: "+31", nsnMin: 9, nsnMax: 9,
-          flag: bandsH(0xAE1C28, 0xFFFFFF, 0x21468B), sample: "6 12345678"),
-    .init(iso: "NO", name: "Norway", dial: "+47", nsnMin: 8, nsnMax: 8,
-          flag: .cross(bg: 0xBA0C2F, arm: 0xFFFFFF, inner: 0x00205B), sample: "406 12 345"),
-    .init(iso: "PL", name: "Poland", dial: "+48", nsnMin: 9, nsnMax: 9,
-          flag: bandsH(0xFFFFFF, 0xDC143C), sample: "512 345 678"),
-    .init(iso: "PT", name: "Portugal", dial: "+351", nsnMin: 9, nsnMax: 9,
-          flag: .layers([
-        .stripes(horizontal: false, colors: [0x006600, 0x006600, 0xFF0000, 0xFF0000, 0xFF0000]),
-        // The armillary sphere reduces to its ring. A shield drawn inside it at this size reads
-        // as a logo rather than a coat of arms, so it is left off.
-        .ring(0.40, 0.5, 0.28, 0.10, 0xFFE900),
-    ]), sample: "912 345 678"),
-    .init(iso: "RO", name: "Romania", dial: "+40", nsnMin: 9, nsnMax: 9,
-          flag: bandsV(0x002B7F, 0xFCD116, 0xCE1126), sample: "712 345 678"),
-    .init(iso: "RS", name: "Serbia", dial: "+381", nsnMin: 8, nsnMax: 9,
-          flag: .layers([
-        .stripes(horizontal: true, colors: [0xC6363C, 0x0C4076, 0xFFFFFF]),
-    ]), sample: "60 1234567"),
-    .init(iso: "SE", name: "Sweden", dial: "+46", nsnMin: 9, nsnMax: 9,
-          flag: .cross(bg: 0x006AA7, arm: 0xFECC00), sample: "70 123 45 67"),
-    .init(iso: "SI", name: "Slovenia", dial: "+386", nsnMin: 8, nsnMax: 8,
-          flag: .code, sample: "31 234 567"),
-    .init(iso: "SK", name: "Slovakia", dial: "+421", nsnMin: 9, nsnMax: 9,
-          flag: .code, sample: "912 123 456"),
-    .init(iso: "TR", name: "Türkiye", dial: "+90", nsnMin: 10, nsnMax: 10,
-          flag: .layers([
-        .fill(0xE30A17),
-        .disc(0.40, 0.5, 0.26, 0xFFFFFF),
-        .disc(0.455, 0.5, 0.21, 0xE30A17),
-        .star(0.63, 0.5, 0.13, 0xFFFFFF),
-    ]), sample: "501 234 56 78"),
-    .init(iso: "UA", name: "Ukraine", dial: "+380", nsnMin: 9, nsnMax: 9,
-          flag: bandsH(0x0057B7, 0xFFDD00), sample: "50 123 4567"),
-    .init(iso: "US", name: "United States", dial: "+1", nsnMin: 10, nsnMax: 10,
-          flag: .layers([
-        .stripes(horizontal: true, colors: [
-            0xB31942, 0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942,
-            0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942, 0xFFFFFF, 0xB31942,
-        ]),
-        .box(0, 0, 0.40, 7.0 / 13, 0x0A3161),
-    ]), sample: "201 555 0123"),
-]
+/// Every region the metadata knows, sorted by name in the user's own language.
+///
+/// Sorting is locale-aware — an alphabetical sort of German names is not the same order as English
+/// ones, and a list sorted by the wrong alphabet is hard to scan.
+@MainActor let COUNTRIES: [Country] = {
+    phoneUtility.allCountries()
+        // "001" and friends are non-geographic entries in the metadata — satellite and shared
+        // ranges with no flag, no name and nobody to text. Regions only.
+        .filter { $0.count == 2 && $0.allSatisfy(\.isLetter) }
+        .map { iso in
+            Country(iso: iso,
+                    name: Locale.current.localizedString(forRegionCode: iso) ?? iso,
+                    dial: "+\(phoneUtility.countryCode(for: iso) ?? 0)")
+        }
+        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+}()
 
 /// Germany is the launch market, so it is the fallback when the device locale says nothing useful.
-let DEFAULT_COUNTRY: Country = COUNTRIES.first { $0.iso == "DE" }!
+@MainActor let DEFAULT_COUNTRY: Country = countryForRegion("DE")
 
 /// The country for a device region, or Germany.
 ///
-/// SHOWUP-143 asks the pill to default from device locale. The region code the platform reports is
-/// exactly the ISO key used above, so this is a lookup rather than a guess.
-func countryForRegion(_ region: String?) -> Country {
-    guard let region else { return DEFAULT_COUNTRY }
-    return COUNTRIES.first { $0.iso.caseInsensitiveCompare(region) == .orderedSame } ?? DEFAULT_COUNTRY
+/// SHOWUP-143 asks the pill to default from device locale. The region the platform reports is the
+/// same key the metadata uses, so this is a lookup rather than a guess.
+@MainActor func countryForRegion(_ region: String?) -> Country {
+    if let region, let hit = COUNTRIES.first(where: { $0.iso.caseInsensitiveCompare(region) == .orderedSame }) {
+        return hit
+    }
+    // Force-unwrapped deliberately: DE missing would mean the metadata itself failed to load, and
+    // a country picker with no countries is not a state worth limping along in.
+    return COUNTRIES.first { $0.iso == "DE" }!
 }
 
-/// How many digits past the country's maximum the field accepts before it stops taking input.
+/// How many digits past a country's longest valid number the field will accept.
 ///
 /// Not zero, and that is the point. The field used to cap at exactly the maximum, which silently
-/// ate every extra keystroke — so a too-long number could not be typed, `.tooLong` could never
-/// fire, and the user watched their own digits disappear with no explanation.
+/// ate the extra keystrokes — so a too-long number could not be typed, `.tooLong` could never fire,
+/// and the user watched their own digits disappear with no explanation.
 let OVERTYPE_ALLOWANCE = 4
 
-/// Why a number was rejected. Each maps to one message, and each is something the user can act on.
-enum PhoneError {
-    case empty, tooShort, tooLong, leadingZero, notANumber
+/// The most digits a national number can have anywhere, from E.164: fifteen including the country
+/// code. Used only to bound the input; the metadata does the real rejecting.
+let E164_MAX_DIGITS = 15
 
-    func message(_ country: Country) -> String {
+/// Why a number was rejected. Each maps to one message, and each is something the user can act on.
+///
+/// There is no `leadingZero` case any more, and its absence is the fix rather than an omission. The
+/// old message — "Leave out the first 0, +49 already covers it" — was scolding people for writing
+/// their own number the way their country writes it, and it was simply wrong in the NANP, where
+/// there is no trunk prefix at all and +1 covers nothing of the sort. Parsing with a region strips
+/// the trunk prefix per that country's real dialling rules, so a German typing 0176… is correct now
+/// and nobody is told off for it.
+enum PhoneError: Equatable {
+    case empty, tooShort, tooLong, invalidLength, unrecognised, notANumber, notMobile
+
+    @MainActor func message(_ country: Country) -> String {
         switch self {
         case .empty: return "Enter your phone number to continue."
         case .notANumber: return "Numbers only, please. For example \(country.sample)."
-        // Names the fix rather than the rule.
-        case .leadingZero: return "Leave out the first 0 — \(country.dial) already covers it."
         case .tooShort: return "That looks too short for \(country.name). For example \(country.sample)."
         case .tooLong: return "That looks too long for \(country.name). For example \(country.sample)."
+        // The metadata distinguishes "wrong length" from "too short" — some countries have valid
+        // lengths with gaps in between, and "too short" would be a lie for a number in one of them.
+        case .invalidLength: return "That is not a valid length for \(country.name). For example \(country.sample)."
+        // Right length, wrong number -- almost always a prefix that country does not issue.
+        case .unrecognised: return "That doesn’t look like a \(country.name) mobile number. For example \(country.sample)."
+        // The one rule the metadata knows and a length check never could.
+        case .notMobile: return "That looks like a landline. We need a mobile number to text the code to."
         }
     }
 }
 
-/// Validation, run on submit rather than per keystroke — SHOWUP-143 requires that, and it is also
-/// the kinder behaviour: nobody wants to be told their number is wrong while they are still typing.
-func validate(_ raw: String, _ country: Country) -> PhoneError? {
-    let digits = raw.filter(\.isNumber)
+/// Validation, run on submit rather than per keystroke — SHOWUP-143 requires that, and it is the
+/// kinder behaviour: nobody wants to be told their number is wrong while they are still typing.
+///
+/// Deliberately the same shape and the same order as `validate` in CountryCodes.kt.
+@MainActor func validate(_ raw: String, _ country: Country) -> PhoneError? {
     // Letters first. Stripping them and then reporting "empty" would answer a question the user
     // did not ask -- they typed something, it was just the wrong something.
-    //
-    // The field filters to digits as they are entered, so today nothing can reach this. It stays
-    // as the guard for a value arriving from somewhere that does not filter: a paste, an autofill
-    // suggestion, or a caller that has not been written yet.
     if raw.contains(where: \.isLetter) { return .notANumber }
+    let digits = raw.filter(\.isNumber)
     if digits.isEmpty { return .empty }
-    // Every country in this list uses 0 as a national trunk prefix, and it is dropped when the dial
-    // code is supplied separately. Catching it explicitly is worth it: writing 0176… is the single
-    // most common way a German user gets this wrong.
-    if digits.hasPrefix("0") { return .leadingZero }
-    if digits.count < country.nsnMin { return .tooShort }
-    if digits.count > country.nsnMax { return .tooLong }
-    return nil
+
+    // TYPE FIRST, then length. A German landline is eight digits and a German mobile is ten or
+    // eleven, so a length check reaches it first and reports "too short" — true, but useless to
+    // someone who has correctly typed the landline they own. Asking "is this a real number here,
+    // and what kind?" before "is it the right length for a mobile?" produces the message that
+    // actually helps: we need a mobile.
+    if let parsed = try? phoneUtility.parse(digits, withRegion: country.iso) {
+        switch parsed.type {
+        // fixedOrMobile is allowed: in several countries the ranges overlap and the metadata
+        // genuinely cannot tell them apart. Refusing there would reject people holding perfectly
+        // good mobiles.
+        case .mobile, .fixedOrMobile: return nil
+        default: return .notMobile
+        }
+    }
+
+    // Not a real number for this country. Now say why, measured against a MOBILE — that is what the
+    // user is being asked for, so it is the only comparison that means anything to them.
+    return lengthVerdict(for: digits, in: country)
 }
 
-/// Digits only, grouped the way that country's sample is grouped, so typing looks familiar.
-func formatNational(_ digits: String, _ country: Country) -> String {
-    let groups = country.sample.split(separator: " ").map(\.count)
-    var out = ""
-    var i = digits.startIndex
-    for g in groups {
-        if i >= digits.endIndex { break }
-        let end = digits.index(i, offsetBy: g, limitedBy: digits.endIndex) ?? digits.endIndex
-        if !out.isEmpty { out += " " }
-        out += digits[i..<end]
-        i = end
-    }
-    // Anything past the sample's shape runs on unbroken rather than being invented into groups.
-    if i < digits.endIndex {
-        if !out.isEmpty { out += " " }
-        out += digits[i...]
-    }
-    return out
+/// Why a number that failed to parse is the wrong length, or `.unrecognised` if the length is fine.
+///
+/// The national significant number, not the raw digits: a German who typed 0176… has a trunk prefix
+/// in there, and measuring that against the mobile lengths would call a correct number too long.
+@MainActor private func lengthVerdict(for digits: String, in country: Country) -> PhoneError {
+    let formatter = PartialFormatter(utility: phoneUtility, defaultRegion: country.iso, withPrefix: false)
+    let national = formatter.nationalNumber(from: digits).filter(\.isNumber)
+    let lengths = phoneUtility
+        .possiblePhoneNumberLengths(forCountry: country.iso, phoneNumberType: .mobile, lengthType: .national)
+        .sorted()
+    // A country with no published mobile lengths tells us nothing, so neither do we.
+    guard let shortest = lengths.first, let longest = lengths.last else { return .unrecognised }
+
+    if national.count < shortest { return .tooShort }
+    if national.count > longest { return .tooLong }
+    // Inside the range but not one of the listed lengths -- the gap case InvalidLength exists for.
+    if !lengths.contains(national.count) { return .invalidLength }
+    // The right length for a mobile, but not a number this country issues — almost always a prefix
+    // that does not exist.
+    return .unrecognised
+}
+
+/// Groups the digits the way that country writes them, as they are typed.
+///
+/// `withPrefix: false` rather than formatting an international number and stripping the dial code
+/// back off: the pill already shows +49, and a national format that included the country's own
+/// trunk prefix would put `0` and `+49` on screen at once, which is a number that dials nowhere.
+@MainActor func formatNational(_ digits: String, _ country: Country) -> String {
+    guard !digits.isEmpty else { return "" }
+    let formatter = PartialFormatter(utility: phoneUtility, defaultRegion: country.iso, withPrefix: false)
+    return formatter.formatPartial(digits)
+}
+
+/// An example mobile number for a region, grouped and without the trunk prefix — the same shape the
+/// user is being asked to type.
+@MainActor private func exampleMobile(_ iso: String) -> String {
+    guard let example = phoneUtility.getExampleNumber(forCountry: iso, ofType: .mobile) else { return "" }
+    let dial = "+\(example.countryCode)"
+    return phoneUtility.format(example, toType: .international)
+        .replacingOccurrences(of: dial, with: "")
+        .trimmingCharacters(in: .whitespaces)
 }

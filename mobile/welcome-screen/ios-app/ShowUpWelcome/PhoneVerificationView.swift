@@ -86,9 +86,6 @@ struct PhoneNumberView: View {
     var onSubmit: () -> Void = {}
     var onOpenCountryList: () -> Void = {}
 
-    @FocusState private var focused: Bool
-    /// What the field shows: the digits, grouped. `value` stays the digits alone.
-    @State private var display: String = ""
     private var invalid: Bool { error != nil }
 
     var body: some View {
@@ -129,56 +126,10 @@ struct PhoneNumberView: View {
                     // Same geometry as the default field, so it does not move when it fails — and
                     // the digits are preserved, never cleared.
                     HStack(spacing: 0) {
-                        // The field owns the string it displays; `value` is the digits behind it.
-                        //
-                        // It used to be bound to `Binding(get: { formatNational(value, country) },
-                        // set: …)` -- a binding whose GETTER reformats. That does not work, and it
-                        // fails in two ways at once. Measured on an iPhone 17 Pro:
-                        //
-                        //   · the grouping never appeared at all. While the field is first
-                        //     responder UIKit owns its text, and SwiftUI does not reliably push a
-                        //     getter's rewritten value back into it, so "2015550123" stayed
-                        //     ungrouped no matter how slowly it was typed.
-                        //   · when it did push, it clobbered keystrokes still in flight. Typing
-                        //     ten digits at speed landed five.
-                        //
-                        // Reformatting in onChange instead means the rewrite goes through state
-                        // SwiftUI owns, after the edit rather than during it.
-                        //
-                        // ponytail: rewriting the string sends the caret to the end whenever the
-                        // grouping changes, so editing a digit in the middle types the rest at the
-                        // end. Android does not have this -- Compose paints the spaces on with a
-                        // VisualTransformation and an OffsetMapping, leaving the value as plain
-                        // digits and the caret where the user put it. SwiftUI has no equivalent,
-                        // and setting a selection at all needs UITextField. The upgrade is already
-                        // the plan: PhoneNumberKit (CountryCodes.swift, step 4) ships
-                        // PhoneNumberTextField, which is that UITextField and handles both.
-                        TextField(country.sample, text: $display)
-                        .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
-                        .focused($focused)
-                        .font(F.manrope(17, .semibold))
-                        .monospacedDigit()
-                        .tracking(0.3)
-                        .foregroundColor(.liqFg)
-                        .tint(.liqPurple)
-                        .lineLimit(1)
-                        .submitLabel(.done)
-                        .onSubmit(onSubmit)
-                        .onChange(of: display) { _, typed in
-                            // maximum PLUS an allowance, never the maximum itself -- see
-                            // OVERTYPE_ALLOWANCE. Capping exactly at the limit makes the
-                            // too-long error unreachable.
-                            let digits = String(typed.filter(\.isNumber)
-                                .prefix(country.nsnMax + OVERTYPE_ALLOWANCE))
-                            value = digits
-                            // Settles in one extra pass: the regrouped string re-enters here,
-                            // regroups to itself, and the guard stops it.
-                            let grouped = formatNational(digits, country)
-                            if grouped != typed { display = grouped }
-                        }
-                        // A new country regroups the same digits — its habits, not the old one's.
-                        .onChange(of: country) { _, c in display = formatNational(value, c) }
+                        // A UITextField, not SwiftUI's TextField, and the caret is the reason --
+                        // the whole argument is in PhoneNumberField.swift. `value` stays plain
+                        // digits; the grouping is presentation, applied inside the edit.
+                        PhoneNumberField(digits: $value, country: country, onSubmit: onSubmit)
                         if invalid {
                             Spacer(minLength: 0)
                             ZStack {
@@ -225,12 +176,8 @@ struct PhoneNumberView: View {
                 // availability of the action.
                 PillButton("Send me the code", action: onSubmit)
             }
-            // The keyboard is why the user is here, so it opens with the screen.
-            .onAppear {
-                focused = true
-                // Coming back from the code screen, the number is still there and still grouped.
-                display = formatNational(value, country)
-            }
+            // The keyboard is why the user is here, so it opens with the screen -- see
+            // AutoFocusTextField, which takes it the moment the field reaches a window.
         }
     }
 }
@@ -476,6 +423,6 @@ struct VerifyCodeView: View {
 
 #Preview("A · number · 375") { PhoneNumberView(value: .constant("")) }
 #Preview("A · number · 390") { PhoneNumberView(value: .constant("17612345678")) }
-#Preview("B · invalid · 390") { PhoneNumberView(value: .constant("01512"), error: .leadingZero) }
+#Preview("B · invalid · 390") { PhoneNumberView(value: .constant("1761"), error: .tooShort) }
 #Preview("C · code · 390") { VerifyCodeView(digits: .constant("")) }
 #Preview("D · mismatch · 390") { VerifyCodeView(digits: .constant("482170"), mismatch: true) }

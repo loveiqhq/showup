@@ -58,6 +58,7 @@ TESTGRP, TESTPRODREF = uid(), uid()
 TESTSRCPHASE, TESTFRMPHASE, TESTRESPHASE = uid(), uid(), uid()
 CFG_TESTLIST, CFG_TESTD, CFG_TESTR = uid(), uid(), uid()
 TESTPROXY, TESTDEP = uid(), uid()
+PKGREF, PKGPROD, PKGBUILD, PKGTESTPROD, PKGTESTBUILD = (uid() for _ in range(5))
 tst_ref = {f: uid() for f in tests}
 tst_bld = {f: uid() for f in tests}
 
@@ -88,6 +89,11 @@ w(T*2 + '%s /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = %s /* Flag
 for f in tests:
     w(T*2 + "%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };"
       % (tst_bld[f], f, tst_ref[f], f))
+w(T*2 + "%s /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* PhoneNumberKit */; };"
+  % (PKGBUILD, PKGPROD))
+if tests:
+    w(T*2 + "%s /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* PhoneNumberKit */; };"
+      % (PKGTESTBUILD, PKGTESTPROD))
 w("/* End PBXBuildFile section */")
 
 w("")
@@ -119,6 +125,7 @@ w(T*2 + "%s /* Frameworks */ = {" % FRMPHASE)
 w(T*3 + "isa = PBXFrameworksBuildPhase;")
 w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
+w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGBUILD)
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -126,6 +133,7 @@ w(T*2 + "%s /* Frameworks */ = {" % TESTFRMPHASE)
 w(T*3 + "isa = PBXFrameworksBuildPhase;")
 w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
+w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGTESTBUILD)
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -207,6 +215,9 @@ w(T*3 + "dependencies = (")
 w(T*3 + ");")
 w(T*3 + "name = ShowUpWelcome;")
 w(T*3 + "productName = ShowUpWelcome;")
+w(T*3 + "packageProductDependencies = (")
+w(T*4 + "%s /* PhoneNumberKit */," % PKGPROD)
+w(T*3 + ");")
 w(T*3 + "productReference = %s /* ShowUpWelcome.app */;" % APPREF)
 w(T*3 + 'productType = "com.apple.product-type.application";')
 w(T*2 + "};")
@@ -226,6 +237,9 @@ if tests:
     w(T*3 + ");")
     w(T*3 + "name = ShowUpWelcomeTests;")
     w(T*3 + "productName = ShowUpWelcomeTests;")
+    w(T*3 + "packageProductDependencies = (")
+    w(T*4 + "%s /* PhoneNumberKit */," % PKGTESTPROD)
+    w(T*3 + ");")
     w(T*3 + "productReference = %s /* ShowUpWelcomeTests.xctest */;" % TESTPRODREF)
     w(T*3 + 'productType = "com.apple.product-type.bundle.unit-test";')
     w(T*2 + "};")
@@ -280,6 +294,9 @@ w(T*4 + "en,")
 w(T*4 + "Base,")
 w(T*3 + ");")
 w(T*3 + "mainGroup = %s;" % ROOTGRP)
+w(T*3 + "packageReferences = (")
+w(T*4 + '%s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,' % PKGREF)
+w(T*3 + ");")
 w(T*3 + "productRefGroup = %s /* Products */;" % PRODGRP)
 w(T*3 + 'projectDirPath = "";')
 w(T*3 + 'projectRoot = "";')
@@ -471,6 +488,42 @@ for cfg_id, label, d, r in _cfglists:
     w(T*3 + "defaultConfigurationName = Release;")
     w(T*2 + "};")
 w("/* End XCConfigurationList section */")
+
+# ── the one dependency ─────────────────────────────────────────────────────
+#
+# PhoneNumberKit is the Swift port of the same metadata Android already uses through
+# libphonenumber, from the maintained org -- marmelroy/PhoneNumberKit is archived and says so on
+# every deprecated symbol. Apache 2.0, ships inside the app, no server and nothing metered.
+#
+# It replaces 35 hand-written countries with every country there is, and hand-written length rules
+# with rules that know a mobile from a landline. Pinned to a major version: the metadata inside it
+# is updated regularly and those updates are the point, but an API break should not arrive silently.
+w("")
+w("/* Begin XCRemoteSwiftPackageReference section */")
+w(T*2 + '%s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {' % PKGREF)
+w(T*3 + "isa = XCRemoteSwiftPackageReference;")
+w(T*3 + 'repositoryURL = "https://github.com/PhoneNumberKit/PhoneNumberKit.git";')
+w(T*3 + "requirement = {")
+w(T*4 + "kind = upToNextMajorVersion;")
+w(T*4 + "minimumVersion = 5.0.8;")
+w(T*3 + "};")
+w(T*2 + "};")
+w("/* End XCRemoteSwiftPackageReference section */")
+
+w("")
+w("/* Begin XCSwiftPackageProductDependency section */")
+w(T*2 + "%s /* PhoneNumberKit */ = {" % PKGPROD)
+w(T*3 + "isa = XCSwiftPackageProductDependency;")
+w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;' % PKGREF)
+w(T*3 + "productName = PhoneNumberKit;")
+w(T*2 + "};")
+if tests:
+    w(T*2 + "%s /* PhoneNumberKit */ = {" % PKGTESTPROD)
+    w(T*3 + "isa = XCSwiftPackageProductDependency;")
+    w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;' % PKGREF)
+    w(T*3 + "productName = PhoneNumberKit;")
+    w(T*2 + "};")
+w("/* End XCSwiftPackageProductDependency section */")
 
 w(T + "};")
 w(T + "rootObject = %s /* Project object */;" % PROJECT)

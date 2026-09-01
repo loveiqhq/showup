@@ -285,11 +285,16 @@ fun PhoneNumberScreen(
         //
         // A fixed height rather than a minimum, so the row cannot grow either, and maxLines to
         // match -- the same two-line ceiling PhoneVerificationView.swift now holds.
+        //
+        // The padding goes BEFORE the height. Compose applies modifiers outside-in, so
+        // `.height(36).padding(top = 10)` reserves 36 and then spends 10 of it on padding, leaving
+        // the text 26dp and clipping the second line -- ScreenFitTest caught exactly that on 14 of
+        // the 18 devices. This order reserves 36dp of TEXT and puts the 10 outside it.
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(36.dp)
                 .padding(top = 10.dp, start = 4.dp)
+                .height(36.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
             Text(
@@ -502,8 +507,12 @@ fun VerifyCodeScreen(
                 // space into every state and push the CTA down for no reason — the reserve exists
                 // so the CTA does not move, not to hit a particular number. If the longer string
                 // is ever restored, this goes back to 62 with it; the two move together.
-                .heightIn(min = 42.dp)
+                // Padding first, for the same reason as the helper row above. With the padding
+                // inside, the reserve was 42 while empty but 41 + 14 = 55 once the card appeared,
+                // because heightIn only sets a FLOOR and the card is taller than the 28dp the
+                // padding left it. The CTA moved 13dp. Outside, both states measure 14 + 42.
                 .padding(top = if (compact) 6.dp else 14.dp, start = 2.dp)
+                .heightIn(min = 42.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
             if (mismatch) {

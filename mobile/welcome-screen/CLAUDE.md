@@ -92,8 +92,10 @@ cd ios-app && xcodebuild -project ShowUpWelcome.xcodeproj -scheme ShowUpWelcome 
 cd .. && for f in audit/verify-*.py audit/check-*.py; do python "$f"; done
 ```
 
-CI runs the Android half on every pull request, plus `assembleRelease` — R8 only runs on release,
-and it removes what it cannot see being used.
+CI runs both halves on every pull request. Android adds `assembleRelease` — R8 only runs on
+release, and it removes what it cannot see being used. iOS adds `ScreenFitTests`, which renders both
+phone screens at 17 device sizes and measures whether the CTA moves; it is the only automated check
+that would have caught the two layout faults SHOWUP-143 shipped.
 
 **Say what was actually verified.** "Builds and tests pass" and "I have seen it render" are
 different claims, and on iOS the second one is now available: the simulator will show you things

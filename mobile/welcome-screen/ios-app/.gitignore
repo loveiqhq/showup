@@ -3,3 +3,7 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .DS_Store
+
+# Swift package checkouts, cloned per build by CI and locally
+.spm/
+*.xcresult
