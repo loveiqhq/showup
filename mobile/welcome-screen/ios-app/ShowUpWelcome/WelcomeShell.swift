@@ -140,26 +140,49 @@ private struct NoBounceWhenItFits: ViewModifier {
 
 // MARK: - ② Wordmark
 
-/// `.su-wordmark` — Lora 700, tracking -0.02em, baseline-aligned with a 0.18em gap.
+/// `.su-wordmark` — Lora 700, tracking -0.02em, baseline-aligned, and the gap is 0.04em, not the 0.18em this carried for months.
 ///
-/// "Up" takes `--su-grad-wordmark` clipped to the glyphs, not flat violet — `background(...)` plus
-/// `.mask(Text)` is SwiftUI's equivalent of the CSS `background-clip: text`.
+/// Measured rather than chosen. Against the Startup spec sheet the rendered wordmark showed ink
+/// gaps of 0.058em between "Show" and "Up" and 0.117em before the dot; 0.18em spacing produced
+/// 0.203em and 0.239em -- three times and twice too wide, which is what made the mark read as
+/// three loose words instead of one lockup. 0.04em lands at 0.074em and 0.092em, inside the ±0.03em
+/// a measurement off a screenshot of the sheet can actually resolve.
+///
+/// The two gaps differ from each other on their own: the period carries far more side bearing than
+/// "U" does, so one spacing value reproduces the sheet's uneven pair without being told to.
+///
+/// "Up" takes `--su-grad-wordmark` clipped to the glyphs, not flat violet.
+///
+/// It used to get there through `LinearGradient().mask(Text("Up")).frame(width:height:)`, which is
+/// the usual SwiftUI spelling of CSS `background-clip: text` and was wrong here for one reason: a
+/// masked gradient is not text, so it has no text baseline. `HStack(alignment: .lastTextBaseline)`
+/// fell back to the frame's bottom edge, and because the glyphs sat centred inside a `size * 1.2`
+/// box, "Up" floated above the line "Show" and the dot sat on — visible in the render as a raised,
+/// oversized "Up" and a trailing dot adrift to the right, the latter also carrying the hand-measured
+/// `upWidth + 2` that the frame needed and the text does not.
+///
+/// `Text.foregroundStyle` takes a ShapeStyle directly, and a gradient given to a STANDALONE Text
+/// resolves across that text's own bounds — so "Up" still ramps violet to orange over "Up" alone,
+/// not over the whole wordmark, which is what concatenating the three runs would have done. The
+/// text stays text, so the baseline is real and the widths are the font's.
 struct Wordmark: View {
     var size: CGFloat = 26
 
     var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: size * 0.18) {
+        HStack(alignment: .lastTextBaseline, spacing: size * 0.04) {
             Text("Show").foregroundColor(.liqFg)
-            LinearGradient(
-                stops: [
-                    .init(color: .liqPurple, location: 0.0),
-                    .init(color: Color(hex: 0xD05976), location: 0.55),
-                    .init(color: .liqOrange, location: 1.0),
-                ],
-                startPoint: .leading, endPoint: .trailing
-            )
-            .mask(Text("Up").font(loraItalic).tracking(-0.02 * size))
-            .frame(width: upWidth, height: size * 1.2)
+            Text("Up")
+                .font(loraItalic)
+                .foregroundStyle(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .liqPurple, location: 0.0),
+                            .init(color: Color(hex: 0xD05976), location: 0.55),
+                            .init(color: .liqOrange, location: 1.0),
+                        ],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
             Text(".").foregroundColor(.liqOrange)
         }
         .font(lora)
@@ -170,10 +193,6 @@ struct Wordmark: View {
 
     private var lora: Font { F.lora(size, bold: true) }
     private var loraItalic: Font { .custom(PS.loraBoldItalic, size: size) }
-    private var upWidth: CGFloat {
-        let f = UIFont(name: PS.loraBoldItalic, size: size) ?? .boldSystemFont(ofSize: size)
-        return ("Up" as NSString).size(withAttributes: [.font: f]).width + 2
-    }
 }
 
 // MARK: - ③ The underline wash

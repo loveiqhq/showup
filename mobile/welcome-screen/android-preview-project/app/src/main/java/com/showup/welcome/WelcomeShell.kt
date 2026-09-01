@@ -192,7 +192,17 @@ private fun DrawScope.radial(center: Offset, radius: Float, color: Color, alpha:
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * `.su-wordmark` — Lora 700, tracking -0.02em, baseline-aligned with a 0.18em gap.
+ * `.su-wordmark` — Lora 700, tracking -0.02em, baseline-aligned, and the gap is 0.04em,
+ * not the 0.18em this carried for months.
+ *
+ * Measured rather than chosen, on the iOS twin against the Startup spec sheet: the sheet
+ * shows ink gaps of 0.058em between "Show" and "Up" and 0.117em before the dot, and 0.18em
+ * spacing produced 0.203em and 0.239em -- three times and twice too wide, which is what made
+ * the mark read as three loose words rather than one lockup. 0.04em lands at 0.074em and
+ * 0.092em, inside what a measurement off a screenshot can resolve.
+ *
+ * The two gaps differ from each other on their own: the period carries far more side bearing
+ * than "U" does, so one spacing value reproduces the sheet's uneven pair without being told to.
  *
  * "Up" is filled with `--su-grad-wordmark` (96°, violet → rose → orange) clipped to the glyphs, not
  * flat violet. Compose does this with a Brush on the TextStyle, which is the direct equivalent of
@@ -200,7 +210,7 @@ private fun DrawScope.radial(center: Offset, radius: Float, color: Color, alpha:
  */
 @Composable
 fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier) {
-    val gap = with(LocalDensity.current) { (size.toPx() * 0.18f).toDp() }
+    val gap = with(LocalDensity.current) { (size.toPx() * 0.04f).toDp() }
     Row(modifier, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(gap)) {
         val base = TextStyle(
             fontFamily = Lora, fontWeight = FontWeight.Bold,

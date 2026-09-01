@@ -141,8 +141,11 @@ check("sunset 38% (swift)", "location: 0.38" in shell_sw)
 # ── wordmark ────────────────────────────────────────────────────────────────
 check("wordmark gradient not flat (kotlin)", "WordmarkStops" in shell_kt)
 check("wordmark gradient not flat (swift)", "0xD05976" in shell_sw)
-check("wordmark gap 0.18em (kotlin)", "0.18f" in shell_kt)
-check("wordmark gap 0.18em (swift)", "size * 0.18" in shell_sw)
+# 0.04em, measured against the spec sheet -- see the reasoning at both Wordmark sites. Matched on
+# the full expression rather than the bare number: "0.18f" also appears in the backdrop's orb
+# placement, so the old check passed whatever the wordmark did.
+check("wordmark gap 0.04em (kotlin)", "size.toPx() * 0.04f" in shell_kt)
+check("wordmark gap 0.04em (swift)", "spacing: size * 0.04" in shell_sw)
 check("wordmark 26 (kotlin)", "26.sp" in shell_kt)
 check("wordmark 26 (swift)", "size: CGFloat = 26" in shell_sw)
 
