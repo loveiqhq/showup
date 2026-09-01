@@ -255,11 +255,22 @@ check("143 field radius 14 (kotlin)", "RoundedCornerShape(14.dp)" in ver_kt)
 check("143 field radius 14 (swift)", "cornerRadius: 14" in ver_sw)
 check("143 border 1.5 (kotlin)", "1.5.dp" in ver_kt)
 check("143 border 1.5 (swift)", "lineWidth: 1.5" in ver_sw)
-check("143 helper A/B reserved at 20 (kotlin)", "heightIn(min = 20.dp)" in ver_kt)
-check("143 helper A/B reserved at 20 (swift)", "minHeight: 20" in ver_sw)
+# A/B reserves TWO lines, pinned, not one as a minimum. Every message names the country and wraps;
+# reserving one line let the CTA drop 15.7pt on rejection, measured on an iPhone 17 Pro.
+check("143 helper A/B reserves two lines (kotlin)",
+      "height(36.dp)" in ver_kt and "maxLines = 2" in ver_kt)
+check("143 helper A/B reserves two lines (swift)",
+      "minHeight: 36, maxHeight: 36" in ver_sw and "lineLimit(2)" in ver_sw)
 # see finding 1 -- 42 cannot hold the specified copy, so the reserve is the measured height
 check("143 helper C/D reserved (kotlin)", "heightIn(min = 42.dp)" in ver_kt)
 check("143 helper C/D reserved (swift)", "minHeight: 42" in ver_sw)
+# The two platforms need DIFFERENT guards here, because they fail differently. A Compose Box lays
+# out at its min height whether or not its content is emitted, so Android's reserve holds on its
+# own. SwiftUI's does not: an unsatisfied `if` in a ViewBuilder produces nil, and the frame and
+# padding wrapped around nil both collapse -- the CTA jumped the full 56pt. So the Swift card has
+# to be present in every state and hidden with opacity, and that is what is checked.
+# a card behind a bare `if` reserves nothing in SwiftUI, and the CTA moves
+check("143 C/D card is hidden, not absent (swift)", ".opacity(mismatch ? 1 : 0)" in ver_sw)
 check("143 slots 49x62 (kotlin)", "49.dp" in ver_kt and "62.dp" in ver_kt)
 check("143 slots 49x62 (swift)", "49" in ver_sw and "62" in ver_sw)
 check("143 slots shrink to 44x56 (kotlin)", "44.dp" in ver_kt and "56.dp" in ver_kt)

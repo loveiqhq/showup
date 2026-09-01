@@ -2,21 +2,13 @@
 //  ShowUp · SHOWUP-146's four rules, one test each — the Swift half
 //
 //  ─────────────────────────────────────────────────────────────────────────────
-//  NOT YET RUN. Written on Windows, where no Swift compiler exists.
+//  RUN. Wired into the ShowUpWelcomeTests bundle on 2026-09-01, the day a Mac was available, and
+//  green on the first run: eight passes, no drift from the Android rule.
 //
-//  This file is the missing half of the pair: TutorialRoutingTest.kt has covered the Kotlin rule
-//  since 30 August, and the Swift twin has been unguarded the whole time. It is written now so the
-//  gap closes the day a Mac is available rather than a week after, but nobody has compiled it and
-//  it should be treated as a draft until someone has.
-//
-//  TO ENABLE, on the Mac (about ten minutes):
-//    1. In Xcode: File > New > Target > Unit Testing Bundle, named ShowUpWelcomeTests.
-//    2. Set its Host Application to ShowUpWelcome.
-//    3. Add this file to that target.
-//    4. cmd-U. Expect eight passes; if anything fails, the rule has drifted from Android and that
-//       is exactly the finding this file exists to produce.
-//    5. Teach gen_pbxproj.py about the test target, so the next new test file cannot go missing
-//       the same way source files used to.
+//  This file was written on Windows, where no Swift compiler exists, and sat in the repo in no
+//  target for a week -- present, unrun, and indistinguishable from covered. gen_pbxproj.py now
+//  discovers ShowUpWelcomeTests/ the same way it discovers sources, so the next test file added
+//  here cannot go missing the same way.
 //
 //  Deliberately identical in shape and in test names to TutorialRoutingTest.kt, so the two can be
 //  read side by side and a difference is obvious rather than buried.

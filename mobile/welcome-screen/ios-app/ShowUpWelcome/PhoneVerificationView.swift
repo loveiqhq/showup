@@ -5,10 +5,16 @@
 //  and D (code mismatch) are the other. The failure state is a STATE, not a second screen — which
 //  is what makes the "CTA does not move" requirement expressible at all.
 //
-//  The helper regions are reserved rather than conditional: 20 on A/B, and on C/D the height the
-//  specified error copy actually needs. See audit/AUDIT-welcome-140-142-143.md finding 1 — the sheet
-//  says 42, the specified string wraps to two lines at every width, and reserving 42 would let the
-//  CTA jump 17pt, which the ticket forbids outright.
+//  The helper regions are reserved rather than conditional: two lines on A/B, and on C/D the height
+//  the specified error copy actually needs. See audit/AUDIT-welcome-140-142-143.md finding 1 — the
+//  sheet says 42, the specified string wraps to two lines at every width, and reserving 42 would
+//  let the CTA jump 17pt, which the ticket forbids outright.
+//
+//  Both regions were reserving nothing like what they claimed, and both were found by running this
+//  on a simulator for the first time on 2026-09-01: A/B held one line for copy that always takes
+//  two (CTA moved 15.7pt), and C/D wrapped its card in a bare `if`, which reserves nothing at all
+//  in SwiftUI (CTA moved 56pt). Both now measure 0.0pt on an iPhone 17 Pro. The fixes are at each
+//  site; what they have in common is that a reserve you cannot see is a reserve nobody checked.
 //
 //  The numeric keypad drawn on the sheet is a MOCK. The sheet says so, and says not to build it:
 //  the platform keyboard ships instead. That is why nothing here draws keys.
@@ -81,6 +87,8 @@ struct PhoneNumberView: View {
     var onOpenCountryList: () -> Void = {}
 
     @FocusState private var focused: Bool
+    /// What the field shows: the digits, grouped. `value` stays the digits alone.
+    @State private var display: String = ""
     private var invalid: Bool { error != nil }
 
     var body: some View {
@@ -121,20 +129,31 @@ struct PhoneNumberView: View {
                     // Same geometry as the default field, so it does not move when it fails — and
                     // the digits are preserved, never cleared.
                     HStack(spacing: 0) {
-                        // Bound to the raw digits; the grouping is applied on every change so
-                        // the field always displays the country's own habits. Assigning back only
-                        // when the value actually differs stops the binding looping.
-                        TextField(country.sample, text: Binding(
-                            get: { formatNational(value, country) },
-                            set: { typed in
-                                // maximum PLUS an allowance, never the maximum itself -- see
-                                // OVERTYPE_ALLOWANCE. Capping exactly at the limit makes the
-                                // too-long error unreachable.
-                                let digits = String(typed.filter(\.isNumber)
-                                    .prefix(country.nsnMax + OVERTYPE_ALLOWANCE))
-                                if digits != value { value = digits }
-                            }
-                        ))
+                        // The field owns the string it displays; `value` is the digits behind it.
+                        //
+                        // It used to be bound to `Binding(get: { formatNational(value, country) },
+                        // set: …)` -- a binding whose GETTER reformats. That does not work, and it
+                        // fails in two ways at once. Measured on an iPhone 17 Pro:
+                        //
+                        //   · the grouping never appeared at all. While the field is first
+                        //     responder UIKit owns its text, and SwiftUI does not reliably push a
+                        //     getter's rewritten value back into it, so "2015550123" stayed
+                        //     ungrouped no matter how slowly it was typed.
+                        //   · when it did push, it clobbered keystrokes still in flight. Typing
+                        //     ten digits at speed landed five.
+                        //
+                        // Reformatting in onChange instead means the rewrite goes through state
+                        // SwiftUI owns, after the edit rather than during it.
+                        //
+                        // ponytail: rewriting the string sends the caret to the end whenever the
+                        // grouping changes, so editing a digit in the middle types the rest at the
+                        // end. Android does not have this -- Compose paints the spaces on with a
+                        // VisualTransformation and an OffsetMapping, leaving the value as plain
+                        // digits and the caret where the user put it. SwiftUI has no equivalent,
+                        // and setting a selection at all needs UITextField. The upgrade is already
+                        // the plan: PhoneNumberKit (CountryCodes.swift, step 4) ships
+                        // PhoneNumberTextField, which is that UITextField and handles both.
+                        TextField(country.sample, text: $display)
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                         .focused($focused)
@@ -146,6 +165,20 @@ struct PhoneNumberView: View {
                         .lineLimit(1)
                         .submitLabel(.done)
                         .onSubmit(onSubmit)
+                        .onChange(of: display) { _, typed in
+                            // maximum PLUS an allowance, never the maximum itself -- see
+                            // OVERTYPE_ALLOWANCE. Capping exactly at the limit makes the
+                            // too-long error unreachable.
+                            let digits = String(typed.filter(\.isNumber)
+                                .prefix(country.nsnMax + OVERTYPE_ALLOWANCE))
+                            value = digits
+                            // Settles in one extra pass: the regrouped string re-enters here,
+                            // regroups to itself, and the guard stops it.
+                            let grouped = formatNational(digits, country)
+                            if grouped != typed { display = grouped }
+                        }
+                        // A new country regroups the same digits — its habits, not the old one's.
+                        .onChange(of: country) { _, c in display = formatNational(value, c) }
                         if invalid {
                             Spacer(minLength: 0)
                             ZStack {
@@ -164,13 +197,24 @@ struct PhoneNumberView: View {
                         .padding(-2.75) : nil)
                 }
 
-                // Reserved at 20 — the error replaces the text in the same row, so nothing below
-                // it moves and the CTA stays put.
+                // Reserved at TWO lines, top-aligned, because that is what the error copy needs.
+                //
+                // It was reserved at 20 -- one line -- which is what the calm default takes but not
+                // what any error takes: "That looks too short for United States. For example 201
+                // 555 0123." wraps at every width this screen ships at. Measured on an iPhone 17
+                // Pro, that let the CTA drop 15.7pt the moment the number was rejected, which is
+                // the jump SHOWUP-143 forbids and the one 20 was chosen to prevent.
+                //
+                // A fixed height rather than a minimum, so the row cannot grow either; the scale
+                // factor lets a long country name shrink to fit instead of being cut off.
                 Text(error?.message(country) ?? "Standard message rates may apply.")
                     .font(F.manrope(13, invalid ? .semibold : .medium))
                     // Muted, not Subtle — helper text has to be readable. Audit finding 7.
                     .foregroundColor(invalid ? .liqDangerFg : .liqMuted)
-                    .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .topLeading)
                     .padding(.top, 10)
                     .padding(.leading, 4)
                     .accessibilityAddTraits(.updatesFrequently)
@@ -182,7 +226,11 @@ struct PhoneNumberView: View {
                 PillButton("Send me the code", action: onSubmit)
             }
             // The keyboard is why the user is here, so it opens with the screen.
-            .onAppear { focused = true }
+            .onAppear {
+                focused = true
+                // Coming back from the code screen, the number is still there and still grouped.
+                display = formatNational(value, country)
+            }
         }
     }
 }
@@ -303,27 +351,34 @@ struct VerifyCodeView: View {
                 }
 
                 // Reserved region — see the file header and the audit note.
-                Group {
-                    if mismatch {
-                        HStack(alignment: .top, spacing: 10) {
-                            ZStack {
-                                Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
-                                Text("!").font(.custom(PS.loraBold, size: 12)).foregroundColor(.white)
-                            }
-                            // informative, never "Wrong" / "Failed" / "Error"
-                            Text("That code didn’t match. Try again.")
-                                .font(F.manrope(13.5, .medium))
-                                .lineSpacing(13.5 * 0.4)
-                                .foregroundColor(.liqDangerFg)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.liqDanger.opacity(0.07)))
-                        .overlay(RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.liqDanger.opacity(0.18), lineWidth: 1))
+                //
+                // The card is ALWAYS in the tree and hidden with opacity. It used to be wrapped in
+                // a bare `if mismatch`, which reserved nothing: an unsatisfied `if` inside a
+                // ViewBuilder produces nil, and a frame and a padding wrapped around nil both
+                // collapse to zero rather than holding the row open. Measured on an iPhone 17 Pro,
+                // the CTA jumped 56pt — the full 42 + 14 — the moment the code was wrong, which is
+                // exactly what this region exists to prevent and what SHOWUP-143 forbids outright.
+                HStack(alignment: .top, spacing: 10) {
+                    ZStack {
+                        Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
+                        Text("!").font(.custom(PS.loraBold, size: 12)).foregroundColor(.white)
                     }
+                    // informative, never "Wrong" / "Failed" / "Error"
+                    Text("That code didn’t match. Try again.")
+                        .font(F.manrope(13.5, .medium))
+                        .lineSpacing(13.5 * 0.4)
+                        .foregroundColor(.liqDangerFg)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.liqDanger.opacity(0.07)))
+                .overlay(RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.liqDanger.opacity(0.18), lineWidth: 1))
+                .opacity(mismatch ? 1 : 0)
+                // Invisible is not the same as absent: without this VoiceOver would read an error
+                // that is not being shown.
+                .accessibilityHidden(!mismatch)
                 // Back to the sheet's 42 — the shortened message is one line at every width.
                 .frame(maxWidth: .infinity, minHeight: 42, alignment: .topLeading)
                 .padding(.top, compact ? 6 : 14)
@@ -419,8 +474,8 @@ struct VerifyCodeView: View {
     }
 }
 
-#Preview("A · number · 375") { PhoneNumberView() }
-#Preview("A · number · 390") { PhoneNumberView() }
-#Preview("B · invalid · 390") { PhoneNumberView(value: "0151 2", invalid: true) }
-#Preview("C · code · 390") { VerifyCodeView() }
-#Preview("D · mismatch · 390") { VerifyCodeView(digits: "482170", mismatch: true) }
+#Preview("A · number · 375") { PhoneNumberView(value: .constant("")) }
+#Preview("A · number · 390") { PhoneNumberView(value: .constant("17612345678")) }
+#Preview("B · invalid · 390") { PhoneNumberView(value: .constant("01512"), error: .leadingZero) }
+#Preview("C · code · 390") { VerifyCodeView(digits: .constant("")) }
+#Preview("D · mismatch · 390") { VerifyCodeView(digits: .constant("482170"), mismatch: true) }

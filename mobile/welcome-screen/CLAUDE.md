@@ -39,11 +39,16 @@ and any claim that code is "Swift 6 clean" without a build is unfounded. **Only 
 make this rule enforced rather than intended** — the same way the Android rules below are enforced,
 because CI builds them.
 
+There is a Mac now, as of 2026-09-01, and the first build found four errors the reading had not.
+
 ## iOS availability
 
-The deployment target is **iOS 16.0**. Using a newer API compiles cleanly and then misbehaves on a
+The deployment target is **iOS 17.0**. Using a newer API compiles cleanly and then misbehaves on a
 real phone — this has happened twice here (`scrollBounceBehavior`, and the two-parameter
 `onChange`). Gate anything newer with `if #available`, and run `audit/check-ios-availability.py`.
+
+Note the second example inverted when the minimum moved from 16 to 17: the ONE-parameter
+`onChange(of:perform:)` is the deprecated form now. Both directions cost a build to notice.
 
 That checker holds a curated list, so it is a safety net and not a compiler. Treat a clean run as
 "nothing known is wrong", never as "this builds".
@@ -82,14 +87,18 @@ Before saying a change is done:
 
 ```
 cd android-preview-project && ./gradlew :app:assembleDebug :app:testDebugUnitTest
+cd ios-app && xcodebuild -project ShowUpWelcome.xcodeproj -scheme ShowUpWelcome \
+    -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 cd .. && for f in audit/verify-*.py audit/check-*.py; do python "$f"; done
 ```
 
-CI runs the same on every pull request, plus `assembleRelease` — R8 only runs on release, and it
-removes what it cannot see being used.
+CI runs the Android half on every pull request, plus `assembleRelease` — R8 only runs on release,
+and it removes what it cannot see being used.
 
 **Say what was actually verified.** "Builds and tests pass" and "I have seen it render" are
-different claims. iOS can be neither built nor rendered here; say so rather than implying otherwise.
+different claims, and on iOS the second one is now available: the simulator will show you things
+no amount of reading will. Both reserved helper regions on SHOWUP-143 were wrong in ways that only
+appeared once the CTA was measured moving — one of them reserved nothing at all. Run the screen.
 
 ## House style
 

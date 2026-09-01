@@ -95,7 +95,7 @@ struct ConnectAccountView: View {
                 )
             }
         }
-        .onChange(of: state) { _ in dispatched = false }
+        .onChange(of: state) { _, _ in dispatched = false }
         // E is the one state with no exit of its own, so it gets a clock.
         .task(id: stateKey) {
             guard state == .linking else { return }

@@ -273,13 +273,22 @@ fun PhoneNumberScreen(
             }
         }
 
-        // The helper row is RESERVED at 20 -- the error replaces the text in the same row so
-        // nothing below it moves. The messages name the country now, so the reserve is a minimum
-        // rather than a fixed height and a two-line message grows downward into the spacer.
+        // The helper row is RESERVED at TWO lines -- 36 -- because that is what an error takes.
+        //
+        // It was `heightIn(min = 20.dp)`, one line, with a comment claiming a two-line message
+        // "grows downward into the spacer". It does not: the spacer below is a fixed 22.dp, so the
+        // Column simply gets taller and the CTA moves. Every error message names the country now
+        // ("That looks too short for United States. For example 201 555 0123.") and wraps at every
+        // width this screen ships at. Measured on the iOS twin, which had the identical reserve:
+        // the CTA dropped 15.7pt the moment the number was rejected, which is the jump SHOWUP-143
+        // forbids and the one the reserve exists to prevent.
+        //
+        // A fixed height rather than a minimum, so the row cannot grow either, and maxLines to
+        // match -- the same two-line ceiling PhoneVerificationView.swift now holds.
         Box(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 20.dp)
+                .height(36.dp)
                 .padding(top = 10.dp, start = 4.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
@@ -290,6 +299,7 @@ fun PhoneNumberScreen(
                 fontFamily = Manrope,
                 fontWeight = if (invalid) FontWeight.SemiBold else FontWeight.Medium,
                 fontSize = 13.sp, lineHeight = 17.55.sp,
+                maxLines = 2,
             )
         }
 

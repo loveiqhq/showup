@@ -19,13 +19,10 @@
 //  the Connect screen and not to any particular way of leaving it. Rules 1-3 enumerate every exit
 //  from Connect precisely to say that the exit does not matter.
 //
-//  NOT AT PARITY YET: the Android twin is covered by TutorialRoutingTest (8 cases, run on every
-//  build). The matching Swift tests are written -- ShowUpWelcomeTests/TutorialRoutingTests.swift --
-//  but have never been compiled, because there is no Swift compiler on the machine they were
-//  written on and this target has no test bundle. Until someone runs them on a Mac, the guard for
-//  both platforms is the Android suite plus audit/check-tutorial-routing.py, which compares the
-//  two files for sameness. Neither can catch a Swift-only mistake. The enabling steps are at the
-//  top of the test file and take about ten minutes.
+//  AT PARITY: both sides are covered by 8 cases each -- TutorialRoutingTest.kt on Android and
+//  ShowUpWelcomeTests/TutorialRoutingTests.swift here, the latter running since 2026-09-01. The
+//  third guard, audit/check-tutorial-routing.py, compares the two files for sameness, so a rule
+//  changed on one platform and not the other is caught even when both suites pass.
 
 import Foundation
 
