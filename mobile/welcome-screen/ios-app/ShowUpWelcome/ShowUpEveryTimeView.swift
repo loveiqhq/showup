@@ -58,7 +58,12 @@ struct ShowUpEveryTimeView: View {
                     StatementRow(text: "A persistently low Show-up Rate reduces your visibility to others.")
                     StatementRow(text: "Miss a date without fair notice and you can’t search for new dates for 24 hours.")
                     }
-                    Spacer().frame(height: 5)
+                    // 18, not the 5 this had. Measured off the spec sheet's own mock: the
+                    // statements sit 33px apart top-to-top and the closing paragraph starts 40px
+                    // after the last of them, against a 21.75 line height -- so 11 between the
+                    // statements, which matches, and 18 before the paragraph, which did not. At 5
+                    // the paragraph read as a sixth bullet instead of the closing thought.
+                    Spacer().frame(height: 18)
                     // variation 3 — closing paragraph, lead clause bold
                     Text(TypeMetrics.attributed(
                         colouredRuns: [

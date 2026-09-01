@@ -53,7 +53,11 @@ struct MeetInRealLifeView: View {
                     Text(TypeMetrics.attributed(
                         runs: [
                             ("If you match here, you ", bodyFont),
-                            ("will meet", TypeMetrics.uiFont(
+                            // Bold AND italic. This asked for manropeBold with an italic fallback,
+                            // so it only ever slanted when Manrope failed to load -- upright the
+                            // rest of the time. Manrope has no italic face, so the slant is
+                            // synthesised the way the browser the sheet was drawn in synthesises it.
+                            ("will meet", TypeMetrics.oblique(
                                 PS.manropeBold, 16, fallback: TypeMetrics.italicSystem(16))),
                             (" in real life. A match is a committed date — not a maybe.", bodyFont),
                         ],

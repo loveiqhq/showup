@@ -100,6 +100,20 @@ enum TypeMetrics {
         UIFont(name: name, size: size) ?? fallback
     }
 
+    /// A synthesised oblique, for a family that ships no italic of its own.
+    ///
+    /// Manrope has no italic cut -- the bundle carries Medium, SemiBold and Bold and nothing else --
+    /// and the spec sheets ask for one anyway ("will meet" italic 700 on tutorial card 1). The sheet
+    /// was drawn in a browser, which answers `font-style: italic` on such a family by skewing the
+    /// upright, so this skews it by the same 0.2 browsers use. Asking UIKit for `.traitItalic`
+    /// instead returns the upright unchanged: there is no italic face for it to find, and the run
+    /// silently renders as plain bold, which is what it did here.
+    static func oblique(_ name: String, _ size: CGFloat, fallback: UIFont) -> UIFont {
+        guard let base = UIFont(name: name, size: size) else { return fallback }
+        let skew = CGAffineTransform(a: 1, b: 0, c: 0.2, d: 1, tx: 0, ty: 0)
+        return UIFont(descriptor: base.fontDescriptor.withMatrix(skew), size: 0)
+    }
+
     static func italicSystem(_ size: CGFloat, weight: UIFont.Weight = .bold) -> UIFont {
         let base = UIFont.systemFont(ofSize: size, weight: weight)
         let desc = base.fontDescriptor.withSymbolicTraits(.traitItalic) ?? base.fontDescriptor
