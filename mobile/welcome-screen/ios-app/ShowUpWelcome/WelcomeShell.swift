@@ -275,7 +275,15 @@ struct WashHeadline: UIViewRepresentable {
         let italic = TypeMetrics.uiFont(PS.loraMediumItalic, fontSize,
                                         fallback: TypeMetrics.italicSystem(fontSize))
         let para = NSMutableParagraphStyle()
-        para.lineHeightMultiple = lineHeightMultiple
+        // The spec's 1.05 is a CSS line-height: a multiple of the FONT SIZE. NSParagraphStyle's
+        // lineHeightMultiple is a multiple of the FONT'S OWN line height, which for Lora is about
+        // 1.28em -- so assigning 1.05 straight across asked for 1.05 x 1.28 = 1.34em and put a
+        // third of a line of air between "What's your" and "number?" that the design never had.
+        // Measured against the sheet: 51pt between line tops where it draws the equivalent of 40.
+        //
+        // TypeMetrics.attributed already did this conversion; this is the same arithmetic, and the
+        // Compose twin never needed it because Compose's lineHeight is absolute to begin with.
+        para.lineHeightMultiple = (fontSize * lineHeightMultiple) / regular.lineHeight
 
         let out = NSMutableAttributedString()
         var italicRange = NSRange(location: NSNotFound, length: 0)
