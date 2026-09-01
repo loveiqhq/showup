@@ -106,20 +106,27 @@ let E164_MAX_DIGITS = 15
 enum PhoneError: Equatable {
     case empty, tooShort, tooLong, invalidLength, unrecognised, notANumber, notMobile
 
+    /// The one error string, from the ticket and the reference render alike.
+    ///
+    /// SHOWUP-143: "the helper line is replaced with the example-number message" -- singular -- and
+    /// "Copy matches the strings exactly". Both `welcome/tickets/03-phone-verification.md` and
+    /// `screen-phone-reference.jsx` give it verbatim:
+    ///
+    ///     Please enter a valid number e.g. 176 123 45 678
+    ///
+    /// This used to be seven different sentences, each naming the country and the rule that was
+    /// broken. They read well and were wrong twice over: the wording came from the ticket's
+    /// ANALYTICS categories rather than its copy, and being three times longer they were clipped on
+    /// every phone 360dp wide or narrower -- so the example, the one useful part, was the half that
+    /// got cut. Shorter is not a compromise here; it is the specification, and it fits.
+    ///
+    /// The example stays per-country rather than the hard-coded German one in the reference. The
+    /// ticket lists that as an open concern, and the metadata already knows the right example for
+    /// all 245 countries.
+    ///
+    /// The seven cases remain because SHOWUP-143's Tracking section asks for a `reason` property.
     @MainActor func message(_ country: Country) -> String {
-        switch self {
-        case .empty: return "Enter your phone number to continue."
-        case .notANumber: return "Numbers only, please. For example \(country.sample)."
-        case .tooShort: return "That looks too short for \(country.name). For example \(country.sample)."
-        case .tooLong: return "That looks too long for \(country.name). For example \(country.sample)."
-        // The metadata distinguishes "wrong length" from "too short" — some countries have valid
-        // lengths with gaps in between, and "too short" would be a lie for a number in one of them.
-        case .invalidLength: return "That is not a valid length for \(country.name). For example \(country.sample)."
-        // Right length, wrong number -- almost always a prefix that country does not issue.
-        case .unrecognised: return "That doesn’t look like a \(country.name) mobile number. For example \(country.sample)."
-        // The one rule the metadata knows and a length check never could.
-        case .notMobile: return "That looks like a landline. We need a mobile number to text the code to."
-        }
+        "Please enter a valid number e.g. \(country.sample)"
     }
 }
 

@@ -103,22 +103,38 @@ const val OVERTYPE_ALLOWANCE = 4
  */
 const val E164_MAX_DIGITS = 15
 
-/** Why a number was rejected. Each maps to one message, and each is something the user can act on. */
+/**
+ * Why a number was rejected.
+ *
+ * Seven values, ONE message. The distinction is not for the user -- it is the `reason` property
+ * SHOWUP-143 asks for under Tracking: "Number submitted · validation failed, with a `reason`
+ * property (too short / not a mobile / unsupported country)". Knowing which rule people trip is
+ * how the copy and the country list get better; telling each person which rule they tripped is a
+ * different decision, and not the one that was made.
+ */
 enum class PhoneError { Empty, TooShort, TooLong, InvalidLength, Unrecognised, NotANumber, NotMobile }
 
-fun PhoneError.message(country: Country): String = when (this) {
-    PhoneError.Empty -> "Enter your phone number to continue."
-    PhoneError.NotANumber -> "Numbers only, please. For example ${country.sample}."
-    PhoneError.TooShort -> "That looks too short for ${country.name}. For example ${country.sample}."
-    PhoneError.TooLong -> "That looks too long for ${country.name}. For example ${country.sample}."
-    // libphonenumber distinguishes "wrong length" from "too short" — some countries have valid
-    // lengths with gaps in between, and "too short" would be a lie for a number in one of them.
-    PhoneError.InvalidLength -> "That is not a valid length for ${country.name}. For example ${country.sample}."
-    // Right length, wrong number -- almost always a prefix that country does not issue.
-    PhoneError.Unrecognised -> "That doesn${'’'}t look like a ${country.name} mobile number. For example ${country.sample}."
-    // The one rule libphonenumber knows and a length check never could.
-    PhoneError.NotMobile -> "That looks like a landline. We need a mobile number to text the code to."
-}
+/**
+ * The one error string, from the ticket and the reference render alike.
+ *
+ * SHOWUP-143: "the helper line is replaced with the example-number message" -- singular -- and
+ * "Copy matches the strings exactly". Both `welcome/tickets/03-phone-verification.md` and
+ * `screen-phone-reference.jsx` give it verbatim:
+ *
+ *     Please enter a valid number e.g. 176 123 45 678
+ *
+ * This used to be seven different sentences, each naming the country and the rule that was broken.
+ * They read well and they were wrong twice over: the wording came from the ticket's ANALYTICS
+ * categories rather than from its copy, and being three times longer they were clipped on every
+ * phone 360dp wide or narrower -- so the example, the one genuinely useful part, was the half that
+ * got cut off. Shorter is not a compromise here; it is the specification, and it fits.
+ *
+ * The example itself stays per-country rather than the hard-coded German one in the reference.
+ * The ticket lists that as an open concern -- "`e.g. 176 123 45 678` is a German example hard-coded
+ * into the error string" -- and libphonenumber already knows the right example for all 245.
+ */
+fun PhoneError.message(country: Country): String =
+    "Please enter a valid number e.g. ${country.sample}"
 
 /**
  * Validation, run on submit rather than per keystroke — SHOWUP-143 requires that, and it is the

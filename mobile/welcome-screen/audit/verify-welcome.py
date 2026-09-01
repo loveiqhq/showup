@@ -407,13 +407,32 @@ for kt_src, sw_src, strings in COPY:
 # now rather than something to correct the user about.
 codes_kt = read(KT, "welcome/CountryCodes.kt")
 codes_sw = read(SW, "CountryCodes.swift")
-for msg in ["Enter your phone number to continue.",
-            "Numbers only, please.",
-            "That looks too short for ",
-            "That looks too long for "]:
-    check("143 message kotlin: " + msg[:30], msg in codes_kt)
+# ONE message, not seven. SHOWUP-143: "the helper line is replaced with the example-number
+# message" -- singular -- and "Copy matches the strings exactly". The ticket file and the reference
+# render both give it verbatim: "Please enter a valid number e.g. 176 123 45 678".
+#
+# These checks previously asserted seven per-reason sentences of our own invention. That is the
+# third time a checker here has pinned something that turned out to be wrong, and the pattern is
+# worth naming: a check written from the code protects the code, while a check written from the
+# spec protects the product. These are now quotations from the ticket.
+#
+# The wording we had came from the ticket's TRACKING section -- "reason (too short / not a mobile /
+# unsupported country)" -- which is an analytics property, not user-facing copy. The enum keeps
+# those seven cases for exactly that purpose; only the sentence collapsed.
+SPEC_ERROR = "Please enter a valid number e.g. "
+check("143 one error message, from the ticket (kotlin)", SPEC_ERROR in codes_kt)
+check("143 one error message, from the ticket (swift)", SPEC_ERROR in codes_sw)
+for gone in ["That looks too short for ", "That looks too long for ",
+             "That looks like a landline", "Numbers only, please."]:
+    check("143 invented copy is gone (kotlin): " + gone[:26], gone not in codes_kt)
+    check("143 invented copy is gone (swift): " + gone[:26], gone not in codes_sw)
+# The example stays per country. The ticket lists the hard-coded German one as an open concern,
+# and the metadata knows the right example for all 245.
+check("143 the example is per country (kotlin)", "country.sample" in codes_kt)
+check("143 the example is per country (swift)", "country.sample" in codes_sw)
+check("143 the reason survives for analytics (kotlin)",
+      "enum class PhoneError" in codes_kt and "NotMobile" in codes_kt)
 check("143 no longer scolds the trunk zero (kotlin)", "already covers it." not in codes_kt)
-check("143 landline gets its own message (kotlin)", "That looks like a landline" in codes_kt)
 check("143 country list is derived, not hand-written (kotlin)",
       "phoneUtil.supportedRegions" in codes_kt)
 
