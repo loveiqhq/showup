@@ -28,9 +28,9 @@ import Foundation
 
 /// How the person entered the flow. Decided at the two doors on Startup (SHOWUP-140) and never
 /// revised, because it is a statement about intent rather than about outcome: someone who taps
-/// "Create free account" is creating an account even while they are still typing their number.
+/// "Register and date now" is creating an account even while they are still typing their number.
 enum Entry {
-    /// "Create free account" on Startup.
+    /// "Register and date now" on Startup.
     case createAccount
     /// "Log in" on Startup, or a launch onto Welcome back because the device remembers someone.
     case logIn

@@ -358,7 +358,7 @@ def startup(w, sm, home, wgap, show_proof=False):
             '<div class="gap"></div>%s<div class="gap"></div>'
             '<p class="legal">By creating an account, you agree to our <b>Terms &amp; Conditions</b> and '
             'acknowledge that you have read our <b>Privacy Policy</b>. See our <b>Legal Notice</b>.</p>'
-            '<div class="cta"><button class="btn sunset">Create free account</button></div>'
+            '<div class="cta"><button class="btn sunset">Register and date now</button></div>'
             '<div class="login"><button>Already have an account? <u>Log in</u></button></div>'
             '</div>%s</div>'
             % (w[0], w[1], w[2], w[3], w[4], wgap, backdrop(), sb, WORDMARK, proof, hi))

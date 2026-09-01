@@ -101,9 +101,12 @@ struct SignUpFlowView: View {
                     onTerms: { onOpenLegal("Terms & Conditions") },
                     onPrivacy: { onOpenLegal("Privacy Policy") },
                     onLegalNotice: { onOpenLegal("Legal Notice") },
-                    // The dates figure is hidden until the number is worth showing — the minimum
-                    // is still to be decided, so the toggle is off rather than the figure invented.
-                    showSocialProof: false
+                    // On, because this target is the preview the spec sheet is reviewed against and
+                    // the sheet draws the row. The figure itself is the sheet's own placeholder --
+                    // "234.000" is not a measured number, and the sheet says so. The toggle exists
+                    // for exactly that reason: in the real app it stays OFF until the count is real,
+                    // because a fabricated statistic on a first-run screen is a claim, not a mock.
+                    showSocialProof: true
                 )
 
             case .welcomeBack:

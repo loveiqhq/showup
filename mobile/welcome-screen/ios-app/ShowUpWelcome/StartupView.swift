@@ -23,71 +23,75 @@ struct StartupView: View {
     @Environment(\.verticalSizeClass) private var vSize
 
     var body: some View {
-        GeometryReader { geo in
-            // 375 x 667 is the frame the handoff says to check first, and where the gap collapses.
-            let compact = geo.size.height < 700
+        WelcomeScaffold {
+            Wordmark()
 
-            WelcomeScaffold {
-                Wordmark()
+            // 132 is the only large fixed gap and the element that yields on short frames — never
+            // the type, never a button height, never the CTA's safe-area margin.
+            //
+            // A RANGE, not a height behind a device-size test. It was `compact ? 72 : 132` keyed on
+            // `geo.size.height < 700`, and that was wrong in both directions: it yielded at 375x667,
+            // where the handoff says 132 still holds and the two spacers collapse to about 20 each,
+            // and it is a hard-coded Y decision of exactly the kind the spec's last line forbids.
+            // Given a range the layout resolves it: the gap takes 132 wherever there is room and
+            // gives it back, toward 64, where there is not. Measured across the device matrix in
+            // ScreenFitTests rather than reasoned about -- 320x686 and 360x640 are the two frames
+            // that actually need it, and both overflowed at a fixed 132.
+            Spacer().frame(minHeight: 64, maxHeight: 132)
 
-                // 132 is the only large fixed gap and the element that yields on short frames —
-                // never the type, never a button height, never the CTA's safe-area margin.
-                Spacer().frame(height: compact ? 72 : 132)
-
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Stop texting for days.")
-                            .font(.custom(PS.loraBold, size: 32))
-                            .tracking(-0.015 * 32)
-                            .foregroundColor(.liqFg)
-                            .fixedSize(horizontal: false, vertical: true)
-                        WashHeadline(
-                            parts: [("Start ", false), ("meeting", true), (" today.", false)],
-                            fontSize: 44
-                        )
-                        .frame(height: 44 * 1.05 * 2)   // two lines at every frame in the matrix
-                    }
-                    Text("Your availability. Your intent. Your date — today or tomorrow.")
-                        .font(F.manrope(19, .semibold))
-                        .lineSpacing(19 * 0.4)
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Stop texting for days.")
+                        .font(.custom(PS.loraBold, size: 32))
+                        .tracking(-0.015 * 32)
                         .foregroundColor(.liqFg)
-                        .frame(maxWidth: 320, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
+                    WashHeadline(
+                        parts: [("Start ", false), ("meeting", true), (" today.", false)],
+                        fontSize: 44
+                    )
+                    .frame(height: 44 * 1.05 * 2)   // two lines at every frame in the matrix
                 }
-
-                Spacer(minLength: 0)
-
-                if showSocialProof {
-                    HStack(spacing: 8) {
-                        BrandIconView(icon: .calendar, size: 16, stroke: 2, tint: .liqOrange)
-                        (Text("234.000 Dates").font(F.manrope(13, .bold)).foregroundColor(.liqFg)
-                         + Text(" already organized").font(F.manrope(13, .medium)).foregroundColor(.liqSubtle))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 14)
-                }
-
-                Spacer(minLength: 0)
-
-                // The three phrases ship as real links with their own hit areas.
-                legalLine
-                    .padding(.bottom, 14)
-
-                PillButton("Create free account", action: onCreateAccount)
-                Spacer().frame(height: 10)
-
-                // The reference's own hit area is ~31; the ticket requires at least 44 without
-                // changing the 14pt type, so the frame carries the target.
-                Button(action: onLogin) {
-                    (Text("Already have an account? ").foregroundColor(.liqSubtle)
-                     + Text("Log in").foregroundColor(.liqPurple).underline())
-                        .font(F.manrope(14, .semibold))
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(PressScale())
-                Spacer().frame(height: 14)
+                Text("Your availability. Your intent. Your date — today or tomorrow.")
+                    .font(F.manrope(19, .semibold))
+                    .lineSpacing(19 * 0.4)
+                    .foregroundColor(.liqFg)
+                    .frame(maxWidth: 320, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+
+            Spacer(minLength: 0)
+
+            if showSocialProof {
+                HStack(spacing: 8) {
+                    BrandIconView(icon: .calendar, size: 16, stroke: 2, tint: .liqOrange)
+                    (Text("234.000 Dates").font(F.manrope(13, .bold)).foregroundColor(.liqFg)
+                     + Text(" already organized").font(F.manrope(13, .medium)).foregroundColor(.liqSubtle))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 14)
+            }
+
+            Spacer(minLength: 0)
+
+            // The three phrases ship as real links with their own hit areas.
+            legalLine
+                .padding(.bottom, 14)
+
+            PillButton("Register and date now", action: onCreateAccount)
+            Spacer().frame(height: 10)
+
+            // The reference's own hit area is ~31; the ticket requires at least 44 without
+            // changing the 14pt type, so the frame carries the target.
+            Button(action: onLogin) {
+                (Text("Already have an account? ").foregroundColor(.liqSubtle)
+                 + Text("Log in").foregroundColor(.liqPurple).underline())
+                    .font(F.manrope(14, .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PressScale())
+            Spacer().frame(height: 14)
         }
         .ignoresSafeArea(.keyboard)
     }

@@ -311,8 +311,8 @@ for label, src in [("kotlin", flag_kt), ("swift", flag_sw)]:
 # ── every named control is actually tappable ───────────────────────────────
 # SHOWUP-140: "Terms & Conditions, Privacy Policy, and Legal Notice are real tappable links"
 # and "each legal link has its own hit area". They were styled but inert on the first pass.
-check("140 CTA tappable (kotlin)", "PillButton(\"Create free account\"" in start_kt)
-check("140 CTA tappable (swift)", "PillButton(\"Create free account\"" in start_sw)
+check("140 CTA tappable (kotlin)", "PillButton(\"Register and date now\"" in start_kt)
+check("140 CTA tappable (swift)", "PillButton(\"Register and date now\"" in start_sw)
 check("140 Log in tappable (kotlin)", "onClick = onLogin" in start_kt)
 check("140 Log in tappable (swift)", "Button(action: onLogin)" in start_sw)
 for target in ("onTerms", "onPrivacy", "onLegalNotice"):
@@ -373,7 +373,7 @@ COPY = [
         "Start ", "meeting", " today.",
         "Your availability. Your intent. Your date — today or tomorrow.",
         "234.000 Dates", " already organized",
-        "Create free account", "Already have an account? ", "Log in",
+        "Register and date now", "Already have an account? ", "Log in",
         "Terms & Conditions", "Privacy Policy", "Legal Notice",
     ]),
     (back_kt_all, back_sw_all, [

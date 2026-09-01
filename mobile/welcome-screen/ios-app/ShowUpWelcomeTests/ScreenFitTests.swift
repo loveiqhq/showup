@@ -39,27 +39,31 @@ final class ScreenFitTests: XCTestCase {
     /// narrowest thing either platform has to survive, and a reserve that holds at 320 holds
     /// everywhere. The iOS floor proper is the 375x667 SE, named by the product side.
     struct Device {
-        let name: String, width: CGFloat, height: CGFloat
+        let name: String, width: CGFloat, height: CGFloat, top: CGFloat, bottom: CGFloat
     }
 
+    /// Insets included, and they are not decoration: the status bar and home indicator take up to
+    /// 96pt on the taller iPhones, so a harness that renders into the full frame is optimistic by
+    /// exactly the amount that decides whether a bottom band fits. Devices.kt carries the same
+    /// numbers; these are copied from it so the two matrices cannot drift.
     let devices: [Device] = [
-        Device(name: "Galaxy Fold cover screen", width: 320, height: 686),
-        Device(name: "small Android (HD)", width: 360, height: 640),
-        Device(name: "Galaxy A / common Android", width: 360, height: 740),
-        Device(name: "iPhone 12 mini / 13 mini", width: 360, height: 780),
-        Device(name: "common modern Android", width: 360, height: 800),
-        Device(name: "iPhone SE (3rd gen)", width: 375, height: 667),
-        Device(name: "iPhone X / XS / 11 Pro", width: 375, height: 812),
-        Device(name: "iPhone 12 / 13 / 14", width: 390, height: 844),
-        Device(name: "Pixel 4a / 5", width: 393, height: 851),
-        Device(name: "iPhone 15 / 16", width: 393, height: 852),
-        Device(name: "iPhone 16 Pro", width: 402, height: 874),
-        Device(name: "Pixel 6 / 7", width: 411, height: 891),
-        Device(name: "Pixel 7 Pro / 8 Pro", width: 412, height: 915),
-        Device(name: "iPhone XR / 11", width: 414, height: 896),
-        Device(name: "iPhone 12/13/14 Pro Max", width: 428, height: 926),
-        Device(name: "iPhone 15/16 Pro Max", width: 430, height: 932),
-        Device(name: "iPhone 16 Pro Max", width: 440, height: 956),
+        Device(name: "Galaxy Fold cover screen", width: 320, height: 686, top: 24, bottom: 24),
+        Device(name: "small Android (HD)", width: 360, height: 640, top: 24, bottom: 24),
+        Device(name: "Galaxy A / common Android", width: 360, height: 740, top: 24, bottom: 24),
+        Device(name: "iPhone 12 mini / 13 mini", width: 360, height: 780, top: 50, bottom: 34),
+        Device(name: "common modern Android", width: 360, height: 800, top: 24, bottom: 24),
+        Device(name: "iPhone SE (3rd gen)", width: 375, height: 667, top: 20, bottom: 0),
+        Device(name: "iPhone X / XS / 11 Pro", width: 375, height: 812, top: 44, bottom: 34),
+        Device(name: "iPhone 12 / 13 / 14", width: 390, height: 844, top: 47, bottom: 34),
+        Device(name: "Pixel 4a / 5", width: 393, height: 851, top: 24, bottom: 24),
+        Device(name: "iPhone 15 / 16", width: 393, height: 852, top: 59, bottom: 34),
+        Device(name: "iPhone 16 Pro", width: 402, height: 874, top: 62, bottom: 34),
+        Device(name: "Pixel 6 / 7", width: 411, height: 891, top: 24, bottom: 24),
+        Device(name: "Pixel 7 Pro / 8 Pro", width: 412, height: 915, top: 24, bottom: 24),
+        Device(name: "iPhone XR / 11", width: 414, height: 896, top: 48, bottom: 34),
+        Device(name: "iPhone 12/13/14 Pro Max", width: 428, height: 926, top: 47, bottom: 34),
+        Device(name: "iPhone 15/16 Pro Max", width: 430, height: 932, top: 59, bottom: 34),
+        Device(name: "iPhone 16 Pro Max", width: 440, height: 956, top: 62, bottom: 34),
     ]
 
     // MARK: - the instrument
@@ -72,7 +76,13 @@ final class ScreenFitTests: XCTestCase {
         // The design is a light-mode design; a dark-mode run would probe for a colour that is not
         // there and report every screen as broken.
         controller.overrideUserInterfaceStyle = .light
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: device.width, height: device.height))
+        // The safe area is REPLACED, not added to. `additionalSafeAreaInsets` is additive, and a
+        // window in a test inherits the host simulator's own 54pt top inset -- which showed up as
+        // every device reporting 54 less height than it should, uniformly enough to look correct
+        // and be wrong everywhere. Overriding the window's own value is the only way to say
+        // "this device has exactly these insets".
+        let window = FixedInsetWindow(frame: CGRect(x: 0, y: 0, width: device.width, height: device.height))
+        window.fixedInsets = UIEdgeInsets(top: device.top, left: 0, bottom: device.bottom, right: 0)
         window.rootViewController = controller
         window.isHidden = false
         window.layoutIfNeeded()
@@ -173,6 +183,10 @@ final class ScreenFitTests: XCTestCase {
         for device in devices {
             let screens: [(String, CGImage)] = [
                 ("Startup", try render(StartupView(), on: device)),
+                // Both states of the gated row, as ScreenFitTest.kt does. The row is 32pt of
+                // content and the band it floats in is the first thing to run out on a short
+                // phone, so testing only the "off" case tests the easy half.
+                ("Startup + social proof", try render(StartupView(showSocialProof: true), on: device)),
                 ("Welcome back", try render(WelcomeBackView(name: "Alexandra"), on: device)),
                 ("Phone", try render(PhoneNumberView(value: .constant("201555")), on: device)),
                 ("Phone rejected", try render(
@@ -247,4 +261,10 @@ final class ScreenFitTests: XCTestCase {
         XCTAssertEqual(b.lowerBound - a.lowerBound, 20,
                        "the probe did not see a CTA that moved by exactly 20pt")
     }
+}
+
+/// A window whose safe-area insets are whatever the test says they are.
+final class FixedInsetWindow: UIWindow {
+    var fixedInsets: UIEdgeInsets = .zero
+    override var safeAreaInsets: UIEdgeInsets { fixedInsets }
 }

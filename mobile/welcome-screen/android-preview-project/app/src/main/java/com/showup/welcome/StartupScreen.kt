@@ -55,17 +55,27 @@ fun StartupScreen(
     showSocialProof: Boolean = false,
 ) {
     WelcomeScaffold {
-        // 375 x 667 is the frame the handoff says to check first; it is where the gap collapses.
-        val compact = LocalConfiguration.current.screenHeightDp < 700
+        // Where the gap has to yield. The handoff is explicit that 375 x 667 is NOT one of those
+        // frames -- there the two spacers below collapse to about 20 each and the 132 survives --
+        // so the test is 667, not the 700 it used to be, which yielded one whole frame too early.
+        //
+        // Width is in it because height alone gets the Fold cover screen wrong: 320 x 686 is
+        // TALLER than the SE and still cannot take 132, because at 320 the headline and the legal
+        // line each wrap an extra line and eat the room the extra height provided. Both frames are
+        // in ScreenFitTest, which is what this predicate is answerable to.
+        val config = LocalConfiguration.current
+        val compact = config.screenHeightDp < 667 || config.screenWidthDp < 360
         Wordmark()
 
         // 132 is the only large fixed gap and the element that yields on short frames — never the
         // type, never a button height, never the CTA's safe-area margin, never a scroll.
         //
-        // Chosen from the frame height rather than fought for with a weight: Compose has no
-        // max-height on a weighted child, so a weighted spacer would eat all the slack the two
-        // flex:1 spacers below are supposed to share.
-        Spacer(Modifier.height(if (compact) 72.dp else 132.dp))
+        // Chosen from the frame rather than fought for with a weight: Compose has no max-height on
+        // a weighted child, so a weighted spacer would eat all the slack the two flex:1 spacers
+        // below are supposed to share. The iOS twin CAN express it as a range and does --
+        // `Spacer().frame(minHeight: 64, maxHeight: 132)` -- so the two platforms reach the same
+        // layout by different means, and 64 is the floor on both.
+        Spacer(Modifier.height(if (compact) 64.dp else 132.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
             // ④ headline — line 1 at 32, line 2 at 44, both 1.05. "meeting" italic + wash.
@@ -143,7 +153,7 @@ fun StartupScreen(
             textAlign = TextAlign.Center,
         )
 
-        PillButton("Create free account", onCreateAccount)
+        PillButton("Register and date now", onCreateAccount)
         Spacer(Modifier.height(10.dp))
 
         // The reference's own hit area is ~31; the ticket requires at least 44 without changing the
