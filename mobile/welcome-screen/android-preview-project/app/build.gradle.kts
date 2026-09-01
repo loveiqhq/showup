@@ -11,7 +11,10 @@ android {
 
     defaultConfig {
         applicationId = "com.showup"
-        minSdk = 24          // deliberately low: the orbs must look right on old devices too
+        // API 30 (Android 11), confirmed by the product side on 2026-09-01. It was 24, which is
+        // 2016 and well under 1% of active devices -- the cost of that floor was desugaring, more
+        // OEM quirks, and testing on hardware essentially nobody runs.
+        minSdk = 30
         // API 36 (Android 16). Google Play has required this of new apps and updates since
         // 31 August 2026 -- below it, the first submission is simply rejected.
         targetSdk = 36

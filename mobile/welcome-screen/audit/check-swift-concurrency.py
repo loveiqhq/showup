@@ -39,13 +39,9 @@ GEN = os.path.join(ROOT, "ios-app/gen_pbxproj.py")
 PBX = os.path.join(ROOT, "ios-app/ShowUpWelcome.xcodeproj/project.pbxproj")
 
 # Already present, already understood, and NOT fixed blind. Each is (file, pattern fragment).
-# The shake animation on a wrong code: seven steps at absolute 68ms offsets. Converting it to
-# Task.sleep changes real behaviour -- sequential sleeps accumulate drift where absolute deadlines
-# do not, and task cancellation on view teardown is not the same as a dispatch that always fires.
-# Whether the result still looks right can only be judged by watching it, so it waits for the Mac.
-KNOWN = [
-    ("PhoneVerificationView.swift", "DispatchQueue.main.asyncAfter"),
-]
+# Empty, and worth keeping empty. Both original findings are fixed: the flag cache is isolated to
+# the main actor, and the shake animation now schedules through Task with absolute deadlines.
+KNOWN = []
 
 fails = []
 notes = []
@@ -61,6 +57,37 @@ def check(name, ok, detail=""):
 
 def read(p):
     return io.open(p, encoding="utf-8").read() if os.path.exists(p) else ""
+
+
+def code_only(text):
+    """The source with comments blanked out.
+
+    Added after this checker flagged the word DispatchQueue inside a comment EXPLAINING why the
+    DispatchQueue had been removed. A checker that cannot tell code from prose reports the
+    documentation of a fix as the bug it fixed, and the only way to keep it quiet is to stop
+    writing comments -- which is the wrong thing to optimise for.
+
+    Line comments only, and quote-aware so a `//` inside a string (a URL, say) survives. Block
+    comments are not used in this codebase; if they appear, extend this.
+    """
+    out = []
+    for line in text.splitlines():
+        in_str = False
+        cut = None
+        i = 0
+        while i < len(line) - 1:
+            c = line[i]
+            if c == chr(92):            # backslash: skip the escaped character
+                i += 2
+                continue
+            if c == chr(34):
+                in_str = not in_str
+            elif not in_str and c == "/" and line[i + 1] == "/":
+                cut = i
+                break
+            i += 1
+        out.append(line if cut is None else line[:cut])
+    return chr(10).join(out)
 
 
 def swift_files():
@@ -92,7 +119,7 @@ FORBIDDEN = [
 for token, why in FORBIDDEN:
     hits = []
     for f in swift_files():
-        for i, line in enumerate(read(os.path.join(SW, f)).splitlines(), 1):
+        for i, line in enumerate(code_only(read(os.path.join(SW, f))).splitlines(), 1):
             if token in line:
                 hits.append("%s:%d" % (f, i))
     check("no %s" % token, not hits, "%s -- %s" % (why, ", ".join(hits[:4])))
@@ -102,7 +129,7 @@ for token, why in FORBIDDEN:
 # declaration carrying that annotation (on the line, or the line above) is accepted.
 glob = re.compile(r"^\s*(?:private\s+|fileprivate\s+|internal\s+|public\s+)?static\s+var\s|^var\s")
 for f in swift_files():
-    lines = read(os.path.join(SW, f)).splitlines()
+    lines = code_only(read(os.path.join(SW, f))).splitlines()
     for i, line in enumerate(lines):
         if not glob.match(line):
             continue
@@ -118,7 +145,7 @@ for f in swift_files():
 
 # ── 4. structured concurrency instead of queue hopping ──────────────────────
 for f in swift_files():
-    for i, line in enumerate(read(os.path.join(SW, f)).splitlines(), 1):
+    for i, line in enumerate(code_only(read(os.path.join(SW, f))).splitlines(), 1):
         if "DispatchQueue" not in line:
             continue
         where = "%s:%d" % (f, i)
@@ -129,7 +156,7 @@ for f in swift_files():
                   "use Task and await; a queue hop leaves the isolation the compiler tracks")
 
 # ── 5. Combine is not used in new code ──────────────────────────────────────
-combine = ["%s" % f for f in swift_files() if "import Combine" in read(os.path.join(SW, f))]
+combine = ["%s" % f for f in swift_files() if "import Combine" in code_only(read(os.path.join(SW, f)))]
 check("no Combine in new code", not combine,
       "async/await is the target; mixing both is the migration nobody finishes: %s" % combine)
 

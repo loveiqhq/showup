@@ -34,7 +34,14 @@ data class Device(
  */
 val DEVICES: List<Device> = listOf(
     // ── the tight end ───────────────────────────────────────────────────────
-    Device("iPhone SE (1st gen) / iPod touch", 320, 568, 20, 0),
+    //
+    // The 320x568 iPhone SE (1st gen) was here and is gone: it cannot run iOS 17, which is the
+    // minimum as of 2026-09-01, and no Android device at API 30 is that narrow. Testing a phone
+    // the app will not install on produces findings nobody can act on, which is how a useful
+    // report turns into noise.
+    //
+    // The smallest supported screen is now 375x667 -- the iPhone SE (3rd gen), which the product
+    // side named explicitly as the floor.
     Device("Galaxy Fold cover screen", 320, 686, 24, 24),
     Device("small Android (HD)", 360, 640, 24, 24),
     Device("Galaxy A / common Android", 360, 740, 24, 24),
@@ -42,7 +49,7 @@ val DEVICES: List<Device> = listOf(
     Device("common modern Android", 360, 800, 24, 24),
 
     // ── the middle ──────────────────────────────────────────────────────────
-    Device("iPhone SE (2nd/3rd) / 6 / 7 / 8", 375, 667, 20, 0, inAcceptanceCriteria = true),
+    Device("iPhone SE (3rd gen)", 375, 667, 20, 0, inAcceptanceCriteria = true),
     Device("iPhone X / XS / 11 Pro", 375, 812, 44, 34),
     Device("Pixel 4a / 5", 393, 851, 24, 24),
     Device("iPhone 12 / 13 / 14", 390, 844, 47, 34, inAcceptanceCriteria = true),
