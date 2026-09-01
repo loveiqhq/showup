@@ -1,0 +1,268 @@
+<meta charset="utf-8">
+<title>Tutorial Card 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Manrope:wght@500;600;700&display=swap">
+
+<style>
+  /* ── page chrome ── */
+  :root {
+    --page-bg:#F4F2F7; --page-fg:#1D1129; --page-mute:#6B6377; --page-rule:#DFDAE6; --page-card:#fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg:#14111A; --page-fg:#ECE8F2; --page-mute:#9990A6; --page-rule:#2B2634; --page-card:#1C1824;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg:#14111A; --page-fg:#ECE8F2; --page-mute:#9990A6; --page-rule:#2B2634; --page-card:#1C1824;
+  }
+
+  /* ── product tokens (spec sheet) ── */
+  :root {
+    --liq-bg:          #FFFBF7;
+    --liq-orange-500:  #FE6839;
+    --liq-primary-500: #812AEC;
+    --liq-fg:          #1D1129;
+    --liq-neutral-200: #4B3B5A;
+    --liq-fg-faint:    rgba(29,17,41,.24);
+    --liq-fg-subtle:   rgba(29,17,41,.46);
+    --liq-track:       rgba(29,17,41,.12);
+    --liq-eyebrow-bg:  rgba(167,139,250,.16);
+    --liq-serif: "Lora", Georgia, serif;
+    --liq-sans:  "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin:0; padding:0 24px 64px; background:var(--page-bg); color:var(--page-fg);
+    font-family:var(--liq-sans); -webkit-font-smoothing:antialiased;
+  }
+  .page { max-width:1500px; margin:0 auto; display:flex; flex-direction:column; gap:2.5rem; }
+  header { padding-top:3.5rem; display:flex; flex-direction:column; gap:.6rem; }
+  .eyebrow-page { margin:0; font-size:.7rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--liq-orange-500); }
+  h1.page-title { margin:0; font-family:var(--liq-serif); font-weight:700; font-size:clamp(1.9rem,4vw,2.6rem); line-height:1.1; letter-spacing:-.02em; }
+  .sub { margin:0; color:var(--page-mute); max-width:64ch; line-height:1.6; font-size:.98rem; }
+  .rail { display:flex; flex-wrap:wrap; gap:2.5rem; align-items:flex-start; }
+  figure.device { margin:0; display:flex; flex-direction:column; gap:.85rem; }
+  figcaption { display:flex; flex-direction:column; gap:.15rem; font-size:.8rem; color:var(--page-mute); }
+  figcaption b { color:var(--page-fg); font-size:.95rem; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* ══════════════════════════════════════════════════════════════
+     THE SHELL — everything below is reused unchanged by cards 3-6.
+     Only .card-content differs per card.
+     ══════════════════════════════════════════════════════════════ */
+  .screen {
+    position:relative; width:var(--w); height:var(--h); flex:none; overflow:hidden;
+    background:var(--liq-bg); border-radius:var(--radius,42px);
+    box-shadow:0 0 0 1px var(--page-rule), 0 22px 50px -18px rgba(29,17,41,.4);
+    isolation:isolate;
+  }
+  .statusbar {
+    position:absolute; top:0; left:0; right:0; height:var(--safe-top); z-index:3;
+    display:flex; align-items:center; justify-content:space-between; padding:0 30px;
+    font-size:15px; font-weight:700; color:var(--liq-fg); font-variant-numeric:tabular-nums;
+  }
+  .statusbar.compact { padding:0 18px; font-size:13px; }
+  .statusbar .icons { display:flex; align-items:center; gap:5px; }
+  .home-indicator {
+    position:absolute; left:50%; transform:translateX(-50%); bottom:9px;
+    width:140px; height:5px; border-radius:3px; background:rgba(29,17,41,.85); z-index:3;
+  }
+
+  /* ① content region — pad-top 8 below the safe-area inset, gutter 24, floor 0 */
+  .shell {
+    position:relative; z-index:2; height:100%;
+    display:flex; flex-direction:column;
+    padding: calc(var(--safe-top) + 8px) 24px var(--safe-bottom);
+  }
+
+  /* ② step progress — 5 segments, h5, gap 6, gap below 24 */
+  .progress { flex:none; display:flex; gap:6px; margin-bottom:24px; }
+  .progress span { flex:1 1 0; height:5px; border-radius:999px; background:var(--liq-track); }
+  .progress span.on { background:var(--liq-primary-500); }
+
+  /* ③ eyebrow pill — hug width, NOT the full-width band the reference render shows */
+  .eyebrow {
+    flex:none; align-self:flex-start;             /* the documented fix */
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:999px; background:var(--liq-eyebrow-bg);
+    font-family:var(--liq-sans); font-weight:700; font-size:11px; line-height:1.2;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--liq-primary-500);
+  }
+  .eyebrow i { width:5px; height:5px; border-radius:50%; background:var(--liq-orange-500); flex:none; }
+
+  /* ④ headline — Lora 700 / 34 / 1.1 / -0.015em, margin 14 above, 28 below */
+  .headline {
+    flex:none; position:relative; margin:14px 0 28px;
+    font-family:var(--liq-serif); font-weight:700; font-size:34px; line-height:1.1;
+    letter-spacing:-.015em; color:var(--liq-fg); text-wrap:pretty;
+  }
+  .headline em { font-style:italic; }
+  .headline::after {                                  /* underline accent */
+    content:""; position:absolute; left:2px; bottom:-4px; width:186px; height:10px; border-radius:50%;
+    background:linear-gradient(90deg, rgba(254,104,57,0) 0%, rgba(254,104,57,.5) 28%, rgba(224,86,122,.4) 64%, rgba(129,42,236,0) 100%);
+    filter:blur(4px);
+  }
+
+  /* ⑧ illustration block — 342 x 230, gap above 24. The only flexible element. */
+  .art {
+    flex:0 1 230px; min-height:0; margin-top:24px;
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .art .glow {
+    position:absolute; width:220px; height:190px; pointer-events:none;
+    background:radial-gradient(circle, rgba(254,104,57,.16) 0%, rgba(254,104,57,.13) 26%, rgba(129,42,236,.10) 48%, rgba(129,42,236,.04) 60%, rgba(0,0,0,0) 70%);
+    filter:blur(6px);
+  }
+  /* Placeholder for the artwork, which design will supply. It holds the exact block the real
+     asset gets — 248 x 210, centred, shrinking with the frame — so dropping the image in later
+     changes nothing about the layout. Deliberately looks unfinished so it cannot be mistaken
+     for final art. */
+  .art-slot-box {
+    position:relative; height:100%; aspect-ratio:248/210; max-width:100%;
+    border:1.5px dashed rgba(129,42,236,.38); border-radius:18px;
+    background:rgba(167,139,250,.07);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    font-family:var(--liq-sans); color:var(--liq-primary-500); overflow:hidden;
+  }
+  .art-slot-box svg { width:26px; height:26px; opacity:.5; flex:none; }
+  .art-slot-box b {
+    font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; white-space:nowrap;
+  }
+  .art-slot-box i {
+    font-style:normal; font-size:10.5px; font-weight:600; color:var(--liq-fg-subtle);
+    font-variant-numeric:tabular-nums; white-space:nowrap;
+  }
+
+  /* the single flex:1 spacer — the whole layout strategy */
+  .spacer { flex:1 1 0; min-height:0; }
+
+  /* ⑨ nav row — bottom-anchored, 24 above the content floor */
+  .nav {
+    flex:none; display:flex; align-items:center; justify-content:space-between;
+    gap:12px; margin-bottom:24px;
+  }
+  .back {
+    background:none; border:0; padding:0; cursor:pointer;
+    font-family:var(--liq-sans); font-weight:600; font-size:14px; color:var(--liq-fg-subtle);
+  }
+  .back[data-hidden="true"] { color:transparent; pointer-events:none; }
+  .next { display:flex; align-items:center; gap:14px; background:none; border:0; padding:0; cursor:pointer; }
+  .next span {
+    font-family:var(--liq-sans); font-weight:700; font-size:17px; color:var(--liq-fg);
+  }
+  .next i {
+    width:56px; height:56px; border-radius:50%; background:var(--liq-orange-500);
+    display:flex; align-items:center; justify-content:center; flex:none;
+    box-shadow:0 10px 24px -8px rgba(254,104,57,.65), 0 2px 6px rgba(254,104,57,.3);
+    transition:transform .12s ease;
+  }
+  .next:hover i { transform:translateY(-1px); }
+  .next:focus-visible i { outline:3px solid var(--liq-primary-500); outline-offset:3px; }
+  .next svg { width:20px; height:20px; }
+
+  /* ══════════ per-card content ══════════ */
+  /* ⑤ rule list — 3 rows, Manrope 600 / 13 / 1.4, no wrap, row gap 8, block gap below 16 */
+  .rules { flex:none; display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .rules > div { display:flex; align-items:flex-start; gap:9px; }
+  .rules i { width:6px; height:6px; border-radius:50%; background:var(--liq-orange-500); flex:none; margin-top:6px; }
+  .rules p {
+    margin:0; font-family:var(--liq-sans); font-weight:600; font-size:13px; line-height:1.4;
+    letter-spacing:-.01em; white-space:nowrap; color:var(--liq-fg);
+  }
+  .rules .dash { color:var(--liq-fg-faint); font-weight:500; }
+  .rules .consequence { color:var(--liq-primary-500); }
+
+  /* ⑥⑦ body paragraphs — Manrope 500 / 16 / 1.5 */
+  .body-copy { flex:none; font-family:var(--liq-sans); font-weight:500; font-size:16px; line-height:1.5; color:var(--liq-neutral-200); text-wrap:pretty; }
+  .body-copy p { margin:0; }
+  .body-copy p + p { margin-top:10px; }     /* ⑥ gap below 10 */
+  .body-copy em { font-style:italic; font-weight:700; }
+  .body-copy strong { font-weight:700; }
+
+  @media (max-width:34rem) { body { padding:0 1.1rem 4rem; } header { padding-top:3rem; } }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow-page">SHOWUP-135 · tutorial 2 of 6</p>
+    <h1 class="page-title">Meet in real life</h1>
+    <p class="sub">The reference implementation of the shared tutorial shell — step progress, eyebrow
+      pill, headline treatment, body scale, illustration block and nav row. Screens 3–6 reuse all of
+      it and pass content only. One top-anchored column, one <code>flex: 1</code> spacer between the
+      illustration and the nav row, no absolute Y positioning.</p>
+  </header>
+
+  <div class="rail" id="rail"></div>
+</div>
+
+<template id="card">
+  <!-- ⑤ rule list -->
+  <div class="rules">
+    <div><i></i><p>No texting for weeks<span class="dash"> — </span><span class="consequence">date in real life instead</span></p></div>
+    <div><i></i><p>No ghosting<span class="dash"> — </span><span class="consequence">we penalize unreliability</span></p></div>
+    <div><i></i><p>No collecting matches<span class="dash"> — </span><span class="consequence">you meet who you match</span></p></div>
+  </div>
+  <!-- ⑥⑦ body -->
+  <div class="body-copy">
+    <p>If you match here, you <em>will meet</em> in real life. A match is a committed date — not a maybe.</p>
+    <p><strong>Showing up to dates boosts your profile</strong> by highlighting your reliability and increasing your visibility. <strong>Missing dates without fair notice upfront</strong> reduces your visibility for others.</p>
+  </div>
+</template>
+
+<template id="art">
+  <div class="art">
+    <div class="glow"></div>
+    <div class="art-slot-box" role="img" aria-label="Illustration placeholder, artwork to be supplied">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-6 6-2-2-5 5"/>
+      </svg>
+      <b>Illustration</b>
+      <i>248 × 210</i>
+    </div>
+  </div>
+</template>
+
+<script>
+  const DEVICES = [
+    { w:375, h:667, safeTop:20, safeBottom:0,  radius:34, label:"iPhone SE · safe-area top 20 · no home indicator", compact:true,  home:false },
+    { w:390, h:844, safeTop:54, safeBottom:28, radius:42, label:"reference frame · safe-area top 54 · bottom 28",     compact:false, home:true  },
+    { w:430, h:932, safeTop:54, safeBottom:28, radius:48, label:"iPhone Pro Max · safe-area top 54 · bottom 28",      compact:false, home:true  },
+  ];
+  const ICONS = `<svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5.5" width="3" height="6.5" rx="1"/><rect x="9" y="3" width="3" height="9" rx="1"/><rect x="13.5" width="3" height="12" rx="1"/></svg>
+    <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 11.2 5.9 8.9a3 3 0 0 1 4.2 0zM3.2 6.2 1.4 4.3a9.4 9.4 0 0 1 13.2 0l-1.8 1.9a6.8 6.8 0 0 0-9.6 0z"/></svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".6" y=".6" width="20" height="10.8" rx="3" stroke="currentColor" stroke-opacity=".4"/><rect x="2.2" y="2.2" width="16.8" height="7.6" rx="1.8" fill="currentColor"/><path d="M22.4 4.2v3.6a2 2 0 0 0 0-3.6" fill="currentColor" fill-opacity=".45"/></svg>`;
+
+  const rail = document.getElementById('rail');
+  const cardTpl = document.getElementById('card');
+  const artTpl = document.getElementById('art');
+
+  DEVICES.forEach((d, idx) => {
+    const fig = document.createElement('figure');
+    fig.className = 'device';
+    fig.innerHTML = `
+      <div class="screen" style="--w:${d.w}px; --h:${d.h}px; --safe-top:${d.safeTop}px; --safe-bottom:${d.safeBottom}px; --radius:${d.radius}px;">
+        <div class="statusbar${d.compact ? ' compact' : ''}"><span>4:20</span><span class="icons">${ICONS}</span></div>
+        <div class="shell">
+          <div class="progress">${'<span></span>'.repeat(5)}</div>
+          <div class="eyebrow"><i></i>Meet people in real life</div>
+          <h2 class="headline">We want you to <em>actually</em> meet.</h2>
+          <div class="card-content"></div>
+          <div class="art-slot"></div>
+          <div class="spacer"></div>
+          <div class="nav">
+            <button class="back" data-hidden="true" tabindex="-1" aria-hidden="true">Back</button>
+            <button class="next" type="button"><span>Next</span><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></i></button>
+          </div>
+        </div>
+        ${d.home ? '<div class="home-indicator"></div>' : ''}
+      </div>
+      <figcaption><b>${d.w} × ${d.h}</b><span>${d.label}</span></figcaption>`;
+
+    fig.querySelector('.progress span').classList.add('on');   // step 1 filled
+    fig.querySelector('.card-content').replaceWith(...cardTpl.content.cloneNode(true).children);
+    fig.querySelector('.art-slot').replaceWith(artTpl.content.cloneNode(true));
+    rail.appendChild(fig);
+  });
+</script>

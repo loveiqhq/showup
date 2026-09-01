@@ -17,8 +17,12 @@ export enum PhotoModerationStatus {
 
 /**
  * A profile photo. The image bytes live in object storage (see StorageService); only metadata is
- * kept here — the storage key, content type, ordering, and moderation status. EXIF/metadata that
- * could leak location is stripped before storing.
+ * kept here — the storage key, content type, ordering, and moderation status.
+ *
+ * NOT YET STRIPPED: uploads are stored exactly as received, so a photo still carries whatever EXIF
+ * the phone embedded — including GPS coordinates when location services were on. SHOWUP-34 required
+ * this ("Photo metadata does not expose unsafe information") but nothing implements it. Stripping
+ * falls out of re-encoding, so it arrives with the image-resizing work on SHOWUP-119.
  */
 @Entity('profile_photos')
 export class ProfilePhoto {
