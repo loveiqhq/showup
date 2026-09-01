@@ -62,7 +62,6 @@ struct WelcomeBackView: View {
                             WashHeadline(parts: [("Welcome back ", false), (name, true)], fontSize: 44)
                         }
                     }
-                    .frame(height: 44 * 1.05 * 2)
 
                     Text("Sign back in to check your availability and see who’s free today.")
                         .font(F.manrope(17, .medium))

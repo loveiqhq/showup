@@ -50,7 +50,6 @@ struct StartupView: View {
                         parts: [("Start ", false), ("meeting", true), (" today.", false)],
                         fontSize: 44
                     )
-                    .frame(height: 44 * 1.05 * 2)   // two lines at every frame in the matrix
                 }
                 Text("Your availability. Your intent. Your date — today or tomorrow.")
                     .font(F.manrope(19, .semibold))

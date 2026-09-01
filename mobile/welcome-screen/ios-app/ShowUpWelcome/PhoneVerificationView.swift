@@ -94,9 +94,15 @@ struct PhoneNumberView: View {
             VerificationFrame(onBack: onBack) {
                 VerificationEyebrow()
                 Spacer().frame(height: compact ? 2 : 14)
+                // No fixed height. The frame was `fontSize * 1.05 * lines`, which is the LINE BOX
+                // and not what the glyphs occupy: a 1.05 line height is tighter than Lora's natural
+                // leading, so the ascenders and descenders overflow it, and `.frame(height:)` centres
+                // rather than clips. The text therefore spilled downward into the 10pt margin below
+                // and the underline wash sat on top of the sub copy. WashHeadline reports the size it
+                // actually needs, and Android has always let it. Measured on the phone screen: the
+                // ink gap to the sub copy went from 15pt to 27pt with the frame gone.
                 WashHeadline(parts: [("What’s your ", false), ("number", true), ("?", false)],
                              fontSize: 38)
-                    .frame(height: 38 * 1.05 * 2)
                 Spacer().frame(height: compact ? 4 : 10)
                 Text("We’ll send a 6-digit code to verify it is you.")
                     .font(F.manrope(15, .medium))
@@ -212,7 +218,6 @@ struct VerifyCodeView: View {
                 Spacer().frame(height: compact ? 2 : 14)
                 WashHeadline(parts: [("Enter your ", false), ("code", true), (".", false)],
                              fontSize: 38)
-                    .frame(height: 38 * 1.05)
                 Spacer().frame(height: compact ? 4 : 10)
                 (Text("We just sent a 6-digit code to ").foregroundColor(.liqNeutral)
                  // must be the number actually submitted on A — the user's only chance to catch a
