@@ -39,8 +39,11 @@ GEN = os.path.join(ROOT, "ios-app/gen_pbxproj.py")
 PBX = os.path.join(ROOT, "ios-app/ShowUpWelcome.xcodeproj/project.pbxproj")
 
 # Already present, already understood, and NOT fixed blind. Each is (file, pattern fragment).
+# The shake animation on a wrong code: seven steps at absolute 68ms offsets. Converting it to
+# Task.sleep changes real behaviour -- sequential sleeps accumulate drift where absolute deadlines
+# do not, and task cancellation on view teardown is not the same as a dispatch that always fires.
+# Whether the result still looks right can only be judged by watching it, so it waits for the Mac.
 KNOWN = [
-    ("CountryPicker.swift", "static var cache"),
     ("PhoneVerificationView.swift", "DispatchQueue.main.asyncAfter"),
 ]
 
