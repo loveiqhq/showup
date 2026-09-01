@@ -95,8 +95,24 @@ check("wash height 0.32em (kotlin)", "0.32f" in shell_kt)
 check("wash height 0.32em (swift)", "0.32" in shell_sw)
 check("wash offset 0.08em (kotlin)", "0.08f" in shell_kt)
 check("wash offset 0.08em (swift)", "0.08" in shell_sw)
-check("wash stops at 70% (kotlin)", "0.7f to Color.Transparent" in shell_kt)
-check("wash stops at 70% (swift)", "0.7]" in shell_sw or "0.0, 0.7" in shell_sw)
+# Two DELIBERATE deviations from the CSS here, both made on 2026-09-01 after measuring the
+# design's own render of that CSS against ours. Recorded rather than hidden, because a deviation
+# nobody wrote down is indistinguishable from a mistake.
+#
+# 1. The wash is CLIPPED to its band. The CSS gets this free -- ::after is an element and its
+#    background cannot escape its box -- and we were not doing it. The gradient is an ellipse
+#    centred on the bottom edge, so half of it hung below the band and bled into the next line.
+#    This is not a deviation at all; it is the CSS behaviour we had been missing.
+#
+# 2. The gradient runs to transparent at 1.0, where the CSS says 0.7. This one IS a deviation.
+#    Measured from the design's own screenshot, its wash covers about 78% of the emphasised
+#    phrase; ours covered about 56%, because alpha falls off continuously and the eye loses it
+#    well before the stop. Raising the stop puts the perceived width where the reference has it.
+#    If it ever looks too wide, this single number is what to change back.
+check("wash is clipped to its band (kotlin)", "clipRect(" in shell_kt)
+check("wash is clipped to its band (swift)", "ctx.clip(to:" in shell_sw)
+check("wash reaches the ends of the phrase (kotlin)", "1.0f to Color.Transparent" in shell_kt)
+check("wash reaches the ends of the phrase (swift)", "locations: [0.0, 1.0]" in shell_sw)
 # sized from the laid-out run, never a fixed width
 check("wash tracks the run (kotlin)", "getPathForRange" in shell_kt)
 check("wash tracks the run (swift)", "enumerateEnclosingRects" in shell_kt or

@@ -153,8 +153,20 @@ check("arrow stroke 2 (kotlin)", "2.dp.toPx()" in kt)
 check("arrow stroke 2 (swift)", "lineWidth: 2" in sw)
 check("arrow is drawn not a glyph (kotlin)", "ArrowForward" not in code_only(kt))
 check("arrow is drawn not a glyph (swift)", 'systemName: "arrow.right"' not in code_only(sw))
-check("CTA shadow (kotlin)", ".shadow(" in kt)
-check("CTA shadow (swift)", ".shadow(color:" in sw)
+# --liq-shadow-cta: 0 8px 20px rgba(c,.32) and 0 2px 6px rgba(c,.20). Two layers, offset straight
+# down, spread evenly.
+#
+# Android must DRAW it. Modifier.shadow uses the platform elevation system, whose light sits at the
+# top-centre of the window, so the direction depends on where the control happens to be on screen:
+# this circle lives at the right edge and threw its glow down and to the LEFT. A token that says
+# "0" horizontal offset cannot be expressed by a system that has a light source.
+#
+# SwiftUI's .shadow(color:radius:x:y:) takes an explicit offset and has no light source, so iOS can
+# use it directly -- two stacked, one per layer of the token.
+check("CTA shadow is drawn, not cast (kotlin)", "ctaGlow(" in kt)
+check("CTA shadow not left to elevation (kotlin)", ".shadow(" not in code_only(kt))
+check("CTA shadow both layers (swift)",
+      "opacity(0.32), radius: 10, y: 8" in sw and "opacity(0.20), radius: 3, y: 2" in sw)
 
 # radial glow: exactly the reference's stops, no invented fourth
 check("glow no .13 stop (kotlin)", "alpha = 0.13f" not in code_only(kt))

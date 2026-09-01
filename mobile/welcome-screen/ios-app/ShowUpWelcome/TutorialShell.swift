@@ -135,7 +135,13 @@ private struct NextCircle: View {
                         style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 .frame(width: arrowSize, height: arrowSize)
         }
-        .shadow(color: glow.opacity(0.5), radius: 16, y: 10)
+        // --liq-shadow-cta, both layers rather than one approximation of them:
+        //     0 8px 20px rgba(c,.32)  and  0 2px 6px rgba(c,.20)
+        // SwiftUI's `radius` is about half a CSS blur, hence 10 and 3. Two stacked shadows are how
+        // SwiftUI expresses a two-layer token, and the pair reads tighter under the circle than the
+        // single soft 0.5 that was here.
+        .shadow(color: glow.opacity(0.32), radius: 10, y: 8)
+        .shadow(color: glow.opacity(0.20), radius: 3, y: 2)
         // 0.94 reads as a press without the circle appearing to shrink away from the finger.
         .scaleEffect(isPressed && !reduceMotion ? 0.94 : 1)
         .animation(.spring(response: 0.24, dampingFraction: 0.55), value: isPressed)
