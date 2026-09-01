@@ -150,6 +150,17 @@ check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in phone_sw)
 check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in phone_kt)
 check("back chevron stroke 2 (swift)", "stroke: 2" in phone_sw)
 
+# The SHAPE, not just the name. Naming the right enum case proves nothing if that case draws the
+# wrong path -- and the two icons live three lines apart, which is exactly where a mis-paste lands.
+# These are the handoff's own coordinates: polyline points="15 18 9 12 15 6" on the 24 grid.
+check("the chevron draws the handoff's path (kotlin)",
+      "path(listOf(15f to 18f, 9f to 12f, 15f to 6f))" in shell_kt)
+check("the chevron draws the handoff's path (swift)",
+      "x: 15, y: 18" in shell_sw and "x: 9, y: 12" in shell_sw and "x: 15, y: 6" in shell_sw)
+# The arrow keeps its shaft, so the two stay genuinely different icons rather than converging.
+check("the arrow still has its shaft (kotlin)",
+      "Offset(19f, 12f), Offset(5f, 12f)" in shell_kt)
+
 # ── backdrop shared between 140 and 142 ─────────────────────────────────────
 check("one backdrop component (kotlin)", "WelcomeBackdrop" in shell_kt)
 check("one backdrop component (swift)", "struct WelcomeBackdrop" in shell_sw)
