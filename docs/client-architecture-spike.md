@@ -380,16 +380,23 @@ rather than moving them.
 SwiftUI does not expose. The rule should be "no NEW UIKit wrappers without a written reason", not a
 blanket ban — a blanket ban would be quietly broken rather than argued with.
 
-**Architecture.** This needs your decision, and it is the one open question in this section. Our
-screens hold no state; it is hoisted to one owner per flow. That is the Compose idiom and it is why
-every screen is testable without a device. MVVM is the iOS idiom and fits SwiftUI naturally. The
-options:
+**Architecture — SETTLED, 1 September 2026.** The product side's answer: *"No change — keep whatever
+makes most sense from a technical perspective."*
 
-- **MVVM on both** — consistent, familiar to any iOS hire, and means restructuring working Android screens
-- **"Views hold no state" on both**, each platform's idiom underneath — no rework, and the tests keep working
+So the rule is the **principle, not the pattern name**: **a view holds no state.** State is hoisted
+to one owner per flow, and each platform expresses that its own way. Nothing is restructured, and
+the property that matters is kept — every screen is a function from values to a picture, which is
+why 45 tests can render all of them in every state without a device.
 
-I would take the second and write the principle down rather than the pattern name. But it is a
-call about the team you intend to hire as much as about the code.
+**MVVM is not forbidden, and it becomes right later.** Today no screen owns asynchronous work of its
+own; they display what they are handed. The moment one does — loading a profile, uploading a photo,
+retrying a failed request — hoisted state stops being enough, because that work has to outlive a
+redraw and be cancellable. That is what `@Observable` on iOS and a ViewModel on Android are for, and
+introducing them then is not a change of direction. It is the same rule applied to a screen that
+finally needs it.
+
+What would have been wrong is adopting the machinery now, on five screens that display and nothing
+more, and paying for it in every test.
 
 ## 4.3 · Definition of Done for a mobile screen
 

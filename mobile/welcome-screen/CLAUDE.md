@@ -7,6 +7,21 @@ Every rule below exists because something went wrong once. None of them are styl
 
 ---
 
+## Where state lives
+
+**A view holds no state.** State is hoisted to one owner per flow — `SignUpFlow` on both platforms —
+and screens take values and return a picture. Settled 1 September 2026; the product side asked for
+"whatever makes most sense technically" rather than a named pattern.
+
+This is the rule, not MVVM. Each platform expresses it its own way, and the property being protected
+is that a screen is a function from values to pixels — which is exactly why every screen can be
+rendered in every state, at 17 device sizes, with no device.
+
+**When a screen genuinely owns asynchronous work** — loading, uploading, retrying — hoisted state is
+no longer enough, because that work must outlive a redraw and be cancellable. Then it gets
+`@Observable` on iOS or a ViewModel on Android. That is this rule being applied, not abandoned. None
+of the screens built so far are at that point; the profile and discovery screens will be.
+
 ## Swift 6 concurrency
 
 The project sets `SWIFT_STRICT_CONCURRENCY = complete` with the language mode still at 5.0, so
