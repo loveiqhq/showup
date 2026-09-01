@@ -426,7 +426,9 @@ TEST_COMMON = [
     "CODE_SIGN_STYLE = Automatic;",
     "CURRENT_PROJECT_VERSION = 1;",
     "GENERATE_INFOPLIST_FILE = YES;",
-    "IPHONEOS_DEPLOYMENT_TARGET = 16.0;",
+    # No IPHONEOS_DEPLOYMENT_TARGET here on purpose: it inherits the project's, so the test bundle
+    # cannot drift away from the app it hosts. It was pinned at 16.0 and was already stale by the
+    # time it was written -- the minimums moved to 17 in the same week.
     "MARKETING_VERSION = 0.1;",
     "PRODUCT_BUNDLE_IDENTIFIER = org.loveiq.showup.welcomepreview.tests;",
     'PRODUCT_NAME = "$(TARGET_NAME)";',

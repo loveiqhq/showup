@@ -165,7 +165,7 @@ struct PhoneNumberView: View {
                         .lineLimit(1)
                         .submitLabel(.done)
                         .onSubmit(onSubmit)
-                        .onChange(of: display) { typed in
+                        .onChange(of: display) { _, typed in
                             // maximum PLUS an allowance, never the maximum itself -- see
                             // OVERTYPE_ALLOWANCE. Capping exactly at the limit makes the
                             // too-long error unreachable.
@@ -178,7 +178,7 @@ struct PhoneNumberView: View {
                             if grouped != typed { display = grouped }
                         }
                         // A new country regroups the same digits — its habits, not the old one's.
-                        .onChange(of: country) { c in display = formatNational(value, c) }
+                        .onChange(of: country) { _, c in display = formatNational(value, c) }
                         if invalid {
                             Spacer(minLength: 0)
                             ZStack {

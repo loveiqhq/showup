@@ -310,7 +310,10 @@ for label, src in [("kotlin", conn_kt_code), ("swift", conn_sw_code)]:
 check("double-tap latch (kotlin)", "if (!dispatched) { dispatched = true; onSelect(m) }" in conn_kt)
 check("double-tap latch (swift)", "if !dispatched { dispatched = true; onSelect(m) }" in conn_sw)
 check("latch resets on state change (kotlin)", "remember(state) { mutableStateOf(false) }" in conn_kt)
-check("latch resets on state change (swift)", "onChange(of: state) { _ in dispatched = false }" in conn_sw)
+# Matched loosely on purpose: the closure arity is a language detail that already changed once
+# (iOS 17 deprecated the one-parameter form), and what this check is about is that the latch resets.
+check("latch resets on state change (swift)",
+      "onChange(of: state)" in conn_sw and "dispatched = false" in conn_sw)
 
 # ── hidden, not disabled ────────────────────────────────────────────────────
 check("hidden not disabled (kotlin)", "fun availableMethods(" in list_kt)
