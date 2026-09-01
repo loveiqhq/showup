@@ -194,6 +194,44 @@ final class ScreenFitTests: XCTestCase {
         XCTAssertTrue(offscreen.isEmpty, "CTA off screen:\n" + offscreen.joined(separator: "\n"))
     }
 
+    // MARK: - the copy has to fit the room reserved for it
+
+    func testEveryErrorMessageFitsTheReservedRow() throws {
+        // The other half of "the CTA does not move". Holding the row at a fixed two lines keeps the
+        // CTA still, and would keep it just as still while cutting the end off the message -- which
+        // is the trade Android made unknowingly and the one FIT-2026-08-31 section D called the
+        // expensive fix. So the reserve is measured against every message it has to hold.
+        //
+        // Every country, not a sample: the messages interpolate the country's name and its example
+        // number, so the longest one belongs to whichever country has the longest pair, and that is
+        // not something to guess at. At the narrowest width the app supports.
+        let width: CGFloat = 320 - 24 * 2 - 4    // 320 device, the scaffold's 24 each side, 4 lead
+        let reserve: CGFloat = 36
+        let font = UIFont(name: PS.manropeSemi, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
+        // What minimumScaleFactor(0.85) allows the text to shrink to before it would truncate.
+        let smallest = font.withSize(13 * 0.85)
+
+        var tooTall: [String] = []
+        for country in COUNTRIES {
+            for error in [PhoneError.empty, .tooShort, .tooLong, .invalidLength,
+                          .unrecognised, .notANumber, .notMobile] {
+                let message = error.message(country) as NSString
+                let box = CGSize(width: width, height: .greatestFiniteMagnitude)
+                let height = message.boundingRect(
+                    with: box, options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: [.font: smallest], context: nil).height
+                if height > reserve {
+                    tooTall.append(String(format: "%@ %@: needs %.1fpt of %.0f — \"%@\"",
+                                          country.iso, "\(error)", height, reserve, message))
+                }
+            }
+        }
+        XCTAssertTrue(tooTall.isEmpty,
+                      "messages that cannot fit the reserved row, so they would be cut:\n"
+                      + tooTall.prefix(12).joined(separator: "\n")
+                      + (tooTall.count > 12 ? "\n…and \(tooTall.count - 12) more" : ""))
+    }
+
     // MARK: - the instrument, checked
 
     func testTheProbeFindsAMovedCTAWhenThereIsOne() throws {

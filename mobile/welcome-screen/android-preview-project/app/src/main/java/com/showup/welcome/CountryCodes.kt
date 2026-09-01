@@ -115,7 +115,7 @@ fun PhoneError.message(country: Country): String = when (this) {
     // lengths with gaps in between, and "too short" would be a lie for a number in one of them.
     PhoneError.InvalidLength -> "That is not a valid length for ${country.name}. For example ${country.sample}."
     // Right length, wrong number -- almost always a prefix that country does not issue.
-    PhoneError.Unrecognised -> "That doesn${'’'}t look like a ${country.name} mobile number. For example ${country.sample}."
+    PhoneError.Unrecognised -> "That doesn${'’'}t look like a mobile number in ${country.name}. For example ${country.sample}."
     // The one rule libphonenumber knows and a length check never could.
     PhoneError.NotMobile -> "That looks like a landline. We need a mobile number to text the code to."
 }

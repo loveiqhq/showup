@@ -116,7 +116,7 @@ enum PhoneError: Equatable {
         // lengths with gaps in between, and "too short" would be a lie for a number in one of them.
         case .invalidLength: return "That is not a valid length for \(country.name). For example \(country.sample)."
         // Right length, wrong number -- almost always a prefix that country does not issue.
-        case .unrecognised: return "That doesn’t look like a \(country.name) mobile number. For example \(country.sample)."
+        case .unrecognised: return "That doesn’t look like a mobile number in \(country.name). For example \(country.sample)."
         // The one rule the metadata knows and a length check never could.
         case .notMobile: return "That looks like a landline. We need a mobile number to text the code to."
         }
