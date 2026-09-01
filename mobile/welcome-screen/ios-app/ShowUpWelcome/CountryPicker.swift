@@ -55,9 +55,15 @@ struct FlagView: View {
 
     /// Decoded once per country and kept. The picker scrolls through hundreds of rows, and decoding
     /// a bitmap on every frame of a fling is exactly how a list starts to stutter.
-    private static var cache: [String: UIImage] = [:]
+    ///
+    /// @MainActor because Swift 6 rejects nonisolated global mutable state outright, and a shared
+    /// cache is exactly that. Safe to isolate rather than rework: the only thing that ever touches
+    /// it is FlagView's own body, and a SwiftUI View is already on the main actor. So this is an
+    /// annotation that tells the compiler where the code already runs -- no behaviour changes and
+    /// no call site moves.
+    @MainActor private static var cache: [String: UIImage] = [:]
 
-    static func image(_ iso: String) -> UIImage? {
+    @MainActor static func image(_ iso: String) -> UIImage? {
         let key = iso.uppercased()
         if let hit = cache[key] { return hit }
         guard let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "Flags"),
