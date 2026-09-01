@@ -12,6 +12,14 @@ that failure mode: if the file is in ShowUpWelcome/, it is in the target.
 
 ShowUpWelcomeApp.swift is forced first only so the diff stays stable; Swift itself does not care
 about file order.
+
+The unit-test bundle is discovered the same way, from ShowUpWelcomeTests/. It used not to exist at
+all, which is how eight written tests sat unrun for a week: the file was in the repo but in no
+target, so `cmd-U` had nothing to run and said so only if you looked.
+
+The scheme (xcshareddata/xcschemes/ShowUpWelcome.xcscheme) is NOT generated, and it references two
+ids from here by hand: FEED...0002 is the app target and FEED...0003 the test bundle. They are the
+first uids handed out for exactly that reason -- everything else shifts when a file is added.
 """
 import io, os
 
@@ -23,17 +31,19 @@ def uid():
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRCDIR = os.path.join(HERE, "ShowUpWelcome")
 FONTDIR = os.path.join(SRCDIR, "Fonts")
+TESTDIR = os.path.join(HERE, "ShowUpWelcomeTests")
 
 FIRST = "ShowUpWelcomeApp.swift"
 _found = sorted(f for f in os.listdir(SRCDIR) if f.endswith(".swift"))
 sources = ([FIRST] if FIRST in _found else []) + [f for f in _found if f != FIRST]
 fonts = sorted(f for f in os.listdir(FONTDIR) if f.lower().endswith((".ttf", ".otf")))
+tests = sorted(f for f in os.listdir(TESTDIR) if f.endswith(".swift")) if os.path.isdir(TESTDIR) else []
 
 if not sources:
     raise SystemExit("no .swift files found in " + SRCDIR)
-print("sources: %d, fonts: %d" % (len(sources), len(fonts)))
+print("sources: %d, fonts: %d, tests: %d" % (len(sources), len(fonts), len(tests)))
 
-PROJECT, TARGET, ROOTGRP, APPGRP, FONTGRP, PRODGRP = (uid() for _ in range(6))
+PROJECT, TARGET, TESTTARGET, ROOTGRP, APPGRP, FONTGRP, PRODGRP = (uid() for _ in range(7))
 APPREF, PLISTREF, ASSETREF = uid(), uid(), uid()
 SRCPHASE, FRMPHASE, RESPHASE = uid(), uid(), uid()
 CFG_PROJ, CFG_TGT = uid(), uid()
@@ -44,6 +54,12 @@ src_ref = {f: uid() for f in sources}
 src_bld = {f: uid() for f in sources}
 fnt_ref = {f: uid() for f in fonts}
 fnt_bld = {f: uid() for f in fonts}
+TESTGRP, TESTPRODREF = uid(), uid()
+TESTSRCPHASE, TESTFRMPHASE, TESTRESPHASE = uid(), uid(), uid()
+CFG_TESTLIST, CFG_TESTD, CFG_TESTR = uid(), uid(), uid()
+TESTPROXY, TESTDEP = uid(), uid()
+tst_ref = {f: uid() for f in tests}
+tst_bld = {f: uid() for f in tests}
 
 T = "\t"
 L = []
@@ -69,6 +85,9 @@ for f in fonts:
       % (fnt_bld[f], f, fnt_ref[f], f))
 w(T*2 + '%s /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = %s /* Flags */; };'
   % (FLAGSBUILD, FLAGSREF))
+for f in tests:
+    w(T*2 + "%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };"
+      % (tst_bld[f], f, tst_ref[f], f))
 w("/* End PBXBuildFile section */")
 
 w("")
@@ -87,11 +106,23 @@ w(T*2 + '%s /* Flags */ = {isa = PBXFileReference; lastKnownFileType = folder; p
 for f in fonts:
     w(T*2 + '%s /* %s */ = {isa = PBXFileReference; lastKnownFileType = file; path = %s; sourceTree = "<group>"; };'
       % (fnt_ref[f], f, f))
+for f in tests:
+    w(T*2 + '%s /* %s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = %s; sourceTree = "<group>"; };'
+      % (tst_ref[f], f, f))
+w(T*2 + '%s /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; '
+        'includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };' % TESTPRODREF)
 w("/* End PBXFileReference section */")
 
 w("")
 w("/* Begin PBXFrameworksBuildPhase section */")
 w(T*2 + "%s /* Frameworks */ = {" % FRMPHASE)
+w(T*3 + "isa = PBXFrameworksBuildPhase;")
+w(T*3 + "buildActionMask = 2147483647;")
+w(T*3 + "files = (")
+w(T*3 + ");")
+w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
+w(T*2 + "};")
+w(T*2 + "%s /* Frameworks */ = {" % TESTFRMPHASE)
 w(T*3 + "isa = PBXFrameworksBuildPhase;")
 w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
@@ -106,6 +137,8 @@ w(T*2 + "%s = {" % ROOTGRP)
 w(T*3 + "isa = PBXGroup;")
 w(T*3 + "children = (")
 w(T*4 + "%s /* ShowUpWelcome */," % APPGRP)
+if tests:
+    w(T*4 + "%s /* ShowUpWelcomeTests */," % TESTGRP)
 w(T*4 + "%s /* Products */," % PRODGRP)
 w(T*3 + ");")
 w(T*3 + 'sourceTree = "<group>";')
@@ -135,10 +168,23 @@ w(T*3 + "path = Fonts;")
 w(T*3 + 'sourceTree = "<group>";')
 w(T*2 + "};")
 
+if tests:
+    w(T*2 + "%s /* ShowUpWelcomeTests */ = {" % TESTGRP)
+    w(T*3 + "isa = PBXGroup;")
+    w(T*3 + "children = (")
+    for f in tests:
+        w(T*4 + "%s /* %s */," % (tst_ref[f], f))
+    w(T*3 + ");")
+    w(T*3 + "path = ShowUpWelcomeTests;")
+    w(T*3 + 'sourceTree = "<group>";')
+    w(T*2 + "};")
+
 w(T*2 + "%s /* Products */ = {" % PRODGRP)
 w(T*3 + "isa = PBXGroup;")
 w(T*3 + "children = (")
 w(T*4 + "%s /* ShowUpWelcome.app */," % APPREF)
+if tests:
+    w(T*4 + "%s /* ShowUpWelcomeTests.xctest */," % TESTPRODREF)
 w(T*3 + ");")
 w(T*3 + "name = Products;")
 w(T*3 + 'sourceTree = "<group>";')
@@ -164,7 +210,47 @@ w(T*3 + "productName = ShowUpWelcome;")
 w(T*3 + "productReference = %s /* ShowUpWelcome.app */;" % APPREF)
 w(T*3 + 'productType = "com.apple.product-type.application";')
 w(T*2 + "};")
+if tests:
+    w(T*2 + "%s /* ShowUpWelcomeTests */ = {" % TESTTARGET)
+    w(T*3 + "isa = PBXNativeTarget;")
+    w(T*3 + 'buildConfigurationList = %s /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */;' % CFG_TESTLIST)
+    w(T*3 + "buildPhases = (")
+    w(T*4 + "%s /* Sources */," % TESTSRCPHASE)
+    w(T*4 + "%s /* Frameworks */," % TESTFRMPHASE)
+    w(T*4 + "%s /* Resources */," % TESTRESPHASE)
+    w(T*3 + ");")
+    w(T*3 + "buildRules = (")
+    w(T*3 + ");")
+    w(T*3 + "dependencies = (")
+    w(T*4 + "%s /* PBXTargetDependency */," % TESTDEP)
+    w(T*3 + ");")
+    w(T*3 + "name = ShowUpWelcomeTests;")
+    w(T*3 + "productName = ShowUpWelcomeTests;")
+    w(T*3 + "productReference = %s /* ShowUpWelcomeTests.xctest */;" % TESTPRODREF)
+    w(T*3 + 'productType = "com.apple.product-type.bundle.unit-test";')
+    w(T*2 + "};")
 w("/* End PBXNativeTarget section */")
+
+if tests:
+    w("")
+    w("/* Begin PBXContainerItemProxy section */")
+    w(T*2 + "%s /* PBXContainerItemProxy */ = {" % TESTPROXY)
+    w(T*3 + "isa = PBXContainerItemProxy;")
+    w(T*3 + "containerPortal = %s /* Project object */;" % PROJECT)
+    w(T*3 + "proxyType = 1;")
+    w(T*3 + "remoteGlobalIDString = %s;" % TARGET)
+    w(T*3 + "remoteInfo = ShowUpWelcome;")
+    w(T*2 + "};")
+    w("/* End PBXContainerItemProxy section */")
+
+    w("")
+    w("/* Begin PBXTargetDependency section */")
+    w(T*2 + "%s /* PBXTargetDependency */ = {" % TESTDEP)
+    w(T*3 + "isa = PBXTargetDependency;")
+    w(T*3 + "target = %s /* ShowUpWelcome */;" % TARGET)
+    w(T*3 + "targetProxy = %s /* PBXContainerItemProxy */;" % TESTPROXY)
+    w(T*2 + "};")
+    w("/* End PBXTargetDependency section */")
 
 w("")
 w("/* Begin PBXProject section */")
@@ -178,6 +264,11 @@ w(T*4 + "TargetAttributes = {")
 w(T*5 + "%s = {" % TARGET)
 w(T*6 + "CreatedOnToolsVersion = 15.0;")
 w(T*5 + "};")
+if tests:
+    w(T*5 + "%s = {" % TESTTARGET)
+    w(T*6 + "CreatedOnToolsVersion = 15.0;")
+    w(T*6 + "TestTargetID = %s;" % TARGET)
+    w(T*5 + "};")
 w(T*4 + "};")
 w(T*3 + "};")
 w(T*3 + 'buildConfigurationList = %s /* Build configuration list for PBXProject "ShowUpWelcome" */;' % CFG_PROJ)
@@ -194,6 +285,8 @@ w(T*3 + 'projectDirPath = "";')
 w(T*3 + 'projectRoot = "";')
 w(T*3 + "targets = (")
 w(T*4 + "%s /* ShowUpWelcome */," % TARGET)
+if tests:
+    w(T*4 + "%s /* ShowUpWelcomeTests */," % TESTTARGET)
 w(T*3 + ");")
 w(T*2 + "};")
 w("/* End PBXProject section */")
@@ -213,6 +306,14 @@ for f in fonts:
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
+if tests:
+    w(T*2 + "%s /* Resources */ = {" % TESTRESPHASE)
+    w(T*3 + "isa = PBXResourcesBuildPhase;")
+    w(T*3 + "buildActionMask = 2147483647;")
+    w(T*3 + "files = (")
+    w(T*3 + ");")
+    w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
+    w(T*2 + "};")
 w("/* End PBXResourcesBuildPhase section */")
 
 w("")
@@ -226,6 +327,16 @@ for f in sources:
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
+if tests:
+    w(T*2 + "%s /* Sources */ = {" % TESTSRCPHASE)
+    w(T*3 + "isa = PBXSourcesBuildPhase;")
+    w(T*3 + "buildActionMask = 2147483647;")
+    w(T*3 + "files = (")
+    for f in tests:
+        w(T*4 + "%s /* %s in Sources */," % (tst_bld[f], f))
+    w(T*3 + ");")
+    w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
+    w(T*2 + "};")
 w("/* End PBXSourcesBuildPhase section */")
 
 PROJ_COMMON = [
@@ -307,20 +418,47 @@ TGT_COMMON = [
     "TARGETED_DEVICE_FAMILY = 1;",
 ]
 
+# The test bundle is hosted by the app: BUNDLE_LOADER/TEST_HOST are what let `@testable import
+# ShowUpWelcome` see internal symbols, which every one of these tests needs -- outcomeOf and
+# showsTutorial are internal, not public.
+TEST_COMMON = [
+    'BUNDLE_LOADER = "$(TEST_HOST)";',
+    "CODE_SIGN_STYLE = Automatic;",
+    "CURRENT_PROJECT_VERSION = 1;",
+    "GENERATE_INFOPLIST_FILE = YES;",
+    "IPHONEOS_DEPLOYMENT_TARGET = 16.0;",
+    "MARKETING_VERSION = 0.1;",
+    "PRODUCT_BUNDLE_IDENTIFIER = org.loveiq.showup.welcomepreview.tests;",
+    'PRODUCT_NAME = "$(TARGET_NAME)";',
+    "SWIFT_EMIT_LOC_STRINGS = NO;",
+    "SWIFT_STRICT_CONCURRENCY = complete;",
+    "SWIFT_VERSION = 5.0;",
+    "TARGETED_DEVICE_FAMILY = 1;",
+    'TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ShowUpWelcome.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ShowUpWelcome";',
+]
+
 w("")
 w("/* Begin XCBuildConfiguration section */")
 build_cfg(CFG_PD, "Debug", PROJ_COMMON + DEBUG_EXTRA)
 build_cfg(CFG_PR, "Release", PROJ_COMMON + RELEASE_EXTRA)
 build_cfg(CFG_TD, "Debug", TGT_COMMON)
 build_cfg(CFG_TR, "Release", TGT_COMMON)
+if tests:
+    build_cfg(CFG_TESTD, "Debug", TEST_COMMON)
+    build_cfg(CFG_TESTR, "Release", TEST_COMMON)
 w("/* End XCBuildConfiguration section */")
 
 w("")
 w("/* Begin XCConfigurationList section */")
-for cfg_id, label, d, r in [
+_cfglists = [
     (CFG_PROJ, 'Build configuration list for PBXProject "ShowUpWelcome"', CFG_PD, CFG_PR),
     (CFG_TGT, 'Build configuration list for PBXNativeTarget "ShowUpWelcome"', CFG_TD, CFG_TR),
-]:
+]
+if tests:
+    _cfglists.append(
+        (CFG_TESTLIST, 'Build configuration list for PBXNativeTarget "ShowUpWelcomeTests"',
+         CFG_TESTD, CFG_TESTR))
+for cfg_id, label, d, r in _cfglists:
     w(T*2 + "%s /* %s */ = {" % (cfg_id, label))
     w(T*3 + "isa = XCConfigurationList;")
     w(T*3 + "buildConfigurations = (")

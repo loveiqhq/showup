@@ -13,12 +13,12 @@
 import Foundation
 
 public protocol AnalyticsTracking {
-    func track(_ event: String, properties: [String: Any])
+    func track(_ event: String, properties: [String: any Sendable])
 }
 
 public struct NoOpAnalytics: AnalyticsTracking {
     public init() {}
-    public func track(_ event: String, properties: [String: Any]) {}
+    public func track(_ event: String, properties: [String: any Sendable]) {}
 }
 
 /// Names and properties for the tutorial flow.
@@ -38,7 +38,7 @@ public enum TutorialAnalytics {
     /// Fired once, from the final screen's CTA. Completion of the whole flow, not of one screen.
     public static let completed  = "tutorial_completed"
 
-    private static func props(_ card: Int, _ name: String) -> [String: Any] {
+    private static func props(_ card: Int, _ name: String) -> [String: any Sendable] {
         ["card": card, "card_name": name]
     }
 

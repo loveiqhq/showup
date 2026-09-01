@@ -102,7 +102,7 @@ private struct TutorialFlow: View {
 /// endpoint would drive, and it deliberately cycles through a different ending on each attempt —
 /// success, cancel, network error, declined, conflict — so a reviewer can reach every branch by
 /// tapping the same button five times instead of needing five broken accounts.
-private struct ConnectFlowHost: View {
+struct ConnectFlowHost: View {
     let onDone: (ConnectExit) -> Void
 
     @State private var state: ConnectState = .idle

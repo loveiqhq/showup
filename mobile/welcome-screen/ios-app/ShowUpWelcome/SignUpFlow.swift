@@ -96,14 +96,14 @@ struct SignUpFlowView: View {
             switch step {
             case .startup:
                 StartupView(
-                    // The dates figure is hidden until the number is worth showing — the minimum
-                    // is still to be decided, so the toggle is off rather than the figure invented.
-                    showSocialProof: false,
                     onCreateAccount: { entry = .createAccount; step = .phone },
                     onLogin: { entry = .logIn; step = .welcomeBack },
                     onTerms: { onOpenLegal("Terms & Conditions") },
                     onPrivacy: { onOpenLegal("Privacy Policy") },
-                    onLegalNotice: { onOpenLegal("Legal Notice") }
+                    onLegalNotice: { onOpenLegal("Legal Notice") },
+                    // The dates figure is hidden until the number is worth showing — the minimum
+                    // is still to be decided, so the toggle is off rather than the figure invented.
+                    showSocialProof: false
                 )
 
             case .welcomeBack:

@@ -3,9 +3,10 @@
 
     python audit/check-tutorial-routing.py
 
-The Android rule is covered properly by TutorialRoutingTest, which runs the real function against
-the real cases. This file exists for the half that cannot be: iOS has no test bundle, so the Swift
-twin is unguarded, and the two are three-line functions that would drift silently.
+Both platforms now run the rule against the real cases -- TutorialRoutingTest on Android and
+TutorialRoutingTests on iOS. This file is the third guard, for the thing neither suite can see:
+the two are three-line functions on separate platforms, and they would drift silently while both
+suites stayed green.
 
 So the checks below are about SAMENESS and WIRING, not about logic:
 
@@ -119,15 +120,24 @@ check("ios: finishing the tutorial does not restart it", "onFinish: { go(to: 7) 
 
 # ── the rule is actually tested somewhere ───────────────────────────────────
 check("the android rule is tested", "class TutorialRoutingTest" in kt_tests)
-check("the ios gap is declared, not forgotten", "NOT AT PARITY" in sw_rule,
-      "iOS has no test bundle; that must be written down where the next reader will see it")
+check("the ios rule is tested too",
+      "AT PARITY" in sw_rule and "NOT AT PARITY" not in sw_rule,
+      "the Swift twin is covered now; the header must say so where the next reader will see it")
 
-# The Swift tests exist but have never been compiled. Checking they are PRESENT is worth something
-# -- it stops them being quietly deleted -- but it is not a substitute for running them, and the
-# file says so at the top rather than pretending otherwise.
 ios_tests = read(os.path.join(ROOT, "ios-app/ShowUpWelcomeTests"), "TutorialRoutingTests.swift")
-check("the ios tests are written, ready for a Mac", "final class TutorialRoutingTests" in ios_tests)
-check("and they are honest about never having run", "NOT YET RUN" in ios_tests)
+check("the ios tests are written", "final class TutorialRoutingTests" in ios_tests)
+
+# The one that actually bit: the file sat in the repo for a week in no target, so `cmd-U` had
+# nothing to run and eight passing-looking tests guarded nothing. Present is not the same as run.
+pbx = read(os.path.join(ROOT, "ios-app/ShowUpWelcome.xcodeproj"), "project.pbxproj")
+check("the ios tests are wired into a test bundle",
+      "com.apple.product-type.bundle.unit-test" in pbx
+      and "TutorialRoutingTests.swift in Sources" in pbx,
+      "a test file in no target is indistinguishable from no test at all")
+scheme = read(os.path.join(ROOT, "ios-app/ShowUpWelcome.xcodeproj/xcshareddata/xcschemes"),
+              "ShowUpWelcome.xcscheme")
+check("and the scheme runs them", "ShowUpWelcomeTests.xctest" in scheme,
+      "a test bundle the scheme does not reference never runs on cmd-U or in CI")
 check("they cover the same cases as Android",
       ios_tests.count("func test") == kt_tests.count("fun `"),
       "%d swift vs %d kotlin" % (ios_tests.count("func test"), kt_tests.count("fun `")))
