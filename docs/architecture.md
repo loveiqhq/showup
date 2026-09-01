@@ -29,8 +29,8 @@ the backend decides what is allowed and what happens; the database remembers it.
 | **Background jobs** | **BullMQ 5** (on Redis) | Work that happens on a timer with nobody watching: date reminders, check-in expiry | Some things must happen at a moment in the future, not in response to a tap. This is that machinery |
 | **Login** | Phone code, Apple, Google — with **JWT** tokens | Proves who someone is on every request | No passwords at all, so there is no password to leak, reuse or reset. A short-lived token proves identity per request; a longer-lived one renews it |
 | **API documentation** | **Swagger / OpenAPI** | A browsable, always-current list of every endpoint | Generated from the code itself, so it cannot drift out of date. This is what the app developers will build against |
-| **Error monitoring** | **Sentry** | Reports crashes and unexpected failures with enough context to fix them | Behind a switch, off by default. Personal data is stripped before anything is sent |
-| **Analytics** | **PostHog** (EU-hosted) | Product measurement — what people actually do | EU hosting for data-protection reasons. User ids are hashed before they leave the backend |
+| **Error monitoring** | **Sentry** | Reports crashes and unexpected failures with enough context to fix them | Switched off completely for now — no reports go anywhere, and no Sentry account is needed to build or run the system. Turning it on later is a settings change, not new code. Once on, a report says what broke and which account hit it, while contact details, sign-in codes and session data are removed before it leaves us |
+| **Analytics** | **PostHog** (EU-hosted) | Product measurement — what people actually do | Hosted in the EU, so the data stays under European privacy law. Real account ids are never sent — each one is replaced by a scrambled code that cannot be turned back into the original. The same person always gets the same code, so we can still tell that one person did five things, without ever learning who that person is |
 | **Hosting** | **AWS**, EU region **Ireland (eu-west-1)** | Where the backend and database will run | Nothing is deployed yet, but the provider and region are settled. AWS because three integrations are already written for it (email, photo checks, file storage). Ireland specifically because the live face check used for selfie verification is **only offered in that European region** — and a face is special-category personal data, so it cannot leave the EU. Frankfurt would otherwise be the natural choice for a German product; the verification feature decides it |
 
 ### The outside services
@@ -40,7 +40,7 @@ so turning one on is a configuration change rather than new code.
 
 | Purpose | Intended provider | Status |
 |---|---|---|
-| Text messages (login codes) | To confirm | Built, logs the code locally instead of sending |
+| Text messages (login codes) | **Twilio** | Built, logs the code locally instead of sending |
 | Email | **AWS SES** | Built, not connected |
 | Push notifications | **Firebase Cloud Messaging** | Built, not connected |
 | Photo checks (automated) | **AWS Rekognition** | Built, not connected |

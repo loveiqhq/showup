@@ -42,3 +42,10 @@ Thumbs.db
 # Claude Code transient runtime files (keep settings.json, drop locks)
 .claude/scheduled_tasks.lock
 .claude/*.lock
+
+# Python bytecode from the preview generators
+__pycache__/
+*.pyc
+
+# rendered by audit/render-flags.py
+mobile/welcome-screen/audit/flags.html
