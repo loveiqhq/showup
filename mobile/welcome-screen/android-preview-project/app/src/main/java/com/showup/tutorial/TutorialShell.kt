@@ -120,6 +120,17 @@ fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
  * `align(Alignment.Start)` is load-bearing: in a Column the default stretches children to the full
  * content width, which is the full-width band the reference render shows. The design-system
  * component is a hug-width pill.
+ *
+ * CONFIRMED 2026-09-01, after this was queried a second time for looking too short next to the
+ * render. It is short on purpose. The 04-thirty-minutes spec sheet says so in its own words:
+ *
+ *     "intended hug width (align-self flex-start) -- reference render still shows the
+ *      full-width stretch, as on card 01"
+ *
+ * So the render disagreeing with us is the discrepancy the handoff already knows about, not a bug
+ * on our side. Anyone comparing the two will notice it again; this note is here so the next person
+ * spends a minute on it rather than an afternoon. Changing it means overruling the spec text, which
+ * is the product side's call and is recorded in audit/CONFLICTS-2026-08-27.md as A10.
  */
 @Composable
 fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {

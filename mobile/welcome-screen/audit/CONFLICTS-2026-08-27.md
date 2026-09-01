@@ -188,6 +188,33 @@ description should gain a line, and the acceptance evidence should include this 
 
 ---
 
+## A10 · The eyebrow pill: the spec text and the reference render disagree
+
+*Raised 1 September 2026 by comparing the running app to the 04-thirty-minutes spec sheet. Decided
+the same day. Recorded because it will be noticed again.*
+
+The pill above each tutorial headline is a short hug-width chip in our build and a full-width band
+in the design's reference render. The spec sheet flags the difference itself, in callout ③:
+
+> "intended hug width (align-self flex-start) — reference render still shows the full-width
+> stretch, as on card 01"
+
+So the handoff states the intent (hug) and admits its own render does not match it (stretch).
+
+**Built:** hug-width, following the spec text.
+
+**Decision:** confirmed 1 September 2026 — the spec text wins over the render.
+
+**Why it is worth writing down:** anyone who compares a screen to the reference sees a pill that
+looks too short, and reasonably reports it as a bug. It has now been queried twice. The note is in
+`TutorialShell.kt` beside the code as well as here.
+
+**Still open, and one for the designer rather than us:** the handoff calls this an open question. It
+would be worth having the reference render corrected, so the two sources stop disagreeing — right
+now every future reviewer has to be told this same thing.
+
+---
+
 # B · Open questions the tickets themselves raise, still unanswered
 
 These are his own "Open (not blocking)" items. None block the build; several block *shipping*.
