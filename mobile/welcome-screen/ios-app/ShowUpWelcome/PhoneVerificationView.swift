@@ -33,7 +33,10 @@ private struct VerificationFrame<Content: View>: View {
                         topPadding: 4,          // pad-top 4 here, not the launch screens' 20
                         scrollWhenTight: true) {
             Button(action: onBack) {
-                BrandIconView(icon: .arrowLeft, size: 22, stroke: 2, tint: .liqFg)
+                // chevron-left at 24, stroke 2 -- the handoff's AppHeader with leading="back",
+                // which welcome/screen-phone-reference.jsx uses on both of these screens. It was
+                // an arrow-left at 22: the wrong icon from the same set, and visibly heavier.
+                BrandIconView(icon: .chevronLeft, size: 24, stroke: 2, tint: .liqFg)
                     .frame(width: 44, height: 44, alignment: .leading)
                     .contentShape(Rectangle())
             }

@@ -481,8 +481,8 @@ struct PressScale: ButtonStyle {
 
 /// Drawn rather than imported: CLAUDE.md requires inline stroke-only SVG at Lucide geometry and
 /// forbids icon fonts, PNGs and unicode glyphs as icons.
-enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, arrowLeft, arrowRight,
-                 pencil, close, check, shield, heart }
+enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, chevronLeft,
+                 arrowLeft, arrowRight, pencil, close, check, shield, heart }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -527,6 +527,15 @@ struct BrandIconView: View {
                 p = Path { b in
                     b.move(to: .init(x: 6, y: 9)); b.addLine(to: .init(x: 12, y: 15))
                     b.addLine(to: .init(x: 18, y: 9))
+                }
+            // The back control, per the handoff's AppHeader: chevron-left, NOT arrow-left. Both
+            // icons exist in the design's set and they are not interchangeable -- the arrow has a
+            // shaft and reads much heavier at the top of a screen.
+            case .chevronLeft:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 15, y: 18)); b.addLine(to: .init(x: 9, y: 12))
+                    b.addLine(to: .init(x: 15, y: 6))
                 }
             case .arrowLeft:
                 filled = false

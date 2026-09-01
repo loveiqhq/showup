@@ -104,7 +104,14 @@ private fun VerificationFrame(
                 .clickable(role = Role.Button, onClick = onBack),
             contentAlignment = Alignment.CenterStart,
         ) {
-            Icon(BrandIcon.ArrowLeft, 22.dp, tint = Fg, strokeWidth = 2.dp)
+            // chevron-left at 24, stroke 2 -- the handoff's AppHeader with leading="back", which
+            // is what welcome/screen-phone-reference.jsx uses on both of these screens. It was an
+            // arrow-left at 22: the wrong icon from the same set, and visibly heavier.
+            //
+            // The 44dp hit area above is deliberately larger than the reference's 36, which would
+            // fail the 44dp minimum every tap target on these screens is held to. Nothing visible
+            // changes -- the button has no fill, only the icon is drawn.
+            Icon(BrandIcon.ChevronLeft, 24.dp, tint = Fg, strokeWidth = 2.dp)
         }
         content()
         // One flex:1 spacer at the bottom — unlike Startup and Welcome back, everything here is

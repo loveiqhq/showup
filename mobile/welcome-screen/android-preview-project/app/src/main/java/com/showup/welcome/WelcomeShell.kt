@@ -456,8 +456,8 @@ val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 
  * forbids icon fonts, PNGs and unicode glyphs. The brand marks (Apple, Google, Facebook) are filled
  * paths in the source, so they are drawn filled here.
  */
-enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ArrowLeft, ArrowRight,
-                       Pencil, Close, Check, Shield, Heart }
+enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ChevronLeft,
+                       ArrowLeft, ArrowRight, Pencil, Close, Check, Shield, Heart }
 
 @Composable
 /**
@@ -493,6 +493,12 @@ fun Icon(
                 }
                 BrandIcon.ChevronDown -> drawPath(
                     path(listOf(6f to 9f, 12f to 15f, 18f to 9f)), tint, style = stroke,
+                )
+                // The back control, per the handoff's AppHeader: chevron-left, NOT arrow-left.
+                // Both icons exist in the design's set and they are not interchangeable -- the
+                // arrow has a shaft and reads much heavier at the top of a screen.
+                BrandIcon.ChevronLeft -> drawPath(
+                    path(listOf(15f to 18f, 9f to 12f, 15f to 6f)), tint, style = stroke,
                 )
                 BrandIcon.ArrowLeft -> {
                     drawLine(tint, Offset(19f, 12f), Offset(5f, 12f), stroke.width, StrokeCap.Round)

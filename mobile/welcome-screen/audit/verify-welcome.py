@@ -130,6 +130,26 @@ check("wordmark gap 0.18em (swift)", "size * 0.18" in shell_sw)
 check("wordmark 26 (kotlin)", "26.sp" in shell_kt)
 check("wordmark 26 (swift)", "size: CGFloat = 26" in shell_sw)
 
+# ── the back control on 143 ─────────────────────────────────────────────────
+#
+# The handoff's AppHeader with leading="back" draws chevron-left at 24, stroke 2
+# (components/shared.jsx:350, used by welcome/screen-phone-reference.jsx on both screens).
+#
+# Both platforms shipped arrow-left at 22 instead: a different icon from the SAME set, so it
+# compiled, rendered and looked deliberate -- just heavier than the design, and wrong. Nothing
+# would ever have caught that except someone holding the two pictures side by side, which is
+# exactly why it is pinned here now.
+phone_kt = read(KT, "welcome/PhoneVerificationScreen.kt")
+phone_sw = read(SW, "PhoneVerificationView.swift")
+check("back is a chevron, not an arrow (kotlin)", "BrandIcon.ChevronLeft" in phone_kt)
+check("back is a chevron, not an arrow (swift)", "icon: .chevronLeft" in phone_sw)
+check("the arrow is not used for back (kotlin)", "BrandIcon.ArrowLeft" not in phone_kt)
+check("the arrow is not used for back (swift)", ".arrowLeft" not in phone_sw)
+check("back chevron is 24 (kotlin)", "BrandIcon.ChevronLeft, 24.dp" in phone_kt)
+check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in phone_sw)
+check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in phone_kt)
+check("back chevron stroke 2 (swift)", "stroke: 2" in phone_sw)
+
 # ── backdrop shared between 140 and 142 ─────────────────────────────────────
 check("one backdrop component (kotlin)", "WelcomeBackdrop" in shell_kt)
 check("one backdrop component (swift)", "struct WelcomeBackdrop" in shell_sw)
