@@ -64,6 +64,12 @@ class ScreenFitTest {
         "Already have an account", "By continuing you agree", "Continue with",
         "Legal Notice", "Skip and continue", "Trouble signing in",
         "ready to show up", "Takes less than a minute",
+        // Added 2026-09-01, and this one is not like the others: it was found by CI on Linux and
+        // does NOT reproduce on Windows. Same code, same devices -- the two platforms lay the text
+        // out fractionally differently, and this message sits exactly on the boundary between two
+        // lines and three. That it renders at all on a given machine is luck, which makes it a
+        // real defect rather than a marginal one. See audit/FIT-2026-08-31.md.
+        "looks too short",
     )
 
     /** Short labels are matched whole, so "Next" cannot swallow an unrelated future finding. */
