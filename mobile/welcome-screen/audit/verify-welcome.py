@@ -314,8 +314,22 @@ for label, src in [("kotlin", flag_kt), ("swift", flag_sw)]:
 # ── every named control is actually tappable ───────────────────────────────
 # SHOWUP-140: "Terms & Conditions, Privacy Policy, and Legal Notice are real tappable links"
 # and "each legal link has its own hit area". They were styled but inert on the first pass.
-check("140 CTA tappable (kotlin)", "PillButton(\"Register and date now\"" in start_kt)
-check("140 CTA tappable (swift)", "PillButton(\"Register and date now\"" in start_sw)
+# "Create free account", and it has now been changed away and back once, so the reason is here.
+#
+# SHOWUP-140 states the label outright -- "The CTA is `Create free account`" -- and again under
+# Tracking as "Click event: Create free account". The handoff's own ticket file and reference render
+# agree. And 140 settles precedence explicitly for exactly this situation:
+#
+#     The reference file wins on numbers.
+#     The ticket wins on behaviour, scope, and COPY.
+#     The PNG wins on nothing.
+#
+# It was briefly "Register and date now", taken from the ticket's user-story prose -- "so that I can
+# register and date now" -- and from the PNG, which wins on nothing. Narrative text in a user story
+# is not a button label. This is the third time copy has been lifted from the wrong section of a
+# ticket in this flow; the other two were the phone error messages and the eyebrow tone.
+check("140 CTA tappable (kotlin)", "PillButton(\"Create free account\"" in start_kt)
+check("140 CTA tappable (swift)", "PillButton(\"Create free account\"" in start_sw)
 check("140 Log in tappable (kotlin)", "onClick = onLogin" in start_kt)
 check("140 Log in tappable (swift)", "Button(action: onLogin)" in start_sw)
 for target in ("onTerms", "onPrivacy", "onLegalNotice"):
@@ -376,7 +390,7 @@ COPY = [
         "Start ", "meeting", " today.",
         "Your availability. Your intent. Your date — today or tomorrow.",
         "234.000 Dates", " already organized",
-        "Register and date now", "Already have an account? ", "Log in",
+        "Create free account", "Already have an account? ", "Log in",
         "Terms & Conditions", "Privacy Policy", "Legal Notice",
     ]),
     (back_kt_all, back_sw_all, [
