@@ -1,187 +1,306 @@
 # Client Architecture Spike
 
-1 September 2026 · tied to the files in this repository, not to general practice
+2 September 2026 · second draft · tied to the files in this repository, not to general practice
 
-Four areas, as requested. Everything below is measured from the code as it stands at commit
-`main`, and where something could not be measured it says so rather than filling the gap.
+**What changed since the first draft.** It opened by saying the most important section could not be
+written, because nobody had ever run the iOS app. That is no longer true: it was built and run on a
+Mac and an iPhone on 1 September. Ten things had to be fixed before it would compile, and running it
+produced four real bugs. Section 1 is now an account of observed failures rather than an inspection
+of source.
+
+That single change is also the answer to the question underneath the brief, so it comes first.
 
 ---
 
-## Before area 1: what this document can and cannot claim
+# 0 · Where building native apps with Claude actually goes wrong
 
-The brief asks why "our buttons, selectors, and dynamic layouts are failing" on iOS.
+This is the part the brief is really asking, and it deserves evidence rather than opinion. Every
+failure mode below happened here, in the last week, with a named example. Each one has a
+countermeasure, and most are already running.
 
-**Nobody here has seen the iOS app run.** There is no Mac in this environment, so the Swift has
-never been compiled, launched or displayed. Every defect found this week was either on Android, or
-was found by reading the design handoff and comparing it to the source.
+## 0.1 · The dominant failure: it cannot see what it made
 
-So area 1 below is a **line-by-line inspection of the Swift**, which is real work with real
-findings — but it is not a diagnosis of failures anybody has observed. Where the inspection finds
-nothing, that means *nothing is visible in the source*, not that the screen behaves correctly.
+**Six defects survived every form of review except somebody looking at the screen.**
 
-The two are genuinely different. A button that does not respond to a tap usually looks perfect in
-the code; it is the running app that tells you. **To analyse observed failures I need the
-observations** — which screens, which controls, what happened, on which device and iOS version, and
-a screenshot or screen recording. With those I can work backwards. Without them, any list of causes
-would be plausible-sounding invention, which is worse than an empty section.
+The back control was drawn as an arrow where the design says chevron. The eyebrow pill used the
+lavender variant on screens the design paints orange. The underline wash covered 56% of its phrase
+instead of 78%. The glow under a button fell to the left. On iOS, a button jumped 56 points when
+you mistyped a code, the phone number never grouped as you typed it, and typing ten digits landed
+five.
+
+**None of these are careless.** Every one is a real component from the design system, correctly
+built, in the wrong place or with a property nobody could observe. Reading the code cannot find
+them, because the code says what it intends and the intention was wrong.
+
+**Countermeasure, and it is the only one that matters: build it and run it, on both platforms.**
+Everything else in this document is a way of narrowing what has to be caught by eye. Nothing
+replaces the eye.
+
+Status: Android builds, tests and layout-measures on every pull request. iOS builds and tests
+locally on the Mac; it is not in CI yet, and that is the largest remaining gap.
+
+## 0.2 · Confident, wrong reasoning when it cannot verify
+
+When Claude cannot run something, it will still reason — and the reasoning is fluent whether or not
+it is right.
+
+**Example.** CI found error text clipped on narrow phones. Unable to see it, I proposed three fixes
+and argued for the least-bad: shorten the message, or move the button, or change the scrolling. All
+three were wrong and two were expensive. The actual cause was a single line — `height` applied
+before `padding`, so the reserved space contained its own padding — found in minutes by someone who
+could run it.
+
+**Countermeasure:** treat any conclusion reached without execution as a hypothesis. In practice this
+means asking for the measurement rather than accepting the argument, particularly when the answer
+sounds tidy.
+
+## 0.3 · Copy taken from the wrong part of a ticket
+
+**Three times this week, from two different people**, which makes it a property of the tickets
+rather than of carelessness.
+
+| What | Where it was actually taken from |
+|---|---|
+| Seven phone-error messages | the **Tracking** section, where they are analytics `reason` labels |
+| The lavender eyebrow tone | a **reference render** the spec text itself flags as wrong |
+| "Register and date now" | a **user story** — *"so that I can register and date now"* — and the PNG |
+
+Every ticket scatters copy across user stories, acceptance criteria, tracking notes, reference
+files and a PNG. Only SHOWUP-140 states which wins:
+
+> The reference file wins on numbers. **The ticket wins on behaviour, scope, and copy. The PNG wins
+> on nothing.**
+
+**Countermeasure, and this one is yours rather than ours:** one clearly-marked copy block per
+ticket, and that precedence rule stated on every ticket rather than just on 140. On our side, the
+conformance checks now quote the ticket rather than the code — see 0.5.
+
+## 0.4 · Inventing behaviour where the spec is silent
+
+SHOWUP-146 says a returning user should not see the tutorial. It says nothing about whether they
+see the Connect screen. We built them skipping both.
+
+The inference was reasonable — SHOWUP-144 describes Connect as following phone verification "so
+that I can continue sign-up", and its copy says *"Skip and continue to profile"* and *"Let's finish
+your profile in 90 seconds"*, neither of which fits somebody who has a profile. But **no ticket says
+it**, and the first anyone outside the work knew of it was when the screen appeared to have
+vanished.
+
+**Countermeasure:** an inference is recorded as an inference, in a place the product side reads —
+not only in a code comment. `audit/CONFLICTS-2026-08-27.md` is that place, and A9 and A10 are
+examples of it working.
+
+## 0.5 · Automated checks that pin the mistake
+
+A conformance check written from the code protects the code. Three times a check asserted something
+that turned out to be wrong, and then blocked the fix:
+
+- it asserted the per-card underline widths — the hand-tuned numbers that were the bug
+- it asserted the seven invented error strings
+- it asserted `.shadow(` on Android, the modifier that could not express the design's shadow
+
+**Countermeasure:** checks quote the ticket, and say so. Where a check deviates deliberately, the
+reason is written beside it. The CTA label check now carries the precedence rule verbatim, because
+that label has already been changed away and back once.
+
+## 0.6 · Tests that exist without running
+
+Eight Swift tests sat in the repository for a week **in no test target**. They were written,
+reviewed, committed and counted — and never executed once. In Eman's words, indistinguishable from
+having no tests.
+
+**Countermeasure:** CI runs them, and "present in the repo" is never reported as "passing". The
+project file is generated by a script that now discovers the test folder the same way it discovers
+sources, so a new test file cannot go missing the same way.
+
+## 0.7 · One machine is not enough
+
+An error message fit on Windows and was cut off on the Linux CI runner — the same commit, the same
+device sizes. The two lay text out fractionally differently and that message sat exactly on the
+boundary between two lines and three.
+
+**Whether a user saw the whole message depended on their phone.** Nothing about the code was
+marginal-looking; it looked fine everywhere it had been checked.
+
+**Countermeasure:** already in place. CI builds on Linux while development happens on Windows, and
+the disagreement between them is the point, not a nuisance.
+
+## 0.8 · What this adds up to
+
+**The bottleneck is not Claude's code. It is the loop between writing and seeing.**
+
+Where that loop is closed — Android, since CI landed — defects are caught in minutes by machines.
+Where it is open — iOS, until yesterday — they accumulated silently for weeks and then arrived all
+at once.
+
+Everything in the rest of this document is either closing that loop further or narrowing what has
+to fall through it.
 
 ---
 
 # 1 · Code-level analysis, iOS
 
-## 1.1 · What the inspection actually found
+## 1.1 · What the first run on a device found
 
-Twenty-one Swift files, read for the three failure classes named in the brief.
+Ten build errors, then four behavioural bugs. The build errors are ordinary and not interesting —
+stale preview signatures, a positional-argument order, a `private` that should not have been, a
+dictionary typed `[String: Any]` where strict concurrency needs `[String: any Sendable]`.
 
-### State handling — the hypothesis does not match the code
+The four behavioural bugs are the ones the brief is asking about, and they map exactly onto the
+categories it names.
 
-The brief asks where state is handled incorrectly, suggesting missing `@Observable` or
-`@StateObject`. The measurement:
+### The CTA moved — 56 points, on the screen where the ticket forbids it
+
+**`PhoneVerificationView`, states C/D.** The error card was wrapped in a bare `if mismatch { … }`.
+
+In SwiftUI, an `if` with no `else` inside a `ViewBuilder` produces **nil**, and a frame and padding
+applied around nil both collapse to nothing. So the region intended to reserve 42 points reserved
+zero, and the button jumped the full 56 when an error appeared.
+
+SHOWUP-143 forbids this outright — *"The CTA does not move between the default and error state"* —
+and that reserved region exists for no other purpose. **Fixed** by always rendering the card and
+hiding it with `opacity`, which reserves the space whether or not it is visible. Now 0.0pt.
+
+**Android did not have this bug**, and the reason is instructive: a Compose `Box` lays out at its
+minimum height whether or not its content is emitted. The same mistake is invisible on one platform
+and severe on the other.
+
+**Android did have the sibling bug** on states A/B — one line reserved for a message that always
+takes two, so the CTA dropped 15.7pt. Its comment claimed the message would "grow downward into the
+spacer"; the spacer is a fixed 22dp, so it did not. Also fixed.
+
+### The phone number never grouped
+
+Typing `2015550123` left `2015550123`, with no spaces, at any typing speed. The formatting feature
+simply never worked on iOS.
+
+**Cause:** the field was bound through a `Binding` whose getter reformatted the text. While a text
+field is first responder, UIKit owns its contents, and SwiftUI will not reliably push a getter's
+rewrite back into it.
+
+This is precisely the category the brief names — *"local state mutation vs. two-way `@Binding`"* —
+and it is worth noting that it is invisible in source. The binding looks correct. It is correct, in
+the sense of compiling and being well-formed. It just does not do anything.
+
+### Typing lost characters
+
+Worse, and found in the same place: when the rewrite *did* land, it clobbered keystrokes still in
+flight. **Ten digits typed, five arrived.**
+
+**Fixed** by reformatting in `onChange` rather than in the binding's getter, and verified across
+three trials at human typing speed, plus backspace, mid-string insertion, and changing country with
+digits already entered.
+
+## 1.2 · State handling — the brief's hypothesis, tested
+
+The brief asks where state is handled incorrectly, suggesting a missing `@Observable` or
+`@StateObject`. Measured across the 22 Swift files in the app target:
 
 | | count |
 |---|---|
 | `@State` | 21 |
-| `@Binding` | 2 |
+| `@Binding` | 3 |
 | `@StateObject` / `@ObservedObject` / `@Observable` | **0** |
 
-**There are no view models at all, and that is deliberate rather than an omission.** Ten of the
-twenty-one `@State` declarations are in one file, `SignUpFlow.swift`, which owns the entire flow:
-which step, the country, the digits typed, the error, the cooldown, the remembered account. The
-screens themselves are almost pure:
+**There are no view models, deliberately.** Ten of the twenty-one `@State` declarations live in one
+file, `SignUpFlow.swift`, which owns the whole flow. `StartupView` and `WelcomeBackView` hold none
+at all.
 
-| Screen | own `@State` |
-|---|---|
-| `StartupView` | **0** |
-| `WelcomeBackView` | **0** |
-| `PhoneVerificationView` | 1 |
-| `ConnectAccountView` | 2 |
+**That is not where the bugs were.** Both iOS state bugs were in the *binding* between SwiftUI and
+UIKit, not in the ownership model. The architecture held; the boundary with UIKit did not.
 
-A screen takes values and returns a picture. That is the Compose pattern ported to SwiftUI, and it
-is the reason 45 automated tests can render every screen in every state without a device.
+**Settled 1 September:** the rule is the principle, not the pattern name — a view holds no state,
+hoisted to one owner per flow, each platform in its own idiom. `@Observable` earns its place the
+moment a screen owns asynchronous work of its own; none of the five built so far do, and the
+profile and discovery screens will.
 
-**Where this becomes a real limitation:** it holds while screens are pure display. The moment a
-screen owns asynchronous work of its own — loading a profile, uploading a photo, retrying a failed
-request — hoisted `@State` stops being enough, because that work needs to survive view redraws and
-be cancellable. That is the point at which `@Observable` earns its place. **None of the five screens
-built so far are at that point. The profile and discovery screens will be.**
-
-### Touch handling — no defect found in the source
+## 1.3 · Touch handling
 
 | | count |
 |---|---|
 | `Button(...)` | 21 |
-| `.onTapGesture` | **1** |
+| `.onTapGesture` | 1 |
 | `.contentShape(...)` | 7 |
 
-The classic SwiftUI touch bug is a stack with `.onTapGesture` and no `contentShape`, where only the
-drawn pixels respond and the gaps between them silently do not. **That pattern is not present.**
-Nearly everything is a real `Button`, and the seven `contentShape` calls are doing exactly the job
-they exist for. The single `onTapGesture` (`PhoneVerificationView.swift:260`) puts focus in the code
-field, which is a legitimate use.
+The classic SwiftUI touch bug — a stack with a tap gesture and no `contentShape`, where only the
+drawn pixels respond and the gaps silently do not — **is not present**.
 
-There is no evidence of gesture conflict in the source. **That is not the same as saying taps work
-on a device** — see the preface.
+**But a touch bug was found, on Android**, by measurement rather than by reading: the phone input
+measured 23dp inside a 56dp row and the row centred it, so the field *looked* 56dp tall while only
+its middle third accepted a tap. Fifteen of eighteen device sizes.
 
-### Fixed frames — 41, and they are the right kind
+That is the shape of touch bug that actually occurs here: not a gesture conflict, but a hit area
+that does not match what is drawn. **It is invisible in source and invisible in a screenshot.** Only
+measurement finds it, which is why `ScreenFitTest` now asserts a 44pt minimum on every tappable
+thing.
 
-The brief forbids hardcoded fixed-width frames. There are 41 `.frame(width:)` calls. Reading them:
-they are icons, avatars, badges, the linking ring, the success circle — 20×20, 56×56, 84×84,
-104×104, 120×120. **Fixed-size shapes that are supposed to be fixed-size.** No text container and
-no layout region is pinned to a fixed width.
+## 1.4 · Fixed frames
 
-So the rule is worth writing down, and the code already keeps it.
+41 `.frame(width:)` calls, all icons, avatars, badges and rings — 20×20, 56×56, 84×84, 104×104,
+120×120. Fixed-size shapes that are meant to be fixed-size. **No text container or layout region is
+pinned to a width.** The rule is worth writing down, and the code already keeps it.
 
-## 1.2 · The iOS defects that WERE found, all this week, all now fixed
+## 1.5 · Why Android behaved differently
 
-Found by reading and by automated checks, not by running:
+Not because Compose is safer. Three specific reasons, in order of importance:
 
-| Defect | Nature | Status |
-|---|---|---|
-| `scrollBounceBehavior` used below its minimum OS | Valid Swift, wrong OS floor | fixed, then deleted entirely when the floor moved to 17 |
-| Single-parameter `onChange` (iOS 16 form) | Deprecated from iOS 17 | fixed |
-| Flag cache as unisolated shared mutable state | Swift 6 rejects it outright | fixed |
-| Shake animation scheduled through `DispatchQueue` | Swift 6 will not allow it near view state | fixed, wants one look on a Mac |
-| Back control drawn as `arrow-left` | Wrong icon from the design's own set | fixed |
-| Eyebrow pill using the lavender tone | Wrong variant for these screens | fixed |
+**1. Android was being compiled.** For weeks, every Android change was built, tested and
+layout-measured; the Swift was read by static checkers that cannot type-check, lay out or render.
+Four of the six iOS defects were iOS-only for that reason alone.
 
-The last two are worth noting because **no test could have caught them.** Both were real, correctly
-drawn components from the design system — just the wrong ones. Only comparing the running screen to
-the reference finds that, which is what happened.
+**2. Compose enforces what SwiftUI permits.** A Compose function that keeps state without `remember`
+loses it on the next redraw, immediately and visibly. SwiftUI lets a view hold whatever it likes and
+misbehaves subtly. Our Swift follows the good pattern by discipline; the Kotlin follows it because
+the framework insists.
 
-## 1.3 · Contrast with Compose, and why Android behaved differently
+**3. Compose has no UIKit boundary.** Both iOS state bugs were at the SwiftUI/UIKit seam. Compose
+has no equivalent seam in this code, so it has no equivalent failure.
 
-Both platforms use the same architecture, so the honest answer is **not** "Compose is better here".
-The differences that matter are elsewhere.
-
-**Compose enforces the pattern; SwiftUI permits it.** A Compose function that tries to keep state
-without `remember` loses it on the next redraw, immediately and visibly. SwiftUI lets a view hold
-whatever it likes and only misbehaves subtly. Our Swift follows the good pattern by discipline; the
-Kotlin follows it because the framework insists.
-
-**Android has a compiler in CI. iOS has never been compiled at all.** This is the whole difference,
-and it is not about the languages. Every Android change is built, tested at 17 phone sizes and
-checked against the design on every pull request. The Swift is read by static checkers that cannot
-type-check, cannot lay out, and cannot render. **Four of the six defects above were iOS-only for
-exactly one reason: nothing was checking.**
-
-**Kotlin's null safety versus Swift's optionals** are equivalent; neither caused a defect here.
-
-**The conclusion is uncomfortable but simple: Android did not behave differently because Compose is
-safer. It behaved differently because it was being checked.**
+Two of those three are about the environment, not the language.
 
 ---
 
 # 2 · Automated API and model generation
 
-Agreed without reservation: hand-written client models against a typed backend are a standing
-invitation to drift. The backend is a NestJS app with Swagger already configured.
+Agreed without reservation. Hand-written client models against a typed backend drift, and the drift
+is silent.
 
-## 2.1 · What has to change on the backend first
-
-Three concrete gaps, all measured:
+## 2.1 · Three things must change on the backend first
 
 **1. Nothing writes `openapi.json`.** `SwaggerModule.createDocument` runs at startup to serve the
-interactive docs (`src/main.ts:60`), but the document is never written to a file, so no build tool
-can read it. Needs a small script:
+interactive docs (`src/main.ts:60`); the document is never written to a file, so no build tool can
+read it.
 
 ```ts
 // scripts/emit-openapi.ts
 const app = await NestFactory.create(AppModule, { logger: false });
-const doc = SwaggerModule.createDocument(app, swaggerConfig);
-writeFileSync('openapi.json', JSON.stringify(doc, null, 2));
+writeFileSync('openapi.json', JSON.stringify(SwaggerModule.createDocument(app, swaggerConfig), null, 2));
 await app.close();
 ```
 
-Then `npm run openapi:emit`, and CI fails if the committed file differs from the generated one — so
-the spec can never drift from the code.
+Then `npm run openapi:emit`, and a CI step that fails if the committed file differs from the
+generated one — so the spec cannot drift from the code.
 
 **2. No route declares an `operationId`.** Zero, across 52 routes. NestJS then invents one from the
-controller and method name, and generated clients turn those into method names like
-`authControllerVerifyPhone(...)`. Every route needs an explicit id:
+controller and method name, and a generated client offers `authControllerVerifyPhone(...)` rather
+than `verifyPhoneOtp(...)`. One decorator each:
 
 ```ts
 @ApiOperation({ operationId: 'verifyPhoneOtp' })
 ```
 
-That single line is the difference between `client.verifyPhoneOtp(...)` and something nobody wants
-to type.
+**3. 39 of 52 routes have no typed response.** They emit `void` or an untyped blob into both
+clients, losing every field. The full per-file list is generated from the controllers into
+`docs/openapi-gaps.md`; the concentration is `safety-admin` (9), `dates` (5) and `auth` (6) —
+including `POST /auth/apple`, `/auth/google` and `/auth/refresh`, three the app depends on directly.
 
-**3. 39 of 52 routes have no typed response.** They carry no `@ApiOkResponse`, so the generator
-emits `void` or an untyped blob and the client loses every field. The full list is in
-`docs/openapi-gaps.md`; the concentration is in `safety-admin` (9), `dates` (5) and `auth` (6),
-including `POST /auth/apple`, `POST /auth/google` and `POST /auth/refresh` — three the app depends
-on directly.
+**Do these before generating anything.** Generating from an under-typed spec produces an
+under-typed client, which then gets patched by hand — the exact problem generation is meant to
+remove.
 
-**None of this is difficult.** It is one decorator per route, and it should be done before any
-client generation, because generating from an under-typed spec produces an under-typed client that
-then gets papered over by hand — the exact problem this is meant to solve.
+## 2.2 · iOS — apple/swift-openapi-generator
 
-## 2.2 · iOS: apple/swift-openapi-generator
-
-Apple's own generator, a build plugin, so generation happens at build time and no generated code is
-committed.
-
-Add to `Package.swift` (or the Xcode target's package dependencies):
+Apple's own, a build plugin, so generation happens at build time and no generated code is committed.
 
 ```swift
 dependencies: [
@@ -191,15 +310,15 @@ dependencies: [
 ],
 ```
 
-Two files beside the target: `openapi.yaml` (or `.json`) and `openapi-generator-config.yaml`:
+Two files beside the target — `openapi.json` and `openapi-generator-config.yaml`:
 
 ```yaml
 generate: [types, client]
 accessModifier: public
 ```
 
-**Authentication and base URL** are injected as a middleware, not baked into the generated code —
-which is the property that matters, because the generated code is disposable:
+**JWT and base URL are injected as middleware, never baked into generated code** — which is the
+property that matters, because the generated code is disposable:
 
 ```swift
 struct AuthMiddleware: ClientMiddleware {
@@ -216,17 +335,14 @@ struct AuthMiddleware: ClientMiddleware {
     }
 }
 
-let client = Client(
-    serverURL: AppEnvironment.current.apiBaseURL,
-    transport: URLSessionTransport(),
-    middlewares: [AuthMiddleware(tokens: tokenStore)]
-)
+let client = Client(serverURL: AppEnvironment.current.apiBaseURL,
+                    transport: URLSessionTransport(),
+                    middlewares: [AuthMiddleware(tokens: tokenStore)])
 ```
 
-The middleware is also the right place for the refresh-on-401 retry, so no screen ever thinks about
-tokens.
+The middleware is also where refresh-on-401 belongs, so no screen ever handles a token.
 
-## 2.3 · Android: OpenAPI Generator Gradle plugin
+## 2.3 · Android — OpenAPI Generator Gradle plugin
 
 ```kotlin
 plugins { id("org.openapi.generator") version "7.x" }
@@ -244,73 +360,60 @@ openApiGenerate {
 tasks.named("preBuild") { dependsOn("openApiGenerate") }
 ```
 
-Output goes to `build/`, never committed, and regenerates whenever the spec changes.
+Output lives in `build/`, is never committed, and regenerates when the spec changes. JWT and base
+URL go in an OkHttp interceptor — the exact mirror of the iOS middleware.
 
-JWT and base URL go in an OkHttp interceptor, the exact mirror of the iOS middleware:
+## 2.4 · The property being protected
 
-```kotlin
-class AuthInterceptor(private val tokens: TokenStore) : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val token = tokens.accessToken ?: return chain.proceed(chain.request())
-        return chain.proceed(
-            chain.request().newBuilder()
-                .header("Authorization", "Bearer $token")
-                .build()
-        )
-    }
-}
-```
+**One spec, generated from the backend, feeding two generated clients.** Rename a field in a NestJS
+DTO and both apps stop compiling until they are updated. **A breaking change becomes a build error
+instead of a production surprise.**
 
-## 2.4 · The property worth protecting
-
-**One spec, two generated clients, and the spec is generated from the backend.** A field renamed in
-a NestJS DTO changes `openapi.json`, which changes both clients, and both apps fail to compile until
-they are updated. That is the whole value: a breaking change becomes a build error instead of a
-runtime surprise in production.
-
-It only holds if `openapi.json` is regenerated and checked in CI. Otherwise it drifts like anything
-else, and a stale spec is worse than none because it is trusted.
+It only holds if `openapi.json` is regenerated and verified in CI. A stale spec is worse than none,
+because it is trusted.
 
 ---
 
 # 3 · Design system and primitives
 
-## 3.1 · Tokens exist. They are not being used everywhere.
+## 3.1 · Tokens exist and are not used everywhere
 
-`DesignSystem.kt` and `DesignSystem.swift` already hold the colour, type and gradient tokens, and
-`verify-welcome.py` checks the important ones on both platforms.
+`DesignSystem.kt` and `DesignSystem.swift` hold the colour, type and gradient tokens, and
+`verify-welcome.py` checks the important ones on both platforms. But raw hex still appears in screen
+files: **19 in Swift, 14 in Kotlin.**
 
-But raw hex still appears in screen files:
+**They are not all the same kind of thing, and the difference decides what to do about them:**
 
-| | hardcoded hex outside the design system |
-|---|---|
-| Swift | **69** |
-| Kotlin | **18** |
+| | Swift | Kotlin | |
+|---|---|---|---|
+| Third-party brand colours | 7 | 7 | Google's four logo colours, its border grey and label black, Facebook blue |
+| Everything else | 12 | 7 | illustration fills, gradient stops, a scrim |
 
-Examples: the heart's gradient stops in `WelcomeScreen.kt:129`, an accent circle at line 145, the
-sparkle at 161, the handoff scrim in `ConnectAccountScreen.kt:190`, gradient stops in
-`TutorialShell.kt:251`.
+**The brand colours must stay hardcoded.** Google and Meta specify exact values in their sign-in
+branding rules, and a design-system token that could be re-themed is precisely the wrong container
+for a value we are contractually not allowed to change. Tokenising them would be an error.
 
-Most are illustration colours — a heart, a sparkle — which feels like a reasonable exception and is
-not. **The eyebrow bug this week was exactly this shape**: a colour decision made in one screen that
-should have been a named token with two variants. The rule that would have prevented it is *every*
-colour is named, including the ones that only appear once.
+**The other 19 are the real finding**, and they are not the harmless illustration details they look
+like: **the eyebrow bug was exactly this shape** — a colour decision made inside one screen that
+should have been a named token with two variants, which is why fixing it on the phone screen could
+not fix it on the tutorial cards.
 
-**Proposed:** a `Palette` extension per platform holding the illustration colours, and a checker
-that fails on `Color(0x` or `Color(hex:` anywhere outside the design system files. That check is
-about ten lines and would have caught two of this week's defects.
+**Proposed:** a `Palette` per platform for the illustration colours, and a check that fails on
+`Color(0x` / `Color(hex:` outside the design-system files **with an explicit allowlist for the
+brand values**, each carrying the rule that mandates it. Note that the naive version of this check —
+the one I first proposed here, failing on every literal — would have flagged all fourteen brand
+colours and been switched off within a day. That is the section 0.5 failure mode arriving in a
+document about avoiding it.
 
-### Spacing and typography
-
-Spacing is currently raw `dp`/points at call sites. The handoff uses a consistent 4-point scale, so:
+**Spacing** is currently raw dp at call sites; the handoff uses a consistent 4-point scale:
 
 ```kotlin
 object Space { val xs = 4.dp; val s = 8.dp; val m = 16.dp; val l = 24.dp; val xl = 32.dp }
 ```
 
-Typography should be named roles rather than sizes — `Type.display`, `Type.headline`, `Type.body`,
-`Type.caption`, `Type.label` — so a screen never states a point size. The values exist in
-`colors_and_type.css` in the handoff and can be lifted directly.
+**Typography** should be named roles — `Type.display`, `.headline`, `.body`, `.caption`, `.label` —
+so a screen never states a point size. The values are in `colors_and_type.css` and can be lifted
+directly.
 
 ## 3.2 · The five primitives — and the finding that matters
 
@@ -318,160 +421,157 @@ Typography should be named roles rather than sizes — `Type.display`, `Type.hea
 
 | Primitive | Today | Problem |
 |---|---|---|
-| **PrimaryButton** | `NextButton` (welcome) **and** `SunsetButton` (tutorial) | Two implementations of one concept |
-| **StatusBadge** | `Eyebrow` (welcome) **and** `EyebrowPill` (tutorial) | Two implementations, and they diverged |
-| **InputField** | inline in `PhoneVerificationScreen` | Not extracted; the 23dp touch-target bug lived here |
-| **SelectPicker** | `CountrySheet` | Exists, reusable, fine |
-| **TopBar** | inline in `VerificationFrame` | Not extracted; the wrong-icon bug lived here |
+| **PrimaryButton** | `NextButton` (welcome) **and** `SunsetButton` (tutorial) | two implementations of one thing |
+| **StatusBadge** | `Eyebrow` (welcome) **and** `EyebrowPill` (tutorial) | two implementations, and they diverged |
+| **InputField** | inline in `PhoneVerificationScreen` | not extracted; the 23dp tap-target bug lived here |
+| **SelectPicker** | `CountrySheet` | exists, reusable, fine |
+| **TopBar** | inline in `VerificationFrame` | not extracted; the wrong-icon bug lived here |
 
-**This is not a tidiness observation.** Three of this week's six defects were in exactly these
-places, and two of them were *caused* by duplication:
+**This is not tidiness.** Three of this week's defects were in exactly these places and two were
+*caused* by the duplication: the wordmark on tutorial card 1 had drifted three ways from the shared
+one, and the eyebrow existed twice so fixing the phone screen could not fix the tutorial.
 
-- the wordmark on tutorial card 1 had drifted from the shared one in three ways at once
-- the eyebrow existed twice, so fixing the phone screen's tone could not have fixed the tutorial's
+**Order of work:**
 
-Each duplicate pair is a place where a fix lands on one screen and not the other. Extracting these
-five is the direct remedy, and the sequence should be: **build the primitive, test it in isolation
-with previews at the smallest and largest supported sizes, then migrate the screens onto it** — not
-the other way round.
+1. `Space`, `Type`, the illustration palette, and the check that enforces them
+2. **PrimaryButton** — collapses two implementations into one
+3. **StatusBadge** — collapses two, tone as a parameter, so the eyebrow bug cannot recur
+4. **TopBar** — one back control, one place
+5. **InputField** — with the 44pt minimum built in rather than remembered
+6. **SelectPicker** — effectively done; formalise the interface
 
-## 3.3 · Order of work
-
-1. `Space` and `Type` scales, plus the illustration palette, and the checker that enforces them
-2. `PrimaryButton` — collapses two implementations into one
-3. `StatusBadge` — collapses two, with the tone as a parameter, so the eyebrow bug cannot recur
-4. `TopBar` — the back control lives in one place
-5. `InputField` — with the 44pt minimum built in rather than remembered
-6. `SelectPicker` — already effectively done, formalise the interface
+Each is built and tested in isolation **at the smallest and largest supported size** before any
+screen migrates onto it.
 
 ---
 
 # 4 · Guardrails and Definition of Done
 
-## 4.1 · Where CLAUDE.md lives
+## 4.1 · One repository, not two
 
-The brief says "both the iOS and Android repositories". **There is one repository**, with the
-backend, the iOS app and the Android app all on `main`. Splitting is possible but I would advise
-against it: the parity checks that compare Kotlin against Swift are the only automated check the
-iOS half currently has, and they need both in one place.
+The brief says "both the iOS and Android repositories". **There is one**, with the backend and both
+apps on it. Splitting is possible; I would advise against it. The parity checks that compare Kotlin
+against Swift are the only thing that has kept the two platforms from diverging, and they need both
+in one place.
 
-`mobile/welcome-screen/CLAUDE.md` exists and covers Swift 6 conventions, availability, tokens,
-layout and verification. The additions the brief asks for are below.
+`mobile/welcome-screen/CLAUDE.md` exists and is read automatically on every request. It covers where
+state lives, Swift 6 concurrency, iOS availability, both-platforms-together, design tokens, layout,
+verification and house style.
 
-## 4.2 · Rules to add
+## 4.2 · Rules, and what enforces each
 
-**Minimum OS.** iOS 17.0 and Android API 30 — **already done**, and it deleted two workarounds
-rather than moving them.
+**Minimum OS — done.** iOS 17.0, Android API 30. It *deleted* two workarounds rather than moving
+them: an availability fork around `scrollBounceBehavior`, and a deprecated single-parameter
+`onChange` that was about to become the next warning.
 
-**Forbidden patterns:**
-
-| Rule | Enforceable how |
+| Rule | Enforced by |
 |---|---|
-| No UIKit wrappers in new screens | checker: `UIViewRepresentable` outside an allow-list |
-| No fixed-width frames on text or containers | review; the shape cases are legitimate |
-| No raw hex outside the design system | checker, ~10 lines |
-| No point sizes outside the type scale | checker |
-| No `@unchecked Sendable` / `nonisolated(unsafe)` / `@preconcurrency` | **already enforced** |
-| No mutable global state | **already enforced** |
-| No `DispatchQueue` in new code | **already enforced** |
+| No `@unchecked Sendable` / `nonisolated(unsafe)` / `@preconcurrency` | **check-swift-concurrency.py** |
+| No mutable global state | **check-swift-concurrency.py** |
+| No `DispatchQueue` in new code | **check-swift-concurrency.py** |
+| Strict concurrency stays on | **check-swift-concurrency.py**, both generator and project file |
+| No API newer than the deployment target | **check-ios-availability.py** |
+| Both platforms change together | **verify-*.py** parity checks |
+| Tap targets ≥ 44pt | **ScreenFitTest**, 17 device sizes |
+| No raw hex outside the design system | *proposed, ~10 lines* |
+| No point sizes outside the type scale | *proposed* |
+| No new UIKit wrappers without a written reason | review |
 
-**On UIKit wrappers**, one exception already exists and should stay: `WashHeadline` is a
-`UIViewRepresentable` because the orange wash has to be measured from the laid-out text, which
-SwiftUI does not expose. The rule should be "no NEW UIKit wrappers without a written reason", not a
-blanket ban — a blanket ban would be quietly broken rather than argued with.
+**On UIKit wrappers:** one exception exists and should stay. `WashHeadline` is a
+`UIViewRepresentable` because the underline has to be measured from laid-out text, which SwiftUI
+does not expose. The rule should be "no NEW wrapper without a stated reason", not a ban — a ban gets
+broken quietly rather than argued with.
 
-**Architecture — SETTLED, 1 September 2026.** The product side's answer: *"No change — keep whatever
-makes most sense from a technical perspective."*
-
-So the rule is the **principle, not the pattern name**: **a view holds no state.** State is hoisted
-to one owner per flow, and each platform expresses that its own way. Nothing is restructured, and
-the property that matters is kept — every screen is a function from values to a picture, which is
-why 45 tests can render all of them in every state without a device.
-
-**MVVM is not forbidden, and it becomes right later.** Today no screen owns asynchronous work of its
-own; they display what they are handed. The moment one does — loading a profile, uploading a photo,
-retrying a failed request — hoisted state stops being enough, because that work has to outlive a
-redraw and be cancellable. That is what `@Observable` on iOS and a ViewModel on Android are for, and
-introducing them then is not a change of direction. It is the same rule applied to a screen that
-finally needs it.
-
-What would have been wrong is adopting the machinery now, on five screens that display and nothing
-more, and paying for it in every test.
+**Architecture — settled.** The principle, not the pattern name: a view holds no state. See 1.2.
 
 ## 4.3 · Definition of Done for a mobile screen
 
-A screen may merge when:
-
-- [ ] Both apps **build** — Android in CI today, iOS once the Mac exists
+- [ ] **Both apps build** — Android in CI; iOS locally today, in CI when a Mac runner exists
 - [ ] Unit tests pass, and the screen is in `ScreenFitTest`
-- [ ] It renders correctly at **375×667** and **440×956**, and the fit suite reports no new findings
+- [ ] Renders correctly at **375×667** and **440×956**, with no new fit findings
 - [ ] Every tappable thing is **≥ 44pt / 48dp**
 - [ ] No new hardcoded colour, size or spacing
-- [ ] Copy matches the ticket **exactly**, checked by a verifier
-- [ ] It survives **rotation, backgrounding and process death**
+- [ ] Copy matches the ticket exactly, checked by a verifier that **quotes the ticket**
+- [ ] Survives rotation, backgrounding and process death
 - [ ] Loading, empty, error and offline states exist — not just the happy path
 - [ ] Labelled for VoiceOver and TalkBack; usable at the largest system font
 - [ ] Both platforms changed **in the same commit**
-- [ ] The nine design-conformance checkers pass
-- [ ] **Somebody has looked at it running** — on a device or a simulator
+- [ ] All nine conformance checkers pass
+- [ ] **Somebody has looked at it running, on a device**
 
-The last one has no substitute, and this week is the evidence: the wrong back icon and the wrong
-eyebrow tone both passed every automated check, because both were real components from the design
-system, correctly drawn. Only a person comparing the screen to the reference found them.
+The last item has no substitute. The wrong back icon and the wrong eyebrow tone both passed every
+automated check, because both were real components from the design system, correctly drawn.
 
 ---
 
-# 5 · Backwards compatibility and the device matrix
+# 5 · Backwards compatibility
 
-Minimums are now **iOS 17.0** and **Android API 30**, and the fit suite runs every screen state
-across **17 device sizes** on every pull request.
+Minimums are **iOS 17.0** and **Android API 30**. `ScreenFitTest` runs every screen state across
+**17 device sizes** on every pull request.
 
-| | Size | Why it is in the matrix |
+| | Size | Why |
 |---|---|---|
-| Smallest | 375 × 667 | iPhone SE (3rd gen) — the floor you named |
-| | 360 × 640 | 4.7-inch Android |
-| Largest | 430 × 932 | iPhone 15/16 Pro Max, Dynamic Island |
-| | 440 × 956 | iPhone 16 Pro Max |
+| **Narrowest** | 320 × 686 | Galaxy Fold cover screen — the hardest layout in the set |
+| iOS floor | 375 × 667 | iPhone SE (3rd gen) — the smallest phone that runs iOS 17 |
+| | 360 × 640 | 4.7-inch Android, the most common small Android |
 | | 412 × 915 | Pixel 8 Pro |
+| | 430 × 932 | iPhone 15/16 Pro Max, Dynamic Island |
+| **Largest** | 440 × 956 | iPhone 16 Pro Max |
 
-The 320 × 568 iPhone SE (1st gen) was removed when the floor moved: it cannot run iOS 17, and no
-API 30 Android is that narrow.
+Worth being precise about the floor, because the brief names the iPhone SE and it is *not* the
+hardest case. The narrowest screen in the matrix is the **Galaxy Fold cover screen at 320dp** — 55
+points narrower than the SE, on a device that runs API 30 perfectly well. A layout that fits the SE
+can still break there, so the SE is the iOS floor rather than the floor.
 
-**What the suite measures today:** clipped text, elements outside the safe area, text collapsed to
-nothing, and tap targets below 44pt. Insets are modelled per device, so "fits" means "fits where the
-user can see it", not "fits the raw rectangle".
+The 320 × 568 iPhone SE (1st gen) was dropped when the minimum moved to iOS 17, which it cannot
+run. Testing a phone the app will not install on produces findings nobody can act on — but note
+that dropping it did not make 320dp go away, because the Fold still sits there.
 
-**What it does not yet measure, and should:**
+**Measured today:** clipped text, elements outside the safe area, text collapsed to nothing, tap
+targets below 44pt. Insets are modelled per device, so "fits" means "fits where the user can see
+it", not "fits the rectangle".
 
-- **Keyboard overlap.** Named in the brief and genuinely missing. The phone and code screens are the
-  ones at risk, and the smallest screen is where it bites. Needs the keyboard's height modelled as
-  another inset — a contained addition to the existing harness.
-- **Largest system font.** Currently everything is measured at the default text size. Accessibility
+**Not yet measured, and named in the brief:**
+
+- **Keyboard overlap.** The phone and code screens are the ones at risk and the smallest screen is
+  where it bites. Needs the keyboard modelled as another inset — a contained addition to the
+  existing harness.
+- **Largest system font.** Everything is measured at the default text size today. Accessibility
   sizes are where "no scroll" requirements break, and this is a legal requirement in the EU under
   the Accessibility Act since June 2025.
-- **Landscape.** Either support it or lock it, but decide.
+- **Landscape.** Support it or lock it, but decide.
 
 ---
 
-# 6 · What I need from you
+# 6 · Open questions
 
-1. **The iOS observations.** Screens, controls, what happened, device and OS, screenshots or a
-   recording. Area 1 becomes real analysis with them and stays speculation without them.
-2. **MVVM by name, or the principle?** See 4.2.
-3. **Primitives: retrofit or forward-only?** Extracting them means reworking five screens that
+Three of the five from the first draft are answered. These remain:
+
+1. **Primitives: retrofit or forward-only?** Extracting the five means reworking five screens that
    currently work and re-verifying them, or applying it to new work and migrating gradually.
-4. **Backend changes in scope?** Areas 2's three gaps are backend edits — the emit script, 52
-   `operationId`s, 39 response decorators.
-5. **One repo or two?** See 4.1. I would keep one.
+   Meaningfully different amounts of work.
+2. **Are backend changes in scope for us?** Section 2's three gaps are backend edits — the emit
+   script, 52 `operationId`s, 39 response decorators.
+3. **Does a returning user see the Connect screen?** See 0.4. We assumed not; no ticket says.
 
-## Suggested order, given no Mac yet
+## Suggested order
 
-Everything in areas 2 and 3 can be done now, on Android and on the backend, and iOS inherits it the
-day the Mac arrives:
+**Everything below is doable now, and iOS inherits it the day there is a Mac runner in CI:**
 
-1. The backend OpenAPI gaps — pure backend, unblocks both clients
-2. Generated client on Android, proving the pipeline end to end
-3. `Space`, `Type` and the palette, plus the checkers
-4. The five primitives on Android, with previews
-5. **Mac arrives** — iOS builds and tests in CI, the iOS layout audit, then the same primitives in
-   Swift against an interface already proven
+1. **iOS into CI.** The single highest-value item in this document — it closes the loop described in
+   section 0 for the half of the product where it is still open.
+2. The backend OpenAPI gaps — pure backend, unblocks both clients
+3. A generated client on Android, proving the pipeline end to end
+4. `Space`, `Type`, the palette, and the checks that enforce them
+5. The five primitives, with previews at the smallest and largest sizes
+6. Keyboard overlap and Dynamic Type in the fit harness
+
+## Current state, for reference
+
+| | |
+|---|---|
+| Automated conformance checks | **868** named assertions across 6 checkers, plus 77 call sites checked for argument order and a 17-API availability list |
+| Android unit tests | **45** |
+| Swift tests | **32** |
+| Device sizes measured per run | **17** |
+| CI | both apps built and tested on every pull request; iOS build is local only |

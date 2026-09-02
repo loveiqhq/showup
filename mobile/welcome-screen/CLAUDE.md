@@ -94,7 +94,7 @@ the **only** automated check the iOS half has at all.
   laid-out run. A fixed width is right at one screen size and wrong at seventeen others.
 - **44dp/pt minimum for anything tappable**, even where the reference draws smaller. A visible
   control whose touch area is smaller than it looks is a bug the eye cannot see.
-- New screens are added to `ScreenFitTest`, which measures every state at 18 phone sizes.
+- New screens are added to `ScreenFitTest`, which measures every state at 17 phone sizes.
 
 ## Verification
 
