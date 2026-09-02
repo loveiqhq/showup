@@ -1,11 +1,21 @@
 name: CI
 
-# Runs on every pull request and every push to main, so a change that breaks the build, the linter or
-# any test cannot reach main unnoticed (Epic 18). Before this existed, the tests only ran when someone
-# remembered to type the command locally.
+# Runs on every pull request and on every push to any of the three long-lived branches, so a change
+# that breaks the build, the linter or any test cannot travel unnoticed (Epic 18). Before this
+# existed, the tests only ran when someone remembered to type the command locally.
+#
+# The three branches, and the direction work travels between them:
+#
+#   development   where the work happens. Feature branches merge here; this is what a fresh clone
+#                 checks out. Green here means "it builds and the automated checks pass".
+#   staging       QA. Promoted from development when a batch is ready to be tested by a person.
+#   main          production. Promoted from staging only once QA has passed.
+#
+# Nothing skips a step, and nothing travels downward. CI runs at every one of those points, so a
+# regression is caught before the promotion rather than after it.
 on:
   push:
-    branches: [main]
+    branches: [main, staging, development]
   pull_request:
 
 # A new push to the same branch cancels the previous run, so CI is not queued behind stale commits.
