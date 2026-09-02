@@ -426,24 +426,30 @@ directly.
 
 ## 3.2 · The five primitives — and the finding that matters
 
-**Two of the five already exist twice.**
+**The button exists three times on Android, and the duplication follows the package split** —
+`com.showup.welcome` and `com.showup.tutorial` were built as separate worlds and each grew its own
+version of the same thing.
 
-| Primitive | Today | Problem |
-|---|---|---|
-| **PrimaryButton** | `NextButton` (welcome) **and** `SunsetButton` (tutorial) | two implementations of one thing |
-| **StatusBadge** | `Eyebrow` (welcome) **and** `EyebrowPill` (tutorial) | two implementations, and they diverged |
-| **InputField** | inline in `PhoneVerificationScreen` | not extracted; the 23dp tap-target bug lived here |
-| **SelectPicker** | `CountrySheet` | exists, reusable, fine |
-| **TopBar** | inline in `VerificationFrame` | not extracted; the wrong-icon bug lived here |
+| Primitive | Android today | iOS today | Problem |
+|---|---|---|---|
+| **PrimaryButton** | `PillButton` (welcome, used by 6 files), `NextButton` (tutorial), `SunsetButton` (tutorial) | `NextButton`, `SunsetButton`, and the phone CTA built inline | **three implementations** on Android, and `ConnectAccountScreen` imports two of them |
+| **StatusBadge** | `Eyebrow` private in `ConnectAccountScreen`, plus the pill drawn inline in `TutorialShell` | `Eyebrow` private in `ConnectAccountView`, `EyebrowPill` in `TutorialShell` | twice on both platforms, and they diverged |
+| **InputField** | inline in `PhoneVerificationScreen` | inline in `PhoneVerificationView` | not extracted; the 23dp tap-target bug lived here |
+| **TopBar** | inline in `VerificationFrame` | inline | not extracted; the wrong-icon bug lived here |
+| **SelectPicker** | `CountrySheet` | `CountrySheet` | already shared on both — the one that is fine |
+
+`ConnectAccountScreen` using both `PillButton` and `NextButton` is the clearest symptom: one screen,
+two different implementations of the same control, because it sits on the seam between the two
+packages.
 
 **This is not tidiness.** Three of this week's defects were in exactly these places and two were
 *caused* by the duplication: the wordmark on tutorial card 1 had drifted three ways from the shared
-one, and the eyebrow existed twice so fixing the phone screen could not fix the tutorial.
+one, and the eyebrow exists twice so fixing the phone screen could not fix the tutorial.
 
 **Order of work:**
 
 1. `Space`, `Type`, the illustration palette, and the check that enforces them
-2. **PrimaryButton** — collapses two implementations into one
+2. **PrimaryButton** — collapses three Android implementations into one
 3. **StatusBadge** — collapses two, tone as a parameter, so the eyebrow bug cannot recur
 4. **TopBar** — one back control, one place
 5. **InputField** — with the 44pt minimum built in rather than remembered
