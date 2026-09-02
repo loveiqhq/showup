@@ -50,11 +50,13 @@ other files, and where actor boundaries fall. The compiler computes that. Conven
 *likely* to pass; only compilation *proves* it.
 
 So these rules reduce the size of the eventual migration. They do not remove the need to compile,
-and any claim that code is "Swift 6 clean" without a build is unfounded. **Only Xcode on a Mac can
-make this rule enforced rather than intended** — the same way the Android rules below are enforced,
-because CI builds them.
+and any claim that code is "Swift 6 clean" without a build is unfounded. **Only a compiler can make
+this rule enforced rather than intended.**
 
-There is a Mac now, as of 2026-09-01, and the first build found four errors the reading had not.
+There is one now. Since 2026-09-01 CI builds and tests the iOS app on a `macos-15` runner, so these
+rules are enforced on every pull request exactly as the Android ones are. The first build found four
+errors the reading had not — including a `[String: Any]` that strict concurrency requires to be
+`[String: any Sendable]`, which is precisely the class of thing no checker here could ever catch.
 
 ## iOS availability
 
@@ -73,8 +75,9 @@ That checker holds a curated list, so it is a safety net and not a compiler. Tre
 A change to a screen changes it on Android **and** iOS in the same commit. Kotlin and Swift are
 ports of the same designs; a fix to one and not the other is how they drift.
 
-`audit/check-tutorial-routing.py` and the `verify-*.py` scripts compare the two. They are currently
-the **only** automated check the iOS half has at all.
+`audit/check-tutorial-routing.py` and the `verify-*.py` scripts compare the two. They used to be the
+only automated check the iOS half had; since 2026-09-01 it is compiled and tested in CI as well, so
+they are now a parity check rather than a substitute for one.
 
 ## Design tokens
 

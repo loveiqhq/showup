@@ -36,8 +36,10 @@ them, because the code says what it intends and the intention was wrong.
 Everything else in this document is a way of narrowing what has to be caught by eye. Nothing
 replaces the eye.
 
-Status: Android builds, tests and layout-measures on every pull request. iOS builds and tests
-locally on the Mac; it is not in CI yet, and that is the largest remaining gap.
+Status: **closed on both platforms, as of 1 September.** Android has built, tested and
+layout-measured on every pull request for a while. iOS now does too — Eman added a `macos-15` job
+the same day he first ran it, and it has been green on `development` since. Both apps are compiled,
+tested and measured before anything merges.
 
 ## 0.2 · Confident, wrong reasoning when it cannot verify
 
@@ -129,9 +131,12 @@ the disagreement between them is the point, not a nuisance.
 
 **The bottleneck is not Claude's code. It is the loop between writing and seeing.**
 
-Where that loop is closed — Android, since CI landed — defects are caught in minutes by machines.
-Where it is open — iOS, until yesterday — they accumulated silently for weeks and then arrived all
-at once.
+Where that loop was closed — Android, since CI landed — defects were caught in minutes by machines.
+Where it was open — iOS, for weeks — they accumulated silently and then arrived all at once, ten
+build errors and four runtime bugs in a single afternoon.
+
+**As of 1 September the loop is closed on both.** That is the single most important change in this
+document, and it had already happened before this document was written.
 
 Everything in the rest of this document is either closing that loop further or narrowing what has
 to fall through it.
@@ -244,9 +249,13 @@ pinned to a width.** The rule is worth writing down, and the code already keeps 
 
 Not because Compose is safer. Three specific reasons, in order of importance:
 
-**1. Android was being compiled.** For weeks, every Android change was built, tested and
-layout-measured; the Swift was read by static checkers that cannot type-check, lay out or render.
-Four of the six iOS defects were iOS-only for that reason alone.
+**1. Android was being compiled and iOS was not.** For weeks, every Android change was built,
+tested and layout-measured, while the Swift was read by static checkers that cannot type-check, lay
+out or render. Four of the six iOS defects were iOS-only for that reason alone — not because the
+Swift was written less carefully, but because nothing was checking it.
+
+**This asymmetry is now gone**, which means it explains the backlog of defects found on 1 September
+and predicts nothing about the future.
 
 **2. Compose enforces what SwiftUI permits.** A Compose function that keeps state without `remember`
 loses it on the next redraw, immediately and visibly. SwiftUI lets a view hold whatever it likes and
@@ -486,7 +495,7 @@ broken quietly rather than argued with.
 
 ## 4.3 · Definition of Done for a mobile screen
 
-- [ ] **Both apps build** — Android in CI; iOS locally today, in CI when a Mac runner exists
+- [ ] **Both apps build and test in CI** — Android on `ubuntu`, iOS on `macos-15`; both required
 - [ ] Unit tests pass, and the screen is in `ScreenFitTest`
 - [ ] Renders correctly at **375×667** and **440×956**, with no new fit findings
 - [ ] Every tappable thing is **≥ 44pt / 48dp**
@@ -556,15 +565,20 @@ Three of the five from the first draft are answered. These remain:
 
 ## Suggested order
 
-**Everything below is doable now, and iOS inherits it the day there is a Mac runner in CI:**
+**The item that would have led this list is already done.** iOS in CI was going to be number one —
+it closes the loop section 0 is about — and Eman shipped it on 1 September, before this document
+existed. Worth reading the job itself rather than just noting it exists: it regenerates
+`project.pbxproj` and fails if the committed one is stale, which is precisely what let eight Swift
+tests sit in no target for a week, and it sets `pipefail` so a red suite cannot go green through
+`xcbeautify`. Both are the failure modes in 0.6 being designed out rather than remembered.
 
-1. **iOS into CI.** The single highest-value item in this document — it closes the loop described in
-   section 0 for the half of the product where it is still open.
-2. The backend OpenAPI gaps — pure backend, unblocks both clients
-3. A generated client on Android, proving the pipeline end to end
-4. `Space`, `Type`, the palette, and the checks that enforce them
-5. The five primitives, with previews at the smallest and largest sizes
-6. Keyboard overlap and Dynamic Type in the fit harness
+So, what is actually left:
+
+1. The backend OpenAPI gaps — pure backend, unblocks both clients, nothing depends on it first
+2. A generated client on Android, proving the pipeline end to end before iOS follows
+3. `Space`, `Type`, the palette, and the checks that enforce them — with the brand allowlist from 3.1
+4. The five primitives, with previews at 320dp and 440pt
+5. Keyboard overlap and Dynamic Type in the fit harness — the two named gaps in section 5
 
 ## Current state, for reference
 
@@ -574,4 +588,4 @@ Three of the five from the first draft are answered. These remain:
 | Android unit tests | **45** |
 | Swift tests | **32** |
 | Device sizes measured per run | **17** |
-| CI | both apps built and tested on every pull request; iOS build is local only |
+| CI | both apps built and tested on every pull request — Android on `ubuntu`, iOS on `macos-15`, both required |
