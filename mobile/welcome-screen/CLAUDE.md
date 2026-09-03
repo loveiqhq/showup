@@ -58,6 +58,15 @@ rules are enforced on every pull request exactly as the Android ones are. The fi
 errors the reading had not — including a `[String: Any]` that strict concurrency requires to be
 `[String: any Sendable]`, which is precisely the class of thing no checker here could ever catch.
 
+## Minimum OS targets
+
+**iOS 17.0 and Android API 30.** Both are set in the build, not just written here:
+`IPHONEOS_DEPLOYMENT_TARGET = 17.0` in `gen_pbxproj.py`, `minSdk = 30` in `app/build.gradle.kts`.
+
+API 30 is Android 11, not Android 14. It was chosen to keep the app installable on the long tail of
+active Android devices; raising it to 34 would drop a substantial share of them and is a product
+decision, not a technical one.
+
 ## iOS availability
 
 The deployment target is **iOS 17.0**. Using a newer API compiles cleanly and then misbehaves on a
@@ -89,6 +98,24 @@ they are now a parity check rather than a substitute for one.
 - **Check the handoff for which variant a screen uses.** The back control was an `arrow-left` where
   the design says `chevron-left` — a real icon from the same set, faithfully drawn, and the wrong
   one. Tests cannot catch that; only reading the reference can.
+
+## Forbidden patterns
+
+Each of these has cost us a real bug.
+
+- **No new UIKit wrapper without a written reason.** One exists: `WashHeadline` is a
+  `UIViewRepresentable` because the underline must be measured from laid-out text, which SwiftUI does
+  not expose. That reason is written beside it. This is not a ban — a ban gets broken quietly instead
+  of argued with — but a new wrapper needs its reason in the file.
+- **No fixed-width frame on text or on a layout region.** Icons, avatars and badges are meant to be a
+  fixed size and are fine. A width on anything containing text is right at one screen size and wrong
+  at the other sixteen.
+- **No bare `if` around a reserved region.** In a SwiftUI `ViewBuilder`, `if x { Card() }` with no
+  `else` evaluates to nil, and a frame around nil reserves nothing. This shipped: the CTA moved 56
+  points on the phone screen. Render the view always and hide it with `opacity`.
+- **No colour literal in a screen file**, except a third-party brand colour whose value we are not
+  allowed to change. Those carry the rule that mandates them.
+- **No state owned by a view.** See the first section.
 
 ## Layout
 
@@ -125,3 +152,25 @@ appeared once the CTA was measured moving — one of them reserved nothing at al
 - **No emoji. Anywhere** — in code, comments, commits or UI.
 - Comments explain **why**, not what. A comment that restates the code is deleted.
 - A rule with no reason next to it is one nobody can safely change later.
+
+## Definition of Done
+
+A screen is not done until every one of these is true. The list is the merge gate, not a suggestion.
+
+- [ ] Both apps build and test in CI — Android on `ubuntu`, iOS on `macos-15`
+- [ ] The screen is in `ScreenFitTest` and adds no new fit findings
+- [ ] Renders correctly at **320 x 686** and **440 x 956**
+- [ ] Every tappable thing is **at least 44pt / 48dp**
+- [ ] No new hardcoded colour, size or spacing
+- [ ] Copy matches the ticket exactly, checked by a verifier that quotes the ticket
+- [ ] Survives rotation, backgrounding and process death
+- [ ] Loading, empty, error and offline states exist -- not only the happy path
+- [ ] Labelled for VoiceOver and TalkBack; usable at the largest system font
+- [ ] Both platforms changed in the same commit
+- [ ] All nine conformance checkers pass
+- [ ] **Somebody has looked at it running, on a device**
+
+The last item has no substitute and is not a formality. The back control was drawn as an arrow where
+the design says chevron, and the eyebrow pill used the lavender variant on a screen the design paints
+orange. Both passed every automated check here, because both were real components from the design
+system, correctly drawn, in the wrong place.
