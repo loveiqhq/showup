@@ -7,11 +7,43 @@ Every rule below exists because something went wrong once. None of them are styl
 
 ---
 
+## How these files are scoped
+
+This is a monorepo. Claude Code reads every `CLAUDE.md` from the repository root **down to the
+directory being worked in**, and the nearest file wins on a conflict. There are three:
+
+| File | Applies to | Holds |
+|---|---|---|
+| **this file** | both apps | What is true of both: state ownership, parity, tokens, layout, verification, house style |
+| `ios-app/CLAUDE.md` | iOS only | SwiftUI, strict concurrency, `@MainActor`, `@State` / `@Binding` / `@Observable`, availability, UIKit wrappers |
+| `android-preview-project/CLAUDE.md` | Android only | Compose, `remember` vs `rememberSaveable`, coroutines, lifecycle-aware collection, `minSdk`, IME |
+
+**A rule belongs in exactly one of them.** Stated twice, it drifts. If a rule is true of both
+platforms it goes here, even when it is expressed differently in each language.
+
+---
+
+## The three rules that come first
+
+**Before creating a new implementation, first search the repository for an existing shared
+component, token, model, service, or pattern. Do not create a duplicate implementation without
+explaining why.**
+
+**Generated code compiling is not proof that the feature is complete.**
+
+**Do not report a platform as verified unless it was actually built and tested in that platform's
+toolchain.**
+
+Each of these is here because it was broken. The primary button exists three times on Android. Eight
+Swift tests sat in no target for a week and were reported as present. "It compiles" was, more than
+once, the whole basis for calling a screen done.
+
+---
+
 ## Where state lives
 
 **A view holds no state.** State is hoisted to one owner per flow — `SignUpFlow` on both platforms —
-and screens take values and return a picture. Settled 1 September 2026; the product side asked for
-"whatever makes most sense technically" rather than a named pattern.
+and screens take values and return a picture.
 
 This is the rule, not MVVM. Each platform expresses it its own way, and the property being protected
 is that a screen is a function from values to pixels — which is exactly why every screen can be
@@ -22,109 +54,83 @@ no longer enough, because that work must outlive a redraw and be cancellable. Th
 `@Observable` on iOS or a ViewModel on Android. That is this rule being applied, not abandoned. None
 of the screens built so far are at that point; the profile and discovery screens will be.
 
-## Swift 6 concurrency
-
-The project sets `SWIFT_STRICT_CONCURRENCY = complete` with the language mode still at 5.0, so
-data-race problems appear as **warnings** today and become **errors** the day the mode moves to 6.0.
-Write as though it were already 6.0:
-
-- **Views and view models are `@MainActor`.** SwiftUI already is; anything holding UI state joins it
-  rather than hopping between contexts.
-- **Types crossing an isolation boundary are `Sendable`.** Prefer `struct` with `let` properties;
-  a class shared across tasks is either an `actor` or immutable.
-- **No shared mutable global state.** No `var` at file scope, no mutable `static var`. If something
-  must be global and mutable it is an `actor` or it is `@MainActor`.
-- **`async`/`await` over completion handlers**, and over Combine for new code.
-- **`nonisolated` is a deliberate claim**, not a way to silence a warning. Only where the work
-  genuinely touches no isolated state.
-- **Never silence a concurrency warning to make it go away.** Fix the isolation, or leave the
-  warning and say so.
-
-### The honest limit of these rules
-
-**Following them is not a guarantee, and nothing written here can make it one.**
-
-Swift 6's data-race checking is whole-module static analysis. Whether a specific line is safe
-depends on the isolation of every type it touches, the `Sendable` conformance of things declared in
-other files, and where actor boundaries fall. The compiler computes that. Conventions make the code
-*likely* to pass; only compilation *proves* it.
-
-So these rules reduce the size of the eventual migration. They do not remove the need to compile,
-and any claim that code is "Swift 6 clean" without a build is unfounded. **Only a compiler can make
-this rule enforced rather than intended.**
-
-There is one now. Since 2026-09-01 CI builds and tests the iOS app on a `macos-15` runner, so these
-rules are enforced on every pull request exactly as the Android ones are. The first build found four
-errors the reading had not — including a `[String: Any]` that strict concurrency requires to be
-`[String: any Sendable]`, which is precisely the class of thing no checker here could ever catch.
-
-## Minimum OS targets
-
-**iOS 17.0 and Android API 30.** Both are set in the build, not just written here:
-`IPHONEOS_DEPLOYMENT_TARGET = 17.0` in `gen_pbxproj.py`, `minSdk = 30` in `app/build.gradle.kts`.
-
-API 30 is Android 11, not Android 14. It was chosen to keep the app installable on the long tail of
-active Android devices; raising it to 34 would drop a substantial share of them and is a product
-decision, not a technical one.
-
-## iOS availability
-
-The deployment target is **iOS 17.0**. Using a newer API compiles cleanly and then misbehaves on a
-real phone — this has happened twice here (`scrollBounceBehavior`, and the two-parameter
-`onChange`). Gate anything newer with `if #available`, and run `audit/check-ios-availability.py`.
-
-Note the second example inverted when the minimum moved from 16 to 17: the ONE-parameter
-`onChange(of:perform:)` is the deprecated form now. Both directions cost a build to notice.
-
-That checker holds a curated list, so it is a safety net and not a compiler. Treat a clean run as
-"nothing known is wrong", never as "this builds".
+**No business logic inside a view or composable.** Validation, formatting and routing decisions go in
+plain functions that are tested with no UI at all — see `CountryCodes` and `TutorialRouting`, which
+exist on both platforms in the same shape for exactly this reason.
 
 ## Both platforms move together
 
-A change to a screen changes it on Android **and** iOS in the same commit. Kotlin and Swift are
-ports of the same designs; a fix to one and not the other is how they drift.
+A change to a screen changes it on Android **and** iOS in the same commit. Kotlin and Swift are ports
+of the same designs; a fix to one and not the other is how they drift.
 
 `audit/check-tutorial-routing.py` and the `verify-*.py` scripts compare the two. They used to be the
 only automated check the iOS half had; since 2026-09-01 it is compiled and tested in CI as well, so
 they are now a parity check rather than a substitute for one.
 
+**The same logic error can be harmless on one platform and severe on the other.** A bare `if` around
+a reserved region collapses to nil in SwiftUI and reserved nothing, moving the CTA 56 points; the
+identical code on Android reserved its minimum height and looked fine. "It works on Android" is not
+evidence about iOS.
+
+## Minimum OS targets
+
+**iOS 17.0 and Android API 30.** Both are set in the build, not only written here:
+`IPHONEOS_DEPLOYMENT_TARGET = 17.0` in `gen_pbxproj.py`, `minSdk = 30` in `app/build.gradle.kts`.
+
+API 30 is Android 11, not Android 14. It was chosen to keep the app installable on the long tail of
+active devices; raising it is a product decision, not a technical one. Nothing in the code currently
+requires anything newer on either platform.
+
 ## Design tokens
 
-- **One definition per value**, in `DesignSystem.kt` / `DesignSystem.swift`. Never a colour literal
-  in a screen.
+- **One definition per value**, in `DesignSystem.kt` / `DesignSystem.swift`. Never a colour literal,
+  spacing value, radius, icon size or font size in a screen file.
+- **One exception: third-party brand colours.** Google's and Meta's sign-in branding rules mandate
+  exact values we are not permitted to re-theme, so those stay as literals and carry the rule that
+  mandates them in a comment. A checker that failed on every literal would flag all fourteen of them
+  and be switched off within a day.
 - **A component's tone is per screen, and both tones stay.** The eyebrow pill is orange on the phone
   screens and lavender on the tutorial cards. Changing the shared token to fix one screen breaks the
-  other; add a second token.
+  other; add a second variant.
 - **Check the handoff for which variant a screen uses.** The back control was an `arrow-left` where
   the design says `chevron-left` — a real icon from the same set, faithfully drawn, and the wrong
   one. Tests cannot catch that; only reading the reference can.
 
-## Forbidden patterns
-
-Each of these has cost us a real bug.
-
-- **No new UIKit wrapper without a written reason.** One exists: `WashHeadline` is a
-  `UIViewRepresentable` because the underline must be measured from laid-out text, which SwiftUI does
-  not expose. That reason is written beside it. This is not a ban — a ban gets broken quietly instead
-  of argued with — but a new wrapper needs its reason in the file.
-- **No fixed-width frame on text or on a layout region.** Icons, avatars and badges are meant to be a
-  fixed size and are fine. A width on anything containing text is right at one screen size and wrong
-  at the other sixteen.
-- **No bare `if` around a reserved region.** In a SwiftUI `ViewBuilder`, `if x { Card() }` with no
-  `else` evaluates to nil, and a frame around nil reserves nothing. This shipped: the CTA moved 56
-  points on the phone screen. Render the view always and hide it with `opacity`.
-- **No colour literal in a screen file**, except a third-party brand colour whose value we are not
-  allowed to change. Those carry the rule that mandates them.
-- **No state owned by a view.** See the first section.
-
 ## Layout
 
-- **No absolute Y positioning.** Flex/stack layout only.
+- **No absolute positioning.** Flex/stack layout only.
 - **Text is measured, not guessed.** No hand-tuned width for an underline or an accent — measure the
-  laid-out run. A fixed width is right at one screen size and wrong at seventeen others.
-- **44dp/pt minimum for anything tappable**, even where the reference draws smaller. A visible
+  laid-out run. A fixed width is right at one screen size and wrong at sixteen others.
+- **No fixed width on anything containing text**, and none derived from the screen width. Fixed
+  frames are for icons, avatars and badges.
+- **44pt / 48dp minimum for anything tappable**, even where the reference draws smaller. A visible
   control whose touch area is smaller than it looks is a bug the eye cannot see.
-- New screens are added to `ScreenFitTest`, which measures every state at 17 phone sizes.
+- **Reserve space that does not depend on whether content is present.** Both platforms have shipped a
+  CTA that moved because a reserved region was sized for content that was absent or shorter than
+  reality.
+- New screens are added to `ScreenFitTest`, which measures every state at 17 phone sizes. The
+  narrowest is **320 × 686**, the Galaxy Fold cover screen — narrower than any iPhone, and the case
+  that actually breaks layouts.
+
+## Screen requirements
+
+Every screen, on both platforms:
+
+- **Loading, empty, error and offline states**, not only the happy path.
+- **The keyboard must not hide any required control.** Not yet automated on either platform — check
+  it by hand, on the smallest screen.
+- **Accessibility:** every control labelled for VoiceOver and TalkBack, usable at the largest system
+  font, contrast at WCAG AA.
+- **Previews for every state**, at the smallest and largest size, not just the default.
+- **No logging of a phone number, a verification code, a token or an email.** Ever.
+
+## Networking
+
+No hand-written API models, endpoint paths, request bodies or response types once the OpenAPI client
+is generated — the backend contract generates them, and generated files are never edited. Auth is
+attached by middleware or an interceptor, never at a call site, and no base URL appears as a literal.
+
+See `docs/mobile-client-architecture-spike.md` part 2.
 
 ## Verification
 
@@ -137,25 +143,17 @@ cd ios-app && xcodebuild -project ShowUpWelcome.xcodeproj -scheme ShowUpWelcome 
 cd .. && for f in audit/verify-*.py audit/check-*.py; do python "$f"; done
 ```
 
-CI runs both halves on every pull request. Android adds `assembleRelease` — R8 only runs on
-release, and it removes what it cannot see being used. iOS adds `ScreenFitTests`, which renders both
-phone screens at 17 device sizes and measures whether the CTA moves; it is the only automated check
-that would have caught the two layout faults SHOWUP-143 shipped.
+CI runs both halves on every pull request — Android on `ubuntu`, iOS on `macos-15`. Android adds
+`assembleRelease`, because R8 only runs on release and removes what it cannot see being used.
 
-**Say what was actually verified.** "Builds and tests pass" and "I have seen it render" are
-different claims, and on iOS the second one is now available: the simulator will show you things
-no amount of reading will. Both reserved helper regions on SHOWUP-143 were wrong in ways that only
-appeared once the CTA was measured moving — one of them reserved nothing at all. Run the screen.
-
-## House style
-
-- **No emoji. Anywhere** — in code, comments, commits or UI.
-- Comments explain **why**, not what. A comment that restates the code is deleted.
-- A rule with no reason next to it is one nobody can safely change later.
+**Say what was actually verified.** "Builds and tests pass" and "I have seen it render" are different
+claims, and both are now available. Report them separately, using the response format in
+`docs/mobile-client-architecture-spike.md` part 8. Anything that was only read goes under
+UNVERIFIED, with the reason.
 
 ## Definition of Done
 
-A screen is not done until every one of these is true. The list is the merge gate, not a suggestion.
+A screen is not done until every one of these is true. This is the merge gate.
 
 - [ ] Both apps build and test in CI — Android on `ubuntu`, iOS on `macos-15`
 - [ ] The screen is in `ScreenFitTest` and adds no new fit findings
@@ -174,3 +172,9 @@ The last item has no substitute and is not a formality. The back control was dra
 the design says chevron, and the eyebrow pill used the lavender variant on a screen the design paints
 orange. Both passed every automated check here, because both were real components from the design
 system, correctly drawn, in the wrong place.
+
+## House style
+
+- **No emoji. Anywhere** — in code, comments, commits or UI.
+- Comments explain **why**, not what. A comment that restates the code is deleted.
+- A rule with no reason next to it is one nobody can safely change later.
