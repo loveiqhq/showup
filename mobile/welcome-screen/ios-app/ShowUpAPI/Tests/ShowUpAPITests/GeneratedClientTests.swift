@@ -62,11 +62,15 @@ final class GeneratedClientTests: XCTestCase {
         }
     }
 
-    func testTheGeneratedClientCanBeConstructedForEachEnvironment() throws {
+    func testTheGeneratedClientCanBeConstructedForEachEnvironment() {
         // Also asserts the URLs parse. A malformed base URL would otherwise surface much later as
         // an unexplained request failure.
+        //
+        // A token store is required rather than optional, deliberately: there is no sensible
+        // default for where credentials live, and a defaulted in-memory store would silently give
+        // the app a session that vanishes on relaunch.
         for environment in [APIEnvironment.development, .staging, .production] {
-            let api = try ShowUpAPI(environment: environment)
+            let api = ShowUpAPI(environment: environment, tokens: InMemoryTokenStore())
             XCTAssertNotNil(api.client)
         }
     }
