@@ -45,6 +45,36 @@ drift check would be noise.
 | Operations requiring auth | 42 |
 | Public operations | 10 — the eight auth routes plus two health probes |
 
+## Decisions needed
+
+Two things are deliberately left open rather than resolved by guessing.
+
+**1. `CreateCheckInDto.preparationMinutes` — enforce the range, or reword the description?**
+
+Its description says minutes "(15–60)". Its only validators are `@IsOptional()` and `@IsInt()`, so
+**nothing enforces that range**: the server accepts 5, or 500. The contract therefore declares
+`type: 'integer'` and no `minimum`/`maximum`, because documenting bounds the server does not apply
+would make a generated client reject values the backend takes happily.
+
+No behaviour was changed. The two ways out:
+
+- add `@Min(15) @Max(60)` to the DTO, then declare the same bounds in the schema — the description
+  becomes true and clients get the constraint; or
+- drop "(15–60)" from the description — the range was never a rule.
+
+Whichever is chosen, contract and code should say the same thing. Right now the contract describes
+the code and the comment describes an intention.
+
+**2. `KeychainTokenStore` is not verified on a device. This is a release blocker.**
+
+It has a construction check and nothing more. Reading and writing the real Keychain from a SwiftPM
+test bundle needs a signed host application with a `keychain-access-group` entitlement; without
+one, `SecItemAdd` returns `errSecMissingEntitlement` and the test would assert on the sandbox
+rather than on our code.
+
+It must be exercised by hand on a signed device — save, read back, relaunch, read again, sign out,
+confirm cleared — before the first release. Until then it stays listed here as unverified.
+
 ## What the correction was
 
 An earlier document reported **13 typed and 39 untyped responses**. That was wrong. It came from a
