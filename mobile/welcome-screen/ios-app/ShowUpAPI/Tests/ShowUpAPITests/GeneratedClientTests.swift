@@ -19,12 +19,26 @@ final class GeneratedClientTests: XCTestCase {
     /// A transport that records what it was asked to send and returns a canned response.
     private struct StubTransport: ClientTransport {
         let status: Int
-        let body: String
+        /// Named `responseBody`, not `body`: the ClientTransport method below has its own `body`
+        /// parameter, and a property with the same name is shadowed inside it -- which produced a
+        /// confusing "no exact matches in call to initializer" rather than anything about naming.
+        let responseBody: String
         let recorder: Recorder
 
-        final class Recorder: @unchecked Sendable {
-            var request: HTTPRequest?
-            var bodyText: String?
+        /// An actor, not a class with `@unchecked Sendable`.
+        ///
+        /// A transport is handed across concurrency domains, so its captured state has to be safe.
+        /// `@unchecked Sendable` would compile and is banned by CLAUDE.md and by
+        /// audit/check-swift-concurrency.py -- it asserts safety the compiler has not agreed to.
+        /// An actor gets the same job done with the guarantee intact, and the cost is two `await`s.
+        actor Recorder {
+            private(set) var request: HTTPRequest?
+            private(set) var bodyText: String?
+
+            func record(_ request: HTTPRequest, body: String?) {
+                self.request = request
+                self.bodyText = body
+            }
         }
 
         func send(
@@ -33,18 +47,17 @@ final class GeneratedClientTests: XCTestCase {
             baseURL: URL,
             operationID: String
         ) async throws -> (HTTPResponse, HTTPBody?) {
-            recorder.request = request
+            var sentBody: String?
             if let body {
-                recorder.bodyText = try await String(
-                    collecting: body, upTo: 64 * 1024
-                )
+                sentBody = try await String(collecting: body, upTo: 64 * 1024)
             }
+            await recorder.record(request, body: sentBody)
             return (
                 HTTPResponse(
                     status: .init(code: status),
                     headerFields: [.contentType: "application/json"]
                 ),
-                HTTPBody(body)
+                HTTPBody(responseBody)
             )
         }
     }
@@ -70,7 +83,7 @@ final class GeneratedClientTests: XCTestCase {
             serverURL: APIEnvironment.development.baseURL,
             transport: StubTransport(
                 status: 200,
-                body: #"{"expiresAt":"2026-09-04T10:15:30Z","resendAvailableAt":"2026-09-04T10:16:00Z"}"#,
+                responseBody: #"{"expiresAt":"2026-09-04T10:15:30Z","resendAvailableAt":"2026-09-04T10:16:00Z"}"#,
                 recorder: recorder
             )
         )
@@ -81,11 +94,14 @@ final class GeneratedClientTests: XCTestCase {
             body: .json(.init(phone: "+4917612345678"))
         )
 
-        XCTAssertEqual(recorder.request?.method, .post)
-        XCTAssertEqual(recorder.request?.path, "/auth/phone/start")
+        let sentRequest = await recorder.request
+        let sentBody = await recorder.bodyText
+
+        XCTAssertEqual(sentRequest?.method, .post)
+        XCTAssertEqual(sentRequest?.path, "/auth/phone/start")
         XCTAssertEqual(
-            recorder.bodyText?.contains("+4917612345678"), true,
-            "body should carry the phone number, was: \(recorder.bodyText ?? "nil")"
+            sentBody?.contains("+4917612345678"), true,
+            "body should carry the phone number, was: \(sentBody ?? "nil")"
         )
     }
 
@@ -95,7 +111,7 @@ final class GeneratedClientTests: XCTestCase {
             serverURL: APIEnvironment.development.baseURL,
             transport: StubTransport(
                 status: 200,
-                body: #"{"expiresAt":"2026-09-04T10:15:30Z","resendAvailableAt":"2026-09-04T10:16:00Z"}"#,
+                responseBody: #"{"expiresAt":"2026-09-04T10:15:30Z","resendAvailableAt":"2026-09-04T10:16:00Z"}"#,
                 recorder: recorder
             )
         )

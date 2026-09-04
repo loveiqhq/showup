@@ -37,6 +37,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SW = os.path.join(ROOT, "ios-app/ShowUpWelcome")
 GEN = os.path.join(ROOT, "ios-app/gen_pbxproj.py")
 PBX = os.path.join(ROOT, "ios-app/ShowUpWelcome.xcodeproj/project.pbxproj")
+# The generated API client package. Added 2026-09-04 -- see swift_files() for why.
+PKG = os.path.join(ROOT, "ios-app/ShowUpAPI")
 
 # Already present, already understood, and NOT fixed blind. Each is (file, pattern fragment).
 # Empty, and worth keeping empty. Both original findings are fixed: the flag cache is isolated to
@@ -91,9 +93,31 @@ def code_only(text):
 
 
 def swift_files():
-    if not os.path.isdir(SW):
-        return []
-    return sorted(f for f in os.listdir(SW) if f.endswith(".swift"))
+    """Every Swift file the rules apply to, as paths relative to SW.
+
+    The app's own sources are a flat directory. The generated API client lives in a local Swift
+    package next door, and it was NOT covered here until 2026-09-04 -- which is how an
+    `@unchecked Sendable` got written in its tests and passed all nine checkers. The rule is not
+    weaker in a package, so the package is walked too.
+
+    `.build` and `.swiftpm` are skipped: everything the OpenAPI generator produces lands there, and
+    generated code is not ours to hold to these rules -- flagging it would mean either editing
+    generated files or switching the checker off, and both are worse than the warning.
+    """
+    found = []
+    if os.path.isdir(SW):
+        found += sorted(f for f in os.listdir(SW) if f.endswith(".swift"))
+
+    for base in (PKG,):
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in (".build", ".swiftpm")]
+            for fn in sorted(filenames):
+                if fn.endswith(".swift"):
+                    full = os.path.join(dirpath, fn)
+                    found.append(os.path.relpath(full, SW).replace("\\", "/"))
+    return found
 
 
 def is_known(fname, line):
