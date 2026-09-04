@@ -157,7 +157,7 @@
           "body": {
             "description": "The optional free-text note, if the sender added one",
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "createdAt": {
             "format": "date-time",
@@ -392,7 +392,7 @@
           "venueId": {
             "description": "The suggested venue, if one was chosen",
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "youConfirmedHappened": {
             "description": "Whether you have confirmed the date happened",
@@ -426,7 +426,7 @@
         "properties": {
           "displayName": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "distanceMeters": {
             "description": "Distance from the viewer, rounded (never exact coordinates)",
@@ -434,11 +434,11 @@
           },
           "gender": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "lookingFor": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "userId": {
             "type": "string"
@@ -619,15 +619,15 @@
         "properties": {
           "age": {
             "nullable": true,
-            "type": "object"
+            "type": "integer"
           },
           "displayName": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "gender": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "id": {
             "type": "string"
@@ -640,7 +640,7 @@
           },
           "lookingFor": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "verificationStatus": {
             "enum": [
@@ -1069,11 +1069,11 @@
           },
           "displayName": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "email": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "emailVerified": {
             "type": "boolean"
@@ -1083,7 +1083,7 @@
           },
           "phone": {
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "phoneVerified": {
             "type": "boolean"

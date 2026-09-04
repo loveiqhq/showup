@@ -152,6 +152,11 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-scalars:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // Tokens on disk, encrypted with a Keystore-held master key. A refresh token is a durable
+    // credential -- it mints new access tokens -- so plain SharedPreferences, which is a readable
+    // file on a rooted device and can end up in a backup, is not an acceptable place for one.
+    implementation("androidx.security:security-crypto:1.0.0")
+
     implementation(platform("androidx.compose:compose-bom:2024.10.00"))
     implementation("androidx.core:core-ktx:1.13.1")
 

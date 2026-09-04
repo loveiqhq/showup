@@ -49,6 +49,7 @@ export class DateDto {
   scheduledAt: Date;
 
   @ApiProperty({
+    type: String,
     nullable: true,
     description: 'The suggested venue, if one was chosen',
   })
@@ -111,6 +112,7 @@ export class ChatMessageDto {
   reason: ChatReason;
 
   @ApiProperty({
+    type: String,
     nullable: true,
     description: 'The optional free-text note, if the sender added one',
   })

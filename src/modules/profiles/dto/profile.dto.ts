@@ -8,16 +8,19 @@ export class ProfileDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   displayName: string | null;
 
-  @ApiProperty({ nullable: true })
+  // 'integer', not Number: OpenAPI's `number` is an arbitrary-precision decimal, which the
+  // Kotlin generator maps to BigDecimal. An age is a whole number and every caller would have to
+  // convert it.
+  @ApiProperty({ type: 'integer', nullable: true })
   age: number | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   gender: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   lookingFor: string | null;
 
   @ApiProperty()
