@@ -59,6 +59,9 @@ TESTSRCPHASE, TESTFRMPHASE, TESTRESPHASE = uid(), uid(), uid()
 CFG_TESTLIST, CFG_TESTD, CFG_TESTR = uid(), uid(), uid()
 TESTPROXY, TESTDEP = uid(), uid()
 PKGREF, PKGPROD, PKGBUILD, PKGTESTPROD, PKGTESTBUILD = (uid() for _ in range(5))
+# The generated API client, ShowUpAPI. A LOCAL package reference rather than a remote one, and a
+# package rather than a build plugin on this target -- see ShowUpAPI/Package.swift for why.
+APIPKGREF, APIPROD, APIBUILD, APITESTPROD, APITESTBUILD = (uid() for _ in range(5))
 tst_ref = {f: uid() for f in tests}
 tst_bld = {f: uid() for f in tests}
 
@@ -91,9 +94,13 @@ for f in tests:
       % (tst_bld[f], f, tst_ref[f], f))
 w(T*2 + "%s /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* PhoneNumberKit */; };"
   % (PKGBUILD, PKGPROD))
+w(T*2 + "%s /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* ShowUpAPI */; };"
+  % (APIBUILD, APIPROD))
 if tests:
     w(T*2 + "%s /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* PhoneNumberKit */; };"
       % (PKGTESTBUILD, PKGTESTPROD))
+    w(T*2 + "%s /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* ShowUpAPI */; };"
+      % (APITESTBUILD, APITESTPROD))
 w("/* End PBXBuildFile section */")
 
 w("")
@@ -126,6 +133,7 @@ w(T*3 + "isa = PBXFrameworksBuildPhase;")
 w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
 w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGBUILD)
+w(T*4 + "%s /* ShowUpAPI in Frameworks */," % APIBUILD)
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -134,6 +142,7 @@ w(T*3 + "isa = PBXFrameworksBuildPhase;")
 w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
 w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGTESTBUILD)
+w(T*4 + "%s /* ShowUpAPI in Frameworks */," % APITESTBUILD)
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -217,6 +226,7 @@ w(T*3 + "name = ShowUpWelcome;")
 w(T*3 + "productName = ShowUpWelcome;")
 w(T*3 + "packageProductDependencies = (")
 w(T*4 + "%s /* PhoneNumberKit */," % PKGPROD)
+w(T*4 + "%s /* ShowUpAPI */," % APIPROD)
 w(T*3 + ");")
 w(T*3 + "productReference = %s /* ShowUpWelcome.app */;" % APPREF)
 w(T*3 + 'productType = "com.apple.product-type.application";')
@@ -239,6 +249,7 @@ if tests:
     w(T*3 + "productName = ShowUpWelcomeTests;")
     w(T*3 + "packageProductDependencies = (")
     w(T*4 + "%s /* PhoneNumberKit */," % PKGTESTPROD)
+    w(T*4 + "%s /* ShowUpAPI */," % APITESTPROD)
     w(T*3 + ");")
     w(T*3 + "productReference = %s /* ShowUpWelcomeTests.xctest */;" % TESTPRODREF)
     w(T*3 + 'productType = "com.apple.product-type.bundle.unit-test";')
@@ -296,6 +307,7 @@ w(T*3 + ");")
 w(T*3 + "mainGroup = %s;" % ROOTGRP)
 w(T*3 + "packageReferences = (")
 w(T*4 + '%s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,' % PKGREF)
+w(T*4 + '%s /* XCLocalSwiftPackageReference "ShowUpAPI" */,' % APIPKGREF)
 w(T*3 + ");")
 w(T*3 + "productRefGroup = %s /* Products */;" % PRODGRP)
 w(T*3 + 'projectDirPath = "";')
@@ -510,6 +522,25 @@ w(T*3 + "};")
 w(T*2 + "};")
 w("/* End XCRemoteSwiftPackageReference section */")
 
+# The generated API client, as a LOCAL package in a sibling directory.
+#
+# Local rather than remote because it lives in this repository, and a package rather than a build
+# plugin attached to this target because plugin invocation is the least documented corner of the
+# pbxproj format -- see ShowUpAPI/Package.swift. A local reference is three lines and stable.
+#
+# `relativePath` is resolved from the directory containing the .xcodeproj, which is this one.
+#
+# XCLocalSwiftPackageReference needs objectVersion 55 or newer. This file writes 56, so it is fine;
+# lowering that would break this silently, with Xcode reporting a missing package rather than an
+# unsupported format.
+w("")
+w("/* Begin XCLocalSwiftPackageReference section */")
+w(T*2 + '%s /* XCLocalSwiftPackageReference "ShowUpAPI" */ = {' % APIPKGREF)
+w(T*3 + "isa = XCLocalSwiftPackageReference;")
+w(T*3 + "relativePath = ShowUpAPI;")
+w(T*2 + "};")
+w("/* End XCLocalSwiftPackageReference section */")
+
 w("")
 w("/* Begin XCSwiftPackageProductDependency section */")
 w(T*2 + "%s /* PhoneNumberKit */ = {" % PKGPROD)
@@ -517,11 +548,22 @@ w(T*3 + "isa = XCSwiftPackageProductDependency;")
 w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;' % PKGREF)
 w(T*3 + "productName = PhoneNumberKit;")
 w(T*2 + "};")
+# NOTE the missing `package = ...` line below, and that it is not an omission. A product from a
+# LOCAL package is identified by productName alone; adding a package reference here is what Xcode
+# does for remote packages only, and including it for a local one makes the project fail to open.
+w(T*2 + "%s /* ShowUpAPI */ = {" % APIPROD)
+w(T*3 + "isa = XCSwiftPackageProductDependency;")
+w(T*3 + "productName = ShowUpAPI;")
+w(T*2 + "};")
 if tests:
     w(T*2 + "%s /* PhoneNumberKit */ = {" % PKGTESTPROD)
     w(T*3 + "isa = XCSwiftPackageProductDependency;")
     w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;' % PKGREF)
     w(T*3 + "productName = PhoneNumberKit;")
+    w(T*2 + "};")
+    w(T*2 + "%s /* ShowUpAPI */ = {" % APITESTPROD)
+    w(T*3 + "isa = XCSwiftPackageProductDependency;")
+    w(T*3 + "productName = ShowUpAPI;")
     w(T*2 + "};")
 w("/* End XCSwiftPackageProductDependency section */")
 
