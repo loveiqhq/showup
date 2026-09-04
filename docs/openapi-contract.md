@@ -39,7 +39,7 @@ drift check would be noise.
 | Success responses typed or explicitly bodyless | **52 of 52** |
 | Schemas | 45 |
 | Enum properties | 36 |
-| Nullable properties | 12 |
+| Nullable properties, correctly typed | 12 |
 | Untyped schema properties | **0** |
 | Security scheme | `bearer`, HTTP, JWT |
 | Operations requiring auth | 42 |
@@ -56,9 +56,25 @@ It also reported **26 `: any` occurrences as untyped holes in the generated clie
 `.spec.ts` test doubles. None is in a DTO or a controller, and the emitted schemas contain zero
 untyped properties. They were left alone.
 
-The lesson is the one already in the spike: a measurement is only as good as the pattern behind it,
-and this one was never checked against the emitted document. Every figure in this file comes from
-`openapi.json` itself.
+**A third correction, found on 4 September while writing the auth tests.** This document
+previously reported "12 nullable properties" as a mark of quality. They were 12 nullable properties
+with **no declared type** — `string | null` in NestJS infers `type: object` unless the type is
+stated — and they generated as `kotlin.Any?`:
+
+```kotlin
+val phone: kotlin.Any?
+val email: kotlin.Any?
+val displayName: kotlin.Any?
+```
+
+A user's phone number as `Any?` means every screen casts it. Fixed across `UserDto`, `ProfileDto`,
+`DiscoveryProfileDto`, `DateDto` and `ChatMessageDto`; all twelve now generate as `String?` or
+`Int?`, and no shapeless object property remains.
+
+The lesson is the one already in the spike, and it has now cost three corrections in this one file:
+a measurement is only as good as the pattern behind it, and a count is not a quality check. "Twelve
+nullable properties" was true and told us nothing. Every figure here comes from `openapi.json`
+itself, and the ones that describe quality say what was actually verified.
 
 ## What was actually fixed
 
@@ -120,6 +136,7 @@ before adding a fifth.
 
 | Gap | Severity | Note |
 |---|---|---|
+| **Ten numeric fields are `number`, so they generate as `BigDecimal`** | **Medium** | `expiresIn`, `statusCode`, `preparationMinutes`, `rating`, `position`, `distanceMeters` and others. OpenAPI's `number` is an arbitrary-precision decimal; these are whole numbers and every caller converts. The fix is `type: 'integer'` on each. `latitude`, `longitude` and `matchScore` genuinely are decimals and should stay |
 | No pagination model | **Medium** | No list endpoint pages yet. Define one shared DTO before the first one does, or each will invent its own |
 | `403` / `404` undeclared | Low | Deliberate. Add per route where a guard or lookup genuinely produces them |
 | `message` is `string \| string[]` | Low | Real, and declared honestly. Both clients must handle the union; narrowing it would break decoding on exactly the errors users hit most |
@@ -142,4 +159,15 @@ build and nothing generated is committed or editable.
 **Then the auth layer on both** — Keychain and `EncryptedSharedPreferences`, with a single-flight
 refresh so a burst of concurrent 401s produces one refresh rather than ten.
 
-Details for all three are in `mobile-client-architecture-spike.md`, part 2.
+**All three are done as of 4 September.** Android generates through the OpenAPI Generator Gradle
+plugin; iOS through Apple's generator as an SPM build plugin in a local `ShowUpAPI` package. Both
+have JWT injection, encrypted storage, rotation-aware refresh, logout clearing and single-flight
+refresh, each with a test asserting ten concurrent callers produce exactly one refresh call.
+
+One thing is deliberately unverified: `KeychainTokenStore` has a construction check only. Reading
+and writing the real Keychain from a SwiftPM test bundle needs a signed host app with a
+`keychain-access-group` entitlement, and without one `SecItemAdd` returns
+`errSecMissingEntitlement` — the test would assert on the sandbox rather than on our code.
+**It must be exercised by hand on a device before the first release.**
+
+Details are in `mobile-client-architecture-spike.md`, part 2.
