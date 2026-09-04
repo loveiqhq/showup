@@ -87,7 +87,7 @@ final class AuthLayerTests: XCTestCase {
         )
         return TokenRefresher(tokens: tokens) { refreshToken in
             let response = try await bare.refreshAuthToken(
-                headers: .init(userAgent: "test-agent"),
+                headers: .init(user_hyphen_agent: "test-agent"),
                 body: .json(.init(refreshToken: refreshToken))
             )
             switch response {

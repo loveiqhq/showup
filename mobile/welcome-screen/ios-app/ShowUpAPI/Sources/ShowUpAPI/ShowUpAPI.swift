@@ -42,7 +42,10 @@ public struct ShowUpAPI: Sendable {
 
         let refresher = TokenRefresher(tokens: tokens) { refreshToken in
             let response = try await bare.refreshAuthToken(
-                headers: .init(userAgent: Self.userAgent),
+                // Apple's generator renders a hyphen in a header name as `_hyphen_`, so `user-agent`
+                // becomes `user_hyphen_agent`. The Kotlin generator called the same parameter
+                // `userAgent`; the contract is shared but the naming conventions are not.
+                headers: .init(user_hyphen_agent: Self.userAgent),
                 body: .json(.init(refreshToken: refreshToken))
             )
             switch response {
