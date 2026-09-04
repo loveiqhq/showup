@@ -1,5 +1,5 @@
 import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
@@ -31,6 +31,7 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('phone/start')
+  @ApiOperation({ operationId: 'startPhoneVerification' })
   @HttpCode(200)
   @ApiOkResponse({ type: OtpChallengeResponseDto })
   start(@Body() dto: RequestOtpDto): Promise<OtpChallengeResponseDto> {
@@ -40,6 +41,7 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('phone/verify')
+  @ApiOperation({ operationId: 'verifyPhone' })
   @HttpCode(200)
   @ApiOkResponse({ type: AuthResponseDto })
   verifyPhone(
@@ -51,6 +53,7 @@ export class AuthController {
 
   @Public()
   @Post('apple')
+  @ApiOperation({ operationId: 'loginWithApple' })
   @HttpCode(200)
   @ApiOkResponse({ type: AuthResponseDto })
   apple(
@@ -62,6 +65,7 @@ export class AuthController {
 
   @Public()
   @Post('google')
+  @ApiOperation({ operationId: 'loginWithGoogle' })
   @HttpCode(200)
   @ApiOkResponse({ type: AuthResponseDto })
   google(
@@ -73,6 +77,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @ApiOperation({ operationId: 'refreshAuthToken' })
   @HttpCode(200)
   @ApiOkResponse({ type: AuthResponseDto })
   refresh(
@@ -84,6 +89,7 @@ export class AuthController {
 
   @Public()
   @Post('logout')
+  @ApiOperation({ operationId: 'logout' })
   @HttpCode(204)
   logout(@Body() dto: LogoutDto): Promise<void> {
     return this.auth.logout(dto.refreshToken);
@@ -94,6 +100,7 @@ export class AuthController {
    * support/contact detail, not a sign-in method.
    */
   @Post('email/start')
+  @ApiOperation({ operationId: 'startEmailVerification' })
   @HttpCode(200)
   @ApiOkResponse({ type: OtpChallengeResponseDto })
   emailStart(@CurrentUser() user: User, @Body() dto: RequestEmailDto) {
@@ -102,6 +109,7 @@ export class AuthController {
 
   /** Confirm the email code, marking the signed-in user's email as verified. */
   @Post('email/verify')
+  @ApiOperation({ operationId: 'verifyEmail' })
   @HttpCode(204)
   async emailVerify(
     @CurrentUser() user: User,

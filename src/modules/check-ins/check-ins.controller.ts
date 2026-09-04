@@ -7,7 +7,14 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -23,6 +30,7 @@ export class CheckInsController {
 
   /** Check in: become available for matching for the given window. */
   @Post()
+  @ApiOperation({ operationId: 'createCheckIn' })
   @ApiOkResponse({ type: CheckInDto })
   async create(
     @CurrentUser() user: User,
@@ -33,7 +41,12 @@ export class CheckInsController {
 
   /** Fetch the user's currently-active check-in (or null if they are not checked in). */
   @Get('active')
-  @ApiOkResponse({ type: CheckInDto })
+  @ApiOperation({ operationId: 'getActiveCheckIn' })
+  @ApiExtraModels(CheckInDto)
+  @ApiOkResponse({
+    description: 'The active check-in, or null if the user has none.',
+    schema: { allOf: [{ $ref: getSchemaPath(CheckInDto) }], nullable: true },
+  })
   async active(@CurrentUser() user: User): Promise<CheckInDto | null> {
     const checkIn = await this.checkIns.findActive(user.id);
     return checkIn ? CheckInDto.from(checkIn) : null;
@@ -41,6 +54,7 @@ export class CheckInsController {
 
   /** Cancel one of the user's check-ins. */
   @Post(':id/cancel')
+  @ApiOperation({ operationId: 'cancelCheckIn' })
   @HttpCode(200)
   @ApiOkResponse({ type: CheckInDto })
   async cancel(

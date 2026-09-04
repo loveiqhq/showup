@@ -6,7 +6,12 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { PhotoDto } from './dto/photo.dto';
@@ -28,6 +33,7 @@ export class ProfileAdminController {
   ) {}
 
   @Patch('profiles/:userId/verification')
+  @ApiOperation({ operationId: 'setProfileVerificationStatus' })
   @ApiOkResponse({ type: ProfileDto })
   async setVerification(
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -39,6 +45,7 @@ export class ProfileAdminController {
   }
 
   @Patch('photos/:id/moderation')
+  @ApiOperation({ operationId: 'setPhotoModeration' })
   @ApiOkResponse({ type: PhotoDto })
   async setPhotoModeration(
     @Param('id', ParseUUIDPipe) id: string,

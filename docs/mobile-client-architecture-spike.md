@@ -385,11 +385,11 @@ Measured across 52 routes and their DTOs.
 | Check | Finding |
 |---|---|
 | `operationId` | **0 of 52.** NestJS then invents one from controller + method, so clients read `authControllerVerifyPhone(...)` |
-| Explicit response DTOs | **13 of 52 typed; 39 emit `void` or an untyped blob** |
+| Explicit response DTOs | **43 typed, 5 explicit 204, 2 bodyless-but-undeclared.** An earlier count of "39 untyped" was wrong -- it was produced by a grep that did not match `@ApiOkResponse({ type: ... })`, which is the form this codebase actually uses |
 | `@ApiOkResponse` etc. | 44 `@ApiOkResponse`, 1 `@ApiCreatedResponse`, 1 `@ApiNoContentResponse` — present but often without a `type` |
 | `@ApiProperty` | 150 uses — good coverage |
 | Enums | 20 — will generate as Kotlin/Swift enums if surfaced in typed DTOs |
-| `: any` | **26 occurrences in `src/`** — each one is an untyped hole in the generated client |
+| `: any` | **26 occurrences, all of them in `.spec.ts` test doubles.** None in a DTO, none in a controller, and the emitted schemas contain zero untyped properties. They do not touch the contract |
 | Pagination model | **none** — no shared pagination DTO exists |
 | Error response schema | not declared — errors generate as untyped |
 | Auth scheme | declared in Swagger config; verify it emits `bearerAuth` in the document |
@@ -401,12 +401,12 @@ Measured across 52 routes and their DTOs.
 
 1. An emit script and an `npm run openapi:emit`
 2. `operationId` on all 52 routes
-3. Typed responses on the 39 that lack them
+3. Accurate responses on the 2 bodyless routes, the 2 with a status-code mismatch, and the 2 returning a nullable DTO
 4. A CI step that fails when the committed spec differs from a freshly generated one
 
 **RECOMMENDED:**
 
-5. Remove or narrow the 26 `: any` — each is a field the apps cannot see
+5. ~~Remove or narrow the 26 `: any`~~ — **withdrawn.** All 26 are test doubles and none affects the contract
 6. A declared error-response schema, so both clients get one typed error rather than a blob
 7. A shared pagination DTO before the first list endpoint ships
 
@@ -987,7 +987,7 @@ current check can see).
 
 | # | Task | Why | Size | Files | Depends on | Blocks frontend? |
 |---|---|---|---|---|---|---|
-| 1 | Emit `openapi.json` + `operationId` on 52 routes + type the 39 responses | Every hand-written client model becomes throwaway work. Zero exist today | **M** | `src/**` | — | **Yes**, for any API screen |
+| 1 | ~~Emit `openapi.json` + `operationId` on 52 routes + fix the response gaps~~ **DONE 4 Sep** | Every hand-written client model becomes throwaway work. Zero exist today | **M** | `src/**` | — | was **Yes** |
 | 2 | Design tokens: spacing, type roles, illustration palette, brand allowlist | Every screen built without them is migrated by hand later | **M** | `DesignSystem.*` | — | **Yes** |
 | 3 | `PrimaryButton` — collapse three implementations into one | Three exist; one screen imports two. Caused two defects | **S** | `designsystem/components` | 2 | **Yes** |
 | 4 | `InputField`, `TopBar`, `StatusBadge` with the 44pt floor and reserved error slot built in | The three defects that shipped live in exactly these | **M** | same | 2, 3 | **Yes** |
@@ -1012,7 +1012,7 @@ Every screen added before these lands is migrated afterwards by hand.
 | 10 | Dynamic Type / largest-font measurement | EU Accessibility Act; where "no scroll" breaks | M |
 | 11 | Roborazzi screenshot tests on Android | The only automation that catches appearance | M |
 | 12 | SwiftLint + detekt | Cheap, but neither has caught anything we have hit | S |
-| 13 | Backend `: any` cleanup (26), error schema, pagination DTO | Quality of the generated clients | M |
+| 13 | Pagination DTO before the first list endpoint ships | Quality of the generated clients | S |
 
 ## P3 — later
 
@@ -1055,10 +1055,11 @@ Every actual issue found. All were fixed before this document.
 | `auth` | 8 | **6** — incl. `/auth/apple`, `/auth/google`, `/auth/refresh` | 0 |
 | `dates` | — | **5** | 0 |
 | all others | — | 19 | 0 |
-| **Total** | **52** | **39** | **0 of 52** |
+| **Total** | **52** | **2 (both bodyless by design)** | **52 of 52 since 4 Sep** |
 
-Also: **26 `: any`** in `src/`, no pagination DTO, no declared error schema. Per-route detail is
-generated from the controllers into `docs/openapi-gaps.md`.
+The `: any` count is 26 and **all of them are test doubles** — none reaches the contract. A
+pagination DTO is still absent. The error schema now exists (`ApiErrorDto`). Current state is in
+`docs/openapi-contract.md`.
 
 ---
 

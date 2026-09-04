@@ -7,7 +7,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -27,6 +32,7 @@ export class MatchingController {
 
   /** The discovery feed: nearby, available, eligible profiles the user hasn't liked yet. */
   @Get('discovery')
+  @ApiOperation({ operationId: 'listDiscoveryProfiles' })
   @ApiOkResponse({ type: [DiscoveryProfileDto] })
   async discovery(
     @CurrentUser() user: User,
@@ -41,6 +47,7 @@ export class MatchingController {
 
   /** Like a profile. Creates a match automatically if the like is mutual and both are available. */
   @Post('likes')
+  @ApiOperation({ operationId: 'likeProfile' })
   @ApiOkResponse({ type: LikeResultDto })
   async like(
     @CurrentUser() user: User,
@@ -52,6 +59,7 @@ export class MatchingController {
 
   /** The user's active matches. */
   @Get('me/matches')
+  @ApiOperation({ operationId: 'listMatches' })
   @ApiOkResponse({ type: [MatchDto] })
   async matches(@CurrentUser() user: User): Promise<MatchDto[]> {
     const matches = await this.matching.listMatches(user.id);
