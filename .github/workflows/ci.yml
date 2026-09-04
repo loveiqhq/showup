@@ -119,10 +119,13 @@ jobs:
       - name: Regenerate the OpenAPI contract
         run: npm run openapi:emit
 
-      - name: Fail if the committed contract is stale
+      # Both copies. The iOS one exists because Apple's generator is a build plugin and resolves
+      # its inputs relative to the package directory, so it cannot read the root file. `openapi:emit`
+      # writes both, and diffing both is what stops the second becoming a stale second truth.
+      - name: Fail if either committed contract is stale
         run: |
-          git diff --exit-code openapi.json || {
-            echo "::error::openapi.json is out of date. Run 'npm run openapi:emit' and commit the result."
+          git diff --exit-code             openapi.json             mobile/welcome-screen/ios-app/ShowUpAPI/Sources/ShowUpAPI/openapi.json || {
+            echo "::error::A committed openapi.json is out of date. Run 'npm run openapi:emit' and commit the result."
             exit 1
           }
 
@@ -271,6 +274,21 @@ jobs:
             -resultBundlePath ios-results.xcresult \
             test \
             | { if command -v xcbeautify >/dev/null; then xcbeautify --renderer github-actions; else cat; fi; }
+
+      # The generated API client lives in its own local Swift package, so it is built and tested
+      # with plain SwiftPM -- no Xcode project, no simulator, no app target involved. That
+      # independence is the point: the client is provably correct even if app wiring lags behind,
+      # and a generator or contract problem surfaces here rather than inside an app build.
+      #
+      # This is also the step that proves the OpenAPI build plugin runs at all: `swift build`
+      # invokes it, so a failure here means the contract did not generate.
+      - name: Build the generated API client package
+        working-directory: mobile/welcome-screen/ios-app/ShowUpAPI
+        run: swift build
+
+      - name: Test the generated API client package
+        working-directory: mobile/welcome-screen/ios-app/ShowUpAPI
+        run: swift test
 
       - name: Upload the result bundle on failure
         if: failure()
