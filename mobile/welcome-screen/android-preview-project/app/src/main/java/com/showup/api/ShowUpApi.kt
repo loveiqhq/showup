@@ -8,31 +8,63 @@ import com.showup.api.generated.api.MatchingApi
 import com.showup.api.generated.api.ProfilesApi
 import com.showup.api.generated.api.SafetyApi
 import com.showup.api.generated.infrastructure.ApiClient
+import com.showup.api.generated.model.LogoutDto
+import com.showup.api.generated.model.RefreshDto
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 /**
  * The app's single entry point to the backend.
  *
- * Wraps the generated `ApiClient` rather than replacing it: the generated one already knows how to
- * build Retrofit with the right converter, and it accepts an OkHttpClient.Builder -- which is the
- * seam auth goes through. Nothing here duplicates generated behaviour.
+ * Wraps the generated `ApiClient` rather than replacing it: the generated one already builds
+ * Retrofit with the right converters, and it accepts an OkHttpClient.Builder -- which is the seam
+ * auth goes through. Nothing here duplicates generated behaviour.
  *
  * NOT a singleton object. It takes its base URL and token store as parameters so a test can point
- * it at a local MockWebServer with a fake store, which is how the client is verified without a
- * backend, a network or an emulator.
+ * it at a local MockWebServer with an in-memory store, which is how all of this is verified without
+ * a backend, a network or an emulator.
  */
 class ShowUpApi(
-    baseUrl: String = BuildConfig.API_BASE_URL,
-    tokens: TokenStore,
+    private val baseUrl: String = BuildConfig.API_BASE_URL,
+    private val tokens: TokenStore,
 ) {
+    /**
+     * A client with NO auth attached, used only to refresh.
+     *
+     * This separation is load-bearing. If the refresh call went through the authenticated client it
+     * would itself be subject to refresh-on-401, so a refresh token the server has revoked would
+     * trigger a refresh, which would fail 401, which would trigger a refresh. OkHttp's retry cap
+     * would eventually stop it, but only after several pointless round trips and with a failure
+     * that reads as a network problem rather than an expired session.
+     */
+    private val bareAuthApi: AuthApi by lazy {
+        ApiClient(baseUrl = baseUrl).createService(AuthApi::class.java)
+    }
+
+    private val refresher = TokenRefresher(tokens) { refreshToken ->
+        val response = bareAuthApi.refreshAuthToken(USER_AGENT, RefreshDto(refreshToken = refreshToken))
+        val body = response.body()
+        if (!response.isSuccessful || body == null) {
+            null
+        } else {
+            // Both tokens, not just the access token: the backend ROTATES the refresh token on
+            // every successful refresh, so storing only the new access token would leave the app
+            // holding a refresh token that is already spent.
+            TokenRefresher.TokenPair(
+                accessToken = body.accessToken,
+                refreshToken = body.refreshToken,
+            )
+        }
+    }
+
     private val client = ApiClient(
         baseUrl = baseUrl,
         okHttpClientBuilder = OkHttpClient.Builder()
-            // Auth is added as an application interceptor, not a network one: application
-            // interceptors run once per call rather than once per network attempt, so a redirect
-            // or a retry cannot produce a second, differently-authenticated request.
+            // An application interceptor, not a network one: application interceptors run once per
+            // call rather than once per network attempt, so a redirect or retry cannot produce a
+            // second, differently-authenticated request.
             .addInterceptor(AuthInterceptor(tokens))
+            .authenticator(TokenAuthenticator(refresher))
             // Explicit timeouts. OkHttp's defaults are 10s, which is generous on a train and
             // indistinguishable from a hang to a user holding a phone.
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -49,4 +81,34 @@ class ShowUpApi(
     val checkIns: CheckInsApi by lazy { client.createService(CheckInsApi::class.java) }
     val matching: MatchingApi by lazy { client.createService(MatchingApi::class.java) }
     val safety: SafetyApi by lazy { client.createService(SafetyApi::class.java) }
+
+    /**
+     * Signs the user out: revokes the session server-side, then forgets the tokens locally.
+     *
+     * THE ORDER MATTERS, AND SO DOES IGNORING THE RESULT.
+     *
+     * The server call goes first, because it needs the refresh token that the second step deletes.
+     * And the local clear happens whether or not that call succeeds: a user who taps sign out on a
+     * plane must end up signed out. Leaving the tokens because the network was unavailable means
+     * the app still looks signed in, which is both surprising and a genuine privacy problem on a
+     * shared device.
+     *
+     * The consequence -- a refresh token that stays valid server-side until it expires -- is the
+     * lesser harm, and it is the same thing that happens if the app is uninstalled mid-session.
+     */
+    suspend fun signOut() {
+        val refreshToken = tokens.refreshToken()
+        if (refreshToken != null) {
+            runCatching { bareAuthApi.logout(LogoutDto(refreshToken = refreshToken)) }
+        }
+        tokens.clear()
+    }
+
+    private companion object {
+        /**
+         * Sent on refresh because the contract requires a user-agent on that route -- the backend
+         * records it against the session so a user can see where they are signed in.
+         */
+        const val USER_AGENT = "ShowUp-Android/${BuildConfig.VERSION_NAME}"
+    }
 }
