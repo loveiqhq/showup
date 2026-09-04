@@ -42,3 +42,40 @@
 # that build's crash reports can never be decoded.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# ── Retrofit and the generated API client ───────────────────────────────────
+# Retrofit builds its implementations at runtime from the annotations on an interface, through a
+# dynamic proxy. R8 sees an interface nobody instantiates and a set of annotations nobody reads, so
+# without these it strips the generic signatures Retrofit needs to know what to deserialize into --
+# and the failure is a confusing "Unable to create converter" at the first call, in release only.
+-keep,allowobfuscation,allowshrinking interface retrofit2.Call
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keepclassmembers,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+# Retrofit's own optional platform bits, referenced but not present on Android.
+-dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+-dontwarn retrofit2.KotlinExtensions
+
+# OkHttp names two optional dependencies it works fine without.
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+
+# ── kotlinx.serialization ───────────────────────────────────────────────────
+# Serializers are generated at COMPILE time, which is most of why this library was chosen over a
+# reflective one: there is no per-model keep rule to forget. What is still needed is the companion
+# that holds each generated serializer, because it is only ever reached reflectively by name.
+-if @kotlinx.serialization.Serializable class **
+-keepclassmembers class <1> {
+    static <1>$Companion Companion;
+}
+-if @kotlinx.serialization.Serializable class ** {
+    static **$* *;
+}
+-keepclassmembers class <2>$<3> {
+    kotlinx.serialization.KSerializer serializer(...);
+}
