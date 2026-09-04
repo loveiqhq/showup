@@ -35,7 +35,35 @@ import {
 } from '../src/openapi.config';
 import { ApiErrorDto } from '../src/common/errors/api-error.dto';
 
-const OUTPUT = join(__dirname, '..', 'openapi.json');
+/**
+ * Where the contract is written. Both copies, always, in one command.
+ *
+ * The second exists because Apple's OpenAPI generator is a BUILD PLUGIN, and an SPM build plugin
+ * resolves its inputs relative to the target directory -- it cannot read a file from outside the
+ * package. So the iOS package needs its own copy.
+ *
+ * A second copy of a contract is exactly the kind of thing that drifts, so it is not left to
+ * anybody to remember: this script writes both and CI diffs both. A stale iOS copy is therefore a
+ * failed build rather than an app generated against an API the server no longer serves.
+ *
+ * Android needs no entry here -- the Gradle plugin takes an absolute path and reads the root file
+ * directly. That path is repo-relative (`$rootDir/../../../openapi.json`), which couples the app
+ * build to the repository layout; see docs/openapi-contract.md.
+ */
+const OUTPUTS = [
+  join(__dirname, '..', 'openapi.json'),
+  join(
+    __dirname,
+    '..',
+    'mobile',
+    'welcome-screen',
+    'ios-app',
+    'ShowUpAPI',
+    'Sources',
+    'ShowUpAPI',
+    'openapi.json',
+  ),
+];
 
 /** Recursively sort object keys; leave arrays in their declared order. */
 function stable(value: unknown): unknown {
@@ -63,11 +91,8 @@ async function main() {
       extraModels: [ApiErrorDto],
     }),
   );
-  writeFileSync(
-    OUTPUT,
-    `${JSON.stringify(stable(document), null, 2)}\n`,
-    'utf8',
-  );
+  const serialised = `${JSON.stringify(stable(document), null, 2)}\n`;
+  for (const target of OUTPUTS) writeFileSync(target, serialised, 'utf8');
 
   const paths = Object.keys(document.paths ?? {});
   const operations = paths.reduce(
@@ -81,7 +106,8 @@ async function main() {
 
   // eslint-disable-next-line no-console
   console.log(
-    `openapi.json written: ${paths.length} paths, ${operations} operations, ${schemas} schemas`,
+    `openapi.json written to ${OUTPUTS.length} locations: ` +
+      `${paths.length} paths, ${operations} operations, ${schemas} schemas`,
   );
 
   await app.close();
