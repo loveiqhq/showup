@@ -62,6 +62,9 @@ PKGREF, PKGPROD, PKGBUILD, PKGTESTPROD, PKGTESTBUILD = (uid() for _ in range(5))
 # The generated API client, ShowUpAPI. A LOCAL package reference rather than a remote one, and a
 # package rather than a build plugin on this target -- see ShowUpAPI/Package.swift for why.
 APIPKGREF, APIPROD, APIBUILD, APITESTPROD, APITESTBUILD = (uid() for _ in range(5))
+# Crash reporting. A remote package, pinned to a major version -- see the note by its
+# XCRemoteSwiftPackageReference below.
+SENREF, SENPROD, SENBUILD, SENTESTPROD, SENTESTBUILD = (uid() for _ in range(5))
 tst_ref = {f: uid() for f in tests}
 tst_bld = {f: uid() for f in tests}
 
@@ -96,11 +99,15 @@ w(T*2 + "%s /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef
   % (PKGBUILD, PKGPROD))
 w(T*2 + "%s /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* ShowUpAPI */; };"
   % (APIBUILD, APIPROD))
+w(T*2 + "%s /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* Sentry */; };"
+  % (SENBUILD, SENPROD))
 if tests:
     w(T*2 + "%s /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* PhoneNumberKit */; };"
       % (PKGTESTBUILD, PKGTESTPROD))
     w(T*2 + "%s /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* ShowUpAPI */; };"
       % (APITESTBUILD, APITESTPROD))
+    w(T*2 + "%s /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* Sentry */; };"
+      % (SENTESTBUILD, SENTESTPROD))
 w("/* End PBXBuildFile section */")
 
 w("")
@@ -134,6 +141,7 @@ w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
 w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGBUILD)
 w(T*4 + "%s /* ShowUpAPI in Frameworks */," % APIBUILD)
+w(T*4 + "%s /* Sentry in Frameworks */," % SENBUILD)
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -143,6 +151,7 @@ w(T*3 + "buildActionMask = 2147483647;")
 w(T*3 + "files = (")
 w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGTESTBUILD)
 w(T*4 + "%s /* ShowUpAPI in Frameworks */," % APITESTBUILD)
+w(T*4 + "%s /* Sentry in Frameworks */," % SENTESTBUILD)
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -227,6 +236,7 @@ w(T*3 + "productName = ShowUpWelcome;")
 w(T*3 + "packageProductDependencies = (")
 w(T*4 + "%s /* PhoneNumberKit */," % PKGPROD)
 w(T*4 + "%s /* ShowUpAPI */," % APIPROD)
+w(T*4 + "%s /* Sentry */," % SENPROD)
 w(T*3 + ");")
 w(T*3 + "productReference = %s /* ShowUpWelcome.app */;" % APPREF)
 w(T*3 + 'productType = "com.apple.product-type.application";')
@@ -250,6 +260,7 @@ if tests:
     w(T*3 + "packageProductDependencies = (")
     w(T*4 + "%s /* PhoneNumberKit */," % PKGTESTPROD)
     w(T*4 + "%s /* ShowUpAPI */," % APITESTPROD)
+    w(T*4 + "%s /* Sentry */," % SENTESTPROD)
     w(T*3 + ");")
     w(T*3 + "productReference = %s /* ShowUpWelcomeTests.xctest */;" % TESTPRODREF)
     w(T*3 + 'productType = "com.apple.product-type.bundle.unit-test";')
@@ -308,6 +319,7 @@ w(T*3 + "mainGroup = %s;" % ROOTGRP)
 w(T*3 + "packageReferences = (")
 w(T*4 + '%s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,' % PKGREF)
 w(T*4 + '%s /* XCLocalSwiftPackageReference "ShowUpAPI" */,' % APIPKGREF)
+w(T*4 + '%s /* XCRemoteSwiftPackageReference "sentry-cocoa" */,' % SENREF)
 w(T*3 + ");")
 w(T*3 + "productRefGroup = %s /* Products */;" % PRODGRP)
 w(T*3 + 'projectDirPath = "";')
@@ -520,6 +532,14 @@ w(T*4 + "kind = upToNextMajorVersion;")
 w(T*4 + "minimumVersion = 5.0.8;")
 w(T*3 + "};")
 w(T*2 + "};")
+w(T*2 + '%s /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {' % SENREF)
+w(T*3 + "isa = XCRemoteSwiftPackageReference;")
+w(T*3 + 'repositoryURL = "https://github.com/getsentry/sentry-cocoa.git";')
+w(T*3 + "requirement = {")
+w(T*4 + "kind = upToNextMajorVersion;")
+w(T*4 + "minimumVersion = 8.44.0;")
+w(T*3 + "};")
+w(T*2 + "};")
 w("/* End XCRemoteSwiftPackageReference section */")
 
 # The generated API client, as a LOCAL package in a sibling directory.
@@ -555,6 +575,12 @@ w(T*2 + "%s /* ShowUpAPI */ = {" % APIPROD)
 w(T*3 + "isa = XCSwiftPackageProductDependency;")
 w(T*3 + "productName = ShowUpAPI;")
 w(T*2 + "};")
+# Sentry is REMOTE, so unlike ShowUpAPI above it does carry a `package` reference.
+w(T*2 + "%s /* Sentry */ = {" % SENPROD)
+w(T*3 + "isa = XCSwiftPackageProductDependency;")
+w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "sentry-cocoa" */;' % SENREF)
+w(T*3 + "productName = Sentry;")
+w(T*2 + "};")
 if tests:
     w(T*2 + "%s /* PhoneNumberKit */ = {" % PKGTESTPROD)
     w(T*3 + "isa = XCSwiftPackageProductDependency;")
@@ -564,6 +590,11 @@ if tests:
     w(T*2 + "%s /* ShowUpAPI */ = {" % APITESTPROD)
     w(T*3 + "isa = XCSwiftPackageProductDependency;")
     w(T*3 + "productName = ShowUpAPI;")
+    w(T*2 + "};")
+    w(T*2 + "%s /* Sentry */ = {" % SENTESTPROD)
+    w(T*3 + "isa = XCSwiftPackageProductDependency;")
+    w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "sentry-cocoa" */;' % SENREF)
+    w(T*3 + "productName = Sentry;")
     w(T*2 + "};")
 w("/* End XCSwiftPackageProductDependency section */")
 

@@ -1,7 +1,7 @@
 # Observability (Epic 16)
 
-How the backend reports its own health and its own failures. Three pieces: health endpoints, structured
-logging, and error monitoring.
+How the system reports its own health and its own failures. Four pieces: health endpoints,
+structured logging, backend error monitoring, and crash reporting on the two apps.
 
 ---
 
@@ -131,6 +131,80 @@ id — knowing which account hit a failure is what makes it fixable.
 
 ---
 
+## 4. Crash reporting on the apps (4 September 2026)
+
+Sentry on Android and iOS, the same shape as the backend above: **off unless switched on and given a
+DSN**, so both apps build and run with no account and no credential committed.
+
+| Surface | Started by | Switched on with |
+|---|---|---|
+| Android | `Crashes.start` from `ShowUpApplication.onCreate` | `SENTRY_ENABLED` / `SENTRY_DSN` build-config fields |
+| iOS | `Crashes.start` from `ShowUpWelcomeApp.init` | `CrashReporting.enabled` / `.dsn` in `Crashes.swift` |
+
+**Android auto-init is disabled in the manifest** (`io.sentry.auto-init` = `false`). Sentry otherwise
+reads a DSN from manifest metadata, which would mean committing one and losing the switch.
+
+**Why reporting starts that early.** Android gains an `Application` subclass for this single purpose:
+`MainActivity.onCreate` is already too late, and a crash during application startup is both the
+hardest to reproduce and the most likely to hit every user at once. iOS starts it in the `App`
+initialiser for the same reason.
+
+### What the apps deliberately do not collect
+
+Within reach of a mobile stack trace are phone numbers, one-time codes, coordinates and message text.
+
+| Setting | Value | Why |
+|---|---|---|
+| `sendDefaultPii` | **off** | otherwise the SDK attaches IP address and device identifiers itself |
+| Session tracking | **off** | release health needs a persistent installation identifier |
+| Breadcrumbs | **0** | they auto-capture UI interactions and request URLs — on the phone screen, that is the number being typed |
+| Screenshots, view hierarchy (iOS) | **off** | a screenshot of the phone screen *is* the phone number |
+| `beforeSend` | **always set** | redacts every prohibited field name before an event leaves |
+| `user` object | **always cleared** | an id, email or IP is never needed to fix a crash |
+
+Breadcrumbs are the most useful feature here and the most dangerous, which is why they are off rather
+than tuned. Reinstate only with an explicit allowlist.
+
+### One list, three copies, compared
+
+`prohibited-fields.ts`, `ProhibitedFields.kt` and `ProhibitedFields.swift` hold the same **47** field
+names, matched on the normalised form exactly as section 3 describes.
+
+**The three copies are not trusted to match — `audit/check-privacy-parity.py` compares them.** The
+drift is silent and one-directional: a name added to the backend and forgotten on mobile means the
+apps keep sending something the backend has decided is too sensitive to record, and nothing anywhere
+fails. Verified by injection — removing a field from one list, or adding one, both fail the check and
+name the field.
+
+The Swift normaliser strips to ASCII explicitly rather than using `isLetter`, which accepts `ü`
+and `é`. Left as `isLetter` the three normalisers would disagree on any non-ASCII field name.
+
+### Before switching it on
+
+1. **Create the Sentry organisation in the EU region.** Chosen at creation and **not migratable
+   afterwards**; the DSN differs (`ingest.de.sentry.io`). The backend is already pinned to
+   `eu-west-1`, so error reports landing in the US would be an odd gap. Available on the free tier.
+2. **Sign Sentry's DPA** — they are a processor under GDPR even with scrubbing in place.
+3. **Set the spending cap to $0** — an error loop should stop sending, not start billing.
+4. Supply the DSN through the release pipeline, never by committing it.
+
+The free tier is sufficient for now. Check current limits before relying on a number.
+
+### Verification status
+
+| | |
+|---|---|
+| Android gating and scrubbing | **verified** — 11 unit tests, plain JVM, no emulator |
+| Android release build with the SDK | **verified** — `assembleRelease` passes, so R8 keeps what Sentry needs |
+| Three-way list parity | **verified**, and the checker itself verified by injection |
+| iOS gating and scrubbing | **UNVERIFIED** — 13 tests written, never compiled |
+
+**iOS is unverified because CI has no runners.** The `sentry-cocoa` package reference, `Crashes.swift`
+and `CrashesTests.swift` have never been through a compiler. `audit/check-pbxproj.py` confirms the
+project structure is internally consistent, which is a different and much weaker claim.
+
+---
+
 ## Where things live
 
 ```
@@ -138,4 +212,12 @@ src/common/logging/     json.logger.ts · request-context.ts · request-id.middl
 src/common/errors/      sentry.setup.ts · all-exceptions.filter.ts · report-policy.ts · scrub.ts
 src/common/privacy/     prohibited-fields.ts   (shared with analytics)
 src/health/             health.controller.ts
+
+mobile/welcome-screen/android-preview-project/app/src/main/java/com/showup/
+                        ShowUpApplication.kt
+                        observability/          Crashes.kt · ProhibitedFields.kt
+mobile/welcome-screen/ios-app/ShowUpWelcome/
+                        Crashes.swift · ProhibitedFields.swift · ShowUpWelcomeApp.swift
+mobile/welcome-screen/audit/
+                        check-privacy-parity.py   (compares all three lists)
 ```

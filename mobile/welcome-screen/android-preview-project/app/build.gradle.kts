@@ -90,6 +90,10 @@ android {
             // 10.0.2.2 is the host machine as seen from the Android emulator; localhost inside the
             // emulator is the emulator itself.
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+            // Crash reporting off in debug: a crash you are looking at in the debugger does not
+            // need to travel to a server, and development noise would drown real reports.
+            buildConfigField("boolean", "SENTRY_ENABLED", "false")
+            buildConfigField("String", "SENTRY_DSN", "\"\"")
         }
         release {
             // On now rather than later, deliberately. R8 breaks the things it cannot see -- data
@@ -106,6 +110,11 @@ android {
                 "proguard-rules.pro",
             )
             buildConfigField("String", "API_BASE_URL", "\"https://api.showup.example/\"")
+            // Still false, and the DSN still empty. Off is the committed default so the repository
+            // carries no credential and anyone can build it; both are supplied by the release
+            // pipeline when there is one. The DSN must be an EU-region ingest host.
+            buildConfigField("boolean", "SENTRY_ENABLED", "false")
+            buildConfigField("String", "SENTRY_DSN", "\"\"")
         }
     }
 
@@ -156,6 +165,10 @@ dependencies {
     // credential -- it mints new access tokens -- so plain SharedPreferences, which is a readable
     // file on a rooted device and can end up in a backup, is not an acceptable place for one.
     implementation("androidx.security:security-crypto:1.0.0")
+
+    // Crash reporting, off unless a DSN is configured for the build type. Nothing is sent and no
+    // account is needed to build -- see observability/Crashes.kt.
+    implementation("io.sentry:sentry-android:8.9.0")
 
     implementation(platform("androidx.compose:compose-bom:2024.10.00"))
     implementation("androidx.core:core-ktx:1.13.1")

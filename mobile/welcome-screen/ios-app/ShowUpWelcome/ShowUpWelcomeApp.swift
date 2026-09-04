@@ -11,9 +11,38 @@ import SwiftUI
 
 @main
 struct ShowUpWelcomeApp: App {
+
+    /// Crash reporting starts in the initialiser, which is the earliest point this target owns.
+    ///
+    /// Starting it inside a view's `onAppear` instead would miss every crash that happens before
+    /// the first frame — the ones that are hardest to reproduce and most likely to hit every user
+    /// at once. Returns false and does nothing at all unless a DSN is configured for this build.
+    init() {
+        Crashes.start(
+            enabled: CrashReporting.enabled,
+            dsn: CrashReporting.dsn,
+            environment: Self.isDebugBuild ? "development" : "production",
+            release: "org.loveiq.showup@\(Self.version)"
+        )
+    }
+
     var body: some Scene {
         WindowGroup { TutorialFlow() }
     }
+
+    // `static let`, not a computed `static var`. Both would compile, and audit/
+    // check-swift-concurrency.py rejects any `static var` on sight -- a deliberately blunt rule,
+    // because telling a computed property from stored mutable state by pattern matching is
+    // unreliable and stored mutable global state is what Swift 6 actually rejects. `let` is the
+    // better code here regardless: each of these is evaluated once rather than on every read.
+    #if DEBUG
+    private static let isDebugBuild = true
+    #else
+    private static let isDebugBuild = false
+    #endif
+
+    private static let version: String =
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
 }
 
 /// Slide-and-fade, matching the Android host.
