@@ -16,6 +16,7 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export class ApiErrorDto {
   @ApiProperty({
+    type: 'integer',
     example: 400,
     description: 'HTTP status code, repeated in the body.',
   })

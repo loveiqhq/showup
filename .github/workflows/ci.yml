@@ -179,14 +179,31 @@ jobs:
       # The design conformance checkers. Pure Python, a couple of seconds, and they read BOTH
       # platforms' sources, so a rule changed on one and not the other is caught even when both
       # suites pass. The iOS half is compiled and tested in the `ios` job below.
+      # DISCOVERED, not listed. This was a hardcoded list of nine names, and adding a tenth checker
+      # meant remembering to add it here too -- which is the same failure mode as the Swift sources
+      # that were once listed by hand in gen_pbxproj.py, and as the concurrency checker that only
+      # scanned one directory. A checker nobody runs is worse than no checker, because it reads as
+      # coverage.
+      #
+      # `set -e` is explicit rather than assumed, and the exit status is checked per script, so one
+      # failing checker fails the job instead of being buried by the next one's output.
       - name: Design conformance and cross-platform parity
         run: |
-          for f in verify-spec verify-welcome verify-connect check-country-data \
-                   check-tutorial-routing check-swift-structure check-swift-arg-order \
-                   check-ios-availability check-swift-concurrency; do
-            echo "── $f"
-            python3 "audit/$f.py"
+          set -e
+          found=0
+          for f in audit/verify-*.py audit/check-*.py; do
+            [ -e "$f" ] || continue
+            found=$((found + 1))
+            echo "── $(basename "$f")"
+            python3 "$f"
           done
+          echo "── ran $found checkers"
+          # A glob that matched nothing would otherwise pass silently, reporting full conformance
+          # while checking nothing at all.
+          if [ "$found" -lt 9 ]; then
+            echo "::error::expected at least 9 checkers, found $found -- has audit/ moved?"
+            exit 1
+          fi
 
       # Kept when the run fails, so a layout or conformance failure can be read without rerunning
       # anything locally.

@@ -117,6 +117,29 @@ declare them explicitly.
 `src/openapi.config.ts` is shared by `main.ts` and the emit script, so the interactive docs and the
 committed contract are always the same document.
 
+## Numeric types
+
+Fixed 4 September. OpenAPI's `number` is an arbitrary-precision decimal, which the Kotlin generator
+maps to `BigDecimal` — so a token lifetime in seconds arrived as a `BigDecimal` and every caller
+had to convert it. Eight fields are now `integer`:
+
+`statusCode` · `expiresIn` · `preparationMinutes` (both DTOs) · `rating` · `distanceMeters` ·
+`position` · `age`
+
+Three deliberately stay `number`, because they genuinely are decimals: **`latitude`**,
+**`longitude`**, and **`matchScore`** (the verification provider returns values like `99.9`).
+
+`rating` also declares `minimum: 1, maximum: 5`, because `@IsInt() @Min(1) @Max(5)` already
+enforces exactly that at runtime — the schema now documents what the server does.
+
+**`CreateCheckInDto.preparationMinutes` deliberately declares no bounds**, and that is the
+interesting one. Its description says "15–60", but its only validators are `@IsOptional()` and
+`@IsInt()` — nothing enforces the range. Declaring `minimum`/`maximum` would put a constraint in
+the contract that the server does not apply, and a generated client would then reject a value the
+backend accepts. Either the validators should gain `@Min(15) @Max(60)` or the description should
+stop promising it; until somebody decides which, the contract describes the code rather than the
+comment.
+
 ## Naming convention
 
 `verbNoun`, unique across the API, no controller prefix. Where a name was ambiguous it was resolved
@@ -136,8 +159,7 @@ before adding a fifth.
 
 | Gap | Severity | Note |
 |---|---|---|
-| **Ten numeric fields are `number`, so they generate as `BigDecimal`** | **Medium** | `expiresIn`, `statusCode`, `preparationMinutes`, `rating`, `position`, `distanceMeters` and others. OpenAPI's `number` is an arbitrary-precision decimal; these are whole numbers and every caller converts. The fix is `type: 'integer'` on each. `latitude`, `longitude` and `matchScore` genuinely are decimals and should stay |
-| No pagination model | **Medium** | No list endpoint pages yet. Define one shared DTO before the first one does, or each will invent its own |
+| No pagination model | **Low, for now** | Measured 4 September: **ten** endpoints return a bare array and **none** takes a `limit`, `offset`, `page` or `cursor` parameter. Nothing is paginated and nothing is about to be, so no DTO was defined — inventing one now would be a shape nothing uses. Define it with the first endpoint that actually pages, before a second one invents a different one |
 | `403` / `404` undeclared | Low | Deliberate. Add per route where a guard or lookup genuinely produces them |
 | `message` is `string \| string[]` | Low | Real, and declared honestly. Both clients must handle the union; narrowing it would break decoding on exactly the errors users hit most |
 | No `@ApiProperty` audit | Low | 150 are present and no untyped properties reach the schema, so this is polish |

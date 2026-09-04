@@ -65,7 +65,7 @@
           "statusCode": {
             "description": "HTTP status code, repeated in the body.",
             "example": 400,
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -101,7 +101,7 @@
           },
           "expiresIn": {
             "description": "Access-token lifetime in seconds",
-            "type": "number"
+            "type": "integer"
           },
           "refreshToken": {
             "type": "string"
@@ -214,7 +214,7 @@
           },
           "preparationMinutes": {
             "description": "Minutes the user needs to get ready before heading out",
-            "type": "number"
+            "type": "integer"
           },
           "status": {
             "enum": [
@@ -241,7 +241,9 @@
           "rating": {
             "description": "Your rating of the date, from 1 to 5",
             "example": 5,
-            "type": "number"
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [
@@ -286,7 +288,7 @@
           "preparationMinutes": {
             "description": "Minutes the user needs to get ready before heading out (15–60). Defaults to 30 if omitted. Used with travel time to check a date is reachable.",
             "example": 30,
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -430,7 +432,7 @@
           },
           "distanceMeters": {
             "description": "Distance from the viewer, rounded (never exact coordinates)",
-            "type": "number"
+            "type": "integer"
           },
           "gender": {
             "nullable": true,
@@ -600,7 +602,8 @@
             "type": "string"
           },
           "position": {
-            "type": "number"
+            "description": "Ordering within the user’s photos, from 0.",
+            "type": "integer"
           },
           "url": {
             "type": "string"
