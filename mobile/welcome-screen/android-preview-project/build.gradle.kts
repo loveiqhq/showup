@@ -11,4 +11,13 @@ plugins {
     id("com.android.application")             version "8.9.3"  apply false
     id("org.jetbrains.kotlin.android")        version "2.0.21" apply false
     id("org.jetbrains.kotlin.plugin.compose")  version "2.0.21" apply false
+
+    // Must match the Kotlin version above -- the serialization plugin ships as part of the Kotlin
+    // release train, and a mismatch fails the build with a compiler-plugin error rather than
+    // anything that mentions serialization.
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21" apply false
+
+    // Generates the API client from ../../../openapi.json. Nothing it produces is committed --
+    // see the openApiGenerate block in app/build.gradle.kts for why.
+    id("org.openapi.generator") version "7.10.0" apply false
 }
