@@ -108,6 +108,24 @@ jobs:
       - name: End-to-end tests
         run: npm run test:e2e
 
+      # The OpenAPI contract is the input the iOS and Android clients are generated from, so a
+      # stale openapi.json means both apps are built against an API the server no longer serves --
+      # and nothing would notice until a request failed on a real phone. Regenerating here and
+      # failing on any difference makes that impossible: the committed spec is always exactly what
+      # the current code produces.
+      #
+      # This needs no database or Redis despite running in this job: the emit script uses Nest's
+      # preview mode, which reads every decorator without instantiating a single provider.
+      - name: Regenerate the OpenAPI contract
+        run: npm run openapi:emit
+
+      - name: Fail if the committed contract is stale
+        run: |
+          git diff --exit-code openapi.json || {
+            echo "::error::openapi.json is out of date. Run 'npm run openapi:emit' and commit the result."
+            exit 1
+          }
+
   # ── the mobile half ────────────────────────────────────────────────────────
   #
   # Added when the iOS and Android projects were merged into main. Until then CI covered the

@@ -15,6 +15,7 @@ import {
   ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 
@@ -30,6 +31,7 @@ export class PhotosController {
   constructor(private readonly photos: PhotosService) {}
 
   @Post()
+  @ApiOperation({ operationId: 'uploadPhoto' })
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiCreatedResponse({ type: PhotoDto })
@@ -42,6 +44,7 @@ export class PhotosController {
   }
 
   @Get()
+  @ApiOperation({ operationId: 'listPhotos' })
   @ApiOkResponse({ type: [PhotoDto] })
   async list(@CurrentUser() user: User): Promise<PhotoDto[]> {
     const photos = await this.photos.list(user.id);
@@ -49,6 +52,7 @@ export class PhotosController {
   }
 
   @Delete(':id')
+  @ApiOperation({ operationId: 'deletePhoto' })
   @HttpCode(204)
   remove(
     @CurrentUser() user: User,

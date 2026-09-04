@@ -7,7 +7,13 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -28,6 +34,7 @@ export class DatesController {
 
   /** The dates the user is part of. */
   @Get('me/dates')
+  @ApiOperation({ operationId: 'listDates' })
   @ApiOkResponse({ type: [DateDto] })
   async list(@CurrentUser() user: User): Promise<DateDto[]> {
     const dates = await this.dates.listForUser(user.id);
@@ -36,6 +43,7 @@ export class DatesController {
 
   /** Cancel a date (single cancellation type; always counts against the canceller). */
   @Post('dates/:id/cancel')
+  @ApiOperation({ operationId: 'cancelDate' })
   @HttpCode(200)
   @ApiOkResponse({ type: DateDto })
   async cancel(
@@ -49,6 +57,7 @@ export class DatesController {
 
   /** Confirm the date happened and rate it. Completes once both people confirm. */
   @Post('dates/:id/confirm')
+  @ApiOperation({ operationId: 'confirmDate' })
   @HttpCode(200)
   @ApiOkResponse({ type: DateDto })
   async confirm(
@@ -62,6 +71,7 @@ export class DatesController {
 
   /** Report that the other person did not show up. A date outcome — separate from reporting a problem. */
   @Post('dates/:id/no-show')
+  @ApiOperation({ operationId: 'reportDateNoShow' })
   @HttpCode(200)
   @ApiOkResponse({ type: DateDto })
   async noShow(
@@ -74,6 +84,7 @@ export class DatesController {
 
   /** The pre-date chat messages on a date, oldest first (SHOWUP-115). */
   @Get('dates/:id/chat')
+  @ApiOperation({ operationId: 'listDateChatMessages' })
   @ApiOkResponse({ type: [ChatMessageDto] })
   async listChat(
     @CurrentUser() user: User,
@@ -85,8 +96,9 @@ export class DatesController {
 
   /** Send a pre-date chat message: pick a preset reason, optionally add a note (SHOWUP-115). */
   @Post('dates/:id/chat')
+  @ApiOperation({ operationId: 'sendDateChatMessage' })
   @HttpCode(201)
-  @ApiOkResponse({ type: ChatMessageDto })
+  @ApiCreatedResponse({ type: ChatMessageDto })
   async sendChat(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,

@@ -1,5 +1,11 @@
 import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiAcceptedResponse,
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -14,12 +20,14 @@ export class ProfilesController {
   constructor(private readonly profiles: ProfilesService) {}
 
   @Get()
+  @ApiOperation({ operationId: 'getProfile' })
   @ApiOkResponse({ type: ProfileDto })
   async get(@CurrentUser() user: User): Promise<ProfileDto> {
     return ProfileDto.from(await this.profiles.getOrCreate(user.id));
   }
 
   @Post()
+  @ApiOperation({ operationId: 'createProfile' })
   @ApiOkResponse({ type: ProfileDto })
   async create(
     @CurrentUser() user: User,
@@ -29,6 +37,7 @@ export class ProfilesController {
   }
 
   @Patch()
+  @ApiOperation({ operationId: 'updateProfile' })
   @ApiOkResponse({ type: ProfileDto })
   async update(
     @CurrentUser() user: User,
@@ -38,8 +47,9 @@ export class ProfilesController {
   }
 
   @Post('verification')
+  @ApiOperation({ operationId: 'requestProfileVerification' })
   @HttpCode(202)
-  @ApiOkResponse({ type: ProfileDto })
+  @ApiAcceptedResponse({ type: ProfileDto })
   async requestVerification(@CurrentUser() user: User): Promise<ProfileDto> {
     return ProfileDto.from(await this.profiles.requestVerification(user.id));
   }

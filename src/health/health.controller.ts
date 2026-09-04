@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   HealthCheck,
   HealthCheckService,
@@ -21,6 +21,7 @@ export class HealthController {
 
   /** Liveness probe — returns 200 whenever the process is up. */
   @Get()
+  @ApiOperation({ operationId: 'getLiveness' })
   @HealthCheck()
   @ApiOkResponse({ description: 'Service is alive' })
   liveness() {
@@ -29,6 +30,7 @@ export class HealthController {
 
   /** Readiness probe — pings the database and Redis so orchestrators can gate traffic. */
   @Get('ready')
+  @ApiOperation({ operationId: 'getReadiness' })
   @HealthCheck()
   @ApiOkResponse({
     description: 'Service and its dependencies (database, Redis) are ready',
