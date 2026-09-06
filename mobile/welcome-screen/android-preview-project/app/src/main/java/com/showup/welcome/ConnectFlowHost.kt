@@ -29,6 +29,14 @@ import kotlinx.coroutines.delay
 fun ConnectFlowHost(
     onDone: (ConnectExit) -> Unit,
     /**
+     * Opens a legal document.
+     *
+     * This screen carries "By continuing you agree to our Terms and Privacy Policy", and both are
+     * real links -- SHOWUP-144 lists a click event for each. Without this they fell back to the
+     * screen's empty defaults: tappable, doing nothing, reporting nothing.
+     */
+    onOpenLegal: (String) -> Unit = {},
+    /**
      * SHOWUP-144's twelve events are reported from here rather than from the screen, because this
      * is what owns the state transitions -- and several of the events ARE transitions rather than
      * taps: link succeeded, link failed, linking timeout, conflict raised.
@@ -99,6 +107,16 @@ fun ConnectFlowHost(
     }
 
     ConnectAccountScreen(
+        onTerms = {
+            track(SignUpAnalytics.legalLinkTapped(
+                SignUpAnalytics.Legal.TERMS, SignUpAnalytics.Screen.CONNECT_SSO))
+            onOpenLegal("Terms & Conditions")
+        },
+        onPrivacy = {
+            track(SignUpAnalytics.legalLinkTapped(
+                SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.Screen.CONNECT_SSO))
+            onOpenLegal("Privacy Policy")
+        },
         state = state,
         provider = provider,
         kind = kind,

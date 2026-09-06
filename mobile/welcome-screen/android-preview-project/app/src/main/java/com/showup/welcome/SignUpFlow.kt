@@ -368,6 +368,7 @@ fun SignUpFlow(
             // sign-up flow; SHOWUP-146 decides which of the two destinations it leaves for.
             Step.Connect -> ConnectFlowHost(
                 onDone = { exit -> onFinished(outcomeOf(entry, exit)) },
+                onOpenLegal = onOpenLegal,
                 analytics = analytics,
             )
         }

@@ -161,6 +161,51 @@ class SignUpTrackingTest {
         }
 
     @Test
+    fun `every screen that renders a legal link can report it`() = runComposeUiTest {
+        // A per-screen assertion, because "legal links are tracked" was true of two screens and
+        // false of the third: ConnectFlowHost rendered a live Terms/Privacy line and passed neither
+        // callback, so both links were tappable, did nothing, and reported nothing.
+        //
+        // Not every screen has all three. SHOWUP-142 says explicitly that no Terms & Conditions
+        // line appears on Welcome back, so two is correct there and three would be wrong.
+        val expected = mapOf(
+            SignUpAnalytics.Screen.CREATE_ACCOUNT to 3,   // Terms, Privacy, Legal Notice
+            SignUpAnalytics.Screen.WELCOME_BACK to 2,     // Legal Notice, Privacy -- no Terms
+            SignUpAnalytics.Screen.CONNECT_SSO to 2,      // Terms, Privacy
+        )
+
+        // Counted from the source rather than by tapping: the links live inside annotated strings,
+        // so a click cannot choose which one it hits -- the earlier version of this file learned
+        // that the hard way. What matters is that each screen's host WIRES every link it draws.
+        val flow = java.io.File(
+            "src/main/java/com/showup/welcome/SignUpFlow.kt").readText()
+        val host = java.io.File(
+            "src/main/java/com/showup/welcome/ConnectFlowHost.kt").readText()
+        val wiring = flow + host
+
+        // Split on the call itself and look at what follows: each legalLinkTapped( call names its
+        // link and then its screen, so the fragment after the call contains exactly one screen
+        // constant. No regex -- the escaping is not worth the cleverness here.
+        val calls = wiring.split("legalLinkTapped(").drop(1)
+
+        for ((screen, count) in expected) {
+            val constant = screenConstant(screen)
+            val found = calls.count { fragment ->
+                fragment.take(200).contains("Screen.$constant")
+            }
+            assertEquals("$screen should wire $count legal links", count, found)
+        }
+    }
+
+    /** The constant name for a screen, as it appears at the call sites. */
+    private fun screenConstant(screen: String): String = when (screen) {
+        SignUpAnalytics.Screen.CREATE_ACCOUNT -> "CREATE_ACCOUNT"
+        SignUpAnalytics.Screen.WELCOME_BACK -> "WELCOME_BACK"
+        SignUpAnalytics.Screen.CONNECT_SSO -> "CONNECT_SSO"
+        else -> error("unmapped screen $screen")
+    }
+
+    @Test
     fun `nothing is reported when the tracker is left at its default`() = runComposeUiTest {
         // The default is NoOp, so a screen that forgets to pass a tracker is silent rather than
         // crashing -- and the app ships with analytics off until somebody switches it on.

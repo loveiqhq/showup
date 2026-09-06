@@ -319,6 +319,7 @@ struct SignUpFlowView: View {
             case .connect:
                 ConnectFlowHost(
                     onDone: { onFinished(outcomeOf(entry, $0)) },
+                    onOpenLegal: onOpenLegal,
                     analytics: analytics
                 )
             }
