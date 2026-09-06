@@ -289,6 +289,7 @@ jobs:
             -destination "id=$udid" \
             -clonedSourcePackagesDirPath .spm \
             -resultBundlePath ios-results.xcresult \
+            -skipPackagePluginValidation \
             test \
             2>&1 | tee xcodebuild-raw.log \
             | { if command -v xcbeautify >/dev/null; then xcbeautify --renderer github-actions; else cat; fi; }
@@ -332,5 +333,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-results
-          path: mobile/welcome-screen/ios-app/ios-results.xcresult
+          # The raw log as well as the xcresult. The bundle needs macOS tooling to open, which is
+          # no use to somebody diagnosing this from Windows -- which is where it was diagnosed from.
+          path: |
+            mobile/welcome-screen/ios-app/ios-results.xcresult
+            mobile/welcome-screen/ios-app/xcodebuild-raw.log
           retention-days: 7
