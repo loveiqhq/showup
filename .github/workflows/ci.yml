@@ -290,7 +290,27 @@ jobs:
             -clonedSourcePackagesDirPath .spm \
             -resultBundlePath ios-results.xcresult \
             test \
+            2>&1 | tee xcodebuild-raw.log \
             | { if command -v xcbeautify >/dev/null; then xcbeautify --renderer github-actions; else cat; fi; }
+
+      # `tee` first, prettify second.
+      #
+      # xcbeautify makes a passing log readable and, on a FAILING build, swallows the compiler
+      # diagnostics entirely: the job reported only "exit code 65" with no file, no line and no
+      # message. The xcresult bundle holds them but needs macOS tooling to read, so from a Windows
+      # machine the errors were simply unavailable.
+      #
+      # That is the same failure this whole pipeline exists to prevent -- something broke and
+      # nobody could see what. The raw log is kept, and this prints the errors out of it whatever
+      # the renderer decided to show.
+      - name: Show the compiler errors
+        if: failure()
+        run: |
+          echo "── compiler diagnostics ──────────────────────────────────────"
+          grep -E "error:" xcodebuild-raw.log | head -60 || echo "(no 'error:' lines found)"
+          echo ""
+          echo "── last 40 lines of the raw log ──────────────────────────────"
+          tail -40 xcodebuild-raw.log
 
       # The generated API client lives in its own local Swift package, so it is built and tested
       # with plain SwiftPM -- no Xcode project, no simulator, no app target involved. That
