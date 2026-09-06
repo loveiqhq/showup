@@ -146,10 +146,66 @@ cd .. && for f in audit/verify-*.py audit/check-*.py; do python "$f"; done
 CI runs both halves on every pull request — Android on `ubuntu`, iOS on `macos-15`. Android adds
 `assembleRelease`, because R8 only runs on release and removes what it cannot see being used.
 
-**Say what was actually verified.** "Builds and tests pass" and "I have seen it render" are different
-claims, and both are now available. Report them separately, using the response format in
-`docs/mobile-client-architecture-spike.md` part 8. Anything that was only read goes under
-UNVERIFIED, with the reason.
+**Say what was actually verified.** "Builds and tests pass" and "I have seen it render" are
+different claims. Report them separately, in the format below.
+
+## Required response format
+
+Use this after implementing or changing a screen. It lives here rather than in the architecture
+spike because a rule somebody has to go and look up is a rule that gets skipped — the spike explains
+why this exists, this file is what makes it apply.
+
+**"Unverified" is a first-class outcome, not a failure.** What it prevents is a confident "done"
+backed only by reading, and on this project that has happened repeatedly: eight Swift tests were
+reported as present and passing while sitting in no test target for a week; iOS was called green for
+weeks with no Mac anywhere; a package was described as wired into an app target whose build had
+never run.
+
+```
+IMPLEMENTATION COMPLETE — <screen> (<ticket>)
+
+Files changed:
+  <path>  (+n / -n)
+
+Build:
+  Android:  PASS | FAIL | NOT RUN (<why>)
+  iOS:      PASS | FAIL | NOT RUN (<why>)
+
+Tests:
+  Android:  <n> passed
+  iOS:      <n> passed
+  Fit:      17 device sizes, <n> new findings
+
+Checkers:
+  <n>/<n> pass
+
+VERIFIED:
+  - <what was actually built, run or measured, and by what>
+
+UNVERIFIED:
+  - <what was only read, and why it could not be run>
+
+Known limitations:
+  - <e.g. keyboard overlap is not measured on any screen>
+
+Manual checks still required:
+  - <what a person must look at, and on which device>
+```
+
+### The rules that make it worth having
+
+- **Never write PASS for a platform that was not built.** `NOT RUN` with a reason is the honest
+  answer, and the reason matters: "no Mac available" and "CI has no runners" are different problems
+  with different fixes.
+- **Never list something under VERIFIED that was only inspected.** "The code looks correct" belongs
+  under UNVERIFIED. So does "the structure is internally consistent" — a checker passing is not a
+  compiler passing.
+- **A count is not a verification.** "45 tests" means nothing unless they ran. Take the number from
+  the XML report or the CI log, never from the files on disk.
+- **If a section is empty, write "none" rather than deleting the heading**, so an omission is
+  visible rather than silent.
+- **One platform's result never stands in for the other's.** "It works on Android" is not evidence
+  about iOS: the same logic error has already been severe on one and invisible on the other.
 
 ## Definition of Done
 
