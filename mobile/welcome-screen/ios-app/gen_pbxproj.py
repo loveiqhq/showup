@@ -76,6 +76,15 @@ SENREF, SENPROD, SENBUILD, SENTESTPROD, SENTESTBUILD = (uid() for _ in range(5))
 RTREF, RTPROD, RTBUILD = (uid() for _ in range(3))
 USREF, USPROD, USBUILD = (uid() for _ in range(3))
 HTREF, HTPROD, HTBUILD = (uid() for _ in range(3))
+# ...and again for the TEST bundle, which links separately from the app.
+#
+# APIAccessTests calls a generated operation, and the default argument on its Headers initialiser
+# inlines OpenAPIRuntime.AcceptHeaderContentType into the CALLER -- so the test bundle needs these
+# symbols whether or not the app already has them. Missing this produced a link failure whose
+# undefined symbols named APIAccessTests.o while every declaration looked correct on the app.
+RTTESTPROD, RTTESTBUILD = uid(), uid()
+USTESTPROD, USTESTBUILD = uid(), uid()
+HTTESTPROD, HTTESTBUILD = uid(), uid()
 tst_ref = {f: uid() for f in tests}
 tst_bld = {f: uid() for f in tests}
 
@@ -124,6 +133,11 @@ if tests:
       % (APITESTBUILD, APITESTPROD))
     w(T*2 + "%s /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* Sentry */; };"
       % (SENTESTBUILD, SENTESTPROD))
+    for _b, _p, _name in ((RTTESTBUILD, RTTESTPROD, "OpenAPIRuntime"),
+                          (USTESTBUILD, USTESTPROD, "OpenAPIURLSession"),
+                          (HTTESTBUILD, HTTESTPROD, "HTTPTypes")):
+        w(T*2 + "%s /* %s in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* %s */; };"
+          % (_b, _name, _p, _name))
 w("/* End PBXBuildFile section */")
 
 w("")
@@ -170,6 +184,9 @@ w(T*3 + "files = (")
 w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGTESTBUILD)
 w(T*4 + "%s /* ShowUpAPI in Frameworks */," % APITESTBUILD)
 w(T*4 + "%s /* Sentry in Frameworks */," % SENTESTBUILD)
+for _b, _name in ((RTTESTBUILD, "OpenAPIRuntime"), (USTESTBUILD, "OpenAPIURLSession"),
+                  (HTTESTBUILD, "HTTPTypes")):
+    w(T*4 + "%s /* %s in Frameworks */," % (_b, _name))
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -281,6 +298,9 @@ if tests:
     w(T*4 + "%s /* PhoneNumberKit */," % PKGTESTPROD)
     w(T*4 + "%s /* ShowUpAPI */," % APITESTPROD)
     w(T*4 + "%s /* Sentry */," % SENTESTPROD)
+    for _p, _name in ((RTTESTPROD, "OpenAPIRuntime"), (USTESTPROD, "OpenAPIURLSession"),
+                      (HTTESTPROD, "HTTPTypes")):
+        w(T*4 + "%s /* %s */," % (_p, _name))
     w(T*3 + ");")
     w(T*3 + "productReference = %s /* ShowUpWelcomeTests.xctest */;" % TESTPRODREF)
     w(T*3 + 'productType = "com.apple.product-type.bundle.unit-test";')
@@ -640,6 +660,14 @@ if tests:
     w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "sentry-cocoa" */;' % SENREF)
     w(T*3 + "productName = Sentry;")
     w(T*2 + "};")
+    for _p, _r, _repo, _name in ((RTTESTPROD, RTREF, "swift-openapi-runtime", "OpenAPIRuntime"),
+                                 (USTESTPROD, USREF, "swift-openapi-urlsession", "OpenAPIURLSession"),
+                                 (HTTESTPROD, HTREF, "swift-http-types", "HTTPTypes")):
+        w(T*2 + "%s /* %s */ = {" % (_p, _name))
+        w(T*3 + "isa = XCSwiftPackageProductDependency;")
+        w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "%s" */;' % (_r, _repo))
+        w(T*3 + "productName = %s;" % _name)
+        w(T*2 + "};")
 w("/* End XCSwiftPackageProductDependency section */")
 
 w(T + "};")
