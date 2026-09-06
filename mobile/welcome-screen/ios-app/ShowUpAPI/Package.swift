@@ -40,6 +40,17 @@ let package = Package(
             dependencies: [
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+                // AuthMiddleware imports HTTPTypes directly, so it must be declared HERE and not
+                // only on the test target.
+                //
+                // Leaving it off compiled fine and `swift build` passed, because the module is
+                // reachable transitively through OpenAPIRuntime. It failed at LINK time, and only
+                // in the Xcode build, which links the package as a framework and resolves symbols
+                // strictly: "Undefined symbol: static HTTPTypes.HTTPField.Name.authorization".
+                //
+                // A dependency you use but do not declare is a dependency that works until the
+                // thing linking it changes.
+                .product(name: "HTTPTypes", package: "swift-http-types"),
             ],
             // openapi.json and openapi-generator-config.yaml must sit in this target's directory --
             // the plugin resolves both relative to the target, which is why the contract is copied
