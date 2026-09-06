@@ -162,16 +162,6 @@ struct ConnectFlowHost: View {
 
     var body: some View {
         ConnectAccountView(
-            onTerms: {
-                track(SignUpAnalytics.legalLinkTapped(
-                    SignUpAnalytics.Legal.terms, screen: SignUpAnalytics.Screen.connectSSO))
-                onOpenLegal("Terms & Conditions")
-            },
-            onPrivacy: {
-                track(SignUpAnalytics.legalLinkTapped(
-                    SignUpAnalytics.Legal.privacy, screen: SignUpAnalytics.Screen.connectSSO))
-                onOpenLegal("Privacy Policy")
-            },
             state: state,
             provider: provider,
             kind: kind,
@@ -205,6 +195,16 @@ struct ConnectFlowHost: View {
                 analytics.track(
                     SignUpAnalytics.conflictDifferentAccountTapped, properties: [:])
                 state = .idle
+            },
+            onTerms: {
+                track(SignUpAnalytics.legalLinkTapped(
+                    SignUpAnalytics.Legal.terms, screen: SignUpAnalytics.Screen.connectSSO))
+                onOpenLegal("Terms & Conditions")
+            },
+            onPrivacy: {
+                track(SignUpAnalytics.legalLinkTapped(
+                    SignUpAnalytics.Legal.privacy, screen: SignUpAnalytics.Screen.connectSSO))
+                onOpenLegal("Privacy Policy")
             }
         )
     }
