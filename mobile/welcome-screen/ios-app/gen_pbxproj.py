@@ -65,6 +65,17 @@ APIPKGREF, APIPROD, APIBUILD, APITESTPROD, APITESTBUILD = (uid() for _ in range(
 # Crash reporting. A remote package, pinned to a major version -- see the note by its
 # XCRemoteSwiftPackageReference below.
 SENREF, SENPROD, SENBUILD, SENTESTPROD, SENTESTBUILD = (uid() for _ in range(5))
+# ShowUpAPI's own dependencies, which the APP has to link too.
+#
+# A SwiftPM library product is built statically here, so ShowUpAPI's object code lands inside the
+# app binary -- and its dependencies do not come with it. Declaring only ShowUpAPI links the wrapper
+# and leaves every OpenAPIRuntime and OpenAPIURLSession symbol undefined at link time.
+#
+# Xcode adds these automatically when a package is added through its UI. This file is written by
+# hand, so they are written by hand.
+RTREF, RTPROD, RTBUILD = (uid() for _ in range(3))
+USREF, USPROD, USBUILD = (uid() for _ in range(3))
+HTREF, HTPROD, HTBUILD = (uid() for _ in range(3))
 tst_ref = {f: uid() for f in tests}
 tst_bld = {f: uid() for f in tests}
 
@@ -101,6 +112,11 @@ w(T*2 + "%s /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = %s
   % (APIBUILD, APIPROD))
 w(T*2 + "%s /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* Sentry */; };"
   % (SENBUILD, SENPROD))
+for _b, _p, _name in ((RTBUILD, RTPROD, "OpenAPIRuntime"),
+                   (USBUILD, USPROD, "OpenAPIURLSession"),
+                   (HTBUILD, HTPROD, "HTTPTypes")):
+    w(T*2 + "%s /* %s in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* %s */; };"
+      % (_b, _name, _p, _name))
 if tests:
     w(T*2 + "%s /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = %s /* PhoneNumberKit */; };"
       % (PKGTESTBUILD, PKGTESTPROD))
@@ -142,6 +158,8 @@ w(T*3 + "files = (")
 w(T*4 + "%s /* PhoneNumberKit in Frameworks */," % PKGBUILD)
 w(T*4 + "%s /* ShowUpAPI in Frameworks */," % APIBUILD)
 w(T*4 + "%s /* Sentry in Frameworks */," % SENBUILD)
+for _b, _name in ((RTBUILD, "OpenAPIRuntime"), (USBUILD, "OpenAPIURLSession"), (HTBUILD, "HTTPTypes")):
+    w(T*4 + "%s /* %s in Frameworks */," % (_b, _name))
 w(T*3 + ");")
 w(T*3 + "runOnlyForDeploymentPostprocessing = 0;")
 w(T*2 + "};")
@@ -237,6 +255,8 @@ w(T*3 + "packageProductDependencies = (")
 w(T*4 + "%s /* PhoneNumberKit */," % PKGPROD)
 w(T*4 + "%s /* ShowUpAPI */," % APIPROD)
 w(T*4 + "%s /* Sentry */," % SENPROD)
+for _p, _name in ((RTPROD, "OpenAPIRuntime"), (USPROD, "OpenAPIURLSession"), (HTPROD, "HTTPTypes")):
+    w(T*4 + "%s /* %s */," % (_p, _name))
 w(T*3 + ");")
 w(T*3 + "productReference = %s /* ShowUpWelcome.app */;" % APPREF)
 w(T*3 + 'productType = "com.apple.product-type.application";')
@@ -320,6 +340,9 @@ w(T*3 + "packageReferences = (")
 w(T*4 + '%s /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,' % PKGREF)
 w(T*4 + '%s /* XCLocalSwiftPackageReference "ShowUpAPI" */,' % APIPKGREF)
 w(T*4 + '%s /* XCRemoteSwiftPackageReference "sentry-cocoa" */,' % SENREF)
+for _r, _name in ((RTREF, "swift-openapi-runtime"), (USREF, "swift-openapi-urlsession"),
+               (HTREF, "swift-http-types")):
+    w(T*4 + '%s /* XCRemoteSwiftPackageReference "%s" */,' % (_r, _name))
 w(T*3 + ");")
 w(T*3 + "productRefGroup = %s /* Products */;" % PRODGRP)
 w(T*3 + 'projectDirPath = "";')
@@ -540,6 +563,19 @@ w(T*4 + "kind = upToNextMajorVersion;")
 w(T*4 + "minimumVersion = 8.44.0;")
 w(T*3 + "};")
 w(T*2 + "};")
+for _r, _url, _min in (
+    (RTREF, "https://github.com/apple/swift-openapi-runtime", "1.5.0"),
+    (USREF, "https://github.com/apple/swift-openapi-urlsession", "1.0.2"),
+    (HTREF, "https://github.com/apple/swift-http-types", "1.3.0"),
+):
+    w(T*2 + '%s /* XCRemoteSwiftPackageReference "%s" */ = {' % (_r, _url.rsplit("/", 1)[-1]))
+    w(T*3 + "isa = XCRemoteSwiftPackageReference;")
+    w(T*3 + 'repositoryURL = "%s";' % _url)
+    w(T*3 + "requirement = {")
+    w(T*4 + "kind = upToNextMajorVersion;")
+    w(T*4 + "minimumVersion = %s;" % _min)
+    w(T*3 + "};")
+    w(T*2 + "};")
 w("/* End XCRemoteSwiftPackageReference section */")
 
 # The generated API client, as a LOCAL package in a sibling directory.
@@ -581,6 +617,14 @@ w(T*3 + "isa = XCSwiftPackageProductDependency;")
 w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "sentry-cocoa" */;' % SENREF)
 w(T*3 + "productName = Sentry;")
 w(T*2 + "};")
+for _p, _r, _repo, _name in ((RTPROD, RTREF, "swift-openapi-runtime", "OpenAPIRuntime"),
+                          (USPROD, USREF, "swift-openapi-urlsession", "OpenAPIURLSession"),
+                          (HTPROD, HTREF, "swift-http-types", "HTTPTypes")):
+    w(T*2 + "%s /* %s */ = {" % (_p, _name))
+    w(T*3 + "isa = XCSwiftPackageProductDependency;")
+    w(T*3 + 'package = %s /* XCRemoteSwiftPackageReference "%s" */;' % (_r, _repo))
+    w(T*3 + "productName = %s;" % _name)
+    w(T*2 + "};")
 if tests:
     w(T*2 + "%s /* PhoneNumberKit */ = {" % PKGTESTPROD)
     w(T*3 + "isa = XCSwiftPackageProductDependency;")

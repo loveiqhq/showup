@@ -43,14 +43,17 @@
 		FEED00000000000000000059 /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000051 /* Manrope-Medium.ttf */; };
 		FEED0000000000000000005A /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000052 /* Manrope-SemiBold.ttf */; };
 		FEED00000000000000000016 /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* Flags */; };
-		FEED00000000000000000079 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000074 /* APIAccessTests.swift */; };
-		FEED0000000000000000007A /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000075 /* CrashesTests.swift */; };
-		FEED0000000000000000007B /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000076 /* PhoneValidationTests.swift */; };
-		FEED0000000000000000007C /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000077 /* ScreenFitTests.swift */; };
-		FEED0000000000000000007D /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000078 /* TutorialRoutingTests.swift */; };
+		FEED00000000000000000082 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007D /* APIAccessTests.swift */; };
+		FEED00000000000000000083 /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007E /* CrashesTests.swift */; };
+		FEED00000000000000000084 /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007F /* PhoneValidationTests.swift */; };
+		FEED00000000000000000085 /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000080 /* ScreenFitTests.swift */; };
+		FEED00000000000000000086 /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000081 /* TutorialRoutingTests.swift */; };
 		FEED00000000000000000067 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000066 /* PhoneNumberKit */; };
 		FEED0000000000000000006C /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000006B /* ShowUpAPI */; };
 		FEED00000000000000000071 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000070 /* Sentry */; };
+		FEED00000000000000000076 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000075 /* OpenAPIRuntime */; };
+		FEED00000000000000000079 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000078 /* OpenAPIURLSession */; };
+		FEED0000000000000000007C /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000007B /* HTTPTypes */; };
 		FEED00000000000000000069 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000068 /* PhoneNumberKit */; };
 		FEED0000000000000000006E /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000006D /* ShowUpAPI */; };
 		FEED00000000000000000073 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000072 /* Sentry */; };
@@ -95,11 +98,11 @@
 		FEED00000000000000000050 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
 		FEED00000000000000000051 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
 		FEED00000000000000000052 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000074 /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000075 /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000076 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000077 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000078 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000007D /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000007E /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000007F /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000080 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000081 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
 		FEED0000000000000000005C /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -111,6 +114,9 @@
 				FEED00000000000000000067 /* PhoneNumberKit in Frameworks */,
 				FEED0000000000000000006C /* ShowUpAPI in Frameworks */,
 				FEED00000000000000000071 /* Sentry in Frameworks */,
+				FEED00000000000000000076 /* OpenAPIRuntime in Frameworks */,
+				FEED00000000000000000079 /* OpenAPIURLSession in Frameworks */,
+				FEED0000000000000000007C /* HTTPTypes in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,11 +197,11 @@
 		FEED0000000000000000005B /* ShowUpWelcomeTests */ = {
 			isa = PBXGroup;
 			children = (
-				FEED00000000000000000074 /* APIAccessTests.swift */,
-				FEED00000000000000000075 /* CrashesTests.swift */,
-				FEED00000000000000000076 /* PhoneValidationTests.swift */,
-				FEED00000000000000000077 /* ScreenFitTests.swift */,
-				FEED00000000000000000078 /* TutorialRoutingTests.swift */,
+				FEED0000000000000000007D /* APIAccessTests.swift */,
+				FEED0000000000000000007E /* CrashesTests.swift */,
+				FEED0000000000000000007F /* PhoneValidationTests.swift */,
+				FEED00000000000000000080 /* ScreenFitTests.swift */,
+				FEED00000000000000000081 /* TutorialRoutingTests.swift */,
 			);
 			path = ShowUpWelcomeTests;
 			sourceTree = "<group>";
@@ -230,6 +236,9 @@
 				FEED00000000000000000066 /* PhoneNumberKit */,
 				FEED0000000000000000006B /* ShowUpAPI */,
 				FEED00000000000000000070 /* Sentry */,
+				FEED00000000000000000075 /* OpenAPIRuntime */,
+				FEED00000000000000000078 /* OpenAPIURLSession */,
+				FEED0000000000000000007B /* HTTPTypes */,
 			);
 			productReference = FEED00000000000000000008 /* ShowUpWelcome.app */;
 			productType = "com.apple.product-type.application";
@@ -307,6 +316,9 @@
 				FEED00000000000000000065 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 				FEED0000000000000000006A /* XCLocalSwiftPackageReference "ShowUpAPI" */,
 				FEED0000000000000000006F /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				FEED00000000000000000074 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
+				FEED00000000000000000077 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
+				FEED0000000000000000007A /* XCRemoteSwiftPackageReference "swift-http-types" */,
 			);
 			productRefGroup = FEED00000000000000000007 /* Products */;
 			projectDirPath = "";
@@ -383,11 +395,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000079 /* APIAccessTests.swift in Sources */,
-				FEED0000000000000000007A /* CrashesTests.swift in Sources */,
-				FEED0000000000000000007B /* PhoneValidationTests.swift in Sources */,
-				FEED0000000000000000007C /* ScreenFitTests.swift in Sources */,
-				FEED0000000000000000007D /* TutorialRoutingTests.swift in Sources */,
+				FEED00000000000000000082 /* APIAccessTests.swift in Sources */,
+				FEED00000000000000000083 /* CrashesTests.swift in Sources */,
+				FEED00000000000000000084 /* PhoneValidationTests.swift in Sources */,
+				FEED00000000000000000085 /* ScreenFitTests.swift in Sources */,
+				FEED00000000000000000086 /* TutorialRoutingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -581,6 +593,30 @@
 				minimumVersion = 8.44.0;
 			};
 		};
+		FEED00000000000000000074 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-runtime";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.0;
+			};
+		};
+		FEED00000000000000000077 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-urlsession";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.2;
+			};
+		};
+		FEED0000000000000000007A /* XCRemoteSwiftPackageReference "swift-http-types" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-http-types";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -604,6 +640,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FEED0000000000000000006F /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
+		};
+		FEED00000000000000000075 /* OpenAPIRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000074 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			productName = OpenAPIRuntime;
+		};
+		FEED00000000000000000078 /* OpenAPIURLSession */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000077 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			productName = OpenAPIURLSession;
+		};
+		FEED0000000000000000007B /* HTTPTypes */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED0000000000000000007A /* XCRemoteSwiftPackageReference "swift-http-types" */;
+			productName = HTTPTypes;
 		};
 		FEED00000000000000000068 /* PhoneNumberKit */ = {
 			isa = XCSwiftPackageProductDependency;
