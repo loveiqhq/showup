@@ -12,6 +12,9 @@
  */
 package com.showup.tutorial
 
+import com.showup.analytics.AnalyticsTracker
+import com.showup.analytics.NoOpAnalytics
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

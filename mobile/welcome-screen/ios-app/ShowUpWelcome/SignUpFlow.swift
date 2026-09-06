@@ -56,6 +56,9 @@ struct SignUpFlowView: View {
     /// `.returningMember` goes straight into the app.
     var onFinished: (SignUpOutcome) -> Void = { _ in }
     var onOpenLegal: (String) -> Void = { _ in }
+    /// Where events go. NoOp by default, so nothing is sent and the flow behaves identically
+    /// whether or not analytics is switched on -- which is also what makes it testable.
+    var analytics: any AnalyticsTracking = NoOpAnalytics()
 
     @State private var step: Step
     @State private var country: Country = DEFAULT_COUNTRY
@@ -91,16 +94,72 @@ struct SignUpFlowView: View {
     /// One ticking clock for the resend, live only while the code screen is up.
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
+    /// Tracking-only state. SHOWUP-143 wants the attempt number on a failed verify and whether a
+    /// resend followed a mismatch; neither is derivable from the view's own state, because the
+    /// mismatch flag clears the moment the user edits a digit.
+    @State private var verifyAttempts = 0
+    @State private var lastVerifyFailed = false
+
+    /// Reports an event built by the SignUpAnalytics catalogue.
+    private func track(_ pair: (String, [String: any Sendable])) {
+        analytics.track(pair.0, properties: pair.1)
+    }
+
+    /// The screenview for a step. SHOWUP-142 asks for the lastUsed value on Welcome back,
+    /// including `unknown`; SHOWUP-144 asks for one screenview with a `state`, not ten.
+    private func trackScreen(for step: Step) {
+        switch step {
+        case .startup:
+            track(SignUpAnalytics.screenViewed(SignUpAnalytics.Screen.createAccount))
+        case .welcomeBack:
+            track(SignUpAnalytics.screenViewed(
+                SignUpAnalytics.Screen.welcomeBack,
+                ["last_used": account.map { String(describing: $0.lastUsed) } ?? "unknown"]
+            ))
+        case .phone:
+            track(SignUpAnalytics.screenViewed(SignUpAnalytics.Screen.phoneNumber))
+        case .code:
+            track(SignUpAnalytics.screenViewed(SignUpAnalytics.Screen.codeEntry))
+        case .connect:
+            track(SignUpAnalytics.screenViewed(
+                SignUpAnalytics.Screen.connectSSO, ["state": "idle"]
+            ))
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             switch step {
             case .startup:
                 StartupView(
-                    onCreateAccount: { entry = .createAccount; step = .phone },
-                    onLogin: { entry = .logIn; step = .welcomeBack },
-                    onTerms: { onOpenLegal("Terms & Conditions") },
-                    onPrivacy: { onOpenLegal("Privacy Policy") },
-                    onLegalNotice: { onOpenLegal("Legal Notice") },
+                    onCreateAccount: {
+                        analytics.track(SignUpAnalytics.createAccountTapped, properties: [:])
+                        entry = .createAccount
+                        step = .phone
+                    },
+                    onLogin: {
+                        analytics.track(SignUpAnalytics.logInTapped, properties: [:])
+                        entry = .logIn
+                        step = .welcomeBack
+                    },
+                    onTerms: {
+                        track(SignUpAnalytics.legalLinkTapped(
+                            SignUpAnalytics.Legal.terms,
+                            screen: SignUpAnalytics.Screen.createAccount))
+                        onOpenLegal("Terms & Conditions")
+                    },
+                    onPrivacy: {
+                        track(SignUpAnalytics.legalLinkTapped(
+                            SignUpAnalytics.Legal.privacy,
+                            screen: SignUpAnalytics.Screen.createAccount))
+                        onOpenLegal("Privacy Policy")
+                    },
+                    onLegalNotice: {
+                        track(SignUpAnalytics.legalLinkTapped(
+                            SignUpAnalytics.Legal.legalNotice,
+                            screen: SignUpAnalytics.Screen.createAccount))
+                        onOpenLegal("Legal Notice")
+                    },
                     // On, because this target is the preview the spec sheet is reviewed against and
                     // the sheet draws the row. The figure itself is the sheet's own placeholder --
                     // "234.000" is not a measured number, and the sheet says so. The toggle exists
@@ -119,6 +178,12 @@ struct SignUpFlowView: View {
                     name: account?.name ?? "",
                     lastUsed: account?.lastUsed ?? .unknown,
                     onContinue: { method in
+                        // SHOWUP-142 wants `method` and `is_last_used` on every auth-method tap,
+                        // including the three providers that go nowhere yet -- the intent to use
+                        // them is exactly what the funnel needs to know.
+                        track(SignUpAnalytics.authMethodTapped(
+                            method: String(describing: method),
+                            isLastUsed: account?.lastUsed == method))
                         // Phone is the one method that goes anywhere: it is ours, and 143 is built.
                         // The three providers are live targets with nothing behind them yet — their
                         // SDK work is the sub-tasks on SHOWUP-144.
@@ -131,13 +196,30 @@ struct SignUpFlowView: View {
                             step = .phone
                         }
                     },
-                    onGetHelp: { onOpenLegal("Get help") },
+                    onGetHelp: {
+                        analytics.track(SignUpAnalytics.getHelpTapped, properties: [:])
+                        onOpenLegal("Get help")
+                    },
                     // Clears the remembered account and returns to Startup, per SHOWUP-142.
                     // Clearing it is the point -- coming back here afterwards must not still know
                     // the old name.
-                    onUseDifferentAccount: { account = nil; step = .startup },
-                    onLegal: { onOpenLegal("Legal Notice") },
-                    onPrivacy: { onOpenLegal("Privacy Policy") }
+                    onUseDifferentAccount: {
+                        analytics.track(SignUpAnalytics.useDifferentAccountTapped, properties: [:])
+                        account = nil
+                        step = .startup
+                    },
+                    onLegal: {
+                        track(SignUpAnalytics.legalLinkTapped(
+                            SignUpAnalytics.Legal.legalNotice,
+                            screen: SignUpAnalytics.Screen.welcomeBack))
+                        onOpenLegal("Legal Notice")
+                    },
+                    onPrivacy: {
+                        track(SignUpAnalytics.legalLinkTapped(
+                            SignUpAnalytics.Legal.privacy,
+                            screen: SignUpAnalytics.Screen.welcomeBack))
+                        onOpenLegal("Privacy Policy")
+                    }
                 )
 
             case .phone:
@@ -155,8 +237,17 @@ struct SignUpFlowView: View {
                     error: phoneError,
                     onBack: { step = .startup },
                     onSubmit: {
+                        analytics.track(SignUpAnalytics.phoneSubmitted, properties: [:])
                         let problem = validate(phoneDigits, country)
                         phoneError = problem
+                        if let problem {
+                            // Our outcome, not the ticket's three-value vocabulary -- see the note
+                            // on phoneValidationFailed. Reporting a reason the code cannot produce
+                            // would describe something that did not happen.
+                            track(SignUpAnalytics.phoneValidationFailed(
+                                reason: String(describing: problem),
+                                country: country.iso))
+                        }
                         if problem == nil {
                             codeDigits = ""
                             codeMismatch = false
@@ -183,6 +274,8 @@ struct SignUpFlowView: View {
                     // identically: return to A with the number intact, per SHOWUP-143.
                     onBack: { step = .phone },
                     onVerify: {
+                        analytics.track(SignUpAnalytics.codeSubmitted, properties: [:])
+                        verifyAttempts += 1
                         if codeDigits == DevAuth.testCode {
                             // SHOWUP-146. Connect (SHOWUP-144) belongs to account creation: it is
                             // where a brand-new account is offered a provider to link. Someone
@@ -195,23 +288,39 @@ struct SignUpFlowView: View {
                             }
                         } else {
                             codeMismatch = true
+                            lastVerifyFailed = true
+                            track(SignUpAnalytics.codeVerifyFailed(attempt: verifyAttempts))
                             // A mistyped code must not cost another wait — the ticket says the
                             // mismatch releases the cooldown, so the resend is live immediately.
                             cooldown = 0
                         }
                     },
                     onResend: {
+                        // SHOWUP-143 wants how long the user waited and whether this followed a
+                        // mismatch. The cooldown counts DOWN, so the time actually waited is the
+                        // difference -- and after a mismatch it is released to 0, which would
+                        // otherwise read as a full wait.
+                        track(SignUpAnalytics.resendRequested(
+                            secondsWaited: DevAuth.resendCooldown - cooldown,
+                            afterMismatch: lastVerifyFailed))
+                        lastVerifyFailed = false
                         codeDigits = ""
                         codeMismatch = false
                         cooldown = DevAuth.resendCooldown
                     },
-                    onEditNumber: { step = .phone }
+                    onEditNumber: {
+                        analytics.track(SignUpAnalytics.editPhoneTapped, properties: [:])
+                        step = .phone
+                    }
                 )
 
             // SHOWUP-144. Its own host drives the ten states. Every one of its exits leaves the
             // sign-up flow; SHOWUP-146 decides which of the two destinations it leaves for.
             case .connect:
-                ConnectFlowHost(onDone: { onFinished(outcomeOf(entry, $0)) })
+                ConnectFlowHost(
+                    onDone: { onFinished(outcomeOf(entry, $0)) },
+                    analytics: analytics
+                )
             }
 
             devStrip
@@ -234,6 +343,15 @@ struct SignUpFlowView: View {
             // The country pill defaults from device locale — SHOWUP-143 asks for exactly this, and
             // the region the platform reports is the same ISO key the table is built on.
             country = countryForRegion(Locale.current.region?.identifier)
+            // The first screenview. onChange does not fire for the initial value, so without this
+            // the funnel would be missing its entry step -- and a funnel missing its first step
+            // reads as though nobody ever started.
+            trackScreen(for: step)
+        }
+        // Two-parameter onChange: the single-parameter form is deprecated from iOS 17, which is
+        // this app's minimum. See CLAUDE.md on availability.
+        .onChange(of: step) { _, newStep in
+            trackScreen(for: newStep)
         }
         .onReceive(tick) { _ in
             if step == .code && cooldown > 0 { cooldown -= 1 }

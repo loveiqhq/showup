@@ -10,6 +10,9 @@
  */
 package com.showup.tutorial
 
+import com.showup.analytics.AnalyticsTracker
+import com.showup.analytics.NoOpAnalytics
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
