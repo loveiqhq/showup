@@ -133,6 +133,12 @@ private struct TutorialFlow: View {
 /// tapping the same button five times instead of needing five broken accounts.
 struct ConnectFlowHost: View {
     let onDone: (ConnectExit) -> Void
+    /// Opens a legal document.
+    ///
+    /// This screen carries "By continuing you agree to our Terms and Privacy Policy", and both are
+    /// real links -- SHOWUP-144 lists a click event for each. Without this they fell back to the
+    /// view's empty defaults: tappable, doing nothing, reporting nothing.
+    var onOpenLegal: (String) -> Void = { _ in }
     /// SHOWUP-144's twelve events are reported from here rather than from the view, because this
     /// owns the state transitions -- and several of the events ARE transitions rather than taps:
     /// link succeeded, link failed, linking timeout, conflict raised.
@@ -189,6 +195,16 @@ struct ConnectFlowHost: View {
                 analytics.track(
                     SignUpAnalytics.conflictDifferentAccountTapped, properties: [:])
                 state = .idle
+            },
+            onTerms: {
+                track(SignUpAnalytics.legalLinkTapped(
+                    SignUpAnalytics.Legal.terms, screen: SignUpAnalytics.Screen.connectSSO))
+                onOpenLegal("Terms & Conditions")
+            },
+            onPrivacy: {
+                track(SignUpAnalytics.legalLinkTapped(
+                    SignUpAnalytics.Legal.privacy, screen: SignUpAnalytics.Screen.connectSSO))
+                onOpenLegal("Privacy Policy")
             }
         )
     }
