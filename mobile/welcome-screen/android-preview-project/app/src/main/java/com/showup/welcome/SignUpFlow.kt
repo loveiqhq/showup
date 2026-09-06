@@ -179,9 +179,19 @@ fun SignUpFlow(
     Box(Modifier.fillMaxWidth()) {
         when (step) {
             Step.Startup -> StartupScreen(
-                // The dates figure is hidden until the number is worth showing — the minimum is
-                // still to be decided, so the toggle is off rather than the figure invented.
-                showSocialProof = false,
+                // ON here, and OFF in the component's default, which is not a contradiction.
+                //
+                // This target is the preview the spec sheet is reviewed against, and the sheet
+                // draws the row: turning it off here would hide it from design review and from
+                // anyone walking the flow on a device. The figure itself is the sheet's own
+                // placeholder — "234.000" is not a measured number and SHOWUP-140 says so.
+                //
+                // In the real app it stays OFF until the count is real, because a fabricated
+                // statistic on the first screen a user ever sees is a claim, not a mock. That is
+                // what the component's `false` default protects.
+                //
+                // Matches iOS, which passes `true` here for the same reason.
+                showSocialProof = true,
                 onCreateAccount = {
                     analytics.track(SignUpAnalytics.CREATE_ACCOUNT_TAPPED, emptyMap())
                     entry = Entry.CreateAccount
