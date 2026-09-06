@@ -308,11 +308,16 @@ What *is* built and correct: all four states, the reserved regions, the CTA not 
 `Enter your 6-digit verification code` label, digits preserved on error, the drawn flag rects
 (no emoji), and the resend cooldown released to 0 on mismatch.
 
-## C3 · No analytics on the welcome and sign-up screens
+## C3 · No analytics on the welcome and sign-up screens — CLOSED 6 September 2026
 
 The five tutorial cards call a tracker. **140, 142, 143, 144 and 145 have none** — and each of
 those tickets lists a full tracking section. 144 alone defines twelve events, five of which are
 marked `Not built` in the taxonomy.
+
+**Now implemented on both platforms**, transcribed from each ticket's Tracking section: 23 events
+across the five screens, wired in `SignUpFlow` and `ConnectFlowHost` with no screen file touched,
+`NoOp` by default so nothing is sent. `audit/check-analytics-parity.py` compares the two
+catalogues. Three conflicts surfaced while transcribing, in section E below.
 
 ## C4 · Evidence screenshots are not attached to any ticket
 
@@ -349,3 +354,61 @@ Two accessibility items were fixed rather than left open — 142 lists *"Legal l
 be checked against WCAG AA"* as an open item. It was checked: `--liq-fg-subtle` measures 3.04:1
 against a 4.5:1 requirement, and the legal lines now take `--liq-fg-muted` at 5.03:1. The input
 outlines and the skip button's dashed border moved for the same reason under 1.4.11.
+
+
+---
+
+# E · Conflicts found while implementing tracking (6 September 2026)
+
+Three things the tickets do not settle. All three are implemented one way and recorded here rather
+than decided quietly.
+
+## E1 · SHOWUP-142 and SHOWUP-145 name the same screen differently
+
+142 asks for `Screenname: Signup - welcomeback`. 145 asks for `Screenname - SSOLogin`, and adds that
+it "must be distinguishable from the first-run Startup screenview".
+
+We have **one** `WelcomeBackScreen` / `WelcomeBackView`. The two tickets describe the same screen —
+145 is "Re-login SSO", 142 is "Re Login", and their acceptance criteria are near-identical down to
+the 120px gap.
+
+**Implemented as `Signup - welcomeback`** (142), because 142 describes the screen we built. Both
+constants exist in the catalogue; only that one is wired.
+
+**Decision needed:** one screenview or two? If the product side wants SSO re-login counted
+separately from phone re-login, that is a property on the existing screenview rather than a second
+screen name — but it changes what the funnel looks like, so it is not ours to pick.
+
+## E2 · SHOWUP-143's `reason` vocabulary does not cover what our validator produces
+
+The ticket names three reasons: `too short`, `not a mobile`, `unsupported country`.
+
+Our validator produces **seven** outcomes, because it asks the phone metadata rather than measuring
+length: `empty`, `notANumber`, `tooShort`, `tooLong`, `invalidLength`, `unrecognised`, `notMobile`.
+
+- **Two overlap**: `tooShort` and `notMobile`.
+- **`unsupported country` is unreachable.** There is no supported-country list in the app, and
+  libphonenumber accepts every region. Nothing can emit it.
+- **Five have no bucket in the ticket**, including `empty` — which is the single most common
+  failure, because it is what a user gets for tapping the CTA without typing anything.
+
+**Implemented by reporting our outcome**, not the ticket's vocabulary. Reporting a reason the code
+cannot produce, or collapsing five distinct failures into one, would make the data describe
+something that did not happen.
+
+**Decision needed:** adopt the seven, or define a mapping. If the three are wanted for a dashboard,
+the mapping has to say what happens to the other five, and `empty` in particular should not
+disappear.
+
+## E3 · The legal links: three click events, or one with a property?
+
+140, 142, 144 and 145 each list `Terms & Conditions`, `Privacy Policy` and `Legal Notice` as
+**separate click events**.
+
+**Implemented as one `legal_link_tapped` event with a `link` property**, plus `screen_name` —
+because the same three links appear on four screens, and without the screen the taps are
+indistinguishable. Three event names per screen would be twelve events for one behaviour.
+
+This records exactly the same information and matches every other property-bearing event in the
+catalogue. **If the product side wants three names, it is a one-line change** — flagged rather than
+assumed.

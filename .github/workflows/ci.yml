@@ -179,14 +179,31 @@ jobs:
       # The design conformance checkers. Pure Python, a couple of seconds, and they read BOTH
       # platforms' sources, so a rule changed on one and not the other is caught even when both
       # suites pass. The iOS half is compiled and tested in the `ios` job below.
+      # DISCOVERED, not listed. This was a hardcoded list of nine names, and adding a tenth checker
+      # meant remembering to add it here too -- which is the same failure mode as the Swift sources
+      # that were once listed by hand in gen_pbxproj.py, and as the concurrency checker that only
+      # scanned one directory. A checker nobody runs is worse than no checker, because it reads as
+      # coverage.
+      #
+      # `set -e` is explicit rather than assumed, and the exit status is checked per script, so one
+      # failing checker fails the job instead of being buried by the next one's output.
       - name: Design conformance and cross-platform parity
         run: |
-          for f in verify-spec verify-welcome verify-connect check-country-data \
-                   check-tutorial-routing check-swift-structure check-swift-arg-order \
-                   check-ios-availability check-swift-concurrency; do
-            echo "── $f"
-            python3 "audit/$f.py"
+          set -e
+          found=0
+          for f in audit/verify-*.py audit/check-*.py; do
+            [ -e "$f" ] || continue
+            found=$((found + 1))
+            echo "── $(basename "$f")"
+            python3 "$f"
           done
+          echo "── ran $found checkers"
+          # A glob that matched nothing would otherwise pass silently, reporting full conformance
+          # while checking nothing at all.
+          if [ "$found" -lt 9 ]; then
+            echo "::error::expected at least 9 checkers, found $found -- has audit/ moved?"
+            exit 1
+          fi
 
       # Kept when the run fails, so a layout or conformance failure can be read without rerunning
       # anything locally.
@@ -272,8 +289,29 @@ jobs:
             -destination "id=$udid" \
             -clonedSourcePackagesDirPath .spm \
             -resultBundlePath ios-results.xcresult \
+            -skipPackagePluginValidation \
             test \
+            2>&1 | tee xcodebuild-raw.log \
             | { if command -v xcbeautify >/dev/null; then xcbeautify --renderer github-actions; else cat; fi; }
+
+      # `tee` first, prettify second.
+      #
+      # xcbeautify makes a passing log readable and, on a FAILING build, swallows the compiler
+      # diagnostics entirely: the job reported only "exit code 65" with no file, no line and no
+      # message. The xcresult bundle holds them but needs macOS tooling to read, so from a Windows
+      # machine the errors were simply unavailable.
+      #
+      # That is the same failure this whole pipeline exists to prevent -- something broke and
+      # nobody could see what. The raw log is kept, and this prints the errors out of it whatever
+      # the renderer decided to show.
+      - name: Show the compiler errors
+        if: failure()
+        run: |
+          echo "── compiler diagnostics ──────────────────────────────────────"
+          grep -E "error:" xcodebuild-raw.log | head -60 || echo "(no 'error:' lines found)"
+          echo ""
+          echo "── last 40 lines of the raw log ──────────────────────────────"
+          tail -40 xcodebuild-raw.log
 
       # The generated API client lives in its own local Swift package, so it is built and tested
       # with plain SwiftPM -- no Xcode project, no simulator, no app target involved. That
@@ -295,5 +333,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-results
-          path: mobile/welcome-screen/ios-app/ios-results.xcresult
+          # The raw log as well as the xcresult. The bundle needs macOS tooling to open, which is
+          # no use to somebody diagnosing this from Windows -- which is where it was diagnosed from.
+          path: |
+            mobile/welcome-screen/ios-app/ios-results.xcresult
+            mobile/welcome-screen/ios-app/xcodebuild-raw.log
           retention-days: 7

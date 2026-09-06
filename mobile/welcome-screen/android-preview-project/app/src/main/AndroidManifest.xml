@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".ShowUpApplication"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.ShowUp">
@@ -19,6 +20,13 @@
             the window is in resize mode. Without this the CTA can end up underneath the keyboard
             with no way to reach it — and the default (adjustUnspecified) leaves that to the OEM.
         -->
+        <!--
+            Sentry installs itself from manifest metadata unless told not to. Auto-init reads a DSN
+            from here, which would mean committing one and losing the switch, so it is off and
+            ShowUpApplication starts the SDK explicitly instead.
+        -->
+        <meta-data android:name="io.sentry.auto-init" android:value="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

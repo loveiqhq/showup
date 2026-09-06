@@ -851,6 +851,11 @@ our defects were decisions, not syntax: which component, which tone, what the ti
 
 ## 8.2 · Required response format
 
+**This now lives in `mobile/welcome-screen/CLAUDE.md`, which is the authoritative copy.** It was
+here only, which was the flaw: this document is read by people occasionally, and `CLAUDE.md` is
+loaded automatically on every request. A rule that has to be looked up is a rule that gets skipped.
+The copy below is kept for the reasoning; if the two ever disagree, `CLAUDE.md` wins.
+
 Claude must use this after implementing a screen. **The point is that "unverified" is a first-class
 outcome** — the failure mode this prevents is a confident "done" backed only by reading.
 

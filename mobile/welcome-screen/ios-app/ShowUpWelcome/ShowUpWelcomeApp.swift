@@ -11,9 +11,38 @@ import SwiftUI
 
 @main
 struct ShowUpWelcomeApp: App {
+
+    /// Crash reporting starts in the initialiser, which is the earliest point this target owns.
+    ///
+    /// Starting it inside a view's `onAppear` instead would miss every crash that happens before
+    /// the first frame — the ones that are hardest to reproduce and most likely to hit every user
+    /// at once. Returns false and does nothing at all unless a DSN is configured for this build.
+    init() {
+        Crashes.start(
+            enabled: CrashReporting.enabled,
+            dsn: CrashReporting.dsn,
+            environment: Self.isDebugBuild ? "development" : "production",
+            release: "org.loveiq.showup@\(Self.version)"
+        )
+    }
+
     var body: some Scene {
         WindowGroup { TutorialFlow() }
     }
+
+    // `static let`, not a computed `static var`. Both would compile, and audit/
+    // check-swift-concurrency.py rejects any `static var` on sight -- a deliberately blunt rule,
+    // because telling a computed property from stored mutable state by pattern matching is
+    // unreliable and stored mutable global state is what Swift 6 actually rejects. `let` is the
+    // better code here regardless: each of these is evaluated once rather than on every read.
+    #if DEBUG
+    private static let isDebugBuild = true
+    #else
+    private static let isDebugBuild = false
+    #endif
+
+    private static let version: String =
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
 }
 
 /// Slide-and-fade, matching the Android host.
@@ -104,11 +133,26 @@ private struct TutorialFlow: View {
 /// tapping the same button five times instead of needing five broken accounts.
 struct ConnectFlowHost: View {
     let onDone: (ConnectExit) -> Void
+    /// SHOWUP-144's twelve events are reported from here rather than from the view, because this
+    /// owns the state transitions -- and several of the events ARE transitions rather than taps:
+    /// link succeeded, link failed, linking timeout, conflict raised.
+    ///
+    /// This host is scaffolding for provider SDKs that do not exist yet. When they arrive the
+    /// transitions move with them and these calls move too; the names and properties do not.
+    var analytics: any AnalyticsTracking = NoOpAnalytics()
 
     @State private var state: ConnectState = .idle
     @State private var provider: AuthMethod = .apple
     @State private var kind: ErrorKind = .network
     @State private var attempt = 0
+    /// "repeat conflicts in one session" is a named event in SHOWUP-144, so the count is kept: the
+    /// second conflict is a different signal from the first.
+    @State private var conflicts = 0
+
+    private func track(_ pair: (String, [String: any Sendable])) {
+        analytics.track(pair.0, properties: pair.1)
+    }
+    private var providerName: String { String(describing: provider) }
 
     var body: some View {
         ConnectAccountView(
@@ -116,17 +160,36 @@ struct ConnectFlowHost: View {
             provider: provider,
             kind: kind,
             onSelect: { m in
+                track(SignUpAnalytics.provider(
+                    SignUpAnalytics.providerTapped, String(describing: m)))
                 provider = m
                 Task { await run() }
             },
             // SHOWUP-146 needs to tell these three apart, so the host reports which one
             // happened rather than collapsing them into a bare "done".
-            onSkip: { onDone(.skipped) },
+            onSkip: {
+                analytics.track(SignUpAnalytics.skipTapped, properties: [:])
+                onDone(.skipped)
+            },
             onContinue: { onDone(.connected) },
             // The 8s cap firing is a real transition, not a demo shortcut.
-            onLinkingTimeout: { kind = .network; state = .error },
-            onResolveConflict: { _ in onDone(.resolvedConflict) },
-            onUseDifferentAccount: { state = .idle }
+            onLinkingTimeout: {
+                // The 8-second cap in SHOWUP-144. Reported separately from link_failed even though
+                // it lands on the same state: a timeout and a refusal are different problems.
+                track(SignUpAnalytics.provider(SignUpAnalytics.linkingTimeout, providerName))
+                kind = .network
+                state = .error
+            },
+            onResolveConflict: { _ in
+                track(SignUpAnalytics.provider(
+                    SignUpAnalytics.conflictResolveTapped, providerName))
+                onDone(.resolvedConflict)
+            },
+            onUseDifferentAccount: {
+                analytics.track(
+                    SignUpAnalytics.conflictDifferentAccountTapped, properties: [:])
+                state = .idle
+            }
         )
     }
 
@@ -142,18 +205,32 @@ struct ConnectFlowHost: View {
             state = .linking
             try? await Task.sleep(nanoseconds: 1_600_000_000)
             state = .success
+            track(SignUpAnalytics.provider(SignUpAnalytics.linkSucceeded, providerName))
         case 1:
+            // The user closed the provider sheet before it finished. Distinct from an error: no
+            // failure happened, they changed their mind.
             state = .cancelled
+            track(SignUpAnalytics.provider(SignUpAnalytics.sheetDismissed, providerName))
         case 2:
             kind = .network
             state = .error
+            track(SignUpAnalytics.linkFailed(provider: providerName, kind: "network"))
         case 3:
             kind = .declined
             state = .error
+            track(SignUpAnalytics.linkFailed(provider: providerName, kind: "declined"))
         default:
             state = .linking
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             state = .conflict
+            conflicts += 1
+            track(SignUpAnalytics.provider(SignUpAnalytics.conflictRaised, providerName))
+            // Reported IN ADDITION to conflict_raised, not instead of it, so the plain count of
+            // conflicts stays correct.
+            if conflicts > 1 {
+                track(SignUpAnalytics.conflictRepeated(
+                    count: conflicts, provider: providerName))
+            }
         }
     }
 }

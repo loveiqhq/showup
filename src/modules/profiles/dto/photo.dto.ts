@@ -15,7 +15,10 @@ export class PhotoDto {
   @ApiProperty({ enum: PhotoModerationStatus })
   moderationStatus: PhotoModerationStatus;
 
-  @ApiProperty()
+  @ApiProperty({
+    type: 'integer',
+    description: 'Ordering within the user’s photos, from 0.',
+  })
   position: number;
 
   @ApiProperty()

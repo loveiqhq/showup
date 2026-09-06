@@ -18,6 +18,7 @@ export class CheckInDto {
   availabilityEnd: Date;
 
   @ApiProperty({
+    type: 'integer',
     description: 'Minutes the user needs to get ready before heading out',
   })
   preparationMinutes: number;

@@ -44,6 +44,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.showup.analytics.AnalyticsTracker
+import com.showup.analytics.NoOpAnalytics
+import com.showup.analytics.SignUpAnalytics
 import com.showup.designsystem.Manrope
 import kotlinx.coroutines.delay
 
@@ -92,6 +95,11 @@ fun SignUpFlow(
      */
     onFinished: (SignUpOutcome) -> Unit = {},
     onOpenLegal: (String) -> Unit = {},
+    /**
+     * Where events go. NoOp by default, so nothing is sent and the flow behaves identically
+     * whether or not analytics is switched on -- which is also what makes it testable.
+     */
+    analytics: AnalyticsTracker = NoOpAnalytics,
 ) {
     var step by rememberSaveable { mutableStateOf(if (remembered != null) Step.WelcomeBack else Step.Startup) }
     var account by remember { mutableStateOf(remembered) }
@@ -114,6 +122,39 @@ fun SignUpFlow(
     var codeDigits by rememberSaveable { mutableStateOf("") }
     var codeMismatch by rememberSaveable { mutableStateOf(false) }
     var cooldown by rememberSaveable { mutableIntStateOf(DevAuth.RESEND_COOLDOWN) }
+
+    // Tracking-only state. SHOWUP-143 wants the attempt number on a failed verify and whether a
+    // resend followed a mismatch; neither is derivable from the screen's own state, because the
+    // mismatch flag is cleared the moment the user edits a digit.
+    var verifyAttempts by rememberSaveable { mutableIntStateOf(0) }
+    var lastVerifyFailed by rememberSaveable { mutableStateOf(false) }
+
+    /** Reports an event built by the SignUpAnalytics catalogue. */
+    fun track(pair: Pair<String, Map<String, Any>>) = analytics.track(pair.first, pair.second)
+
+    // Screenviews. Keyed on `step`, so each fires once when the screen becomes visible and again
+    // if the user comes back to it -- which is the behaviour a funnel needs.
+    LaunchedEffect(step) {
+        when (step) {
+            Step.Startup -> track(SignUpAnalytics.screenViewed(SignUpAnalytics.Screen.CREATE_ACCOUNT))
+            // SHOWUP-142 asks for the lastUsed value on the screenview, including `unknown`.
+            Step.WelcomeBack -> track(
+                SignUpAnalytics.screenViewed(
+                    SignUpAnalytics.Screen.WELCOME_BACK,
+                    mapOf("last_used" to (account?.lastUsed?.name?.lowercase() ?: "unknown")),
+                )
+            )
+            Step.Phone -> track(SignUpAnalytics.screenViewed(SignUpAnalytics.Screen.PHONE_NUMBER))
+            Step.Code -> track(SignUpAnalytics.screenViewed(SignUpAnalytics.Screen.CODE_ENTRY))
+            // SHOWUP-144: one screenview with a `state` property, not ten. See CONFLICTS A8.
+            Step.Connect -> track(
+                SignUpAnalytics.screenViewed(
+                    SignUpAnalytics.Screen.CONNECT_SSO,
+                    mapOf("state" to "idle"),
+                )
+            )
+        }
+    }
 
     // The country pill defaults from device locale — SHOWUP-143 asks for exactly this, and the
     // region the platform reports is the same ISO key the table is built on.
@@ -138,14 +179,44 @@ fun SignUpFlow(
     Box(Modifier.fillMaxWidth()) {
         when (step) {
             Step.Startup -> StartupScreen(
-                // The dates figure is hidden until the number is worth showing — the minimum is
-                // still to be decided, so the toggle is off rather than the figure invented.
-                showSocialProof = false,
-                onCreateAccount = { entry = Entry.CreateAccount; step = Step.Phone },
-                onLogin = { entry = Entry.LogIn; step = Step.WelcomeBack },
-                onTerms = { onOpenLegal("Terms & Conditions") },
-                onPrivacy = { onOpenLegal("Privacy Policy") },
-                onLegalNotice = { onOpenLegal("Legal Notice") },
+                // ON here, and OFF in the component's default, which is not a contradiction.
+                //
+                // This target is the preview the spec sheet is reviewed against, and the sheet
+                // draws the row: turning it off here would hide it from design review and from
+                // anyone walking the flow on a device. The figure itself is the sheet's own
+                // placeholder — "234.000" is not a measured number and SHOWUP-140 says so.
+                //
+                // In the real app it stays OFF until the count is real, because a fabricated
+                // statistic on the first screen a user ever sees is a claim, not a mock. That is
+                // what the component's `false` default protects.
+                //
+                // Matches iOS, which passes `true` here for the same reason.
+                showSocialProof = true,
+                onCreateAccount = {
+                    analytics.track(SignUpAnalytics.CREATE_ACCOUNT_TAPPED, emptyMap())
+                    entry = Entry.CreateAccount
+                    step = Step.Phone
+                },
+                onLogin = {
+                    analytics.track(SignUpAnalytics.LOG_IN_TAPPED, emptyMap())
+                    entry = Entry.LogIn
+                    step = Step.WelcomeBack
+                },
+                onTerms = {
+                    track(SignUpAnalytics.legalLinkTapped(
+                        SignUpAnalytics.Legal.TERMS, SignUpAnalytics.Screen.CREATE_ACCOUNT))
+                    onOpenLegal("Terms & Conditions")
+                },
+                onPrivacy = {
+                    track(SignUpAnalytics.legalLinkTapped(
+                        SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.Screen.CREATE_ACCOUNT))
+                    onOpenLegal("Privacy Policy")
+                },
+                onLegalNotice = {
+                    track(SignUpAnalytics.legalLinkTapped(
+                        SignUpAnalytics.Legal.LEGAL_NOTICE, SignUpAnalytics.Screen.CREATE_ACCOUNT))
+                    onOpenLegal("Legal Notice")
+                },
             )
 
             Step.WelcomeBack -> WelcomeBackScreen(
@@ -157,6 +228,13 @@ fun SignUpFlow(
                 name = account?.name.orEmpty(),
                 lastUsed = account?.lastUsed ?: AuthMethod.Unknown,
                 onContinue = { method ->
+                    // SHOWUP-142 wants `method` and `is_last_used` on every auth-method tap,
+                    // including the three providers that go nowhere yet -- the intent to use them
+                    // is exactly what the funnel needs to know.
+                    track(SignUpAnalytics.authMethodTapped(
+                        method = method.name.lowercase(),
+                        isLastUsed = account?.lastUsed == method,
+                    ))
                     // Phone is the one method that goes anywhere: it is ours, and 143 is built.
                     // The three providers are live targets with nothing behind them yet — their
                     // SDK work is the sub-tasks on SHOWUP-144.
@@ -168,13 +246,28 @@ fun SignUpFlow(
                         step = Step.Phone
                     }
                 },
-                onGetHelp = { onOpenLegal("Get help") },
+                onGetHelp = {
+                    analytics.track(SignUpAnalytics.GET_HELP_TAPPED, emptyMap())
+                    onOpenLegal("Get help")
+                },
                 // Clears the remembered account and returns to Startup, per SHOWUP-142. Clearing
                 // it is the point -- coming back to this screen afterwards must not still know
                 // the old name.
-                onUseDifferentAccount = { account = null; step = Step.Startup },
-                onLegal = { onOpenLegal("Legal Notice") },
-                onPrivacy = { onOpenLegal("Privacy Policy") },
+                onUseDifferentAccount = {
+                    analytics.track(SignUpAnalytics.USE_DIFFERENT_ACCOUNT_TAPPED, emptyMap())
+                    account = null
+                    step = Step.Startup
+                },
+                onLegal = {
+                    track(SignUpAnalytics.legalLinkTapped(
+                        SignUpAnalytics.Legal.LEGAL_NOTICE, SignUpAnalytics.Screen.WELCOME_BACK))
+                    onOpenLegal("Legal Notice")
+                },
+                onPrivacy = {
+                    track(SignUpAnalytics.legalLinkTapped(
+                        SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.Screen.WELCOME_BACK))
+                    onOpenLegal("Privacy Policy")
+                },
             )
 
             Step.Phone -> {
@@ -191,8 +284,18 @@ fun SignUpFlow(
                     error = phoneError,
                     onBack = { step = Step.Startup },
                     onSubmit = {
+                        analytics.track(SignUpAnalytics.PHONE_SUBMITTED, emptyMap())
                         val problem = validate(phoneDigits, country)
                         phoneError = problem
+                        if (problem != null) {
+                            // Our outcome, not the ticket's three-value vocabulary -- see the note
+                            // on PHONE_VALIDATION_FAILED. Reporting a reason the code cannot
+                            // produce would describe something that did not happen.
+                            track(SignUpAnalytics.phoneValidationFailed(
+                                reason = problem.name.lowercase(),
+                                country = country.iso,
+                            ))
+                        }
                         if (problem == null) {
                             codeDigits = ""
                             codeMismatch = false
@@ -219,6 +322,8 @@ fun SignUpFlow(
                     cooldownSeconds = cooldown,
                     onBack = { step = Step.Phone },
                     onVerify = {
+                        analytics.track(SignUpAnalytics.CODE_SUBMITTED, emptyMap())
+                        verifyAttempts += 1
                         if (codeDigits == DevAuth.TEST_CODE) {
                             // SHOWUP-146. Connect (SHOWUP-144) belongs to account creation: it is
                             // where a brand-new account is offered a provider to link. Someone
@@ -231,17 +336,31 @@ fun SignUpFlow(
                             }
                         } else {
                             codeMismatch = true
+                            lastVerifyFailed = true
+                            track(SignUpAnalytics.codeVerifyFailed(verifyAttempts))
                             // A mistyped code must not cost another wait — the ticket says the
                             // mismatch releases the cooldown, so the resend is live immediately.
                             cooldown = 0
                         }
                     },
                     onResend = {
+                        // SHOWUP-143 wants how long the user waited and whether this followed a
+                        // mismatch. The cooldown counts DOWN from the full value, so the time
+                        // actually waited is the difference -- and after a mismatch it is released
+                        // to 0, which would otherwise read as a full wait.
+                        track(SignUpAnalytics.resendRequested(
+                            secondsWaited = DevAuth.RESEND_COOLDOWN - cooldown,
+                            afterMismatch = lastVerifyFailed,
+                        ))
+                        lastVerifyFailed = false
                         codeDigits = ""
                         codeMismatch = false
                         cooldown = DevAuth.RESEND_COOLDOWN
                     },
-                    onEditNumber = { step = Step.Phone },
+                    onEditNumber = {
+                        analytics.track(SignUpAnalytics.EDIT_PHONE_TAPPED, emptyMap())
+                        step = Step.Phone
+                    },
                 )
             }
 
@@ -249,6 +368,7 @@ fun SignUpFlow(
             // sign-up flow; SHOWUP-146 decides which of the two destinations it leaves for.
             Step.Connect -> ConnectFlowHost(
                 onDone = { exit -> onFinished(outcomeOf(entry, exit)) },
+                analytics = analytics,
             )
         }
 

@@ -45,6 +45,36 @@ drift check would be noise.
 | Operations requiring auth | 42 |
 | Public operations | 10 — the eight auth routes plus two health probes |
 
+## Decisions needed
+
+Two things are deliberately left open rather than resolved by guessing.
+
+**1. `CreateCheckInDto.preparationMinutes` — enforce the range, or reword the description?**
+
+Its description says minutes "(15–60)". Its only validators are `@IsOptional()` and `@IsInt()`, so
+**nothing enforces that range**: the server accepts 5, or 500. The contract therefore declares
+`type: 'integer'` and no `minimum`/`maximum`, because documenting bounds the server does not apply
+would make a generated client reject values the backend takes happily.
+
+No behaviour was changed. The two ways out:
+
+- add `@Min(15) @Max(60)` to the DTO, then declare the same bounds in the schema — the description
+  becomes true and clients get the constraint; or
+- drop "(15–60)" from the description — the range was never a rule.
+
+Whichever is chosen, contract and code should say the same thing. Right now the contract describes
+the code and the comment describes an intention.
+
+**2. `KeychainTokenStore` is not verified on a device. This is a release blocker.**
+
+It has a construction check and nothing more. Reading and writing the real Keychain from a SwiftPM
+test bundle needs a signed host application with a `keychain-access-group` entitlement; without
+one, `SecItemAdd` returns `errSecMissingEntitlement` and the test would assert on the sandbox
+rather than on our code.
+
+It must be exercised by hand on a signed device — save, read back, relaunch, read again, sign out,
+confirm cleared — before the first release. Until then it stays listed here as unverified.
+
 ## What the correction was
 
 An earlier document reported **13 typed and 39 untyped responses**. That was wrong. It came from a
@@ -117,6 +147,29 @@ declare them explicitly.
 `src/openapi.config.ts` is shared by `main.ts` and the emit script, so the interactive docs and the
 committed contract are always the same document.
 
+## Numeric types
+
+Fixed 4 September. OpenAPI's `number` is an arbitrary-precision decimal, which the Kotlin generator
+maps to `BigDecimal` — so a token lifetime in seconds arrived as a `BigDecimal` and every caller
+had to convert it. Eight fields are now `integer`:
+
+`statusCode` · `expiresIn` · `preparationMinutes` (both DTOs) · `rating` · `distanceMeters` ·
+`position` · `age`
+
+Three deliberately stay `number`, because they genuinely are decimals: **`latitude`**,
+**`longitude`**, and **`matchScore`** (the verification provider returns values like `99.9`).
+
+`rating` also declares `minimum: 1, maximum: 5`, because `@IsInt() @Min(1) @Max(5)` already
+enforces exactly that at runtime — the schema now documents what the server does.
+
+**`CreateCheckInDto.preparationMinutes` deliberately declares no bounds**, and that is the
+interesting one. Its description says "15–60", but its only validators are `@IsOptional()` and
+`@IsInt()` — nothing enforces the range. Declaring `minimum`/`maximum` would put a constraint in
+the contract that the server does not apply, and a generated client would then reject a value the
+backend accepts. Either the validators should gain `@Min(15) @Max(60)` or the description should
+stop promising it; until somebody decides which, the contract describes the code rather than the
+comment.
+
 ## Naming convention
 
 `verbNoun`, unique across the API, no controller prefix. Where a name was ambiguous it was resolved
@@ -136,8 +189,7 @@ before adding a fifth.
 
 | Gap | Severity | Note |
 |---|---|---|
-| **Ten numeric fields are `number`, so they generate as `BigDecimal`** | **Medium** | `expiresIn`, `statusCode`, `preparationMinutes`, `rating`, `position`, `distanceMeters` and others. OpenAPI's `number` is an arbitrary-precision decimal; these are whole numbers and every caller converts. The fix is `type: 'integer'` on each. `latitude`, `longitude` and `matchScore` genuinely are decimals and should stay |
-| No pagination model | **Medium** | No list endpoint pages yet. Define one shared DTO before the first one does, or each will invent its own |
+| No pagination model | **Low, for now** | Measured 4 September: **ten** endpoints return a bare array and **none** takes a `limit`, `offset`, `page` or `cursor` parameter. Nothing is paginated and nothing is about to be, so no DTO was defined — inventing one now would be a shape nothing uses. Define it with the first endpoint that actually pages, before a second one invents a different one |
 | `403` / `404` undeclared | Low | Deliberate. Add per route where a guard or lookup genuinely produces them |
 | `message` is `string \| string[]` | Low | Real, and declared honestly. Both clients must handle the union; narrowing it would break decoding on exactly the errors users hit most |
 | No `@ApiProperty` audit | Low | 150 are present and no untyped properties reach the schema, so this is polish |

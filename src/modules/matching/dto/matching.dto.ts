@@ -52,6 +52,7 @@ export class DiscoveryProfileDto {
   verified: boolean;
 
   @ApiProperty({
+    type: 'integer',
     description: 'Distance from the viewer, rounded (never exact coordinates)',
   })
   distanceMeters: number;

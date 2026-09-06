@@ -17,6 +17,9 @@ import { CHAT_MESSAGE_MAX_LENGTH, ChatReason } from '../util/pre-date-chat';
 /** Body for confirming a date happened, with a rating. */
 export class ConfirmHappenedDto {
   @ApiProperty({
+    type: 'integer',
+    minimum: 1,
+    maximum: 5,
     description: 'Your rating of the date, from 1 to 5',
     example: 5,
   })

@@ -40,10 +40,16 @@ import com.showup.designsystem.Subtle
 
 /**
  * @param showSocialProof the dates figure is dynamic and gated — SHOWUP-140 requires a toggle,
- *        and it defaults OFF: the figure only appears once enough dates exist, and the minimum
- *        has not been decided. Shipping a number nobody has agreed to would be inventing it.
- *        because the claim only appears once enough dates have actually been organised. Defaulting
- *        it to false would hide it from the design review, so it defaults on and the flag exists.
+ *        because the claim only appears once enough dates have actually been organised and the
+ *        threshold has not been decided.
+ *
+ *        **Defaults to false**, which is the production-safe value: shipping a number nobody has
+ *        agreed to would be inventing a statistic on the first screen a user ever sees.
+ *
+ *        The preview flow (`SignUpFlow`) passes `true` deliberately, so the row can be seen and
+ *        measured at every device size before the real number exists. `ScreenFitTest` sweeps both
+ *        states — with and without — because the row sits between two `flex: 1` spacers and
+ *        changes what has to fit.
  */
 @Composable
 fun StartupScreen(
