@@ -16,6 +16,11 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.ComponentSizes
+import com.showup.designsystem.Motion
+import com.showup.designsystem.Radius
+import com.showup.designsystem.Spacing
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.BasicTextField
@@ -129,9 +134,9 @@ private fun ColumnScope.Eyebrow() {
             // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on both
             // of these screens; lavender is the tutorial's tone and was taken here by default.
             .background(EyebrowOrangeBg)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .padding(horizontal = Spacing.lg, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         Box(Modifier.size(5.dp).background(Orange, CircleShape))
         Text(
@@ -183,18 +188,18 @@ fun PhoneNumberScreen(
         )
 
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             // Country pill -- opens the list. The default comes from device locale; see SignUpFlow.
             Row(
                 Modifier
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .height(ComponentSizes.controlHeight)
+                    .clip(RoundedCornerShape(Radius.control))
                     .background(Elevated)
-                    .border(1.5.dp, Subtle, RoundedCornerShape(14.dp))
+                    .border(1.5.dp, Subtle, RoundedCornerShape(Radius.control))
                     .clickable(role = Role.Button, onClick = onOpenCountryList)
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 Flag(country)
                 Text(country.dial, color = Fg, fontFamily = Manrope,
@@ -207,10 +212,10 @@ fun PhoneNumberScreen(
             Row(
                 Modifier
                     .weight(1f)
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .height(ComponentSizes.controlHeight)
+                    .clip(RoundedCornerShape(Radius.control))
                     .background(Elevated)
-                    .border(1.5.dp, if (invalid) Danger else Subtle, RoundedCornerShape(14.dp))
+                    .border(1.5.dp, if (invalid) Danger else Subtle, RoundedCornerShape(Radius.control))
                     .padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -263,7 +268,7 @@ fun PhoneNumberScreen(
                     },
                 )
                 if (invalid) {
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(Spacing.md))
                     Box(Modifier.size(22.dp).background(Danger, CircleShape),
                         contentAlignment = Alignment.Center) {
                         Text("!", color = Color.White, fontFamily = Lora,
@@ -300,7 +305,7 @@ fun PhoneNumberScreen(
         Box(
             Modifier
                 .fillMaxWidth()
-                .padding(top = 10.dp, start = 4.dp)
+                .padding(top = Spacing.lg, start = Spacing.xs)
                 .height(40.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
@@ -391,7 +396,7 @@ fun VerifyCodeScreen(
     LaunchedEffect(mismatch) {
         if (mismatch && motion.enabled) {
             shake.snapTo(0f)
-            shake.animateTo(1f, androidx.compose.animation.core.tween(480, easing = ShowUpEasing))
+            shake.animateTo(1f, androidx.compose.animation.core.tween(Motion.SHAKE, easing = ShowUpEasing))
         } else {
             shake.snapTo(0f)
         }
@@ -465,7 +470,7 @@ fun VerifyCodeScreen(
                         Box(
                             Modifier
                                 .size(width = slotW, height = slotH)
-                                .clip(RoundedCornerShape(14.dp))
+                                .clip(RoundedCornerShape(Radius.control))
                                 .background(if (mismatch) Danger.copy(alpha = 0.04f) else Elevated)
                                 .border(
                                     1.5.dp,
@@ -475,7 +480,7 @@ fun VerifyCodeScreen(
                                         ch != null -> Fg.copy(alpha = 0.32f)
                                         else -> Border
                                     },
-                                    RoundedCornerShape(14.dp),
+                                    RoundedCornerShape(Radius.control),
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -525,11 +530,11 @@ fun VerifyCodeScreen(
             if (mismatch) {
                 Row(
                     Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(Radius.errorBox))
                         .background(Danger.copy(alpha = 0.07f))
-                        .border(1.dp, Danger.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .border(1.dp, Danger.copy(alpha = 0.18f), RoundedCornerShape(Radius.errorBox))
+                        .padding(horizontal = 14.dp, vertical = Spacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
                 ) {
                     Box(Modifier.size(18.dp).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
                         Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -572,11 +577,11 @@ fun VerifyCodeScreen(
                 Text(
                     "Send a new code",
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(Radius.errorBox))
                         .clickable(role = Role.Button, onClick = onResend)
                         // 44dp is the smallest comfortable touch target; the text alone is ~20.
-                        .heightIn(min = 44.dp)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                        .heightIn(min = ComponentSizes.minTapTarget)
+                        .padding(horizontal = Spacing.xl, vertical = Spacing.xl),
                     color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
                     fontSize = 14.sp, textDecoration = TextDecoration.Underline,
                 )
@@ -586,7 +591,7 @@ fun VerifyCodeScreen(
                 // broken. tabular figures so the countdown does not jitter as it ticks.
                 Text(
                     "Send a new code in 0:%02d".format(cooldownSeconds),
-                    modifier = Modifier.padding(vertical = 4.dp),
+                    modifier = Modifier.padding(vertical = Spacing.xs),
                     color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
@@ -600,9 +605,9 @@ fun VerifyCodeScreen(
                     // minimum only grows the area that answers to a finger, which is what the
                     // guideline is about.
                     .defaultMinSize(minHeight = 44.dp)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = Spacing.md, vertical = Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Icon(BrandIcon.Pencil, 13.dp, tint = Muted, strokeWidth = 1.8.dp)
                 Text("Edit phone number", color = Muted, fontFamily = Manrope,

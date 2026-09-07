@@ -83,8 +83,40 @@ requires anything newer on either platform.
 
 ## Design tokens
 
-- **One definition per value**, in `DesignSystem.kt` / `DesignSystem.swift`. Never a colour literal,
-  spacing value, radius, icon size or font size in a screen file.
+Six files per platform, since 7 September 2026. `DesignSystem` holds colour and type families;
+`Spacing`, `Radius`, `ComponentSizes`, `IconSizes` and `Motion` hold the rest. `docs/design-system.md`
+lists every token and, just as importantly, what deliberately is not one.
+
+**Before writing a number into a screen, check whether a token holds it.** In order:
+
+- **A raw hex colour in a screen is forbidden** while a colour token exists for it. The one exception
+  is below.
+- **`Spacing.screenGutter`, `.xs`, `.sm`, `.md`, `.lg`, `.xl`, `.xxl`** — never a raw `dp`/point value
+  for padding, a gap, or a spacer when one of these holds it.
+- **`Radius.control`, `.pill`, `.errorBox`, `.card`** — never a raw corner radius for a component.
+- **`ComponentSizes.controlHeight`, `.minTapTarget`** — never a new standard control height. A
+  56-tall control and a 44 tap floor already have names.
+- **`IconSizes.sm`, `.badge`** — never a raw size for an icon or a status badge.
+- **`Motion.*`** — never a raw animation duration. The five are shared across platforms and the
+  shake is specified by SHOWUP-143.
+
+**Typography is the exception, and on purpose.** There are no type tokens: the design has 41 distinct
+family/size/weight/line-height combinations and only 12 repeat, so there is nothing coherent to name
+yet. Keep writing type at the call site until that changes, and do not invent roles to fill the gap.
+
+**Do not add a token because a number appears several times.** A token needs a meaning its name can
+state. `14` appears 22 times in spacing and is still local, because no single meaning could be found
+for it. A token whose name cannot say what it is for is a number with extra steps.
+
+**Do not tokenise illustration geometry.** Dot offsets, ring positions, sparkle coordinates and
+canvas sizes belong to the drawing. Putting them in the design system makes them look reusable.
+
+**If a value must stay local, say why at the call site.** The reserved helper regions on the phone
+screens are the model: 42 is not a constant, it is `error box + 2`, and the comment says so and says
+the two move together.
+
+- **One definition per value**, in the token files. Never a colour literal, spacing value, radius,
+  icon size or font size in a screen file when a token holds it.
 - **One exception: third-party brand colours.** Google's and Meta's sign-in branding rules mandate
   exact values we are not permitted to re-theme, so those stay as literals and carry the rule that
   mandates them in a comment. A checker that failed on every literal would flag all fourteen of them

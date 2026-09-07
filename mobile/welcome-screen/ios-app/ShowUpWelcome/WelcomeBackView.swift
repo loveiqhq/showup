@@ -74,9 +74,9 @@ struct WelcomeBackView: View {
                 Spacer(minLength: 0)
 
                 // The stack floats between two equal spacers — centred in the lower band.
-                VStack(spacing: 10) {
+                VStack(spacing: Spacing.lg) {
                     if known {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.sm) {
                             // 6pt dot with a 3pt ring — the ring sits outside the dot rather than
                             // growing it, so the dot stays 6.
                             Circle().fill(Color.liqOrange).frame(width: 6, height: 6)
@@ -104,7 +104,7 @@ struct WelcomeBackView: View {
                     .tint(.liqFg)
                     .frame(maxWidth: .infinity)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Spacing.md)
 
                 // No Terms & Conditions here — consent was given at sign-up.
                 Text(legalAttributed)
@@ -112,7 +112,7 @@ struct WelcomeBackView: View {
                     .multilineTextAlignment(.center)
                     .tint(.liqMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Spacing.md)
             }
         }
         .ignoresSafeArea(.keyboard)

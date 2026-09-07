@@ -89,15 +89,15 @@ struct CountrySheet: View {
             Capsule()
                 .fill(Color.liqBorder)
                 .frame(width: 40, height: 4)
-                .padding(.top, 10)
+                .padding(.top, Spacing.lg)
 
             Text("Choose your country")
                 .font(F.manrope(17, .bold))
                 .foregroundColor(.liqFg)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
+                .padding(.horizontal, Spacing.screenGutter)
+                .padding(.top, Spacing.xxl)
+                .padding(.bottom, Spacing.xl)
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -122,7 +122,7 @@ struct CountrySheet: View {
                                         Color.clear.frame(width: 16, height: 16)
                                     }
                                 }
-                                .padding(.horizontal, 24)
+                                .padding(.horizontal, Spacing.screenGutter)
                                 .padding(.vertical, 13)
                                 .background(selected ? Color.liqOrange.opacity(0.07) : Color.clear)
                                 .contentShape(Rectangle())
@@ -136,8 +136,8 @@ struct CountrySheet: View {
             }
 
             PillButton("Close", variant: .ghost, action: onDismiss)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
+                .padding(.horizontal, Spacing.screenGutter)
+                .padding(.vertical, Spacing.xl)
         }
         .background(Color.liqElevated)
     }

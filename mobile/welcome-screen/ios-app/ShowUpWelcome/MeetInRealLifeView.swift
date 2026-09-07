@@ -42,7 +42,7 @@ struct MeetInRealLifeView: View {
             content: {
                 VStack(alignment: .leading, spacing: 0) {
                     // ⑤ rule list — 3 rows, gap 8, block gap below 16
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Spacing.md) {
                         RuleRow(rule: "No texting for weeks", consequence: "date in real life instead", wraps: false)
                         RuleRow(rule: "No ghosting", consequence: "we penalize unreliability", wraps: false)
                         RuleRow(rule: "No collecting matches", consequence: "you meet who you match", wraps: false)

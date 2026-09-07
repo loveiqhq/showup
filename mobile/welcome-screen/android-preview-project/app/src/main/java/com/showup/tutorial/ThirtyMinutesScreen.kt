@@ -10,6 +10,8 @@
  */
 package com.showup.tutorial
 
+import com.showup.designsystem.Spacing
+
 import com.showup.analytics.AnalyticsTracker
 import com.showup.analytics.NoOpAnalytics
 
@@ -69,7 +71,7 @@ fun ThirtyMinutesScreen(
         content = {
             // ⑤ rule list — gap 12, rows wrap. No body paragraphs on this screen: the slot is
             // simply not used, so it reserves no height.
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
                 RuleRow("Low-pressure 30-minute dates", "quick, relaxed meetups to see if you click in real life")
                 RuleRow("30 minutes up", "stay if you’re vibing, or leave with a smile — no hard feelings")
                 RuleRow("Built-in icebreakers", "fun, easy prompts to keep the conversation flowing")

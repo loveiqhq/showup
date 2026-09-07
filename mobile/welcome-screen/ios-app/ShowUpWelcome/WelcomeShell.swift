@@ -104,7 +104,7 @@ struct WelcomeScaffold<Content: View>: View {
                 GeometryReader { geo in
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 0) { content() }
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, Spacing.screenGutter)
                             .padding(.top, topPadding)
                             .frame(minHeight: geo.size.height, alignment: .top)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,7 +119,7 @@ struct WelcomeScaffold<Content: View>: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 0) { content() }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, Spacing.screenGutter)
                     .padding(.top, topPadding)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -427,7 +427,7 @@ struct PillButton<Leading: View>: View {
 
     var body: some View {
         Button(action: { if enabled { action() } }) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.md) {
                 leading()
                 Text(label)
                     // The plain secondary is 600/15 — one step down from the 700/16 every real
@@ -507,7 +507,7 @@ struct PressScale: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.18),
+            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.fast),
                        value: configuration.isPressed)
     }
 }

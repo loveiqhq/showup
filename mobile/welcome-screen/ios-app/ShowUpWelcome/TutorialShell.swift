@@ -23,7 +23,7 @@ struct StepProgress: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Spacing.sm) {
             ForEach(0..<steps, id: \.self) { i in
                 Capsule()
                     .fill(i < current ? Color.liqPurple : Color.liqTrack)
@@ -31,7 +31,7 @@ struct StepProgress: View {
             }
         }
         // Advancing a card should read as progress being made, not as the bar being redrawn.
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.32), value: current)
+        .animation(reduceMotion ? nil : .easeInOut(duration: Motion.screen), value: current)
         // Five anonymous capsules carry no text: without this VoiceOver announces nothing here.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Step \(current) of \(steps)"))
@@ -48,14 +48,14 @@ struct EyebrowPill: View {
     let text: String
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Spacing.sm) {
             Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
             Text(text.uppercased())
                 .font(F.manrope(11, .bold))
                 .tracking(0.08 * 11)
                 .foregroundColor(.liqPurple)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, Spacing.lg)
         .padding(.vertical, 5)
         .background(Capsule().fill(Color.liqEyebrowBg))
     }
@@ -129,7 +129,7 @@ private struct NextCircle: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(fill).frame(width: 56, height: 56)
+            Circle().fill(fill).frame(width: IconSizes.badge, height: IconSizes.badge)
             ArrowRight()
                 .stroke(Color.white,
                         style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
@@ -203,7 +203,7 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 StepProgress(steps: totalSteps, current: step)
-                    .padding(.top, 8)                      // ① pad-top 8 below the safe-area inset
+                    .padding(.top, Spacing.md)                      // ① pad-top 8 below the safe-area inset
 
                 Spacer().frame(height: 24)                 // progress -> eyebrow
 
@@ -257,7 +257,7 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
                 }
                 .padding(.bottom, 24)
             }
-            .padding(.horizontal, 24)                      // gutter 24
+            .padding(.horizontal, Spacing.screenGutter)                      // gutter 24
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
@@ -275,7 +275,7 @@ struct RuleRow: View {
             Circle()
                 .fill(Color.liqOrange)
                 .frame(width: 6, height: 6)
-                .padding(.top, 6)              // sits on the first line's optical centre
+                .padding(.top, Spacing.sm)              // sits on the first line's optical centre
             Text(TypeMetrics.attributed(
                 colouredRuns: [
                     (rule, TypeMetrics.uiFont(PS.manropeSemi, 13,
@@ -362,7 +362,7 @@ struct StatementRow: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Spacing.xl) {
             Circle().fill(Color.liqOrange).frame(width: 7, height: 7).padding(.top, 7)
             Text(TypeMetrics.attributed(
                 runs: [(text, TypeMetrics.uiFont(PS.manropeSemi, 14.5,

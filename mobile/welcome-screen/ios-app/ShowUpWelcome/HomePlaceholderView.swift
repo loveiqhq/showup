@@ -49,17 +49,17 @@ struct HomePlaceholderView: View {
                     .foregroundColor(.liqSubtle)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 280)
-                    .padding(.top, 6)
+                    .padding(.top, Spacing.sm)
 
                 Button(action: onStartOver) {
                     Text("Start over")
                         .font(F.manrope(14, .medium))
                         .foregroundColor(.liqFg)
                         .padding(.horizontal, 22)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, Spacing.xl)
                         .overlay(Capsule().stroke(Color.liqBorder, lineWidth: 1))
                 }
-                .padding(.top, 10)
+                .padding(.top, Spacing.lg)
             }
             .padding(.horizontal, 32)
         }

@@ -9,6 +9,8 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.Spacing
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -140,13 +142,13 @@ fun CountrySheet(
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(Elevated),
         ) {
-            Box(Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().padding(top = Spacing.lg), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(width = 40.dp, height = 4.dp)
                     .clip(RoundedCornerShape(50)).background(Border))
             }
             Text(
                 "Choose your country",
-                Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 12.dp),
+                Modifier.padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = Spacing.xxl, bottom = Spacing.xl),
                 color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 17.sp,
             )
             LazyColumn(state = listState, modifier = Modifier.weight(1f)) {
@@ -157,7 +159,7 @@ fun CountrySheet(
                             .fillMaxWidth()
                             .clickable { onPick(c) }
                             .background(if (selected) Orange.copy(alpha = 0.07f) else Color.Transparent)
-                            .padding(horizontal = 24.dp, vertical = 13.dp),
+                            .padding(horizontal = Spacing.screenGutter, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
@@ -174,7 +176,7 @@ fun CountrySheet(
                             fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
                         )
                         if (selected) Icon(BrandIcon.Check, 16.dp, tint = Purple, strokeWidth = 2.4.dp)
-                        else Spacer(Modifier.width(16.dp))
+                        else Spacer(Modifier.width(Spacing.xxl))
                     }
                 }
             }
@@ -183,7 +185,7 @@ fun CountrySheet(
                 Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .padding(horizontal = Spacing.screenGutter, vertical = Spacing.xl)
             ) {
                 PillButton("Close", onDismiss, variant = PillVariant.Ghost)
             }

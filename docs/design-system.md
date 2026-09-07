@@ -1,0 +1,159 @@
+# Design system
+
+7 September 2026 — the tokens, and what deliberately is not one.
+
+Two files per platform hold colour and type; five more hold everything else. iOS keeps them **flat**
+in `ShowUpWelcome/` because `gen_pbxproj.py` discovers sources with `os.listdir`, not `os.walk` — a
+file in a subfolder would compile locally and be silently missing from the target.
+
+| | Android | iOS |
+|---|---|---|
+| Colour, type families | `designsystem/DesignSystem.kt` | `DesignSystem.swift` |
+| Spacing | `designsystem/Spacing.kt` | `Spacing.swift` |
+| Radius | `designsystem/Radius.kt` | `Radius.swift` |
+| Control sizes | `designsystem/ComponentSizes.kt` | `ComponentSizes.swift` |
+| Icon sizes | `designsystem/IconSizes.kt` | `IconSizes.swift` |
+| Motion | `designsystem/Motion.kt` | `Motion.swift` |
+
+## Colours
+
+21 named values, mapped to the `--liq-*` properties from the handoff, with the source token named in
+a comment on nearly every line. Unchanged by this work.
+
+`Cream` background · `Orange` accents · `Purple` progress and consequences · `Fg` primary text ·
+`Neutral` body · `Subtle` / `Muted` / `Faint` · `Elevated` / `Raised` surfaces · `Border` /
+`BorderSoft` · `Success` · `Danger` / `DangerFg` · `Lavender` · `EyebrowBg` / `EyebrowOrangeBg` ·
+plus the `SunsetStops` and `WordmarkStops` gradients.
+
+**Fourteen raw colours stay hardcoded in screens, and must.** Seven per platform are Google's and
+Meta's sign-in marks; their branding rules specify exact values we are not permitted to re-theme, so
+a re-themeable token is the wrong container for them. Each carries the rule that mandates it in a
+comment.
+
+Twenty-four further non-brand raw colours (12 per platform) are illustration fills and gradient
+stops, left for a separate review.
+
+## Typography — deliberately untouched
+
+**No type tokens exist, on purpose.** The audit found **41 distinct combinations** of family, size,
+weight and line height across the screens, and only 12 are used more than once. The most-used
+appears four times.
+
+That is not a role system with gaps in it; it is per-element settings. Tokenising it would need
+about forty roles, which encodes the absence of a system rather than creating one. Revisit when the
+design has fewer, more deliberate type styles.
+
+`13.5`pt in particular is real, intentional, and would be the first casualty of any tidy scale.
+
+## Spacing
+
+**Not a 4/8/16/24/32 scale.** Nine values are in genuine repeated use and they do not sit on a
+regular step. A tidy scale would have meant changing spacing, which this cleanup was not allowed to
+do; a tidy scale plus two dozen exceptions would be worse, reading as authoritative while lying.
+
+| Token | Value | Meaning |
+|---|---|---|
+| `Spacing.screenGutter` | 24 | content inset from both screen edges |
+| `Spacing.xs` | 4 | |
+| `Spacing.sm` | 6 | |
+| `Spacing.md` | 8 | rule rows on tutorial card 01; mark-to-label gaps |
+| `Spacing.lg` | 10 | method list and button stacks |
+| `Spacing.xl` | 12 | statement rows on cards 02–04 |
+| `Spacing.xxl` | 16 | section gaps |
+
+Ordinal names, because these values genuinely serve unrelated purposes. `screenGutter` has one
+meaning, so it is the one with a semantic name.
+
+**Left local:** 1, 2, 3, 5, 7, 9, 11, 14, 18, 20, 22, 28, 32 — mostly dot offsets and ring geometry.
+**14 (22 uses) and 18 (9 uses)** are frequent enough to look like tokens and were left out anyway:
+no single meaning could be found for either, and a token whose name cannot say what it is for is a
+number with extra steps.
+
+## Radius
+
+| Token | Value | Meaning |
+|---|---|---|
+| `Radius.control` | 14 | inputs, the six code slots, method buttons |
+| `Radius.pill` | 28 | the sunset CTA — exactly half of `controlHeight`, which is what makes it a pill |
+| `Radius.errorBox` | 12 | the inline error box glued to the code slots |
+| `Radius.card` | 16 | the method-list container |
+
+**Left local:** 2 (the drawn flag rectangles — decorative), 18 (one use, iOS only, an unexplained
+divergence from Android).
+
+## Component sizes
+
+| Token | Value | Meaning |
+|---|---|---|
+| `ComponentSizes.controlHeight` | 56 | the sunset CTA and the phone input. SHOWUP-140 fixes the CTA at 56 |
+| `ComponentSizes.minTapTarget` | 44 | floor for anything tappable, even where the reference draws smaller |
+
+**The reserved helper regions are NOT tokens**, and that is a decision rather than an omission.
+
+They look like constants — the spec sheet names 20 for states A/B and 42 for C/D — and they are not.
+A/B is **36** in code, because an error message takes two lines; 20 was the earlier value and it was
+a bug. C/D is 42 because of a **rule**, `reserve = error box + 2`, where the box height follows from
+the copy: our one-line string gives 41+2, the reference's two-line string gave 60+2. The call site
+says so, and says the two move together if the copy changes.
+
+A token called `helperRegionCD = 42` would freeze a number that is documented as moving, and would
+state the spec value rather than the implemented one. The invariant that matters — the CTA does not
+move between states — is asserted by `ScreenFitTest` at 17 device sizes, which is a stronger
+guarantee than a named number.
+
+## Icon sizes
+
+| Token | Value | Meaning |
+|---|---|---|
+| `IconSizes.sm` | 20 | provider marks in method buttons, small status glyphs |
+| `IconSizes.badge` | 56 | the round status/eyebrow badge |
+
+**Left local:** 84, 104, 120 — all Connect-screen illustration geometry, and 120's six uses are six
+references to the same spinner canvas on one screen.
+
+`badge` and `controlHeight` are both 56 and are separate tokens on purpose: one is how tall a
+control is, the other how wide a circle is. They agree today by coincidence, not by rule.
+
+## Motion
+
+Android holds milliseconds, iOS seconds. These already agreed across platforms before the tokens
+existed, which is worth locking down rather than leaving to coincidence.
+
+| Token | Android | iOS | Meaning |
+|---|---|---|---|
+| `FAST` / `fast` | 180 | 0.18 | press feedback and fades |
+| `SCREEN` / `screen` | 320 | 0.32 | screen-to-screen transition |
+| `SHAKE` / `shake` | 480 | 0.48 | the one-shot mismatch shake. **SHOWUP-143 specifies 480ms** |
+| `PULSE_SLOW` / `pulseSlow` | 900 | 0.9 | in-flight pulse on a provider button |
+| `PULSE_LONG` / `pulseLong` | 1400 | 1.4 | Connect linking animation |
+
+**Left local:** the 500/1200/1600ms delays in `ConnectFlowHost` — the fake provider round trip,
+which goes away with the real SDKs.
+
+## Reusable primitives — the state of play
+
+`CountrySheet` is the only one properly shared on both platforms. The rest are still duplicated:
+
+| Primitive | Today | |
+|---|---|---|
+| **PrimaryButton** | `PillButton`, `NextButton`, `SunsetButton` | **three implementations**; `ConnectAccountScreen` imports two of them |
+| **StatusBadge** | private `Eyebrow` in Connect, plus a pill drawn inline in `TutorialShell` | twice on both platforms, and they diverged |
+| **InputField** | inline in the phone screens | the 23dp tap-target bug lived here |
+| **TopBar** | inline in `VerificationFrame` | the wrong-icon bug lived here |
+| **SelectPicker** | `CountrySheet` | already fine |
+
+The duplication follows the package split: `com.showup.welcome` and `com.showup.tutorial` were built
+as separate worlds and each grew its own version of the same thing. Consolidating `PrimaryButton` is
+the next component task.
+
+## How the verifiers still check numbers
+
+`verify-spec.py`, `verify-welcome.py` and `verify-connect.py` assert the numbers a spec sheet
+specifies — "gutter 24", "button gap 8", "login hit area 44". Those literals are now token
+references, so `audit/tokens.py` expands references back to values before matching, reading the
+mapping from the token files themselves.
+
+The distinction is load-bearing. Rewriting those assertions to look for `Spacing.screenGutter` would
+have made them assert a **name**: the token could then be redefined to 32 and every "gutter 24"
+check would still pass. Verified by injection — redefining `screenGutter` to 32 fails
+`spacing gutter 24`.

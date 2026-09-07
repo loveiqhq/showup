@@ -85,8 +85,11 @@ object SignUpAnalytics {
      *
      * The tickets list them as three separate click events. One event carrying which link was
      * tapped records exactly the same information and is the shape every other property-bearing
-     * event here uses. Flagged rather than assumed: if the product side wants three names, this is
-     * a one-line change.
+     * event here uses.
+     *
+     * Confirmed by the product side on 7 September 2026: keep the one event. It answers both
+     * questions from one place -- which document, and which screen -- whereas three event names
+     * record the document and lose the screen. Settled; see CONFLICTS E3.
      */
     const val LEGAL_LINK_TAPPED = "legal_link_tapped"
 

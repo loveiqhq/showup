@@ -11,6 +11,9 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.ComponentSizes
+import com.showup.designsystem.Spacing
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
@@ -92,7 +95,7 @@ fun StartupScreen(
                     fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 33.6.sp,
                     letterSpacing = (-0.015).em,
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.xs))
                 WashHeadline(
                     parts = listOf("Start " to false, "meeting" to true, " today." to false),
                     fontSize = 44.sp,
@@ -113,7 +116,7 @@ fun StartupScreen(
         if (showSocialProof) {
             Row(
                 Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(BrandIcon.Calendar, 16.dp, tint = Orange, strokeWidth = 2.dp)
@@ -160,14 +163,14 @@ fun StartupScreen(
         )
 
         PillButton("Create free account", onCreateAccount)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(Spacing.lg))
 
         // The reference's own hit area is ~31; the ticket requires at least 44 without changing the
         // 14px type, so the box carries the target and the text keeps its size.
         Box(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 44.dp)
+                .heightIn(min = ComponentSizes.minTapTarget)
                 .clickable(role = Role.Button, onClick = onLogin),
             contentAlignment = Alignment.Center,
         ) {
