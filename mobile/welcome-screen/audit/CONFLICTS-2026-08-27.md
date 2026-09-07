@@ -400,7 +400,7 @@ something that did not happen.
 the mapping has to say what happens to the other five, and `empty` in particular should not
 disappear.
 
-## E3 · The legal links: three click events, or one with a property?
+## E3 · The legal links: one event with a property. DECIDED 7 September 2026
 
 140, 142, 144 and 145 each list `Terms & Conditions`, `Privacy Policy` and `Legal Notice` as
 **separate click events**.
@@ -410,5 +410,11 @@ because the same three links appear on four screens, and without the screen the 
 indistinguishable. Three event names per screen would be twelve events for one behaviour.
 
 This records exactly the same information and matches every other property-bearing event in the
-catalogue. **If the product side wants three names, it is a one-line change** — flagged rather than
-assumed.
+catalogue.
+
+**Confirmed by the product side on 7 September: keep the one event.** The reason it wins is that it
+answers both questions from one place — "how many tapped Privacy Policy anywhere" and "how many on
+the Connect screen" — whereas three event names record the document and lose the screen. Seven
+links across three screens would have needed seven names to say less.
+
+Not open any more. Do not re-litigate.
