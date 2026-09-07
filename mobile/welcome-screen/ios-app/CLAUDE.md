@@ -18,7 +18,8 @@ explaining why.**
 **Do not report a platform as verified unless it was actually built and tested in that platform's
 toolchain.**
 
-The first exists because the primary button was written three times. The third exists because eight
+The first exists because the primary button was written three times, and the copy nobody was
+looking at drifted for three weeks before anyone noticed. The third exists because eight
 tests here sat in no target for a week and were reported as present and passing.
 
 ---
@@ -107,6 +108,13 @@ is enforced, not merely intended.
 - **No point size in a screen.** Use the named type roles.
 - **Use the shared primitives.** If one does not exist yet, that is a reason to build it, not to
   inline a copy — see rule one.
+- **A primary button is `PrimaryButton`** (`PrimaryButton.swift`). Six variants, and `leading` /
+  `trailing` slots. Name the slot at the call site rather than using a trailing closure: with
+  two closure properties an unlabelled one is ambiguous, and Swift's error for that names
+  neither. `NextButton` is not a second primary button — it is a label beside a circular arrow
+  badge, with its own spec.
+- **A shared primitive never lives in a screen file.** `PillButton` sat in `WelcomeShell.swift`,
+  so the tutorial grew its own copy. Anything two flows use gets its own file.
 - **A component's tone is per screen, and both tones stay.** The eyebrow pill is orange on the phone
   screens and lavender on the tutorial cards. Changing the shared token to fix one screen breaks the
   other; add a variant.

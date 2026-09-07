@@ -135,7 +135,7 @@ struct CountrySheet: View {
                 .onAppear { proxy.scrollTo(current.iso, anchor: .center) }
             }
 
-            PillButton("Close", variant: .ghost, action: onDismiss)
+            PrimaryButton("Close", variant: .ghost, action: onDismiss)
                 .padding(.horizontal, Spacing.screenGutter)
                 .padding(.vertical, Spacing.xl)
         }

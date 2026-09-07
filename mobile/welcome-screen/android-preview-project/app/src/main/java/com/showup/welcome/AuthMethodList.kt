@@ -18,6 +18,12 @@
  */
 package com.showup.welcome
 
+import androidx.compose.runtime.getValue
+import com.showup.designsystem.Subtle
+
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.PrimaryButtonVariant
+
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Radius
@@ -39,7 +45,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -66,8 +71,7 @@ import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Raised
-import com.showup.designsystem.Subtle
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 /**
  * Provider button titles are taken from each provider's own permitted list rather than from the
@@ -110,11 +114,11 @@ fun methodSpec(m: AuthMethod): MethodSpec = when (m) {
  * ticket 02: the stack has a gradient primary in the phone case and none in the other three, and
  * the hint row is what carries the suggestion in all four.
  */
-fun providerVariant(m: AuthMethod, isPrimary: Boolean = false): PillVariant = when (m) {
-    AuthMethod.Apple -> PillVariant.Apple
-    AuthMethod.Google -> PillVariant.Google
-    AuthMethod.Facebook -> PillVariant.Facebook
-    AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PillVariant.Sunset else PillVariant.Ghost
+fun providerVariant(m: AuthMethod, isPrimary: Boolean = false): PrimaryButtonVariant = when (m) {
+    AuthMethod.Apple -> PrimaryButtonVariant.Apple
+    AuthMethod.Google -> PrimaryButtonVariant.Google
+    AuthMethod.Facebook -> PrimaryButtonVariant.Facebook
+    AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PrimaryButtonVariant.Sunset else PrimaryButtonVariant.Ghost
 }
 
 /** The Google G ignores this — it is drawn in its own four colours. */
@@ -219,7 +223,7 @@ private fun MethodButton(
         isErrored && !PROVIDER_COMPLIANT_LABELS -> "Try ${spec.short} again"
         else -> spec.label
     }
-    PillButton(
+    PrimaryButton(
         label, { onSelect(method) },
         // Siblings dim to 0.45 while one is in flight; the tapped one stays at full opacity.
         modifier = Modifier.alpha(if (anyLoading && !isLoading) 0.45f else 1f),

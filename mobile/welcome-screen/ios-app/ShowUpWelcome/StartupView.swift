@@ -77,7 +77,7 @@ struct StartupView: View {
             legalLine
                 .padding(.bottom, 14)
 
-            PillButton("Create free account", action: onCreateAccount)
+            PrimaryButton("Create free account", action: onCreateAccount)
             Spacer().frame(height: 10)
 
             // The reference's own hit area is ~31; the ticket requires at least 44 without

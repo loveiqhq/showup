@@ -479,19 +479,21 @@ private struct ConflictSheet: View {
                 // Google-owned account offers Continue with Google. Getting this backwards sends
                 // the user round a loop. It wears that provider's own button, because the ticket
                 // lists this CTA alongside the three on the method list.
-                PillButton(
+                PrimaryButton(
                     label: methodSpec(owner).label,
                     variant: providerVariant(owner),
                     height: 54,
-                    action: onResolve
-                ) {
-                    BrandIconView(icon: methodSpec(owner).icon, size: 18, tint: providerTint(owner))
-                }
+                    action: onResolve,
+                    leading: {
+                        BrandIconView(icon: methodSpec(owner).icon, size: 18,
+                                      tint: providerTint(owner))
+                    }
+                )
                 .padding(.bottom, Spacing.md)
 
                 // No border, so the pair never reads as two equal choices. This is the only
                 // dismiss: there is no close icon and the scrim above does not accept taps.
-                PillButton("Use a different account", variant: .plain, height: 50,
+                PrimaryButton("Use a different account", variant: .plain, height: 50,
                            action: onUseDifferent)
             }
             .padding(.horizontal, Spacing.screenGutter)

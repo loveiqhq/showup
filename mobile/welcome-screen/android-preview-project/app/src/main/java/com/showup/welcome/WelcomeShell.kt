@@ -11,34 +11,29 @@
  */
 package com.showup.welcome
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+
 import com.showup.designsystem.Spacing
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -49,9 +44,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -66,17 +59,12 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.showup.designsystem.Border
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
-import com.showup.designsystem.Manrope
-import com.showup.designsystem.Muted
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
-import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.WordmarkStops
-import com.showup.tutorial.rememberMotion
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ① Backdrop — full-bleed, BEHIND the status bar and home indicator
@@ -434,98 +422,6 @@ private fun inkOffset(icon: BrandIcon): Offset {
     return Offset(12f - (left + right) / 2f, 12f - (top + bottom) / 2f)
 }
 
-enum class PillVariant { Sunset, Ghost, Plain, Apple, Google, Facebook }
-
-/**
- * `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
- * Manrope 700 16, gap 8.
- *
- * Press is `scale(0.98)` over 180ms on `cubic-bezier(.22,1,.36,1)` — CLAUDE.md states it as a
- * non-negotiable, and there are no hover states because the product is mobile-first.
- */
-@Composable
-fun PillButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    variant: PillVariant = PillVariant.Sunset,
-    enabled: Boolean = true,
-    /**
-     * 56 everywhere except the conflict modal's resolve CTA, which the reference draws at 54.
-     * Both clear every provider's published minimum (Apple's is 44pt), so the smaller one is a
-     * layout choice rather than a compliance question.
-     */
-    height: Dp = 56.dp,
-    leading: (@Composable () -> Unit)? = null,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val motion = rememberMotion()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled && motion.enabled) 0.98f else 1f,
-        animationSpec = tween(durationMillis = if (motion.enabled) 180 else 0, easing = ShowUpEasing),
-        label = "press",
-    )
-    val shape = RoundedCornerShape(50)
-    Row(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.45f }
-            .then(
-                when (variant) {
-                    // --liq-shadow-violet on the sunset CTA
-                    PillVariant.Sunset -> Modifier
-                        .shadow(12.dp, shape, ambientColor = Purple, spotColor = Purple)
-                        .clip(shape)
-                        .background(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()))
-                    PillVariant.Ghost -> Modifier
-                        .clip(shape)
-                        .border(1.dp, Border, shape)
-                    PillVariant.Plain -> Modifier.clip(shape)
-                    // Black is one of the three appearances Apple's guidelines allow.
-                    PillVariant.Apple -> Modifier.clip(shape).background(Color.Black)
-                    // White background is required, not preferred — the G may not sit on anything
-                    // else. #747775 is the border colour from Google's own button.
-                    PillVariant.Google -> Modifier
-                        .clip(shape)
-                        .background(Color.White)
-                        .border(1.dp, Color(0xFF747775), shape)
-                    // Facebook Blue. Recolouring to our palette is explicitly prohibited.
-                    PillVariant.Facebook -> Modifier.clip(shape).background(Color(0xFF1877F2))
-                }
-            )
-            .clickable(
-                interactionSource = interaction, indication = null,
-                enabled = enabled, role = Role.Button, onClick = onClick,
-            )
-            .padding(horizontal = 28.dp),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        leading?.invoke()
-        Text(
-            label,
-            color = when (variant) {
-                PillVariant.Sunset, PillVariant.Apple, PillVariant.Facebook -> Color.White
-                PillVariant.Google -> Color(0xFF1F1F1F)   // Google's specified label colour
-                PillVariant.Ghost -> Fg
-                PillVariant.Plain -> Muted
-            },
-            fontFamily = Manrope,
-            // The plain secondary is 600/15 — one step down from the 700/16 every real button
-            // carries, which is what stops the modal reading as two equal choices.
-            fontWeight = if (variant == PillVariant.Plain) FontWeight.SemiBold else FontWeight.Bold,
-            fontSize = if (variant == PillVariant.Plain) 15.sp else 16.sp,
-            maxLines = 1,
-        )
-    }
-}
-
-/** CLAUDE.md: easing is `cubic-bezier(.22,1,.36,1)` · 180ms state · 280ms progress. */
-val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ⑤ Icons — Lucide geometry, 24x24, stroke 1.7, currentColor
 // ─────────────────────────────────────────────────────────────────────────────
 

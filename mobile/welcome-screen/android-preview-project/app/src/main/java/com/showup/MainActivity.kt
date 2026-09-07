@@ -1,5 +1,9 @@
 package com.showup
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 import com.showup.designsystem.Motion
 
 import android.os.Bundle
@@ -14,12 +18,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import com.showup.tutorial.MatchMeansMeetScreen
 import com.showup.tutorial.MatchOnAvailabilityScreen
 import com.showup.tutorial.MeetInRealLifeScreen
@@ -29,7 +30,7 @@ import com.showup.welcome.SignUpFlow
 import com.showup.welcome.SignUpOutcome
 import com.showup.welcome.showsTutorial
 import com.showup.tutorial.WelcomeScreen
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 /**
  * Host for the six tutorial screens. Edge-to-edge so each screen's own safe-area handling is what
