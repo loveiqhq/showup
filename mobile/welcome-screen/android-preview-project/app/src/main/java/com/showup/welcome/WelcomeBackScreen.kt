@@ -10,6 +10,8 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.Spacing
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -108,7 +110,7 @@ fun WelcomeBackScreen(
             if (known) {
                 Row(
                     Modifier.fillMaxWidth().padding(bottom = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // 6px dot with a 3px ring — drawn rather than a bordered Box so the ring sits
@@ -154,7 +156,7 @@ fun WelcomeBackScreen(
                     withStyle(helpLink) { append("Use a different account") }
                 }
             },
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.md),
             // Muted, not Subtle — see audit finding 7.
             color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
             textAlign = TextAlign.Center,
@@ -175,7 +177,7 @@ fun WelcomeBackScreen(
                     withStyle(legalLink) { append("Privacy Policy") }
                 }
             },
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.md),
             color = Subtle, fontFamily = Manrope, fontSize = 11.5.sp,
             textAlign = TextAlign.Center,
         )

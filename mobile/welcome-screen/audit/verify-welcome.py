@@ -16,6 +16,9 @@ import io
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tokens
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KT = os.path.join(ROOT, "android-preview-project/app/src/main/java/com/showup")
 SW = os.path.join(ROOT, "ios-app/ShowUpWelcome")
@@ -26,7 +29,15 @@ CURLY = chr(0x2019)
 
 
 def read(*parts):
-    return io.open(os.path.join(*parts), encoding="utf-8").read()
+    """The file, with design-token references expanded to the literals they hold.
+
+    The assertions below look for the NUMBERS a spec sheet specifies. Since the tokens landed those
+    numbers are written as `Spacing.screenGutter` and friends, so they are resolved here rather than
+    in each check -- which keeps every assertion checking a value instead of a name. See
+    audit/tokens.py for why that distinction matters.
+    """
+    path = os.path.join(*parts)
+    return tokens.expand(io.open(path, encoding="utf-8").read(), swift=path.endswith(".swift"))
 
 
 def check(name, ok):

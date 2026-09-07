@@ -43,7 +43,7 @@ private struct VerificationFrame<Content: View>: View {
                 // which welcome/screen-phone-reference.jsx uses on both of these screens. It was
                 // an arrow-left at 22: the wrong icon from the same set, and visibly heavier.
                 BrandIconView(icon: .chevronLeft, size: 24, stroke: 2, tint: .liqFg)
-                    .frame(width: 44, height: 44, alignment: .leading)
+                    .frame(width: ComponentSizes.minTapTarget, height: ComponentSizes.minTapTarget, alignment: .leading)
                     .contentShape(Rectangle())
             }
             .buttonStyle(PressScale())
@@ -60,7 +60,7 @@ private struct VerificationFrame<Content: View>: View {
 
 private struct VerificationEyebrow: View {
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Spacing.sm) {
             Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
             Text("PHONE VERIFICATION")
                 .font(F.manrope(11, .bold))
@@ -69,7 +69,7 @@ private struct VerificationEyebrow: View {
                 // both of these screens; lavender is the tutorial's and was taken by default.
                 .foregroundColor(.liqOrange)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, Spacing.lg)
         .padding(.vertical, 5)
         .background(Capsule().fill(Color.liqEyebrowOrangeBg))
     }
@@ -111,18 +111,18 @@ struct PhoneNumberView: View {
                     .frame(maxWidth: 320, alignment: .leading)
 
                 Spacer().frame(height: compact ? 12 : 22)
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.md) {
                     // The default comes from device locale; see SignUpFlowView.
                     Button(action: onOpenCountryList) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: Spacing.md) {
                             FlagView(country: country)
                             Text(country.dial).font(F.manrope(16, .semibold)).foregroundColor(.liqFg)
                             BrandIconView(icon: .chevronDown, size: 16, stroke: 2, tint: .liqMuted)
                         }
                         .padding(.horizontal, 14)
-                        .frame(height: 56)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.liqElevated))
-                        .overlay(RoundedRectangle(cornerRadius: 14)
+                        .frame(height: ComponentSizes.controlHeight)
+                        .background(RoundedRectangle(cornerRadius: Radius.control).fill(Color.liqElevated))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.control)
                             // Subtle (46%), not Border (12%) — the outline is the only thing identifying the
                             // field, and Border is 1.28:1 against a 3:1 rule. Audit finding 7.
                             .strokeBorder(Color.liqSubtle, lineWidth: 1.5))
@@ -146,10 +146,10 @@ struct PhoneNumberView: View {
                     }
                     .padding(.horizontal, 18)
                     .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.liqElevated))
-                    .overlay(RoundedRectangle(cornerRadius: 14)
+                    .background(RoundedRectangle(cornerRadius: Radius.control).fill(Color.liqElevated))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.control)
                         .strokeBorder(invalid ? Color.liqDanger : Color.liqSubtle, lineWidth: 1.5))
-                    .overlay(invalid ? RoundedRectangle(cornerRadius: 14)
+                    .overlay(invalid ? RoundedRectangle(cornerRadius: Radius.control)
                         .strokeBorder(Color.liqDanger.opacity(0.10), lineWidth: 4)
                         .padding(-2.75) : nil)
                 }
@@ -172,8 +172,8 @@ struct PhoneNumberView: View {
                     .minimumScaleFactor(0.85)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .topLeading)
-                    .padding(.top, 10)
-                    .padding(.leading, 4)
+                    .padding(.top, Spacing.lg)
+                    .padding(.leading, Spacing.xs)
                     .accessibilityAddTraits(.updatesFrequently)
 
                 Spacer().frame(height: compact ? 12 : 22)
@@ -275,7 +275,7 @@ struct VerifyCodeView: View {
                 .onChange(of: mismatch) { _, isBad in
                     // One shot, 480ms, then still. There is no looping animation in this flow.
                     guard isBad, !reduceMotion else { shake = 0; return }
-                    withAnimation(.linear(duration: 0.48)) { shake = 0 }
+                    withAnimation(.linear(duration: Motion.shake)) { shake = 0 }
                     let steps: [CGFloat] = [6, -6, 5, -5, 3, -3, 0]
 
                     // Absolute deadlines measured from one start point, NOT a chain of sleeps.
@@ -310,7 +310,7 @@ struct VerifyCodeView: View {
                 // collapse to zero rather than holding the row open. Measured on an iPhone 17 Pro,
                 // the CTA jumped 56pt — the full 42 + 14 — the moment the code was wrong, which is
                 // exactly what this region exists to prevent and what SHOWUP-143 forbids outright.
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .top, spacing: Spacing.lg) {
                     ZStack {
                         Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
                         Text("!").font(.custom(PS.loraBold, size: 12)).foregroundColor(.white)
@@ -323,9 +323,9 @@ struct VerifyCodeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color.liqDanger.opacity(0.07)))
-                .overlay(RoundedRectangle(cornerRadius: 12)
+                .padding(.vertical, Spacing.lg)
+                .background(RoundedRectangle(cornerRadius: Radius.errorBox).fill(Color.liqDanger.opacity(0.07)))
+                .overlay(RoundedRectangle(cornerRadius: Radius.errorBox)
                     .strokeBorder(Color.liqDanger.opacity(0.18), lineWidth: 1))
                 .opacity(mismatch ? 1 : 0)
                 // Invisible is not the same as absent: without this VoiceOver would read an error
@@ -367,7 +367,7 @@ struct VerifyCodeView: View {
                                 .underline()
                                 // 44pt is Apple's own minimum touch target; the text alone is ~20.
                                 .frame(minHeight: 44)
-                                .padding(.horizontal, 12)
+                                .padding(.horizontal, Spacing.xl)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(PressScale())
@@ -379,15 +379,15 @@ struct VerifyCodeView: View {
                             .font(F.manrope(14, .semibold))
                             .monospacedDigit()
                             .foregroundColor(.liqMuted)
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Spacing.xs)
                     }
                     Button(action: onEditNumber) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.sm) {
                             BrandIconView(icon: .pencil, size: 13, stroke: 1.8, tint: .liqMuted)
                             Text("Edit phone number")
                                 .font(F.manrope(14, .semibold)).foregroundColor(.liqMuted)
                         }
-                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .padding(.horizontal, Spacing.md).padding(.vertical, Spacing.xs)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(PressScale())
@@ -402,9 +402,9 @@ struct VerifyCodeView: View {
         let ch: Character? = i < digits.count ? Array(digits)[i] : nil
         let active = !mismatch && i == digits.count && digits.count < 6
         ZStack {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Radius.control)
                 .fill(mismatch ? Color.liqDanger.opacity(0.04) : Color.liqElevated)
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Radius.control)
                 .strokeBorder(
                     mismatch ? Color.liqDanger
                         : active ? Color.liqPurple

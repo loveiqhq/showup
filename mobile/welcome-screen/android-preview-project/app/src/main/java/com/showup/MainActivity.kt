@@ -1,5 +1,7 @@
 package com.showup
 
+import com.showup.designsystem.Motion
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -70,11 +72,11 @@ class MainActivity : ComponentActivity() {
                         // as movement without the screens appearing to fly.
                         val direction = if (targetState > initialState) 1 else -1
                         (
-                            slideInHorizontally(tween(320)) { w -> direction * w / 6 } +
+                            slideInHorizontally(tween(Motion.SCREEN)) { w -> direction * w / 6 } +
                                 fadeIn(tween(220))
                             ) togetherWith (
-                            slideOutHorizontally(tween(320)) { w -> -direction * w / 6 } +
-                                fadeOut(tween(180))
+                            slideOutHorizontally(tween(Motion.SCREEN)) { w -> -direction * w / 6 } +
+                                fadeOut(tween(Motion.FAST))
                             )
                     }
                 },

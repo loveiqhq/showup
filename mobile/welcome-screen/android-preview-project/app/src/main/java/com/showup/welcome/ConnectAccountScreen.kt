@@ -25,6 +25,11 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.IconSizes
+import com.showup.designsystem.Motion
+import com.showup.designsystem.Radius
+import com.showup.designsystem.Spacing
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -216,7 +221,7 @@ private fun MethodListLayout(
         // 40 -> 34." Those are the only two things allowed to move.
         Spacer(Modifier.height(if (compact) 44.dp else 96.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxl)) {
             // The heart trails the headline INSIDE the text, on the baseline of whatever line
             // the text ends on -- see WashHeadline's `trailing`. It used to be a sibling in a Row,
             // which reserved its width against every line: the headline wrapped badly and the
@@ -281,7 +286,7 @@ private fun LegalLine(onTerms: () -> Unit, onPrivacy: () -> Unit) {
             }
             append(".")
         },
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.md),
         // Muted rather than the reference's fg-subtle: 46% ink measures 3.04:1 and 1.4.3 wants
         // 4.5 for body text. Same substitution as on 140/142/143 — see audit finding 7.
         color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
@@ -320,7 +325,7 @@ private fun LinkingHero(provider: AuthMethod) {
             }
             Column(
                 Modifier.padding(horizontal = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 WashHeadline(
@@ -336,7 +341,7 @@ private fun LinkingHero(provider: AuthMethod) {
         }
         Text(
             "Don't close the app.",
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.md),
             color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
             textAlign = TextAlign.Center,
         )
@@ -357,7 +362,7 @@ private fun GradientRing() {
     val motion = rememberMotion()
     val angle by rememberInfiniteTransition(label = "ring").animateFloat(
         initialValue = 0f, targetValue = if (motion.enabled) 360f else 0f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(Motion.PULSE_LONG, easing = LinearEasing), RepeatMode.Restart),
         label = "ringAngle",
     )
     Canvas(Modifier.size(120.dp).rotate(angle)) {
@@ -383,7 +388,7 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
     WelcomeScaffold {
         Wordmark()
         Column(
-            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp),
+            Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.screenGutter),
             verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -431,7 +436,7 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
                 }
             }
             Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Eyebrow("${methodSpec(provider).short} connected")
@@ -469,8 +474,8 @@ private fun Eyebrow(label: String) {
         Modifier
             .clip(RoundedCornerShape(50))
             .background(Orange.copy(alpha = 0.12f))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(horizontal = Spacing.lg, vertical = 5.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(5.dp).background(Orange, CircleShape))
@@ -508,19 +513,19 @@ private fun ConflictSheet(
     ) {
         Column(
             Modifier
-                .shadow(30.dp, RoundedCornerShape(28.dp), ambientColor = Purple, spotColor = Purple)
-                .clip(RoundedCornerShape(28.dp))
+                .shadow(30.dp, RoundedCornerShape(Radius.pill), ambientColor = Purple, spotColor = Purple)
+                .clip(RoundedCornerShape(Radius.pill))
                 .background(Elevated)
-                .padding(start = 24.dp, end = 24.dp, top = 26.dp, bottom = 22.dp),
+                .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = 26.dp, bottom = 22.dp),
         ) {
             // Orange, not danger. Nothing failed here — the account simply exists.
             Box(
-                Modifier.size(56.dp).background(Orange.copy(alpha = 0.12f), CircleShape),
+                Modifier.size(IconSizes.badge).background(Orange.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(BrandIcon.Shield, 26.dp, tint = Orange, strokeWidth = 1.8.dp)
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.xxl))
 
             // One plain run, so no wash: there is no emphasis phrase in this headline, and an
             // empty <em> would paint a glow under nothing.
@@ -528,7 +533,7 @@ private fun ConflictSheet(
                 parts = listOf("You already have an account." to false),
                 fontSize = 26.sp, lineHeight = 29.9.sp, letterSpacing = (-0.015).em,
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(Spacing.lg))
 
             Text(
                 buildAnnotatedString {
@@ -547,7 +552,7 @@ private fun ConflictSheet(
                 color = Neutral, fontFamily = Manrope, fontWeight = FontWeight.Medium,
                 fontSize = 15.sp, lineHeight = 21.75.sp,
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 // The product reason, not boilerplate — it is why no second account is offered.
                 // Verbatim, per the ticket.
@@ -567,7 +572,7 @@ private fun ConflictSheet(
                 height = 54.dp,
                 leading = { Icon(methodSpec(owner).icon, 18.dp, tint = providerTint(owner)) },
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.md))
 
             // No border, so the pair never reads as two equal choices. This is the only dismiss:
             // there is no close icon and the scrim above does not accept taps.

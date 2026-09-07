@@ -75,7 +75,7 @@ private struct TutorialFlow: View {
         if reduceMotion {
             screen = next
         } else {
-            withAnimation(.easeInOut(duration: 0.32)) { screen = next }
+            withAnimation(.easeInOut(duration: Motion.screen)) { screen = next }
         }
     }
 

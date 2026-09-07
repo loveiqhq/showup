@@ -158,7 +158,7 @@ private struct MethodListLayout: View {
                 // steps 40 -> 34." Those are the only two things allowed to move.
                 Spacer().frame(height: compact ? 44 : 96)
 
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: Spacing.xxl) {
                     // The heart trails the headline INSIDE the text, on the baseline of whatever
                     // line the text ends on -- see WashHeadline's `trailing`. It used to be a
                     // sibling in an HStack, which reserved its width against every line: the
@@ -219,7 +219,7 @@ private struct LegalLine: View {
             .tint(.liqFg)
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.bottom, 8)
+            .padding(.bottom, Spacing.md)
             .environment(\.openURL, OpenURLAction { url in
                 if url.absoluteString == "showup://terms" { onTerms() } else { onPrivacy() }
                 return .handled
@@ -268,7 +268,7 @@ private struct LinkingHero: View {
                 }
                 .frame(width: 120, height: 120)
 
-                VStack(spacing: 8) {
+                VStack(spacing: Spacing.md) {
                     WashHeadline(parts: [("Signing you ", false), ("in", true), ("…", false)],
                                  fontSize: 28, lineHeightMultiple: 1.15, trackingEm: -0.015)
                     Text("Verifying your \(linkingSubject(provider)) and setting things up. This takes a second.")
@@ -286,7 +286,7 @@ private struct LinkingHero: View {
                 .font(F.manrope(12, .medium))
                 .foregroundColor(.liqMuted)
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 8)
+                .padding(.bottom, Spacing.md)
         }
         .accessibilityElement(children: .combine)
     }
@@ -321,7 +321,7 @@ private struct GradientRing: View {
                 )
                 .frame(width: 104, height: 104)
                 .rotationEffect(.degrees(spinning ? 360 : 0))
-                .animation(reduceMotion ? nil : .linear(duration: 1.4).repeatForever(autoreverses: false),
+                .animation(reduceMotion ? nil : .linear(duration: Motion.pulseLong).repeatForever(autoreverses: false),
                            value: spinning)
         }
         .onAppear { if !reduceMotion { spinning = true } }
@@ -371,7 +371,7 @@ private struct SuccessHero: View {
                 }
                 .frame(width: 120, height: 120)
 
-                VStack(spacing: 10) {
+                VStack(spacing: Spacing.lg) {
                     Eyebrow(label: "\(methodSpec(provider).short) connected")
                     // No name from the provider is a real case, not a defensive default: Apple's
                     // private-relay users often share nothing. The italic run still has to be the
@@ -389,7 +389,7 @@ private struct SuccessHero: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, Spacing.screenGutter)
             Spacer(minLength: 0)
             HStack {
                 Spacer()
@@ -411,14 +411,14 @@ private struct Eyebrow: View {
     let label: String
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Spacing.sm) {
             Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
             Text(label.uppercased())
                 .font(F.manrope(11, .bold))
                 .tracking(0.08 * 11)
                 .foregroundColor(.liqOrange)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, Spacing.lg)
         .padding(.vertical, 5)
         .background(Color.liqOrange.opacity(0.12))
         .clipShape(Capsule())
@@ -448,23 +448,23 @@ private struct ConflictSheet: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Orange, not danger. Nothing failed here — the account simply exists.
                 BrandIconView(icon: .shield, size: 26, stroke: 1.8, tint: .liqOrange)
-                    .frame(width: 56, height: 56)
+                    .frame(width: IconSizes.badge, height: IconSizes.badge)
                     .background(Color.liqOrange.opacity(0.12))
                     .clipShape(Circle())
-                    .padding(.bottom, 16)
+                    .padding(.bottom, Spacing.xxl)
 
                 // One plain run, so no wash: there is no emphasis phrase in this headline, and an
                 // empty em would paint a glow under nothing.
                 WashHeadline(parts: [("You already have an account.", false)], fontSize: 26,
                              lineHeightMultiple: 1.15, trackingEm: -0.015)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, Spacing.lg)
 
                 Text(bodyAttributed)
                     .font(F.manrope(15, .medium))
                     .lineSpacing(15 * 0.45)
                     .foregroundColor(.liqNeutral)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Spacing.md)
 
                 // The product reason, not boilerplate — it is why no second account is offered.
                 // Verbatim, per the ticket.
@@ -487,18 +487,18 @@ private struct ConflictSheet: View {
                 ) {
                     BrandIconView(icon: methodSpec(owner).icon, size: 18, tint: providerTint(owner))
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, Spacing.md)
 
                 // No border, so the pair never reads as two equal choices. This is the only
                 // dismiss: there is no close icon and the scrim above does not accept taps.
                 PillButton("Use a different account", variant: .plain, height: 50,
                            action: onUseDifferent)
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, Spacing.screenGutter)
             .padding(.top, 26)
             .padding(.bottom, 22)
             .background(Color.liqElevated)
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
             .shadow(color: Color.liqPurple.opacity(0.28), radius: 30, y: 20)
         }
         .padding(8)

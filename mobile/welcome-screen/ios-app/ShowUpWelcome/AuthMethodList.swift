@@ -123,7 +123,7 @@ struct AuthMethodList<Notice: View>: View {
                 ErrorBanner(message: msg)
             }
 
-            VStack(spacing: 10) {
+            VStack(spacing: Spacing.lg) {
                 MethodRow(method: primary, isPrimary: true, loading: loading,
                           anyLoading: anyLoading, onSelect: onSelect)
                 ForEach(rest, id: \.self) { m in
@@ -132,7 +132,7 @@ struct AuthMethodList<Notice: View>: View {
                 }
                 if let onSkip { SkipRow(anyLoading: anyLoading, onSkip: onSkip) }
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, Spacing.xl)
         }
     }
 }
@@ -195,7 +195,7 @@ private struct MethodRow: View {
         }
         // Siblings dim while one is in flight; the tapped one stays at full opacity.
         .opacity(anyLoading && !isLoading ? 0.45 : 1)
-        .animation(.easeOut(duration: 0.18), value: anyLoading)
+        .animation(.easeOut(duration: Motion.fast), value: anyLoading)
     }
 }
 
@@ -208,7 +208,7 @@ private struct SkipRow: View {
 
     var body: some View {
         Button(action: onSkip) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.md) {
                 Text("Skip and continue to profile")
                     .font(F.manrope(15, .semibold))
                 BrandIconView(icon: .arrowRight, size: 17, stroke: 2.2,
@@ -221,18 +221,18 @@ private struct SkipRow: View {
             .frame(height: 52)
             .padding(.horizontal, 20)
             .background(Color.liqElevated)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(
                 // .liqBorder (ink 12%), as the design system draws it. It was briefly
                 // .liqSubtle (ink 46%) for WCAG 1.4.11, which wants 3:1 for the boundary that
                 // identifies a control -- see audit/AUDIT-connect-144-145.md finding 7. Reverted
                 // on request: this is the designed look, the label and arrow carry the control's
                 // identity at 5.03:1, and the deviation is recorded rather than made silently.
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .strokeBorder(Color.liqBorder,
                                   style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
             )
-            .padding(.top, 4)
+            .padding(.top, Spacing.xs)
         }
         .buttonStyle(PressScale())
     }
@@ -243,11 +243,11 @@ struct ErrorBanner: View {
     let message: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Spacing.lg) {
             Text("!")
                 .font(F.lora(13, bold: true))
                 .foregroundColor(.white)
-                .frame(width: 20, height: 20)
+                .frame(width: IconSizes.sm, height: IconSizes.sm)
                 .background(Color.liqDanger)
                 .clipShape(Circle())
                 .padding(.top, 1)
@@ -259,11 +259,11 @@ struct ErrorBanner: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, Spacing.xl)
         .background(Color.liqDanger.opacity(0.07))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .strokeBorder(Color.liqDanger.opacity(0.18), lineWidth: 1)
         )
         .padding(.bottom, 14)
@@ -279,9 +279,9 @@ struct CancelledNotice: View {
     let provider: AuthMethod
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Spacing.lg) {
             BrandIconView(icon: .close, size: 12, stroke: 2.4, tint: .liqFg)
-                .frame(width: 20, height: 20)
+                .frame(width: IconSizes.sm, height: IconSizes.sm)
                 .background(Color.liqFg.opacity(0.10))
                 .clipShape(Circle())
             (Text("Sign-in cancelled.").font(F.manrope(13.5, .semibold)).foregroundColor(.liqFg)
@@ -293,14 +293,14 @@ struct CancelledNotice: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, Spacing.xl)
         .background(Color.liqRaised)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .strokeBorder(Color.liqBorderSoft, lineWidth: 1)
         )
-        .padding(.bottom, 12)
+        .padding(.bottom, Spacing.xl)
     }
 }
 
@@ -318,7 +318,7 @@ struct Spinner: View {
             .background(Circle().stroke(tint.opacity(0.30), lineWidth: 2))
             .frame(width: size, height: size)
             .rotationEffect(.degrees(spinning ? 360 : 0))
-            .animation(reduceMotion ? nil : .linear(duration: 0.9).repeatForever(autoreverses: false),
+            .animation(reduceMotion ? nil : .linear(duration: Motion.pulseSlow).repeatForever(autoreverses: false),
                        value: spinning)
             .onAppear { if !reduceMotion { spinning = true } }
             .accessibilityHidden(true)

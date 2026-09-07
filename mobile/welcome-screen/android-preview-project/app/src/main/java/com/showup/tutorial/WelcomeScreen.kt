@@ -10,6 +10,11 @@
  */
 package com.showup.tutorial
 
+import com.showup.designsystem.ComponentSizes
+import com.showup.designsystem.IconSizes
+import com.showup.designsystem.Radius
+import com.showup.designsystem.Spacing
+
 import com.showup.analytics.AnalyticsTracker
 import com.showup.analytics.NoOpAnalytics
 
@@ -61,20 +66,20 @@ fun SunsetButton(title: String, onClick: () -> Unit, modifier: Modifier = Modifi
     Box(
         modifier
             .fillMaxWidth()
-            .height(56.dp)                                   // size lg
-            .clip(RoundedCornerShape(28.dp))                 // pill
+            .height(ComponentSizes.controlHeight)                                   // size lg
+            .clip(RoundedCornerShape(Radius.pill))                 // pill
             .background(Brush.horizontalGradient(listOf(Orange, Purple)))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             Text(title, color = Color.White, fontFamily = Manrope,
                  fontWeight = FontWeight.Bold, fontSize = 17.sp)
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
-                 tint = Color.White, modifier = Modifier.size(20.dp))
+                 tint = Color.White, modifier = Modifier.size(IconSizes.sm))
         }
     }
 }
@@ -212,7 +217,7 @@ fun WelcomeScreen(
         Column(
             Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)   // safe area
-                .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 20.dp), // 20 / 24 / 0(+20)
+                .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = 20.dp, bottom = 20.dp), // 20 / 24 / 0(+20)
         ) {
             // ③ Wordmark -- the shared one, not a local copy.
             //
@@ -235,15 +240,15 @@ fun WelcomeScreen(
                 parts = listOf("Welcome\nto " to false, "Show Up." to true),
                 fontSize = 42.sp, lineHeight = 44.sp,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.xxl))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("We’re happy to see you", color = Fg, fontFamily = Manrope,
                      fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(Spacing.md))
                 Icon(Icons.Filled.Favorite, contentDescription = null, tint = Orange,
-                     modifier = Modifier.size(20.dp))
+                     modifier = Modifier.size(IconSizes.sm))
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.xxl))
             Text("Let us quickly explain how Show Up works.", color = Neutral, fontFamily = Manrope,
                  fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 24.sp,
                  modifier = Modifier.widthIn(max = 320.dp))
@@ -255,7 +260,7 @@ fun WelcomeScreen(
                 analytics.track(TutorialAnalytics.CTA_TAPPED, TutorialAnalytics.welcome)
                 onContinue()
             })
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(Spacing.lg))
             Text("Takes less than a minute", color = Subtle, fontFamily = Manrope,
                  fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                  modifier = Modifier.align(Alignment.CenterHorizontally))

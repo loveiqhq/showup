@@ -18,6 +18,8 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.Spacing
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -395,10 +397,10 @@ fun SignUpFlow(
                 Modifier
                     .align(Alignment.TopCenter)
                     .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(top = 4.dp)
+                    .padding(top = Spacing.xs)
                     .background(Color(0xE61D1129), androidx.compose.foundation.shape.RoundedCornerShape(50))
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .padding(horizontal = Spacing.xl, vertical = 5.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(

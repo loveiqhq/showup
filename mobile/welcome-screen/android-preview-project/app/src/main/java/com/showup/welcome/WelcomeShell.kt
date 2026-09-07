@@ -11,6 +11,8 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.Spacing
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -498,7 +500,7 @@ fun PillButton(
                 enabled = enabled, role = Role.Button, onClick = onClick,
             )
             .padding(horizontal = 28.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leading?.invoke()
@@ -767,7 +769,7 @@ fun WelcomeScaffold(
         val insets = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(start = 24.dp, end = 24.dp, top = topPadding)
+            .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = topPadding)
 
         if (scrollWhenTight) {
             BoxWithConstraints(insets) {

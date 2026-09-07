@@ -15,6 +15,9 @@
  */
 package com.showup.tutorial
 
+import com.showup.designsystem.IconSizes
+import com.showup.designsystem.Spacing
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
@@ -94,7 +97,7 @@ fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
                     ProgressBarRangeInfo(current.toFloat(), 0f..steps.toFloat(), steps)
                 contentDescription = "Step " + current + " of " + steps
             },
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         repeat(steps) { i ->
             val target = if (i < current) Purple else Track
@@ -139,9 +142,9 @@ fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
             .align(Alignment.Start)
             .clip(RoundedCornerShape(50))
             .background(EyebrowBg)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .padding(horizontal = Spacing.lg, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         Box(Modifier.size(5.dp).background(Orange, CircleShape))
         Text(
@@ -256,7 +259,7 @@ fun NextButton(
                 // where the control happens to sit on screen, and this circle lives at the right
                 // edge, which threw its glow down and to the LEFT. The token is a glow: no light
                 // source, no direction, spread evenly and pushed straight down.
-                .size(56.dp)
+                .size(IconSizes.badge)
                 .ctaGlow(glow)
                 .clip(CircleShape)
                 .then(
@@ -289,7 +292,7 @@ fun NextButton(
 fun RuleRow(rule: String, consequence: String, wraps: Boolean = true) {
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
         // 6dp dot, offset 6 from the top so it sits on the first line's optical centre
-        Box(Modifier.padding(top = 6.dp).size(6.dp).background(Orange, CircleShape))
+        Box(Modifier.padding(top = Spacing.sm).size(6.dp).background(Orange, CircleShape))
         Text(
             buildAnnotatedString {
                 append(rule)
@@ -312,7 +315,7 @@ fun RuleRow(rule: String, consequence: String, wraps: Boolean = true) {
  */
 @Composable
 fun StatementRow(text: String) {
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         Box(Modifier.padding(top = 7.dp).size(7.dp).background(Orange, CircleShape))
         Text(
             text, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
@@ -358,7 +361,7 @@ fun TutorialShell(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 // ① content region: pad-top 8 below the safe-area inset, gutter 24, floor 0
-                .padding(start = 24.dp, end = 24.dp, top = 8.dp),
+                .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = Spacing.md),
         ) {
             StepProgress(totalSteps, step)
             Spacer(Modifier.height(24.dp))          // progress -> eyebrow

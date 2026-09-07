@@ -363,7 +363,7 @@ struct SignUpFlowView: View {
     // Only on the code screen, only while the code is fixed. Goes away with DevAuth.
     @ViewBuilder private var devStrip: some View {
         if DevAuth.showHint && step == .code {
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.sm) {
                 Text("TEST BUILD")
                     .font(F.manrope(9, .bold))
                     .tracking(0.7)
@@ -372,10 +372,10 @@ struct SignUpFlowView: View {
                     .font(F.manrope(11, .medium))
                     .foregroundColor(.white)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, Spacing.xl)
             .padding(.vertical, 5)
             .background(Capsule().fill(Color(hex: 0x1D1129).opacity(0.90)))
-            .padding(.top, 4)
+            .padding(.top, Spacing.xs)
         }
     }
 }

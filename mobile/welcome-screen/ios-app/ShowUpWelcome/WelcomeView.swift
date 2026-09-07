@@ -19,13 +19,13 @@ struct SunsetButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: Spacing.lg) {
                 Text(title).font(F.manrope(17, .bold))
                 Image(systemName: "arrow.right").font(.system(size: 20, weight: .bold))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 56)                                   // size lg
+            .frame(height: ComponentSizes.controlHeight)                                   // size lg
             .background(LinearGradient(colors: [.liqOrange, .liqPurple],
                                        startPoint: .leading, endPoint: .trailing))
             .clipShape(Capsule())                                // pill
@@ -170,10 +170,10 @@ struct WelcomeView: View {
                 Spacer(minLength: 8)                               // flex:1
 
                 // ④⑤⑥⑦ Heart + text cluster
-                VStack(alignment: .leading, spacing: 16) {         // text gaps 16
+                VStack(alignment: .leading, spacing: Spacing.xxl) {         // text gaps 16
                     HeroHeart()
                         .frame(maxWidth: .infinity, alignment: .center)  // heart centred
-                        .padding(.bottom, 4)
+                        .padding(.bottom, Spacing.xs)
 
                     // ⑤ Headline. The orange wash belongs to the italic run, and WashHeadline
                     //    measures where that run actually landed before drawing it.
@@ -186,7 +186,7 @@ struct WelcomeView: View {
                         fontSize: 42, lineHeightMultiple: 1.05, trackingEm: -0.02
                     )
 
-                    HStack(spacing: 8) {                            // ⑥ subhead
+                    HStack(spacing: Spacing.md) {                            // ⑥ subhead
                         Text("We’re happy to see you").font(F.manrope(18, .semibold)).foregroundColor(.liqFg)
                         Image(systemName: "heart.fill").font(.system(size: 20)).foregroundColor(.liqOrange)
                     }
@@ -207,7 +207,7 @@ struct WelcomeView: View {
                 Spacer(minLength: 8)                               // flex:1
 
                 // ⑧⑨ Button + caption — bottom-anchored (20 above floor)
-                VStack(spacing: 10) {                              // button → caption 10
+                VStack(spacing: Spacing.lg) {                              // button → caption 10
                     SunsetButton(title: "Show me how") {
                         analytics.track(TutorialAnalytics.ctaTapped,
                                         properties: TutorialAnalytics.welcome)
@@ -218,7 +218,7 @@ struct WelcomeView: View {
                 }
                 .padding(.bottom, 20)
             }
-            .padding(.horizontal, 24)                              // gutter 24
+            .padding(.horizontal, Spacing.screenGutter)                              // gutter 24
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .onAppear {

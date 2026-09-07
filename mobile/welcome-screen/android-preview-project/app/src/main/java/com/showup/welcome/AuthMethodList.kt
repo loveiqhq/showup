@@ -18,6 +18,11 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.IconSizes
+import com.showup.designsystem.Motion
+import com.showup.designsystem.Radius
+import com.showup.designsystem.Spacing
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -165,8 +170,8 @@ fun AuthMethodList(
         if (errorFor != null && errorMessage != null) ErrorBanner(errorMessage)
 
         Column(
-            Modifier.padding(bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             MethodButton(primary, onSelect, loading, errorFor == primary, loading != null, isPrimary = true)
             rest.forEach { m ->
@@ -236,11 +241,11 @@ private fun MethodButton(
  */
 @Composable
 private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(Radius.card)
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp)
+            .padding(top = Spacing.xs)
             .height(52.dp)
             .clip(shape)
             .background(Elevated)
@@ -264,7 +269,7 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
             }
             .clickable(role = Role.Button, onClick = onSkip)
             .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -281,7 +286,7 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
 /** Danger banner — the failure states. Sits above the list; the buttons do not move. */
 @Composable
 fun ErrorBanner(message: String) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(Radius.control)
     Row(
         Modifier
             .fillMaxWidth()
@@ -289,10 +294,10 @@ fun ErrorBanner(message: String) {
             .clip(shape)
             .background(Danger.copy(alpha = 0.07f))
             .border(1.dp, Danger.copy(alpha = 0.18f), shape)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.xl),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
-        Box(Modifier.padding(top = 1.dp).size(20.dp).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.padding(top = 1.dp).size(IconSizes.sm).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
             Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
         Text(
@@ -310,18 +315,18 @@ fun ErrorBanner(message: String) {
  */
 @Composable
 fun CancelledNotice(provider: AuthMethod) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(Radius.control)
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp)
+            .padding(bottom = Spacing.xl)
             .clip(shape)
             .background(Raised)
             .border(1.dp, BorderSoft, shape)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.xl),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
-        Box(Modifier.size(20.dp).background(Fg.copy(alpha = 0.10f), CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(IconSizes.sm).background(Fg.copy(alpha = 0.10f), CircleShape), contentAlignment = Alignment.Center) {
             Icon(BrandIcon.Close, 12.dp, tint = Fg, strokeWidth = 2.4.dp)
         }
         Text(
@@ -343,7 +348,7 @@ fun Spinner(tint: Color = Color.White, size: androidx.compose.ui.unit.Dp = 18.dp
     val motion = rememberMotion()
     val angle by rememberInfiniteTransition(label = "spin").animateFloat(
         initialValue = 0f, targetValue = if (motion.enabled) 360f else 0f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(Motion.PULSE_SLOW, easing = LinearEasing), RepeatMode.Restart),
         label = "angle",
     )
     Canvas(Modifier.size(size).rotate(angle)) {
