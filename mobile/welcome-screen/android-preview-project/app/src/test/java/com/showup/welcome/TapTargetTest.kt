@@ -31,7 +31,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.fieldChrome
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -73,6 +75,26 @@ class TapTargetTest {
             "the field should be exactly one control tall, not %s".format(heightDp),
             ComponentSizes.controlHeight.value, heightDp.value, 0.75f,
         )
+    }
+
+    /**
+     * The back control is ANNOUNCED, not merely tappable.
+     *
+     * It lives in this file because both claims are the same claim -- that a control works for a
+     * person -- reached by touch in the tests around it and by screen reader here. The chevron is
+     * a Canvas, so an unlabelled control has no text anywhere for TalkBack to fall back on: it
+     * announced "button" and nothing else, while VoiceOver said "Back".
+     *
+     * Nothing about it renders differently either way, which is why no layout test could see it
+     * and why `verify-welcome.py` asserts the label on both platforms as well.
+     */
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun theBackControlIsAnnouncedAndNotJustTappable() = runComposeUiTest {
+        setContent { PhoneNumberScreen(value = "") }
+        // Both halves: a screen reader can name it, and it is the thing that takes the press.
+        onNodeWithContentDescription("Back").assertExists()
+        onNodeWithContentDescription("Back").assert(hasClickAction())
     }
 
     /** A tap at the very top edge of the field lands on the field, not on its background. */

@@ -206,6 +206,11 @@ check("back chevron uses the shared tap floor (swift)", "minTapTarget()" in code
 check("back chevron has no hardcoded floor (kotlin)", "size(44.dp)" not in code_only(ver_kt))
 check("back chevron has no hardcoded floor (swift)",
       "width: 44, height: 44" not in code_only(ver_sw))
+# The chevron is a Canvas, so there is no text in this control for a screen reader to fall back
+# on: unlabelled, TalkBack announced "button" and nothing else while VoiceOver said "Back". A
+# parity gap that no layout test could see, because it renders identically either way.
+check("back control is labelled (kotlin)", 'contentDescription = "Back"' in code_only(ver_kt))
+check("back control is labelled (swift)", 'accessibilityLabel("Back")' in code_only(ver_sw))
 
 # The SHAPE, not just the name. Naming the right enum case proves nothing if that case draws the
 # wrong path -- and the two icons live three lines apart, which is exactly where a mis-paste lands.

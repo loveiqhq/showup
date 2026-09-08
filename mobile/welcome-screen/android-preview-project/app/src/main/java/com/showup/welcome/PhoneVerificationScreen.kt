@@ -115,7 +115,15 @@ private fun VerificationFrame(
                 // and not the tutorial's 48 -- see the note in TapTarget.kt, which is where that
                 // disagreement is written down rather than silently resolved.
                 .minTapTarget()
-                .clickable(role = Role.Button, onClick = onBack),
+                .clickable(role = Role.Button, onClick = onBack)
+                // Without this TalkBack announces "button" and nothing else: the chevron is a
+                // Canvas, so there is no text anywhere in this control for a screen reader to
+                // fall back on. iOS has said "Back" since the screen was written.
+                //
+                // On the Box rather than the glyph, because the Box is the control -- it carries
+                // the click and the tap target, and a label on the Canvas would describe a
+                // decoration instead of the thing being pressed.
+                .semantics { contentDescription = "Back" },
             contentAlignment = Alignment.CenterStart,
         ) {
             // chevron-left at 24, stroke 2 -- the handoff's AppHeader with leading="back", which
