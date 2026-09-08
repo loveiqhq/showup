@@ -29,3 +29,12 @@ object Motion {
     /** The linking animation on the Connect screen. */
     const val PULSE_LONG = 1400
 }
+
+/**
+ * The curve every one of those durations runs on.
+ *
+ * CLAUDE.md states it as `cubic-bezier(.22,1,.36,1)` and calls it non-negotiable. It lived in
+ * WelcomeShell.kt until PrimaryButton moved into the design system: a screen file cannot be the
+ * home of the easing that the primitive needs, because designsystem must not depend on a screen.
+ */
+val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f)

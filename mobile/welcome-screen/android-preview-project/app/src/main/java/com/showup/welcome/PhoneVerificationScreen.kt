@@ -21,6 +21,8 @@ import com.showup.designsystem.autofill
 import com.showup.designsystem.fieldChrome
 
 import com.showup.designsystem.InputField
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.ShowUpEasing
 
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Motion
@@ -87,7 +89,7 @@ import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 // ─────────────────────────────────────────────────────────────────────────────
 // shared chrome for both halves of the flow
@@ -298,7 +300,7 @@ fun PhoneNumberScreen(
         // Validation runs on submit, not per keystroke. The button stays live so the user can ask
         // for the check -- what changes on failure is the message, not the availability of the
         // action. A disabled CTA cannot explain itself, which the ticket lists as an open concern.
-        PillButton("Send me the code", onSubmit)
+        PrimaryButton("Send me the code", onSubmit)
     }
 }
 
@@ -535,7 +537,7 @@ fun VerifyCodeScreen(
         Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         // Disabled until all six digits are in. In mismatch the digits are still there, so it stays
         // enabled — the user edits one digit and resubmits.
-        PillButton("Verify code", onVerify, enabled = digits.length == 6)
+        PrimaryButton("Verify code", onVerify, enabled = digits.length == 6)
 
         Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
         // A mistyped code must not cost another 24s wait, so the mismatch state releases the

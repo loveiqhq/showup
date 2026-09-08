@@ -65,6 +65,12 @@ def code_only(src):
 
 
 shell_kt = read(KT, "welcome/WelcomeShell.kt")
+# The primary button moved out of the shell into the design system on 7 September 2026.
+# These read the primitive; the assertions are unchanged.
+btn_kt = read(KT, "designsystem/PrimaryButton.kt")
+btn_sw = read(SW, "PrimaryButton.swift")
+# ShowUpEasing moved here with the button: designsystem cannot depend on a screen.
+motion_kt = read(KT, "designsystem/Motion.kt")
 shell_sw = read(SW, "WelcomeShell.swift")
 start_kt = read(KT, "welcome/StartupScreen.kt")
 start_sw = read(SW, "StartupView.swift")
@@ -136,24 +142,28 @@ check("wash tracks the run (swift)", "enumerateEnclosingRects" in shell_kt or
       "enumerateEnclosingRects" in shell_sw)
 
 # ── button — components/shared.jsx size lg ──────────────────────────────────
-check("button height 56 (kotlin)", "height: Dp = 56.dp" in shell_kt)
-check("button height 56 (swift)", "var height: CGFloat = 56" in shell_sw)
-check("button pad 28 (kotlin)", "horizontal = 28.dp" in shell_kt)
-check("button pad 28 (swift)", ".padding(.horizontal, 28)" in shell_sw)
-check("button label 16 bold (kotlin)", "else 16.sp" in shell_kt)
-check("button label 16 bold (swift)", "manrope(16, .bold)" in shell_sw)
-check("button gap 8 (kotlin)", "spacedBy(8.dp" in shell_kt)
-check("button gap 8 (swift)", "HStack(spacing: 8)" in shell_sw)
+check("button height 56 (kotlin)", "height: Dp = 56.dp" in btn_kt)
+check("button height 56 (swift)", "var height: CGFloat = 56" in btn_sw)
+check("button pad 28 (kotlin)", "horizontal = 28.dp" in btn_kt)
+check("button pad 28 (swift)", ".padding(.horizontal, 28)" in btn_sw)
+check("button label 16 bold (kotlin)",
+      "labelSize: TextUnit = 16.sp" in btn_kt
+      and "else labelSize" in btn_kt
+      and "else FontWeight.Bold" in btn_kt)
+check("button label 16 bold (swift)",
+      "var labelSize: CGFloat = 16" in btn_sw and "F.manrope(labelSize, .bold)" in btn_sw)
+check("button gap 8 (kotlin)", "spacedBy(8.dp" in btn_kt)
+check("button gap 8 (swift)", "HStack(spacing: 8)" in btn_sw)
 # CLAUDE.md: press scales to 0.98, 180ms, cubic-bezier(.22,1,.36,1)
-check("press 0.98 (kotlin)", "0.98f" in shell_kt)
-check("press 0.98 (swift)", "0.98" in shell_sw)
+check("press 0.98 (kotlin)", "0.98f" in btn_kt)
+check("press 0.98 (swift)", "0.98" in btn_sw)
 check("press 180ms (kotlin)", "180" in shell_kt)
 check("press 180ms (swift)", "0.18" in shell_sw)
-check("brand easing (kotlin)", "CubicBezierEasing(0.22f, 1f, 0.36f, 1f)" in shell_kt)
-check("brand easing (swift)", "timingCurve(0.22, 1, 0.36, 1" in shell_sw)
+check("brand easing (kotlin)", "CubicBezierEasing(0.22f, 1f, 0.36f, 1f)" in motion_kt)
+check("brand easing (swift)", "timingCurve(0.22, 1, 0.36, 1" in btn_sw)
 # sunset midpoint at 38%
 check("sunset 38% (kotlin)", "0.38f to Color(0xFFD05976)" in tok_kt)
-check("sunset 38% (swift)", "location: 0.38" in shell_sw)
+check("sunset 38% (swift)", "location: 0.38" in btn_sw)
 
 # ── wordmark ────────────────────────────────────────────────────────────────
 check("wordmark gradient not flat (kotlin)", "WordmarkStops" in shell_kt)
@@ -364,8 +374,8 @@ for label, src in [("kotlin", flag_kt), ("swift", flag_sw)]:
 # register and date now" -- and from the PNG, which wins on nothing. Narrative text in a user story
 # is not a button label. This is the third time copy has been lifted from the wrong section of a
 # ticket in this flow; the other two were the phone error messages and the eyebrow tone.
-check("140 CTA tappable (kotlin)", "PillButton(\"Create free account\"" in start_kt)
-check("140 CTA tappable (swift)", "PillButton(\"Create free account\"" in start_sw)
+check("140 CTA tappable (kotlin)", "PrimaryButton(\"Create free account\"" in start_kt)
+check("140 CTA tappable (swift)", "PrimaryButton(\"Create free account\"" in start_sw)
 check("140 Log in tappable (kotlin)", "onClick = onLogin" in start_kt)
 check("140 Log in tappable (swift)", "Button(action: onLogin)" in start_sw)
 for target in ("onTerms", "onPrivacy", "onLegalNotice"):

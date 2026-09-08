@@ -130,23 +130,53 @@ existed, which is worth locking down rather than leaving to coincidence.
 **Left local:** the 500/1200/1600ms delays in `ConnectFlowHost` — the fake provider round trip,
 which goes away with the real SDKs.
 
-## Reusable primitives — the state of play
+## PrimaryButton
 
-`CountrySheet` and `InputField` are shared on both platforms. The rest are still duplicated:
+One primitive per platform since 7 September 2026 — `designsystem/PrimaryButton.kt` and
+`PrimaryButton.swift` — with eight call sites across both flows.
 
-| Primitive | Today | |
-|---|---|---|
-| **PrimaryButton** | `PillButton`, `NextButton`, `SunsetButton` | **three implementations**; `ConnectAccountScreen` imports two of them |
-| **StatusBadge** | private `Eyebrow` in Connect, plus a pill drawn inline in `TutorialShell` | twice on both platforms, and they diverged |
-| **InputField** | `designsystem/InputField.kt` · `InputField.swift` | **done, 8 September 2026** — the 23dp tap-target bug lived here |
-| **TopBar** | inline in `VerificationFrame` | the wrong-icon bug lived here |
-| **SelectPicker** | `CountrySheet` | already fine |
+```kotlin
+PrimaryButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    variant: PrimaryButtonVariant = Sunset,   // Sunset Ghost Plain Apple Google Facebook
+    enabled: Boolean = true,
+    height: Dp = ComponentSizes.controlHeight,
+    labelSize: TextUnit = 16.sp,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+)
+```
 
-The duplication follows the package split: `com.showup.welcome` and `com.showup.tutorial` were built
-as separate worlds and each grew its own version of the same thing. Consolidating `PrimaryButton` is
-the next component task.
+Swift is the same struct with `leading` and `trailing` as `@ViewBuilder` slots and three
+convenience inits, one per slot combination in use. **Name the slot at a Swift call site** rather
+than using a trailing closure: with two closure properties an unlabelled one is ambiguous between
+two inits, and the compiler error for that names neither.
 
-### InputField and FieldChrome
+### Six variants, and why each is required
+
+`Sunset` the gradient CTA · `Ghost` bordered secondary · `Plain` the conflict modal's dismiss, which
+has no border precisely so the pair does not read as two equal choices · `Apple` `Google` `Facebook`
+each mandated by that provider's own sign-in branding rules, which are a condition of app
+verification and cannot be re-themed.
+
+### Two parameters that exist for one call site each
+
+`labelSize` — 16 in the sign-up flow, 17 in the tutorial. A parameter rather than a variant because
+the tone is identical; the tutorial's CTA is the same sunset button one step larger. Collapse it if
+the design side agrees the two worlds should match.
+
+`trailing` — the tutorial CTA's arrow. It mirrors `leading`, which is what carries the provider
+marks and the in-flight spinner.
+
+### What is not a duplicate
+
+`NextButton` stayed where it is. It is a label beside a 56pt circular arrow badge with a drawn
+two-layer glow and a spring press on the circle alone — a different silhouette with its own spec
+sheet and twelve checks in `verify-spec.py`. Folding it into a pill would change six screens.
+
+## InputField and FieldChrome
 
 **What was duplicated was the chrome, not the input.** There is only one text input in the app. The
 number field and the country pill beside it are the same box — one `controlHeight`, `Radius.control`
@@ -182,7 +212,7 @@ surface.
 
 **No `enabled` parameter.** Neither field has a disabled state and no call site wants one.
 
-#### Autofill
+### Autofill
 
 Both fields declare what they hold on both platforms, since 8 September 2026. iOS had done so since
 the screens were written; Android declared nothing on either, so the number never came from the
@@ -206,7 +236,7 @@ the seam that collapses to a one-line `contentType` semantics property when the 
 
 Four parity assertions in `verify-welcome.py` cover both fields on both platforms, injection-tested.
 
-#### Open design decisions — two visible differences, kept on purpose
+### Open design decisions — two visible differences, kept on purpose
 
 Both platforms render today exactly what they rendered before the consolidation, because these
 screens are in PO Acceptance. Neither difference is drift; both need a design ruling.
@@ -218,6 +248,38 @@ screens are in PO Acceptance. Neither difference is drift; both need a design ru
 
 The slot contrast is the one with a correct answer — 1.28:1 fails WCAG for a non-text control
 boundary — but changing it alters a screen in PO Acceptance, so it is raised rather than taken.
+
+## Reusable primitives — the state of play
+
+`CountrySheet`, `PrimaryButton` and `InputField` are shared on both platforms. The rest are still
+duplicated:
+
+| Primitive | Today | |
+|---|---|---|
+| **StatusBadge** | private `Eyebrow` in Connect, plus a pill drawn inline in `TutorialShell` | twice on both platforms, and they diverged |
+| **PrimaryButton** | `designsystem/PrimaryButton.kt` · `PrimaryButton.swift` | **done, 7 September 2026** — was three implementations, one of them drifted four ways |
+| **InputField** | `designsystem/InputField.kt` · `InputField.swift` | **done, 8 September 2026** — the 23dp tap-target bug lived here |
+| **TopBar** | inline in `VerificationFrame` | the wrong-icon bug lived here |
+| **SelectPicker** | `CountrySheet` | already fine |
+
+The duplication follows the package split: `com.showup.welcome` and `com.showup.tutorial` were built
+as separate worlds and each grew its own version of the same thing.
+
+### What the duplicate cost, since it is the argument for fixing the rest
+
+`SunsetButton` was written six days before `PillButton` existed and never revisited. By the time it
+was removed it had drifted four ways from the primitive it duplicated: a two-stop gradient where the
+spec puts `D05976` at 38%, no violet shadow though iOS had one, no press feedback at all, and a
+Material/SF glyph for its arrow where CLAUDE.md requires a drawn 2px stroke.
+
+Every one of those four is a defect the 23 August audit found and fixed on the other tutorial
+cards. It missed these because they lived in a file no verifier read. A duplicate does not stay a
+duplicate; it becomes a worse copy nobody is looking at.
+
+Two things had to move before the button could, both for the same reason — the design system must
+not depend on a screen. `ShowUpEasing` went into `Motion.kt`, and `rememberMotion()` into
+`MotionPreference.kt`, where its return type was renamed from `Motion` so it stops colliding with
+the `Motion` durations object.
 
 ## How the verifiers still check numbers
 

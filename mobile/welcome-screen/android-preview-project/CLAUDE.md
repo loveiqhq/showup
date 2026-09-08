@@ -18,9 +18,17 @@ explaining why.**
 **Do not report a platform as verified unless it was actually built and tested in that platform's
 toolchain.**
 
-The first is not abstract here: the primary button exists **three times** in this project —
-`PillButton` in `welcome`, `NextButton` and `SunsetButton` in `tutorial` — and
-`ConnectAccountScreen` imports two of them. That is what happens without rule one.
+The first is not abstract here. The primary button existed **three times** in this project —
+`PillButton` in `welcome`, `SunsetButton` in `tutorial`, and `ConnectAccountScreen` importing
+both — until 7 September 2026, when they became `designsystem/PrimaryButton.kt`.
+
+What that cost is the part worth remembering: `SunsetButton` was written six days before
+`PillButton` existed and then never revisited, so it kept a two-stop gradient where the spec
+wants three, no violet shadow though iOS had one, no press feedback at all, and a Material glyph
+for its arrow. The 23 August audit found and fixed every one of those defects on the other
+tutorial cards and missed these, because they lived in a file no verifier read.
+
+A duplicate does not stay a duplicate. It becomes a worse copy that nobody is looking at.
 
 ---
 
@@ -93,6 +101,13 @@ take values and lambdas. This is the rule; MVVM is the name people give it.
 - **No `sp` size in a screen.** Use the named type roles.
 - **Use the shared primitives** in `com.showup.designsystem`. The three-way button split happened
   because `welcome` and `tutorial` were treated as separate worlds. They are not.
+- **A primary button is `PrimaryButton`.** Six variants, and `leading` / `trailing` slots for a
+  mark or an arrow. If you need one it does not do, add a variant to it — do not write a second
+  button. `NextButton` is not a counter-example: it is a label beside a circular arrow badge,
+  a different silhouette with its own spec sheet.
+- **A shared primitive never lives in a screen file.** That is not tidiness. `PillButton` sat in
+  `WelcomeShell.kt`, and whoever wrote the tutorial's CTA had no reason to open the sign-up
+  flow's shell, so they wrote their own. Anything two flows use belongs in `designsystem`.
 - **A component's tone is per screen, and both tones stay.** The eyebrow pill is orange on the phone
   screens and lavender on the tutorial cards; changing the shared token to fix one breaks the other.
 - **Check the handoff for which variant a screen uses.** The back control was drawn `arrow-left`

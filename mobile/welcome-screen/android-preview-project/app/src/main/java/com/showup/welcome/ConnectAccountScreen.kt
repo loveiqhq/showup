@@ -25,6 +25,12 @@
  */
 package com.showup.welcome
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.PrimaryButtonVariant
+
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Radius
@@ -45,10 +51,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
@@ -85,7 +89,7 @@ import com.showup.designsystem.Purple
 import com.showup.designsystem.Success
 import com.showup.tutorial.NextButton
 import com.showup.tutorial.NextVariant
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 import kotlinx.coroutines.delay
 
 /** The eight screen states. The two OS handoffs share one of them; the provider tells them apart. */
@@ -566,7 +570,7 @@ private fun ConflictSheet(
             // Google-owned account offers Continue with Google. Getting this backwards sends the
             // user round a loop. It wears that provider's own button, because the ticket lists
             // this CTA alongside the three on the method list.
-            PillButton(
+            PrimaryButton(
                 methodSpec(owner).label, onResolve,
                 variant = providerVariant(owner),
                 height = 54.dp,
@@ -576,9 +580,9 @@ private fun ConflictSheet(
 
             // No border, so the pair never reads as two equal choices. This is the only dismiss:
             // there is no close icon and the scrim above does not accept taps.
-            PillButton(
+            PrimaryButton(
                 "Use a different account", onUseDifferent,
-                variant = PillVariant.Plain, height = 50.dp,
+                variant = PrimaryButtonVariant.Plain, height = 50.dp,
             )
         }
     }

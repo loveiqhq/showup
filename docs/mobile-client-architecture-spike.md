@@ -501,7 +501,7 @@ is the most urgent by a distance:
 
 | Primitive | Today | Verdict |
 |---|---|---|
-| **PrimaryButton** | Android: `PillButton` (used by 6 files), `NextButton`, `SunsetButton`. iOS: `NextButton`, `SunsetButton`, plus the phone CTA inline | **Three implementations.** `ConnectAccountScreen` imports two of them, because it sits on the seam between the `welcome` and `tutorial` packages |
+| **PrimaryButton** | ~~Android: `PillButton` (used by 6 files), `NextButton`, `SunsetButton`. iOS: `NextButton`, `SunsetButton`, plus the phone CTA inline~~ | ~~**Three implementations.**~~ **DONE 7 Sep 2026** — one `PrimaryButton` per platform, 8 call sites each. `NextButton` was not a duplicate and stays. See `design-system.md` |
 | **InputField** | inline in the phone screens, both platforms | The 23dp tap-target bug lived here |
 | **TopBar** | inline in `VerificationFrame` | The wrong-icon bug lived here |
 | **StatusBadge** | private `Eyebrow` in Connect + a pill inline in `TutorialShell` | Twice on both platforms, and they diverged — the eyebrow bug |

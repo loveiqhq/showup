@@ -207,7 +207,10 @@ check("art decorative (kotlin)", "clearAndSetSemantics" in kt)
 check("art decorative (swift)", "accessibilityHidden(true)" in sw)
 
 # reduce-motion honoured on both platforms
-check("reduce-motion (kotlin)", "ANIMATOR_DURATION_SCALE" in kt)
+# rememberMotion moved from tutorial/ into designsystem/ with the button on 7 September 2026,
+# and its type was renamed MotionPreference so it stops colliding with the Motion durations.
+check("reduce-motion (kotlin)", "ANIMATOR_DURATION_SCALE"
+      in read(os.path.join(KT, "designsystem/MotionPreference.kt")))
 check("reduce-motion (swift)", "accessibilityReduceMotion" in sw)
 
 # ------------------------------------------------------------------ per-card values

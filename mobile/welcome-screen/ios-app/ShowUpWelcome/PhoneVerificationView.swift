@@ -169,7 +169,7 @@ struct PhoneNumberView: View {
                 // Validation runs on submit, not per keystroke. The button stays live so the
                 // user can ask for the check -- what changes on failure is the message, not the
                 // availability of the action.
-                PillButton("Send me the code", action: onSubmit)
+                PrimaryButton("Send me the code", action: onSubmit)
             }
             // The keyboard is why the user is here, so it opens with the screen -- see
             // AutoFocusTextField, which takes it the moment the field reaches a window.
@@ -329,7 +329,7 @@ struct VerifyCodeView: View {
                 Spacer().frame(height: compact ? 8 : 16)
                 // Disabled until all six digits are in. In mismatch the digits are still there, so
                 // it stays enabled — the user edits one digit and resubmits.
-                PillButton("Verify code", enabled: digits.count == 6, action: onVerify)
+                PrimaryButton("Verify code", enabled: digits.count == 6, action: onVerify)
 
                 Spacer().frame(height: compact ? 8 : 14)
                 VStack(spacing: compact ? 4 : 6) {
