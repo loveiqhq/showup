@@ -108,6 +108,10 @@ take values and lambdas. This is the rule; MVVM is the name people give it.
 - **A shared primitive never lives in a screen file.** That is not tidiness. `PillButton` sat in
   `WelcomeShell.kt`, and whoever wrote the tutorial's CTA had no reason to open the sign-up
   flow's shell, so they wrote their own. Anything two flows use belongs in `designsystem`.
+- **A status badge is `StatusBadge`.** Two tones, `BadgeTone.Orange` and `.Lavender`. It does NOT
+  align itself: pass `Modifier.align(...)` from the parent. That is the whole reason there were
+  three of them — two were `ColumnScope` extensions that forced `Start`, so Connect, whose badge is
+  centred, could not use either and wrote a third.
 - **A component's tone is per screen, and both tones stay.** The eyebrow pill is orange on the phone
   screens and lavender on the tutorial cards; changing the shared token to fix one breaks the other.
 - **Check the handoff for which variant a screen uses.** The back control was drawn `arrow-left`

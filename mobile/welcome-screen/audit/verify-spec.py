@@ -95,6 +95,11 @@ for name, byte, opacity in [
 # ------------------------------------------------------------------ shared shell
 kt = read(os.path.join(KT, "tutorial/TutorialShell.kt"))
 sw = read(os.path.join(SW, "TutorialShell.swift"))
+# The eyebrow pill moved out of the three screens into the design system on 8 September 2026.
+# code_only throughout below: StatusBadge documents the values it draws, so raw text would let
+# the comment about a number stand in for the number.
+badge_kt = read(os.path.join(KT, "designsystem/StatusBadge.kt"))
+badge_sw = read(os.path.join(SW, "StatusBadge.swift"))
 
 # The fixed spacing every spec sheet repeats: gutter 24, pad-top 8, 24 / 14 / 28, nav 24.
 for label, kt_pat, sw_pat in [
@@ -116,15 +121,19 @@ check("progress gap 6 (kotlin)", "spacedBy(6.dp)" in kt)
 check("progress gap 6 (swift)", "HStack(spacing: 6)" in sw)
 
 # eyebrow pill
-check("eyebrow 11 (kotlin)", "fontSize = 11.sp" in kt)
-check("eyebrow 11 (swift)", "manrope(11, .bold)" in sw)
-check("eyebrow tracking .08 (kotlin)", "0.08.em" in kt)
-check("eyebrow tracking .08 (swift)", "0.08 * 11" in sw)
-check("eyebrow pad 5/10 (kotlin)", "horizontal = 10.dp, vertical = 5.dp" in kt)
-check("eyebrow pad 5/10 (swift)", ".padding(.horizontal, 10)" in sw and ".padding(.vertical, 5)" in sw)
-check("eyebrow dot 5 (kotlin)", "size(5.dp)" in kt)
-check("eyebrow dot 5 (swift)", "width: 5, height: 5" in sw)
-check("eyebrow hug-width (kotlin)", "align(Alignment.Start)" in kt)
+check("eyebrow 11 (kotlin)", "fontSize = 11.sp" in code_only(badge_kt))
+check("eyebrow 11 (swift)", "manrope(11, .bold)" in code_only(badge_sw))
+check("eyebrow tracking .08 (kotlin)", "0.08.em" in code_only(badge_kt))
+check("eyebrow tracking .08 (swift)", "0.08 * 11" in code_only(badge_sw))
+check("eyebrow pad 5/10 (kotlin)", "horizontal = 10.dp, vertical = 5.dp" in code_only(badge_kt))
+check("eyebrow pad 5/10 (swift)",
+      ".padding(.horizontal, 10)" in code_only(badge_sw)
+      and ".padding(.vertical, 5)" in code_only(badge_sw))
+check("eyebrow dot 5 (kotlin)", "size(5.dp)" in code_only(badge_kt))
+check("eyebrow dot 5 (swift)", "width: 5, height: 5" in code_only(badge_sw))
+# The pill no longer aligns itself -- StatusBadge is alignment-agnostic so Connect can centre
+# it. So this asserts the CALL SITE still asks for Start, which is where it now lives.
+check("eyebrow hug-width (kotlin)", "align(Alignment.Start)" in code_only(kt))
 
 # rule row: 13 / 1.4 = 18.2, tracking -0.01em, dot 6 at offset 6, gap 9
 check("rule 13 (kotlin)", "fontSize = 13.sp" in kt)

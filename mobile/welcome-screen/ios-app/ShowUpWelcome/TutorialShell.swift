@@ -44,23 +44,6 @@ struct StepProgress: View {
 // stretching to the content width. The reference render shows the stretched version; the design
 // system component is hug-width.
 
-struct EyebrowPill: View {
-    let text: String
-
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
-            Text(text.uppercased())
-                .font(F.manrope(11, .bold))
-                .tracking(0.08 * 11)
-                .foregroundColor(.liqPurple)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, 5)
-        .background(Capsule().fill(Color.liqEyebrowBg))
-    }
-}
-
 // MARK: - ⑨ Next — label plus a 56pt circular arrow, gap 14
 
 /// Which circle the nav row's forward action wears.
@@ -208,7 +191,7 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
                 Spacer().frame(height: 24)                 // progress -> eyebrow
 
                 HStack(spacing: 0) {                       // hug-width, not a full-width band
-                    EyebrowPill(text: eyebrow)
+                    StatusBadge(label: eyebrow, tone: .lavender)
                     Spacer(minLength: 0)
                 }
 

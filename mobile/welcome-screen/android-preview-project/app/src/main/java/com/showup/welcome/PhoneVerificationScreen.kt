@@ -17,6 +17,7 @@
 package com.showup.welcome
 
 import com.showup.designsystem.FieldContent
+import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.autofill
 import com.showup.designsystem.fieldChrome
 
@@ -81,7 +82,6 @@ import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerDigit
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
-import com.showup.designsystem.EyebrowOrangeBg
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
@@ -130,27 +130,6 @@ private fun VerificationFrame(
     }
 }
 
-@Composable
-private fun ColumnScope.Eyebrow() {
-    Row(
-        Modifier
-            .align(Alignment.Start)
-            .clip(RoundedCornerShape(50))
-            // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on both
-            // of these screens; lavender is the tutorial's tone and was taken here by default.
-            .background(EyebrowOrangeBg)
-            .padding(horizontal = Spacing.lg, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            "PHONE VERIFICATION", color = Orange, fontFamily = Manrope,
-            fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.88.sp,
-        )
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // States A and B — enter number / invalid number
 // ─────────────────────────────────────────────────────────────────────────────
@@ -181,7 +160,7 @@ fun PhoneNumberScreen(
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     VerificationFrame(onBack) {
-        Eyebrow()
+        StatusBadge("Phone verification", Modifier.align(Alignment.Start))
         Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("What’s your " to false, "number" to true, "?" to false),
@@ -379,7 +358,7 @@ fun VerifyCodeScreen(
     }
 
     VerificationFrame(onBack) {
-        Eyebrow()
+        StatusBadge("Phone verification", Modifier.align(Alignment.Start))
         Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("Enter your " to false, "code" to true, "." to false),

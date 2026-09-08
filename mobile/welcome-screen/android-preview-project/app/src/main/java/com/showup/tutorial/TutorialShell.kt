@@ -67,7 +67,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.welcome.ctaGlow
-import com.showup.designsystem.EyebrowBg
+import com.showup.designsystem.BadgeTone
+import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
@@ -135,26 +136,6 @@ fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
  * spends a minute on it rather than an afternoon. Changing it means overruling the spec text, which
  * is the product side's call and is recorded in audit/CONFLICTS-2026-08-27.md as A10.
  */
-@Composable
-fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .align(Alignment.Start)
-            .clip(RoundedCornerShape(50))
-            .background(EyebrowBg)
-            .padding(horizontal = Spacing.lg, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            text.uppercase(),
-            color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-            fontSize = 11.sp, lineHeight = 13.sp, letterSpacing = 0.08.em,
-        )
-    }
-}
-
 /**
  * Which circle the nav row's forward action wears.
  *
@@ -344,7 +325,7 @@ fun TutorialShell(
             StepProgress(totalSteps, step)
             Spacer(Modifier.height(24.dp))          // progress -> eyebrow
 
-            EyebrowPill(eyebrow)
+            StatusBadge(eyebrow, Modifier.align(Alignment.Start), BadgeTone.Lavender)
             Spacer(Modifier.height(14.dp))          // eyebrow -> headline
 
             // ④ headline + the underline accent. Every card's AC asks for it; only the Welcome

@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Elevated
+import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Subtle
@@ -443,7 +444,7 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
                 verticalArrangement = Arrangement.spacedBy(Spacing.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Eyebrow("${methodSpec(provider).short} connected")
+                StatusBadge("${methodSpec(provider).short} connected")
                 // No name from the provider is a real case, not a defensive default: Apple's
                 // private-relay users often share nothing. The italic run still has to be the
                 // emphasis, so the whole sentence changes shape rather than the name being
@@ -472,24 +473,6 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
 }
 
 /** Orange tone: bg orange 12%, orange text, a 5dp dot, Manrope 700 11 uppercase, tracking .08. */
-@Composable
-private fun Eyebrow(label: String) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(50))
-            .background(Orange.copy(alpha = 0.12f))
-            .padding(horizontal = Spacing.lg, vertical = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            label.uppercase(), color = Orange, fontFamily = Manrope,
-            fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.08.em,
-        )
-    }
-}
-
 // ─────────────────────────────────────────────────────────────
 // I — the conflict modal
 // ─────────────────────────────────────────────────────────────

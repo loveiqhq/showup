@@ -75,6 +75,11 @@ list_kt = read(KT, "welcome/AuthMethodList.kt")
 list_sw = read(SW, "AuthMethodList.swift")
 conn_kt = read(KT, "welcome/ConnectAccountScreen.kt")
 conn_sw = read(SW, "ConnectAccountView.swift")
+# The eyebrow moved into designsystem/StatusBadge.kt on 8 September 2026, and Connect was the one
+# that painted its fill by hand -- Orange at 12%, which is exactly what EyebrowOrangeBg already
+# held. These assert the bypass is gone and stay here because this is where Connect is read.
+#
+# code_only, because StatusBadge's own documentation quotes the expression it replaced.
 back_kt = read(KT, "welcome/WelcomeBackScreen.kt")
 back_sw = read(SW, "WelcomeBackView.swift")
 shell_kt = read(KT, "welcome/WelcomeShell.kt")
@@ -479,6 +484,25 @@ for label, src in [("connect kt", conn_kt), ("connect sw", conn_sw),
                    ("list kt", list_kt), ("list sw", list_sw)]:
     has_emoji = any(ord(c) > 0x2500 and not (0x2010 <= ord(c) <= 0x2E7F) for c in src)
     check("no emoji in " + label, not has_emoji)
+
+# ── the eyebrow became a shared primitive ─────────────────────────
+# Connect was the one that painted its fill by hand -- Orange at 12%, which is exactly what
+# EyebrowOrangeBg already held, so nothing looked wrong and the token quietly stopped being the
+# single definition of the value.
+#
+# COUNTED rather than absent, because the same expression legitimately survives once: the 56pt
+# round shield in the conflict modal, a different component that is out of this task's scope.
+# Two occurrences means the eyebrow started painting its own fill again.
+#
+# An earlier version of this check tried to slice the file at "IconSizes.badge" and passed a
+# string that no longer contained it -- read() expands token references, so by the time the text
+# reaches here the token is already the literal it holds.
+check("connect eyebrow is the shared badge (kotlin)", "StatusBadge(" in code_only(conn_kt))
+check("connect eyebrow is the shared badge (swift)", "StatusBadge(label:" in code_only(conn_sw))
+check("connect eyebrow has no raw fill (kotlin)",
+      code_only(conn_kt).count("Orange.copy(alpha = 0.12f)") <= 1)
+check("connect eyebrow has no raw fill (swift)",
+      code_only(conn_sw).count("liqOrange.opacity(0.12)") <= 1)
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("connect + re-login conformance: " + str(checks) + " checks")

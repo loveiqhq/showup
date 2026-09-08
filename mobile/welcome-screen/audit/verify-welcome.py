@@ -84,6 +84,9 @@ input_sw = read(SW, "InputField.swift")
 # iOS keeps its phone field's keyboard and content-type configuration in the representable, not the
 # screen, so the autofill parity check below has to read it there.
 phone_sw = read(SW, "PhoneNumberField.swift")
+# The eyebrow pill moved out of the three screens into the design system on 8 September 2026.
+badge_kt = read(KT, "designsystem/StatusBadge.kt")
+badge_sw = read(SW, "StatusBadge.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
 
@@ -211,10 +214,21 @@ check("the arrow still has its shaft (kotlin)",
 # screen-phone-reference.jsx uses <Eyebrow color="orange"> on both phone screens (lines 182, 440),
 # while the tutorial cards use lavender. Both platforms took lavender here, which is the component
 # default -- so the pill and its text came out purple on a screen the design paints orange.
-check("eyebrow uses the orange tone (kotlin)", "EyebrowOrangeBg" in ver_kt)
-check("eyebrow uses the orange tone (swift)", "liqEyebrowOrangeBg" in ver_sw)
-check("eyebrow text is orange (kotlin)", '"PHONE VERIFICATION", color = Orange' in ver_kt)
-check("eyebrow text is orange (swift)", ".foregroundColor(.liqOrange)" in ver_sw)
+# The tone is a StatusBadge variant now, so "this screen's eyebrow is orange" is TWO facts and
+# both are asserted: the orange tone is the token, and this screen asks for the orange tone.
+#
+# code_only on the primitive because it documents the very values it draws, and code_only on the
+# screens because each names the other platform's spelling in a comment.
+check("eyebrow orange tone is the token (kotlin)", "EyebrowOrangeBg" in code_only(badge_kt))
+check("eyebrow orange tone is the token (swift)", "liqEyebrowOrangeBg" in code_only(badge_sw))
+check("eyebrow orange label is Orange (kotlin)", "labelColor = Orange" in code_only(badge_kt))
+check("eyebrow orange label is Orange (swift)", "return .liqOrange" in code_only(badge_sw))
+check("143 eyebrow takes the orange tone (kotlin)",
+      'StatusBadge("Phone verification"' in code_only(ver_kt)
+      and "BadgeTone.Lavender" not in code_only(ver_kt))
+check("143 eyebrow takes the orange tone (swift)",
+      'StatusBadge(label: "Phone verification")' in code_only(ver_sw)
+      and "tone: .lavender" not in code_only(ver_sw))
 check("the lavender tone is not used here (kotlin)", "EyebrowBg" not in ver_kt)
 check("the lavender tone is not used here (swift)", "liqEyebrowBg)" not in ver_sw)
 # rgba(254,104,57,.12) and rgba(167,139,250,.16) -- two tokens, so neither screen can drift.

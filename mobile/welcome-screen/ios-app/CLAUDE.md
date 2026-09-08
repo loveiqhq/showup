@@ -115,6 +115,9 @@ is enforced, not merely intended.
   badge, with its own spec.
 - **A shared primitive never lives in a screen file.** `PillButton` sat in `WelcomeShell.swift`,
   so the tutorial grew its own copy. Anything two flows use gets its own file.
+- **A status badge is `StatusBadge`** (`StatusBadge.swift`). Two tones, `.orange` and `.lavender`.
+  It does not align itself — the parent positions it. That is why there were three: two of the
+  originals forced leading alignment, and Connect's badge is centred, so it grew its own copy.
 - **A component's tone is per screen, and both tones stay.** The eyebrow pill is orange on the phone
   screens and lavender on the tutorial cards. Changing the shared token to fix one screen breaks the
   other; add a variant.

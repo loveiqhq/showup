@@ -249,14 +249,83 @@ screens are in PO Acceptance. Neither difference is drift; both need a design ru
 The slot contrast is the one with a correct answer — 1.28:1 fails WCAG for a non-text control
 boundary — but changing it alters a screen in PO Acceptance, so it is raised rather than taken.
 
+## StatusBadge
+
+One primitive per platform since 8 September 2026 — `designsystem/StatusBadge.kt` and
+`StatusBadge.swift` — with four call sites each.
+
+```kotlin
+enum class BadgeTone { Orange, Lavender }
+
+@Composable
+fun StatusBadge(
+    label: String,
+    modifier: Modifier = Modifier,
+    tone: BadgeTone = BadgeTone.Orange,
+)
+```
+
+Swift is the same shape: `StatusBadge(label:tone:)` with `BadgeTone.orange` / `.lavender`.
+
+### What was duplicated
+
+Three implementations per platform, six in all, drawing one pill:
+
+| | Tone | Fill it used |
+|---|---|---|
+| `Eyebrow` in Connect | orange | `Orange.copy(alpha = 0.12f)` / `.liqOrange.opacity(0.12)` — **raw** |
+| `EyebrowPill` in `TutorialShell` | lavender | `EyebrowBg` |
+| `Eyebrow` in the phone screens | orange | `EyebrowOrangeBg`, label hardcoded |
+
+**The fill is the one that mattered.** `Orange` is `0xFE6839` and `EyebrowOrangeBg` is `0x1FFE6839`,
+where `0x1F` is 31 — which is `0.12 x 255` rounded. So Connect and the phone screens painted the
+same pixels by two routes, one of them a token and one of them a value re-derived at a call site.
+Nothing looked wrong, and the token had quietly stopped being the single definition of the value.
+
+### Two tones, and nothing else
+
+`Orange` for the sign-up flow, `Lavender` for the tutorial cards. This is the case both `CLAUDE.md`
+files already name — "a component's tone is per screen, and both tones stay" — so it is a variant
+rather than a token one screen could redefine and break the other.
+
+The tone sets the fill and the label colour and **not the dot**, which is `Orange` in every tone.
+All three originals drew it that way; it is preserved rather than tidied into the variant.
+
+### It does not position itself
+
+Two of the three were `ColumnScope` extensions calling `.align(Alignment.Start)` on themselves, and
+that is precisely what stopped Connect from reusing one: Connect's badge is **centred**, in a Column
+with `horizontalAlignment = CenterHorizontally`. A pill that insists on its own alignment cannot go
+there, so a third copy got written. Alignment now reaches the badge through `modifier` from the
+parent, and the two leading call sites pass `Modifier.align(Alignment.Start)` themselves.
+
+### What was normalised, and the one thing that was not
+
+Normalised, all measured as pixel-identical: the fill (raw expression to the token it equals), the
+letter spacing (written `0.08.em` twice and `0.88.sp` once — the same number at 11sp), the
+uppercasing, and the hardcoded label.
+
+**`lineHeight = 13.sp` was dropped rather than made a parameter.** The tutorial pill set it and the
+two orange ones did not, which looked like the one difference that might be intentional. Measured
+first: the label renders exactly **15.00dp tall either way**, because 13sp is below what this font
+needs at 11sp and Compose was already ignoring it. A parameter for it would have been a knob that
+changes nothing.
+
+### Still raw, and out of scope
+
+`Orange.copy(alpha = 0.12f)` survives once per platform, for the **56pt round shield** in Connect's
+conflict modal (`IconSizes.badge`). That is a different component and was not in this task. The
+conformance check counts occurrences rather than forbidding the expression, so the shield does not
+have to be flagged forever and a second badge painting its own fill still fails.
+
 ## Reusable primitives — the state of play
 
-`CountrySheet`, `PrimaryButton` and `InputField` are shared on both platforms. The rest are still
-duplicated:
+`CountrySheet`, `PrimaryButton`, `InputField` and `StatusBadge` are shared on both platforms. The
+rest are still duplicated:
 
 | Primitive | Today | |
 |---|---|---|
-| **StatusBadge** | private `Eyebrow` in Connect, plus a pill drawn inline in `TutorialShell` | twice on both platforms, and they diverged |
+| **StatusBadge** | `designsystem/StatusBadge.kt` · `StatusBadge.swift` | **done, 8 September 2026** — was three implementations per platform, one bypassing its own token |
 | **PrimaryButton** | `designsystem/PrimaryButton.kt` · `PrimaryButton.swift` | **done, 7 September 2026** — was three implementations, one of them drifted four ways |
 | **InputField** | `designsystem/InputField.kt` · `InputField.swift` | **done, 8 September 2026** — the 23dp tap-target bug lived here |
 | **TopBar** | inline in `VerificationFrame` | the wrong-icon bug lived here |

@@ -58,23 +58,6 @@ private struct VerificationFrame<Content: View>: View {
     }
 }
 
-private struct VerificationEyebrow: View {
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
-            Text("PHONE VERIFICATION")
-                .font(F.manrope(11, .bold))
-                .tracking(0.08 * 11)
-                // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on
-                // both of these screens; lavender is the tutorial's and was taken by default.
-                .foregroundColor(.liqOrange)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, 5)
-        .background(Capsule().fill(Color.liqEyebrowOrangeBg))
-    }
-}
-
 // MARK: - States A and B
 
 struct PhoneNumberView: View {
@@ -92,7 +75,7 @@ struct PhoneNumberView: View {
         GeometryReader { geo in
             let compact = geo.size.height < 700
             VerificationFrame(onBack: onBack) {
-                VerificationEyebrow()
+                StatusBadge(label: "Phone verification")
                 Spacer().frame(height: compact ? 2 : 14)
                 // No fixed height. The frame was `fontSize * 1.05 * lines`, which is the LINE BOX
                 // and not what the glyphs occupy: a 1.05 line height is tighter than Lora's natural
@@ -203,7 +186,7 @@ struct VerifyCodeView: View {
             let slotH: CGFloat = compact ? 56 : 62
 
             VerificationFrame(onBack: onBack) {
-                VerificationEyebrow()
+                StatusBadge(label: "Phone verification")
                 Spacer().frame(height: compact ? 2 : 14)
                 WashHeadline(parts: [("Enter your ", false), ("code", true), (".", false)],
                              fontSize: 38)
