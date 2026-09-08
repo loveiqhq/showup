@@ -16,6 +16,8 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.FieldContent
+import com.showup.designsystem.autofill
 import com.showup.designsystem.fieldChrome
 
 import com.showup.designsystem.InputField
@@ -232,6 +234,9 @@ fun PhoneNumberScreen(
                 modifier = Modifier.weight(1f),
                 invalid = invalid,
                 keyboardType = KeyboardType.Phone,
+                // Matches iOS's `.telephoneNumber`, which this screen has declared since it was
+                // written. Android declared nothing, so the number never came from the keychain.
+                contentType = FieldContent.PhoneNumber,
                 onSubmit = onSubmit,
                 focusRequester = focus,
                 visualTransformation = remember(country) { GroupedDigits(country) },
@@ -409,11 +414,20 @@ fun VerifyCodeScreen(
         val slotW = if (compact) 44.dp else 49.dp
         val slotH = if (compact) 56.dp else 62.dp
         Spacer(Modifier.height(if (compact) 8.dp else 26.dp))
+        // Typed and autofilled codes take the SAME path. Written once rather than twice, because
+        // an SMS code arrives as "Your code is 123456" in some locales and a second copy of this
+        // filter is a second chance to forget the digit strip or the cap.
+        val acceptCode: (String) -> Unit = { raw ->
+            onDigitsChange(raw.filter { it.isDigit() }.take(6))
+        }
         BasicTextField(
             value = digits,
-            onValueChange = { raw -> onDigitsChange(raw.filter { it.isDigit() }.take(6)) },
+            onValueChange = acceptCode,
             modifier = Modifier
                 .fillMaxWidth()
+                // Matches iOS's `.oneTimeCode`. One field behind all six slots is what makes this
+                // a single hint rather than six that have to hand off to each other.
+                .autofill(FieldContent.SmsCode, acceptCode)
                 .focusRequester(focus)
                 .graphicsLayer {
                     // +/- 6px, three cycles, decaying to nothing

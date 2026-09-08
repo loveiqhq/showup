@@ -132,19 +132,92 @@ which goes away with the real SDKs.
 
 ## Reusable primitives — the state of play
 
-`CountrySheet` is the only one properly shared on both platforms. The rest are still duplicated:
+`CountrySheet` and `InputField` are shared on both platforms. The rest are still duplicated:
 
 | Primitive | Today | |
 |---|---|---|
 | **PrimaryButton** | `PillButton`, `NextButton`, `SunsetButton` | **three implementations**; `ConnectAccountScreen` imports two of them |
 | **StatusBadge** | private `Eyebrow` in Connect, plus a pill drawn inline in `TutorialShell` | twice on both platforms, and they diverged |
-| **InputField** | inline in the phone screens | the 23dp tap-target bug lived here |
+| **InputField** | `designsystem/InputField.kt` · `InputField.swift` | **done, 8 September 2026** — the 23dp tap-target bug lived here |
 | **TopBar** | inline in `VerificationFrame` | the wrong-icon bug lived here |
 | **SelectPicker** | `CountrySheet` | already fine |
 
 The duplication follows the package split: `com.showup.welcome` and `com.showup.tutorial` were built
 as separate worlds and each grew its own version of the same thing. Consolidating `PrimaryButton` is
 the next component task.
+
+### InputField and FieldChrome
+
+**What was duplicated was the chrome, not the input.** There is only one text input in the app. The
+number field and the country pill beside it are the same box — one `controlHeight`, `Radius.control`
+corners, `Elevated` fill, 1.5 outline — written twice a few lines apart on each platform, and
+already differing in their horizontal padding.
+
+So there are two exports, and only one of them is an input:
+
+| | Android | iOS |
+|---|---|---|
+| The box | `Modifier.fieldChrome(outline, height, horizontalPadding, onClick)` | `FieldChrome(outline:height:horizontalPadding:dangerRing:)` |
+| The input | `InputField(value, onValueChange, label, placeholder, …)` | `InputField(label:invalid:field:trailing:)` |
+
+The pill is a **Button** wearing `fieldChrome`, which is why the chrome is separate: a button and a
+text input share a visual contract without pretending to be the same widget.
+
+**`onClick` is a chrome parameter rather than something the caller chains on.** `.clickable()
+.padding(14)` and `.padding(14).clickable()` render identically and differ by 28dp of live width.
+Taking the hook as a parameter means the order is not the caller's to get wrong.
+
+**The field fills its box, and that is not configurable.** Android shipped a number field measuring
+23dp inside a 56dp row: it looked right, and only its middle third took a tap. The fix — one
+`fillMaxHeight()` / `frame(maxHeight: .infinity)` — now lives inside the primitive with no parameter
+to disable it, and `TapTargetTest` / `TapTargetTests` measure the rendered height on both platforms.
+Each has a **self-test that builds the defect on purpose and fails if the probe cannot see it**;
+that self-test earned its place by catching a wrong prediction about iOS before it became a "fix"
+for a defect that does not exist there.
+
+**The six-digit code entry is deliberately not folded in.** It is one text field whose decoration is
+six painted slots, drawing no text and no caret of its own. It shares only the corner radius with a
+bordered text box, so including it would mean a variant flag for a component with almost no common
+surface.
+
+**No `enabled` parameter.** Neither field has a disabled state and no call site wants one.
+
+#### Autofill
+
+Both fields declare what they hold on both platforms, since 8 September 2026. iOS had done so since
+the screens were written; Android declared nothing on either, so the number never came from the
+keychain and an arriving SMS code never appeared above the keyboard — a behaviour difference no
+screenshot shows and no layout test measures.
+
+| | Android | iOS |
+|---|---|---|
+| Number field | `contentType = FieldContent.PhoneNumber` on `InputField` | `.telephoneNumber` inside `PhoneNumberField` |
+| Code field | `Modifier.autofill(FieldContent.SmsCode, …)` | `.textContentType(.oneTimeCode)` |
+
+**The declaration sits in a different place on each platform, and that is correct.** iOS's
+`InputField` takes the text field as a slot — the number field is a `UIViewRepresentable` for caret
+reasons — so the control configures itself. Android's builds the `BasicTextField`, so the primitive
+carries the parameter. Both declare it where the text field actually lives.
+
+`FieldContent` is ours rather than Compose's `AutofillType`, which is experimental and would put an
+opt-in on both screens. `designsystem/Autofill.kt` holds every experimental import in the app and is
+the seam that collapses to a one-line `contentType` semantics property when the Compose BOM reaches
+1.8; neither call site changes then.
+
+Four parity assertions in `verify-welcome.py` cover both fields on both platforms, injection-tested.
+
+#### Open design decisions — two visible differences, kept on purpose
+
+Both platforms render today exactly what they rendered before the consolidation, because these
+screens are in PO Acceptance. Neither difference is drift; both need a design ruling.
+
+| | Android | iOS | |
+|---|---|---|---|
+| **Invalid field** | red outline + glyph, no ring | red outline + glyph + a 4pt `Danger` ring at 10% outside the outline | carried as an explicit `dangerRing` parameter on `FieldChrome`, iOS-only and documented, so it is a known divergence |
+| **Empty code slots** | outline at `Border` (12%) | outline at `Subtle` (46%) | **accessibility, not taste**: `Border` measures **1.28:1** against a 3:1 requirement. Audit finding 7 rejected 12% and fixed it on the field; the slots were missed on Android only |
+
+The slot contrast is the one with a correct answer — 1.28:1 fails WCAG for a non-text control
+boundary — but changing it alters a screen in PO Acceptance, so it is raised rather than taken.
 
 ## How the verifiers still check numbers
 

@@ -112,6 +112,15 @@ fun InputField(
     /** Red outline plus whatever the caller puts in [trailing]. */
     invalid: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Phone,
+    /**
+     * What the field holds, so the keyboard can offer to fill it. Null means "do not offer".
+     *
+     * Explicit rather than derived from [keyboardType], because the two answer different questions:
+     * a phone keypad is also what a PIN and a verification code are typed on, and inferring
+     * [FieldContent.PhoneNumber] from [KeyboardType.Phone] would offer somebody's phone number as a
+     * PIN.
+     */
+    contentType: FieldContent? = null,
     onSubmit: () -> Unit = {},
     focusRequester: FocusRequester? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
@@ -134,6 +143,15 @@ fun InputField(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
+                // Before the focus requester, so the observer is above the target it watches. A
+                // filled value goes through the caller's onValueChange rather than around it,
+                // which is what keeps the number field's digit filter and length cap applying to
+                // an autofilled number exactly as they do to a typed one.
+                .then(
+                    contentType?.let { type ->
+                        Modifier.autofill(type) { onValueChange(it) }
+                    } ?: Modifier
+                )
                 .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
                 .semantics { contentDescription = label },
             textStyle = style,

@@ -75,6 +75,9 @@ ver_sw = read(SW, "PhoneVerificationView.swift")
 # The number field moved out of the screen into the design system on 8 September 2026.
 input_kt = read(KT, "designsystem/InputField.kt")
 input_sw = read(SW, "InputField.swift")
+# iOS keeps its phone field's keyboard and content-type configuration in the representable, not the
+# screen, so the autofill parity check below has to read it there.
+phone_sw = read(SW, "PhoneNumberField.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
 
@@ -279,6 +282,18 @@ check("143 field border 1.5 (kotlin)", "1.5.dp, outline, shape" in code_only(inp
 check("143 field border 1.5 (swift)", "lineWidth: 1.5" in code_only(input_sw))
 check("143 slot border 1.5 (kotlin)", "1.5.dp" in code_only(ver_kt))
 check("143 slot border 1.5 (swift)", "lineWidth: 1.5" in code_only(ver_sw))
+# BOTH fields declare what they hold, on BOTH platforms. iOS had done this since the screens were
+# written and Android had done it on neither, which is a difference no screenshot shows and no
+# layout test measures -- so it survived every check there was until 8 September 2026.
+#
+# code_only throughout: each platform's source names the OTHER platform's spelling in a comment, so
+# raw text would let the note about the hint stand in for the hint.
+check("143 phone field autofill (kotlin)",
+      "contentType = FieldContent.PhoneNumber" in code_only(ver_kt))
+check("143 phone field autofill (swift)",
+      "textContentType = .telephoneNumber" in code_only(phone_sw))
+check("143 code field autofill (kotlin)", "FieldContent.SmsCode" in code_only(ver_kt))
+check("143 code field autofill (swift)", "textContentType(.oneTimeCode)" in code_only(ver_sw))
 # A/B reserves TWO lines, pinned, not one as a minimum. Every message names the country and wraps;
 # reserving one line let the CTA drop 15.7pt on rejection, measured on an iPhone 17 Pro.
 # The two numbers differ on purpose and the reasoning is at both sites: Compose sets lineHeight
