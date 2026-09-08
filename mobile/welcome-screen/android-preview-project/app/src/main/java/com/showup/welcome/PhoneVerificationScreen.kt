@@ -18,6 +18,7 @@ package com.showup.welcome
 
 import com.showup.designsystem.FieldContent
 import com.showup.designsystem.StatusBadge
+import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.autofill
 import com.showup.designsystem.fieldChrome
 
@@ -110,7 +111,10 @@ private fun VerificationFrame(
     ) {
         Box(
             Modifier
-                .size(44.dp)
+                // The floor lives in the design system now; it was a hardcoded 44 here. Still 44
+                // and not the tutorial's 48 -- see the note in TapTarget.kt, which is where that
+                // disagreement is written down rather than silently resolved.
+                .minTapTarget()
                 .clickable(role = Role.Button, onClick = onBack),
             contentAlignment = Alignment.CenterStart,
         ) {

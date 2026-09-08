@@ -87,6 +87,8 @@ phone_sw = read(SW, "PhoneNumberField.swift")
 # The eyebrow pill moved out of the three screens into the design system on 8 September 2026.
 badge_kt = read(KT, "designsystem/StatusBadge.kt")
 badge_sw = read(SW, "StatusBadge.swift")
+tap_kt = read(KT, "designsystem/TapTarget.kt")
+tap_sw = read(SW, "TapTarget.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
 
@@ -196,6 +198,14 @@ check("back chevron is 24 (kotlin)", "BrandIcon.ChevronLeft, 24.dp" in ver_kt)
 check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in ver_sw)
 check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in ver_kt)
 check("back chevron stroke 2 (swift)", "stroke: 2" in ver_sw)
+# The chevron's hit area comes from the shared floor now, not a hardcoded 44 in this screen.
+# 44 and not the tutorial's 48: that disagreement is recorded in TapTarget.kt and in
+# docs/design-system.md rather than resolved by quietly resizing a control.
+check("back chevron uses the shared tap floor (kotlin)", "minTapTarget()" in code_only(ver_kt))
+check("back chevron uses the shared tap floor (swift)", "minTapTarget()" in code_only(ver_sw))
+check("back chevron has no hardcoded floor (kotlin)", "size(44.dp)" not in code_only(ver_kt))
+check("back chevron has no hardcoded floor (swift)",
+      "width: 44, height: 44" not in code_only(ver_sw))
 
 # The SHAPE, not just the name. Naming the right enum case proves nothing if that case draws the
 # wrong path -- and the two icons live three lines apart, which is exactly where a mis-paste lands.

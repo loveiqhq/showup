@@ -43,8 +43,7 @@ private struct VerificationFrame<Content: View>: View {
                 // which welcome/screen-phone-reference.jsx uses on both of these screens. It was
                 // an arrow-left at 22: the wrong icon from the same set, and visibly heavier.
                 BrandIconView(icon: .chevronLeft, size: 24, stroke: 2, tint: .liqFg)
-                    .frame(width: ComponentSizes.minTapTarget, height: ComponentSizes.minTapTarget, alignment: .leading)
-                    .contentShape(Rectangle())
+                    .minTapTarget()
             }
             .buttonStyle(PressScale())
             .accessibilityLabel("Back")

@@ -318,6 +318,63 @@ conflict modal (`IconSizes.badge`). That is a different component and was not in
 conformance check counts occurrences rather than forbidding the expression, so the shield does not
 have to be flagged forever and a second badge painting its own fill still fails.
 
+## Tap targets
+
+`Modifier.minTapTarget(min)` on Android, `.minTapTarget(_:alignment:)` on iOS, since 8 September
+2026. `ComponentSizes.minTapTarget` is the source of truth and the floor is **clamped upward**:
+asking for 48 gives 48, asking for 20 gives 44. A plain default would let a caller pass a smaller
+number and quietly reintroduce the 23dp defect.
+
+### Why this is a modifier and not a BackControl component
+
+The two back controls were audited for consolidation and deliberately **not** merged:
+
+| | Phone screens | Tutorial |
+|---|---|---|
+| Draws | `chevron-left` icon, 24, stroke 2, `Fg` | the **word "Back"**, Manrope SemiBold 14, `Subtle` |
+| Position | top of screen | bottom nav row, beside `NextButton` |
+| Shape | none | rounded clip (Android) |
+| Visibility | always | `showBack` — hidden and cleared from semantics on card 01 |
+| iOS press | `PressScale()` | `.plain` |
+
+They share an `onBack` callback and nothing that is drawn. A `BackControl` covering both would have
+been a component whose two variants share only a lambda. A `TopBar` is further off still: the
+tutorial has no top bar at all, its top is `StepProgress`.
+
+What they genuinely share is the rule — a control has to be big enough to hit — so the rule is what
+was extracted. The four call sites keep their own icon, text, shape, position and visibility.
+
+### 44 or 48 on Android — unresolved, on purpose
+
+The numbers rendered today, all of them previously hardcoded at the call site:
+
+| | Android | iOS |
+|---|---|---|
+| Phone-screen back | 44 | 44 |
+| Tutorial back | **48** | 44 |
+
+**The project's own rule says 48 on Android.** Both `CLAUDE.md` files state it — "44pt / 48dp minimum
+for anything tappable" — which matches Material's 48dp against Apple's HIG 44pt. Three things
+disagree with that rule:
+
+* `ComponentSizes.minTapTarget` is **44 on both platforms**, so the token does not encode the split;
+* the fit harness flags below **44** on Android, so it does not enforce the stated Android floor;
+* the phone screens' back control renders **44** on Android, which the rule says is too small.
+
+**Nothing was resized here**, because changing a hit area is a behaviour change and not a
+consolidation. The recommendation, for its own task:
+
+`ComponentSizes.minTapTarget` **should become platform-specific — 44 on iOS, 48 on Android** — rather
+than the primitive hardcoding 48 for Android. The token is the thing that is currently wrong: it
+presents a mirrored value where the rule is deliberately not mirrored, which is why three of four
+call sites bypassed it with a literal. Making the token honest fixes the phone-screen back control,
+the tutorial's explicit 48 becomes the default and can be dropped, and the harness floor can rise
+with it.
+
+That change grows two Android hit areas from 44 to 48. Both are invisible — neither control has a
+fill — but it needs measuring at 17 sizes, because `heightIn` on a link inside a row can push a
+column. Hence a separate task.
+
 ## Reusable primitives — the state of play
 
 `CountrySheet`, `PrimaryButton`, `InputField` and `StatusBadge` are shared on both platforms. The

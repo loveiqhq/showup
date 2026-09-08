@@ -100,6 +100,9 @@ sw = read(os.path.join(SW, "TutorialShell.swift"))
 # the comment about a number stand in for the number.
 badge_kt = read(os.path.join(KT, "designsystem/StatusBadge.kt"))
 badge_sw = read(os.path.join(SW, "StatusBadge.swift"))
+# The back control's tap floor moved into the design system on 8 September 2026.
+tap_kt = read(os.path.join(KT, "designsystem/TapTarget.kt"))
+tap_sw = read(os.path.join(SW, "TapTarget.swift"))
 
 # The fixed spacing every spec sheet repeats: gutter 24, pad-top 8, 24 / 14 / 28, nav 24.
 for label, kt_pat, sw_pat in [
@@ -208,8 +211,20 @@ check("no fixed-width underline survives (swift)", "underlineWidth" not in sw)
 # accessibility
 check("progress announced (kotlin)", "progressBarRangeInfo" in kt)
 check("progress announced (swift)", "accessibilityLabel" in sw)
-check("back 48dp target (kotlin)", "minWidth = 48.dp, minHeight = 48.dp" in kt)
-check("back 44pt target (swift)", "minWidth: 44, minHeight: 44" in sw)
+# The NUMBERS are unchanged and still asserted; only where they are written moved. The
+# asymmetry is deliberate and is why the floor is a parameter: Android's tutorial back passes
+# 48 (Material's minimum), iOS's takes the 44 default (Apple's HIG).
+check("back 48dp target (kotlin)", "minTapTarget(48.dp)" in code_only(kt))
+check("back 44pt target (swift)", "minTapTarget()" in code_only(sw))
+# The floor can be raised and NOT lowered. Asserted against the expanded literal, so redefining
+# ComponentSizes.minTapTarget to something smaller fails this rather than renaming past it.
+check("tap floor clamps upward (kotlin)",
+      "if (min > 44.dp) min else 44.dp" in code_only(tap_kt))
+check("tap floor clamps upward (swift)",
+      "Swift.max(min, 44)" in code_only(tap_sw))
+# contentShape is the half people forget: without it only the glyph takes the touch, whatever
+# frame it was given.
+check("tap area actually takes the touch (swift)", "contentShape(Rectangle())" in code_only(tap_sw))
 check("button role (kotlin)", "Role.Button" in kt)
 check("button trait (swift)", ".isButton" in sw)
 check("art decorative (kotlin)", "clearAndSetSemantics" in kt)

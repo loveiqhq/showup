@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.welcome.ctaGlow
 import com.showup.designsystem.BadgeTone
+import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
@@ -366,7 +367,10 @@ fun TutorialShell(
                 // reader does not announce a "Back" that cannot be pressed.
                 Box(
                     Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        // 48 rather than the shared 44: Material's floor, which this control has
+                        // always used. Passed explicitly because minTapTarget clamps upward only,
+                        // so this raises the floor and cannot lower it.
+                        .minTapTarget(48.dp)
                         .then(
                             if (showBack) Modifier
                                 .clip(RoundedCornerShape(50))

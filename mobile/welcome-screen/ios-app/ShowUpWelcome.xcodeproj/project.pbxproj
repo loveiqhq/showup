@@ -7,68 +7,69 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FEED00000000000000000039 /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* ShowUpWelcomeApp.swift */; };
-		FEED0000000000000000003A /* APIAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* APIAccess.swift */; };
-		FEED0000000000000000003B /* AuthMethodList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* AuthMethodList.swift */; };
-		FEED0000000000000000003C /* ComponentSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* ComponentSizes.swift */; };
-		FEED0000000000000000003D /* ConnectAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* ConnectAccountView.swift */; };
-		FEED0000000000000000003E /* CountryCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* CountryCodes.swift */; };
-		FEED0000000000000000003F /* CountryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* CountryPicker.swift */; };
-		FEED00000000000000000040 /* Crashes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* Crashes.swift */; };
-		FEED00000000000000000041 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* DesignSystem.swift */; };
-		FEED00000000000000000042 /* HomePlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* HomePlaceholderView.swift */; };
-		FEED00000000000000000043 /* IconSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* IconSizes.swift */; };
-		FEED00000000000000000044 /* InputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* InputField.swift */; };
-		FEED00000000000000000045 /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* MatchMeansMeetView.swift */; };
-		FEED00000000000000000046 /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000024 /* MatchOnAvailabilityView.swift */; };
-		FEED00000000000000000047 /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000025 /* MeetInRealLifeView.swift */; };
-		FEED00000000000000000048 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000026 /* Motion.swift */; };
-		FEED00000000000000000049 /* PhoneNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000027 /* PhoneNumberField.swift */; };
-		FEED0000000000000000004A /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000028 /* PhoneVerificationView.swift */; };
-		FEED0000000000000000004B /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000029 /* PrimaryButton.swift */; };
-		FEED0000000000000000004C /* ProhibitedFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002A /* ProhibitedFields.swift */; };
-		FEED0000000000000000004D /* Radius.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002B /* Radius.swift */; };
-		FEED0000000000000000004E /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002C /* ShowUpEveryTimeView.swift */; };
-		FEED0000000000000000004F /* SignUpAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002D /* SignUpAnalytics.swift */; };
-		FEED00000000000000000050 /* SignUpFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002E /* SignUpFlow.swift */; };
-		FEED00000000000000000051 /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002F /* Spacing.swift */; };
-		FEED00000000000000000052 /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* StartupView.swift */; };
-		FEED00000000000000000053 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* StatusBadge.swift */; };
-		FEED00000000000000000054 /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* ThirtyMinutesView.swift */; };
-		FEED00000000000000000055 /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* TutorialAnalytics.swift */; };
-		FEED00000000000000000056 /* TutorialRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* TutorialRouting.swift */; };
-		FEED00000000000000000057 /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* TutorialShell.swift */; };
-		FEED00000000000000000058 /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* WelcomeBackView.swift */; };
-		FEED00000000000000000059 /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* WelcomeShell.swift */; };
-		FEED0000000000000000005A /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000038 /* WelcomeView.swift */; };
+		FEED0000000000000000003A /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* ShowUpWelcomeApp.swift */; };
+		FEED0000000000000000003B /* APIAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* APIAccess.swift */; };
+		FEED0000000000000000003C /* AuthMethodList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* AuthMethodList.swift */; };
+		FEED0000000000000000003D /* ComponentSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* ComponentSizes.swift */; };
+		FEED0000000000000000003E /* ConnectAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* ConnectAccountView.swift */; };
+		FEED0000000000000000003F /* CountryCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* CountryCodes.swift */; };
+		FEED00000000000000000040 /* CountryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* CountryPicker.swift */; };
+		FEED00000000000000000041 /* Crashes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* Crashes.swift */; };
+		FEED00000000000000000042 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* DesignSystem.swift */; };
+		FEED00000000000000000043 /* HomePlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* HomePlaceholderView.swift */; };
+		FEED00000000000000000044 /* IconSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* IconSizes.swift */; };
+		FEED00000000000000000045 /* InputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* InputField.swift */; };
+		FEED00000000000000000046 /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* MatchMeansMeetView.swift */; };
+		FEED00000000000000000047 /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000024 /* MatchOnAvailabilityView.swift */; };
+		FEED00000000000000000048 /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000025 /* MeetInRealLifeView.swift */; };
+		FEED00000000000000000049 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000026 /* Motion.swift */; };
+		FEED0000000000000000004A /* PhoneNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000027 /* PhoneNumberField.swift */; };
+		FEED0000000000000000004B /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000028 /* PhoneVerificationView.swift */; };
+		FEED0000000000000000004C /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000029 /* PrimaryButton.swift */; };
+		FEED0000000000000000004D /* ProhibitedFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002A /* ProhibitedFields.swift */; };
+		FEED0000000000000000004E /* Radius.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002B /* Radius.swift */; };
+		FEED0000000000000000004F /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002C /* ShowUpEveryTimeView.swift */; };
+		FEED00000000000000000050 /* SignUpAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002D /* SignUpAnalytics.swift */; };
+		FEED00000000000000000051 /* SignUpFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002E /* SignUpFlow.swift */; };
+		FEED00000000000000000052 /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002F /* Spacing.swift */; };
+		FEED00000000000000000053 /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* StartupView.swift */; };
+		FEED00000000000000000054 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* StatusBadge.swift */; };
+		FEED00000000000000000055 /* TapTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* TapTarget.swift */; };
+		FEED00000000000000000056 /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* ThirtyMinutesView.swift */; };
+		FEED00000000000000000057 /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* TutorialAnalytics.swift */; };
+		FEED00000000000000000058 /* TutorialRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* TutorialRouting.swift */; };
+		FEED00000000000000000059 /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* TutorialShell.swift */; };
+		FEED0000000000000000005A /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* WelcomeBackView.swift */; };
+		FEED0000000000000000005B /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000038 /* WelcomeShell.swift */; };
+		FEED0000000000000000005C /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000039 /* WelcomeView.swift */; };
 		FEED00000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000000A /* Assets.xcassets */; };
-		FEED00000000000000000063 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005B /* Lora-Bold.ttf */; };
-		FEED00000000000000000064 /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005C /* Lora-BoldItalic.ttf */; };
-		FEED00000000000000000065 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005D /* Lora-Italic.ttf */; };
-		FEED00000000000000000066 /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005E /* Lora-MediumItalic.ttf */; };
-		FEED00000000000000000067 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005F /* Lora-Regular.ttf */; };
-		FEED00000000000000000068 /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000060 /* Manrope-Bold.ttf */; };
-		FEED00000000000000000069 /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000061 /* Manrope-Medium.ttf */; };
-		FEED0000000000000000006A /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000062 /* Manrope-SemiBold.ttf */; };
+		FEED00000000000000000065 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005D /* Lora-Bold.ttf */; };
+		FEED00000000000000000066 /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005E /* Lora-BoldItalic.ttf */; };
+		FEED00000000000000000067 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005F /* Lora-Italic.ttf */; };
+		FEED00000000000000000068 /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000060 /* Lora-MediumItalic.ttf */; };
+		FEED00000000000000000069 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000061 /* Lora-Regular.ttf */; };
+		FEED0000000000000000006A /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000062 /* Manrope-Bold.ttf */; };
+		FEED0000000000000000006B /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000063 /* Manrope-Medium.ttf */; };
+		FEED0000000000000000006C /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000064 /* Manrope-SemiBold.ttf */; };
 		FEED00000000000000000016 /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* Flags */; };
-		FEED00000000000000000099 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000093 /* APIAccessTests.swift */; };
-		FEED0000000000000000009A /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000094 /* CrashesTests.swift */; };
-		FEED0000000000000000009B /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000095 /* PhoneValidationTests.swift */; };
-		FEED0000000000000000009C /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000096 /* ScreenFitTests.swift */; };
-		FEED0000000000000000009D /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000097 /* TapTargetTests.swift */; };
-		FEED0000000000000000009E /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000098 /* TutorialRoutingTests.swift */; };
-		FEED00000000000000000077 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000076 /* PhoneNumberKit */; };
-		FEED0000000000000000007C /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000007B /* ShowUpAPI */; };
-		FEED00000000000000000081 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000080 /* Sentry */; };
-		FEED00000000000000000086 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000085 /* OpenAPIRuntime */; };
-		FEED00000000000000000089 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000088 /* OpenAPIURLSession */; };
-		FEED0000000000000000008C /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000008B /* HTTPTypes */; };
+		FEED0000000000000000009B /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000095 /* APIAccessTests.swift */; };
+		FEED0000000000000000009C /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000096 /* CrashesTests.swift */; };
+		FEED0000000000000000009D /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000097 /* PhoneValidationTests.swift */; };
+		FEED0000000000000000009E /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000098 /* ScreenFitTests.swift */; };
+		FEED0000000000000000009F /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000099 /* TapTargetTests.swift */; };
+		FEED000000000000000000A0 /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009A /* TutorialRoutingTests.swift */; };
 		FEED00000000000000000079 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000078 /* PhoneNumberKit */; };
 		FEED0000000000000000007E /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000007D /* ShowUpAPI */; };
 		FEED00000000000000000083 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000082 /* Sentry */; };
-		FEED0000000000000000008E /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000008D /* OpenAPIRuntime */; };
-		FEED00000000000000000090 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000008F /* OpenAPIURLSession */; };
-		FEED00000000000000000092 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000091 /* HTTPTypes */; };
+		FEED00000000000000000088 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000087 /* OpenAPIRuntime */; };
+		FEED0000000000000000008B /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000008A /* OpenAPIURLSession */; };
+		FEED0000000000000000008E /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000008D /* HTTPTypes */; };
+		FEED0000000000000000007B /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000007A /* PhoneNumberKit */; };
+		FEED00000000000000000080 /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000007F /* ShowUpAPI */; };
+		FEED00000000000000000085 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000084 /* Sentry */; };
+		FEED00000000000000000090 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000008F /* OpenAPIRuntime */; };
+		FEED00000000000000000092 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000091 /* OpenAPIURLSession */; };
+		FEED00000000000000000094 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000093 /* HTTPTypes */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -100,31 +101,32 @@
 		FEED0000000000000000002F /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
 		FEED00000000000000000030 /* StartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupView.swift; sourceTree = "<group>"; };
 		FEED00000000000000000031 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
-		FEED00000000000000000032 /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000033 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
-		FEED00000000000000000034 /* TutorialRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRouting.swift; sourceTree = "<group>"; };
-		FEED00000000000000000035 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
-		FEED00000000000000000036 /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000037 /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
-		FEED00000000000000000038 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000032 /* TapTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTarget.swift; sourceTree = "<group>"; };
+		FEED00000000000000000033 /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000034 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
+		FEED00000000000000000035 /* TutorialRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRouting.swift; sourceTree = "<group>"; };
+		FEED00000000000000000036 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
+		FEED00000000000000000037 /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000038 /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
+		FEED00000000000000000039 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		FEED00000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FEED0000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FEED00000000000000000015 /* Flags */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Flags; sourceTree = "<group>"; };
-		FEED0000000000000000005B /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000005C /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000005D /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000005E /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000005F /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000060 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000061 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000062 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000093 /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000094 /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000095 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000096 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000097 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000098 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000006C /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FEED0000000000000000005D /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000005E /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000005F /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000060 /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000061 /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000062 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000063 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000064 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000095 /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000096 /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000097 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000098 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000099 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000009A /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000006E /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,25 +134,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000077 /* PhoneNumberKit in Frameworks */,
-				FEED0000000000000000007C /* ShowUpAPI in Frameworks */,
-				FEED00000000000000000081 /* Sentry in Frameworks */,
-				FEED00000000000000000086 /* OpenAPIRuntime in Frameworks */,
-				FEED00000000000000000089 /* OpenAPIURLSession in Frameworks */,
-				FEED0000000000000000008C /* HTTPTypes in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FEED0000000000000000006E /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 				FEED00000000000000000079 /* PhoneNumberKit in Frameworks */,
 				FEED0000000000000000007E /* ShowUpAPI in Frameworks */,
 				FEED00000000000000000083 /* Sentry in Frameworks */,
-				FEED0000000000000000008E /* OpenAPIRuntime in Frameworks */,
-				FEED00000000000000000090 /* OpenAPIURLSession in Frameworks */,
-				FEED00000000000000000092 /* HTTPTypes in Frameworks */,
+				FEED00000000000000000088 /* OpenAPIRuntime in Frameworks */,
+				FEED0000000000000000008B /* OpenAPIURLSession in Frameworks */,
+				FEED0000000000000000008E /* HTTPTypes in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FEED00000000000000000070 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEED0000000000000000007B /* PhoneNumberKit in Frameworks */,
+				FEED00000000000000000080 /* ShowUpAPI in Frameworks */,
+				FEED00000000000000000085 /* Sentry in Frameworks */,
+				FEED00000000000000000090 /* OpenAPIRuntime in Frameworks */,
+				FEED00000000000000000092 /* OpenAPIURLSession in Frameworks */,
+				FEED00000000000000000094 /* HTTPTypes in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -161,7 +163,7 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000005 /* ShowUpWelcome */,
-				FEED0000000000000000006B /* ShowUpWelcomeTests */,
+				FEED0000000000000000006D /* ShowUpWelcomeTests */,
 				FEED00000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -196,13 +198,14 @@
 				FEED0000000000000000002F /* Spacing.swift */,
 				FEED00000000000000000030 /* StartupView.swift */,
 				FEED00000000000000000031 /* StatusBadge.swift */,
-				FEED00000000000000000032 /* ThirtyMinutesView.swift */,
-				FEED00000000000000000033 /* TutorialAnalytics.swift */,
-				FEED00000000000000000034 /* TutorialRouting.swift */,
-				FEED00000000000000000035 /* TutorialShell.swift */,
-				FEED00000000000000000036 /* WelcomeBackView.swift */,
-				FEED00000000000000000037 /* WelcomeShell.swift */,
-				FEED00000000000000000038 /* WelcomeView.swift */,
+				FEED00000000000000000032 /* TapTarget.swift */,
+				FEED00000000000000000033 /* ThirtyMinutesView.swift */,
+				FEED00000000000000000034 /* TutorialAnalytics.swift */,
+				FEED00000000000000000035 /* TutorialRouting.swift */,
+				FEED00000000000000000036 /* TutorialShell.swift */,
+				FEED00000000000000000037 /* WelcomeBackView.swift */,
+				FEED00000000000000000038 /* WelcomeShell.swift */,
+				FEED00000000000000000039 /* WelcomeView.swift */,
 				FEED0000000000000000000A /* Assets.xcassets */,
 				FEED00000000000000000015 /* Flags */,
 				FEED00000000000000000006 /* Fonts */,
@@ -214,27 +217,27 @@
 		FEED00000000000000000006 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
-				FEED0000000000000000005B /* Lora-Bold.ttf */,
-				FEED0000000000000000005C /* Lora-BoldItalic.ttf */,
-				FEED0000000000000000005D /* Lora-Italic.ttf */,
-				FEED0000000000000000005E /* Lora-MediumItalic.ttf */,
-				FEED0000000000000000005F /* Lora-Regular.ttf */,
-				FEED00000000000000000060 /* Manrope-Bold.ttf */,
-				FEED00000000000000000061 /* Manrope-Medium.ttf */,
-				FEED00000000000000000062 /* Manrope-SemiBold.ttf */,
+				FEED0000000000000000005D /* Lora-Bold.ttf */,
+				FEED0000000000000000005E /* Lora-BoldItalic.ttf */,
+				FEED0000000000000000005F /* Lora-Italic.ttf */,
+				FEED00000000000000000060 /* Lora-MediumItalic.ttf */,
+				FEED00000000000000000061 /* Lora-Regular.ttf */,
+				FEED00000000000000000062 /* Manrope-Bold.ttf */,
+				FEED00000000000000000063 /* Manrope-Medium.ttf */,
+				FEED00000000000000000064 /* Manrope-SemiBold.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
 		};
-		FEED0000000000000000006B /* ShowUpWelcomeTests */ = {
+		FEED0000000000000000006D /* ShowUpWelcomeTests */ = {
 			isa = PBXGroup;
 			children = (
-				FEED00000000000000000093 /* APIAccessTests.swift */,
-				FEED00000000000000000094 /* CrashesTests.swift */,
-				FEED00000000000000000095 /* PhoneValidationTests.swift */,
-				FEED00000000000000000096 /* ScreenFitTests.swift */,
-				FEED00000000000000000097 /* TapTargetTests.swift */,
-				FEED00000000000000000098 /* TutorialRoutingTests.swift */,
+				FEED00000000000000000095 /* APIAccessTests.swift */,
+				FEED00000000000000000096 /* CrashesTests.swift */,
+				FEED00000000000000000097 /* PhoneValidationTests.swift */,
+				FEED00000000000000000098 /* ScreenFitTests.swift */,
+				FEED00000000000000000099 /* TapTargetTests.swift */,
+				FEED0000000000000000009A /* TutorialRoutingTests.swift */,
 			);
 			path = ShowUpWelcomeTests;
 			sourceTree = "<group>";
@@ -243,7 +246,7 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000008 /* ShowUpWelcome.app */,
-				FEED0000000000000000006C /* ShowUpWelcomeTests.xctest */,
+				FEED0000000000000000006E /* ShowUpWelcomeTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -266,46 +269,46 @@
 			name = ShowUpWelcome;
 			productName = ShowUpWelcome;
 			packageProductDependencies = (
-				FEED00000000000000000076 /* PhoneNumberKit */,
-				FEED0000000000000000007B /* ShowUpAPI */,
-				FEED00000000000000000080 /* Sentry */,
-				FEED00000000000000000085 /* OpenAPIRuntime */,
-				FEED00000000000000000088 /* OpenAPIURLSession */,
-				FEED0000000000000000008B /* HTTPTypes */,
+				FEED00000000000000000078 /* PhoneNumberKit */,
+				FEED0000000000000000007D /* ShowUpAPI */,
+				FEED00000000000000000082 /* Sentry */,
+				FEED00000000000000000087 /* OpenAPIRuntime */,
+				FEED0000000000000000008A /* OpenAPIURLSession */,
+				FEED0000000000000000008D /* HTTPTypes */,
 			);
 			productReference = FEED00000000000000000008 /* ShowUpWelcome.app */;
 			productType = "com.apple.product-type.application";
 		};
 		FEED00000000000000000003 /* ShowUpWelcomeTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = FEED00000000000000000070 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */;
+			buildConfigurationList = FEED00000000000000000072 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */;
 			buildPhases = (
-				FEED0000000000000000006D /* Sources */,
-				FEED0000000000000000006E /* Frameworks */,
-				FEED0000000000000000006F /* Resources */,
+				FEED0000000000000000006F /* Sources */,
+				FEED00000000000000000070 /* Frameworks */,
+				FEED00000000000000000071 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				FEED00000000000000000074 /* PBXTargetDependency */,
+				FEED00000000000000000076 /* PBXTargetDependency */,
 			);
 			name = ShowUpWelcomeTests;
 			productName = ShowUpWelcomeTests;
 			packageProductDependencies = (
-				FEED00000000000000000078 /* PhoneNumberKit */,
-				FEED0000000000000000007D /* ShowUpAPI */,
-				FEED00000000000000000082 /* Sentry */,
-				FEED0000000000000000008D /* OpenAPIRuntime */,
-				FEED0000000000000000008F /* OpenAPIURLSession */,
-				FEED00000000000000000091 /* HTTPTypes */,
+				FEED0000000000000000007A /* PhoneNumberKit */,
+				FEED0000000000000000007F /* ShowUpAPI */,
+				FEED00000000000000000084 /* Sentry */,
+				FEED0000000000000000008F /* OpenAPIRuntime */,
+				FEED00000000000000000091 /* OpenAPIURLSession */,
+				FEED00000000000000000093 /* HTTPTypes */,
 			);
-			productReference = FEED0000000000000000006C /* ShowUpWelcomeTests.xctest */;
+			productReference = FEED0000000000000000006E /* ShowUpWelcomeTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXContainerItemProxy section */
-		FEED00000000000000000073 /* PBXContainerItemProxy */ = {
+		FEED00000000000000000075 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FEED00000000000000000001 /* Project object */;
 			proxyType = 1;
@@ -315,10 +318,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
-		FEED00000000000000000074 /* PBXTargetDependency */ = {
+		FEED00000000000000000076 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FEED00000000000000000002 /* ShowUpWelcome */;
-			targetProxy = FEED00000000000000000073 /* PBXContainerItemProxy */;
+			targetProxy = FEED00000000000000000075 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -349,12 +352,12 @@
 			);
 			mainGroup = FEED00000000000000000004;
 			packageReferences = (
-				FEED00000000000000000075 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
-				FEED0000000000000000007A /* XCLocalSwiftPackageReference "ShowUpAPI" */,
-				FEED0000000000000000007F /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
-				FEED00000000000000000084 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
-				FEED00000000000000000087 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
-				FEED0000000000000000008A /* XCRemoteSwiftPackageReference "swift-http-types" */,
+				FEED00000000000000000077 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
+				FEED0000000000000000007C /* XCLocalSwiftPackageReference "ShowUpAPI" */,
+				FEED00000000000000000081 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				FEED00000000000000000086 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
+				FEED00000000000000000089 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
+				FEED0000000000000000008C /* XCRemoteSwiftPackageReference "swift-http-types" */,
 			);
 			productRefGroup = FEED00000000000000000007 /* Products */;
 			projectDirPath = "";
@@ -373,18 +376,18 @@
 			files = (
 				FEED00000000000000000014 /* Assets.xcassets in Resources */,
 				FEED00000000000000000016 /* Flags in Resources */,
-				FEED00000000000000000063 /* Lora-Bold.ttf in Resources */,
-				FEED00000000000000000064 /* Lora-BoldItalic.ttf in Resources */,
-				FEED00000000000000000065 /* Lora-Italic.ttf in Resources */,
-				FEED00000000000000000066 /* Lora-MediumItalic.ttf in Resources */,
-				FEED00000000000000000067 /* Lora-Regular.ttf in Resources */,
-				FEED00000000000000000068 /* Manrope-Bold.ttf in Resources */,
-				FEED00000000000000000069 /* Manrope-Medium.ttf in Resources */,
-				FEED0000000000000000006A /* Manrope-SemiBold.ttf in Resources */,
+				FEED00000000000000000065 /* Lora-Bold.ttf in Resources */,
+				FEED00000000000000000066 /* Lora-BoldItalic.ttf in Resources */,
+				FEED00000000000000000067 /* Lora-Italic.ttf in Resources */,
+				FEED00000000000000000068 /* Lora-MediumItalic.ttf in Resources */,
+				FEED00000000000000000069 /* Lora-Regular.ttf in Resources */,
+				FEED0000000000000000006A /* Manrope-Bold.ttf in Resources */,
+				FEED0000000000000000006B /* Manrope-Medium.ttf in Resources */,
+				FEED0000000000000000006C /* Manrope-SemiBold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FEED0000000000000000006F /* Resources */ = {
+		FEED00000000000000000071 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -398,53 +401,54 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000039 /* ShowUpWelcomeApp.swift in Sources */,
-				FEED0000000000000000003A /* APIAccess.swift in Sources */,
-				FEED0000000000000000003B /* AuthMethodList.swift in Sources */,
-				FEED0000000000000000003C /* ComponentSizes.swift in Sources */,
-				FEED0000000000000000003D /* ConnectAccountView.swift in Sources */,
-				FEED0000000000000000003E /* CountryCodes.swift in Sources */,
-				FEED0000000000000000003F /* CountryPicker.swift in Sources */,
-				FEED00000000000000000040 /* Crashes.swift in Sources */,
-				FEED00000000000000000041 /* DesignSystem.swift in Sources */,
-				FEED00000000000000000042 /* HomePlaceholderView.swift in Sources */,
-				FEED00000000000000000043 /* IconSizes.swift in Sources */,
-				FEED00000000000000000044 /* InputField.swift in Sources */,
-				FEED00000000000000000045 /* MatchMeansMeetView.swift in Sources */,
-				FEED00000000000000000046 /* MatchOnAvailabilityView.swift in Sources */,
-				FEED00000000000000000047 /* MeetInRealLifeView.swift in Sources */,
-				FEED00000000000000000048 /* Motion.swift in Sources */,
-				FEED00000000000000000049 /* PhoneNumberField.swift in Sources */,
-				FEED0000000000000000004A /* PhoneVerificationView.swift in Sources */,
-				FEED0000000000000000004B /* PrimaryButton.swift in Sources */,
-				FEED0000000000000000004C /* ProhibitedFields.swift in Sources */,
-				FEED0000000000000000004D /* Radius.swift in Sources */,
-				FEED0000000000000000004E /* ShowUpEveryTimeView.swift in Sources */,
-				FEED0000000000000000004F /* SignUpAnalytics.swift in Sources */,
-				FEED00000000000000000050 /* SignUpFlow.swift in Sources */,
-				FEED00000000000000000051 /* Spacing.swift in Sources */,
-				FEED00000000000000000052 /* StartupView.swift in Sources */,
-				FEED00000000000000000053 /* StatusBadge.swift in Sources */,
-				FEED00000000000000000054 /* ThirtyMinutesView.swift in Sources */,
-				FEED00000000000000000055 /* TutorialAnalytics.swift in Sources */,
-				FEED00000000000000000056 /* TutorialRouting.swift in Sources */,
-				FEED00000000000000000057 /* TutorialShell.swift in Sources */,
-				FEED00000000000000000058 /* WelcomeBackView.swift in Sources */,
-				FEED00000000000000000059 /* WelcomeShell.swift in Sources */,
-				FEED0000000000000000005A /* WelcomeView.swift in Sources */,
+				FEED0000000000000000003A /* ShowUpWelcomeApp.swift in Sources */,
+				FEED0000000000000000003B /* APIAccess.swift in Sources */,
+				FEED0000000000000000003C /* AuthMethodList.swift in Sources */,
+				FEED0000000000000000003D /* ComponentSizes.swift in Sources */,
+				FEED0000000000000000003E /* ConnectAccountView.swift in Sources */,
+				FEED0000000000000000003F /* CountryCodes.swift in Sources */,
+				FEED00000000000000000040 /* CountryPicker.swift in Sources */,
+				FEED00000000000000000041 /* Crashes.swift in Sources */,
+				FEED00000000000000000042 /* DesignSystem.swift in Sources */,
+				FEED00000000000000000043 /* HomePlaceholderView.swift in Sources */,
+				FEED00000000000000000044 /* IconSizes.swift in Sources */,
+				FEED00000000000000000045 /* InputField.swift in Sources */,
+				FEED00000000000000000046 /* MatchMeansMeetView.swift in Sources */,
+				FEED00000000000000000047 /* MatchOnAvailabilityView.swift in Sources */,
+				FEED00000000000000000048 /* MeetInRealLifeView.swift in Sources */,
+				FEED00000000000000000049 /* Motion.swift in Sources */,
+				FEED0000000000000000004A /* PhoneNumberField.swift in Sources */,
+				FEED0000000000000000004B /* PhoneVerificationView.swift in Sources */,
+				FEED0000000000000000004C /* PrimaryButton.swift in Sources */,
+				FEED0000000000000000004D /* ProhibitedFields.swift in Sources */,
+				FEED0000000000000000004E /* Radius.swift in Sources */,
+				FEED0000000000000000004F /* ShowUpEveryTimeView.swift in Sources */,
+				FEED00000000000000000050 /* SignUpAnalytics.swift in Sources */,
+				FEED00000000000000000051 /* SignUpFlow.swift in Sources */,
+				FEED00000000000000000052 /* Spacing.swift in Sources */,
+				FEED00000000000000000053 /* StartupView.swift in Sources */,
+				FEED00000000000000000054 /* StatusBadge.swift in Sources */,
+				FEED00000000000000000055 /* TapTarget.swift in Sources */,
+				FEED00000000000000000056 /* ThirtyMinutesView.swift in Sources */,
+				FEED00000000000000000057 /* TutorialAnalytics.swift in Sources */,
+				FEED00000000000000000058 /* TutorialRouting.swift in Sources */,
+				FEED00000000000000000059 /* TutorialShell.swift in Sources */,
+				FEED0000000000000000005A /* WelcomeBackView.swift in Sources */,
+				FEED0000000000000000005B /* WelcomeShell.swift in Sources */,
+				FEED0000000000000000005C /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FEED0000000000000000006D /* Sources */ = {
+		FEED0000000000000000006F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000099 /* APIAccessTests.swift in Sources */,
-				FEED0000000000000000009A /* CrashesTests.swift in Sources */,
-				FEED0000000000000000009B /* PhoneValidationTests.swift in Sources */,
-				FEED0000000000000000009C /* ScreenFitTests.swift in Sources */,
-				FEED0000000000000000009D /* TapTargetTests.swift in Sources */,
-				FEED0000000000000000009E /* TutorialRoutingTests.swift in Sources */,
+				FEED0000000000000000009B /* APIAccessTests.swift in Sources */,
+				FEED0000000000000000009C /* CrashesTests.swift in Sources */,
+				FEED0000000000000000009D /* PhoneValidationTests.swift in Sources */,
+				FEED0000000000000000009E /* ScreenFitTests.swift in Sources */,
+				FEED0000000000000000009F /* TapTargetTests.swift in Sources */,
+				FEED000000000000000000A0 /* TutorialRoutingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -553,7 +557,7 @@
 			};
 			name = Release;
 		};
-		FEED00000000000000000071 /* Debug */ = {
+		FEED00000000000000000073 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -571,7 +575,7 @@
 			};
 			name = Debug;
 		};
-		FEED00000000000000000072 /* Release */ = {
+		FEED00000000000000000074 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -610,11 +614,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		FEED00000000000000000070 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */ = {
+		FEED00000000000000000072 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FEED00000000000000000071 /* Debug */,
-				FEED00000000000000000072 /* Release */,
+				FEED00000000000000000073 /* Debug */,
+				FEED00000000000000000074 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -622,7 +626,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FEED00000000000000000075 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+		FEED00000000000000000077 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/PhoneNumberKit/PhoneNumberKit.git";
 			requirement = {
@@ -630,7 +634,7 @@
 				minimumVersion = 5.0.8;
 			};
 		};
-		FEED0000000000000000007F /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+		FEED00000000000000000081 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/getsentry/sentry-cocoa.git";
 			requirement = {
@@ -638,7 +642,7 @@
 				minimumVersion = 8.44.0;
 			};
 		};
-		FEED00000000000000000084 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
+		FEED00000000000000000086 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-runtime";
 			requirement = {
@@ -646,7 +650,7 @@
 				minimumVersion = 1.5.0;
 			};
 		};
-		FEED00000000000000000087 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
+		FEED00000000000000000089 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-urlsession";
 			requirement = {
@@ -654,7 +658,7 @@
 				minimumVersion = 1.0.2;
 			};
 		};
-		FEED0000000000000000008A /* XCRemoteSwiftPackageReference "swift-http-types" */ = {
+		FEED0000000000000000008C /* XCRemoteSwiftPackageReference "swift-http-types" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-http-types";
 			requirement = {
@@ -665,45 +669,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		FEED0000000000000000007A /* XCLocalSwiftPackageReference "ShowUpAPI" */ = {
+		FEED0000000000000000007C /* XCLocalSwiftPackageReference "ShowUpAPI" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ShowUpAPI;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FEED00000000000000000076 /* PhoneNumberKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000075 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
-			productName = PhoneNumberKit;
-		};
-		FEED0000000000000000007B /* ShowUpAPI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ShowUpAPI;
-		};
-		FEED00000000000000000080 /* Sentry */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED0000000000000000007F /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
-			productName = Sentry;
-		};
-		FEED00000000000000000085 /* OpenAPIRuntime */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000084 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
-			productName = OpenAPIRuntime;
-		};
-		FEED00000000000000000088 /* OpenAPIURLSession */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000087 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
-			productName = OpenAPIURLSession;
-		};
-		FEED0000000000000000008B /* HTTPTypes */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED0000000000000000008A /* XCRemoteSwiftPackageReference "swift-http-types" */;
-			productName = HTTPTypes;
-		};
 		FEED00000000000000000078 /* PhoneNumberKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000075 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			package = FEED00000000000000000077 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
 			productName = PhoneNumberKit;
 		};
 		FEED0000000000000000007D /* ShowUpAPI */ = {
@@ -712,22 +687,51 @@
 		};
 		FEED00000000000000000082 /* Sentry */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED0000000000000000007F /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			package = FEED00000000000000000081 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
 		};
-		FEED0000000000000000008D /* OpenAPIRuntime */ = {
+		FEED00000000000000000087 /* OpenAPIRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000084 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			package = FEED00000000000000000086 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
 			productName = OpenAPIRuntime;
 		};
-		FEED0000000000000000008F /* OpenAPIURLSession */ = {
+		FEED0000000000000000008A /* OpenAPIURLSession */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000087 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			package = FEED00000000000000000089 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
 			productName = OpenAPIURLSession;
 		};
-		FEED00000000000000000091 /* HTTPTypes */ = {
+		FEED0000000000000000008D /* HTTPTypes */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED0000000000000000008A /* XCRemoteSwiftPackageReference "swift-http-types" */;
+			package = FEED0000000000000000008C /* XCRemoteSwiftPackageReference "swift-http-types" */;
+			productName = HTTPTypes;
+		};
+		FEED0000000000000000007A /* PhoneNumberKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000077 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = PhoneNumberKit;
+		};
+		FEED0000000000000000007F /* ShowUpAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShowUpAPI;
+		};
+		FEED00000000000000000084 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000081 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+		FEED0000000000000000008F /* OpenAPIRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000086 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			productName = OpenAPIRuntime;
+		};
+		FEED00000000000000000091 /* OpenAPIURLSession */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000089 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			productName = OpenAPIURLSession;
+		};
+		FEED00000000000000000093 /* HTTPTypes */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED0000000000000000008C /* XCRemoteSwiftPackageReference "swift-http-types" */;
 			productName = HTTPTypes;
 		};
 /* End XCSwiftPackageProductDependency section */

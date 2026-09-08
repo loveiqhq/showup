@@ -228,8 +228,7 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
                         Text("Back")
                             .font(F.manrope(14, .semibold))
                             .foregroundColor(showBack ? .liqSubtle : .clear)
-                            .frame(minWidth: 44, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
+                            .minTapTarget()
                     }
                     .buttonStyle(.plain)
                     .disabled(!showBack)
