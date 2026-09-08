@@ -119,39 +119,28 @@ struct PhoneNumberView: View {
                             Text(country.dial).font(F.manrope(16, .semibold)).foregroundColor(.liqFg)
                             BrandIconView(icon: .chevronDown, size: 16, stroke: 2, tint: .liqMuted)
                         }
-                        .padding(.horizontal, 14)
-                        .frame(height: ComponentSizes.controlHeight)
-                        .background(RoundedRectangle(cornerRadius: Radius.control).fill(Color.liqElevated))
-                        .overlay(RoundedRectangle(cornerRadius: Radius.control)
-                            // Subtle (46%), not Border (12%) — the outline is the only thing identifying the
-                            // field, and Border is 1.28:1 against a 3:1 rule. Audit finding 7.
-                            .strokeBorder(Color.liqSubtle, lineWidth: 1.5))
+                        // A button wearing the field's chrome, so the two cannot drift apart.
+                        // 14 rather than the field's 18: the pill hugs its content, the field
+                        // does not. The contrast argument for Subtle over Border lives in
+                        // FieldChrome now, next to the value it defends.
+                        .fieldChrome(FieldChrome(horizontalPadding: 14))
                     }
                     .buttonStyle(PressScale())
 
                     // Same geometry as the default field, so it does not move when it fails — and
                     // the digits are preserved, never cleared.
-                    HStack(spacing: 0) {
-                        // A UITextField, not SwiftUI's TextField, and the caret is the reason --
-                        // the whole argument is in PhoneNumberField.swift. `value` stays plain
-                        // digits; the grouping is presentation, applied inside the edit.
+                    //
+                    // The chrome, the 56, the outline and the danger ring are all InputField's
+                    // now. What stays here is the one thing specific to this screen: the field
+                    // is a UITextField and not SwiftUI's TextField, because as-you-type grouping
+                    // needs caret control that TextField does not expose. The whole argument is
+                    // in PhoneNumberField.swift. `value` stays plain digits; the grouping is
+                    // presentation, applied inside the edit.
+                    InputField(label: "Phone number", invalid: invalid) {
                         PhoneNumberField(digits: $value, country: country, onSubmit: onSubmit)
-                        if invalid {
-                            Spacer(minLength: 0)
-                            ZStack {
-                                Circle().fill(Color.liqDanger).frame(width: 22, height: 22)
-                                Text("!").font(.custom(PS.loraBold, size: 14)).foregroundColor(.white)
-                            }
-                        }
+                    } trailing: {
+                        if invalid { FieldErrorGlyph() }
                     }
-                    .padding(.horizontal, 18)
-                    .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: Radius.control).fill(Color.liqElevated))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.control)
-                        .strokeBorder(invalid ? Color.liqDanger : Color.liqSubtle, lineWidth: 1.5))
-                    .overlay(invalid ? RoundedRectangle(cornerRadius: Radius.control)
-                        .strokeBorder(Color.liqDanger.opacity(0.10), lineWidth: 4)
-                        .padding(-2.75) : nil)
                 }
 
                 // Reserved at TWO lines, top-aligned, because that is what the error copy needs.

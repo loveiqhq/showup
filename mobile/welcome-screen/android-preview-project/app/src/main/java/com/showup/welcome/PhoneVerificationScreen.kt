@@ -16,6 +16,10 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.fieldChrome
+
+import com.showup.designsystem.InputField
+
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Radius
@@ -59,7 +63,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -75,7 +78,6 @@ import com.showup.designsystem.DangerDigit
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.EyebrowOrangeBg
-import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
@@ -83,7 +85,6 @@ import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
-import com.showup.designsystem.Subtle
 import com.showup.tutorial.rememberMotion
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,6 +151,9 @@ private fun ColumnScope.Eyebrow() {
 // States A and B — enter number / invalid number
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** TalkBack's name for the number field. Also what TapTargetTest finds it by. */
+const val PHONE_FIELD_LABEL = "Phone number"
+
 @Composable
 fun PhoneNumberScreen(
     /** Digits only, no spaces and no dial code -- the pill carries that. */
@@ -190,14 +194,10 @@ fun PhoneNumberScreen(
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             // Country pill -- opens the list. The default comes from device locale; see SignUpFlow.
+            // A button wearing the field's chrome, so the two cannot drift apart. 14 rather than
+            // the field's 18, because the pill hugs its content and the field does not.
             Row(
-                Modifier
-                    .height(ComponentSizes.controlHeight)
-                    .clip(RoundedCornerShape(Radius.control))
-                    .background(Elevated)
-                    .border(1.5.dp, Subtle, RoundedCornerShape(Radius.control))
-                    .clickable(role = Role.Button, onClick = onOpenCountryList)
-                    .padding(horizontal = 14.dp),
+                Modifier.fieldChrome(horizontalPadding = 14.dp, onClick = onOpenCountryList),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
@@ -209,73 +209,42 @@ fun PhoneNumberScreen(
 
             // The invalid field keeps the same geometry as the default one, so it does not move
             // when it fails -- and the digits are preserved, never cleared.
-            Row(
-                Modifier
-                    .weight(1f)
-                    .height(ComponentSizes.controlHeight)
-                    .clip(RoundedCornerShape(Radius.control))
-                    .background(Elevated)
-                    .border(1.5.dp, if (invalid) Danger else Subtle, RoundedCornerShape(Radius.control))
-                    .padding(horizontal = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicTextField(
-                    value = value,
-                    // Digits only at the source, so nothing downstream has to strip characters
-                    // that were never allowed in.
-                    //
-                    // The cap is the country's maximum PLUS an allowance, never the maximum itself:
-                    // capping exactly at the limit silently swallows the extra keystrokes, so a
-                    // too-long number cannot be typed and the error that exists for it can never
-                    // fire. See OVERTYPE_ALLOWANCE.
-                    onValueChange = { raw ->
-                        onValueChange(
-                            raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
-                        )
-                    },
-                    // fillMaxHeight, so the touch target matches the field a person can see.
-                    //
-                    // Without it the field measured to the height of its own text -- 23dp inside
-                    // a 56dp row -- and the row centred it. The input LOOKED 56dp tall while only
-                    // the middle 23dp of it would take a tap, so tapping near the top or bottom
-                    // edge did nothing at all. Found by ScreenFitTest on 15 of 18 phone sizes.
-                    modifier = Modifier.weight(1f).fillMaxHeight().focusRequester(focus),
-                    textStyle = TextStyle(
-                        color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp, letterSpacing = 0.3.sp,
-                    ),
-                    singleLine = true,
-                    cursorBrush = SolidColor(Purple),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done,
-                    ),
-                    // Enter submits, so the user never has to dismiss the keyboard to reach the CTA.
-                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-                    visualTransformation = remember(country) { GroupedDigits(country) },
-                    // The field now fills the row's full 56dp so that all of it is tappable, which
-                    // means the text has to be centred here instead of riding the top edge.
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterStart) {
-                            if (value.isEmpty()) {
-                                Text(
-                                    country.sample, color = Faint, fontFamily = Manrope,
-                                    fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                                    letterSpacing = 0.3.sp, maxLines = 1,
-                                )
-                            }
-                            inner()
+            //
+            // The whole box takes a tap. That is InputField's guarantee now rather than a modifier
+            // written here, because it was written here once and was wrong: the field measured 23dp
+            // inside this 56dp row and only its middle third responded.
+            InputField(
+                value = value,
+                // Digits only at the source, so nothing downstream has to strip characters that
+                // were never allowed in.
+                //
+                // The cap is the country's maximum PLUS an allowance, never the maximum itself:
+                // capping exactly at the limit silently swallows the extra keystrokes, so a
+                // too-long number cannot be typed and the error that exists for it can never fire.
+                // See OVERTYPE_ALLOWANCE.
+                onValueChange = { raw ->
+                    onValueChange(
+                        raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
+                    )
+                },
+                label = PHONE_FIELD_LABEL,
+                placeholder = country.sample,
+                modifier = Modifier.weight(1f),
+                invalid = invalid,
+                keyboardType = KeyboardType.Phone,
+                onSubmit = onSubmit,
+                focusRequester = focus,
+                visualTransformation = remember(country) { GroupedDigits(country) },
+                trailing = if (!invalid) null else {
+                    {
+                        Box(Modifier.size(22.dp).background(Danger, CircleShape),
+                            contentAlignment = Alignment.Center) {
+                            Text("!", color = Color.White, fontFamily = Lora,
+                                 fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
-                    },
-                )
-                if (invalid) {
-                    Spacer(Modifier.width(Spacing.md))
-                    Box(Modifier.size(22.dp).background(Danger, CircleShape),
-                        contentAlignment = Alignment.Center) {
-                        Text("!", color = Color.White, fontFamily = Lora,
-                             fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
-                }
-            }
+                },
+            )
         }
 
         // The helper row is RESERVED at TWO lines -- 36 -- because that is what an error takes.

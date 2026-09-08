@@ -8,19 +8,26 @@
 //  bottom edge did nothing at all. No screenshot could show it and no reading of the source found
 //  it; ScreenFitTest found it by measuring, on 15 of 18 phone sizes.
 //
-//  iOS has never been measured for the same thing, and iOS is where it is MORE likely, not less:
-//  a `UIViewRepresentable` wrapping a `UITextField` reports the intrinsic height of its font, and
-//  an HStack centres a child at its own height inside whatever frame the parent was given. The box
-//  is told to be 56 by its parent; nothing tells the field inside it to fill that box.
+//  iOS had never been measured for the same thing. I predicted it would be worse here, on the
+//  reasoning that a `UIViewRepresentable` reports its wrapped view's intrinsic height and an HStack
+//  centres a child at its own height inside the frame the parent was given.
 //
-//  The screen also auto-focuses on appear, which is what hides it: the keyboard is already up, so
-//  nobody taps the field until they have dismissed it once.
+//  THAT PREDICTION WAS WRONG, and CI said so on 8 September 2026. The number field measures a full
+//  56pt at every size. A representable with no `sizeThatFits` accepts the height SwiftUI proposes
+//  rather than reporting an intrinsic one, so the field fills its box without being asked to.
+//
+//  So this is a regression guard, not a bug report. It stays because the property it asserts is one
+//  modifier away from being false on either platform, and because the Android version of exactly
+//  this defect reached a release.
 //
 //  WHAT IT MEASURES
 //
-//  The real hosted-window layout from ScreenFitTests, then a walk of the UIView tree for the
-//  UITextField, comparing its frame against the box drawn around it. This is the view's own
-//  geometry after layout, not a pixel probe and not an approximation.
+//  The hosted-window layout from ScreenFitTests, then a walk of the UIView tree for the
+//  UITextField, comparing its frame against the box drawn around it. The view's own geometry after
+//  layout — not a pixel probe and not an approximation.
+//
+//  The self-test at the bottom is load-bearing, and its own first version was broken in the same
+//  way my prediction was. Read that comment before trusting a green run here.
 
 import XCTest
 import SwiftUI
@@ -125,19 +132,29 @@ final class TapTargetTests: XCTestCase {
 
     /// A green run means nothing unless the probe can see a short field.
     ///
-    /// This builds the defect on purpose — a text field left at its intrinsic height inside a
-    /// 56-tall box, which is exactly the shape of the Android bug — and fails if the measurement
-    /// reports it as fine.
+    /// FIRST ATTEMPT AT THIS WAS WRONG, and it is worth recording why.
+    ///
+    /// It wrapped a plain UITextField in a representable and put it in a 56-tall box, reasoning
+    /// that an HStack centres a child at its intrinsic height. CI measured that at 56.0, not 22 --
+    /// a `UIViewRepresentable` with no `sizeThatFits` ACCEPTS the size SwiftUI proposes rather than
+    /// reporting an intrinsic one, so the field filled the box and the probe was measuring nothing.
+    ///
+    /// That failure is the whole value of having a self-test: it caught a wrong prediction about
+    /// iOS before that prediction became a "fix" for a defect that does not exist here.
+    ///
+    /// A representable is genuinely short when it answers the size question itself, which is what
+    /// this does -- and that is also the realistic mistake, since `sizeThatFits` is the hook
+    /// somebody reaches for to control a wrapped view's height.
     func testTheProbeFindsAShortField() throws {
         struct Defective: View {
             var body: some View {
-                HStack(spacing: 0) { IntrinsicHeightField() }
+                HStack(spacing: 0) { FixedHeightField() }
                     .padding(.horizontal, 18)
                     .frame(maxWidth: .infinity, minHeight: ComponentSizes.controlHeight,
                            maxHeight: ComponentSizes.controlHeight, alignment: .leading)
             }
         }
-        struct IntrinsicHeightField: UIViewRepresentable {
+        struct FixedHeightField: UIViewRepresentable {
             func makeUIView(context: Context) -> UITextField {
                 let field = UITextField()
                 field.font = .systemFont(ofSize: 17)
@@ -145,6 +162,12 @@ final class TapTargetTests: XCTestCase {
                 return field
             }
             func updateUIView(_ field: UITextField, context: Context) {}
+            /// The line height of the text and nothing more -- the shape of the Android defect.
+            func sizeThatFits(_ proposal: ProposedViewSize,
+                              uiView: UITextField,
+                              context: Context) -> CGSize? {
+                CGSize(width: proposal.width ?? 200, height: 22)
+            }
         }
 
         let view = hosted(Defective(), sizes[2])

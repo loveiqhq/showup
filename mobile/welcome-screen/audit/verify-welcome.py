@@ -72,6 +72,9 @@ back_kt = read(KT, "welcome/WelcomeBackScreen.kt")
 back_sw = read(SW, "WelcomeBackView.swift")
 ver_kt = read(KT, "welcome/PhoneVerificationScreen.kt")
 ver_sw = read(SW, "PhoneVerificationView.swift")
+# The number field moved out of the screen into the design system on 8 September 2026.
+input_kt = read(KT, "designsystem/InputField.kt")
+input_sw = read(SW, "InputField.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
 
@@ -263,12 +266,19 @@ check("143 headline 38 (kotlin)", "fontSize = 38.sp" in ver_kt)
 check("143 headline 38 (swift)", "fontSize: 38" in ver_sw)
 check("143 sub 15 medium (kotlin)", "fontSize = 15.sp" in ver_kt)
 check("143 sub 15 medium (swift)", "manrope(15, .medium)" in ver_sw)
-check("143 field height 56 (kotlin)", "height(56.dp)" in ver_kt)
-check("143 field height 56 (swift)", "height: 56" in ver_sw)
+check("143 field height 56 (kotlin)", "height: Dp = 56.dp" in code_only(input_kt))
+check("143 field height 56 (swift)", "height: CGFloat = 56" in code_only(input_sw))
+# The value is nothing without the guarantee that the FIELD fills it -- the 23dp defect had a
+# 56dp box too. TapTargetTest/TapTargetTests measure it; these assert the mechanism is present.
+check("143 field fills its box (kotlin)", "fillMaxHeight()" in code_only(input_kt))
+check("143 field fills its box (swift)",
+      "frame(maxHeight: .infinity)" in code_only(input_sw))
 check("143 field radius 14 (kotlin)", "RoundedCornerShape(14.dp)" in ver_kt)
 check("143 field radius 14 (swift)", "cornerRadius: 14" in ver_sw)
-check("143 border 1.5 (kotlin)", "1.5.dp" in ver_kt)
-check("143 border 1.5 (swift)", "lineWidth: 1.5" in ver_sw)
+check("143 field border 1.5 (kotlin)", "1.5.dp, outline, shape" in code_only(input_kt))
+check("143 field border 1.5 (swift)", "lineWidth: 1.5" in code_only(input_sw))
+check("143 slot border 1.5 (kotlin)", "1.5.dp" in code_only(ver_kt))
+check("143 slot border 1.5 (swift)", "lineWidth: 1.5" in code_only(ver_sw))
 # A/B reserves TWO lines, pinned, not one as a minimum. Every message names the country and wraps;
 # reserving one line let the CTA drop 15.7pt on rejection, measured on an iPhone 17 Pro.
 # The two numbers differ on purpose and the reasoning is at both sites: Compose sets lineHeight
