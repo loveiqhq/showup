@@ -34,7 +34,7 @@ explaining why.**
 **Do not report a platform as verified unless it was actually built and tested in that platform's
 toolchain.**
 
-Each of these is here because it was broken. The primary button exists three times on Android. Eight
+Each of these is here because it was broken. The primary button existed three times on Android until 7 September 2026, and one of the copies had quietly drifted four ways. Eight
 Swift tests sat in no target for a week and were reported as present. "It compiles" was, more than
 once, the whole basis for calling a screen done.
 

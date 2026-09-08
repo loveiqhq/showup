@@ -25,6 +25,12 @@
  */
 package com.showup.welcome
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.PrimaryButtonVariant
+
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Radius
@@ -45,10 +51,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
@@ -75,6 +79,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Elevated
+import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Subtle
@@ -85,7 +90,7 @@ import com.showup.designsystem.Purple
 import com.showup.designsystem.Success
 import com.showup.tutorial.NextButton
 import com.showup.tutorial.NextVariant
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 import kotlinx.coroutines.delay
 
 /** The eight screen states. The two OS handoffs share one of them; the provider tells them apart. */
@@ -439,7 +444,7 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
                 verticalArrangement = Arrangement.spacedBy(Spacing.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Eyebrow("${methodSpec(provider).short} connected")
+                StatusBadge("${methodSpec(provider).short} connected")
                 // No name from the provider is a real case, not a defensive default: Apple's
                 // private-relay users often share nothing. The italic run still has to be the
                 // emphasis, so the whole sentence changes shape rather than the name being
@@ -468,24 +473,6 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
 }
 
 /** Orange tone: bg orange 12%, orange text, a 5dp dot, Manrope 700 11 uppercase, tracking .08. */
-@Composable
-private fun Eyebrow(label: String) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(50))
-            .background(Orange.copy(alpha = 0.12f))
-            .padding(horizontal = Spacing.lg, vertical = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            label.uppercase(), color = Orange, fontFamily = Manrope,
-            fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.08.em,
-        )
-    }
-}
-
 // ─────────────────────────────────────────────────────────────
 // I — the conflict modal
 // ─────────────────────────────────────────────────────────────
@@ -566,7 +553,7 @@ private fun ConflictSheet(
             // Google-owned account offers Continue with Google. Getting this backwards sends the
             // user round a loop. It wears that provider's own button, because the ticket lists
             // this CTA alongside the three on the method list.
-            PillButton(
+            PrimaryButton(
                 methodSpec(owner).label, onResolve,
                 variant = providerVariant(owner),
                 height = 54.dp,
@@ -576,9 +563,9 @@ private fun ConflictSheet(
 
             // No border, so the pair never reads as two equal choices. This is the only dismiss:
             // there is no close icon and the scrim above does not accept taps.
-            PillButton(
+            PrimaryButton(
                 "Use a different account", onUseDifferent,
-                variant = PillVariant.Plain, height = 50.dp,
+                variant = PrimaryButtonVariant.Plain, height = 50.dp,
             )
         }
     }

@@ -56,7 +56,7 @@ func methodSpec(_ m: AuthMethod) -> MethodSpec {
 /// so it keeps the sunset pill **when it is the promoted one** and drops to ghost otherwise. A
 /// provider never takes the gradient in any position — which means "promoted to primary" is carried
 /// by position and by the hint row, never by a fill swap.
-func providerVariant(_ m: AuthMethod, isPrimary: Bool = false) -> PillVariant {
+func providerVariant(_ m: AuthMethod, isPrimary: Bool = false) -> PrimaryButtonVariant {
     switch m {
     case .apple: return .apple
     case .google: return .google
@@ -180,19 +180,21 @@ private struct MethodRow: View {
             ? spec.label
             : (isLoading ? "Connecting to \(spec.short)…" : spec.label)
 
-        PillButton(
+        PrimaryButton(
             label: label,
             variant: variant,
             // Disabled is a state every provider permits, so it carries the in-flight signal.
             enabled: !anyLoading,
-            action: { onSelect(method) }
-        ) {
-            if isLoading {
-                Spinner(tint: providerTint(method, isPrimary: isPrimary))
-            } else {
-                BrandIconView(icon: spec.icon, size: 18, tint: providerTint(method, isPrimary: isPrimary))
+            action: { onSelect(method) },
+            leading: {
+                if isLoading {
+                    Spinner(tint: providerTint(method, isPrimary: isPrimary))
+                } else {
+                    BrandIconView(icon: spec.icon, size: 18,
+                                  tint: providerTint(method, isPrimary: isPrimary))
+                }
             }
-        }
+        )
         // Siblings dim while one is in flight; the tapped one stays at full opacity.
         .opacity(anyLoading && !isLoading ? 0.45 : 1)
         .animation(.easeOut(duration: Motion.fast), value: anyLoading)

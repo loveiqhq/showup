@@ -130,21 +130,282 @@ existed, which is worth locking down rather than leaving to coincidence.
 **Left local:** the 500/1200/1600ms delays in `ConnectFlowHost` — the fake provider round trip,
 which goes away with the real SDKs.
 
+## PrimaryButton
+
+One primitive per platform since 7 September 2026 — `designsystem/PrimaryButton.kt` and
+`PrimaryButton.swift` — with eight call sites across both flows.
+
+```kotlin
+PrimaryButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    variant: PrimaryButtonVariant = Sunset,   // Sunset Ghost Plain Apple Google Facebook
+    enabled: Boolean = true,
+    height: Dp = ComponentSizes.controlHeight,
+    labelSize: TextUnit = 16.sp,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+)
+```
+
+Swift is the same struct with `leading` and `trailing` as `@ViewBuilder` slots and three
+convenience inits, one per slot combination in use. **Name the slot at a Swift call site** rather
+than using a trailing closure: with two closure properties an unlabelled one is ambiguous between
+two inits, and the compiler error for that names neither.
+
+### Six variants, and why each is required
+
+`Sunset` the gradient CTA · `Ghost` bordered secondary · `Plain` the conflict modal's dismiss, which
+has no border precisely so the pair does not read as two equal choices · `Apple` `Google` `Facebook`
+each mandated by that provider's own sign-in branding rules, which are a condition of app
+verification and cannot be re-themed.
+
+### Two parameters that exist for one call site each
+
+`labelSize` — 16 in the sign-up flow, 17 in the tutorial. A parameter rather than a variant because
+the tone is identical; the tutorial's CTA is the same sunset button one step larger. Collapse it if
+the design side agrees the two worlds should match.
+
+`trailing` — the tutorial CTA's arrow. It mirrors `leading`, which is what carries the provider
+marks and the in-flight spinner.
+
+### What is not a duplicate
+
+`NextButton` stayed where it is. It is a label beside a 56pt circular arrow badge with a drawn
+two-layer glow and a spring press on the circle alone — a different silhouette with its own spec
+sheet and twelve checks in `verify-spec.py`. Folding it into a pill would change six screens.
+
+## InputField and FieldChrome
+
+**What was duplicated was the chrome, not the input.** There is only one text input in the app. The
+number field and the country pill beside it are the same box — one `controlHeight`, `Radius.control`
+corners, `Elevated` fill, 1.5 outline — written twice a few lines apart on each platform, and
+already differing in their horizontal padding.
+
+So there are two exports, and only one of them is an input:
+
+| | Android | iOS |
+|---|---|---|
+| The box | `Modifier.fieldChrome(outline, height, horizontalPadding, onClick)` | `FieldChrome(outline:height:horizontalPadding:dangerRing:)` |
+| The input | `InputField(value, onValueChange, label, placeholder, …)` | `InputField(label:invalid:field:trailing:)` |
+
+The pill is a **Button** wearing `fieldChrome`, which is why the chrome is separate: a button and a
+text input share a visual contract without pretending to be the same widget.
+
+**`onClick` is a chrome parameter rather than something the caller chains on.** `.clickable()
+.padding(14)` and `.padding(14).clickable()` render identically and differ by 28dp of live width.
+Taking the hook as a parameter means the order is not the caller's to get wrong.
+
+**The field fills its box, and that is not configurable.** Android shipped a number field measuring
+23dp inside a 56dp row: it looked right, and only its middle third took a tap. The fix — one
+`fillMaxHeight()` / `frame(maxHeight: .infinity)` — now lives inside the primitive with no parameter
+to disable it, and `TapTargetTest` / `TapTargetTests` measure the rendered height on both platforms.
+Each has a **self-test that builds the defect on purpose and fails if the probe cannot see it**;
+that self-test earned its place by catching a wrong prediction about iOS before it became a "fix"
+for a defect that does not exist there.
+
+**The six-digit code entry is deliberately not folded in.** It is one text field whose decoration is
+six painted slots, drawing no text and no caret of its own. It shares only the corner radius with a
+bordered text box, so including it would mean a variant flag for a component with almost no common
+surface.
+
+**No `enabled` parameter.** Neither field has a disabled state and no call site wants one.
+
+### Autofill
+
+Both fields declare what they hold on both platforms, since 8 September 2026. iOS had done so since
+the screens were written; Android declared nothing on either, so the number never came from the
+keychain and an arriving SMS code never appeared above the keyboard — a behaviour difference no
+screenshot shows and no layout test measures.
+
+| | Android | iOS |
+|---|---|---|
+| Number field | `contentType = FieldContent.PhoneNumber` on `InputField` | `.telephoneNumber` inside `PhoneNumberField` |
+| Code field | `Modifier.autofill(FieldContent.SmsCode, …)` | `.textContentType(.oneTimeCode)` |
+
+**The declaration sits in a different place on each platform, and that is correct.** iOS's
+`InputField` takes the text field as a slot — the number field is a `UIViewRepresentable` for caret
+reasons — so the control configures itself. Android's builds the `BasicTextField`, so the primitive
+carries the parameter. Both declare it where the text field actually lives.
+
+`FieldContent` is ours rather than Compose's `AutofillType`, which is experimental and would put an
+opt-in on both screens. `designsystem/Autofill.kt` holds every experimental import in the app and is
+the seam that collapses to a one-line `contentType` semantics property when the Compose BOM reaches
+1.8; neither call site changes then.
+
+Four parity assertions in `verify-welcome.py` cover both fields on both platforms, injection-tested.
+
+### Open design decisions — two visible differences, kept on purpose
+
+Both platforms render today exactly what they rendered before the consolidation, because these
+screens are in PO Acceptance. Neither difference is drift; both need a design ruling.
+
+| | Android | iOS | |
+|---|---|---|---|
+| **Invalid field** | red outline + glyph, no ring | red outline + glyph + a 4pt `Danger` ring at 10% outside the outline | carried as an explicit `dangerRing` parameter on `FieldChrome`, iOS-only and documented, so it is a known divergence |
+| **Empty code slots** | outline at `Border` (12%) | outline at `Subtle` (46%) | **accessibility, not taste**: `Border` measures **1.28:1** against a 3:1 requirement. Audit finding 7 rejected 12% and fixed it on the field; the slots were missed on Android only |
+
+The slot contrast is the one with a correct answer — 1.28:1 fails WCAG for a non-text control
+boundary — but changing it alters a screen in PO Acceptance, so it is raised rather than taken.
+
+## StatusBadge
+
+One primitive per platform since 8 September 2026 — `designsystem/StatusBadge.kt` and
+`StatusBadge.swift` — with four call sites each.
+
+```kotlin
+enum class BadgeTone { Orange, Lavender }
+
+@Composable
+fun StatusBadge(
+    label: String,
+    modifier: Modifier = Modifier,
+    tone: BadgeTone = BadgeTone.Orange,
+)
+```
+
+Swift is the same shape: `StatusBadge(label:tone:)` with `BadgeTone.orange` / `.lavender`.
+
+### What was duplicated
+
+Three implementations per platform, six in all, drawing one pill:
+
+| | Tone | Fill it used |
+|---|---|---|
+| `Eyebrow` in Connect | orange | `Orange.copy(alpha = 0.12f)` / `.liqOrange.opacity(0.12)` — **raw** |
+| `EyebrowPill` in `TutorialShell` | lavender | `EyebrowBg` |
+| `Eyebrow` in the phone screens | orange | `EyebrowOrangeBg`, label hardcoded |
+
+**The fill is the one that mattered.** `Orange` is `0xFE6839` and `EyebrowOrangeBg` is `0x1FFE6839`,
+where `0x1F` is 31 — which is `0.12 x 255` rounded. So Connect and the phone screens painted the
+same pixels by two routes, one of them a token and one of them a value re-derived at a call site.
+Nothing looked wrong, and the token had quietly stopped being the single definition of the value.
+
+### Two tones, and nothing else
+
+`Orange` for the sign-up flow, `Lavender` for the tutorial cards. This is the case both `CLAUDE.md`
+files already name — "a component's tone is per screen, and both tones stay" — so it is a variant
+rather than a token one screen could redefine and break the other.
+
+The tone sets the fill and the label colour and **not the dot**, which is `Orange` in every tone.
+All three originals drew it that way; it is preserved rather than tidied into the variant.
+
+### It does not position itself
+
+Two of the three were `ColumnScope` extensions calling `.align(Alignment.Start)` on themselves, and
+that is precisely what stopped Connect from reusing one: Connect's badge is **centred**, in a Column
+with `horizontalAlignment = CenterHorizontally`. A pill that insists on its own alignment cannot go
+there, so a third copy got written. Alignment now reaches the badge through `modifier` from the
+parent, and the two leading call sites pass `Modifier.align(Alignment.Start)` themselves.
+
+### What was normalised, and the one thing that was not
+
+Normalised, all measured as pixel-identical: the fill (raw expression to the token it equals), the
+letter spacing (written `0.08.em` twice and `0.88.sp` once — the same number at 11sp), the
+uppercasing, and the hardcoded label.
+
+**`lineHeight = 13.sp` was dropped rather than made a parameter.** The tutorial pill set it and the
+two orange ones did not, which looked like the one difference that might be intentional. Measured
+first: the label renders exactly **15.00dp tall either way**, because 13sp is below what this font
+needs at 11sp and Compose was already ignoring it. A parameter for it would have been a knob that
+changes nothing.
+
+### Still raw, and out of scope
+
+`Orange.copy(alpha = 0.12f)` survives once per platform, for the **56pt round shield** in Connect's
+conflict modal (`IconSizes.badge`). That is a different component and was not in this task. The
+conformance check counts occurrences rather than forbidding the expression, so the shield does not
+have to be flagged forever and a second badge painting its own fill still fails.
+
+## Tap targets
+
+`Modifier.minTapTarget(min)` on Android, `.minTapTarget(_:alignment:)` on iOS, since 8 September
+2026. `ComponentSizes.minTapTarget` is the source of truth and the floor is **clamped upward**:
+asking for 48 gives 48, asking for 20 gives 44. A plain default would let a caller pass a smaller
+number and quietly reintroduce the 23dp defect.
+
+### Why this is a modifier and not a BackControl component
+
+The two back controls were audited for consolidation and deliberately **not** merged:
+
+| | Phone screens | Tutorial |
+|---|---|---|
+| Draws | `chevron-left` icon, 24, stroke 2, `Fg` | the **word "Back"**, Manrope SemiBold 14, `Subtle` |
+| Position | top of screen | bottom nav row, beside `NextButton` |
+| Shape | none | rounded clip (Android) |
+| Visibility | always | `showBack` — hidden and cleared from semantics on card 01 |
+| iOS press | `PressScale()` | `.plain` |
+
+They share an `onBack` callback and nothing that is drawn. A `BackControl` covering both would have
+been a component whose two variants share only a lambda. A `TopBar` is further off still: the
+tutorial has no top bar at all, its top is `StepProgress`.
+
+What they genuinely share is the rule — a control has to be big enough to hit — so the rule is what
+was extracted. The four call sites keep their own icon, text, shape, position and visibility.
+
+### 44 or 48 on Android — unresolved, on purpose
+
+The numbers rendered today, all of them previously hardcoded at the call site:
+
+| | Android | iOS |
+|---|---|---|
+| Phone-screen back | 44 | 44 |
+| Tutorial back | **48** | 44 |
+
+**The project's own rule says 48 on Android.** Both `CLAUDE.md` files state it — "44pt / 48dp minimum
+for anything tappable" — which matches Material's 48dp against Apple's HIG 44pt. Three things
+disagree with that rule:
+
+* `ComponentSizes.minTapTarget` is **44 on both platforms**, so the token does not encode the split;
+* the fit harness flags below **44** on Android, so it does not enforce the stated Android floor;
+* the phone screens' back control renders **44** on Android, which the rule says is too small.
+
+**Nothing was resized here**, because changing a hit area is a behaviour change and not a
+consolidation. The recommendation, for its own task:
+
+`ComponentSizes.minTapTarget` **should become platform-specific — 44 on iOS, 48 on Android** — rather
+than the primitive hardcoding 48 for Android. The token is the thing that is currently wrong: it
+presents a mirrored value where the rule is deliberately not mirrored, which is why three of four
+call sites bypassed it with a literal. Making the token honest fixes the phone-screen back control,
+the tutorial's explicit 48 becomes the default and can be dropped, and the harness floor can rise
+with it.
+
+That change grows two Android hit areas from 44 to 48. Both are invisible — neither control has a
+fill — but it needs measuring at 17 sizes, because `heightIn` on a link inside a row can push a
+column. Hence a separate task.
+
 ## Reusable primitives — the state of play
 
-`CountrySheet` is the only one properly shared on both platforms. The rest are still duplicated:
+`CountrySheet`, `PrimaryButton`, `InputField` and `StatusBadge` are shared on both platforms. The
+rest are still duplicated:
 
 | Primitive | Today | |
 |---|---|---|
-| **PrimaryButton** | `PillButton`, `NextButton`, `SunsetButton` | **three implementations**; `ConnectAccountScreen` imports two of them |
-| **StatusBadge** | private `Eyebrow` in Connect, plus a pill drawn inline in `TutorialShell` | twice on both platforms, and they diverged |
-| **InputField** | inline in the phone screens | the 23dp tap-target bug lived here |
+| **StatusBadge** | `designsystem/StatusBadge.kt` · `StatusBadge.swift` | **done, 8 September 2026** — was three implementations per platform, one bypassing its own token |
+| **PrimaryButton** | `designsystem/PrimaryButton.kt` · `PrimaryButton.swift` | **done, 7 September 2026** — was three implementations, one of them drifted four ways |
+| **InputField** | `designsystem/InputField.kt` · `InputField.swift` | **done, 8 September 2026** — the 23dp tap-target bug lived here |
 | **TopBar** | inline in `VerificationFrame` | the wrong-icon bug lived here |
 | **SelectPicker** | `CountrySheet` | already fine |
 
 The duplication follows the package split: `com.showup.welcome` and `com.showup.tutorial` were built
-as separate worlds and each grew its own version of the same thing. Consolidating `PrimaryButton` is
-the next component task.
+as separate worlds and each grew its own version of the same thing.
+
+### What the duplicate cost, since it is the argument for fixing the rest
+
+`SunsetButton` was written six days before `PillButton` existed and never revisited. By the time it
+was removed it had drifted four ways from the primitive it duplicated: a two-stop gradient where the
+spec puts `D05976` at 38%, no violet shadow though iOS had one, no press feedback at all, and a
+Material/SF glyph for its arrow where CLAUDE.md requires a drawn 2px stroke.
+
+Every one of those four is a defect the 23 August audit found and fixed on the other tutorial
+cards. It missed these because they lived in a file no verifier read. A duplicate does not stay a
+duplicate; it becomes a worse copy nobody is looking at.
+
+Two things had to move before the button could, both for the same reason — the design system must
+not depend on a screen. `ShowUpEasing` went into `Motion.kt`, and `rememberMotion()` into
+`MotionPreference.kt`, where its return type was renamed from `Motion` so it stops colliding with
+the `Motion` durations object.
 
 ## How the verifiers still check numbers
 

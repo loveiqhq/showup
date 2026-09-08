@@ -372,7 +372,7 @@ private struct SuccessHero: View {
                 .frame(width: 120, height: 120)
 
                 VStack(spacing: Spacing.lg) {
-                    Eyebrow(label: "\(methodSpec(provider).short) connected")
+                    StatusBadge(label: "\(methodSpec(provider).short) connected")
                     // No name from the provider is a real case, not a defensive default: Apple's
                     // private-relay users often share nothing. The italic run still has to be the
                     // emphasis, so the whole sentence changes shape rather than the name being
@@ -407,24 +407,6 @@ private struct SuccessHero: View {
 }
 
 /// Orange tone: bg orange 12%, orange text, a 5pt dot, Manrope 700 11 uppercase, tracking .08.
-private struct Eyebrow: View {
-    let label: String
-
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
-            Text(label.uppercased())
-                .font(F.manrope(11, .bold))
-                .tracking(0.08 * 11)
-                .foregroundColor(.liqOrange)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, 5)
-        .background(Color.liqOrange.opacity(0.12))
-        .clipShape(Capsule())
-    }
-}
-
 // ─────────────────────────────────────────────────────────────
 // I — the conflict modal
 // ─────────────────────────────────────────────────────────────
@@ -479,19 +461,21 @@ private struct ConflictSheet: View {
                 // Google-owned account offers Continue with Google. Getting this backwards sends
                 // the user round a loop. It wears that provider's own button, because the ticket
                 // lists this CTA alongside the three on the method list.
-                PillButton(
+                PrimaryButton(
                     label: methodSpec(owner).label,
                     variant: providerVariant(owner),
                     height: 54,
-                    action: onResolve
-                ) {
-                    BrandIconView(icon: methodSpec(owner).icon, size: 18, tint: providerTint(owner))
-                }
+                    action: onResolve,
+                    leading: {
+                        BrandIconView(icon: methodSpec(owner).icon, size: 18,
+                                      tint: providerTint(owner))
+                    }
+                )
                 .padding(.bottom, Spacing.md)
 
                 // No border, so the pair never reads as two equal choices. This is the only
                 // dismiss: there is no close icon and the scrim above does not accept taps.
-                PillButton("Use a different account", variant: .plain, height: 50,
+                PrimaryButton("Use a different account", variant: .plain, height: 50,
                            action: onUseDifferent)
             }
             .padding(.horizontal, Spacing.screenGutter)

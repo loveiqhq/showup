@@ -75,9 +75,17 @@ list_kt = read(KT, "welcome/AuthMethodList.kt")
 list_sw = read(SW, "AuthMethodList.swift")
 conn_kt = read(KT, "welcome/ConnectAccountScreen.kt")
 conn_sw = read(SW, "ConnectAccountView.swift")
+# The eyebrow moved into designsystem/StatusBadge.kt on 8 September 2026, and Connect was the one
+# that painted its fill by hand -- Orange at 12%, which is exactly what EyebrowOrangeBg already
+# held. These assert the bypass is gone and stay here because this is where Connect is read.
+#
+# code_only, because StatusBadge's own documentation quotes the expression it replaced.
 back_kt = read(KT, "welcome/WelcomeBackScreen.kt")
 back_sw = read(SW, "WelcomeBackView.swift")
 shell_kt = read(KT, "welcome/WelcomeShell.kt")
+# The primary button moved out of the shell into the design system on 7 September 2026.
+btn_kt = read(KT, "designsystem/PrimaryButton.kt")
+btn_sw = read(SW, "PrimaryButton.swift")
 shell_sw = read(SW, "WelcomeShell.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
@@ -174,18 +182,18 @@ check("conflict does not reorder (kotlin)", "ConnectState.Conflict" in conn_kt)
 check("conflict does not reorder (swift)", "state == .conflict" in conn_sw)
 
 # ── provider brand compliance (the note that overrules the ticket) ──────────
-check("apple black fill (kotlin)", "PillVariant.Apple -> Modifier.clip(shape).background(Color.Black)"
-      in shell_kt)
-check("apple black fill (swift)", "case .apple:" in shell_sw and "Color.black" in shell_sw)
-check("google white fill (kotlin)", "PillVariant.Google" in shell_kt and "0xFF747775" in shell_kt)
-check("google white fill (swift)", "0x747775" in shell_sw)
-check("facebook blue (kotlin)", "0xFF1877F2" in shell_kt)
-check("facebook blue (swift)", "0x1877F2" in shell_sw)
+check("apple black fill (kotlin)", "PrimaryButtonVariant.Apple -> Modifier.clip(shape).background(Color.Black)"
+      in btn_kt)
+check("apple black fill (swift)", "case .apple:" in btn_sw and "Color.black" in btn_sw)
+check("google white fill (kotlin)", "PrimaryButtonVariant.Google" in btn_kt and "0xFF747775" in btn_kt)
+check("google white fill (swift)", "0x747775" in btn_sw)
+check("facebook blue (kotlin)", "0xFF1877F2" in btn_kt)
+check("facebook blue (swift)", "0x1877F2" in btn_sw)
 check("google G is four-colour (kotlin)", "0xFF4285F4" in shell_kt and "0xFFEA4335" in shell_kt)
 check("google G is four-colour (swift)", "0x4285F4" in shell_sw and "0xEA4335" in shell_sw)
 # No gradient on a provider button, in any state or position.
 check("no gradient on a provider (kotlin)",
-      "AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PillVariant.Sunset" in list_kt)
+      "AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PrimaryButtonVariant.Sunset" in list_kt)
 check("no gradient on a provider (swift)",
       "case .phone, .unknown: return isPrimary ? .sunset : .ghost" in list_sw)
 # The two impermissible titles must not be rendered.
@@ -214,14 +222,14 @@ check("permitted titles only (swift)", "PROVIDER_COMPLIANT_LABELS = true" in lis
 # The button's treatment must come from providerVariant() and NOTHING else. A conditional here is
 # how the brand rule gets broken quietly: the ticket's superseded line asks for a failed provider
 # to switch to bg-elevated, which would be a restyled provider button in a state the guidelines do
-# not carve out. Asserting "no PillVariant literal inside the row" catches that, where checking the
+# not carve out. Asserting "no PrimaryButtonVariant literal inside the row" catches that, where checking the
 # happy path alone did not -- this check exists because a mutation test walked straight past it.
 row_kt = list_kt_code.split("private fun MethodButton")[-1].split("private fun SkipRow")[0]
 row_sw = list_sw_code.split("private struct MethodRow")[-1].split("private struct SkipRow")[0]
 check("row takes its variant only from providerVariant (kotlin)",
-      "PillVariant." not in row_kt and "val variant = providerVariant(method, isPrimary)" in row_kt)
+      "PrimaryButtonVariant." not in row_kt and "val variant = providerVariant(method, isPrimary)" in row_kt)
 check("row takes its variant only from providerVariant (swift)",
-      "PillVariant." not in row_sw and ".ghost" not in row_sw and ".sunset" not in row_sw
+      "PrimaryButtonVariant." not in row_sw and ".ghost" not in row_sw and ".sunset" not in row_sw
       and "let variant = providerVariant(method, isPrimary: isPrimary)" in row_sw)
 
 # The conflict resolve CTA is a provider button too - the ticket lists it with the other three.
@@ -300,7 +308,7 @@ check("no close icon in the conflict modal (swift)", ".close" not in conflict_sw
 check("scrim is not tappable (kotlin)", "clickable" not in conn_kt_code.split("fun Scrim")[-1]
       .split("fun MethodListLayout")[0])
 check("scrim is not tappable (swift)", "allowsHitTesting(false)" in conn_sw)
-check("secondary has no border (kotlin)", "PillVariant.Plain" in conn_kt)
+check("secondary has no border (kotlin)", "PrimaryButtonVariant.Plain" in conn_kt)
 check("secondary has no border (swift)", "variant: .plain" in conn_sw)
 
 # ── exactly one dim layer, and the right owner ──────────────────────────────
@@ -476,6 +484,25 @@ for label, src in [("connect kt", conn_kt), ("connect sw", conn_sw),
                    ("list kt", list_kt), ("list sw", list_sw)]:
     has_emoji = any(ord(c) > 0x2500 and not (0x2010 <= ord(c) <= 0x2E7F) for c in src)
     check("no emoji in " + label, not has_emoji)
+
+# ── the eyebrow became a shared primitive ─────────────────────────
+# Connect was the one that painted its fill by hand -- Orange at 12%, which is exactly what
+# EyebrowOrangeBg already held, so nothing looked wrong and the token quietly stopped being the
+# single definition of the value.
+#
+# COUNTED rather than absent, because the same expression legitimately survives once: the 56pt
+# round shield in the conflict modal, a different component that is out of this task's scope.
+# Two occurrences means the eyebrow started painting its own fill again.
+#
+# An earlier version of this check tried to slice the file at "IconSizes.badge" and passed a
+# string that no longer contained it -- read() expands token references, so by the time the text
+# reaches here the token is already the literal it holds.
+check("connect eyebrow is the shared badge (kotlin)", "StatusBadge(" in code_only(conn_kt))
+check("connect eyebrow is the shared badge (swift)", "StatusBadge(label:" in code_only(conn_sw))
+check("connect eyebrow has no raw fill (kotlin)",
+      code_only(conn_kt).count("Orange.copy(alpha = 0.12f)") <= 1)
+check("connect eyebrow has no raw fill (swift)",
+      code_only(conn_sw).count("liqOrange.opacity(0.12)") <= 1)
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("connect + re-login conformance: " + str(checks) + " checks")

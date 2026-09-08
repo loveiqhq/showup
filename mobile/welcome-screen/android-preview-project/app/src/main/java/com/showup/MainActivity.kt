@@ -1,5 +1,9 @@
 package com.showup
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 import com.showup.designsystem.Motion
 
 import android.os.Bundle
@@ -14,22 +18,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import com.showup.tutorial.MatchMeansMeetScreen
 import com.showup.tutorial.MatchOnAvailabilityScreen
 import com.showup.tutorial.MeetInRealLifeScreen
 import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
+import com.showup.welcome.FlowScreen
 import com.showup.welcome.SignUpFlow
 import com.showup.welcome.SignUpOutcome
 import com.showup.welcome.showsTutorial
 import com.showup.tutorial.WelcomeScreen
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 /**
  * Host for the six tutorial screens. Edge-to-edge so each screen's own safe-area handling is what
@@ -44,10 +45,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             // rememberSaveable, not remember: a rotation or a process death mid-tutorial should not
-            // silently drop the user back to card 1.
-            // Negative ids are the pre-account flow, positive ones the tutorial. The demo opens
-            // where a real first run opens: Startup.
-            var screen by rememberSaveable { mutableIntStateOf(-4) }
+            // silently drop the user back to card 1. A Kotlin enum is Serializable, so this needs
+            // no Saver. The demo opens where a real first run opens: Startup.
+            var screen by rememberSaveable { mutableStateOf(FlowScreen.SignUp) }
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
             var outcome by rememberSaveable { mutableStateOf(SignUpOutcome.NewAccount) }
@@ -57,7 +57,9 @@ class MainActivity : ComponentActivity() {
             // someone out of the tutorial from the middle of it. On card 1 it is left alone, so
             // back exits as usual, and the range stops at 6 so back cannot walk out of the app
             // and into the last tutorial card.
-            BackHandler(enabled = screen in 2..6) { screen -= 1 }
+            BackHandler(enabled = screen.hasSystemBack) {
+                screen = FlowScreen.entries[screen.ordinal - 1]
+            }
 
             AnimatedContent(
                 targetState = screen,
@@ -70,7 +72,7 @@ class MainActivity : ComponentActivity() {
                         // Forward travels in from the right, Back from the left, so the motion
                         // carries the direction of travel. A sixth of the width is enough to read
                         // as movement without the screens appearing to fly.
-                        val direction = if (targetState > initialState) 1 else -1
+                        val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
                         (
                             slideInHorizontally(tween(Motion.SCREEN)) { w -> direction * w / 6 } +
                                 fadeIn(tween(220))
@@ -81,27 +83,42 @@ class MainActivity : ComponentActivity() {
                     }
                 },
             ) { current ->
+                // Exhaustive on purpose. ShowUpEveryTime used to be the `else` branch, which meant
+                // any unexpected value rendered card 6; every screen is now named and the compiler
+                // fails if one is added and not handled here.
                 when (current) {
                     // Welcome & sign-up (SHOWUP-140/142/143/144) runs before the tutorial,
                     // which is the real order: you sign up, then you are shown how it works.
                     // SignUpFlow owns every step and every piece of state inside it.
                     // SHOWUP-146, the whole ticket in one line: the tutorial for a new
                     // account, straight into the app for a returning member.
-                    -4 -> SignUpFlow(onFinished = {
+                    FlowScreen.SignUp -> SignUpFlow(onFinished = {
                         outcome = it
-                        screen = if (showsTutorial(it)) 1 else 7
+                        screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
                     })
-                    1 -> WelcomeScreen(onContinue = { screen = 2 })
-                    2 -> MeetInRealLifeScreen(onNext = { screen = 3 })
-                    3 -> MatchOnAvailabilityScreen(onNext = { screen = 4 }, onBack = { screen = 2 })
-                    4 -> MatchMeansMeetScreen(onNext = { screen = 5 }, onBack = { screen = 3 })
-                    5 -> ThirtyMinutesScreen(onNext = { screen = 6 }, onBack = { screen = 4 })
-                    7 -> HomePlaceholderScreen(outcome, onStartOver = { screen = -4 })
-                    else -> ShowUpEveryTimeScreen(
-                        // SHOWUP-146: the far end of the tutorial is the app, not the tour again.
-                        onFinish = { screen = 7 },
-                        onBack = { screen = 5 },
+                    FlowScreen.TutorialWelcome ->
+                        WelcomeScreen(onContinue = { screen = FlowScreen.MeetInRealLife })
+                    FlowScreen.MeetInRealLife ->
+                        MeetInRealLifeScreen(onNext = { screen = FlowScreen.MatchOnAvailability })
+                    FlowScreen.MatchOnAvailability -> MatchOnAvailabilityScreen(
+                        onNext = { screen = FlowScreen.MatchMeansMeet },
+                        onBack = { screen = FlowScreen.MeetInRealLife },
                     )
+                    FlowScreen.MatchMeansMeet -> MatchMeansMeetScreen(
+                        onNext = { screen = FlowScreen.ThirtyMinutes },
+                        onBack = { screen = FlowScreen.MatchOnAvailability },
+                    )
+                    FlowScreen.ThirtyMinutes -> ThirtyMinutesScreen(
+                        onNext = { screen = FlowScreen.ShowUpEveryTime },
+                        onBack = { screen = FlowScreen.MatchMeansMeet },
+                    )
+                    FlowScreen.ShowUpEveryTime -> ShowUpEveryTimeScreen(
+                        // SHOWUP-146: the far end of the tutorial is the app, not the tour again.
+                        onFinish = { screen = FlowScreen.Home },
+                        onBack = { screen = FlowScreen.ThirtyMinutes },
+                    )
+                    FlowScreen.Home ->
+                        HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
                 }
             }
         }

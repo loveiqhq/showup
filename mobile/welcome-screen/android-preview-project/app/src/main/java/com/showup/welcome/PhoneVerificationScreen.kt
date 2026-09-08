@@ -16,6 +16,16 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.FieldContent
+import com.showup.designsystem.StatusBadge
+import com.showup.designsystem.minTapTarget
+import com.showup.designsystem.autofill
+import com.showup.designsystem.fieldChrome
+
+import com.showup.designsystem.InputField
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.ShowUpEasing
+
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Radius
@@ -59,7 +69,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -74,8 +83,6 @@ import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerDigit
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
-import com.showup.designsystem.EyebrowOrangeBg
-import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
@@ -83,8 +90,7 @@ import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
-import com.showup.designsystem.Subtle
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 // ─────────────────────────────────────────────────────────────────────────────
 // shared chrome for both halves of the flow
@@ -105,8 +111,19 @@ private fun VerificationFrame(
     ) {
         Box(
             Modifier
-                .size(44.dp)
-                .clickable(role = Role.Button, onClick = onBack),
+                // The floor lives in the design system now; it was a hardcoded 44 here. Still 44
+                // and not the tutorial's 48 -- see the note in TapTarget.kt, which is where that
+                // disagreement is written down rather than silently resolved.
+                .minTapTarget()
+                .clickable(role = Role.Button, onClick = onBack)
+                // Without this TalkBack announces "button" and nothing else: the chevron is a
+                // Canvas, so there is no text anywhere in this control for a screen reader to
+                // fall back on. iOS has said "Back" since the screen was written.
+                //
+                // On the Box rather than the glyph, because the Box is the control -- it carries
+                // the click and the tap target, and a label on the Canvas would describe a
+                // decoration instead of the thing being pressed.
+                .semantics { contentDescription = "Back" },
             contentAlignment = Alignment.CenterStart,
         ) {
             // chevron-left at 24, stroke 2 -- the handoff's AppHeader with leading="back", which
@@ -125,30 +142,12 @@ private fun VerificationFrame(
     }
 }
 
-@Composable
-private fun ColumnScope.Eyebrow() {
-    Row(
-        Modifier
-            .align(Alignment.Start)
-            .clip(RoundedCornerShape(50))
-            // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on both
-            // of these screens; lavender is the tutorial's tone and was taken here by default.
-            .background(EyebrowOrangeBg)
-            .padding(horizontal = Spacing.lg, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            "PHONE VERIFICATION", color = Orange, fontFamily = Manrope,
-            fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.88.sp,
-        )
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // States A and B — enter number / invalid number
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** TalkBack's name for the number field. Also what TapTargetTest finds it by. */
+const val PHONE_FIELD_LABEL = "Phone number"
 
 @Composable
 fun PhoneNumberScreen(
@@ -173,7 +172,7 @@ fun PhoneNumberScreen(
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     VerificationFrame(onBack) {
-        Eyebrow()
+        StatusBadge("Phone verification", Modifier.align(Alignment.Start))
         Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("What’s your " to false, "number" to true, "?" to false),
@@ -190,14 +189,10 @@ fun PhoneNumberScreen(
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             // Country pill -- opens the list. The default comes from device locale; see SignUpFlow.
+            // A button wearing the field's chrome, so the two cannot drift apart. 14 rather than
+            // the field's 18, because the pill hugs its content and the field does not.
             Row(
-                Modifier
-                    .height(ComponentSizes.controlHeight)
-                    .clip(RoundedCornerShape(Radius.control))
-                    .background(Elevated)
-                    .border(1.5.dp, Subtle, RoundedCornerShape(Radius.control))
-                    .clickable(role = Role.Button, onClick = onOpenCountryList)
-                    .padding(horizontal = 14.dp),
+                Modifier.fieldChrome(horizontalPadding = 14.dp, onClick = onOpenCountryList),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
@@ -209,73 +204,45 @@ fun PhoneNumberScreen(
 
             // The invalid field keeps the same geometry as the default one, so it does not move
             // when it fails -- and the digits are preserved, never cleared.
-            Row(
-                Modifier
-                    .weight(1f)
-                    .height(ComponentSizes.controlHeight)
-                    .clip(RoundedCornerShape(Radius.control))
-                    .background(Elevated)
-                    .border(1.5.dp, if (invalid) Danger else Subtle, RoundedCornerShape(Radius.control))
-                    .padding(horizontal = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicTextField(
-                    value = value,
-                    // Digits only at the source, so nothing downstream has to strip characters
-                    // that were never allowed in.
-                    //
-                    // The cap is the country's maximum PLUS an allowance, never the maximum itself:
-                    // capping exactly at the limit silently swallows the extra keystrokes, so a
-                    // too-long number cannot be typed and the error that exists for it can never
-                    // fire. See OVERTYPE_ALLOWANCE.
-                    onValueChange = { raw ->
-                        onValueChange(
-                            raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
-                        )
-                    },
-                    // fillMaxHeight, so the touch target matches the field a person can see.
-                    //
-                    // Without it the field measured to the height of its own text -- 23dp inside
-                    // a 56dp row -- and the row centred it. The input LOOKED 56dp tall while only
-                    // the middle 23dp of it would take a tap, so tapping near the top or bottom
-                    // edge did nothing at all. Found by ScreenFitTest on 15 of 18 phone sizes.
-                    modifier = Modifier.weight(1f).fillMaxHeight().focusRequester(focus),
-                    textStyle = TextStyle(
-                        color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp, letterSpacing = 0.3.sp,
-                    ),
-                    singleLine = true,
-                    cursorBrush = SolidColor(Purple),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done,
-                    ),
-                    // Enter submits, so the user never has to dismiss the keyboard to reach the CTA.
-                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-                    visualTransformation = remember(country) { GroupedDigits(country) },
-                    // The field now fills the row's full 56dp so that all of it is tappable, which
-                    // means the text has to be centred here instead of riding the top edge.
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterStart) {
-                            if (value.isEmpty()) {
-                                Text(
-                                    country.sample, color = Faint, fontFamily = Manrope,
-                                    fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                                    letterSpacing = 0.3.sp, maxLines = 1,
-                                )
-                            }
-                            inner()
+            //
+            // The whole box takes a tap. That is InputField's guarantee now rather than a modifier
+            // written here, because it was written here once and was wrong: the field measured 23dp
+            // inside this 56dp row and only its middle third responded.
+            InputField(
+                value = value,
+                // Digits only at the source, so nothing downstream has to strip characters that
+                // were never allowed in.
+                //
+                // The cap is the country's maximum PLUS an allowance, never the maximum itself:
+                // capping exactly at the limit silently swallows the extra keystrokes, so a
+                // too-long number cannot be typed and the error that exists for it can never fire.
+                // See OVERTYPE_ALLOWANCE.
+                onValueChange = { raw ->
+                    onValueChange(
+                        raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
+                    )
+                },
+                label = PHONE_FIELD_LABEL,
+                placeholder = country.sample,
+                modifier = Modifier.weight(1f),
+                invalid = invalid,
+                keyboardType = KeyboardType.Phone,
+                // Matches iOS's `.telephoneNumber`, which this screen has declared since it was
+                // written. Android declared nothing, so the number never came from the keychain.
+                contentType = FieldContent.PhoneNumber,
+                onSubmit = onSubmit,
+                focusRequester = focus,
+                visualTransformation = remember(country) { GroupedDigits(country) },
+                trailing = if (!invalid) null else {
+                    {
+                        Box(Modifier.size(22.dp).background(Danger, CircleShape),
+                            contentAlignment = Alignment.Center) {
+                            Text("!", color = Color.White, fontFamily = Lora,
+                                 fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
-                    },
-                )
-                if (invalid) {
-                    Spacer(Modifier.width(Spacing.md))
-                    Box(Modifier.size(22.dp).background(Danger, CircleShape),
-                        contentAlignment = Alignment.Center) {
-                        Text("!", color = Color.White, fontFamily = Lora,
-                             fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
-                }
-            }
+                },
+            )
         }
 
         // The helper row is RESERVED at TWO lines -- 36 -- because that is what an error takes.
@@ -324,7 +291,7 @@ fun PhoneNumberScreen(
         // Validation runs on submit, not per keystroke. The button stays live so the user can ask
         // for the check -- what changes on failure is the message, not the availability of the
         // action. A disabled CTA cannot explain itself, which the ticket lists as an open concern.
-        PillButton("Send me the code", onSubmit)
+        PrimaryButton("Send me the code", onSubmit)
     }
 }
 
@@ -403,7 +370,7 @@ fun VerifyCodeScreen(
     }
 
     VerificationFrame(onBack) {
-        Eyebrow()
+        StatusBadge("Phone verification", Modifier.align(Alignment.Start))
         Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("Enter your " to false, "code" to true, "." to false),
@@ -440,11 +407,20 @@ fun VerifyCodeScreen(
         val slotW = if (compact) 44.dp else 49.dp
         val slotH = if (compact) 56.dp else 62.dp
         Spacer(Modifier.height(if (compact) 8.dp else 26.dp))
+        // Typed and autofilled codes take the SAME path. Written once rather than twice, because
+        // an SMS code arrives as "Your code is 123456" in some locales and a second copy of this
+        // filter is a second chance to forget the digit strip or the cap.
+        val acceptCode: (String) -> Unit = { raw ->
+            onDigitsChange(raw.filter { it.isDigit() }.take(6))
+        }
         BasicTextField(
             value = digits,
-            onValueChange = { raw -> onDigitsChange(raw.filter { it.isDigit() }.take(6)) },
+            onValueChange = acceptCode,
             modifier = Modifier
                 .fillMaxWidth()
+                // Matches iOS's `.oneTimeCode`. One field behind all six slots is what makes this
+                // a single hint rather than six that have to hand off to each other.
+                .autofill(FieldContent.SmsCode, acceptCode)
                 .focusRequester(focus)
                 .graphicsLayer {
                     // +/- 6px, three cycles, decaying to nothing
@@ -552,7 +528,7 @@ fun VerifyCodeScreen(
         Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         // Disabled until all six digits are in. In mismatch the digits are still there, so it stays
         // enabled — the user edits one digit and resubmits.
-        PillButton("Verify code", onVerify, enabled = digits.length == 6)
+        PrimaryButton("Verify code", onVerify, enabled = digits.length == 6)
 
         Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
         // A mistyped code must not cost another 24s wait, so the mismatch state releases the

@@ -43,8 +43,7 @@ private struct VerificationFrame<Content: View>: View {
                 // which welcome/screen-phone-reference.jsx uses on both of these screens. It was
                 // an arrow-left at 22: the wrong icon from the same set, and visibly heavier.
                 BrandIconView(icon: .chevronLeft, size: 24, stroke: 2, tint: .liqFg)
-                    .frame(width: ComponentSizes.minTapTarget, height: ComponentSizes.minTapTarget, alignment: .leading)
-                    .contentShape(Rectangle())
+                    .minTapTarget()
             }
             .buttonStyle(PressScale())
             .accessibilityLabel("Back")
@@ -55,23 +54,6 @@ private struct VerificationFrame<Content: View>: View {
             // top-anchored and the keyboard closes the frame. Nothing floats.
             Spacer(minLength: 0)
         }
-    }
-}
-
-private struct VerificationEyebrow: View {
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
-            Text("PHONE VERIFICATION")
-                .font(F.manrope(11, .bold))
-                .tracking(0.08 * 11)
-                // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on
-                // both of these screens; lavender is the tutorial's and was taken by default.
-                .foregroundColor(.liqOrange)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, 5)
-        .background(Capsule().fill(Color.liqEyebrowOrangeBg))
     }
 }
 
@@ -92,7 +74,7 @@ struct PhoneNumberView: View {
         GeometryReader { geo in
             let compact = geo.size.height < 700
             VerificationFrame(onBack: onBack) {
-                VerificationEyebrow()
+                StatusBadge(label: "Phone verification")
                 Spacer().frame(height: compact ? 2 : 14)
                 // No fixed height. The frame was `fontSize * 1.05 * lines`, which is the LINE BOX
                 // and not what the glyphs occupy: a 1.05 line height is tighter than Lora's natural
@@ -119,39 +101,28 @@ struct PhoneNumberView: View {
                             Text(country.dial).font(F.manrope(16, .semibold)).foregroundColor(.liqFg)
                             BrandIconView(icon: .chevronDown, size: 16, stroke: 2, tint: .liqMuted)
                         }
-                        .padding(.horizontal, 14)
-                        .frame(height: ComponentSizes.controlHeight)
-                        .background(RoundedRectangle(cornerRadius: Radius.control).fill(Color.liqElevated))
-                        .overlay(RoundedRectangle(cornerRadius: Radius.control)
-                            // Subtle (46%), not Border (12%) — the outline is the only thing identifying the
-                            // field, and Border is 1.28:1 against a 3:1 rule. Audit finding 7.
-                            .strokeBorder(Color.liqSubtle, lineWidth: 1.5))
+                        // A button wearing the field's chrome, so the two cannot drift apart.
+                        // 14 rather than the field's 18: the pill hugs its content, the field
+                        // does not. The contrast argument for Subtle over Border lives in
+                        // FieldChrome now, next to the value it defends.
+                        .fieldChrome(FieldChrome(horizontalPadding: 14))
                     }
                     .buttonStyle(PressScale())
 
                     // Same geometry as the default field, so it does not move when it fails — and
                     // the digits are preserved, never cleared.
-                    HStack(spacing: 0) {
-                        // A UITextField, not SwiftUI's TextField, and the caret is the reason --
-                        // the whole argument is in PhoneNumberField.swift. `value` stays plain
-                        // digits; the grouping is presentation, applied inside the edit.
+                    //
+                    // The chrome, the 56, the outline and the danger ring are all InputField's
+                    // now. What stays here is the one thing specific to this screen: the field
+                    // is a UITextField and not SwiftUI's TextField, because as-you-type grouping
+                    // needs caret control that TextField does not expose. The whole argument is
+                    // in PhoneNumberField.swift. `value` stays plain digits; the grouping is
+                    // presentation, applied inside the edit.
+                    InputField(label: "Phone number", invalid: invalid) {
                         PhoneNumberField(digits: $value, country: country, onSubmit: onSubmit)
-                        if invalid {
-                            Spacer(minLength: 0)
-                            ZStack {
-                                Circle().fill(Color.liqDanger).frame(width: 22, height: 22)
-                                Text("!").font(.custom(PS.loraBold, size: 14)).foregroundColor(.white)
-                            }
-                        }
+                    } trailing: {
+                        if invalid { FieldErrorGlyph() }
                     }
-                    .padding(.horizontal, 18)
-                    .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: Radius.control).fill(Color.liqElevated))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.control)
-                        .strokeBorder(invalid ? Color.liqDanger : Color.liqSubtle, lineWidth: 1.5))
-                    .overlay(invalid ? RoundedRectangle(cornerRadius: Radius.control)
-                        .strokeBorder(Color.liqDanger.opacity(0.10), lineWidth: 4)
-                        .padding(-2.75) : nil)
                 }
 
                 // Reserved at TWO lines, top-aligned, because that is what the error copy needs.
@@ -180,7 +151,7 @@ struct PhoneNumberView: View {
                 // Validation runs on submit, not per keystroke. The button stays live so the
                 // user can ask for the check -- what changes on failure is the message, not the
                 // availability of the action.
-                PillButton("Send me the code", action: onSubmit)
+                PrimaryButton("Send me the code", action: onSubmit)
             }
             // The keyboard is why the user is here, so it opens with the screen -- see
             // AutoFocusTextField, which takes it the moment the field reaches a window.
@@ -214,7 +185,7 @@ struct VerifyCodeView: View {
             let slotH: CGFloat = compact ? 56 : 62
 
             VerificationFrame(onBack: onBack) {
-                VerificationEyebrow()
+                StatusBadge(label: "Phone verification")
                 Spacer().frame(height: compact ? 2 : 14)
                 WashHeadline(parts: [("Enter your ", false), ("code", true), (".", false)],
                              fontSize: 38)
@@ -340,7 +311,7 @@ struct VerifyCodeView: View {
                 Spacer().frame(height: compact ? 8 : 16)
                 // Disabled until all six digits are in. In mismatch the digits are still there, so
                 // it stays enabled — the user edits one digit and resubmits.
-                PillButton("Verify code", enabled: digits.count == 6, action: onVerify)
+                PrimaryButton("Verify code", enabled: digits.count == 6, action: onVerify)
 
                 Spacer().frame(height: compact ? 8 : 14)
                 VStack(spacing: compact ? 4 : 6) {

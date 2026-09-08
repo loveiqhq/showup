@@ -15,6 +15,11 @@
  */
 package com.showup.tutorial
 
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.shadow
+
+import com.showup.designsystem.rememberMotion
+
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Spacing
 
@@ -29,13 +34,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -43,7 +45,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -51,7 +52,6 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
-import android.provider.Settings
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.animateColorAsState
@@ -67,7 +67,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.welcome.ctaGlow
-import com.showup.designsystem.EyebrowBg
+import com.showup.designsystem.BadgeTone
+import com.showup.designsystem.minTapTarget
+import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
@@ -135,26 +137,6 @@ fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
  * spends a minute on it rather than an afternoon. Changing it means overruling the spec text, which
  * is the product side's call and is recorded in audit/CONFLICTS-2026-08-27.md as A10.
  */
-@Composable
-fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .align(Alignment.Start)
-            .clip(RoundedCornerShape(50))
-            .background(EyebrowBg)
-            .padding(horizontal = Spacing.lg, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            text.uppercase(),
-            color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-            fontSize = 11.sp, lineHeight = 13.sp, letterSpacing = 0.08.em,
-        )
-    }
-}
-
 /**
  * Which circle the nav row's forward action wears.
  *
@@ -164,35 +146,13 @@ fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
 enum class NextVariant { Orange, Sunset }
 
 /**
- * Whether this device wants motion.
- *
- * Android has no single "reduce motion" flag. The honest signal is the system animator duration
- * scale, which the OS sets to 0 when someone turns animations off — either in Accessibility >
- * Remove animations, or in Developer options. Respecting it keeps the flow usable for people who
- * get motion sick, and has the useful side effect of holding the screens still under UI tests.
- */
-@Immutable
-data class Motion(val enabled: Boolean)
-
-@Composable
-fun rememberMotion(): Motion {
-    val context = LocalContext.current
-    return remember(context) {
-        val scale = runCatching {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
-        }.getOrDefault(1f)
-        Motion(enabled = scale > 0f)
-    }
-}
-
-/**
  * The spec's arrow — a 2px stroke with round caps, not a filled glyph.
  *
  * Material's `Icons.AutoMirrored.Filled.ArrowForward` is a solid shape with a different silhouette;
  * at 56dp against a saturated circle the difference is plainly visible, so the arrow is drawn.
  */
 @Composable
-private fun ArrowRight(size: Dp) {
+fun ArrowRight(size: Dp) {
     Canvas(Modifier.size(size)) {
         val s = this.size.width
         val midY = this.size.height / 2f
@@ -366,7 +326,7 @@ fun TutorialShell(
             StepProgress(totalSteps, step)
             Spacer(Modifier.height(24.dp))          // progress -> eyebrow
 
-            EyebrowPill(eyebrow)
+            StatusBadge(eyebrow, Modifier.align(Alignment.Start), BadgeTone.Lavender)
             Spacer(Modifier.height(14.dp))          // eyebrow -> headline
 
             // ④ headline + the underline accent. Every card's AC asks for it; only the Welcome
@@ -407,7 +367,10 @@ fun TutorialShell(
                 // reader does not announce a "Back" that cannot be pressed.
                 Box(
                     Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        // 48 rather than the shared 44: Material's floor, which this control has
+                        // always used. Passed explicitly because minTapTarget clamps upward only,
+                        // so this raises the floor and cannot lower it.
+                        .minTapTarget(48.dp)
                         .then(
                             if (showBack) Modifier
                                 .clip(RoundedCornerShape(50))

@@ -188,6 +188,42 @@ will ever be** — hence P1 in Part 11.
 | Sheets losing state | POSSIBLE | One `.sheet(` (the country picker). Its state is hoisted, so it should survive; not explicitly tested |
 | Navigation tied to temporary local state | **CONFIRMED, by design** | The `Step` enum *is* local state. Deliberate, documented, and the thing a framework would replace |
 
+### 1.5.1 · Decision, 8 September 2026 — stay on the enum, and the trigger for leaving it
+
+Re-audited against the code rather than against this spike's assumptions. Three findings changed the
+recommendation above:
+
+* **The screens are already decoupled.** `ScreenFitTest` / `ScreenFitTests` never construct a flow —
+  they render screens directly, and so do all 124 previews. A migration is therefore a **shell**
+  change, not a screen change, and "five screens is the cheapest this will ever be" overstated the
+  cost: the count that matters is the number of *hosts*, which is two per platform.
+* **`TutorialRouting` is already the right shape** — three enums and two pure functions, no UI
+  imports, unit-tested with no view. A navigation framework should **execute** `showsTutorial(...)`,
+  never absorb it.
+* **The platforms were not equally served.** Android already had system back and full process-death
+  restoration via `rememberSaveable`; iOS had neither. That was a real defect and was fixed on
+  8 September 2026 with `@SceneStorage` and a typed `FlowScreen` — **without** a navigation
+  framework, which is evidence that restoration and routing are separable concerns.
+
+**The trigger for migrating.** Any one of these, and not before:
+
+1. the **first deep link** — a password reset, an invite, a notification tap;
+2. the **first screen reachable from more than one place**;
+3. the **profile / discovery flows**, which bring screens that own asynchronous work and therefore
+   `@Observable` / ViewModels.
+
+**When it triggers, do Option B first: the outer shell only.** Replace the two hosts with
+`NavigationStack` + `NavigationPath` and `NavHost`. `SignUpFlow` stays a single destination that
+keeps its internal `Step`. Screens are not touched.
+
+**Do not do a full per-screen migration unless a requirement clearly needs it.** The reason is the
+test matrix: every screen being constructible from plain values is what makes 17 device sizes and
+124 previews possible. The moment a screen needs a `NavController` or a `navigationDestination`
+context to exist, that harness becomes hard to build and easy to abandon. Whatever the shape of a
+future migration, this invariant comes first and is not negotiable:
+
+> **A screen takes values and returns pixels. It never receives a navigator.**
+
 ## 1.6 · Concurrency and the UI thread
 
 **Measured:** `@MainActor` 15 · `Task {` 2 · strict concurrency `complete`, language mode 5.
@@ -501,7 +537,7 @@ is the most urgent by a distance:
 
 | Primitive | Today | Verdict |
 |---|---|---|
-| **PrimaryButton** | Android: `PillButton` (used by 6 files), `NextButton`, `SunsetButton`. iOS: `NextButton`, `SunsetButton`, plus the phone CTA inline | **Three implementations.** `ConnectAccountScreen` imports two of them, because it sits on the seam between the `welcome` and `tutorial` packages |
+| **PrimaryButton** | ~~Android: `PillButton` (used by 6 files), `NextButton`, `SunsetButton`. iOS: `NextButton`, `SunsetButton`, plus the phone CTA inline~~ | ~~**Three implementations.**~~ **DONE 7 Sep 2026** — one `PrimaryButton` per platform, 8 call sites each. `NextButton` was not a duplicate and stays. See `design-system.md` |
 | **InputField** | inline in the phone screens, both platforms | The 23dp tap-target bug lived here |
 | **TopBar** | inline in `VerificationFrame` | The wrong-icon bug lived here |
 | **StatusBadge** | private `Eyebrow` in Connect + a pill inline in `TutorialShell` | Twice on both platforms, and they diverged — the eyebrow bug |

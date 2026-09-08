@@ -18,7 +18,8 @@ explaining why.**
 **Do not report a platform as verified unless it was actually built and tested in that platform's
 toolchain.**
 
-The first exists because the primary button was written three times. The third exists because eight
+The first exists because the primary button was written three times, and the copy nobody was
+looking at drifted for three weeks before anyone noticed. The third exists because eight
 tests here sat in no target for a week and were reported as present and passing.
 
 ---
@@ -107,6 +108,16 @@ is enforced, not merely intended.
 - **No point size in a screen.** Use the named type roles.
 - **Use the shared primitives.** If one does not exist yet, that is a reason to build it, not to
   inline a copy — see rule one.
+- **A primary button is `PrimaryButton`** (`PrimaryButton.swift`). Six variants, and `leading` /
+  `trailing` slots. Name the slot at the call site rather than using a trailing closure: with
+  two closure properties an unlabelled one is ambiguous, and Swift's error for that names
+  neither. `NextButton` is not a second primary button — it is a label beside a circular arrow
+  badge, with its own spec.
+- **A shared primitive never lives in a screen file.** `PillButton` sat in `WelcomeShell.swift`,
+  so the tutorial grew its own copy. Anything two flows use gets its own file.
+- **A status badge is `StatusBadge`** (`StatusBadge.swift`). Two tones, `.orange` and `.lavender`.
+  It does not align itself — the parent positions it. That is why there were three: two of the
+  originals forced leading alignment, and Connect's badge is centred, so it grew its own copy.
 - **A component's tone is per screen, and both tones stay.** The eyebrow pill is orange on the phone
   screens and lavender on the tutorial cards. Changing the shared token to fix one screen breaks the
   other; add a variant.
@@ -133,9 +144,23 @@ SwiftUI/UIKit seam, which is why each new one has to be justified.
 
 ## Navigation
 
-Routing today is a `Step` enum in `SignUpFlow`, which is deliberate and testable for one linear
-flow. **Adopt `NavigationStack` before adding a flow that has deep links, a restorable back stack,
-or a screen reachable from two places.** Do not add a second hand-rolled router.
+Routing today is a `Step` enum in `SignUpFlow` and a `FlowScreen` enum in `ShowUpWelcomeApp` --
+deliberate, typed, and testable for one linear flow. Do not add a second hand-rolled router.
+
+**Adopt `NavigationStack` at the first of these, and not before:** a deep link, a screen reachable
+from two places, or the profile/discovery flows. Re-audited 8 September 2026 and confirmed as the
+right call for now -- see `docs/mobile-client-architecture-spike.md` 1.5.1.
+
+**When it triggers, migrate the SHELL only first** -- `TutorialFlow`'s `switch` becomes a
+`NavigationStack` with a `NavigationPath`; `SignUpFlowView` stays one destination keeping its own
+`Step`. A full per-screen migration needs a requirement that clearly demands it.
+
+**State restoration is a separate concern and is already solved without a framework.** Flow position
+and the user's typed input are held in `@SceneStorage` -- scene-scoped, so a properly closed scene
+does not resurrect a half-finished sign-up. Do not reach for `NavigationStack` to get restoration.
+
+**A screen takes values and returns pixels. It never receives a navigator.** That single property is
+what makes `ScreenFitTest` at 17 sizes and 50 previews possible.
 
 ## Screen requirements
 

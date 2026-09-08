@@ -11,6 +11,8 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.PrimaryButton
+
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Spacing
 
@@ -162,7 +164,7 @@ fun StartupScreen(
             textAlign = TextAlign.Center,
         )
 
-        PillButton("Create free account", onCreateAccount)
+        PrimaryButton("Create free account", onCreateAccount)
         Spacer(Modifier.height(Spacing.lg))
 
         // The reference's own hit area is ~31; the ticket requires at least 44 without changing the

@@ -65,6 +65,12 @@ def code_only(src):
 
 
 shell_kt = read(KT, "welcome/WelcomeShell.kt")
+# The primary button moved out of the shell into the design system on 7 September 2026.
+# These read the primitive; the assertions are unchanged.
+btn_kt = read(KT, "designsystem/PrimaryButton.kt")
+btn_sw = read(SW, "PrimaryButton.swift")
+# ShowUpEasing moved here with the button: designsystem cannot depend on a screen.
+motion_kt = read(KT, "designsystem/Motion.kt")
 shell_sw = read(SW, "WelcomeShell.swift")
 start_kt = read(KT, "welcome/StartupScreen.kt")
 start_sw = read(SW, "StartupView.swift")
@@ -72,6 +78,17 @@ back_kt = read(KT, "welcome/WelcomeBackScreen.kt")
 back_sw = read(SW, "WelcomeBackView.swift")
 ver_kt = read(KT, "welcome/PhoneVerificationScreen.kt")
 ver_sw = read(SW, "PhoneVerificationView.swift")
+# The number field moved out of the screen into the design system on 8 September 2026.
+input_kt = read(KT, "designsystem/InputField.kt")
+input_sw = read(SW, "InputField.swift")
+# iOS keeps its phone field's keyboard and content-type configuration in the representable, not the
+# screen, so the autofill parity check below has to read it there.
+phone_sw = read(SW, "PhoneNumberField.swift")
+# The eyebrow pill moved out of the three screens into the design system on 8 September 2026.
+badge_kt = read(KT, "designsystem/StatusBadge.kt")
+badge_sw = read(SW, "StatusBadge.swift")
+tap_kt = read(KT, "designsystem/TapTarget.kt")
+tap_sw = read(SW, "TapTarget.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
 
@@ -130,24 +147,28 @@ check("wash tracks the run (swift)", "enumerateEnclosingRects" in shell_kt or
       "enumerateEnclosingRects" in shell_sw)
 
 # ── button — components/shared.jsx size lg ──────────────────────────────────
-check("button height 56 (kotlin)", "height: Dp = 56.dp" in shell_kt)
-check("button height 56 (swift)", "var height: CGFloat = 56" in shell_sw)
-check("button pad 28 (kotlin)", "horizontal = 28.dp" in shell_kt)
-check("button pad 28 (swift)", ".padding(.horizontal, 28)" in shell_sw)
-check("button label 16 bold (kotlin)", "else 16.sp" in shell_kt)
-check("button label 16 bold (swift)", "manrope(16, .bold)" in shell_sw)
-check("button gap 8 (kotlin)", "spacedBy(8.dp" in shell_kt)
-check("button gap 8 (swift)", "HStack(spacing: 8)" in shell_sw)
+check("button height 56 (kotlin)", "height: Dp = 56.dp" in btn_kt)
+check("button height 56 (swift)", "var height: CGFloat = 56" in btn_sw)
+check("button pad 28 (kotlin)", "horizontal = 28.dp" in btn_kt)
+check("button pad 28 (swift)", ".padding(.horizontal, 28)" in btn_sw)
+check("button label 16 bold (kotlin)",
+      "labelSize: TextUnit = 16.sp" in btn_kt
+      and "else labelSize" in btn_kt
+      and "else FontWeight.Bold" in btn_kt)
+check("button label 16 bold (swift)",
+      "var labelSize: CGFloat = 16" in btn_sw and "F.manrope(labelSize, .bold)" in btn_sw)
+check("button gap 8 (kotlin)", "spacedBy(8.dp" in btn_kt)
+check("button gap 8 (swift)", "HStack(spacing: 8)" in btn_sw)
 # CLAUDE.md: press scales to 0.98, 180ms, cubic-bezier(.22,1,.36,1)
-check("press 0.98 (kotlin)", "0.98f" in shell_kt)
-check("press 0.98 (swift)", "0.98" in shell_sw)
+check("press 0.98 (kotlin)", "0.98f" in btn_kt)
+check("press 0.98 (swift)", "0.98" in btn_sw)
 check("press 180ms (kotlin)", "180" in shell_kt)
 check("press 180ms (swift)", "0.18" in shell_sw)
-check("brand easing (kotlin)", "CubicBezierEasing(0.22f, 1f, 0.36f, 1f)" in shell_kt)
-check("brand easing (swift)", "timingCurve(0.22, 1, 0.36, 1" in shell_sw)
+check("brand easing (kotlin)", "CubicBezierEasing(0.22f, 1f, 0.36f, 1f)" in motion_kt)
+check("brand easing (swift)", "timingCurve(0.22, 1, 0.36, 1" in btn_sw)
 # sunset midpoint at 38%
 check("sunset 38% (kotlin)", "0.38f to Color(0xFFD05976)" in tok_kt)
-check("sunset 38% (swift)", "location: 0.38" in shell_sw)
+check("sunset 38% (swift)", "location: 0.38" in btn_sw)
 
 # ── wordmark ────────────────────────────────────────────────────────────────
 check("wordmark gradient not flat (kotlin)", "WordmarkStops" in shell_kt)
@@ -177,6 +198,19 @@ check("back chevron is 24 (kotlin)", "BrandIcon.ChevronLeft, 24.dp" in ver_kt)
 check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in ver_sw)
 check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in ver_kt)
 check("back chevron stroke 2 (swift)", "stroke: 2" in ver_sw)
+# The chevron's hit area comes from the shared floor now, not a hardcoded 44 in this screen.
+# 44 and not the tutorial's 48: that disagreement is recorded in TapTarget.kt and in
+# docs/design-system.md rather than resolved by quietly resizing a control.
+check("back chevron uses the shared tap floor (kotlin)", "minTapTarget()" in code_only(ver_kt))
+check("back chevron uses the shared tap floor (swift)", "minTapTarget()" in code_only(ver_sw))
+check("back chevron has no hardcoded floor (kotlin)", "size(44.dp)" not in code_only(ver_kt))
+check("back chevron has no hardcoded floor (swift)",
+      "width: 44, height: 44" not in code_only(ver_sw))
+# The chevron is a Canvas, so there is no text in this control for a screen reader to fall back
+# on: unlabelled, TalkBack announced "button" and nothing else while VoiceOver said "Back". A
+# parity gap that no layout test could see, because it renders identically either way.
+check("back control is labelled (kotlin)", 'contentDescription = "Back"' in code_only(ver_kt))
+check("back control is labelled (swift)", 'accessibilityLabel("Back")' in code_only(ver_sw))
 
 # The SHAPE, not just the name. Naming the right enum case proves nothing if that case draws the
 # wrong path -- and the two icons live three lines apart, which is exactly where a mis-paste lands.
@@ -195,10 +229,21 @@ check("the arrow still has its shaft (kotlin)",
 # screen-phone-reference.jsx uses <Eyebrow color="orange"> on both phone screens (lines 182, 440),
 # while the tutorial cards use lavender. Both platforms took lavender here, which is the component
 # default -- so the pill and its text came out purple on a screen the design paints orange.
-check("eyebrow uses the orange tone (kotlin)", "EyebrowOrangeBg" in ver_kt)
-check("eyebrow uses the orange tone (swift)", "liqEyebrowOrangeBg" in ver_sw)
-check("eyebrow text is orange (kotlin)", '"PHONE VERIFICATION", color = Orange' in ver_kt)
-check("eyebrow text is orange (swift)", ".foregroundColor(.liqOrange)" in ver_sw)
+# The tone is a StatusBadge variant now, so "this screen's eyebrow is orange" is TWO facts and
+# both are asserted: the orange tone is the token, and this screen asks for the orange tone.
+#
+# code_only on the primitive because it documents the very values it draws, and code_only on the
+# screens because each names the other platform's spelling in a comment.
+check("eyebrow orange tone is the token (kotlin)", "EyebrowOrangeBg" in code_only(badge_kt))
+check("eyebrow orange tone is the token (swift)", "liqEyebrowOrangeBg" in code_only(badge_sw))
+check("eyebrow orange label is Orange (kotlin)", "labelColor = Orange" in code_only(badge_kt))
+check("eyebrow orange label is Orange (swift)", "return .liqOrange" in code_only(badge_sw))
+check("143 eyebrow takes the orange tone (kotlin)",
+      'StatusBadge("Phone verification"' in code_only(ver_kt)
+      and "BadgeTone.Lavender" not in code_only(ver_kt))
+check("143 eyebrow takes the orange tone (swift)",
+      'StatusBadge(label: "Phone verification")' in code_only(ver_sw)
+      and "tone: .lavender" not in code_only(ver_sw))
 check("the lavender tone is not used here (kotlin)", "EyebrowBg" not in ver_kt)
 check("the lavender tone is not used here (swift)", "liqEyebrowBg)" not in ver_sw)
 # rgba(254,104,57,.12) and rgba(167,139,250,.16) -- two tokens, so neither screen can drift.
@@ -263,12 +308,31 @@ check("143 headline 38 (kotlin)", "fontSize = 38.sp" in ver_kt)
 check("143 headline 38 (swift)", "fontSize: 38" in ver_sw)
 check("143 sub 15 medium (kotlin)", "fontSize = 15.sp" in ver_kt)
 check("143 sub 15 medium (swift)", "manrope(15, .medium)" in ver_sw)
-check("143 field height 56 (kotlin)", "height(56.dp)" in ver_kt)
-check("143 field height 56 (swift)", "height: 56" in ver_sw)
+check("143 field height 56 (kotlin)", "height: Dp = 56.dp" in code_only(input_kt))
+check("143 field height 56 (swift)", "height: CGFloat = 56" in code_only(input_sw))
+# The value is nothing without the guarantee that the FIELD fills it -- the 23dp defect had a
+# 56dp box too. TapTargetTest/TapTargetTests measure it; these assert the mechanism is present.
+check("143 field fills its box (kotlin)", "fillMaxHeight()" in code_only(input_kt))
+check("143 field fills its box (swift)",
+      "frame(maxHeight: .infinity)" in code_only(input_sw))
 check("143 field radius 14 (kotlin)", "RoundedCornerShape(14.dp)" in ver_kt)
 check("143 field radius 14 (swift)", "cornerRadius: 14" in ver_sw)
-check("143 border 1.5 (kotlin)", "1.5.dp" in ver_kt)
-check("143 border 1.5 (swift)", "lineWidth: 1.5" in ver_sw)
+check("143 field border 1.5 (kotlin)", "1.5.dp, outline, shape" in code_only(input_kt))
+check("143 field border 1.5 (swift)", "lineWidth: 1.5" in code_only(input_sw))
+check("143 slot border 1.5 (kotlin)", "1.5.dp" in code_only(ver_kt))
+check("143 slot border 1.5 (swift)", "lineWidth: 1.5" in code_only(ver_sw))
+# BOTH fields declare what they hold, on BOTH platforms. iOS had done this since the screens were
+# written and Android had done it on neither, which is a difference no screenshot shows and no
+# layout test measures -- so it survived every check there was until 8 September 2026.
+#
+# code_only throughout: each platform's source names the OTHER platform's spelling in a comment, so
+# raw text would let the note about the hint stand in for the hint.
+check("143 phone field autofill (kotlin)",
+      "contentType = FieldContent.PhoneNumber" in code_only(ver_kt))
+check("143 phone field autofill (swift)",
+      "textContentType = .telephoneNumber" in code_only(phone_sw))
+check("143 code field autofill (kotlin)", "FieldContent.SmsCode" in code_only(ver_kt))
+check("143 code field autofill (swift)", "textContentType(.oneTimeCode)" in code_only(ver_sw))
 # A/B reserves TWO lines, pinned, not one as a minimum. Every message names the country and wraps;
 # reserving one line let the CTA drop 15.7pt on rejection, measured on an iPhone 17 Pro.
 # The two numbers differ on purpose and the reasoning is at both sites: Compose sets lineHeight
@@ -339,8 +403,8 @@ for label, src in [("kotlin", flag_kt), ("swift", flag_sw)]:
 # register and date now" -- and from the PNG, which wins on nothing. Narrative text in a user story
 # is not a button label. This is the third time copy has been lifted from the wrong section of a
 # ticket in this flow; the other two were the phone error messages and the eyebrow tone.
-check("140 CTA tappable (kotlin)", "PillButton(\"Create free account\"" in start_kt)
-check("140 CTA tappable (swift)", "PillButton(\"Create free account\"" in start_sw)
+check("140 CTA tappable (kotlin)", "PrimaryButton(\"Create free account\"" in start_kt)
+check("140 CTA tappable (swift)", "PrimaryButton(\"Create free account\"" in start_sw)
 check("140 Log in tappable (kotlin)", "onClick = onLogin" in start_kt)
 check("140 Log in tappable (swift)", "Button(action: onLogin)" in start_sw)
 for target in ("onTerms", "onPrivacy", "onLegalNotice"):
