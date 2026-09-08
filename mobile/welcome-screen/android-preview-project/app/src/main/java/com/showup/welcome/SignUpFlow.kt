@@ -117,6 +117,16 @@ fun SignUpFlow(
     var country by rememberSaveable(stateSaver = CountrySaver) {
         mutableStateOf(DEFAULT_COUNTRY)
     }
+    /**
+     * Whether the locale default below has already had its one turn.
+     *
+     * Saved, and that is the entire point. `CountrySaver` restored the country correctly and the
+     * locale effect then overwrote it on the next composition, so a country the user had picked
+     * survived a rotation but not a process death -- a saver that worked and was undone one line
+     * later. The flag cannot be derived from `country` itself: the initial value is
+     * [DEFAULT_COUNTRY] and "restored Germany" is indistinguishable from "has not chosen yet".
+     */
+    var localeDefaultApplied by rememberSaveable { mutableStateOf(false) }
     var phoneDigits by rememberSaveable { mutableStateOf("") }
     var phoneError by rememberSaveable { mutableStateOf<PhoneError?>(null) }
     var showCountrySheet by rememberSaveable { mutableStateOf(false) }
@@ -160,11 +170,19 @@ fun SignUpFlow(
 
     // The country pill defaults from device locale — SHOWUP-143 asks for exactly this, and the
     // region the platform reports is the same ISO key the table is built on.
+    //
+    // ONCE. LaunchedEffect(Unit) runs again on a fresh composition, which is exactly what a process
+    // death produces, so unguarded this ran after the state had been restored and replaced the
+    // user's choice with the locale's. First launch is unchanged: the flag starts false, the
+    // default is applied, and nothing about SHOWUP-143's behaviour moves.
     val configuration = LocalConfiguration.current
     LaunchedEffect(Unit) {
-        @Suppress("DEPRECATION")
-        val region = configuration.locales.get(0)?.country
-        country = countryForRegion(region)
+        if (!localeDefaultApplied) {
+            @Suppress("DEPRECATION")
+            val region = configuration.locales.get(0)?.country
+            country = countryForRegion(region)
+            localeDefaultApplied = true
+        }
     }
 
     // One ticking clock for the resend. Restarts whenever the cooldown is reset.

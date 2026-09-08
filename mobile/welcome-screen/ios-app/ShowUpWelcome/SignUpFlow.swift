@@ -384,8 +384,11 @@ struct SignUpFlowView: View {
             //
             // Only when nothing was stored. Unguarded, this runs on a restore too and overwrites
             // the country the user picked, which would make storing it pointless -- a saved value
-            // that is always immediately replaced. Android's LaunchedEffect(Unit) has the same
-            // shape and therefore the same latent defect; it is flagged rather than changed here.
+            // that is always immediately replaced.
+            //
+            // Android's LaunchedEffect(Unit) had the same shape and the same defect: CountrySaver
+            // restored the country and the effect replaced it one line later. Guarded there too
+            // now, with `localeDefaultApplied`, and covered by CountryRestorationTest.
             if countryISO.isEmpty {
                 countryISO = countryForRegion(Locale.current.region?.identifier).iso
             }
