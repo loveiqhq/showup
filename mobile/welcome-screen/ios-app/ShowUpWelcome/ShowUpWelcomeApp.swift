@@ -59,23 +59,36 @@ private struct SlideFade: ViewModifier {
 }
 
 private struct TutorialFlow: View {
-    // Negative ids are the pre-account flow, positive ones the tutorial. The demo opens
-    // where a real first run opens: Startup.
-    @State private var screen = -4
+    // SceneStorage, not State: a process death mid-tutorial should not silently drop the user back
+    // to card 1. Android has survived this since it was written, because rememberSaveable is the
+    // default idiom there; iOS had no restoration at all.
+    //
+    // Scene-scoped and NOT @AppStorage on purpose. This is where the user is right now, not a
+    // preference -- @AppStorage would still be holding a half-finished tutorial position weeks
+    // later, and would restore it into a scene that had been properly closed.
+    @SceneStorage("flow.screen") private var screenRaw: String = FlowScreen.signUp.rawValue
+    private var screen: FlowScreen { FlowScreen(rawValue: screenRaw) ?? .signUp }
+
+    // Transition direction only. Deliberately NOT restored: there is no animation on a relaunch,
+    // so the value it would restore describes a movement that is not happening.
     @State private var forward = true
+
     // Kept only so the placeholder home screen can name the rule that sent the user there, which
-    // is what makes SHOWUP-146 demonstrable. Not product state.
-    @State private var outcome: SignUpOutcome = .newAccount
+    // is what makes SHOWUP-146 demonstrable. Not product state, but it has to survive with the
+    // screen or Home restores describing the wrong route.
+    @SceneStorage("flow.outcome") private var outcomeRaw: String = SignUpOutcome.newAccount.storageKey
+    private var outcome: SignUpOutcome { SignUpOutcome(storageKey: outcomeRaw) ?? .newAccount }
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
-    private func go(to next: Int) {
+    private func go(to next: FlowScreen) {
         forward = next > screen
         if reduceMotion {
-            screen = next
+            screenRaw = next.rawValue
         } else {
-            withAnimation(.easeInOut(duration: Motion.screen)) { screen = next }
+            withAnimation(.easeInOut(duration: Motion.screen)) { screenRaw = next.rawValue }
         }
     }
 
@@ -93,32 +106,42 @@ private struct TutorialFlow: View {
     var body: some View {
         ZStack {
             Group {
+                // Exhaustive on purpose. ShowUpEveryTime used to be the `default:` branch, which
+                // meant any unexpected value rendered card 6; every screen is named now and the
+                // compiler fails if one is added and not handled here.
                 switch screen {
                 // Welcome & sign-up (SHOWUP-140/142/143/144) runs before the tutorial,
                 // which is the real order: you sign up, then you are shown how it works.
                 // SignUpFlowView owns every step and every piece of state inside it.
                 // SHOWUP-146, the whole ticket in one line: the tutorial for a new account,
                 // straight into the app for a returning member.
-                case -4: SignUpFlowView(onFinished: { o in
-                    outcome = o
-                    go(to: showsTutorial(o) ? 1 : 7)
+                case .signUp: SignUpFlowView(onFinished: { o in
+                    outcomeRaw = o.storageKey
+                    go(to: showsTutorial(o) ? .tutorialWelcome : .home)
                 })
-                case 1: WelcomeView(onContinue: { go(to: 2) })
-                case 2: MeetInRealLifeView(onNext: { go(to: 3) })
-                case 3: MatchOnAvailabilityView(onNext: { go(to: 4) }, onBack: { go(to: 2) })
-                case 4: MatchMeansMeetView(onNext: { go(to: 5) }, onBack: { go(to: 3) })
-                case 5: ThirtyMinutesView(onNext: { go(to: 6) }, onBack: { go(to: 4) })
-                case 7: HomePlaceholderView(outcome: outcome, onStartOver: { go(to: -4) })
-                default: ShowUpEveryTimeView(
+                case .tutorialWelcome: WelcomeView(onContinue: { go(to: .meetInRealLife) })
+                case .meetInRealLife: MeetInRealLifeView(onNext: { go(to: .matchOnAvailability) })
+                case .matchOnAvailability:
+                    MatchOnAvailabilityView(onNext: { go(to: .matchMeansMeet) },
+                                            onBack: { go(to: .meetInRealLife) })
+                case .matchMeansMeet:
+                    MatchMeansMeetView(onNext: { go(to: .thirtyMinutes) },
+                                       onBack: { go(to: .matchOnAvailability) })
+                case .thirtyMinutes:
+                    ThirtyMinutesView(onNext: { go(to: .showUpEveryTime) },
+                                      onBack: { go(to: .matchMeansMeet) })
+                case .showUpEveryTime: ShowUpEveryTimeView(
                     // SHOWUP-146: the far end of the tutorial is the app, not the tour again.
-                    onFinish: { go(to: 7) },
-                    onBack: { go(to: 5) })
+                    onFinish: { go(to: .home) },
+                    onBack: { go(to: .thirtyMinutes) })
+                case .home:
+                    HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
                 }
             }
             // .id is what makes SwiftUI treat each card as a distinct view and therefore run the
             // insertion/removal pair. Without it the switch mutates one view in place and nothing
             // transitions.
-            .id(screen)
+            .id(screen.rawValue)
             .transition(transition)
         }
     }

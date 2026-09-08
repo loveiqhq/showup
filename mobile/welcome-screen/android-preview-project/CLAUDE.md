@@ -130,9 +130,20 @@ take values and lambdas. This is the rule; MVVM is the name people give it.
 
 ## Navigation
 
-Routing today is a `Step` enum in `SignUpFlow`, deliberate and testable for one linear flow. **Adopt
-Navigation Compose before adding a flow with deep links, a restorable back stack, or a screen
-reachable from two places.** Do not add a second hand-rolled router.
+Routing today is a `Step` enum in `SignUpFlow` and a `FlowScreen` enum in `MainActivity` --
+deliberate, typed, and testable for one linear flow. Do not add a second hand-rolled router.
+
+**Adopt Navigation Compose at the first of these, and not before:** a deep link, a screen reachable
+from two places, or the profile/discovery flows. Re-audited 8 September 2026 and confirmed as the
+right call for now -- see `docs/mobile-client-architecture-spike.md` 1.5.1.
+
+**When it triggers, migrate the SHELL only first** -- `MainActivity`'s `when(screen)` becomes a
+`NavHost`; `SignUpFlow` stays one destination keeping its own `Step`. A full per-screen migration
+needs a requirement that clearly demands it, because of the rule below.
+
+**A screen takes values and returns pixels. It never receives a `NavController`.** That single
+property is what makes `ScreenFitTest` at 17 sizes and 74 previews possible; a nav-graph migration
+erodes it by default rather than by decision.
 
 ## Screen requirements
 

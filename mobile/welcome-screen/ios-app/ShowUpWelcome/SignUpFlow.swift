@@ -34,7 +34,7 @@ enum DevAuth {
 }
 
 /// Where the user is. One flat enum — this flow has no nesting and no side routes.
-private enum Step { case startup, welcomeBack, phone, code, connect }
+private enum Step: String { case startup, welcomeBack, phone, code, connect }
 
 /// What the device remembers about the last person to sign in on it.
 ///
@@ -60,22 +60,60 @@ struct SignUpFlowView: View {
     /// whether or not analytics is switched on -- which is also what makes it testable.
     var analytics: any AnalyticsTracking = NoOpAnalytics()
 
-    @State private var step: Step
-    @State private var country: Country = DEFAULT_COUNTRY
-    @State private var phoneDigits = ""
-    @State private var phoneError: PhoneError?
-    @State private var showCountrySheet = false
+    // ── restored with the scene ──────────────────────────────────────────────
+    //
+    // SceneStorage, not State: backgrounded on the code screen and killed, this flow used to come
+    // back at Startup with an empty field. Android has survived that since it was written --
+    // rememberSaveable is the default idiom there -- and iOS had no restoration at all.
+    //
+    // Scene-scoped and NOT @AppStorage, deliberately. This is where the user is right now, not a
+    // preference: @AppStorage would restore a half-typed phone number into a scene that had been
+    // properly closed, weeks later.
+    //
+    // Keys are prefixed because SceneStorage is one flat namespace per scene, and two views
+    // storing under a bare "step" would silently share a value.
 
-    @State private var codeDigits = ""
-    @State private var codeMismatch = false
-    @State private var cooldown = DevAuth.resendCooldown
+    @SceneStorage("signup.step") private var stepRaw: String = ""
+    @SceneStorage("signup.entry") private var entryRaw: String = ""
+    @SceneStorage("signup.countryISO") private var countryISO: String = ""
+    @SceneStorage("signup.phoneDigits") private var phoneDigits: String = ""
+    @SceneStorage("signup.codeDigits") private var codeDigits: String = ""
+    @SceneStorage("signup.codeMismatch") private var codeMismatch: Bool = false
+    @SceneStorage("signup.cooldown") private var cooldown: Int = DevAuth.resendCooldown
 
-    @State private var account: RememberedAccount?
+    /// The three derived values. A `@SceneStorage` default cannot be computed, and two of these
+    /// depend on `remembered` -- so the empty string means "nothing stored yet" and the fallback
+    /// is exactly the initial value the initialiser used to set.
+    private var step: Step {
+        Step(rawValue: stepRaw) ?? (remembered != nil ? .welcomeBack : .startup)
+    }
 
     /// SHOWUP-146. Which door the user came through decides, at the far end, whether they are
     /// shown the tutorial. A launch straight onto Welcome back is a log-in by definition -- the
     /// device would not remember anyone otherwise.
-    @State private var entry: Entry
+    private var entry: Entry {
+        Entry(storageKey: entryRaw) ?? (remembered != nil ? .logIn : .createAccount)
+    }
+
+    /// Stored as an ISO code, which is what Android's `CountrySaver` writes too.
+    private var country: Country {
+        countryISO.isEmpty ? DEFAULT_COUNTRY : countryForRegion(countryISO)
+    }
+
+    /// Every step change goes through here, so the raw value is the only thing that is written and
+    /// the nine call sites still read as `go(to: .phone)`.
+    private func go(to next: Step) { stepRaw = next.rawValue }
+
+    // ── not restored, on purpose ─────────────────────────────────────────────
+    //
+    // A stale validation error and a re-opened modal are both worse than their absence: the error
+    // describes an edit the user may not have finished, and a sheet restoring itself is a screen
+    // the user never chose to open. Android does save `phoneError` and `showCountrySheet`; that
+    // divergence is deliberate and recorded in the architecture notes.
+    @State private var phoneError: PhoneError?
+    @State private var showCountrySheet = false
+
+    @State private var account: RememberedAccount?
 
     init(remembered: RememberedAccount? = nil,
          onFinished: @escaping (SignUpOutcome) -> Void = { _ in },
@@ -83,9 +121,9 @@ struct SignUpFlowView: View {
         self.remembered = remembered
         self.onFinished = onFinished
         self.onOpenLegal = onOpenLegal
-        _step = State(initialValue: remembered != nil ? .welcomeBack : .startup)
+        // step and entry are no longer seeded here: they are scene-backed, and their fallbacks
+        // reproduce exactly what these two lines used to set.
         _account = State(initialValue: remembered)
-        _entry = State(initialValue: remembered != nil ? .logIn : .createAccount)
     }
 
     /// The number as it is shown back to the user on the code screen.
@@ -97,8 +135,8 @@ struct SignUpFlowView: View {
     /// Tracking-only state. SHOWUP-143 wants the attempt number on a failed verify and whether a
     /// resend followed a mismatch; neither is derivable from the view's own state, because the
     /// mismatch flag clears the moment the user edits a digit.
-    @State private var verifyAttempts = 0
-    @State private var lastVerifyFailed = false
+    @SceneStorage("signup.verifyAttempts") private var verifyAttempts: Int = 0
+    @SceneStorage("signup.lastVerifyFailed") private var lastVerifyFailed: Bool = false
 
     /// Reports an event built by the SignUpAnalytics catalogue.
     private func track(_ pair: (String, [String: any Sendable])) {
@@ -134,13 +172,13 @@ struct SignUpFlowView: View {
                 StartupView(
                     onCreateAccount: {
                         analytics.track(SignUpAnalytics.createAccountTapped, properties: [:])
-                        entry = .createAccount
-                        step = .phone
+                        entryRaw = Entry.createAccount.storageKey
+                        go(to: .phone)
                     },
                     onLogin: {
                         analytics.track(SignUpAnalytics.logInTapped, properties: [:])
-                        entry = .logIn
-                        step = .welcomeBack
+                        entryRaw = Entry.logIn.storageKey
+                        go(to: .welcomeBack)
                     },
                     onTerms: {
                         track(SignUpAnalytics.legalLinkTapped(
@@ -191,9 +229,9 @@ struct SignUpFlowView: View {
                             // Reaching this screen at all means logging in, whether the user
                             // tapped "Log in" on Startup or the app opened here on a remembered
                             // device.
-                            entry = .logIn
+                            entryRaw = Entry.logIn.storageKey
                             phoneError = nil
-                            step = .phone
+                            go(to: .phone)
                         }
                     },
                     onGetHelp: {
@@ -206,7 +244,7 @@ struct SignUpFlowView: View {
                     onUseDifferentAccount: {
                         analytics.track(SignUpAnalytics.useDifferentAccountTapped, properties: [:])
                         account = nil
-                        step = .startup
+                        go(to: .startup)
                     },
                     onLegal: {
                         track(SignUpAnalytics.legalLinkTapped(
@@ -235,7 +273,7 @@ struct SignUpFlowView: View {
                     ),
                     country: country,
                     error: phoneError,
-                    onBack: { step = .startup },
+                    onBack: { go(to: .startup) },
                     onSubmit: {
                         analytics.track(SignUpAnalytics.phoneSubmitted, properties: [:])
                         let problem = validate(phoneDigits, country)
@@ -252,7 +290,7 @@ struct SignUpFlowView: View {
                             codeDigits = ""
                             codeMismatch = false
                             cooldown = DevAuth.resendCooldown
-                            step = .code
+                            go(to: .code)
                         }
                     },
                     onOpenCountryList: { showCountrySheet = true }
@@ -272,7 +310,7 @@ struct SignUpFlowView: View {
                     cooldownSeconds: cooldown,
                     // Back and "Edit phone number" are the same journey, so they behave
                     // identically: return to A with the number intact, per SHOWUP-143.
-                    onBack: { step = .phone },
+                    onBack: { go(to: .phone) },
                     onVerify: {
                         analytics.track(SignUpAnalytics.codeSubmitted, properties: [:])
                         verifyAttempts += 1
@@ -284,7 +322,7 @@ struct SignUpFlowView: View {
                             if entry == .logIn {
                                 onFinished(outcomeOf(entry, nil))
                             } else {
-                                step = .connect
+                                go(to: .connect)
                             }
                         } else {
                             codeMismatch = true
@@ -310,7 +348,7 @@ struct SignUpFlowView: View {
                     },
                     onEditNumber: {
                         analytics.track(SignUpAnalytics.editPhoneTapped, properties: [:])
-                        step = .phone
+                        go(to: .phone)
                     }
                 )
 
@@ -330,7 +368,7 @@ struct SignUpFlowView: View {
             CountrySheet(
                 current: country,
                 onPick: {
-                    country = $0
+                    countryISO = $0.iso
                     // The old number was validated against the old country's rules, so the verdict
                     // no longer means anything. Clearing it is honest; keeping it would show an
                     // error naming the wrong country.
@@ -343,7 +381,14 @@ struct SignUpFlowView: View {
         .onAppear {
             // The country pill defaults from device locale — SHOWUP-143 asks for exactly this, and
             // the region the platform reports is the same ISO key the table is built on.
-            country = countryForRegion(Locale.current.region?.identifier)
+            //
+            // Only when nothing was stored. Unguarded, this runs on a restore too and overwrites
+            // the country the user picked, which would make storing it pointless -- a saved value
+            // that is always immediately replaced. Android's LaunchedEffect(Unit) has the same
+            // shape and therefore the same latent defect; it is flagged rather than changed here.
+            if countryISO.isEmpty {
+                countryISO = countryForRegion(Locale.current.region?.identifier).iso
+            }
             // The first screenview. onChange does not fire for the initial value, so without this
             // the funnel would be missing its entry step -- and a funnel missing its first step
             // reads as though nobody ever started.
