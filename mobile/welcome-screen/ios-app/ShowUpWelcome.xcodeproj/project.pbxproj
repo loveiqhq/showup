@@ -58,13 +58,14 @@
 		FEED00000000000000000077 /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006F /* Manrope-Medium.ttf */; };
 		FEED00000000000000000078 /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000070 /* Manrope-SemiBold.ttf */; };
 		FEED00000000000000000016 /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* Flags */; };
-		FEED000000000000000000A8 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A1 /* APIAccessTests.swift */; };
-		FEED000000000000000000A9 /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A2 /* CrashesTests.swift */; };
-		FEED000000000000000000AA /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A3 /* FlowScreenTests.swift */; };
-		FEED000000000000000000AB /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A4 /* PhoneValidationTests.swift */; };
-		FEED000000000000000000AC /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A5 /* ScreenFitTests.swift */; };
-		FEED000000000000000000AD /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A6 /* TapTargetTests.swift */; };
-		FEED000000000000000000AE /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A7 /* TutorialRoutingTests.swift */; };
+		FEED000000000000000000A9 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A1 /* APIAccessTests.swift */; };
+		FEED000000000000000000AA /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A2 /* CrashesTests.swift */; };
+		FEED000000000000000000AB /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A3 /* FlowScreenTests.swift */; };
+		FEED000000000000000000AC /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A4 /* PhoneValidationTests.swift */; };
+		FEED000000000000000000AD /* ProfileAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A5 /* ProfileAnalyticsTests.swift */; };
+		FEED000000000000000000AE /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A6 /* ScreenFitTests.swift */; };
+		FEED000000000000000000AF /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A7 /* TapTargetTests.swift */; };
+		FEED000000000000000000B0 /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A8 /* TutorialRoutingTests.swift */; };
 		FEED00000000000000000085 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000084 /* PhoneNumberKit */; };
 		FEED0000000000000000008A /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000089 /* ShowUpAPI */; };
 		FEED0000000000000000008F /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000008E /* Sentry */; };
@@ -137,9 +138,10 @@
 		FEED000000000000000000A2 /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
 		FEED000000000000000000A3 /* FlowScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreenTests.swift; sourceTree = "<group>"; };
 		FEED000000000000000000A4 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A5 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A6 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A7 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A5 /* ProfileAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalyticsTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A6 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A7 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A8 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
 		FEED0000000000000000007A /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -256,9 +258,10 @@
 				FEED000000000000000000A2 /* CrashesTests.swift */,
 				FEED000000000000000000A3 /* FlowScreenTests.swift */,
 				FEED000000000000000000A4 /* PhoneValidationTests.swift */,
-				FEED000000000000000000A5 /* ScreenFitTests.swift */,
-				FEED000000000000000000A6 /* TapTargetTests.swift */,
-				FEED000000000000000000A7 /* TutorialRoutingTests.swift */,
+				FEED000000000000000000A5 /* ProfileAnalyticsTests.swift */,
+				FEED000000000000000000A6 /* ScreenFitTests.swift */,
+				FEED000000000000000000A7 /* TapTargetTests.swift */,
+				FEED000000000000000000A8 /* TutorialRoutingTests.swift */,
 			);
 			path = ShowUpWelcomeTests;
 			sourceTree = "<group>";
@@ -470,13 +473,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED000000000000000000A8 /* APIAccessTests.swift in Sources */,
-				FEED000000000000000000A9 /* CrashesTests.swift in Sources */,
-				FEED000000000000000000AA /* FlowScreenTests.swift in Sources */,
-				FEED000000000000000000AB /* PhoneValidationTests.swift in Sources */,
-				FEED000000000000000000AC /* ScreenFitTests.swift in Sources */,
-				FEED000000000000000000AD /* TapTargetTests.swift in Sources */,
-				FEED000000000000000000AE /* TutorialRoutingTests.swift in Sources */,
+				FEED000000000000000000A9 /* APIAccessTests.swift in Sources */,
+				FEED000000000000000000AA /* CrashesTests.swift in Sources */,
+				FEED000000000000000000AB /* FlowScreenTests.swift in Sources */,
+				FEED000000000000000000AC /* PhoneValidationTests.swift in Sources */,
+				FEED000000000000000000AD /* ProfileAnalyticsTests.swift in Sources */,
+				FEED000000000000000000AE /* ScreenFitTests.swift in Sources */,
+				FEED000000000000000000AF /* TapTargetTests.swift in Sources */,
+				FEED000000000000000000B0 /* TutorialRoutingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
