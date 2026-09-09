@@ -32,6 +32,10 @@ extension Color {
     static let liqRaised     = Color(hex: 0xF7F2FA)                  // --liq-bg-raised, the notice
     static let liqBorderSoft = Color(hex: 0x1D1129).opacity(0.06)    // --liq-border-soft
     static let liqSuccess    = Color(hex: 0x00AB55)                  // --liq-success, the badge
+    /// `--liq-success-fg`. A DIFFERENT value from `liqSuccess`, not a shade of it: #00AB55 is
+    /// the badge fill, #0A7A47 the darker ink for a success glyph on a light ground. The
+    /// profile email screen's helper tick is the first use; only the badge one had been ported.
+    static let liqSuccessFg  = Color(hex: 0x0A7A47)                  // --liq-success-fg
     static let liqMuted      = Color(hex: 0x1D1129).opacity(0.62)    // --liq-fg-muted
     static let liqBorder     = Color(hex: 0x1D1129).opacity(0.12)    // --liq-border
     static let liqDanger     = Color(hex: 0xFB323B)                  // invalid borders, the ! glyph

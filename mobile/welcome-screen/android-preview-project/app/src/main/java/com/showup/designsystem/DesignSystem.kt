@@ -38,6 +38,15 @@ val Elevated = Color(0xFFFFFFFF)       // --liq-bg-elevated · input and slot fi
 val Raised = Color(0xFFF7F2FA)         // --liq-bg-raised   · raised chrome; the neutral notice
 val BorderSoft = Color(0x0F1D1129)     // --liq-border-soft · rgba(29,17,41,.06)
 val Success = Color(0xFF00AB55)        // --liq-success     · the connected badge
+/**
+ * --liq-success-fg. A DIFFERENT value from [Success], not a shade of it.
+ *
+ * #00AB55 is the badge fill; #0A7A47 is the darker ink used for a success GLYPH or label on
+ * a light ground, where the badge green does not carry enough contrast. The profile email
+ * screen's helper tick is the first use. Both are in the design system's CSS; only the badge
+ * one had been ported.
+ */
+val SuccessFg = Color(0xFF0A7A47)      // --liq-success-fg  · success glyphs on light ground
 val Muted = Color(0x9E1D1129)          // --liq-fg-muted    · rgba(29,17,41,.62)
 val Border = Color(0x1F1D1129)         // --liq-border      · rgba(29,17,41,.12)
 val Danger = Color(0xFFFB323B)         // --liq-danger      · invalid borders, the ! glyph

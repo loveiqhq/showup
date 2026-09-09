@@ -29,6 +29,8 @@ import com.showup.welcome.ErrorKind
 import com.showup.welcome.PhoneError
 import com.showup.welcome.PhoneNumberScreen
 import com.showup.welcome.SignUpOutcome
+import com.showup.profile.ProfileEmailScreen
+import com.showup.profile.ProfileNameScreen
 import com.showup.welcome.StartupScreen
 import com.showup.welcome.VerifyCodeScreen
 import com.showup.welcome.WelcomeBackScreen
@@ -204,6 +206,30 @@ class ScreenFitTest {
     fun `the home placeholder, both outcomes`() {
         sweep("Home/new") { HomePlaceholderScreen(SignUpOutcome.NewAccount, {}) }
         sweep("Home/returning") { HomePlaceholderScreen(SignUpOutcome.ReturningMember, {}) }
+        assertClean()
+    }
+
+    // ── profile creation · "The basics" ─────────────────────────────────────
+
+    /**
+     * SHOWUP-150 and SHOWUP-152, every state.
+     *
+     * The error states are the ones worth sweeping: on name the status region is RESERVED so
+     * nothing should move, and on email it deliberately is not, so the consent row and CTA shift
+     * ~18 lower. Both claims are about layout at every width, which is what this harness measures.
+     */
+    @Test
+    fun `profile basics, all states`() {
+        sweep("Profile/name empty") { ProfileNameScreen() }
+        sweep("Profile/name typed") { ProfileNameScreen(value = "Leo") }
+        sweep("Profile/name long") { ProfileNameScreen(value = "Maximiliane") }
+
+        sweep("Profile/email valid") { ProfileEmailScreen(value = "leo@hey.com") }
+        sweep("Profile/email invalid") { ProfileEmailScreen(value = "leo@hey") }
+        sweep("Profile/email empty") { ProfileEmailScreen() }
+        sweep("Profile/email consent on") {
+            ProfileEmailScreen(value = "leo@hey.com", consent = true)
+        }
         assertClean()
     }
 

@@ -88,6 +88,8 @@ private struct PressReporter: ButtonStyle {
 
 private struct NextCircle: View {
     let variant: NextVariant
+    /// Overrides the variant's default. See `NextButton.arrowSize`.
+    var arrowOverride: CGFloat? = nil
     @Environment(\.nextIsPressed) private var isPressed
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -107,8 +109,9 @@ private struct NextCircle: View {
         }
     }
     private var glow: Color { variant == .sunset ? .liqPurple : .liqOrange }
-    /// Card 05's arrow is 22; cards 01-04 use 20.
-    private var arrowSize: CGFloat { variant == .sunset ? 22 : 20 }
+    /// Card 05's arrow is 22; cards 01-04 use 20. The profile flow draws 22 with the ORANGE
+    /// circle, which the variant alone cannot express -- so it can be overridden.
+    private var arrowSize: CGFloat { arrowOverride ?? (variant == .sunset ? 22 : 20) }
 
     var body: some View {
         ZStack {
@@ -134,6 +137,15 @@ private struct NextCircle: View {
 struct NextButton: View {
     let label: String
     var variant: NextVariant = .orange
+    /**
+     Arrow size inside the circle.
+
+     Defaults to what the tutorial has always drawn — 22 on the terminal sunset card, 20 on the
+     rest — so nothing about those screens moves. It is a parameter because the profile flow's spec
+     draws 22 with the orange circle: arrow size and circle treatment turn out to be independent,
+     and coupling them was a coincidence of the tutorial being the only caller.
+     */
+    var arrowSize: CGFloat? = nil
     var action: () -> Void
 
     var body: some View {
@@ -142,7 +154,7 @@ struct NextButton: View {
                 Text(label)
                     .font(F.manrope(17, .bold))
                     .foregroundColor(.liqFg)
-                NextCircle(variant: variant)
+                NextCircle(variant: variant, arrowOverride: arrowSize)
             }
         }
         .buttonStyle(PressReporter())

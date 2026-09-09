@@ -195,6 +195,25 @@ final class ScreenFitTests: XCTestCase {
                 ("Code mismatch", try render(
                     VerifyCodeView(digits: .constant("482170"), mismatch: true), on: device)),
                 ("Tutorial card 1", try render(WelcomeView(), on: device)),
+                // Profile creation "The basics" — SHOWUP-150 / 152, every state.
+                //
+                // The email screen's error state is the one that matters: it is the only screen in
+                // the group that does NOT reserve its status region, so the consent row and CTA sit
+                // ~18 lower there. The acceptance test is that the CTA still clears the keyboard,
+                // and this harness is what would catch it stopping.
+                ("Profile name", try render(
+                    ProfileNameView(value: .constant("")), on: device)),
+                ("Profile name typed", try render(
+                    ProfileNameView(value: .constant("Leo")), on: device)),
+                ("Profile email", try render(
+                    ProfileEmailView(value: .constant("leo@hey.com"),
+                                     consent: .constant(false)), on: device)),
+                ("Profile email invalid", try render(
+                    ProfileEmailView(value: .constant("leo@hey"),
+                                     consent: .constant(false)), on: device)),
+                ("Profile email consent on", try render(
+                    ProfileEmailView(value: .constant("leo@hey.com"),
+                                     consent: .constant(true)), on: device)),
             ]
             for (label, image) in screens {
                 guard let rows = ctaRows(in: image) else {
