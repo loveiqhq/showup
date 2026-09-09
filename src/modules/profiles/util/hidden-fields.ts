@@ -37,6 +37,17 @@ export const HIDEABLE_FIELDS = ['age'] as const;
 
 export type HideableField = (typeof HIDEABLE_FIELDS)[number];
 
+/**
+ * Upper bound on a submitted array, as a payload guard rather than a vocabulary one.
+ *
+ * Deliberately NOT `HIDEABLE_FIELDS.length`. Duplicates are meaningless but harmless and are
+ * de-duplicated below, so a client that sends `["age","age"]` should get a 200 and one stored
+ * value -- binding the cap to the vocabulary size made that a 400, because the raw array is
+ * measured before anything is collapsed. Correctness is enforced by the allow-list; this number
+ * only stops an absurd payload, and sits far above the nine controls the registry ever plans.
+ */
+export const MAX_SUBMITTED_HIDDEN_FIELDS = 64;
+
 export function isHideableField(value: string): value is HideableField {
   return (HIDEABLE_FIELDS as readonly string[]).includes(value);
 }

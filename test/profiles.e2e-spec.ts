@@ -203,6 +203,16 @@ describe('Profiles (e2e)', () => {
       .expect(400);
   });
 
+  it('rejects an absurdly long array', async () => {
+    // The cap is a payload guard, not a vocabulary one, so it has to be asserted separately from
+    // the allow-list -- every entry here is a VALID value, and it is the length alone that fails.
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: Array(65).fill('age') })
+      .expect(400);
+  });
+
   it('de-duplicates a repeated value', async () => {
     const res = await request(server)
       .patch('/me/profile')

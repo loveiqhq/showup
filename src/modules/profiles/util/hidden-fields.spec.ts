@@ -1,5 +1,6 @@
 import {
   HIDEABLE_FIELDS,
+  MAX_SUBMITTED_HIDDEN_FIELDS,
   isHideableField,
   normaliseHiddenFields,
   unknownHiddenFields,
@@ -26,6 +27,15 @@ describe('hidden-fields', () => {
 
     it('has no duplicates', () => {
       expect(new Set(HIDEABLE_FIELDS).size).toBe(HIDEABLE_FIELDS.length);
+    });
+
+    it('the payload cap leaves room for duplicates of every allowed value', () => {
+      // Binding the cap to the vocabulary size made ["age","age"] a 400, because the raw array is
+      // measured before anything is de-duplicated. The cap has to sit above the vocabulary, not on
+      // it -- this is the assertion that would have caught that.
+      expect(MAX_SUBMITTED_HIDDEN_FIELDS).toBeGreaterThan(
+        HIDEABLE_FIELDS.length,
+      );
     });
   });
 

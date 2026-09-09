@@ -10,7 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-import { HIDEABLE_FIELDS } from '../util/hidden-fields';
+import { MAX_SUBMITTED_HIDDEN_FIELDS } from '../util/hidden-fields';
 
 /** Fields a user may set on their own profile (all optional; used by POST and PATCH). */
 export class UpsertProfileDto {
@@ -66,7 +66,7 @@ export class UpsertProfileDto {
   })
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(HIDEABLE_FIELDS.length)
+  @ArrayMaxSize(MAX_SUBMITTED_HIDDEN_FIELDS)
   @IsString({ each: true })
   hiddenFields?: string[];
 }
