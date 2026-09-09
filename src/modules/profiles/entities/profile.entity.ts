@@ -47,6 +47,23 @@ export class Profile {
   @Column({ name: 'is_visible', type: 'boolean', default: true })
   isVisible: boolean;
 
+  /**
+   * Registry `field_id`s the user has chosen not to display on their profile.
+   *
+   * NOT a variant of [isVisible]. That flag governs whether this profile appears in discovery at
+   * all; this set governs which values on a shown profile are rendered. Hiding a field never
+   * affects discovery eligibility or matching — a hidden age is still passed to the matching
+   * algorithm. See `util/hidden-fields.ts` for the allowed values and why this is one set rather
+   * than a boolean per field.
+   */
+  @Column({
+    name: 'hidden_fields',
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+  })
+  hiddenFields: string[];
+
   @Column({ name: 'is_complete', type: 'boolean', default: false })
   isComplete: boolean;
 

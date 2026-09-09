@@ -11,6 +11,10 @@ import { ProfilePhoto } from './entities/profile-photo.entity';
 import { Profile, ProfileVerificationStatus } from './entities/profile.entity';
 import { isAtLeast18 } from './util/age';
 import { isProfileComplete } from './util/completion';
+import {
+  normaliseHiddenFields,
+  unknownHiddenFields,
+} from './util/hidden-fields';
 import { VISIBLE_PHOTO_STATUSES } from './util/photo-visibility';
 
 @Injectable()
@@ -26,7 +30,11 @@ export class ProfilesService {
   async getOrCreate(userId: string): Promise<Profile> {
     const existing = await this.profiles.findOne({ where: { userId } });
     if (existing) return existing;
-    return this.profiles.save(this.profiles.create({ userId }));
+    // hiddenFields is defaulted DB-side; set it here too so a freshly created profile is not
+    // momentarily undefined in memory before it is read back.
+    return this.profiles.save(
+      this.profiles.create({ userId, hiddenFields: [] }),
+    );
   }
 
   /** Apply the provided fields to the user's profile (used by both POST and PATCH). */
@@ -42,7 +50,29 @@ export class ProfilesService {
     if (dto.displayName !== undefined) profile.displayName = dto.displayName;
     if (dto.gender !== undefined) profile.gender = dto.gender;
     if (dto.lookingFor !== undefined) profile.lookingFor = dto.lookingFor;
-    if (dto.isVisible !== undefined) profile.isVisible = dto.isVisible;
+    // `!= null` for the same reason as hiddenFields below: @IsOptional() lets an explicit null
+    // through, and is_visible is NOT NULL, so assigning it would fail at the database rather
+    // than at validation. Null is never a meaningful value for this flag.
+    if (dto.isVisible != null) profile.isVisible = dto.isVisible;
+
+    // Presentation only. Note what this branch does NOT do: it never reads or writes isVisible.
+    // Hiding a field must leave the user fully discoverable and matchable — a hidden age is still
+    // passed to matching. Rejecting unknown values here rather than storing them keeps the column
+    // readable: an unrecognised field_id would otherwise sit in the set forever, hiding nothing.
+    // `!= null`, not `!== undefined`: class-validator's @IsOptional() ignores null as well as
+    // undefined, so an explicit `"hiddenFields": null` reaches this line. Treating it as
+    // "not supplied" is the only safe reading — the alternative is normalising null and
+    // throwing. The other fields on this DTO share the looser exposure; see the note in the
+    // PR rather than a drive-by change to their behaviour here.
+    if (dto.hiddenFields != null) {
+      const unknown = unknownHiddenFields(dto.hiddenFields);
+      if (unknown.length > 0) {
+        throw new BadRequestException(
+          `Unknown hidden field(s): ${unknown.join(', ')}`,
+        );
+      }
+      profile.hiddenFields = normaliseHiddenFields(dto.hiddenFields);
+    }
 
     profile.isComplete = await this.computeComplete(userId, profile);
     return this.profiles.save(profile);
