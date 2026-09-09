@@ -38,7 +38,8 @@ class ShowUpApi(
      * that reads as a network problem rather than an expired session.
      */
     private val bareAuthApi: AuthApi by lazy {
-        ApiClient(baseUrl = baseUrl).createService(AuthApi::class.java)
+        ApiClient(baseUrl = baseUrl, converterFactories = ApiJson.converterFactories)
+            .createService(AuthApi::class.java)
     }
 
     private val refresher = TokenRefresher(tokens) { refreshToken ->
@@ -59,6 +60,9 @@ class ShowUpApi(
 
     private val client = ApiClient(
         baseUrl = baseUrl,
+        // Omits unset optionals rather than sending them as explicit nulls -- see ApiJson. Without
+        // this, any partial update wipes every field the caller did not set.
+        converterFactories = ApiJson.converterFactories,
         okHttpClientBuilder = OkHttpClient.Builder()
             // An application interceptor, not a network one: application interceptors run once per
             // call rather than once per network attempt, so a redirect or retry cannot produce a

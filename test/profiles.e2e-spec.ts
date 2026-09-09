@@ -97,6 +97,128 @@ describe('Profiles (e2e)', () => {
       .expect(400);
   });
 
+  // ── per-field visibility (SHOWUP-154) ──────────────────────────────────────
+  //
+  // The product decision these guard: hiding the age hides a VALUE. It must never make the user
+  // less discoverable or less matchable. isVisible is asserted in every one of these because the
+  // failure mode being prevented is someone "fixing" a missing field by reaching for that flag.
+
+  it('a profile starts with nothing hidden', async () => {
+    const res = await request(server)
+      .get('/me/profile')
+      .set('Authorization', bearer())
+      .expect(200);
+    expect(res.body.hiddenFields).toEqual([]);
+  });
+
+  it('checking the box hides age and leaves discovery visibility untouched', async () => {
+    const res = await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: ['age'] })
+      .expect(200);
+    expect(res.body.hiddenFields).toEqual(['age']);
+    expect(res.body.isVisible).toBe(true);
+  });
+
+  it('a hidden age is still returned on your own profile', async () => {
+    // The flag is presentation metadata for whoever renders someone else's profile, not redaction
+    // of your own data — and the age still reaches matching either way.
+    const res = await request(server)
+      .get('/me/profile')
+      .set('Authorization', bearer())
+      .expect(200);
+    expect(res.body.hiddenFields).toEqual(['age']);
+    expect(res.body.age).toBeGreaterThanOrEqual(18);
+  });
+
+  it('unchecking the box removes age again', async () => {
+    const res = await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: [] })
+      .expect(200);
+    expect(res.body.hiddenFields).toEqual([]);
+    expect(res.body.isVisible).toBe(true);
+  });
+
+  it('hiding a field does not change isVisible in either direction', async () => {
+    // Go invisible deliberately, then toggle the age flag both ways. isVisible must survive
+    // untouched, which is the assertion that would fail if the two were ever wired together.
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ isVisible: false })
+      .expect(200);
+
+    const hidden = await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: ['age'] })
+      .expect(200);
+    expect(hidden.body.isVisible).toBe(false);
+
+    const shown = await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: [] })
+      .expect(200);
+    expect(shown.body.isVisible).toBe(false);
+
+    // restore, so later tests see the default
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ isVisible: true })
+      .expect(200);
+  });
+
+  it('setting isVisible does not disturb the hidden set', async () => {
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: ['age'] })
+      .expect(200);
+    const res = await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ isVisible: true })
+      .expect(200);
+    expect(res.body.hiddenFields).toEqual(['age']);
+  });
+
+  it('rejects a field_id with no control behind it', async () => {
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: ['height'] })
+      .expect(400);
+  });
+
+  it('rejects isVisible smuggled in as a hidden field', async () => {
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: ['isVisible'] })
+      .expect(400);
+  });
+
+  it('de-duplicates a repeated value', async () => {
+    const res = await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: ['age', 'age'] })
+      .expect(200);
+    expect(res.body.hiddenFields).toEqual(['age']);
+
+    // leave the profile in its default state for the tests that follow
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ hiddenFields: [] })
+      .expect(200);
+  });
+
   it('POST /me/photos uploads a photo (moderation pending)', async () => {
     const res = await request(server)
       .post('/me/photos')

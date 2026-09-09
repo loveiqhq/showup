@@ -632,6 +632,16 @@
             "nullable": true,
             "type": "string"
           },
+          "hiddenFields": {
+            "description": "Registry field_ids the user has hidden from their profile. Presentation only — a hidden field does not affect discovery visibility or matching.",
+            "example": [
+              "age"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "id": {
             "type": "string"
           },
@@ -662,6 +672,7 @@
           "gender",
           "lookingFor",
           "isVisible",
+          "hiddenFields",
           "isComplete",
           "verificationStatus"
         ],
@@ -1053,6 +1064,16 @@
           },
           "gender": {
             "type": "string"
+          },
+          "hiddenFields": {
+            "description": "Registry field_ids the user does not want displayed on their profile. Replaces the whole set — send the full list, not a delta. Currently accepted: age. Does NOT affect discovery visibility or matching; use isVisible for that.",
+            "example": [
+              "age"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "isVisible": {
             "description": "Whether the profile is visible in discovery",

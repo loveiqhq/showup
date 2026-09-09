@@ -26,6 +26,19 @@ export class ProfileDto {
   @ApiProperty()
   isVisible: boolean;
 
+  /**
+   * Returned so a consumer rendering this profile knows which values to omit. Without it the age
+   * is on the wire and every renderer would have to guess.
+   */
+  @ApiProperty({
+    type: [String],
+    example: ['age'],
+    description:
+      'Registry field_ids the user has hidden from their profile. Presentation only — ' +
+      'a hidden field does not affect discovery visibility or matching.',
+  })
+  hiddenFields: string[];
+
   @ApiProperty()
   isComplete: boolean;
 
@@ -40,6 +53,7 @@ export class ProfileDto {
       gender: profile.gender,
       lookingFor: profile.lookingFor,
       isVisible: profile.isVisible,
+      hiddenFields: profile.hiddenFields ?? [],
       isComplete: profile.isComplete,
       verificationStatus: profile.verificationStatus,
     };
