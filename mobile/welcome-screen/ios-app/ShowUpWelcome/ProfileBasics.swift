@@ -117,7 +117,7 @@ struct ProfileNameView: View {
     }
 
     var body: some View {
-        BasicsScaffold(title: NameCopy.section, leading: .none) {
+        BasicsScaffold(title: NameCopy.section, leading: .none, content: {
             StepProgress(steps: 3, current: BasicsStep.name.progressSegment)
                 .padding(.bottom, 28)
 
@@ -157,14 +157,14 @@ struct ProfileNameView: View {
             .padding(.leading, 2)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.updatesFrequently)
-        } cta: {
+        }, cta: {
             HStack {
                 Spacer(minLength: 0)
                 // Orange, not sunset — these are routine screens. Arrow 22.
                 NextButton(label: NameCopy.cta, arrowSize: 22, action: submit)
             }
             .padding(.bottom, 18)
-        }
+        })
         .onAppear { focused = true }
     }
 }
@@ -196,7 +196,7 @@ struct ProfileEmailView: View {
     }
 
     var body: some View {
-        BasicsScaffold(title: EmailCopy.section, leading: .back, onBack: onBack) {
+        BasicsScaffold(title: EmailCopy.section, leading: .back, onBack: onBack, content: {
             StepProgress(steps: 3, current: BasicsStep.email.progressSegment)
                 .padding(.bottom, 18)
 
@@ -257,7 +257,7 @@ struct ProfileEmailView: View {
 
             MarketingOptIn(checked: $consent)
                 .padding(.top, 10)
-        } cta: {
+        }, cta: {
             HStack {
                 Spacer(minLength: 0)
                 NextButton(label: EmailCopy.cta, arrowSize: 22, action: submit)
@@ -265,7 +265,7 @@ struct ProfileEmailView: View {
             // 10, not name's 18 — the tight margin is what keeps the CTA clear of the keys in the
             // error state, where everything below the field sits ~18 lower.
             .padding(.bottom, 10)
-        }
+        })
     }
 }
 
