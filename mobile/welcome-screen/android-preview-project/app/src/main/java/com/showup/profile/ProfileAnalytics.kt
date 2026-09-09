@@ -1,40 +1,50 @@
 /*
  * ProfileAnalytics.kt
- * ShowUp · the events "The basics" emits, and the four that are BLOCKED
+ * ShowUp · the events "The basics" emits, and the two that are still BLOCKED
  *
  * Names and payloads come from design_handoff_showup/tracking/events.json, family D, and the
  * vocabularies from enums.json §11 (screen registry) and §2 (step_id). Nothing here is invented and
  * nothing is a literal at a call site -- which is the rule the tracking sections state twice.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * BLOCKED — four things are NOT decided, and are marked rather than guessed
+ * RESOLVED in registry 1.3.0 (9 September 2026)
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * B1 · consent_changed payload.  The ticket says the payload is `on: bool`. The registry defines
- *      THREE properties: channel ("call"|"calendar"|"push"|"whatsapp"|"sms"|"email"), on (bool),
- *      and surface (str) -- and the ticket also says "do not restate a payload the registry already
- *      defines", so the registry governs. But NO `surface` vocabulary exists anywhere in enums.json,
- *      and the registry's own trigger describes a different screen: "One of the six Stay reachable
- *      toggles changed ... surface separates the profile-creation screen from Settings".
- *      => [consentChanged] is written but NOT called. See the call site in ProfileEmailScreen.
+ * The design side re-exported the registry and rewrote the tracking sections. Four things that
+ * were blocked or corrupted are now settled, and are implemented here rather than worked around:
  *
- * B2 · referrer_screen_id.  screen_viewed gains it in the alignment brief's Step 3, which is not
- *      built. The property is accepted here and passed through as null until it is.
+ *   · consent_changed has a real vocabulary.  `surface` is now a closed enum
+ *     ("profile_creation"|"settings") and `channel` gained "marketing_email", which is a DIFFERENT
+ *     value from "email" -- the ticket is explicit that the marketing box, the later Stay reachable
+ *     email toggle and transactional mail are three uses of one address, told apart by the
+ *     vocabulary. The vocabulary reason for withholding [consentChanged] is gone; it now
+ *     carries the right channel and surface and fires in BOTH directions. Like all ten builders
+ *     here it still reaches no sink, because neither app has one -- that is brief Step 2 and its
+ *     own ticket, and it applies to every event equally rather than to this one.
  *
- * B3 · sensitivity_class + field_registry_version.  The brief's Step 2 requires both stamped at
+ *   · step_id and field_id are clean.  They previously carried a concatenated version badge
+ *     ("emailv1.2", "agev1.2"); the exporter was fixed. [BasicsStep.stepId] already used the clean
+ *     values and now agrees with the registry rather than merely with the ticket.
+ *
+ *   · step_index is populated.  §2 gives 1 / 2 / 2 / 3, which is exactly what
+ *     [BasicsStep.progressSegment] derives -- email_verify holding at 2 is now registry-backed.
+ *
+ *   · email_validation_failed rule="disposable" is decided: not implemented, and no detection is
+ *     being built. The ticket states that emitting it today would be a bug. "format" only.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * STILL BLOCKED — two, marked rather than guessed
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * B1 · referrer_screen_id, and screen_viewed's `last_used` / `state`.  The former arrives with the
+ *      alignment brief's Step 3, which is unbuilt. The latter two are in the registry's payload for
+ *      screen_viewed but named by no profile ticket, and the shipped code sends three properties.
+ *      Whether they are required on profile screens is an open question with the design side.
+ *
+ * B2 · sensitivity_class + field_registry_version.  The brief's Step 2 requires both stamped at
  *      EMIT time from the registry, failing closed to class 2 for an unknown field_id. That emitter
- *      does not exist. Profile creation is, in the brief's own words, "nothing but attribute
- *      events", so this is a real prerequisite -- see [Stamp].
- *
- * B4 · email_validation_failed rule="disposable".  The enum allows it; nothing specifies a list, a
- *      source or a behaviour. Only "format" is emitted.
- *
- * Two further notes for the design side, found while reading the registry:
- *   - enums.json §2 step_id values read "namev1.2", "emailv1.2", "email_verifyv1.2", "dobv1.2" --
- *     the version marker is concatenated into the value. Codegen would emit those verbatim.
- *   - enums.json §2 gives step_index as "—" for all four, so [BasicsStep.stepIndex] takes the
- *     ticket's numbers instead. The tracking note says never to use a literal; here there is
- *     nothing else to use.
+ *      does not exist in this repo. Profile creation is, in the brief's own words, "nothing but
+ *      attribute events", so this is a real prerequisite -- see [Stamp].
  */
 package com.showup.profile
 
@@ -67,6 +77,31 @@ object ValidationRule {
 }
 
 /**
+ * `channel` from enums.json §8.
+ *
+ * **`marketing_email` is not `email`.** One address, three uses, told apart by this vocabulary:
+ * this box governs marketing mail only; the `email` toggle on the later Stay reachable screen is a
+ * preference about being contacted regarding a match; transactional mail (the verification code,
+ * password resets, a support reply) has no consent to withdraw and is never tracked as one.
+ * Sending "email" here would file a marketing opt-in against the wrong channel.
+ */
+object ConsentChannel {
+    const val MARKETING_EMAIL = "marketing_email"
+}
+
+/**
+ * `surface` from enums.json §8 — which screen a consent was changed on.
+ *
+ * A closed pair as of registry 1.3.0. `PROFILE_CREATION` is the one-off ask inside the sign-up
+ * flow; `SETTINGS` is the same control revisited later. The distinction is what makes a consent
+ * record auditable, which is why the registry marks it required.
+ */
+object ConsentSurface {
+    const val PROFILE_CREATION = "profile_creation"
+    const val SETTINGS = "settings"
+}
+
+/**
  * The emit-time stamp every attribute event must carry.
  *
  * **BLOCKED (B3).** The brief requires `sensitivity_class` resolved from the registry at emit time,
@@ -80,7 +115,7 @@ object ValidationRule {
  */
 object Stamp {
     /** enums.json → registry_version at the time of writing. */
-    const val FIELD_REGISTRY_VERSION = "1.2.0"
+    const val FIELD_REGISTRY_VERSION = "1.3.0"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -177,15 +212,21 @@ object ProfileAnalytics {
         }
 
     /**
-     * T2, class 1. **BLOCKED (B1) — written, deliberately not called.**
+     * T2, class 1. Fires in **both** directions.
      *
-     * `surface` has no vocabulary in enums.json and the registry's trigger describes the Settings
-     * "Stay reachable" toggles rather than this row. Calling it with a guessed surface would put an
-     * unowned string into a consent record, which is the one payload where an invented value is
-     * least acceptable. The toggle works; only its event is withheld.
+     * Not opt-out only, unlike [fieldDisplayOptedOut]: a consent record has to show the withdrawal
+     * as well as the grant, or it cannot answer "was this person opted in on date X". The ticket
+     * states it outright -- "fires in both directions, never opt-out only".
+     *
+     * Unblocked by registry 1.3.0, which gave `surface` a closed vocabulary. Before that this was
+     * written and deliberately not called, because a guessed surface would have put an unowned
+     * string into a consent record.
      */
-    fun consentChanged(on: Boolean, surface: String) = CONSENT_CHANGED to buildMap {
-        put("channel", "email")
+    fun consentChanged(
+        on: Boolean,
+        surface: String = ConsentSurface.PROFILE_CREATION,
+    ) = CONSENT_CHANGED to buildMap {
+        put("channel", ConsentChannel.MARKETING_EMAIL)
         put("on", on)
         put("surface", surface)
         putAll(Stamp.of(1))

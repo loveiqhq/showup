@@ -1,5 +1,5 @@
 //  ProfileAnalytics.swift
-//  ShowUp · the events "The basics" emits, and the four that are BLOCKED
+//  ShowUp · the events "The basics" emits, and the two that are still BLOCKED
 //
 //  Names and payloads come from design_handoff_showup/tracking/events.json, family D, and the
 //  vocabularies from enums.json §11 (screen registry) and §2 (step_id). Nothing here is invented
@@ -68,6 +68,25 @@ enum ValidationRule {
     static let format = "format"
 }
 
+/// `channel` from enums.json §8.
+///
+/// **`marketing_email` is not `email`.** One address, three uses, told apart by this vocabulary:
+/// this box governs marketing mail only; the `email` toggle on the later Stay reachable screen is a
+/// preference about being contacted regarding a match; transactional mail has no consent to
+/// withdraw and is never tracked as one.
+enum ConsentChannel {
+    static let marketingEmail = "marketing_email"
+}
+
+/// `surface` from enums.json §8 — which screen a consent was changed on.
+///
+/// A closed pair as of registry 1.3.0. `profileCreation` is the one-off ask inside the sign-up
+/// flow; `settings` is the same control revisited later.
+enum ConsentSurface {
+    static let profileCreation = "profile_creation"
+    static let settings = "settings"
+}
+
 /// The emit-time stamp every attribute event must carry.
 ///
 /// **BLOCKED (B3).** The brief requires `sensitivity_class` resolved from the registry at emit
@@ -77,7 +96,7 @@ enum ValidationRule {
 /// brief says not to do long-term.
 enum Stamp {
     /// enums.json → registry_version at the time of writing.
-    static let fieldRegistryVersion = "1.2.0"
+    static let fieldRegistryVersion = "1.3.0"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
@@ -162,15 +181,19 @@ enum ProfileAnalytics {
         ].merging(Stamp.of(0)) { a, _ in a })
     }
 
-    /// T2, class 1. **BLOCKED (B1) — written, deliberately not called.**
+    /// T2, class 1. Fires in **both** directions.
     ///
-    /// `surface` has no vocabulary in enums.json and the registry's trigger describes the Settings
-    /// "Stay reachable" toggles rather than this row. Calling it with a guessed surface would put
-    /// an unowned string into a consent record, which is the one payload where an invented value is
-    /// least acceptable. The toggle works; only its event is withheld.
-    static func consentChanged(on: Bool, surface: String) -> (String, [String: any Sendable]) {
+    /// Not opt-out only, unlike `fieldDisplayOptedOut`: a consent record has to show the withdrawal
+    /// as well as the grant, or it cannot answer "was this person opted in on date X". The ticket
+    /// states it outright — "fires in both directions, never opt-out only".
+    ///
+    /// Unblocked by registry 1.3.0, which gave `surface` a closed vocabulary.
+    static func consentChanged(
+        on: Bool,
+        surface: String = ConsentSurface.profileCreation
+    ) -> (String, [String: any Sendable]) {
         (consentChangedName, [
-            "channel": "email", "on": on, "surface": surface,
+            "channel": ConsentChannel.marketingEmail, "on": on, "surface": surface,
         ].merging(Stamp.of(1)) { a, _ in a })
     }
 
