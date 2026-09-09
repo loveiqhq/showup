@@ -17,13 +17,18 @@ file in a subfolder would compile locally and be silently missing from the targe
 
 ## Colours
 
-21 named values, mapped to the `--liq-*` properties from the handoff, with the source token named in
-a comment on nearly every line. Unchanged by this work.
+21 named values per platform, mapped to the `--liq-*` properties from the handoff, with the source
+token named in a comment on nearly every line. One was added on 9 September 2026 — `SuccessFg`.
 
 `Cream` background · `Orange` accents · `Purple` progress and consequences · `Fg` primary text ·
-`Neutral` body · `Subtle` / `Muted` / `Faint` · `Elevated` / `Raised` surfaces · `Border` /
-`BorderSoft` · `Success` · `Danger` / `DangerFg` · `Lavender` · `EyebrowBg` / `EyebrowOrangeBg` ·
-plus the `SunsetStops` and `WordmarkStops` gradients.
+`Neutral` body · `Subtle` / `Muted` / `Faint` · `Track` · `Elevated` / `Raised` surfaces · `Border` /
+`BorderSoft` · `Success` / `SuccessFg` · `Danger` / `DangerFg` / `DangerDigit` · `Lavender` ·
+`EyebrowBg` / `EyebrowOrangeBg` · plus the `SunsetStops` and `WordmarkStops` gradients.
+
+**`Success` and `SuccessFg` are two different values, not a shade of one another.** `--liq-success`
+`#00AB55` is the badge fill; `--liq-success-fg` `#0A7A47` is the darker ink a success glyph needs on
+a light ground. Only the badge one had been ported until the profile email screen's helper tick
+needed the other. A ticket asking for "the success green" has to say which.
 
 **Fourteen raw colours stay hardcoded in screens, and must.** Seven per platform are Google's and
 Meta's sign-in marks; their branding rules specify exact values we are not permitted to re-theme, so
@@ -176,6 +181,15 @@ marks and the in-flight spinner.
 two-layer glow and a spring press on the circle alone — a different silhouette with its own spec
 sheet and twelve checks in `verify-spec.py`. Folding it into a pill would change six screens.
 
+It gained one parameter on 9 September 2026: **`arrowSize`**, defaulting to the variant's own value
+(22 for `Sunset`, 20 otherwise). The profile screens draw an orange `NextButton` with a 22 arrow,
+which no existing variant produced. A parameter on the primitive was the alternative to a second
+button, which is the mistake this section exists to record.
+
+**The profile screens' CTA is `NextButton`, not `PrimaryButton`** — the spec sheet draws a label
+beside a circular arrow, which is `NextButton`'s silhouette. Worth stating in a ticket, because
+"primary button" in prose means the pill.
+
 ## InputField and FieldChrome
 
 **What was duplicated was the chrome, not the input.** There is only one text input in the app. The
@@ -248,6 +262,106 @@ screens are in PO Acceptance. Neither difference is drift; both need a design ru
 
 The slot contrast is the one with a correct answer — 1.28:1 fails WCAG for a non-text control
 boundary — but changing it alters a screen in PO Acceptance, so it is raised rather than taken.
+
+## FloatingField
+
+Added 9 September 2026 for the profile flow. `designsystem/FloatingField.kt` and, on iOS,
+`FloatingField.swift`.
+
+An outlined 64-tall input whose label rides up and **notches the border** when the field is focused
+or non-empty. Valid and error states each get an affordance in the trailing slot.
+
+| | Android | iOS |
+|---|---|---|
+| Value | `value` + `onValueChange` | `@Binding var value` |
+| Label / placeholder | `label`, `placeholder` | same |
+| States | `valid`, `error` | same |
+| Keyboard | `keyboardType`, `capitalization`, `imeAction` | `keyboard`, `capitalization` |
+| Autofill | via `Modifier.autofill` | `contentType: UITextContentType?` |
+| Submit | `onSubmit` | `onSubmit` |
+| Focus | `focusRequester` | `@FocusState` internal |
+
+`label` is not optional on either platform. An input with no accessibility label is a control
+VoiceOver and TalkBack cannot name.
+
+### Why this is not `InputField`
+
+They share a rounded outlined box and nothing else. `InputField` is 56 tall, has a placeholder and
+no label of its own, and exists to make the control fill its box. `FloatingField` is 64, carries a
+label that cuts the stroke, and has valid/error affordances the phone field never has — different
+height, different label model, different states. Merging them means a variant flag on each of those,
+which is the "everything input" the system is careful to avoid.
+
+What they *do* share is the rule `InputField` was built to enforce: the text is measured to the full
+height of the box, so the whole 64 takes a tap rather than the middle third.
+
+**The label notches the stroke, it does not break it.** The border is drawn unbroken and the label
+sits on top with a patch of the screen colour behind. In the error state that patch switches from
+white to `Cream`, because the field's fill becomes a 4% danger wash and a white patch would read as
+a hole punched in it.
+
+## Glyphs — CheckGlyph and DangerGlyph
+
+`designsystem/Glyphs.kt` on Android; on iOS both live in `FloatingField.swift` rather than a file of
+their own. That asymmetry is real and is recorded here so nobody hunts for `Glyphs.swift`.
+
+| | Signature | Notes |
+|---|---|---|
+| `CheckGlyph` | `size`, `color`, `strokeWidth` (default 2) | drawn on a 24 grid and scaled, so it is crisp at any size |
+| `DangerGlyph` | `size`, `glyphSize` (default `size * 0.59`) | a tinted circle with the `!` inside it |
+
+Four hand-rolled copies of the danger circle existed across the two platforms before this. They are
+now one primitive per platform, called from `FloatingField`, the phone field, `InlineErrorCard` and
+`ErrorBanner`.
+
+**The two call sites that pass 13 and 14 are not drift.** `FloatingField` draws its `!` at 13 inside
+a 22 circle, the phone field at 14 inside the same 22, and each matches its own spec sheet. The
+implementation is shared; the deliberate difference is preserved. Do not "normalise" them without a
+design ruling.
+
+## InlineErrorCard
+
+`designsystem/InlineErrorCard.kt` on Android; inside `FloatingField.swift` on iOS.
+
+The message card that sits under a field: `Radius.errorBox`, 14 horizontal / 10 vertical padding,
+`Danger` at 7% fill on an 18% border, an 18 `DangerGlyph` nudged 1 down, and Manrope 500 / 13.5 in
+`DangerFg`.
+
+Two overloads on each platform — one taking a plain string, one taking rich text — because the email
+screen renders `@` and `.com` as monospace chips inside the sentence.
+
+**`ErrorBanner` is deliberately NOT this component.** It has a different radius, padding and glyph
+size, and it sits at the top of a sheet rather than under a field. Only the glyph is genuinely
+shared, so only the glyph was consolidated. Two things that both say something went wrong are not
+automatically the same component.
+
+## Profile chrome — AppHeader, BasicsScaffold, BasicsStep
+
+Added 9 September 2026 for SHOWUP-150 / SHOWUP-152. **These live in `profile/`, not `designsystem/`**
+— `BasicsChrome.kt` and `BasicsChrome.swift`.
+
+That is a compromise, not a preference. `AppHeader` needs `Icon` and `BrandIcon`, which are still in
+`welcome/WelcomeShell.kt`, and the design system must not depend on a screen. Moving the header into
+`designsystem` means moving the icon set first. **Recorded as follow-up work**, and the reason it is
+worth doing is the whole argument of the last section of this document.
+
+- **`AppHeader(title, leading, onBack, backLabel)`** — a centred title with a fixed 36 slot on each
+  side. `HeaderLeading.None` still occupies its 36: removing the slot would un-centre the title, and
+  the title is the same string on all three steps, so it must not shift as the user advances. The
+  back control's touch area is `ComponentSizes.minTapTarget`, not the 36 it draws.
+- **`BasicsScaffold(title, leading, onBack, content, cta)`** — the header, one flexible spacer, and a
+  CTA slot. Flat `Cream`, no ambient orbs: the keyboard owns the bottom half of these screens.
+- **`BasicsStep`** — `Name`, `Email`, `EmailVerify`, `Dob`, carrying `progressSegment`, `hasBack`,
+  `stepId` and `stepIndex`. `EmailVerify` reports **segment 2, not 3**: the user is on the email step
+  until the code is confirmed, and a bar that advanced before that would claim progress not made.
+
+**On iOS, name the `content:` slot at the call site.** `BasicsScaffold` has three function-typed
+parameters (`onBack`, `content`, `cta`) and Swift's forward scan binds an unlabelled trailing closure
+to the first unmatched one — a default argument does not exempt it — so an unlabelled closure lands
+on `onBack`. This broke the build once on 9 September 2026.
+
+`StepProgress` is reused as-is from `tutorial/TutorialShell`; the profile screens did not grow their
+own.
 
 ## StatusBadge
 
@@ -377,19 +491,46 @@ column. Hence a separate task.
 
 ## Reusable primitives — the state of play
 
-`CountrySheet`, `PrimaryButton`, `InputField` and `StatusBadge` are shared on both platforms. The
-rest are still duplicated:
+**Every shared primitive is now one implementation per platform.** As of 9 September 2026 there are
+no known duplicated components left in the built screens — the retrofit that closed the last of them
+is described below.
 
-| Primitive | Today | |
+| Primitive | Where it lives | Status |
 |---|---|---|
-| **StatusBadge** | `designsystem/StatusBadge.kt` · `StatusBadge.swift` | **done, 8 September 2026** — was three implementations per platform, one bypassing its own token |
-| **PrimaryButton** | `designsystem/PrimaryButton.kt` · `PrimaryButton.swift` | **done, 7 September 2026** — was three implementations, one of them drifted four ways |
-| **InputField** | `designsystem/InputField.kt` · `InputField.swift` | **done, 8 September 2026** — the 23dp tap-target bug lived here |
-| **TopBar** | inline in `VerificationFrame` | the wrong-icon bug lived here |
+| **PrimaryButton** | `designsystem/PrimaryButton.kt` · `PrimaryButton.swift` | **done, 7 Sep 2026** — was three implementations, one drifted four ways |
+| **InputField / FieldChrome** | `designsystem/InputField.kt` · `InputField.swift` | **done, 8 Sep 2026** — the 23dp tap-target bug lived here |
+| **StatusBadge** | `designsystem/StatusBadge.kt` · `StatusBadge.swift` | **done, 8 Sep 2026** — was three per platform, one bypassing its own token |
+| **Tap-target floor** | `designsystem/TapTarget.kt` · `TapTarget.swift` | **done, 8 Sep 2026** — a modifier, deliberately not a component |
+| **FloatingField** | `designsystem/FloatingField.kt` · `FloatingField.swift` | **new, 9 Sep 2026** — the profile flow's input |
+| **Glyphs** | `designsystem/Glyphs.kt` · in `FloatingField.swift` | **new, 9 Sep 2026** — replaced four hand-rolled danger circles |
+| **InlineErrorCard** | `designsystem/InlineErrorCard.kt` · in `FloatingField.swift` | **new, 9 Sep 2026** — replaced two hand-rolled cards |
+| **Autofill** | `designsystem/Autofill.kt` · native `contentType` | **done, 8 Sep 2026** |
+| **TopBar** | — | **resolved as "no component"** — the two back controls share no visual contract; only the tap-target floor was shared, and that became the modifier above |
 | **SelectPicker** | `CountrySheet` | already fine |
+| **Profile chrome** | `profile/BasicsChrome.*` | **new, 9 Sep 2026** — outside `designsystem` until the icon set moves; see that section |
 
-The duplication follows the package split: `com.showup.welcome` and `com.showup.tutorial` were built
-as separate worlds and each grew its own version of the same thing.
+The duplication had followed the package split: `com.showup.welcome` and `com.showup.tutorial` were
+built as separate worlds and each grew its own version of the same thing.
+
+### The retrofit — the primitives were applied backwards as well as forwards
+
+Applying primitives only to new screens leaves the old ones as the duplicates, which is how
+`SunsetButton` drifted. On 9 September 2026 all built screens were audited and eleven remaining
+sites migrated: four danger circles, two mismatch cards, and five tap-target floors. One of those
+was a real defect rather than a duplicate — the iOS resend row had no minimum height at all, so its
+hit area was whatever the text happened to measure.
+
+**It was measured, not assumed.** 267 layout measurements across six screen states at four widths,
+captured before and re-measured after: 263 identical, 4 changed — all four the same +1dp shift of
+the mismatch glyph, because `InlineErrorCard` carries the `margin-top: 1` the spec specifies and the
+hand-rolled copy had dropped. The refactor moved that pixel toward the design.
+
+### Orientation
+
+**Portrait only, both platforms**, product decision of 9 September 2026. Nothing in this document is
+designed for landscape and no component has a landscape variant. The platform configuration and the
+Android 16 large-screen caveat live in `mobile-client-architecture-spike.md` 1.5.2 rather than here,
+so the rule has one home.
 
 ### What the duplicate cost, since it is the argument for fixing the rest
 
