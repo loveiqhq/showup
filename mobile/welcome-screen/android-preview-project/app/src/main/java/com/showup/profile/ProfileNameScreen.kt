@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -86,11 +87,20 @@ fun ProfileNameScreen(
     onContinue: (String) -> Unit = {},
     /** Fires on the refused press. Hoisted so the screen stays a function of values. */
     onEmptySubmit: () -> Unit = {},
+    /**
+     * Seeds the error state so an artboard can render it statically.
+     *
+     * **Previews only.** In the app the only way into state C is a real press, and the behaviour
+     * tests reach it that way. The design reference carries the same escape hatch for the same
+     * reason and marks it mock-only; this is that hatch, named so it cannot be mistaken for
+     * product state.
+     */
+    previewAttempted: Boolean = false,
 ) {
     // Not restored on arrival: a resumed step behaves like a freshly-reached one, and an error is
     // the product of a press rather than a position. rememberSaveable so a rotation mid-error does
     // not silently clear it.
-    var attempted by rememberSaveable { mutableStateOf(false) }
+    var attempted by rememberSaveable { mutableStateOf(previewAttempted) }
     var shakeKey by remember { mutableIntStateOf(0) }
 
     val filled = value.trim().isNotEmpty()
@@ -215,3 +225,39 @@ internal fun Modifier.shakeOnce(key: Int, enabled: Boolean): Modifier {
         else (kotlin.math.sin(t * 3f * 2f * Math.PI).toFloat() * 6.dp.toPx() * (1f - t))
     }
 }
+
+// ── previews: three states x three frames ───────────────────────────────────
+//
+// The device matrix from the ticket: 375 x 667 is where it gets tight and is checked first,
+// 390 x 844 is the reference frame, 430 x 932 is where the spacer takes the surplus.
+//
+// These render WITHOUT the keyboard, because the platform keyboard is not ours to draw. The
+// spacer therefore resolves larger here than on a device; what the previews show is the content
+// column, not the CTA's real distance from the keys. ScreenFitTest measures the rest.
+
+@Preview(name = "A · empty · 375", showBackground = true, widthDp = 375, heightDp = 667)
+@Composable private fun PN_A375() { ProfileNameScreen() }
+
+@Preview(name = "A · empty · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PN_A390() { ProfileNameScreen() }
+
+@Preview(name = "A · empty · 430", showBackground = true, widthDp = 430, heightDp = 932)
+@Composable private fun PN_A430() { ProfileNameScreen() }
+
+@Preview(name = "B · typed · 375", showBackground = true, widthDp = 375, heightDp = 667)
+@Composable private fun PN_B375() { ProfileNameScreen(value = "Leo") }
+
+@Preview(name = "B · typed · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PN_B390() { ProfileNameScreen(value = "Leo") }
+
+@Preview(name = "B · typed · 430", showBackground = true, widthDp = 430, heightDp = 932)
+@Composable private fun PN_B430() { ProfileNameScreen(value = "Leo") }
+
+@Preview(name = "C · empty submit · 375", showBackground = true, widthDp = 375, heightDp = 667)
+@Composable private fun PN_C375() { ProfileNameScreen(previewAttempted = true) }
+
+@Preview(name = "C · empty submit · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PN_C390() { ProfileNameScreen(previewAttempted = true) }
+
+@Preview(name = "C · empty submit · 430", showBackground = true, widthDp = 430, heightDp = 932)
+@Composable private fun PN_C430() { ProfileNameScreen(previewAttempted = true) }

@@ -79,6 +79,13 @@ private struct TutorialFlow: View {
     @SceneStorage("flow.outcome") private var outcomeRaw: String = SignUpOutcome.newAccount.storageKey
     private var outcome: SignUpOutcome { SignUpOutcome(storageKey: outcomeRaw) ?? .newAccount }
 
+    // Demo state for "The basics". Scene-scoped like the rest of the flow, but in-memory only:
+    // the real flow persists per completed step and resumes onto the last incomplete one, which
+    // depends on a profile-progress store that does not exist yet. Walkable, not shipped.
+    @SceneStorage("basics.firstName") private var firstName: String = ""
+    @SceneStorage("basics.email") private var email: String = ""
+    @SceneStorage("basics.marketingConsent") private var marketingConsent: Bool = false
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Every navigation goes through here so the transition direction is always set before the
@@ -131,9 +138,21 @@ private struct TutorialFlow: View {
                     ThirtyMinutesView(onNext: { go(to: .showUpEveryTime) },
                                       onBack: { go(to: .matchMeansMeet) })
                 case .showUpEveryTime: ShowUpEveryTimeView(
-                    // SHOWUP-146: the far end of the tutorial is the app, not the tour again.
-                    onFinish: { go(to: .home) },
+                    // SHOWUP-146 sent the tutorial's far end straight to the app. Profile creation
+                    // now sits between the two, which is the real order.
+                    onFinish: { go(to: .profileName) },
                     onBack: { go(to: .thirtyMinutes) })
+                // SHOWUP-150. No back: profile creation is mandatory once entered.
+                case .profileName:
+                    ProfileNameView(value: $firstName, onContinue: { _ in go(to: .profileEmail) })
+                // SHOWUP-152. Continue should reach Verify email (story 03), which is not built,
+                // so in this demo host it lands on Home. Marked so it is not mistaken for the
+                // specified route.
+                case .profileEmail:
+                    ProfileEmailView(value: $email,
+                                     consent: $marketingConsent,
+                                     onContinue: { _ in go(to: .home) },
+                                     onBack: { go(to: .profileName) })
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
                 }

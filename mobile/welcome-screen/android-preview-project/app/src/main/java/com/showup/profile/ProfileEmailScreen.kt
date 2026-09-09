@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -152,8 +153,10 @@ fun ProfileEmailScreen(
     onBack: () -> Unit = {},
     /** Fires on the refused press only. */
     onSubmitRefused: (empty: Boolean) -> Unit = {},
+    /** Seeds the error state for an artboard. **Previews only** — see ProfileNameScreen. */
+    previewAttempted: Boolean = false,
 ) {
-    var attempted by rememberSaveable { mutableStateOf(false) }
+    var attempted by rememberSaveable { mutableStateOf(previewAttempted) }
     var shakeKey by remember { mutableIntStateOf(0) }
 
     val valid = isEmailFormatValid(value)
@@ -325,3 +328,40 @@ internal fun MarketingOptIn(
         }
     }
 }
+
+// ── previews: three states x three frames ───────────────────────────────────
+//
+// A and B seed the SAME address, one of them mistyped, on purpose: the states should read as one
+// field failing rather than two screens. B and C are also where the ~18px shift lives — this
+// screen deliberately does not reserve its status region, so compare the CTA's position between
+// A and B here and expect it to move.
+
+@Preview(name = "A · valid · 375", showBackground = true, widthDp = 375, heightDp = 667)
+@Composable private fun PE_A375() { ProfileEmailScreen(value = "leo@hey.com") }
+
+@Preview(name = "A · valid · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PE_A390() { ProfileEmailScreen(value = "leo@hey.com") }
+
+@Preview(name = "A · valid · 430", showBackground = true, widthDp = 430, heightDp = 932)
+@Composable private fun PE_A430() { ProfileEmailScreen(value = "leo@hey.com") }
+
+@Preview(name = "B · invalid · 375", showBackground = true, widthDp = 375, heightDp = 667)
+@Composable private fun PE_B375() { ProfileEmailScreen(value = "leo@hey", previewAttempted = true) }
+
+@Preview(name = "B · invalid · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PE_B390() { ProfileEmailScreen(value = "leo@hey", previewAttempted = true) }
+
+@Preview(name = "B · invalid · 430", showBackground = true, widthDp = 430, heightDp = 932)
+@Composable private fun PE_B430() { ProfileEmailScreen(value = "leo@hey", previewAttempted = true) }
+
+@Preview(name = "C · empty submit · 375", showBackground = true, widthDp = 375, heightDp = 667)
+@Composable private fun PE_C375() { ProfileEmailScreen(previewAttempted = true) }
+
+@Preview(name = "C · empty submit · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PE_C390() { ProfileEmailScreen(previewAttempted = true) }
+
+@Preview(name = "C · empty submit · 430", showBackground = true, widthDp = 430, heightDp = 932)
+@Composable private fun PE_C430() { ProfileEmailScreen(previewAttempted = true) }
+
+@Preview(name = "A · consent on · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PE_consent() { ProfileEmailScreen(value = "leo@hey.com", consent = true) }

@@ -42,6 +42,15 @@ enum FlowScreen: String, CaseIterable, Comparable {
     case thirtyMinutes
     case showUpEveryTime
 
+    /// Profile creation, step 1 of "The basics".
+    ///
+    /// After the tutorial and before `home`, which is the real order: the user signs up, is shown
+    /// how the product works, and only then is asked to build a profile.
+    case profileName
+
+    /// Profile creation, step 2.
+    case profileEmail
+
     /// Where the flow ends, for both the tutorial and a returning member.
     case home
 
