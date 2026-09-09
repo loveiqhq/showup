@@ -174,13 +174,9 @@ fun FloatingField(
             )
 
             if (error) {
-                Box(
-                    Modifier.size(22.dp).background(Danger, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("!", color = Elevated, fontFamily = Lora,
-                         fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
+                // 13 and not the phone field's 14, which is what its own spec draws. The two are
+                // the same circle at two glyph sizes; the difference is reported, not normalised.
+                DangerGlyph(size = 22.dp, glyphSize = 13.dp)
             } else if (valid) {
                 Box(
                     Modifier.size(22.dp).background(Success.copy(alpha = 0.14f), CircleShape),

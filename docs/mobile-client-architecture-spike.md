@@ -224,6 +224,33 @@ future migration, this invariant comes first and is not negotiable:
 
 > **A screen takes values and returns pixels. It never receives a navigator.**
 
+### 1.5.2 · Orientation — portrait only
+
+**Product decision, 9 September 2026.** The app is portrait on both platforms and landscape is not
+offered. This is configured natively, not worked around in layout: nothing is designed to "cope"
+with landscape, because landscape never arrives.
+
+- **iOS** — `Info.plist` lists `UIInterfaceOrientationPortrait` and nothing else, and
+  `TARGETED_DEVICE_FAMILY = 1` (iPhone only). This was already true; it is written down here so it
+  is a decision rather than an accident, and so nobody "fixes" it by adding the other three.
+- **Android** — `android:screenOrientation="portrait"` on `MainActivity`. `portrait`, not
+  `sensorPortrait`: the latter also permits 180-degree upside-down, which is not what portrait-only
+  means to anyone who asked for it.
+
+**Large screens are the exception, and it is not ours to wave away.** This app targets SDK 36, and
+from Android 16 orientation and resizability restrictions are ignored on displays whose smallest
+width is 600dp or more — tablets, and foldables while unfolded. Phones and folded foldables are
+unaffected. `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` is set in the manifest as the documented
+opt-out, which restores portrait there for now; Google describes that opt-out as temporary.
+
+**What that means for planning:** portrait-only is a phone decision that large screens will
+eventually stop honouring. When the opt-out expires, either the app declares itself phone-only or it
+grows real large-screen layouts. Nothing in this repo's tests can see any of it — it needs a 600dp+
+emulator, and it is on the manual list.
+
+`ScreenFitTest` measures 17 phone sizes from 320x686 to 440x956, all portrait. There is deliberately
+no landscape matrix.
+
 ## 1.6 · Concurrency and the UI thread
 
 **Measured:** `@MainActor` 15 · `Task {` 2 · strict concurrency `complete`, language mode 5.

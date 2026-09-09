@@ -32,6 +32,11 @@ A duplicate does not stay a duplicate. It becomes a worse copy that nobody is lo
 
 ---
 
+**Portrait only.** `android:screenOrientation="portrait"` on `MainActivity` — `portrait`, not
+`sensorPortrait`, which would also allow upside-down. Targeting SDK 36 means Android 16 ignores
+this on displays 600dp and wider, so `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` is set as
+the documented, temporary opt-out. Verify on a 600dp+ emulator; no test here can see it.
+
 ## Language and target
 
 - **Kotlin and Jetpack Compose.** No XML layouts, no Views, no `findViewById`.

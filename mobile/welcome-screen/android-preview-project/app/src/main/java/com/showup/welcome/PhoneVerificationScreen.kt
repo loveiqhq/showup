@@ -22,7 +22,10 @@ import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.autofill
 import com.showup.designsystem.fieldChrome
 
+import com.showup.designsystem.DangerGlyph
+import com.showup.designsystem.InlineErrorCard
 import com.showup.designsystem.InputField
+import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.PrimaryButton
 import com.showup.designsystem.ShowUpEasing
 
@@ -233,14 +236,11 @@ fun PhoneNumberScreen(
                 onSubmit = onSubmit,
                 focusRequester = focus,
                 visualTransformation = remember(country) { GroupedDigits(country) },
+                // glyphSize 14, not DangerGlyph's default 13: this screen's spec draws 14 and the
+                // profile fields draw 13. Passed explicitly so the shape is shared and neither
+                // screen moves. The inconsistency is reported rather than silently normalised.
                 trailing = if (!invalid) null else {
-                    {
-                        Box(Modifier.size(22.dp).background(Danger, CircleShape),
-                            contentAlignment = Alignment.Center) {
-                            Text("!", color = Color.White, fontFamily = Lora,
-                                 fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                    }
+                    { DangerGlyph(size = 22.dp, glyphSize = 14.dp) }
                 },
             )
         }
@@ -504,24 +504,13 @@ fun VerifyCodeScreen(
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
             if (mismatch) {
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(Radius.errorBox))
-                        .background(Danger.copy(alpha = 0.07f))
-                        .border(1.dp, Danger.copy(alpha = 0.18f), RoundedCornerShape(Radius.errorBox))
-                        .padding(horizontal = 14.dp, vertical = Spacing.lg),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
-                ) {
-                    Box(Modifier.size(18.dp).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
-                        Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
-                    // informative, never "Wrong" / "Failed" / "Error"
-                    Text(
-                        "That code didn’t match. Try again.",
-                        color = DangerFg, fontFamily = Manrope, fontWeight = FontWeight.Medium,
-                        fontSize = 13.5.sp, lineHeight = 18.9.sp,
-                    )
-                }
+                // Was fourteen lines of the same card the profile flow draws: radius errorBox, the
+                // 7% and 18% danger tints, 14/10 padding, gap 10, an 18 glyph at Lora 12, and
+                // Manrope 500 / 13.5 in DangerFg. Value for value identical, so it is now the
+                // shared component rather than a fifth copy.
+                //
+                // Copy unchanged: informative, never "Wrong" / "Failed" / "Error".
+                InlineErrorCard("That code didn’t match. Try again.")
             }
         }
 
@@ -576,11 +565,10 @@ fun VerifyCodeScreen(
                 Modifier
                     .clip(RoundedCornerShape(50))
                     .clickable(role = Role.Button, onClick = onEditNumber)
-                    // 44dp minimum, found by ScreenFitTest: a 13dp icon beside a 13sp label with
-                    // 4dp of padding came to 27dp. The row stays visually the same size -- the
-                    // minimum only grows the area that answers to a finger, which is what the
-                    // guideline is about.
-                    .defaultMinSize(minHeight = 44.dp)
+                    // The shared floor, found here by ScreenFitTest: a 13dp icon beside a 13sp
+                    // label with 4dp of padding came to 27dp. The row stays visually the same size
+                    // -- the minimum only grows the area that answers to a finger.
+                    .minTapTarget()
                     .padding(horizontal = Spacing.md, vertical = Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),

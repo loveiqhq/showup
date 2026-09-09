@@ -72,6 +72,11 @@ a reserved region collapses to nil in SwiftUI and reserved nothing, moving the C
 identical code on Android reserved its minimum height and looked fine. "It works on Android" is not
 evidence about iOS.
 
+**Portrait only, both platforms.** Product decision, 9 September 2026. iOS lists one supported
+orientation in `Info.plist`; Android sets `android:screenOrientation="portrait"`. Do not design
+for landscape and do not add the other orientations back without a product decision reversing
+this. Large screens are a real caveat — see `docs/mobile-client-architecture-spike.md` 1.5.2.
+
 ## Minimum OS targets
 
 **iOS 17.0 and Android API 30.** Both are set in the build, not only written here:

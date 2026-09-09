@@ -86,7 +86,9 @@ struct StartupView: View {
                 (Text("Already have an account? ").foregroundColor(.liqSubtle)
                  + Text("Log in").foregroundColor(.liqPurple).underline())
                     .font(F.manrope(14, .semibold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    // The token, not the literal. minTapTarget() is not used here because it
+                    // aligns leading and this row is centred -- the number is what is shared.
+                    .frame(maxWidth: .infinity, minHeight: ComponentSizes.minTapTarget)
                     .contentShape(Rectangle())
             }
             .buttonStyle(PressScale())

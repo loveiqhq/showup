@@ -24,6 +24,11 @@ tests here sat in no target for a week and were reported as present and passing.
 
 ---
 
+**Portrait only.** `Info.plist` lists `UIInterfaceOrientationPortrait` and nothing else, and
+`TARGETED_DEVICE_FAMILY = 1` (iPhone). Do not add the other three orientations, and do not add
+iPad to the device family, without a product decision — iPad brings multitasking, which requires
+supporting all orientations unless the app opts out of it.
+
 ## Framework and target
 
 - **SwiftUI first.** UIKit only through a wrapper, and only with a written reason — see below.
