@@ -39,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Border
+import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
@@ -91,7 +92,9 @@ fun HomePlaceholderScreen(outcome: SignUpOutcome, onStartOver: () -> Unit) {
             Box(
                 Modifier
                     .padding(top = Spacing.lg)
-                    .defaultMinSize(minHeight = 48.dp)
+                    // 48, Android's Material floor, passed explicitly: minTapTarget clamps upward
+                    // only, so this raises the shared 44 and cannot lower it.
+                    .minTapTarget(48.dp)
                     .border(1.dp, Border, RoundedCornerShape(50))
                     .clickable(onClick = onStartOver)
                     .padding(horizontal = 22.dp, vertical = Spacing.xl),

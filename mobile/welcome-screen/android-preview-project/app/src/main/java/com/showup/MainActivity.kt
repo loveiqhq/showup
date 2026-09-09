@@ -25,6 +25,8 @@ import com.showup.tutorial.MatchOnAvailabilityScreen
 import com.showup.tutorial.MeetInRealLifeScreen
 import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
+import com.showup.profile.ProfileEmailScreen
+import com.showup.profile.ProfileNameScreen
 import com.showup.welcome.FlowScreen
 import com.showup.welcome.SignUpFlow
 import com.showup.welcome.SignUpOutcome
@@ -51,6 +53,12 @@ class MainActivity : ComponentActivity() {
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
             var outcome by rememberSaveable { mutableStateOf(SignUpOutcome.NewAccount) }
+            // Demo state for "The basics". In-memory and rememberSaveable only: the real flow
+            // persists per completed step and resumes onto the last incomplete one, and that
+            // depends on a profile-progress store that does not exist yet. Walkable, not shipped.
+            var firstName by rememberSaveable { mutableStateOf("") }
+            var email by rememberSaveable { mutableStateOf("") }
+            var marketingConsent by rememberSaveable { mutableStateOf(false) }
             val motion = rememberMotion()
 
             // The system back gesture mirrors the on-screen Back, so hardware back never drops
@@ -113,9 +121,34 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = FlowScreen.MatchMeansMeet },
                     )
                     FlowScreen.ShowUpEveryTime -> ShowUpEveryTimeScreen(
-                        // SHOWUP-146: the far end of the tutorial is the app, not the tour again.
-                        onFinish = { screen = FlowScreen.Home },
+                        // SHOWUP-146 sent the tutorial's far end straight to the app. Profile
+                        // creation now sits between the two, which is the real order.
+                        onFinish = { screen = FlowScreen.ProfileName },
                         onBack = { screen = FlowScreen.ThirtyMinutes },
+                    )
+                    // SHOWUP-150. No back: profile creation is mandatory once entered, and the
+                    // screen swallows the system gesture itself.
+                    FlowScreen.ProfileName -> ProfileNameScreen(
+                        value = firstName,
+                        onValueChange = { firstName = it },
+                        onContinue = {
+                            firstName = it
+                            screen = FlowScreen.ProfileEmail
+                        },
+                    )
+                    // SHOWUP-152. Continue should reach Verify email (story 03), which is not
+                    // built -- so in this demo host it lands on Home. Marked so it is not mistaken
+                    // for the specified route.
+                    FlowScreen.ProfileEmail -> ProfileEmailScreen(
+                        value = email,
+                        onValueChange = { email = it },
+                        consent = marketingConsent,
+                        onConsentChange = { marketingConsent = it },
+                        onContinue = {
+                            email = it
+                            screen = FlowScreen.Home
+                        },
+                        onBack = { screen = FlowScreen.ProfileName },
                     )
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })

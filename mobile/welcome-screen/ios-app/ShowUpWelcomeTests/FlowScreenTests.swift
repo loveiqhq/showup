@@ -77,8 +77,12 @@ final class FlowScreenTests: XCTestCase {
     }
 
     func testEveryScreenIsDistinctAndNamed() {
-        XCTAssertEqual(FlowScreen.allCases.count, 8)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 8)
+        // 10 since profile creation joined the flow: the eight originals plus profileName and
+        // profileEmail, which sit between the tutorial's end and home. Mirrors the Android
+        // assertion in FlowRestorationTest, which was updated when the cases were added and this
+        // one was not -- the parity gap the shared CLAUDE.md exists to prevent.
+        XCTAssertEqual(FlowScreen.allCases.count, 10)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 10)
     }
 
     // MARK: - the routing vocabulary a scene stores

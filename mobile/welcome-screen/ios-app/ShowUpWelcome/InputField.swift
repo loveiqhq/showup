@@ -116,9 +116,9 @@ extension InputField where Trailing == EmptyView {
 struct FieldErrorGlyph: View {
     var body: some View {
         Spacer(minLength: 0)
-        ZStack {
-            Circle().fill(Color.liqDanger).frame(width: 22, height: 22)
-            Text("!").font(.custom(PS.loraBold, size: 14)).foregroundColor(.white)
-        }
+        // glyphSize 14, not DangerGlyph's 13: this screen's spec draws 14 and the profile fields
+        // draw 13. Passed explicitly so the shape is shared and neither screen moves. The
+        // inconsistency is reported rather than silently normalised.
+        DangerGlyph(size: 22, glyphSize: 14)
     }
 }

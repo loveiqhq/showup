@@ -150,6 +150,8 @@ class FlowRestorationTest {
                 FlowScreen.MatchMeansMeet,
                 FlowScreen.ThirtyMinutes,
                 FlowScreen.ShowUpEveryTime,
+                // Step 2 of the basics: the gesture has to agree with the chevron the screen draws.
+                FlowScreen.ProfileEmail,
             ),
             withBack,
         )
@@ -157,6 +159,8 @@ class FlowRestorationTest {
         assertTrue(!FlowScreen.TutorialWelcome.hasSystemBack)
         assertTrue(!FlowScreen.SignUp.hasSystemBack)
         assertTrue(!FlowScreen.Home.hasSystemBack)
+        // Mandatory once entered: back must do nothing here, not step backwards.
+        assertTrue(!FlowScreen.ProfileName.hasSystemBack)
     }
 
     /**
@@ -165,7 +169,9 @@ class FlowRestorationTest {
      */
     @Test
     fun everyScreenIsDistinctAndNamed() {
-        assertEquals(8, FlowScreen.entries.size)
+        // 10 since profile creation joined the flow: the eight originals plus ProfileName and
+        // ProfileEmail, which sit between the tutorial's end and Home.
+        assertEquals(10, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

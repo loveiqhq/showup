@@ -185,6 +185,16 @@ fun NextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     variant: NextVariant = NextVariant.Orange,
+    /**
+     * The arrow inside the circle.
+     *
+     * Defaults to what the tutorial has always drawn -- 22 on the terminal sunset card, 20 on the
+     * rest -- so nothing about those screens moves. It is a parameter because the profile flow's
+     * spec draws 22 with the ORANGE circle, which the variant alone cannot express: arrow size and
+     * circle treatment turn out to be independent, and coupling them was a coincidence of the
+     * tutorial being the only caller.
+     */
+    arrowSize: Dp = if (variant == NextVariant.Sunset) 22.dp else 20.dp,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -237,7 +247,7 @@ fun NextButton(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            ArrowRight(size = if (variant == NextVariant.Sunset) 22.dp else 20.dp)
+            ArrowRight(size = arrowSize)
         }
     }
 }

@@ -281,23 +281,13 @@ struct VerifyCodeView: View {
                 // collapse to zero rather than holding the row open. Measured on an iPhone 17 Pro,
                 // the CTA jumped 56pt — the full 42 + 14 — the moment the code was wrong, which is
                 // exactly what this region exists to prevent and what SHOWUP-143 forbids outright.
-                HStack(alignment: .top, spacing: Spacing.lg) {
-                    ZStack {
-                        Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
-                        Text("!").font(.custom(PS.loraBold, size: 12)).foregroundColor(.white)
-                    }
-                    // informative, never "Wrong" / "Failed" / "Error"
-                    Text("That code didn’t match. Try again.")
-                        .font(F.manrope(13.5, .medium))
-                        .lineSpacing(13.5 * 0.4)
-                        .foregroundColor(.liqDangerFg)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, Spacing.lg)
-                .background(RoundedRectangle(cornerRadius: Radius.errorBox).fill(Color.liqDanger.opacity(0.07)))
-                .overlay(RoundedRectangle(cornerRadius: Radius.errorBox)
-                    .strokeBorder(Color.liqDanger.opacity(0.18), lineWidth: 1))
+                // Was the same card the profile flow draws, written out again: radius errorBox,
+                // the 7% and 18% danger tints, 14/10 padding, gap 10, an 18 glyph at Lora 12 and
+                // Manrope 500 / 13.5 in DangerFg. Value for value identical, so it is the shared
+                // component now rather than a fifth copy.
+                //
+                // Copy unchanged: informative, never "Wrong" / "Failed" / "Error".
+                InlineErrorCard(message: Text("That code didn’t match. Try again."))
                 .opacity(mismatch ? 1 : 0)
                 // Invisible is not the same as absent: without this VoiceOver would read an error
                 // that is not being shown.
@@ -336,8 +326,10 @@ struct VerifyCodeView: View {
                                 .font(F.manrope(14, .bold))
                                 .foregroundColor(.liqPurple)
                                 .underline()
-                                // 44pt is Apple's own minimum touch target; the text alone is ~20.
-                                .frame(minHeight: 44)
+                                // Apple's own minimum touch target; the text alone is ~20. The
+                                // token rather than the literal -- the frame keeps its default
+                                // centre alignment, which minTapTarget() would change to leading.
+                                .frame(minHeight: ComponentSizes.minTapTarget)
                                 .padding(.horizontal, Spacing.xl)
                                 .contentShape(Rectangle())
                         }

@@ -27,9 +27,34 @@
         -->
         <meta-data android:name="io.sentry.auto-init" android:value="false" />
 
+        <!--
+            PORTRAIT ONLY. Product decision, 9 September 2026.
+
+            `portrait` and not `sensorPortrait`: sensorPortrait also allows 180-degree upside-down
+            on devices that report it, which is not what "portrait only" means to anyone who asked
+            for it. It matches iOS, whose Info.plist lists UIInterfaceOrientationPortrait alone.
+
+            THIS IS NOT THE WHOLE STORY ON LARGE SCREENS, AND THAT IS NOT A BUG HERE.
+
+            This app targets SDK 36. From Android 16, orientation, resizability and aspect ratio
+            restrictions are IGNORED for apps targeting SDK 36 on displays whose smallest width is
+            600dp or more, meaning tablets and unfolded foldables. The attribute below still holds
+            on every phone, and on a folded foldable, because those are under 600dp.
+
+            PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY is the documented opt out and is set
+            below, which restores portrait on large screens for now. Google describes it as
+            temporary: it is expected to stop working at a later target level, at which point real
+            large screen layouts become a requirement rather than a deferred decision. Verify on a
+            600dp+ emulator before relying on it. Nothing in this repo's tests can see it.
+        -->
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+            android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.ShowUp">
             <intent-filter>

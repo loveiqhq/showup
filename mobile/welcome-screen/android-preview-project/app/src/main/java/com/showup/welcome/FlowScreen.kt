@@ -45,17 +45,40 @@ enum class FlowScreen {
     ThirtyMinutes,
     ShowUpEveryTime,
 
+    /**
+     * Profile creation, step 1 of "The basics".
+     *
+     * Placed AFTER the tutorial and before [Home] because that is the real order: the user signs
+     * up, is shown how the product works, and only then is asked to build a profile. The epic says
+     * the same thing -- "entered from the app tutorial, after a completed identity verification".
+     */
+    ProfileName,
+
+    /** Profile creation, step 2. */
+    ProfileEmail,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;
 
     /**
-     * Whether the system back gesture walks the tour from here.
+     * Whether the system back gesture steps one position back from here.
      *
-     * Cards 2-6, exactly as `screen in 2..6` meant. [TutorialWelcome] is deliberately excluded so
-     * back exits the app from the first card rather than doing nothing, and [Home] and [SignUp] are
-     * outside the tour.
+     * Cards 2-6, exactly as `screen in 2..6` meant, PLUS [ProfileEmail].
+     *
+     * [TutorialWelcome] is deliberately excluded so back exits the app from the first card rather
+     * than doing nothing, and [Home] and [SignUp] are outside the tour.
+     *
+     * [ProfileName] is excluded for the opposite reason to everything else here: profile creation
+     * is mandatory once entered, so back must do NOTHING rather than step anywhere. The screen
+     * swallows the gesture with its own handler, which wins over this one -- listing it here would
+     * be harmless but misleading.
+     *
+     * [ProfileEmail] IS included, and that is a real fix rather than a tidy-up: without it the
+     * handler is disabled on step 2, the gesture falls through to the activity, and a user pressing
+     * back on the email screen leaves the app instead of returning to their name. The screen draws
+     * a back chevron; the gesture has to agree with it.
      */
     val hasSystemBack: Boolean
-        get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal
+        get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal || this == ProfileEmail
 }

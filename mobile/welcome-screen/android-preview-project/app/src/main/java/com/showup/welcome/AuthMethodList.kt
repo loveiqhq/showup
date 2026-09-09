@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Danger
+import com.showup.designsystem.DangerGlyph
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
@@ -287,7 +288,17 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
     }
 }
 
-/** Danger banner — the failure states. Sits above the list; the buttons do not move. */
+/**
+ * Danger banner — the failure states. Sits above the list; the buttons do not move.
+ *
+ * DELIBERATELY NOT [InlineErrorCard], though the two share a palette.
+ *
+ * The inline card is a field's error: radius 12, 14/10 padding, an 18 glyph. This is a banner above
+ * a list: radius 14, 14/12 padding, a 20 glyph, full width with its own bottom margin. Three of its
+ * four geometry values differ, so unifying them would mean three parameters to express one shape --
+ * the "everything component" this design system keeps declining to build. The glyph is shared
+ * because the glyph genuinely is the same.
+ */
 @Composable
 fun ErrorBanner(message: String) {
     val shape = RoundedCornerShape(Radius.control)
@@ -301,8 +312,9 @@ fun ErrorBanner(message: String) {
             .padding(horizontal = 14.dp, vertical = Spacing.xl),
         horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
-        Box(Modifier.padding(top = 1.dp).size(IconSizes.sm).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
-            Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        // The glyph is shared; the BANNER is not. See the note on ErrorBanner above.
+        Box(Modifier.padding(top = 1.dp)) {
+            DangerGlyph(size = IconSizes.sm, glyphSize = 13.dp)
         }
         Text(
             message, color = DangerFg, fontFamily = Manrope,

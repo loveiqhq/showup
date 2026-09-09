@@ -115,10 +115,16 @@ check("ios: there is somewhere for a returning member to land",
 # It used to restart the tour, which was honest while there was nowhere to go and is wrong now.
 # The destination was the literal 7 until 8 September 2026, when the Int scheme became FlowScreen.
 # The claim is unchanged and the assertion now reads as the claim does: finishing goes HOME.
+# The DESTINATION changed on 9 September 2026 -- profile creation now sits between the tutorial's
+# end and the app, which is the order the profile epic specifies ("entered from the app tutorial").
+# SHOWUP-146's rule is unchanged and is what is asserted: finishing does not restart the tour.
 check("android: finishing the tutorial does not restart it",
-      "onFinish = { screen = FlowScreen.Home }" in kt_host,
-      "SHOWUP-146 connects the tutorial to the app, not back to card 1")
-check("ios: finishing the tutorial does not restart it", "onFinish: { go(to: .home) }" in sw_host)
+      "onFinish = { screen = FlowScreen.ProfileName }" in kt_host
+      and "onFinish = { screen = FlowScreen.TutorialWelcome }" not in kt_host,
+      "SHOWUP-146 connects the tutorial forwards, not back to card 1")
+check("ios: finishing the tutorial does not restart it",
+      "onFinish: { go(to: .profileName) }" in sw_host
+      and "onFinish: { go(to: .tutorialWelcome) }" not in sw_host)
 # And the first card is still where a fresh tour starts, so "does not restart" means something.
 check("android: the tour starts at card 1", "FlowScreen.TutorialWelcome" in kt_host)
 check("ios: the tour starts at card 1", ".tutorialWelcome" in sw_host)

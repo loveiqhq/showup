@@ -246,12 +246,10 @@ struct ErrorBanner: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.lg) {
-            Text("!")
-                .font(F.lora(13, bold: true))
-                .foregroundColor(.white)
-                .frame(width: IconSizes.sm, height: IconSizes.sm)
-                .background(Color.liqDanger)
-                .clipShape(Circle())
+            // The glyph is shared; the BANNER is not. Its radius, padding and glyph size all
+            // differ from the inline card's -- three parameters to unify one shape, which is the
+            // "everything component" this design system keeps declining to build.
+            DangerGlyph(size: IconSizes.sm, glyphSize: 13)
                 .padding(.top, 1)
             Text(message)
                 .font(F.manrope(13.5, .medium))
