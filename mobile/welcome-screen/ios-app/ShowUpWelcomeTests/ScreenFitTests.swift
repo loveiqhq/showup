@@ -115,19 +115,50 @@ final class ScreenFitTests: XCTestCase {
         return buffer
     }
 
-    /// The rows the sunset CTA occupies, found by its violet end.
+    /// Which colour identifies the CTA on a given screen.
     ///
-    /// The gradient runs orange to violet, and violet is the half worth probing: the danger states
-    /// paint red and pink over the top third of these screens, and orange is close enough to those
-    /// to be ambiguous. Nothing else on either screen is this colour.
-    private func ctaRows(in image: CGImage) -> ClosedRange<Int>? {
+    /// There are two primary actions in this app and they are not the same colour -- something
+    /// this probe did not account for. The header below already noted that the tutorial cards were
+    /// excluded because "a probe tuned to the gradient would not see" a circular Next control, and
+    /// then the profile screens arrived using exactly that control. The probe reported "CTA not
+    /// drawn at all" for all five of them, which reads as a layout failure and was a blind spot in
+    /// the harness.
+    private enum CTATint {
+        /// The sunset pill, found by its violet end -- `liqPurple` #812AEC.
+        ///
+        /// The gradient runs orange to violet, and violet is the half worth probing: the danger
+        /// states paint red and pink over the top third of those screens, and orange is close
+        /// enough to those to be ambiguous.
+        case violet
+        /// The circular `NextButton`, found by its fill -- `liqOrange` #FE6839.
+        ///
+        /// **Green is the channel that does the work.** Danger red #FB323B is r 251 / g 50 / b 59
+        /// and orange is r 254 / g 104 / b 57 -- all but identical on red and blue, so a bound on
+        /// green is the only thing separating this CTA from an error state. The upper green bound
+        /// also rejects the circle glow, which lands far lighter.
+        case orange
+
+        func matches(_ r: Int, _ g: Int, _ b: Int) -> Bool {
+            switch self {
+            case .violet: return r < 180 && g < 110 && b > 190
+            case .orange: return r > 220 && g > 80 && g < 140 && b < 100
+            }
+        }
+    }
+
+    /// The rows the CTA occupies in the right-hand gutter.
+    ///
+    /// Sampled at x = 88% of the width, which falls inside the 56pt circle at both ends of the
+    /// device matrix -- 320 wide puts the sample at 281 against a circle spanning 240...296, and
+    /// 440 wide at 387 against 360...416 -- as well as inside the pill.
+    private func ctaRows(in image: CGImage, tint: CTATint = .violet) -> ClosedRange<Int>? {
         let bytes = rgba(image)
         let x = Int(Double(image.width) * 0.88)
         var rows: [Int] = []
         for y in 0..<image.height {
             let p = (y * image.width + x) * 4
             let (r, g, b) = (Int(bytes[p]), Int(bytes[p + 1]), Int(bytes[p + 2]))
-            if r < 180, g < 110, b > 190 { rows.append(y) }
+            if tint.matches(r, g, b) { rows.append(y) }
         }
         guard let first = rows.first, let last = rows.last else { return nil }
         return first...last
@@ -181,42 +212,49 @@ final class ScreenFitTests: XCTestCase {
         // rather than a pill, and a probe tuned to the gradient would not see it.
         var offscreen: [String] = []
         for device in devices {
-            let screens: [(String, CGImage)] = [
-                ("Startup", try render(StartupView(), on: device)),
+            let screens: [(String, CGImage, CTATint)] = [
+                ("Startup", try render(StartupView(), on: device), .violet),
                 // Both states of the gated row, as ScreenFitTest.kt does. The row is 32pt of
                 // content and the band it floats in is the first thing to run out on a short
                 // phone, so testing only the "off" case tests the easy half.
-                ("Startup + social proof", try render(StartupView(showSocialProof: true), on: device)),
-                ("Welcome back", try render(WelcomeBackView(name: "Alexandra"), on: device)),
-                ("Phone", try render(PhoneNumberView(value: .constant("201555")), on: device)),
+                ("Startup + social proof",
+                 try render(StartupView(showSocialProof: true), on: device), .violet),
+                ("Welcome back",
+                 try render(WelcomeBackView(name: "Alexandra"), on: device), .violet),
+                ("Phone",
+                 try render(PhoneNumberView(value: .constant("201555")), on: device), .violet),
                 ("Phone rejected", try render(
-                    PhoneNumberView(value: .constant("201"), error: .tooShort), on: device)),
-                ("Code", try render(VerifyCodeView(digits: .constant("482170")), on: device)),
+                    PhoneNumberView(value: .constant("201"), error: .tooShort), on: device), .violet),
+                ("Code",
+                 try render(VerifyCodeView(digits: .constant("482170")), on: device), .violet),
                 ("Code mismatch", try render(
-                    VerifyCodeView(digits: .constant("482170"), mismatch: true), on: device)),
-                ("Tutorial card 1", try render(WelcomeView(), on: device)),
+                    VerifyCodeView(digits: .constant("482170"), mismatch: true), on: device), .violet),
+                ("Tutorial card 1", try render(WelcomeView(), on: device), .violet),
                 // Profile creation "The basics" — SHOWUP-150 / 152, every state.
                 //
                 // The email screen's error state is the one that matters: it is the only screen in
                 // the group that does NOT reserve its status region, so the consent row and CTA sit
                 // ~18 lower there. The acceptance test is that the CTA still clears the keyboard,
                 // and this harness is what would catch it stopping.
+                // These five draw the circular NextButton, so they are probed on ORANGE. Getting
+                // this wrong does not weaken the test, it silently empties it -- a probe that
+                // matches nothing returns nil, which this test reads as "CTA not drawn at all".
                 ("Profile name", try render(
-                    ProfileNameView(value: .constant("")), on: device)),
+                    ProfileNameView(value: .constant("")), on: device), .orange),
                 ("Profile name typed", try render(
-                    ProfileNameView(value: .constant("Leo")), on: device)),
+                    ProfileNameView(value: .constant("Leo")), on: device), .orange),
                 ("Profile email", try render(
                     ProfileEmailView(value: .constant("leo@hey.com"),
-                                     consent: .constant(false)), on: device)),
+                                     consent: .constant(false)), on: device), .orange),
                 ("Profile email invalid", try render(
                     ProfileEmailView(value: .constant("leo@hey"),
-                                     consent: .constant(false)), on: device)),
+                                     consent: .constant(false)), on: device), .orange),
                 ("Profile email consent on", try render(
                     ProfileEmailView(value: .constant("leo@hey.com"),
-                                     consent: .constant(true)), on: device)),
+                                     consent: .constant(true)), on: device), .orange),
             ]
-            for (label, image) in screens {
-                guard let rows = ctaRows(in: image) else {
+            for (label, image, tint) in screens {
+                guard let rows = ctaRows(in: image, tint: tint) else {
                     offscreen.append("\(device.name) / \(label): CTA not drawn at all"); continue
                 }
                 if rows.upperBound >= Int(device.height) - 1 {
