@@ -201,6 +201,27 @@ fun WelcomeBackScreen(
  * default the screen ships with, so a caller that passes nothing gets this rather than a greeting
  * addressed to a stranger.
  */
+// ── the two sizes that were actually broken ─────────────────────────────────
+//
+// Every preview below this pair is 375, 390 or 430 -- the sizes the design was drawn at, and all
+// three were always fine. The screen was broken at 360x640 and 320x686, where nobody was looking:
+// on 10 September the fit sweep measured "Continue with Facebook" at 7.5dp tall here, with the
+// legal line and the help line both at zero height. Keep these two. A preview set that only
+// covers the comfortable sizes is how a screen stays broken for six weeks.
+
+@Preview(name = "320 x 686 - Fold cover, 24-char name", showBackground = true,
+         widthDp = 320, heightDp = 686)
+@Composable
+private fun WBPreviewFoldCover() {
+    WelcomeBackScreen(name = "Alexandra-Wilhelmina Ma", lastUsed = AuthMethod.Facebook)
+}
+
+@Preview(name = "360 x 640 - small Android", showBackground = true, widthDp = 360, heightDp = 640)
+@Composable
+private fun WBPreviewSmallAndroid() {
+    WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Phone)
+}
+
 @Preview(name = "no account on this device", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun WBPreviewNoAccount() { WelcomeBackScreen() }
