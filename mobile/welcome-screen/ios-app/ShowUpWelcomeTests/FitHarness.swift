@@ -20,14 +20,20 @@
 //  difference. No font metrics, no per-screen knowledge, and it reports the overshoot in points
 //  the same way the Android harness does.
 //
-//  WHAT IS MEASURED
+//  WHAT IS MEASURED, AND IT IS LESS THAN ANDROID
 //
-//    1. an element squeezed below its natural height   (the clipping case, and the common one)
-//    2. an element collapsed to nothing                (zero height, so it is simply gone)
-//    3. an element positioned outside the safe area    (advisory inside a scroll view — reachable)
+//    1. an element collapsed to nothing   (zero height, so it is simply gone) — FAILS a screen
+//    2. an element past the safe area     (advisory, and advisory for a reason — see below)
 //
-//  NOT tap-target size. UIKit cannot see SwiftUI's controls individually, so that one is
-//  Android's to catch — see the note where the check used to be.
+//  NOT tap-target size: UIKit cannot see SwiftUI's controls individually. NOT squeezed text, and
+//  NOT horizontal overflow — both were built, both ran in CI, and both produced only false
+//  positives. The reasons are written out beside the code where they used to be, because the
+//  next person to notice iOS measures less than Android will otherwise write them again.
+//
+//  So this is a narrower instrument than FitHarness.kt and deliberately so. It catches the worst
+//  class — content the user cannot see at all — on all seventeen phones, which is seventeen more
+//  than were measured for it before. Android remains the deeper of the two, and the two apps
+//  render the same layouts from the same tokens.
 //
 //  KNOWN BOUNDARY, and it is the same one Android has: only what the accessibility tree publishes
 //  is visible here. That is every label, every button and every described icon, and nothing
@@ -217,6 +223,18 @@ private func probes(of view: some View, width: CGFloat, height: CGFloat,
 private let QUOTE = String(UnicodeScalar(34))
 private let NEWLINE = String(UnicodeScalar(10))
 
+/// How many backing views a screen publishes at a given size.
+///
+/// The instrument check, and it is deliberately not a findings count. "No findings" is what a
+/// clean screen and a blind harness both look like, and this suite has already been blind twice:
+/// two CI runs passed all forty sweeps while reading an accessibility tree SwiftUI never built.
+/// A view count cannot be a false negative — either the tree is there or it is not.
+@MainActor
+func fitElementCount(_ device: FitDevice, _ view: some View) -> Int {
+    probes(of: view, width: device.width, height: device.height,
+           insets: UIEdgeInsets(top: device.top, left: 0, bottom: device.bottom, right: 0)).count
+}
+
 /// Renders `view` into `device`'s SAFE area and returns everything wrong with the result.
 ///
 /// - Parameter screen: the scenario name, used only in the report.
@@ -238,75 +256,59 @@ func measureFit(_ device: FitDevice, _ screen: String, _ view: some View) -> [Fi
     let safeBottom = device.top + device.safeHeight
 
     for probe in actual {
-        // TWO FILTERS, and without them this reports mostly noise.
-        //
-        // Leaves only, because a container's height is set by its parent: the scaffold's inner
-        // column is floored at the viewport, so in the 12000pt render it IS 12000pt and would
-        // report itself squeezed by eleven thousand points on every screen in the app.
-        //
-        // And only where the natural height is something a screen could actually hold. Anything
-        // flexible expands to fill the tall render, so a natural height larger than the whole
-        // safe area means "this grows", not "this wants that much" -- the same false positive
-        // wearing a different hat.
-        //
-        // Both filters can only HIDE a finding, never invent one, which is the right direction
-        // for a harness whose first run is in CI.
+        // Leaves only. A container's height is set by its parent -- the scaffold's inner column
+        // is floored at the viewport, so in the tall render it IS 12000pt -- and comparing those
+        // reports every screen as broken by eleven thousand points.
         let raw = wants[probe.path + "|" + probe.kind]
         let wanted: CGFloat? = (probe.isLeaf && (raw ?? 0) <= device.safeHeight) ? raw : nil
 
-        // 2. collapsed to nothing at all
+        // 1. COLLAPSED -- the one detector that survived contact with CI, and the one that
+        //    matters most. An element with no height at all is content the user cannot see, and
+        //    it is exactly the shape of the worst finding Android ever had: the Connect legal
+        //    line and the Welcome back help line, at zero height on five phones, invisible in
+        //    every preview because nothing looked broken.
         if probe.frame.height <= 0 {
             if let wanted, wanted > fitSlack {
                 found.append(FitViolation(
                     device: device, screen: screen, element: probe.label,
                     problem: "COLLAPSED",
-                    detail: String(format: "zero height, wants %.0fpt", wanted)))
+                    detail: String(format: "zero height, wants %.0fpt at (%.0f, %.0f)",
+                                   wanted, probe.frame.minX, probe.frame.minY)))
             }
             continue
         }
 
-        // 1. squeezed below what it wants to be
-        if let wanted, wanted - probe.frame.height > fitSlack {
-            found.append(FitViolation(
-                device: device, screen: screen, element: probe.label,
-                problem: "SQUEEZED",
-                detail: String(format: "%.0fpt of %.0f not drawn, at (%.0f, %.0f)",
-                               wanted - probe.frame.height, wanted,
-                               probe.frame.minX, probe.frame.minY)))
-        }
-
-        // 3. NO TAP-TARGET CHECK, and the absence is deliberate.
-        //
-        // There was one. It looked for a UIControl, or for a view carrying a UIKit gesture
-        // recogniser, and in CI it never fired once -- a SwiftUI Button is not a UIControl and
-        // does not hang a UIGestureRecognizer on its own backing view; the whole hosting view
-        // handles gestures through SwiftUI's own system, which UIKit cannot see per control.
-        //
-        // A detector that cannot fire is worse than no detector, because the suite passing then
-        // reads as coverage. Android measures tap targets properly, through Compose semantics
-        // that carry an OnClick action, and the two platforms render the same layouts from the
-        // same tokens -- so a control crushed on one is crushed on the other, and Android is
-        // where that gets caught. What DOES surface here is the label inside a crushed control,
-        // which collapses or squeezes like any other leaf.
-
-        // 4. outside the safe area. Below the fold of something that scrolls is a scroll, not a
-        //    loss, so it is reported and not failed -- exactly as FitHarness.kt does it.
+        // 2. Off the bottom, ADVISORY. Reported so it is visible, never failing, because the
+        //    frames here belong partly to private views whose geometry is not a layout answer --
+        //    see the note below on what was removed and why.
         if probe.isLeaf && probe.frame.maxY > safeBottom + fitSlack {
             let over = probe.frame.maxY - safeBottom
-            found.append(probe.inScroll
-                ? FitViolation(device: device, screen: screen, element: probe.label,
-                               problem: "BELOW THE FOLD",
-                               detail: String(format: "by %.1fpt, reachable by scrolling", over),
-                               advisory: true)
-                : FitViolation(device: device, screen: screen, element: probe.label,
-                               problem: "OFF THE BOTTOM", detail: String(format: "by %.1fpt", over)))
-        }
-        if probe.isLeaf && probe.frame.maxX > device.width + fitSlack {
             found.append(FitViolation(
-                device: device, screen: screen, element: probe.label, problem: "OFF THE RIGHT",
-                detail: String(format: "by %.1fpt", probe.frame.maxX - device.width)))
+                device: device, screen: screen, element: probe.label,
+                problem: probe.inScroll ? "BELOW THE FOLD" : "PAST THE BOTTOM",
+                detail: String(format: "by %.1fpt%@", over,
+                               probe.inScroll ? ", reachable by scrolling" : ""),
+                advisory: true))
         }
     }
+
+    // WHAT WAS REMOVED, AND WHY, SO NOBODY ADDS IT BACK BLIND
+    //
+    // SQUEEZED -- an element shorter than its natural height. It fired 45 times on Connect alone
+    // and every one was the same false positive: the headline steps 40pt to 34pt below a 700pt
+    // frame, so the tall reference render takes the roomy branch and the real one takes the
+    // compact branch, and the deliberate step reads as a squeeze. Any responsive decision keyed
+    // on height does this. Worse, the detector was looking for something SwiftUI does not do:
+    // asked for less room than it needs, SwiftUI CLIPS a text view rather than resizing it, so
+    // the frames stay equal and the genuine case never appears. Both failure modes at once.
+    //
+    // OFF THE RIGHT -- fired once, on a typed phone number at 320pt. Also false: a UITextField
+    // scrolls its own content, so `_UITextLayoutFragmentView` is legitimately wider than the
+    // field that clips it, and the overflow is what a text field does rather than a bug.
+    //
+    // The lesson is the same for both: the raw view tree contains private views whose frames are
+    // implementation detail, not layout. COLLAPSED survives because zero height means the same
+    // thing whatever view it is.
 
     // One report per element and problem, as the Android harness does: the same squeezed label
     // reached through three ancestors is one finding, not three.
