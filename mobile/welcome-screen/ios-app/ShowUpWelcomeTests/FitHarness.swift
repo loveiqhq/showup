@@ -161,42 +161,62 @@ private func probes(of view: some View, width: CGFloat, height: CGFloat,
 
     var found: [Probe] = []
 
-    // Both shapes have to be handled. SwiftUI publishes some elements as accessible UIViews and
-    // others as UIAccessibilityElement objects hung off a container's `accessibilityElements`,
-    // and which one you get is an implementation detail that has changed between releases.
+    // THREE shapes have to be handled, and the first version of this file handled one.
+    //
+    // UIAccessibilityContainer has two entirely separate forms: a view can publish an
+    // `accessibilityElements` array, or it can implement `accessibilityElementCount()` and
+    // `accessibilityElement(at:)`. SwiftUI's hosting view uses the SECOND, and this walk only
+    // looked at the first — so the tree came back empty, every sweep passed on nothing, and the
+    // four instrument tests in ScreenFitMeasureTests were the only reason anyone found out.
+    //
+    // The third shape is the leaf: an element is any NSObject carrying accessibility properties,
+    // not necessarily a UIAccessibilityElement, so it is read through the informal protocol that
+    // every NSObject conforms to rather than through a cast that can quietly fail.
     func walk(_ node: Any, inScroll: Bool) {
-        if let element = node as? UIAccessibilityElement {
-            append(label: element.accessibilityLabel,
-                   frame: element.accessibilityFrame,
-                   traits: element.accessibilityTraits,
-                   inScroll: inScroll)
+        guard let object = node as? NSObject else { return }
+
+        if let view = object as? UIView {
+            let scrolled = inScroll || view is UIScrollView
+            if view.isAccessibilityElement { append(object, inScroll: scrolled) }
+            if descend(view, inScroll: scrolled) { return }
+            view.subviews.forEach { walk($0, inScroll: scrolled) }
             return
         }
-        guard let view = node as? UIView else { return }
-        let scrolled = inScroll || view is UIScrollView
-        if view.isAccessibilityElement {
-            append(label: view.accessibilityLabel,
-                   frame: view.accessibilityFrame,
-                   traits: view.accessibilityTraits,
-                   inScroll: scrolled)
-        }
-        // `accessibilityElements`, when a view sets it, REPLACES the subtree for accessibility
-        // purposes, so descending into subviews as well would double-count.
-        if let published = view.accessibilityElements, !published.isEmpty {
-            published.forEach { walk($0, inScroll: scrolled) }
-        } else {
-            view.subviews.forEach { walk($0, inScroll: scrolled) }
-        }
+
+        append(object, inScroll: inScroll)
+        // An element can itself be a container -- SwiftUI nests them for grouped controls.
+        _ = descend(object, inScroll: inScroll)
     }
 
-    func append(label: String?, frame: CGRect, traits: UIAccessibilityTraits, inScroll: Bool) {
-        guard let label, !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return
+    /// Follows whichever container form this object implements. True when it published children.
+    func descend(_ object: NSObject, inScroll: Bool) -> Bool {
+        // `accessibilityElements`, when set, REPLACES the subtree for accessibility purposes, so
+        // descending into subviews as well would double-count.
+        if let published = object.accessibilityElements, !published.isEmpty {
+            published.forEach { walk($0, inScroll: inScroll) }
+            return true
         }
+        // The method-based form. `accessibilityElementCount()` answers NSNotFound on anything
+        // that is not a container, which is not a count and must not be looped over.
+        let count = object.accessibilityElementCount()
+        guard count != NSNotFound, count > 0 else { return false }
+        for index in 0..<count {
+            if let child = object.accessibilityElement(at: index) {
+                walk(child, inScroll: inScroll)
+            }
+        }
+        return true
+    }
+
+    func append(_ object: NSObject, inScroll: Bool) {
+        guard let label = object.accessibilityLabel,
+              !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let frame = object.accessibilityFrame
         guard frame.width.isFinite, frame.height.isFinite else { return }
-        found.append(Probe(label: "\"\(label.replacingOccurrences(of: "\n", with: " "))\"",
+        let oneLine = label.replacingOccurrences(of: "\n", with: " ")
+        found.append(Probe(label: "\"" + oneLine + "\"",
                            frame: frame,
-                           isButton: traits.contains(.button),
+                           isButton: object.accessibilityTraits.contains(.button),
                            inScroll: inScroll))
     }
 
