@@ -333,16 +333,26 @@ check("143 phone field autofill (swift)",
       "textContentType = .telephoneNumber" in code_only(phone_sw))
 check("143 code field autofill (kotlin)", "FieldContent.SmsCode" in code_only(ver_kt))
 check("143 code field autofill (swift)", "textContentType(.oneTimeCode)" in code_only(ver_sw))
-# A/B reserves TWO lines, pinned, not one as a minimum. Every message names the country and wraps;
-# reserving one line let the CTA drop 15.7pt on rejection, measured on an iPhone 17 Pro.
-# The two numbers differ on purpose and the reasoning is at both sites: Compose sets lineHeight
-# explicitly and cannot shrink text, so it needs real headroom over the 35.1dp two lines take;
-# SwiftUI's two lines are smaller and it can scale a long message down. What has to match is that
-# both reserve two lines and neither can grow.
-check("143 helper A/B reserves two lines (kotlin)",
-      "height(40.dp)" in ver_kt and "maxLines = 2" in ver_kt)
-check("143 helper A/B reserves two lines (swift)",
-      "minHeight: 36, maxHeight: 36" in ver_sw and "lineLimit(2)" in ver_sw)
+# A/B reserves THREE lines of card, pinned, not a minimum. Updated 10 September 2026 when the
+# product side ruled that every error in the app is the red card, never bare red text -- this row
+# was the last place the bare style survived.
+#
+# The number moved 40 -> 80 because the card is not just a colour: 1 of border and 10 of padding
+# top and bottom, and 14 of padding plus an 18 glyph and a 10 gap taking WIDTH out of the text
+# column. The narrower column is what forced three lines, since every message names a country and
+# an example number. Two was tried and ScreenFitTest clipped three of them on the 320-wide Fold
+# cover screen; three passes at all seventeen sizes with the CTA neither moved nor off-screen.
+#
+# Both platforms now hold the same 80 and the same three-line ceiling, and neither can grow --
+# a region that fits its content is a region that moves the CTA, which SHOWUP-143 forbids.
+check("143 helper A/B reserves three lines of card (kotlin)",
+      "height(80.dp)" in ver_kt and "maxLines = 3" in ver_kt)
+check("143 helper A/B reserves three lines of card (swift)",
+      "minHeight: 80, maxHeight: 80" in ver_sw and "lineLimit: 3" in ver_sw)
+# The error is the shared card, not a locally styled Text. This is the check that would fail if
+# anyone reverted this row to bare red text.
+check("143 A/B error is the shared card (kotlin)", "InlineErrorCard(" in ver_kt)
+check("143 A/B error is the shared card (swift)", "InlineErrorCard(" in ver_sw)
 # see finding 1 -- 42 cannot hold the specified copy, so the reserve is the measured height
 check("143 helper C/D reserved (kotlin)", "heightIn(min = 42.dp)" in ver_kt)
 check("143 helper C/D reserved (swift)", "minHeight: 42" in ver_sw)
@@ -453,9 +463,10 @@ check("142 help + legal lines use the design token (swift)", back_sw.count(".liq
 # subtle, so this is not a blanket substitution.
 check("142 legal links stay fg-muted (kotlin)", "color = Muted" in back_kt)
 check("142 legal links stay fg-muted (swift)", ".liqMuted" in back_sw)
-# 143 has no reference file, so there is no design value to revert to. Its helper line, which is
-# the only thing that reports a validation failure, stays on the readable token.
-check("143 helper text stays readable (kotlin)", "else Muted" in ver_kt)
+# 143 has no reference file, so there is no design value to revert to. The CALM helper line stays
+# on the readable token -- it is advice, not a failure, and it keeps Muted now that the failure
+# has moved into the card. `color = Muted` unconditionally, where it used to be a ternary.
+check("143 helper text stays readable (kotlin)", "color = Muted" in ver_kt)
 check("143 helper text stays readable (swift)", ".liqMuted" in ver_sw)
 
 # ── copy, character for character ───────────────────────────────────────────

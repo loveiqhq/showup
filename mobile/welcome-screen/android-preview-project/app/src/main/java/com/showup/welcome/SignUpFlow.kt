@@ -63,8 +63,16 @@ object DevAuth {
      */
     const val TEST_CODE = "480726"
 
-    /** Seconds before a resend is offered. Real cooldown, fake send. */
-    const val RESEND_COOLDOWN = 30
+    /**
+     * Seconds before a resend is offered. Real cooldown, fake send.
+     *
+     * 60, matching the server's `OTP_RESEND_COOLDOWN`. It was 30, which is the mismatch the
+     * product side ruled against for email on 10 September 2026 -- and the phone screen had it
+     * too: the link would go live at 30s and `/auth/phone/start` would answer 429 for another 30.
+     * Latent only because DevAuth sends nothing yet, so it would have surfaced the day Twilio
+     * landed. One number, and the server owns it.
+     */
+    const val RESEND_COOLDOWN = 60
 
     /** Set false to hide the on-screen hint without removing the fixed code. */
     const val SHOW_HINT = true

@@ -84,7 +84,6 @@ import com.showup.designsystem.Border
 // Subtle is 3.04 against the page and 3.14 against the fill. See audit finding 7.
 import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerDigit
-import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
@@ -269,22 +268,54 @@ fun PhoneNumberScreen(
         // which is precisely how this row came to render differently on Linux and on Windows. iOS
         // needs no such margin because it can shrink a long message to fit; Compose 1.7 has no
         // autoSize, so the room has to be real.
+        // ERRORS ARE A CARD, HELPER TEXT IS NOT
+        //
+        // One error style across the app, decided 10 September 2026: the red card with the glyph
+        // and the message inside it, never bare red text. This row used to render its failure as
+        // red text alone, which was the last place that style survived.
+        //
+        // The calm string is NOT an error -- "Standard message rates may apply." is advice, and
+        // wrapping advice in a danger card would say something the sentence does not. So the row
+        // swaps component, not just colour.
+        //
+        // THE RESERVE GREW FROM 40 TO 80, AND THAT IS THE COST OF THE CHANGE
+        //
+        // The card adds chrome the bare text did not have -- 1 border and 10 padding top and
+        // bottom, and 14 of padding plus an 18 glyph and a 10 gap eating the text column's WIDTH.
+        // The narrower column is what actually drove this: the same sentences that fitted two
+        // lines as bare 13sp text need three inside the card.
+        //
+        // maxLines 3, and 80 to hold it. Two was tried first, on the assumption that reserving
+        // for three would push the CTA under the keyboard -- ScreenFitTest disproved both halves
+        // of that. At two, three messages CLIPPED on the Galaxy Fold cover screen and the user
+        // lost the example number, which is the useful half of the sentence. At three, all
+        // seventeen sizes pass with the CTA neither moved nor off-screen. The guess was wrong and
+        // the harness is the reason it did not ship.
+        //
+        // The region stays FIXED at 80 in BOTH states, because a region that fits its content is
+        // a region that moves the CTA when the content changes, which is the one thing
+        // SHOWUP-143 forbids. The quiet space under the helper line in the calm state is that
+        // guarantee being paid for, and it is 40dp more of it than before.
         Box(
             Modifier
                 .fillMaxWidth()
                 .padding(top = Spacing.lg, start = Spacing.xs)
-                .height(40.dp)
+                .height(80.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            Text(
-                error?.message(country) ?: "Standard message rates may apply.",
-                // Muted, not Subtle -- helper text has to be readable. See audit finding 7.
-                color = if (invalid) DangerFg else Muted,
-                fontFamily = Manrope,
-                fontWeight = if (invalid) FontWeight.SemiBold else FontWeight.Medium,
-                fontSize = 13.sp, lineHeight = 17.55.sp,
-                maxLines = 2,
-            )
+            if (invalid) {
+                InlineErrorCard(error?.message(country) ?: "", maxLines = 3)
+            } else {
+                Text(
+                    "Standard message rates may apply.",
+                    // Muted, not Subtle -- helper text has to be readable. See audit finding 7.
+                    color = Muted,
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp, lineHeight = 17.55.sp,
+                    maxLines = 2,
+                )
+            }
         }
 
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
@@ -555,7 +586,10 @@ fun VerifyCodeScreen(
                 // tappable label during the cooldown would be either a dead control or a rule
                 // broken. tabular figures so the countdown does not jitter as it ticks.
                 Text(
-                    "Send a new code in 0:%02d".format(cooldownSeconds),
+                    // The minute is computed, not a literal. It used to read "0:%02d", which was
+                    // true only while the cooldown was 30 -- at the 60 the server actually
+                    // enforces, the first tick rendered "0:60" and counted down from there.
+                    "Send a new code in %d:%02d".format(cooldownSeconds / 60, cooldownSeconds % 60),
                     modifier = Modifier.padding(vertical = Spacing.xs),
                     color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,

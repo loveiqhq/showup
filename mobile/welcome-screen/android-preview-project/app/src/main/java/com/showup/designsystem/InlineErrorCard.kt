@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -47,6 +48,16 @@ import androidx.compose.ui.unit.sp
 fun InlineErrorCard(
     message: AnnotatedString,
     modifier: Modifier = Modifier,
+    /**
+     * Ceiling on the message, for a screen whose reserved region is fixed.
+     *
+     * Unbounded by default, which is right for the profile screens: their copy is one short
+     * sentence and their region is sized to the card. The phone screen is the exception -- its
+     * messages name a country and an example number, so they can run to three lines, and its
+     * region is a fixed height that keeps the CTA still. Two lines there is not a new decision,
+     * it is the ceiling that screen already had before the card existed.
+     */
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     val shape = RoundedCornerShape(Radius.errorBox)
     Row(
@@ -71,6 +82,8 @@ fun InlineErrorCard(
             fontWeight = FontWeight.Medium,
             fontSize = 13.5.sp,
             lineHeight = (13.5f * 1.4f).sp,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -80,4 +93,5 @@ fun InlineErrorCard(
 fun InlineErrorCard(
     message: String,
     modifier: Modifier = Modifier,
-) = InlineErrorCard(AnnotatedString(message), modifier)
+    maxLines: Int = Int.MAX_VALUE,
+) = InlineErrorCard(AnnotatedString(message), modifier, maxLines)
