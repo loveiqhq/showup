@@ -79,3 +79,16 @@
 -keepclassmembers class <2>$<3> {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# ── Tink, via androidx.security:security-crypto ─────────────────────────────
+#
+# EncryptedTokenStore's master key comes from Tink, and Tink's classes are annotated with Error
+# Prone's @Immutable -- an annotation that exists at COMPILE time and is deliberately absent from
+# the runtime classpath. R8 sees the reference, cannot resolve it, and fails the build.
+#
+# Worth recording WHEN this appeared, because it says something about the dependency: never,
+# until 10 September 2026, when the profile flow became the first code to actually construct an
+# EncryptedTokenStore. security-crypto had been a declared dependency with no reachable caller,
+# so R8 removed the whole tree and never had to resolve anything inside it. The rule was not
+# missing before; the code was.
+-dontwarn com.google.errorprone.annotations.**

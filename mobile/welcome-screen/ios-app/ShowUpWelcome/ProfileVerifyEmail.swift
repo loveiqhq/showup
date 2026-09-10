@@ -56,6 +56,12 @@ struct ProfileVerifyEmailView: View {
     @Binding var digits: String
     var state: VerifyState = .calm
     var cooldownSeconds: Int = 60
+    /// A request is in flight.
+    ///
+    /// The CTA goes inert rather than growing a spinner: PrimaryButton has no loading variant,
+    /// and adding one would change a control two shipped screens already draw. Inert is honest
+    /// and costs no layout — a measured spinner is a separate, deliberate change.
+    var busy: Bool = false
     var onVerify: () -> Void = {}
     var onResend: () -> Void = {}
     var onChangeEmail: () -> Void = {}
@@ -120,7 +126,7 @@ struct ProfileVerifyEmailView: View {
             // The group's ONE disabled CTA, and a settled exception rather than drift: a partial
             // code has nothing to validate, and the six boxes already say "six digits".
             PrimaryButton(VerifyEmailCopy.cta,
-                          enabled: canSubmitCode(digits, state: state),
+                          enabled: canSubmitCode(digits, state: state) && !busy,
                           action: onVerify)
                 .padding(.top, 14)
 

@@ -123,6 +123,14 @@ fun ProfileVerifyEmailScreen(
     /** Bumped by the host on every refused submit, so a second failure shakes again. */
     shakeKey: Int = 0,
     cooldownSeconds: Int = 60,
+    /**
+     * A request is in flight.
+     *
+     * The CTA goes inert rather than growing a spinner: PrimaryButton has no loading variant, and
+     * adding one would change a control two shipped screens already draw. Inert-and-labelled is
+     * honest and costs no layout — a measured spinner is a separate, deliberate change.
+     */
+    busy: Boolean = false,
     onVerify: () -> Unit = {},
     onResend: () -> Unit = {},
     onChangeEmail: () -> Unit = {},
@@ -232,7 +240,7 @@ fun ProfileVerifyEmailScreen(
                 VerifyEmailCopy.CTA,
                 onVerify,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canSubmitCode(digits, state),
+                enabled = canSubmitCode(digits, state) && !busy,
             )
 
             Spacer(Modifier.height(18.dp))

@@ -134,6 +134,15 @@ fun ProfileDobScreen(
     hideAge: Boolean = false,
     onHideAgeChange: (Boolean) -> Unit = {},
     attempted: Boolean = false,
+    /** A request is in flight. Continue stops accepting presses; see the note on the code screen. */
+    busy: Boolean = false,
+    /**
+     * The server refused the age its own way.
+     *
+     * Only reachable when the client's 18 check and the server's disagree, which is possible
+     * around a birthday if a device clock is wrong. Rare, and silent without this.
+     */
+    serverRejectedAge: Boolean = false,
     onContinue: (DobResult.Valid) -> Unit = {},
     onRefused: (DobResult) -> Unit = {},
     onEdit: () -> Unit = {},
@@ -147,6 +156,7 @@ fun ProfileDobScreen(
     val parsed = parseDob(value, order)
     val underAge = parsed is DobResult.Valid && parsed.age < MINIMUM_AGE
     val isError = when {
+        serverRejectedAge -> true
         parsed is DobResult.Impossible -> true
         underAge -> true
         attempted && parsed is DobResult.Incomplete -> true
@@ -157,7 +167,9 @@ fun ProfileDobScreen(
     BackHandler(enabled = true) { onBack() }
 
     val submit: () -> Unit = {
-        if (parsed is DobResult.Valid && !underAge) {
+        if (busy) {
+            // Nothing. A second press while the first is in flight would write twice.
+        } else if (parsed is DobResult.Valid && !underAge) {
             onContinue(parsed)
         } else {
             shakeKey += 1
@@ -231,7 +243,9 @@ fun ProfileDobScreen(
             ) {
                 when {
                     parsed is DobResult.Impossible -> InlineErrorCard(DobCopy.invalid(order))
-                    underAge -> InlineErrorCard(DobCopy.UNDER_18)
+                    // The server's refusal reads the same as the client's, because it IS the same
+                    // rule -- the user does not need to know which side noticed.
+                    underAge || serverRejectedAge -> InlineErrorCard(DobCopy.UNDER_18)
                     attempted && parsed is DobResult.Incomplete ->
                         InlineErrorCard(DobCopy.incomplete(order))
                     parsed is DobResult.Valid -> AgeCard(age = parsed.age, onEdit = onEdit)

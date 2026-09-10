@@ -28,14 +28,22 @@ import com.showup.tutorial.MatchOnAvailabilityScreen
 import com.showup.tutorial.MeetInRealLifeScreen
 import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
-import com.showup.welcome.DevAuth
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
+import com.showup.api.EncryptedTokenStore
+import com.showup.api.ShowUpApi
+import com.showup.profile.BasicsRepository
+import com.showup.profile.BasicsViewModel
+import com.showup.profile.EmailCopy
 import com.showup.profile.ProfileDobScreen
+import java.time.OffsetDateTime
 import com.showup.profile.ProfileEmailScreen
 import com.showup.profile.ProfileNameScreen
 import com.showup.profile.ProfileVerifyEmailScreen
-import com.showup.profile.dobDigits
 import com.showup.profile.rememberDateOrder
-import com.showup.profile.verifyState
 import com.showup.welcome.FlowScreen
 import com.showup.welcome.SignUpFlow
 import com.showup.welcome.SignUpOutcome
@@ -69,54 +77,29 @@ class MainActivity : ComponentActivity() {
             var email by rememberSaveable { mutableStateOf("") }
             var marketingConsent by rememberSaveable { mutableStateOf(false) }
 
-            // ── "The basics" step 3 and the code screen ──────────────────────
+            // ── "The basics" now talks to the backend ───────────────────────
             //
-            // rememberSaveable throughout: everything here is something the user typed or chose,
-            // and losing it to a rotation is a real bug. The one deliberate exception is
-            // codeDigits -- see the note where the code screen is rendered.
-            var codeDigits by rememberSaveable { mutableStateOf("") }
-            var codeAttempts by rememberSaveable { mutableIntStateOf(0) }
-            var codeRefused by rememberSaveable { mutableStateOf(false) }
-            var codeShakeKey by rememberSaveable { mutableIntStateOf(0) }
-            var resendCooldown by rememberSaveable { mutableIntStateOf(DevAuth.RESEND_COOLDOWN) }
-            // Epoch millis at which the current code dies. This is the whole mechanism that lets
-            // the client tell "expired" from "wrong" -- /auth/email/start returns expiresAt, and
-            // the 401 for a bad code and an expired one are identical, so the response cannot.
-            var codeExpiresAt by rememberSaveable { mutableLongStateOf(0L) }
-            var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-
-            var dob by rememberSaveable { mutableStateOf("") }
-            var hideAge by rememberSaveable { mutableStateOf(false) }
-            var dobAttempted by rememberSaveable { mutableStateOf(false) }
-
-            // One ticker drives the countdown AND the expiry check, so they can never disagree
-            // about what time it is.
-            LaunchedEffect(screen) {
-                while (screen == FlowScreen.ProfileVerifyEmail) {
-                    kotlinx.coroutines.delay(1000)
-                    nowMillis = System.currentTimeMillis()
-                    if (resendCooldown > 0) resendCooldown -= 1
-                }
-            }
-
-            val codeExpired = codeExpiresAt > 0L && nowMillis >= codeExpiresAt
-            val codeState = verifyState(
-                attempts = codeAttempts,
-                maxAttempts = DevAuth.MAX_VERIFY_ATTEMPTS,
-                expired = codeExpired,
-                lastSubmitRefused = codeRefused,
+            // The code screen sends, waits, counts down against a SERVER timestamp and retries,
+            // which is the moment the Android CLAUDE.md names for introducing a ViewModel. The
+            // hand-rolled saveable state that used to live here could not own a request in
+            // flight; viewModelScope can, and cancels it with the screen.
+            //
+            // The api is built once per Activity, not per recomposition, and its tokens come from
+            // the encrypted store -- a refresh token is a durable credential.
+            val context = LocalContext.current
+            val basics: BasicsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        BasicsViewModel(
+                            BasicsRepository(ShowUpApi(tokens = EncryptedTokenStore(context))),
+                        )
+                    }
+                },
             )
-
-            // Sending a code is one act with one set of consequences, so it is written once and
-            // called from both the arrival and the resend rather than copied into each.
-            val sendCode: () -> Unit = {
-                codeDigits = ""
-                codeAttempts = 0
-                codeRefused = false
-                resendCooldown = DevAuth.RESEND_COOLDOWN
-                nowMillis = System.currentTimeMillis()
-                codeExpiresAt = nowMillis + DevAuth.CODE_TTL_SECONDS * 1000L
-            }
+            // collectAsStateWithLifecycle, never bare collectAsState: the latter keeps collecting
+            // while the app is backgrounded, which for a countdown means burning a wakelock to
+            // update a screen nobody is looking at.
+            val basicsState by basics.state.collectAsStateWithLifecycle()
             val motion = rememberMotion()
 
             // The system back gesture mirrors the on-screen Back, so hardware back never drops
@@ -196,73 +179,66 @@ class MainActivity : ComponentActivity() {
                     )
                     FlowScreen.ProfileEmail -> ProfileEmailScreen(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = {
+                            email = it
+                            basics.setEmail(it)
+                        },
                         consent = marketingConsent,
                         onConsentChange = { marketingConsent = it },
-                        // Continue reaches Verify email, and SENDS the code on the way -- the
-                        // ticket is explicit that the send is triggered here rather than on
-                        // arrival, which is also what keeps a relaunch onto the code screen from
-                        // silently issuing a new one.
+                        // Continue SENDS the code and only advances once the server has accepted
+                        // it. Navigating first would put the user on a screen waiting for a code
+                        // that was never dispatched.
                         onContinue = {
                             email = it
-                            sendCode()
-                            screen = FlowScreen.ProfileVerifyEmail
+                            basics.setEmail(it)
+                            basics.sendCode(onSent = { screen = FlowScreen.ProfileVerifyEmail })
+                        },
+                        serverError = if (basicsState.emailInUse) {
+                            EmailCopy.ALREADY_IN_USE_PROPOSED
+                        } else if (basicsState.transportFailed) {
+                            EmailCopy.SEND_FAILED_PROPOSED
+                        } else {
+                            null
                         },
                         onBack = { screen = FlowScreen.ProfileName },
                     )
 
-                    // SHOWUP-153. codeDigits is deliberately NOT restored on a cold start -- the
-                    // ticket says a relaunch shows empty slots with the resend live and must not
-                    // re-send. rememberSaveable keeps it across a rotation, which is a different
-                    // thing and is what the user expects.
+                    // SHOWUP-153. Every number on this screen is the server's: the cooldown
+                    // counts down to `resendAvailableAt`, the expiry compares against
+                    // `expiresAt`, and the attempt cap is raised to the cap by a 401 that says
+                    // so. Nothing here is simulated any more.
                     FlowScreen.ProfileVerifyEmail -> ProfileVerifyEmailScreen(
-                        email = email,
-                        digits = codeDigits,
-                        onDigitsChange = {
-                            codeDigits = it
-                            codeRefused = false
-                        },
-                        state = codeState,
-                        shakeKey = codeShakeKey,
-                        cooldownSeconds = resendCooldown,
-                        onVerify = {
-                            codeAttempts += 1
-                            if (codeDigits == DevAuth.TEST_CODE) {
-                                codeRefused = false
-                                screen = FlowScreen.ProfileDob
-                            } else {
-                                codeRefused = true
-                                codeShakeKey += 1
-                            }
-                        },
-                        onResend = { sendCode() },
+                        email = basicsState.email.ifEmpty { email },
+                        digits = basicsState.codeDigits,
+                        onDigitsChange = basics::setDigits,
+                        state = basicsState.failure(OffsetDateTime.now()),
+                        shakeKey = basicsState.shakeKey,
+                        cooldownSeconds = basicsState.cooldownSeconds,
+                        busy = basicsState.busy,
+                        onVerify = { basics.verify(onVerified = { screen = FlowScreen.ProfileDob }) },
+                        onResend = { basics.sendCode() },
                         // Both exits are the same journey: back to the email step, address kept.
                         onChangeEmail = { screen = FlowScreen.ProfileEmail },
                         onBack = { screen = FlowScreen.ProfileEmail },
                     )
 
-                    // SHOWUP-154. Back must NOT re-send or re-verify anything -- the code screen
-                    // is already satisfied, so this only moves the position.
+                    // SHOWUP-154. Continue writes the date AND the visibility choice in one
+                    // PATCH and only advances when the server has stored them. Back does not
+                    // re-send or re-verify anything -- the code screen is already satisfied.
                     FlowScreen.ProfileDob -> ProfileDobScreen(
-                        value = dob,
-                        onValueChange = {
-                            dob = it
-                            // The incomplete error clears the moment the eighth digit lands and
-                            // does not re-fire until Continue is pressed again.
-                            if (dobDigits(it).length == 8) dobAttempted = false
-                        },
+                        value = basicsState.dob,
+                        onValueChange = basics::setDob,
                         order = rememberDateOrder(),
-                        hideAge = hideAge,
-                        onHideAgeChange = { hideAge = it },
-                        attempted = dobAttempted,
-                        onContinue = { screen = FlowScreen.Home },
-                        onRefused = { dobAttempted = true },
-                        onEdit = {
-                            // A clear, not a cursor placement: a wrong date is nearly always
-                            // wrong in the year, and re-typing eight digits beats hunting a caret.
-                            dob = ""
-                            dobAttempted = false
+                        hideAge = basicsState.hideAge,
+                        onHideAgeChange = basics::setHideAge,
+                        attempted = basicsState.dobAttempted,
+                        busy = basicsState.busy,
+                        serverRejectedAge = basicsState.serverRejectedAge,
+                        onContinue = { valid ->
+                            basics.saveDateOfBirth(valid.iso, onSaved = { screen = FlowScreen.Home })
                         },
+                        onRefused = { basics.markDobAttempted() },
+                        onEdit = { basics.clearDob() },
                         onBack = { screen = FlowScreen.ProfileVerifyEmail },
                     )
                     FlowScreen.Home ->

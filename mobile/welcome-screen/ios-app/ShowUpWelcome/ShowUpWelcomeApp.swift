@@ -7,6 +7,7 @@
 //  The navigation is a placeholder: real routing arrives with the rest of the app. It exists so the
 //  flow can be walked end to end in the simulator.
 
+import ShowUpAPI
 import SwiftUI
 
 @main
@@ -86,43 +87,23 @@ private struct TutorialFlow: View {
     @SceneStorage("basics.email") private var email: String = ""
     @SceneStorage("basics.marketingConsent") private var marketingConsent: Bool = false
 
-    // ── "The basics" step 3 and the code screen ─────────────────────────────
+    // ── "The basics" now talks to the backend ──────────────────────────────
     //
-    // Scene-scoped like everything else in this flow: a rotation or a background keeps them, a
-    // properly closed scene does not resurrect a half-finished signup.
-    @SceneStorage("basics.codeDigits") private var codeDigits: String = ""
-    @SceneStorage("basics.codeAttempts") private var codeAttempts: Int = 0
-    @SceneStorage("basics.codeRefused") private var codeRefused: Bool = false
-    @SceneStorage("basics.resendCooldown") private var resendCooldown: Int = DevAuth.resendCooldown
-    /// Epoch seconds at which the current code dies. The whole mechanism that lets the client
-    /// tell "expired" from "wrong": /auth/email/start returns expiresAt, and the 401 for a bad
-    /// code and an expired one are identical, so the response cannot.
-    @SceneStorage("basics.codeExpiresAt") private var codeExpiresAt: Double = 0
-    @SceneStorage("basics.dob") private var dob: String = ""
-    @SceneStorage("basics.hideAge") private var hideAge: Bool = false
-    @SceneStorage("basics.dobAttempted") private var dobAttempted: Bool = false
+    // The code screen sends, waits, counts down against a SERVER timestamp and retries, which is
+    // the moment the iOS CLAUDE.md names for @Observable. The @SceneStorage values that used to
+    // live here could not own a request in flight.
+    //
+    // Built once for the scene, with credentials from the Keychain — a refresh token is a
+    // durable credential and does not belong in UserDefaults.
+    @State private var basics = BasicsModel(
+        repo: BasicsRepository(api: ShowUpAPI(tokens: KeychainTokenStore()))
+    )
 
-    @State private var nowSeconds: Double = Date().timeIntervalSince1970
-
-    private var codeExpired: Bool { codeExpiresAt > 0 && nowSeconds >= codeExpiresAt }
-
-    private var codeState: VerifyState {
-        verifyState(attempts: codeAttempts,
-                    maxAttempts: DevAuth.maxVerifyAttempts,
-                    expired: codeExpired,
-                    lastSubmitRefused: codeRefused)
-    }
-
-    /// Sending a code is one act with one set of consequences, so it is written once and called
-    /// from both the arrival and the resend rather than copied into each.
-    private func sendCode() {
-        codeDigits = ""
-        codeAttempts = 0
-        codeRefused = false
-        resendCooldown = DevAuth.resendCooldown
-        nowSeconds = Date().timeIntervalSince1970
-        codeExpiresAt = nowSeconds + Double(DevAuth.codeTTLSeconds)
-    }
+    // The date and the visibility choice stay scene-scoped as well as living on the model, so a
+    // rotation mid-typing does not lose them. The model is the source of truth while the screen
+    // is alive; these are what survive it.
+    @SceneStorage("basics.dob") private var dobStored: String = ""
+    @SceneStorage("basics.hideAge") private var hideAgeStored: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -184,67 +165,62 @@ private struct TutorialFlow: View {
                 case .profileName:
                     ProfileNameView(value: $firstName, onContinue: { _ in go(to: .profileEmail) })
                 case .profileEmail:
-                    // Continue reaches Verify email, and SENDS the code on the way — the ticket
-                    // is explicit that the send is triggered here rather than on arrival, which
-                    // is also what keeps a relaunch onto the code screen from issuing a new one.
+                    // Continue SENDS the code and only advances once the server has accepted it.
+                    // Navigating first would put the user on a screen waiting for a code that was
+                    // never dispatched.
+                    // Argument order follows the declaration, which Swift requires and
+                    // audit/check-swift-arg-order.py enforces ahead of the compiler.
                     ProfileEmailView(value: $email,
                                      consent: $marketingConsent,
-                                     onContinue: { _ in
-                                         sendCode()
-                                         go(to: .profileVerifyEmail)
+                                     onContinue: { address in
+                                         basics.email = address
+                                         basics.sendCode { go(to: .profileVerifyEmail) }
                                      },
-                                     onBack: { go(to: .profileName) })
+                                     onBack: { go(to: .profileName) },
+                                     serverError: basics.emailInUse
+                                        ? EmailCopy.alreadyInUseProposed
+                                        : (basics.transportFailed ? EmailCopy.sendFailedProposed : nil))
 
                 case .profileVerifyEmail:
+                    // Every number on this screen is the server's: the cooldown counts down to
+                    // `resendAvailableAt`, expiry compares against `expiresAt`, and the attempt
+                    // cap is raised to the cap by a 401 that says so.
                     ProfileVerifyEmailView(
-                        email: email,
-                        digits: Binding(get: { codeDigits },
-                                        set: { codeDigits = $0; codeRefused = false }),
-                        state: codeState,
-                        cooldownSeconds: resendCooldown,
-                        onVerify: {
-                            codeAttempts += 1
-                            if codeDigits == DevAuth.testCode {
-                                codeRefused = false
-                                go(to: .profileDob)
-                            } else {
-                                codeRefused = true
-                            }
-                        },
-                        onResend: { sendCode() },
+                        email: basics.email.isEmpty ? email : basics.email,
+                        digits: Binding(get: { basics.codeDigits },
+                                        set: { basics.codeDigits = $0 }),
+                        state: basics.failure,
+                        cooldownSeconds: basics.cooldownSeconds,
+                        busy: basics.busy,
+                        onVerify: { basics.verify { go(to: .profileDob) } },
+                        onResend: { basics.sendCode() },
                         // Both exits are the same journey: back to the email step, address kept.
                         onChangeEmail: { go(to: .profileEmail) },
                         onBack: { go(to: .profileEmail) })
-                    // One ticker drives the countdown AND the expiry check, so they can never
-                    // disagree about what time it is.
-                    .task {
-                        while !Task.isCancelled {
-                            try? await Task.sleep(for: .seconds(1))
-                            nowSeconds = Date().timeIntervalSince1970
-                            if resendCooldown > 0 { resendCooldown -= 1 }
-                        }
-                    }
 
                 case .profileDob:
-                    // Back must NOT re-send or re-verify anything — the code screen is already
-                    // satisfied, so this only moves the position.
+                    // Continue writes the date AND the visibility choice in one PATCH and only
+                    // advances when the server has stored them. Back does not re-send or
+                    // re-verify anything — the code screen is already satisfied.
                     ProfileDobView(
-                        value: Binding(get: { dob }, set: {
-                            dob = $0
-                            // The incomplete error clears the moment the eighth digit lands.
-                            if dobDigits($0).count == 8 { dobAttempted = false }
-                        }),
-                        hideAge: $hideAge,
-                        attempted: dobAttempted,
-                        onContinue: { _, _ in go(to: .home) },
-                        onRefused: { dobAttempted = true },
-                        onEdit: {
-                            // A clear, not a cursor placement: a wrong date is nearly always
-                            // wrong in the year.
-                            dob = ""
-                            dobAttempted = false
+                        value: Binding(get: { basics.dob },
+                                       set: { basics.dob = $0; dobStored = $0 }),
+                        hideAge: Binding(get: { basics.hideAge },
+                                         set: { basics.hideAge = $0; hideAgeStored = $0 }),
+                        attempted: basics.dobAttempted,
+                        busy: basics.busy,
+                        serverRejectedAge: basics.serverRejectedAge,
+                        onContinue: { _, iso in
+                            basics.saveDateOfBirth(iso: iso) { go(to: .home) }
                         },
+                        onRefused: { basics.dobAttempted = true },
+                        onEdit: { basics.dob = ""; basics.dobAttempted = false; dobStored = "" },
                         onBack: { go(to: .profileVerifyEmail) })
+                    // Restore what a rotation would otherwise have dropped.
+                    .onAppear {
+                        if basics.dob.isEmpty { basics.dob = dobStored }
+                        basics.hideAge = hideAgeStored
+                    }
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
                 }

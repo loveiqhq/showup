@@ -89,6 +89,23 @@ import com.showup.welcome.WashHeadline
 
 /** Copy — final strings. */
 internal object EmailCopy {
+    /**
+     * PROPOSED — NOT APPROVED. The product side decided the PLACEMENT ("show the error below the
+     * input field like we do with 'looks like the domain is missing'") and never wrote the words.
+     *
+     * This string is a placeholder so the state is reachable and testable, not a copy decision.
+     * It deliberately does not name the other account, which would confirm to a stranger that an
+     * address is registered here.
+     */
+    const val ALREADY_IN_USE_PROPOSED = "That email is already in use. Try another one."
+
+    /**
+     * PROPOSED — NOT APPROVED. No ticket specifies what a failed SEND says; the flow assumed the
+     * call always succeeds. Offline and server-down are required states by the shared CLAUDE.md,
+     * so the state exists and its wording does not.
+     */
+    const val SEND_FAILED_PROPOSED = "We couldn't send the code just now. Please try again."
+
     const val SECTION = "The basics"
     const val SUB = "Never shown on your profile. Used for password reset, receipts and support."
     const val LABEL = "Email"
@@ -153,10 +170,20 @@ fun ProfileEmailScreen(
     onBack: () -> Unit = {},
     /** Fires on the refused press only. */
     onSubmitRefused: (empty: Boolean) -> Unit = {},
+    /**
+     * An error the SERVER decided, which outranks anything the format check found.
+     *
+     * Today the only one is "this address belongs to another account", a 400 from
+     * `/auth/email/start`. It arrives after the press rather than during typing, so it cannot be
+     * derived from [value] the way the format errors are.
+     */
+    serverError: String? = null,
     /** Seeds the error state for an artboard. **Previews only** — see ProfileNameScreen. */
     previewAttempted: Boolean = false,
 ) {
     var attempted by rememberSaveable { mutableStateOf(previewAttempted) }
+    // The field shows its own danger treatment for a server rejection as well, or the
+    // card would sit under a field still drawn as valid.
     var shakeKey by remember { mutableIntStateOf(0) }
 
     val valid = isEmailFormatValid(value)
@@ -245,7 +272,11 @@ fun ProfileEmailScreen(
                 .padding(top = 8.dp, start = 2.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            if (isError) {
+            // The server's verdict wins: a format-valid address can still be refused, and
+            // "looks fine to me" underneath "that address is taken" would be nonsense.
+            if (serverError != null) {
+                InlineErrorCard(serverError)
+            } else if (isError) {
                 InlineErrorCard(
                     emailErrorCopy(
                         value,
