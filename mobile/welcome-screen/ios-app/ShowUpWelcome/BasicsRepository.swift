@@ -98,9 +98,16 @@ struct BasicsRepository: Sendable {
                 _ = bad
                 return .refused
             default:
+                // 401 is undocumented on this operation, so it arrives here with its body
+                // unparsed. Read it inline rather than through a helper: naming
+                // `UndocumentedPayload` would need OpenAPIRuntime imported into the app target,
+                // and the type is only ever used for this one string match.
                 if case let .undocumented(statusCode, payload) = response, statusCode == 401 {
-                    let body = await Self.text(from: payload)
-                    return body.localizedCaseInsensitiveContains(Self.tooManyMarker)
+                    var text = ""
+                    if let body = payload.body {
+                        text = (try? await String(collecting: body, upTo: 8 * 1024)) ?? ""
+                    }
+                    return text.localizedCaseInsensitiveContains(Self.tooManyMarker)
                         ? .tooManyAttempts
                         : .refused
                 }
@@ -137,11 +144,5 @@ struct BasicsRepository: Sendable {
         } catch {
             return .failed
         }
-    }
-
-    /// Best-effort read of an undocumented error body, for the one message we have to match.
-    private static func text(from payload: OpenAPIRuntime.UndocumentedPayload) async -> String {
-        guard let body = payload.body else { return "" }
-        return (try? await String(collecting: body, upTo: 8 * 1024)) ?? ""
     }
 }
