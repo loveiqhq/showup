@@ -375,7 +375,11 @@ struct VerifyCodeView: View {
                         // Inert while cooling, on purpose: the ticket allows no silent resend, so a
                         // tappable label during the cooldown would be either a dead control or a
                         // rule broken. Tabular figures so the countdown does not jitter.
-                        Text(String(format: "Send a new code in 0:%02d", cooldownSeconds))
+                        // The minute is computed, not a literal. It used to read "0:%02d", true
+                        // only while the cooldown was 30 — at the 60 the server enforces, the
+                        // first tick rendered "0:60".
+                        Text(String(format: "Send a new code in %d:%02d",
+                                    cooldownSeconds / 60, cooldownSeconds % 60))
                             .font(F.manrope(14, .semibold))
                             .monospacedDigit()
                             .foregroundColor(.liqMuted)

@@ -84,7 +84,6 @@ import com.showup.designsystem.Border
 // Subtle is 3.04 against the page and 3.14 against the fill. See audit finding 7.
 import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerDigit
-import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
@@ -587,7 +586,10 @@ fun VerifyCodeScreen(
                 // tappable label during the cooldown would be either a dead control or a rule
                 // broken. tabular figures so the countdown does not jitter as it ticks.
                 Text(
-                    "Send a new code in 0:%02d".format(cooldownSeconds),
+                    // The minute is computed, not a literal. It used to read "0:%02d", which was
+                    // true only while the cooldown was 30 -- at the 60 the server actually
+                    // enforces, the first tick rendered "0:60" and counted down from there.
+                    "Send a new code in %d:%02d".format(cooldownSeconds / 60, cooldownSeconds % 60),
                     modifier = Modifier.padding(vertical = Spacing.xs),
                     color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
