@@ -47,6 +47,19 @@ data class Country(
     val dial: String,
 ) {
     /**
+     * The number as E.164, which is the only format `/auth/phone/start` and `/auth/phone/verify`
+     * accept — the DTO says so and the server normalises against it.
+     *
+     * Built from the dial code and the digits the user typed, with any non-digit stripped: the
+     * field groups as you type ("176 123 45 678") and those spaces must not reach the wire.
+     * A national trunk zero is dropped, because E.164 has no place for one and the field
+     * deliberately accepts it — see the note on the trunk zero being accepted, not scolded.
+     */
+    fun e164(nationalDigits: String): String {
+        val digits = nationalDigits.filter { it.isDigit() }.trimStart('0')
+        return dial + digits
+    }
+    /**
      * An example mobile number for this country, shown in the empty field.
      *
      * Fetched on demand rather than stored: building 250 of these up front costs real time at

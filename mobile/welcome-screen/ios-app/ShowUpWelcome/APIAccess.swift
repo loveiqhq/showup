@@ -15,7 +15,9 @@ import ShowUpAPI
 /// Second, it is where the environment and the token store are decided, once. A screen that built
 /// its own client would be a screen that could pick the wrong environment.
 ///
-/// No screen calls this yet. Wiring the sign-up flow to real endpoints is a separate change.
+/// Both scene-level models are built from it: `PhoneAuthModel`, which signs in and writes the
+/// tokens, and `BasicsModel`, which spends them. They share `tokens` on purpose — see the comment
+/// beside `phoneAuth` in `ShowUpWelcomeApp`.
 enum APIAccess {
 
     /// Where credentials live in the app: the Keychain, never in memory.

@@ -47,7 +47,7 @@ enum class VerifyState {
  * "try again" would be an instruction that cannot be followed.
  *
  * @param attempts submissions made against the current code
- * @param maxAttempts the server's cap, mirrored — see `DevAuth.MAX_VERIFY_ATTEMPTS`
+ * @param maxAttempts the server's cap, mirrored — see `com.showup.api.MAX_VERIFY_ATTEMPTS`
  * @param expired whether the clock has passed the challenge's `expiresAt`
  * @param lastSubmitRefused whether the most recent submission came back wrong
  */

@@ -219,7 +219,7 @@ struct VerifyCodeView: View {
     var mismatch: Bool = false
     /// The code has taken its last wrong guess.
     ///
-    /// The server stops accepting attempts after `DevAuth.maxVerifyAttempts` and answers every
+    /// The server stops accepting attempts after `maxVerifyAttempts` and answers every
     /// further submit identically, so without this the user is told to "try again" against a code
     /// that can no longer succeed. A distinct state, not a louder mismatch: the only way out is a
     /// new code.

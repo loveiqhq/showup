@@ -38,6 +38,18 @@ import PhoneNumberKit
 /// language; `dial` and every rule from the phone metadata. The flag is looked up by `iso` against
 /// the bundled artwork — see CountryPicker.swift.
 struct Country: Identifiable, Equatable {
+    /// The number as E.164, the only format `/auth/phone/start` and `/auth/phone/verify` accept.
+    ///
+    /// Built from the dial code and the digits the user typed, with any non-digit stripped: the
+    /// field groups as you type ("176 123 45 678") and those spaces must not reach the wire. A
+    /// national trunk zero is dropped, because E.164 has no place for one and the field
+    /// deliberately accepts it rather than scolding.
+    func e164(_ nationalDigits: String) -> String {
+        var digits = nationalDigits.filter(\.isNumber)
+        while digits.hasPrefix("0") { digits.removeFirst() }
+        return dial + digits
+    }
+
     let iso: String
     let name: String
     let dial: String

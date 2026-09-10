@@ -108,10 +108,13 @@ class ShowUpApi(
         tokens.clear()
     }
 
-    private companion object {
+    companion object {
         /**
-         * Sent on refresh because the contract requires a user-agent on that route -- the backend
-         * records it against the session so a user can see where they are signed in.
+         * What the backend records against a session so a person can see where they are signed in.
+         *
+         * Not private: two routes send it -- refresh, here, and `/auth/phone/verify`, called from
+         * PhoneAuthRepository. A second definition would make the devices list disagree with
+         * itself, the same phone appearing under two names depending on which request made the row.
          */
         const val USER_AGENT = "ShowUp-Android/${BuildConfig.VERSION_NAME}"
     }

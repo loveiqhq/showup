@@ -97,11 +97,24 @@ for token, plat, src in [("ConnectExit.Skipped", "android", kt_connect),
     check("%s: Connect can report %s" % (plat, token), "onDone(%s)" % token in src)
 
 # ── a returning member never reaches Connect ────────────────────────────────
+#
+# The RULE is unchanged -- Connect belongs to account creation, so someone who already has an
+# account must not pass through it. What changed on 10 September 2026 is how the flow knows.
+#
+# It used to ask which button the user tapped (`entry == Entry.LogIn`). It now asks the SERVER
+# whether the account already has a usable profile, because intent and reality can disagree:
+# tapping "create account" with a number that already exists used to send a returning member
+# through Connect and the whole tutorial. Completeness also survives an interrupted signup,
+# where an "is this account new" flag would send a half-registered user straight to Home.
 check("android: a verified returning member leaves before Connect",
-      "if (entry == Entry.LogIn) {" in kt_flow and "onFinished(outcomeOf(entry, null))" in kt_flow,
+      "if (profileComplete) {" in kt_flow and "onFinished(outcomeOf(Entry.LogIn, null))" in kt_flow,
       "Connect belongs to account creation, so re-login must not pass through it")
 check("ios: a verified returning member leaves before Connect",
-      "if entry == .logIn {" in sw_flow and "onFinished(outcomeOf(entry, nil))" in sw_flow)
+      "if profileComplete {" in sw_flow and "onFinished(outcomeOf(.logIn, nil))" in sw_flow)
+# The decision has to come from the profile, not from a flag the auth response does not carry.
+check("android: the routing decision reads the profile",
+      "profileComplete" in kt_flow, "must not reintroduce an isNewUser flag")
+check("ios: the routing decision reads the profile", "profileComplete" in sw_flow)
 
 # ── the host sends the two outcomes to two different places ─────────────────
 check("android: the host branches on showsTutorial", "showsTutorial(it)" in kt_host)

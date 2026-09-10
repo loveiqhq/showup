@@ -22,6 +22,7 @@
 package com.showup.profile
 
 import androidx.lifecycle.ViewModel
+import com.showup.api.MAX_VERIFY_ATTEMPTS
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -85,15 +86,6 @@ data class BasicsUiState(
         lastSubmitRefused = lastSubmitRefused,
     )
 }
-
-/**
- * Mirrors the server's `OTP_MAX_ATTEMPTS`.
- *
- * The client counts as well as the server so it can stop OFFERING an action the server would
- * refuse. The server remains the authority: [VerifyCodeResult.TooManyAttempts] moves the count to
- * the cap even if the client thought there was one left.
- */
-const val MAX_VERIFY_ATTEMPTS = 5
 
 class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
 
