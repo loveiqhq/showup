@@ -18,6 +18,14 @@ object Motion {
     const val FAST = 180
 
     /** Screen-to-screen transition. */
+    /**
+     * `su-confirm-in` — the age card's entrance (SHOWUP-154). Once, on entering the state.
+     *
+     * Longer than [FAST] because it is an arrival rather than a state change: the card is asking a
+     * question, and a 180ms appearance reads as a flicker rather than something to answer.
+     */
+    const val CONFIRM = 240
+
     const val SCREEN = 320
 
     /** The one-shot mismatch shake. SHOWUP-143 specifies 480ms exactly. */

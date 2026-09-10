@@ -15,6 +15,12 @@ enum Motion {
     /// Press feedback and fades.
     static let fast: TimeInterval = 0.18
 
+    /// `su-confirm-in` — the age card's entrance (SHOWUP-154). Once, on entering the state.
+    ///
+    /// Longer than `fast` because it is an arrival rather than a state change: the card is asking
+    /// a question, and a 180ms appearance reads as a flicker rather than something to answer.
+    static let confirm: TimeInterval = 0.24
+
     /// Screen-to-screen transition.
     static let screen: TimeInterval = 0.32
 

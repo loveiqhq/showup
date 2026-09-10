@@ -60,6 +60,14 @@ val SunsetStops = listOf(0.00f to Color(0xFFFE6839), 0.38f to Color(0xFFD05976),
 /** --su-grad-wordmark · 96°. The "Up" in the wordmark is filled with this, never flat violet. */
 val WordmarkStops = listOf(0.00f to Color(0xFF812AEC), 0.55f to Color(0xFFD05976), 1.00f to Color(0xFFFE6839))
 
+/**
+ * `--su-grad-lilac`, the age-confirmation card's fill (SHOWUP-154).
+ *
+ * Lavender and not green, which is the whole point of the card: it asks the user to confirm a
+ * value that is about to be locked, so it is a question rather than a success message.
+ */
+val LilacStops = listOf(0.00f to Color(0xFFF2EAFB), 1.00f to Color(0xFFF8F2FB))
+
 // ── Type ─────────────────────────────────────────────────────────────────
 //
 // The .ttf files ship in ../../fonts/. Copy them into app/src/main/res/font/ under these exact

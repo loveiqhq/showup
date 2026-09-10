@@ -29,8 +29,12 @@ import com.showup.welcome.ErrorKind
 import com.showup.welcome.PhoneError
 import com.showup.welcome.PhoneNumberScreen
 import com.showup.welcome.SignUpOutcome
+import com.showup.profile.DateOrder
+import com.showup.profile.ProfileDobScreen
 import com.showup.profile.ProfileEmailScreen
 import com.showup.profile.ProfileNameScreen
+import com.showup.profile.ProfileVerifyEmailScreen
+import com.showup.profile.VerifyState
 import com.showup.welcome.StartupScreen
 import com.showup.welcome.VerifyCodeScreen
 import com.showup.welcome.WelcomeBackScreen
@@ -236,6 +240,45 @@ class ScreenFitTest {
         sweep("Profile/email empty") { ProfileEmailScreen() }
         sweep("Profile/email consent on") {
             ProfileEmailScreen(value = "leo@hey.com", consent = true)
+        }
+        assertClean()
+    }
+
+    /**
+     * SHOWUP-153 and SHOWUP-154, every state.
+     *
+     * The two reserved regions are what these are really measuring: 30 on the code screen and 84
+     * on the date screen, both held in EVERY state so the CTA and the secondary rows do not move
+     * between them. A failure here is almost always a region that was sized to its content.
+     */
+    @Test
+    fun `profile verify email and date of birth, all states`() {
+        sweep("Verify/arrival") { ProfileVerifyEmailScreen() }
+        sweep("Verify/typed") { ProfileVerifyEmailScreen(digits = "4821") }
+        sweep("Verify/mismatch") {
+            ProfileVerifyEmailScreen(digits = "482170", state = VerifyState.Mismatch)
+        }
+        sweep("Verify/expired") {
+            ProfileVerifyEmailScreen(digits = "482170", state = VerifyState.Expired)
+        }
+        sweep("Verify/locked out") {
+            ProfileVerifyEmailScreen(digits = "482170", state = VerifyState.LockedOut)
+        }
+        // Never truncated, wraps if long -- so the longest plausible address is swept too.
+        sweep("Verify/long address") {
+            ProfileVerifyEmailScreen(email = "leonardo.buonarroti@a-very-long-domain.example")
+        }
+
+        sweep("DoB/empty") { ProfileDobScreen() }
+        sweep("DoB/confirm") { ProfileDobScreen(value = "03/22/1998") }
+        sweep("DoB/impossible") { ProfileDobScreen(value = "02/30/1990") }
+        sweep("DoB/under 18") { ProfileDobScreen(value = "05/19/2015") }
+        sweep("DoB/incomplete after press") {
+            ProfileDobScreen(value = "03/22", attempted = true)
+        }
+        sweep("DoB/age hidden") { ProfileDobScreen(value = "03/22/1998", hideAge = true) }
+        sweep("DoB/day-first locale") {
+            ProfileDobScreen(value = "22/03/1998", order = DateOrder.DayFirst)
         }
         assertClean()
     }

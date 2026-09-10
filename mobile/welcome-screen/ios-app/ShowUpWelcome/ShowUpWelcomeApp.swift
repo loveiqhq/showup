@@ -86,6 +86,44 @@ private struct TutorialFlow: View {
     @SceneStorage("basics.email") private var email: String = ""
     @SceneStorage("basics.marketingConsent") private var marketingConsent: Bool = false
 
+    // ── "The basics" step 3 and the code screen ─────────────────────────────
+    //
+    // Scene-scoped like everything else in this flow: a rotation or a background keeps them, a
+    // properly closed scene does not resurrect a half-finished signup.
+    @SceneStorage("basics.codeDigits") private var codeDigits: String = ""
+    @SceneStorage("basics.codeAttempts") private var codeAttempts: Int = 0
+    @SceneStorage("basics.codeRefused") private var codeRefused: Bool = false
+    @SceneStorage("basics.resendCooldown") private var resendCooldown: Int = DevAuth.resendCooldown
+    /// Epoch seconds at which the current code dies. The whole mechanism that lets the client
+    /// tell "expired" from "wrong": /auth/email/start returns expiresAt, and the 401 for a bad
+    /// code and an expired one are identical, so the response cannot.
+    @SceneStorage("basics.codeExpiresAt") private var codeExpiresAt: Double = 0
+    @SceneStorage("basics.dob") private var dob: String = ""
+    @SceneStorage("basics.hideAge") private var hideAge: Bool = false
+    @SceneStorage("basics.dobAttempted") private var dobAttempted: Bool = false
+
+    @State private var nowSeconds: Double = Date().timeIntervalSince1970
+
+    private var codeExpired: Bool { codeExpiresAt > 0 && nowSeconds >= codeExpiresAt }
+
+    private var codeState: VerifyState {
+        verifyState(attempts: codeAttempts,
+                    maxAttempts: DevAuth.maxVerifyAttempts,
+                    expired: codeExpired,
+                    lastSubmitRefused: codeRefused)
+    }
+
+    /// Sending a code is one act with one set of consequences, so it is written once and called
+    /// from both the arrival and the resend rather than copied into each.
+    private func sendCode() {
+        codeDigits = ""
+        codeAttempts = 0
+        codeRefused = false
+        resendCooldown = DevAuth.resendCooldown
+        nowSeconds = Date().timeIntervalSince1970
+        codeExpiresAt = nowSeconds + Double(DevAuth.codeTTLSeconds)
+    }
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Every navigation goes through here so the transition direction is always set before the
@@ -145,14 +183,68 @@ private struct TutorialFlow: View {
                 // SHOWUP-150. No back: profile creation is mandatory once entered.
                 case .profileName:
                     ProfileNameView(value: $firstName, onContinue: { _ in go(to: .profileEmail) })
-                // SHOWUP-152. Continue should reach Verify email (story 03), which is not built,
-                // so in this demo host it lands on Home. Marked so it is not mistaken for the
-                // specified route.
                 case .profileEmail:
+                    // Continue reaches Verify email, and SENDS the code on the way — the ticket
+                    // is explicit that the send is triggered here rather than on arrival, which
+                    // is also what keeps a relaunch onto the code screen from issuing a new one.
                     ProfileEmailView(value: $email,
                                      consent: $marketingConsent,
-                                     onContinue: { _ in go(to: .home) },
+                                     onContinue: { _ in
+                                         sendCode()
+                                         go(to: .profileVerifyEmail)
+                                     },
                                      onBack: { go(to: .profileName) })
+
+                case .profileVerifyEmail:
+                    ProfileVerifyEmailView(
+                        email: email,
+                        digits: Binding(get: { codeDigits },
+                                        set: { codeDigits = $0; codeRefused = false }),
+                        state: codeState,
+                        cooldownSeconds: resendCooldown,
+                        onVerify: {
+                            codeAttempts += 1
+                            if codeDigits == DevAuth.testCode {
+                                codeRefused = false
+                                go(to: .profileDob)
+                            } else {
+                                codeRefused = true
+                            }
+                        },
+                        onResend: { sendCode() },
+                        // Both exits are the same journey: back to the email step, address kept.
+                        onChangeEmail: { go(to: .profileEmail) },
+                        onBack: { go(to: .profileEmail) })
+                    // One ticker drives the countdown AND the expiry check, so they can never
+                    // disagree about what time it is.
+                    .task {
+                        while !Task.isCancelled {
+                            try? await Task.sleep(for: .seconds(1))
+                            nowSeconds = Date().timeIntervalSince1970
+                            if resendCooldown > 0 { resendCooldown -= 1 }
+                        }
+                    }
+
+                case .profileDob:
+                    // Back must NOT re-send or re-verify anything — the code screen is already
+                    // satisfied, so this only moves the position.
+                    ProfileDobView(
+                        value: Binding(get: { dob }, set: {
+                            dob = $0
+                            // The incomplete error clears the moment the eighth digit lands.
+                            if dobDigits($0).count == 8 { dobAttempted = false }
+                        }),
+                        hideAge: $hideAge,
+                        attempted: dobAttempted,
+                        onContinue: { _, _ in go(to: .home) },
+                        onRefused: { dobAttempted = true },
+                        onEdit: {
+                            // A clear, not a cursor placement: a wrong date is nearly always
+                            // wrong in the year.
+                            dob = ""
+                            dobAttempted = false
+                        },
+                        onBack: { go(to: .profileVerifyEmail) })
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
                 }

@@ -57,6 +57,17 @@ enum class FlowScreen {
     /** Profile creation, step 2. */
     ProfileEmail,
 
+    /**
+     * Profile creation, the code screen.
+     *
+     * Its own position but NOT its own progress segment: the bar holds at 2 because the user is
+     * on the email step until the code is confirmed. See [com.showup.profile.BasicsStep].
+     */
+    ProfileVerifyEmail,
+
+    /** Profile creation, step 3. The last screen of "The basics". */
+    ProfileDob,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;
@@ -80,5 +91,6 @@ enum class FlowScreen {
      * a back chevron; the gesture has to agree with it.
      */
     val hasSystemBack: Boolean
-        get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal || this == ProfileEmail
+        get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal ||
+            this == ProfileEmail || this == ProfileVerifyEmail || this == ProfileDob
 }

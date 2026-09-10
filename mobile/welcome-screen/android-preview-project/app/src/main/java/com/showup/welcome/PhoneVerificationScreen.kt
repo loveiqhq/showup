@@ -22,6 +22,7 @@ import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.autofill
 import com.showup.designsystem.fieldChrome
 
+import com.showup.designsystem.CodeSlotRow
 import com.showup.designsystem.DangerGlyph
 import com.showup.designsystem.InlineErrorCard
 import com.showup.designsystem.InputField
@@ -501,41 +502,17 @@ fun VerifyCodeScreen(
             // no system caret. The violet caret in the active slot is ours.
             textStyle = TextStyle(color = Color.Transparent),
             cursorBrush = SolidColor(Color.Transparent),
+            // The row is the shared CodeSlotRow now, not thirty lines of boxes. Its defaults are
+            // SHOWUP-153's sheet -- a halo and a blinking caret -- so this screen passes its own:
+            // no ring, a static bar, and the 44 x 56 compact tier on a short frame. Both
+            // differences are from 143's own sheet and are documented on the component.
             decorationBox = {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    repeat(6) { i ->
-                        val ch = digits.getOrNull(i)
-                        val active = !mismatch && i == digits.length && digits.length < 6
-                        Box(
-                            Modifier
-                                .size(width = slotW, height = slotH)
-                                .clip(RoundedCornerShape(Radius.control))
-                                .background(if (mismatch) Danger.copy(alpha = 0.04f) else Elevated)
-                                .border(
-                                    1.5.dp,
-                                    when {
-                                        mismatch -> Danger
-                                        active -> Purple
-                                        ch != null -> Fg.copy(alpha = 0.32f)
-                                        else -> Border
-                                    },
-                                    RoundedCornerShape(Radius.control),
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (ch != null) {
-                                Text(
-                                    ch.toString(),
-                                    color = if (mismatch) DangerDigit else Fg,
-                                    fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 30.sp,
-                                )
-                            } else if (active) {
-                                // 2 x 28 violet caret. No caret at all while in error.
-                                Box(Modifier.size(width = 2.dp, height = 28.dp).background(Purple))
-                            }
-                        }
-                    }
-                }
+                CodeSlotRow(
+                    digits = digits,
+                    error = mismatch,
+                    slotWidth = slotW,
+                    slotHeight = slotH,
+                )
             },
         )
 

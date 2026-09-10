@@ -42,6 +42,14 @@ enum DevAuth {
     /// server will refuse.
     static let maxVerifyAttempts = 5
 
+    /// How long a code stays valid, matching the server's `OTP_TTL` (300s).
+    ///
+    /// The ticket calls code lifetime "unspecified"; the backend has specified it since Epic 2.
+    /// The client needs the number because `/auth/email/verify` returns the SAME 401 for a wrong
+    /// code and an expired one — so the only way to tell the user which happened is to know when
+    /// the code dies, which `/auth/email/start` also returns as `expiresAt`.
+    static let codeTTLSeconds = 300
+
     /// Set false to hide the on-screen hint without removing the fixed code.
     static let showHint = true
 }

@@ -431,7 +431,7 @@ private fun inkOffset(icon: BrandIcon): Offset {
  * paths in the source, so they are drawn filled here.
  */
 enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ChevronLeft,
-                       ArrowLeft, ArrowRight, Pencil, Close, Check, Shield, Heart }
+                       ArrowLeft, ArrowRight, Pencil, Close, Check, Shield, Heart, EyeOff }
 
 @Composable
 /**
@@ -487,6 +487,33 @@ fun Icon(
                     drawLine(tint, Offset(6f, 6f), Offset(18f, 18f), stroke.width, StrokeCap.Round)
                 }
                 BrandIcon.Check -> drawPath(path(listOf(20f to 6f, 9f to 17f, 4f to 12f)), tint, style = stroke)
+                // The visibility band's mark (SHOWUP-154 callout 11). Feather's eye-off: the
+                // eye's two arcs with the pupil, struck through corner to corner. Authored on the
+                // same 24 grid as everything else here.
+                BrandIcon.EyeOff -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(17.94f, 17.94f)
+                            cubicTo(16.23f, 19.24f, 14.15f, 19.97f, 12f, 20f)
+                            cubicTo(5f, 20f, 1f, 12f, 1f, 12f)
+                            cubicTo(2.24f, 9.68f, 3.97f, 7.65f, 6.06f, 6.06f)
+                        }, tint, style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(9.9f, 4.24f)
+                            cubicTo(10.59f, 4.08f, 11.29f, 4f, 12f, 4f)
+                            cubicTo(19f, 4f, 23f, 12f, 23f, 12f)
+                            cubicTo(22.39f, 13.13f, 21.678f, 14.2f, 20.84f, 15.19f)
+                        }, tint, style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(14.12f, 14.12f)
+                            cubicTo(13.55f, 14.73f, 12.76f, 15.09f, 11.93f, 15.1f)
+                            cubicTo(10.24f, 15.1f, 8.87f, 13.73f, 8.87f, 12.04f)
+                            cubicTo(8.88f, 11.21f, 9.24f, 10.42f, 9.85f, 9.85f)
+                        }, tint, style = stroke)
+                    drawLine(tint, Offset(1f, 1f), Offset(23f, 23f), stroke.width, StrokeCap.Round)
+                }
                 BrandIcon.Shield -> drawPath(
                     androidx.compose.ui.graphics.Path().apply {
                         moveTo(12f, 22f)
