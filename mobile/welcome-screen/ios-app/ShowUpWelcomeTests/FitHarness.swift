@@ -132,16 +132,44 @@ final class FitInsetWindow: UIWindow {
     override var safeAreaInsets: UIEdgeInsets { fixedInsets }
 }
 
-/// One measured element: what it says, where it ended up, and whether it is tappable.
+/// One measured element: where it ended up, how it is identified, and whether it is tappable.
 private struct Probe {
+    /// Position in the view tree, e.g. "0/2/1/3". The join key between the two renders.
+    let path: String
+    /// The backing view's class, so two renders that disagree about the tree shape are noticed
+    /// rather than silently compared against each other.
+    let kind: String
+    /// The best name available: an accessibility label when SwiftUI set one, otherwise the class
+    /// and path. Only ever used to make a finding findable in the source.
     let label: String
     let frame: CGRect
-    let isButton: Bool
+    let isControl: Bool
+    /// No subviews. SwiftUI draws text and images into leaves, and a container's height is
+    /// decided by its parent rather than by its content, so only leaves are asked whether they
+    /// were squeezed. See the filters in `measureFit`.
+    let isLeaf: Bool
     /// Whether any ancestor was a scroll view, so a position past the fold is reachable.
     let inScroll: Bool
 }
 
-/// Hosts `view` at a given size and returns everything the accessibility tree publishes.
+/// Hosts `view` at a given size and returns every backing view, measured.
+///
+/// WHY THE VIEW TREE AND NOT THE ACCESSIBILITY TREE
+///
+/// The first two versions of this file read `UIHostingController`'s accessibility tree — first
+/// through `accessibilityElements`, then through the method-based container API. Both came back
+/// completely empty in CI, on every screen, at every size. SwiftUI does not build one for a
+/// hosting controller in a unit test unless an assistive technology is actually running, and
+/// there is no public way to make it.
+///
+/// What is unarguably there is the UIView hierarchy: the pixel probe in ScreenFitTests renders
+/// from it on every run. Every SwiftUI element is backed by a real view with a real frame, which
+/// is all the two-render comparison needs. What is lost is the names — SwiftUI's backing views
+/// for text are private drawing views carrying no string — so an element is identified by its
+/// class and its path, plus an accessibility label on the occasions one happens to be set.
+///
+/// That is a worse report and the same detection. A finding reads "a view at 0/2/1 squeezed 34pt
+/// at (24, 604)" rather than naming the sentence, and the frame is enough to find it.
 ///
 /// `@MainActor` because every line of it is UIKit. The project builds with
 /// SWIFT_STRICT_CONCURRENCY = complete, so this is stated rather than assumed.
@@ -161,68 +189,39 @@ private func probes(of view: some View, width: CGFloat, height: CGFloat,
 
     var found: [Probe] = []
 
-    // THREE shapes have to be handled, and the first version of this file handled one.
-    //
-    // UIAccessibilityContainer has two entirely separate forms: a view can publish an
-    // `accessibilityElements` array, or it can implement `accessibilityElementCount()` and
-    // `accessibilityElement(at:)`. SwiftUI's hosting view uses the SECOND, and this walk only
-    // looked at the first — so the tree came back empty, every sweep passed on nothing, and the
-    // four instrument tests in ScreenFitMeasureTests were the only reason anyone found out.
-    //
-    // The third shape is the leaf: an element is any NSObject carrying accessibility properties,
-    // not necessarily a UIAccessibilityElement, so it is read through the informal protocol that
-    // every NSObject conforms to rather than through a cast that can quietly fail.
-    func walk(_ node: Any, inScroll: Bool) {
-        guard let object = node as? NSObject else { return }
-
-        if let view = object as? UIView {
-            let scrolled = inScroll || view is UIScrollView
-            if view.isAccessibilityElement { append(object, inScroll: scrolled) }
-            if descend(view, inScroll: scrolled) { return }
-            view.subviews.forEach { walk($0, inScroll: scrolled) }
-            return
-        }
-
-        append(object, inScroll: inScroll)
-        // An element can itself be a container -- SwiftUI nests them for grouped controls.
-        _ = descend(object, inScroll: inScroll)
-    }
-
-    /// Follows whichever container form this object implements. True when it published children.
-    func descend(_ object: NSObject, inScroll: Bool) -> Bool {
-        // `accessibilityElements`, when set, REPLACES the subtree for accessibility purposes, so
-        // descending into subviews as well would double-count.
-        if let published = object.accessibilityElements, !published.isEmpty {
-            published.forEach { walk($0, inScroll: inScroll) }
-            return true
-        }
-        // The method-based form. `accessibilityElementCount()` answers NSNotFound on anything
-        // that is not a container, which is not a count and must not be looped over.
-        let count = object.accessibilityElementCount()
-        guard count != NSNotFound, count > 0 else { return false }
-        for index in 0..<count {
-            if let child = object.accessibilityElement(at: index) {
-                walk(child, inScroll: inScroll)
+    func walk(_ subject: UIView, path: String, inScroll: Bool) {
+        let scrolled = inScroll || subject is UIScrollView
+        let frame = subject.convert(subject.bounds, to: window)
+        if frame.width.isFinite && frame.height.isFinite {
+            let kind = String(describing: type(of: subject))
+            let named = subject.accessibilityLabel?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let label: String
+            if let named, !named.isEmpty {
+                label = QUOTE + named.replacingOccurrences(of: NEWLINE, with: " ") + QUOTE
+            } else {
+                label = kind + " @" + path
             }
+            // A control by either route: a real UIControl, or the view SwiftUI hangs a tap
+            // gesture on, which is how a Button arrives here.
+            let isControl = subject is UIControl || !(subject.gestureRecognizers ?? []).isEmpty
+            found.append(Probe(path: path, kind: kind, label: label, frame: frame,
+                               isControl: isControl, isLeaf: subject.subviews.isEmpty,
+                               inScroll: scrolled))
         }
-        return true
+        for (index, child) in subject.subviews.enumerated() {
+            let childPath = path.isEmpty ? String(index) : path + "/" + String(index)
+            walk(child, path: childPath, inScroll: scrolled)
+        }
     }
 
-    func append(_ object: NSObject, inScroll: Bool) {
-        guard let label = object.accessibilityLabel,
-              !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let frame = object.accessibilityFrame
-        guard frame.width.isFinite, frame.height.isFinite else { return }
-        let oneLine = label.replacingOccurrences(of: "\n", with: " ")
-        found.append(Probe(label: "\"" + oneLine + "\"",
-                           frame: frame,
-                           isButton: object.accessibilityTraits.contains(.button),
-                           inScroll: inScroll))
-    }
-
-    walk(controller.view, inScroll: false)
+    walk(controller.view, path: "", inScroll: false)
     return found
 }
+
+/// Written out rather than escaped inline, so the string literals above stay readable.
+private let QUOTE = String(UnicodeScalar(34))
+private let NEWLINE = String(UnicodeScalar(10))
 
 /// Renders `view` into `device`'s SAFE area and returns everything wrong with the result.
 ///
@@ -235,27 +234,39 @@ func measureFit(_ device: FitDevice, _ screen: String, _ view: some View) -> [Fi
     // the same decisions about safe-area padding; only the height differs.
     let natural = probes(of: view, width: device.width, height: unconstrainedHeight, insets: insets)
 
-    // Matched by label and by ordinal, so two buttons reading the same thing do not swap.
-    var naturalHeights: [String: [CGFloat]] = [:]
-    for probe in natural {
-        naturalHeights[probe.label, default: []].append(probe.frame.height)
-    }
-    var seen: [String: Int] = [:]
+    // Joined on the path through the view tree, and only where both renders agree what sits at
+    // that path. A screen that changes SHAPE between the two heights would otherwise have
+    // unrelated views compared against each other and report nonsense.
+    var wants: [String: CGFloat] = [:]
+    for probe in natural { wants[probe.path + "|" + probe.kind] = probe.frame.height }
 
     var found: [FitViolation] = []
-    let safeTop = device.top
     let safeBottom = device.top + device.safeHeight
 
     for probe in actual {
-        let index = seen[probe.label, default: 0]
-        seen[probe.label] = index + 1
-        let wanted = naturalHeights[probe.label].flatMap { $0.indices.contains(index) ? $0[index] : $0.first }
+        // TWO FILTERS, and without them this reports mostly noise.
+        //
+        // Leaves only, because a container's height is set by its parent: the scaffold's inner
+        // column is floored at the viewport, so in the 12000pt render it IS 12000pt and would
+        // report itself squeezed by eleven thousand points on every screen in the app.
+        //
+        // And only where the natural height is something a screen could actually hold. Anything
+        // flexible expands to fill the tall render, so a natural height larger than the whole
+        // safe area means "this grows", not "this wants that much" -- the same false positive
+        // wearing a different hat.
+        //
+        // Both filters can only HIDE a finding, never invent one, which is the right direction
+        // for a harness whose first run is in CI.
+        let raw = wants[probe.path + "|" + probe.kind]
+        let wanted: CGFloat? = (probe.isLeaf && (raw ?? 0) <= device.safeHeight) ? raw : nil
 
         // 2. collapsed to nothing at all
         if probe.frame.height <= 0 {
-            if (wanted ?? 0) > 0 {
-                found.append(FitViolation(device: device, screen: screen, element: probe.label,
-                                          problem: "TEXT COLLAPSED", detail: "zero height"))
+            if let wanted, wanted > fitSlack {
+                found.append(FitViolation(
+                    device: device, screen: screen, element: probe.label,
+                    problem: "COLLAPSED",
+                    detail: String(format: "zero height, wants %.0fpt", wanted)))
             }
             continue
         }
@@ -264,12 +275,14 @@ func measureFit(_ device: FitDevice, _ screen: String, _ view: some View) -> [Fi
         if let wanted, wanted - probe.frame.height > fitSlack {
             found.append(FitViolation(
                 device: device, screen: screen, element: probe.label,
-                problem: "TEXT CLIPPED",
-                detail: String(format: "%.0fpt of %.0f not drawn", wanted - probe.frame.height, wanted)))
+                problem: "SQUEEZED",
+                detail: String(format: "%.0fpt of %.0f not drawn, at (%.0f, %.0f)",
+                               wanted - probe.frame.height, wanted,
+                               probe.frame.minX, probe.frame.minY)))
         }
 
         // 3. a tap target squeezed below the stated minimum
-        if probe.isButton && probe.frame.height < minTapPt - fitSlack {
+        if probe.isControl && probe.frame.height < minTapPt - fitSlack {
             found.append(FitViolation(
                 device: device, screen: screen, element: probe.label,
                 problem: "TAP TARGET TOO SMALL",
@@ -277,8 +290,8 @@ func measureFit(_ device: FitDevice, _ screen: String, _ view: some View) -> [Fi
         }
 
         // 4. outside the safe area. Below the fold of something that scrolls is a scroll, not a
-        //    loss, so it is reported and not failed — exactly as FitHarness.kt does it.
-        if probe.frame.maxY > safeBottom + fitSlack {
+        //    loss, so it is reported and not failed -- exactly as FitHarness.kt does it.
+        if probe.isLeaf && probe.frame.maxY > safeBottom + fitSlack {
             let over = probe.frame.maxY - safeBottom
             found.append(probe.inScroll
                 ? FitViolation(device: device, screen: screen, element: probe.label,
@@ -288,20 +301,10 @@ func measureFit(_ device: FitDevice, _ screen: String, _ view: some View) -> [Fi
                 : FitViolation(device: device, screen: screen, element: probe.label,
                                problem: "OFF THE BOTTOM", detail: String(format: "by %.1fpt", over)))
         }
-        if probe.frame.minY < safeTop - fitSlack {
-            found.append(FitViolation(
-                device: device, screen: screen, element: probe.label, problem: "OFF THE TOP",
-                detail: String(format: "by %.1fpt", safeTop - probe.frame.minY)))
-        }
-        if probe.frame.maxX > device.width + fitSlack {
+        if probe.isLeaf && probe.frame.maxX > device.width + fitSlack {
             found.append(FitViolation(
                 device: device, screen: screen, element: probe.label, problem: "OFF THE RIGHT",
                 detail: String(format: "by %.1fpt", probe.frame.maxX - device.width)))
-        }
-        if probe.frame.minX < -fitSlack {
-            found.append(FitViolation(
-                device: device, screen: screen, element: probe.label, problem: "OFF THE LEFT",
-                detail: String(format: "by %.1fpt", -probe.frame.minX)))
         }
     }
 

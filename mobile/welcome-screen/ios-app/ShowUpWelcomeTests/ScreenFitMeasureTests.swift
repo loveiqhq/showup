@@ -8,11 +8,11 @@
 //  actually get the room it needs, on all seventeen.
 //
 //  Read FitHarness.swift first. A green run here means nothing unless the instrument fires, and
-//  this suite's exposure is specific: it reads the accessibility tree, and if that tree ever
-//  comes back empty — a future SDK declining to publish one to a hosting controller in a unit
-//  test, say — every sweep below would report a perfect score and go on reporting one forever.
-//  The four tests under "the instrument" exist for that, and each one fails if the detector it
-//  covers has gone quiet.
+//  this suite's exposure is specific: it measures a rendered view tree, and were that tree ever
+//  to come back empty, every sweep below would report a perfect score and go on reporting one
+//  forever. That is not hypothetical. The first two versions of the harness read the
+//  ACCESSIBILITY tree, which SwiftUI does not build for a hosting controller in a unit test, and
+//  all forty sweeps passed twice over nothing at all. Only these four tests caught it.
 
 import XCTest
 import SwiftUI
@@ -64,7 +64,7 @@ final class ScreenFitMeasureTests: XCTestCase {
             "instrument", view)
         XCTAssertFalse(
             squeezed.isEmpty,
-            "the accessibility tree published nothing, so every sweep in this file is vacuous")
+            "the view tree yielded nothing, so every sweep in this file is vacuous")
     }
 
     // MARK: - the instrument
@@ -85,10 +85,10 @@ final class ScreenFitMeasureTests: XCTestCase {
         }
         let found = measureFit(
             FitDevice(name: "probe", width: 320, height: 400, top: 0, bottom: 0), "squeezed", view)
-        XCTAssertTrue(found.contains { $0.problem == "TEXT CLIPPED" },
+        XCTAssertTrue(found.contains { $0.problem == "SQUEEZED" },
                       "a squeezed label was not detected: \(found)")
-        XCTAssertTrue(found.filter { $0.problem == "TEXT CLIPPED" }.allSatisfy { !$0.advisory },
-                      "clipping must fail a screen, not merely be noted")
+        XCTAssertTrue(found.filter { $0.problem == "SQUEEZED" }.allSatisfy { !$0.advisory },
+                      "a squeeze must fail a screen, not merely be noted")
     }
 
     @MainActor
