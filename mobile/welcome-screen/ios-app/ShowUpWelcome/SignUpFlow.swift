@@ -115,11 +115,16 @@ struct SignUpFlowView: View {
 
     @State private var account: RememberedAccount?
 
+    // An explicit initialiser, so `auth` has to be listed here: writing `_account` suppresses
+    // the memberwise one, and a property added above without a line here is a parameter the
+    // call site cannot pass.
     init(remembered: RememberedAccount? = nil,
          onFinished: @escaping (SignUpOutcome) -> Void = { _ in },
+         auth: PhoneAuthModel? = nil,
          onOpenLegal: @escaping (String) -> Void = { _ in }) {
         self.remembered = remembered
         self.onFinished = onFinished
+        self.auth = auth
         self.onOpenLegal = onOpenLegal
         // step and entry are no longer seeded here: they are scene-backed, and their fallbacks
         // reproduce exactly what these two lines used to set.

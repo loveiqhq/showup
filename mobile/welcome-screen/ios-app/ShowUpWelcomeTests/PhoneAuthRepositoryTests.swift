@@ -19,9 +19,19 @@ import ShowUpAPI
 
 final class PhoneAuthRepositoryTests: XCTestCase {
 
+    /// One canned answer.
+    private struct Canned: Sendable {
+        let status: Int
+        let body: String
+        init(_ status: Int, _ body: String) {
+            self.status = status
+            self.body = body
+        }
+    }
+
     /// Returns a canned response per `operationID`, and records every request in order.
     private struct ScriptedTransport: ClientTransport {
-        let script: [String: (status: Int, body: String)]
+        let script: [String: Canned]
         let recorder: Recorder
 
         /// An actor, not `@unchecked Sendable`: the transport crosses isolation domains, and the
@@ -68,9 +78,9 @@ final class PhoneAuthRepositoryTests: XCTestCase {
 
     // MARK: - fixtures
 
-    private func repo(_ script: [String: (status: Int, body: String)],
-                      recorder: ScriptedTransport.Recorder,
-                      tokens: InMemoryTokenStore) -> PhoneAuthRepository {
+    private func makeRepo(_ script: [String: Canned],
+                          recorder: ScriptedTransport.Recorder,
+                          tokens: InMemoryTokenStore) -> PhoneAuthRepository {
         PhoneAuthRepository(
             api: ShowUpAPI(tokens: tokens,
                            transport: ScriptedTransport(script: script, recorder: recorder)),
@@ -107,8 +117,8 @@ final class PhoneAuthRepositoryTests: XCTestCase {
 
     func testASentCodeCarriesBothTimestampsAndTheDevCode() async {
         let rec = ScriptedTransport.Recorder()
-        let repo = repo(["startPhoneVerification": (200, challenge)],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let repo = makeRepo(["startPhoneVerification": Canned(200, challenge)],
+                            recorder: rec, tokens: InMemoryTokenStore())
         let result = await repo.start(phoneE164: "+4917612345678")
         guard case let .sent(expiresAt, resendAvailableAt, devCode) = result else {
             return XCTFail("expected .sent, got \(result)")
@@ -124,8 +134,8 @@ final class PhoneAuthRepositoryTests: XCTestCase {
     func testAServerThatDoesNotExposeTheCodeStillSendsOne() async {
         let rec = ScriptedTransport.Recorder()
         let body = #"{"expiresAt":"2026-09-10T10:20:30Z","resendAvailableAt":"2026-09-10T10:16:00Z"}"#
-        let repo = repo(["startPhoneVerification": (200, body)],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let repo = makeRepo(["startPhoneVerification": Canned(200, body)],
+                            recorder: rec, tokens: InMemoryTokenStore())
         guard case let .sent(_, _, devCode) = await repo.start(phoneE164: "+4917612345678") else {
             return XCTFail("expected .sent")
         }
@@ -135,8 +145,8 @@ final class PhoneAuthRepositoryTests: XCTestCase {
 
     func testTheRequestHitsTheContractPathWithTheNumberInE164() async {
         let rec = ScriptedTransport.Recorder()
-        let repo = repo(["startPhoneVerification": (200, challenge)],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let repo = makeRepo(["startPhoneVerification": Canned(200, challenge)],
+                            recorder: rec, tokens: InMemoryTokenStore())
         _ = await repo.start(phoneE164: "+4917612345678")
         let sent = await rec.request(for: "startPhoneVerification")
         XCTAssertEqual(sent?.path, "/auth/phone/start")
@@ -148,8 +158,8 @@ final class PhoneAuthRepositoryTests: XCTestCase {
     func test429IsTheServersCooldownNotAFailure() async {
         let rec = ScriptedTransport.Recorder()
         let body = apiError(429, "Please wait 41s before requesting another code", "Too Many Requests")
-        let repo = repo(["startPhoneVerification": (429, body)],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let repo = makeRepo(["startPhoneVerification": Canned(429, body)],
+                            recorder: rec, tokens: InMemoryTokenStore())
         // The distinction is the point: .tooSoon leaves the countdown running, .failed would put
         // an error card on a screen where nothing is actually wrong.
         let result = await repo.start(phoneE164: "+4917612345678")
@@ -163,9 +173,9 @@ final class PhoneAuthRepositoryTests: XCTestCase {
         // Deliberately EMPTY. A pre-seeded store would let the profile read pass on a token this
         // flow never produced, which is the bug the next test exists to catch.
         let tokens = InMemoryTokenStore()
-        let repo = repo(["verifyPhone": (200, authResponse()),
-                         "getProfile": (200, profile(isComplete: false))],
-                        recorder: rec, tokens: tokens)
+        let repo = makeRepo(["verifyPhone": Canned(200, authResponse()),
+                             "getProfile": Canned(200, profile(isComplete: false))],
+                            recorder: rec, tokens: tokens)
         _ = await repo.verify(phoneE164: "+4917612345678", code: "123456")
         // Both, not only the access token: the refresh token is what survives the access token
         // expiring, and without it the user is signed out fifteen minutes later.
@@ -178,9 +188,9 @@ final class PhoneAuthRepositoryTests: XCTestCase {
     func testTheProfileReadCarriesTheTokenThatWasJustSaved() async {
         let rec = ScriptedTransport.Recorder()
         let tokens = InMemoryTokenStore()
-        let repo = repo(["verifyPhone": (200, authResponse(access: "fresh-token")),
-                         "getProfile": (200, profile(isComplete: true))],
-                        recorder: rec, tokens: tokens)
+        let repo = makeRepo(["verifyPhone": Canned(200, authResponse(access: "fresh-token")),
+                             "getProfile": Canned(200, profile(isComplete: true))],
+                            recorder: rec, tokens: tokens)
         _ = await repo.verify(phoneE164: "+4917612345678", code: "123456")
         let profileRequest = await rec.request(for: "getProfile")
         XCTAssertEqual(profileRequest?.path, "/me/profile")
@@ -191,9 +201,9 @@ final class PhoneAuthRepositoryTests: XCTestCase {
 
     func testTheVerifyRequestIdentifiesTheDevice() async {
         let rec = ScriptedTransport.Recorder()
-        let repo = repo(["verifyPhone": (200, authResponse()),
-                         "getProfile": (200, profile(isComplete: false))],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let repo = makeRepo(["verifyPhone": Canned(200, authResponse()),
+                             "getProfile": Canned(200, profile(isComplete: false))],
+                            recorder: rec, tokens: InMemoryTokenStore())
         _ = await repo.verify(phoneE164: "+4917612345678", code: "123456")
         let sent = await rec.request(for: "verifyPhone")
         XCTAssertEqual(sent?.path, "/auth/phone/verify")
@@ -204,9 +214,9 @@ final class PhoneAuthRepositoryTests: XCTestCase {
 
     func testACompleteProfileIsReportedAsComplete() async {
         let rec = ScriptedTransport.Recorder()
-        let repo = repo(["verifyPhone": (200, authResponse()),
-                         "getProfile": (200, profile(isComplete: true))],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let repo = makeRepo(["verifyPhone": Canned(200, authResponse()),
+                             "getProfile": Canned(200, profile(isComplete: true))],
+                            recorder: rec, tokens: InMemoryTokenStore())
         let result = await repo.verify(phoneE164: "+4917612345678", code: "123456")
         XCTAssertEqual(result, .signedIn(profileComplete: true))
     }
@@ -214,10 +224,10 @@ final class PhoneAuthRepositoryTests: XCTestCase {
     func testAProfileThatCannotBeReadCountsAsIncompleteAndTheUserStaysSignedIn() async {
         let rec = ScriptedTransport.Recorder()
         let tokens = InMemoryTokenStore()
-        let repo = repo(["verifyPhone": (200, authResponse()),
-                         "getProfile": (500, apiError(500, "Internal server error",
-                                                      "Internal Server Error"))],
-                        recorder: rec, tokens: tokens)
+        let repo = makeRepo(["verifyPhone": Canned(200, authResponse()),
+                             "getProfile": Canned(500, apiError(500, "Internal server error",
+                                                               "Internal Server Error"))],
+                            recorder: rec, tokens: tokens)
         let result = await repo.verify(phoneE164: "+4917612345678", code: "123456")
         // Fails towards onboarding on purpose. Repeating a step is an annoyance; skipping profile
         // creation because one request timed out leaves an account nobody can match.
@@ -230,8 +240,8 @@ final class PhoneAuthRepositoryTests: XCTestCase {
     func testAWrongCodeIsRefusedAndStoresNothing() async {
         let rec = ScriptedTransport.Recorder()
         let tokens = InMemoryTokenStore()
-        let repo = repo(["verifyPhone": (401, apiError(401, "Invalid or expired code"))],
-                        recorder: rec, tokens: tokens)
+        let repo = makeRepo(["verifyPhone": Canned(401, apiError(401, "Invalid or expired code"))],
+                            recorder: rec, tokens: tokens)
         let result = await repo.verify(phoneE164: "+4917612345678", code: "000000")
         XCTAssertEqual(result, .refused)
         let access = await tokens.accessToken()
@@ -243,8 +253,8 @@ final class PhoneAuthRepositoryTests: XCTestCase {
     func testTheFifthWrongCodeIsTheCapNotAnotherMismatch() async {
         let rec = ScriptedTransport.Recorder()
         let body = apiError(401, "Too many attempts. Please request a new code.")
-        let repo = repo(["verifyPhone": (401, body)],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let repo = makeRepo(["verifyPhone": Canned(401, body)],
+                            recorder: rec, tokens: InMemoryTokenStore())
         // Same status, different sentence. The screen says something different for each: one asks
         // the user to check the digits, the other tells them to request a new code.
         let result = await repo.verify(phoneE164: "+4917612345678", code: "000000")
@@ -253,8 +263,9 @@ final class PhoneAuthRepositoryTests: XCTestCase {
 
     func testTheCapIsRecognisedRegardlessOfTheSentencesCasing() async {
         let rec = ScriptedTransport.Recorder()
-        let repo = repo(["verifyPhone": (401, apiError(401, "too many attempts for this challenge"))],
-                        recorder: rec, tokens: InMemoryTokenStore())
+        let tooMany = apiError(401, "too many attempts for this challenge")
+        let repo = makeRepo(["verifyPhone": Canned(401, tooMany)],
+                            recorder: rec, tokens: InMemoryTokenStore())
         let result = await repo.verify(phoneE164: "+4917612345678", code: "000000")
         XCTAssertEqual(result, .tooManyAttempts)
     }

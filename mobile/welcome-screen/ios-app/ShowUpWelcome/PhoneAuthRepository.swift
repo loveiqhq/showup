@@ -77,7 +77,7 @@ struct PhoneAuthRepository: Sendable {
                 // The route records the user-agent against the session so a person can later see
                 // where they are signed in, which is why the generated signature requires it.
                 headers: .init(user_hyphen_agent: ShowUpAPI.userAgent),
-                body: .json(.init(phone: phoneE164, code: code)))
+                body: .json(.init(code: code, phone: phoneE164)))
             switch response {
             case .ok(let ok):
                 let auth = try ok.body.json
