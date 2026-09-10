@@ -137,11 +137,24 @@ final class ScreenFitTests: XCTestCase {
         /// green is the only thing separating this CTA from an error state. The upper green bound
         /// also rejects the circle glow, which lands far lighter.
         case orange
+        /// The sunset pill while DISABLED.
+        ///
+        /// `PrimaryButton` renders a disabled control at `.opacity(0.45)`, so its violet end
+        /// composites against the cream ground to roughly r 197 / g 157 / b 242 — nowhere near
+        /// the full-strength predicate, which reads it as "CTA not drawn at all". The control is
+        /// on screen; the probe simply could not see it, exactly as it could not see the orange
+        /// circle before `.orange` was added.
+        ///
+        /// The band is wide enough for the ground varying under the button and tight enough to
+        /// exclude the two light violets on these screens: cream (g 251) and the lavender badge
+        /// (r 237) both fail it.
+        case violetDim
 
         func matches(_ r: Int, _ g: Int, _ b: Int) -> Bool {
             switch self {
             case .violet: return r < 180 && g < 110 && b > 190
             case .orange: return r > 220 && g > 80 && g < 140 && b < 100
+            case .violetDim: return r > 170 && r < 220 && g > 130 && g < 190 && b > 215
             }
         }
     }
@@ -233,9 +246,12 @@ final class ScreenFitTests: XCTestCase {
                 // mismatch one, and the region under the slots is sized for a single line — a
                 // message that wrapped would grow the region and take the CTA with it. This is
                 // the sweep that would catch that.
+                // .violetDim, not .violet: lockout disables the CTA, and a disabled PrimaryButton
+                // is drawn at 45% — see CTATint. Probing this one on the full-strength violet
+                // reports the button missing when it is merely dimmed.
                 ("Code locked out", try render(
                     VerifyCodeView(digits: .constant("482170"), mismatch: true, lockedOut: true),
-                    on: device), .violet),
+                    on: device), .violetDim),
                 ("Tutorial card 1", try render(WelcomeView(), on: device), .violet),
                 // Profile creation "The basics" — SHOWUP-150 / 152, every state.
                 //
