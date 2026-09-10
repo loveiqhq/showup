@@ -173,6 +173,18 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.10.00"))
     implementation("androidx.core:core-ktx:1.13.1")
 
+    // ── the profile flow owns asynchronous work, so it gets a ViewModel ─────────
+    //
+    // CLAUDE.md said when: "Introduce one the moment a screen loads, uploads or retries; then it
+    // exposes StateFlow and the screen collects it lifecycle-aware with collectAsStateWithLifecycle(),
+    // never bare collectAsState()." SHOWUP-153 is that moment -- it sends a code, waits, and
+    // retries -- and these two are what that sentence requires.
+    //
+    // runtime-compose is the one that matters for correctness: collectAsStateWithLifecycle lives
+    // there, and bare collectAsState keeps collecting while the app is backgrounded.
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+
     // Google's libphonenumber — Apache 2.0, free, offline. It carries the real numbering rules for
     // every country, which is what makes a full country list possible: hand-writing length and
     // mobile-prefix rules for 250 countries would mean guessing, and a wrong guess rejects a real

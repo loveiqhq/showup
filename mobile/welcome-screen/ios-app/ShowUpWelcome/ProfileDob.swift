@@ -51,6 +51,10 @@ struct ProfileDobView: View {
     /// Whether Continue has been pressed. The incomplete error appears only after a press —
     /// never mid-typing — which is why it is separate from `value`.
     var attempted: Bool = false
+    /// A request is in flight. Continue stops accepting presses.
+    var busy: Bool = false
+    /// The server refused the age its own way — only reachable when the two 18 checks disagree.
+    var serverRejectedAge: Bool = false
     var onContinue: (Int, String) -> Void = { _, _ in }
     var onRefused: () -> Void = {}
     var onEdit: () -> Void = {}
@@ -69,6 +73,7 @@ struct ProfileDobView: View {
     private var underAge: Bool { (age ?? minimumAge) < minimumAge }
     private var isValid: Bool { age != nil && !underAge }
     private var isError: Bool {
+        if serverRejectedAge { return true }
         if parsed == .impossible { return true }
         if age != nil && underAge { return true }
         if attempted, parsed == .incomplete { return true }
@@ -76,6 +81,8 @@ struct ProfileDobView: View {
     }
 
     private func submit() {
+        // A second press while the first is in flight would write twice.
+        if busy { return }
         if case let .valid(age, iso) = parsed, age >= minimumAge {
             onContinue(age, iso)
         } else {
@@ -156,7 +163,7 @@ struct ProfileDobView: View {
     private var statusBody: some View {
         if parsed == .impossible {
             InlineErrorCard(message: Text(DobCopy.invalid(order)))
-        } else if age != nil && underAge {
+        } else if (age != nil && underAge) || serverRejectedAge {
             // NO AGE NUMERAL IN STATE D. Printing "You're 15" back at a 15-year-old adds nothing
             // they do not know and hands a rejection a number.
             InlineErrorCard(message: Text(DobCopy.under18))

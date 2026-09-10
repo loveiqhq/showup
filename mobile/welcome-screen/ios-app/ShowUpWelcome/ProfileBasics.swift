@@ -29,6 +29,16 @@ enum NameCopy {
 }
 
 enum EmailCopy {
+    /// PROPOSED — NOT APPROVED. The product side decided the PLACEMENT ("show the error below
+    /// the input field like we do with 'looks like the domain is missing'") and never wrote the
+    /// words. A placeholder so the state is reachable and testable, not a copy decision.
+    static let alreadyInUseProposed = "That email is already in use. Try another one."
+
+    /// PROPOSED — NOT APPROVED. No ticket specifies what a failed SEND says; the flow assumed the
+    /// call always succeeds. Offline and server-down are required states, so the state exists and
+    /// its wording does not.
+    static let sendFailedProposed = "We couldn't send the code just now. Please try again."
+
     static let section = "The basics"
     static let sub = "Never shown on your profile. Used for password reset, receipts and support."
     static let label = "Email"
@@ -177,6 +187,12 @@ struct ProfileEmailView: View {
     var onContinue: (String) -> Void = { _ in }
     var onBack: () -> Void = {}
     var onSubmitRefused: (Bool) -> Void = { _ in }
+    /// An error the SERVER decided, which outranks anything the format check found.
+    ///
+    /// Today the only one is "this address belongs to another account", a 400 from
+    /// `/auth/email/start`. It arrives after the press rather than during typing, so it cannot be
+    /// derived from the value the way the format errors are.
+    var serverError: String?
 
     @State private var attempted = false
     @State private var shakeKey = 0
@@ -233,7 +249,13 @@ struct ProfileEmailView: View {
             // stays fully visible above the keyboard in BOTH states, at every size.
             Group {
                 if isError {
+                    // The server's verdict wins: a format-valid address can still be refused,
+                    // and "looks fine to me" under "that address is taken" would be nonsense.
+                    InlineErrorCard(message: Text(serverError ?? "")
+                        .foregroundColor(.liqDangerFg))
+                        .opacity(serverError != nil ? 1 : 0)
                     InlineErrorCard(message: emailErrorText(value))
+                        .opacity(serverError == nil ? 1 : 0)
                 } else {
                     HStack(alignment: .top, spacing: Spacing.md) {
                         CheckGlyph(size: 16, color: .liqSuccessFg, lineWidth: 2)
