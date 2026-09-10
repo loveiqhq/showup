@@ -38,9 +38,9 @@ final class ScreenFitTests: XCTestCase {
     /// The 320-wide Galaxy Fold cover screen is kept even though it is not an iPhone: it is the
     /// narrowest thing either platform has to survive, and a reserve that holds at 320 holds
     /// everywhere. The iOS floor proper is the 375x667 SE, named by the product side.
-    // The matrix lives in FitHarness.swift now, so the two suites in this target cannot be
-    // measuring different phones -- and `audit/verify-welcome.py` checks that list against
-    // Devices.kt row for row, so neither can they drift from Android's.
+    // The matrix lives in FitDevices.swift now, so every fit suite in this target measures the
+    // same phones -- and `audit/verify-welcome.py` checks that list against Devices.kt row for
+    // row, so neither can drift from Android's.
     typealias Device = FitDevice
     var devices: [FitDevice] { fitDevices }
 

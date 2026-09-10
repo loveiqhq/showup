@@ -590,7 +590,7 @@ check("143 the flow does not decrement its own countdown (swift)", "cooldown -= 
 
 # ── the two fit matrices are one matrix ─────────────────────────────────────
 #
-# Devices.kt and FitHarness.swift each list the seventeen phones the app has to fit on, because
+# Devices.kt and FitDevices.swift each list the seventeen phones the app has to fit on, because
 # neither toolchain can read the other's source. A copy nobody compares is a copy that drifts, and
 # a drifted row means one platform is measured on a phone the other never sees -- which is the
 # quiet version of "iOS was never measured at all".
@@ -606,7 +606,7 @@ _kt_devices = _rows(
     read(KT_FIT, "Devices.kt"),
     r'Device\("([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)')
 _sw_devices = _rows(
-    read(SW_FIT, "FitHarness.swift"),
+    read(SW_FIT, "FitDevices.swift"),
     r'FitDevice\(name: "([^"]+)", width: (\d+), height: (\d+), top: (\d+), bottom: (\d+)\)')
 
 check("fit matrix has all seventeen phones (kotlin)", len(_kt_devices) == 17)
