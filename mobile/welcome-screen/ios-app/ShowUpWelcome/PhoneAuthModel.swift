@@ -15,6 +15,25 @@ import Foundation
 import Observation
 import ShowUpAPI
 
+/// Seconds still to wait before a resend is offered, CLAMPED AT BOTH ENDS.
+///
+/// The upper clamp is not defensive padding. This subtracts the DEVICE's clock from the SERVER's
+/// timestamp, and nothing makes those agree: a device an hour behind computes an hour of
+/// cooldown, the countdown renders "162024:02", and the resend link never comes back — the user
+/// is locked out of the only recovery the code screen offers, by a clock.
+///
+/// Seen on Android on 10 September 2026 against a stub returning a far-future timestamp, which is
+/// the same arithmetic a skewed clock produces. Above the policy window the two clocks disagree
+/// rather than the wait being real, so the window is the honest answer. If the server really does
+/// want longer it says so again with a 429, and `.tooSoon` leaves the countdown running.
+///
+/// A plain function so it can be tested with no model, no task and no clock. Mirrors
+/// `cooldownRemaining` in PhoneAuthViewModel.kt.
+func cooldownRemaining(now: Date, until: Date?) -> Int {
+    guard let until else { return 0 }
+    return min(resendCooldownSeconds, max(0, Int(until.timeIntervalSince(now).rounded(.up))))
+}
+
 @MainActor
 @Observable
 final class PhoneAuthModel {
@@ -112,9 +131,7 @@ final class PhoneAuthModel {
         ticker = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                let left = self.resendAvailableAt.map {
-                    max(0, Int($0.timeIntervalSince(self.now()).rounded(.up)))
-                } ?? 0
+                let left = cooldownRemaining(now: self.now(), until: self.resendAvailableAt)
                 self.cooldownSeconds = left
                 if left <= 0 { return }
                 try? await Task.sleep(for: .seconds(1))

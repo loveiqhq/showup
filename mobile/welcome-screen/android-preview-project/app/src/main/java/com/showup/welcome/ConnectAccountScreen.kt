@@ -218,7 +218,19 @@ private fun MethodListLayout(
     val errored = state == ConnectState.Error
     val short = methodSpec(provider).short
 
-    WelcomeScaffold {
+    // Scroll only when the frame runs out, per the 10 September decision.
+    //
+    // This is the screen the fit sweep had the most to say about: 39 findings across five short
+    // phones, every one of them the same shape. The states that add a banner -- cancelled, and
+    // both errors -- push the bottom group down until the one weighted spacer has nothing left,
+    // and a Column with nothing left shrinks its children in place. The legal line went to zero
+    // height and "Skip and continue to profile" was measured at 15dp: the escape hatch from a
+    // failed social sign-in, too small to hit, on the phones most likely to be someone's only
+    // phone.
+    //
+    // Nothing changes where it already fits. The inner column is floored at the viewport, so on
+    // all twelve devices 390dp and wider the spacer divides the leftover space exactly as before.
+    WelcomeScaffold(scrollWhenTight = true) {
         val compact = LocalConfiguration.current.screenHeightDp < 700
         Wordmark()
 
@@ -574,6 +586,26 @@ private fun ConflictSheet(
 // ─────────────────────────────────────────────────────────────
 // Previews — the seven states the ticket wants evidence for, at all three sizes
 // ─────────────────────────────────────────────────────────────
+// ── the two sizes that were actually broken ─────────────────────────────────
+//
+// The error and cancelled states, at the sizes where the bottom band ran out. On 10 September the
+// fit sweep measured "Skip and continue to profile" at 15dp here -- the escape hatch from a failed
+// social sign-in, too small to hit -- with the legal line at zero height. Every other preview on
+// this screen is 375, 390 or 430, all of which were always fine.
+
+@Preview(name = "H error · network · 360x640", showBackground = true,
+         widthDp = 360, heightDp = 640)
+@Composable
+private fun CAPreviewErrorSmall() {
+    ConnectAccountScreen(state = ConnectState.Error, kind = ErrorKind.Network)
+}
+
+@Preview(name = "G cancelled · 320x686", showBackground = true, widthDp = 320, heightDp = 686)
+@Composable
+private fun CAPreviewCancelledFold() {
+    ConnectAccountScreen(state = ConnectState.Cancelled)
+}
+
 @Preview(name = "A idle · 390x844", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun CAIdle() { ConnectAccountScreen() }

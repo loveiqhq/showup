@@ -587,6 +587,31 @@ check("143 afterMismatch is derived, not a flag the flow maintains (swift)",
 # resendAvailableAt, so a decrement here would fight it and win on a device that had been asleep.
 check("143 the flow does not decrement its own countdown (kotlin)", "cooldown--" not in flow_kt)
 check("143 the flow does not decrement its own countdown (swift)", "cooldown -= 1" not in flow_sw)
+
+# ── the two fit matrices are one matrix ─────────────────────────────────────
+#
+# Devices.kt and FitDevices.swift each list the seventeen phones the app has to fit on, because
+# neither toolchain can read the other's source. A copy nobody compares is a copy that drifts, and
+# a drifted row means one platform is measured on a phone the other never sees -- which is the
+# quiet version of "iOS was never measured at all".
+import re as _re
+
+def _rows(text, pattern):
+    return [tuple(m.groups()) for m in _re.finditer(pattern, text)]
+
+KT_FIT = os.path.join(ROOT, "android-preview-project/app/src/test/java/com/showup/fit")
+SW_FIT = os.path.join(ROOT, "ios-app/ShowUpWelcomeTests")
+
+_kt_devices = _rows(
+    read(KT_FIT, "Devices.kt"),
+    r'Device\("([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)')
+_sw_devices = _rows(
+    read(SW_FIT, "FitDevices.swift"),
+    r'FitDevice\(name: "([^"]+)", width: (\d+), height: (\d+), top: (\d+), bottom: (\d+)\)')
+
+check("fit matrix has all seventeen phones (kotlin)", len(_kt_devices) == 17)
+check("fit matrix has all seventeen phones (swift)", len(_sw_devices) == 17)
+check("the two fit matrices are the same seventeen phones", _kt_devices == _sw_devices)
 check("the flow models a remembered account (kotlin)", "RememberedAccount" in flow_kt)
 check("the flow models a remembered account (swift)", "RememberedAccount" in flow_sw)
 check("no account means no name (kotlin)", "account?.name.orEmpty()" in flow_kt)

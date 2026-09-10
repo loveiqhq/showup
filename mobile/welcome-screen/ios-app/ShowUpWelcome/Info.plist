@@ -33,6 +33,25 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- App Transport Security: ONE narrow exception, for the developer's own machine.
+
+	     The development build talks to http://localhost:3000, and ATS refuses cleartext unless
+	     an app opts in. NSAllowsLocalNetworking is the narrow opt-in: loopback, .local names and
+	     the private IP ranges, and nothing else. NSAllowsArbitraryLoads, which permits cleartext
+	     to any host on the internet, is deliberately NOT set.
+
+	     Added 10 September 2026 after the identical hole on Android cost a working screen. There,
+	     cleartext was blocked in the debug build, every send failed before a socket opened, and
+	     the app said nothing at all — tapping "Send me the code" simply did nothing, with an
+	     empty logcat, because the request was refused by policy before it left the process. iOS
+	     had the same gap against the same local backend.
+
+	     Staging and production are https, so this changes nothing for a shipped build. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<!-- Every bundled font must be listed here or iOS will not load it, and .custom() will
 	     silently fall back to the system face. -->
 	<key>UIAppFonts</key>

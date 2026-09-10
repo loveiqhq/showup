@@ -152,6 +152,21 @@ private fun VerificationFrame(
 /** TalkBack's name for the number field. Also what TapTargetTest finds it by. */
 const val PHONE_FIELD_LABEL = "Phone number"
 
+/** Copy this screen needs and no ticket provides. */
+object PhoneCopy {
+    /**
+     * PROPOSED — NOT APPROVED. No ticket says what a failed SEND says; SHOWUP-143 assumed the
+     * call always succeeds, because when it was written there was no call. Offline and
+     * server-down are required states by the shared CLAUDE.md, so the state exists and its
+     * wording does not.
+     *
+     * Deliberately the same sentence as `EmailCopy.SEND_FAILED_PROPOSED`: it is the same event
+     * on a different screen, and two wordings for one failure is how copy drifts. If Philipp
+     * approves one, he approves both.
+     */
+    const val SEND_FAILED_PROPOSED = "We couldn't send the code just now. Please try again."
+}
+
 @Composable
 fun PhoneNumberScreen(
     /** Digits only, no spaces and no dial code -- the pill carries that. */
@@ -159,13 +174,30 @@ fun PhoneNumberScreen(
     onValueChange: (String) -> Unit = {},
     country: Country = DEFAULT_COUNTRY,
     error: PhoneError? = null,
+    /**
+     * A failure that came from the network rather than from the digits.
+     *
+     * Separate from [error] because the two are found in different places and one of them is not
+     * the user's fault: [error] is what validation says about what was typed, this is what
+     * happened when the app tried to send. It takes precedence when both are set, because a
+     * request that never left the device is the more immediate fact.
+     *
+     * Nothing rendered this until 10 September 2026, and the cost was exact: with cleartext HTTP
+     * blocked in the debug build, every send failed before a socket opened, the flow did not
+     * advance, and the screen said nothing at all. The button looked broken. A silent failure on
+     * the only action a screen offers is indistinguishable from a dead control.
+     */
+    serverError: String? = null,
     onBack: () -> Unit = {},
     onSubmit: () -> Unit = {},
     onOpenCountryList: () -> Unit = {},
 ) {
     val compact = LocalConfiguration.current.screenHeightDp < 700
     val focus = remember { FocusRequester() }
+    // The field's danger ring belongs to validation only. A send that failed says nothing about
+    // whether the number is right, so outlining it in red would blame the user for the network.
     val invalid = error != null
+    val showsError = invalid || serverError != null
 
     // The keyboard is why the user is here, so it opens with the screen rather than after a tap.
     // runCatching, because a focus request is a convenience and must never be fatal. It throws
@@ -304,8 +336,8 @@ fun PhoneNumberScreen(
                 .height(80.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            if (invalid) {
-                InlineErrorCard(error?.message(country) ?: "", maxLines = 3)
+            if (showsError) {
+                InlineErrorCard(serverError ?: error?.message(country) ?: "", maxLines = 3)
             } else {
                 Text(
                     "Standard message rates may apply.",
@@ -385,6 +417,13 @@ object VerifyCopy {
      * CTA down with it, which is the movement SHOWUP-143 forbids. "Send a new code to try
      * again" was the first draft and is four characters too long to survive that.
      */
+    /**
+     * PROPOSED — NOT APPROVED. Same event and same sentence as
+     * `PhoneCopy.SEND_FAILED_PROPOSED` and `EmailCopy.SEND_FAILED_PROPOSED`; one failure should
+     * not have three wordings. Approving one approves all three.
+     */
+    const val SEND_FAILED_PROPOSED = "We couldn't reach the server just now. Please try again."
+
     const val LOCKED_OUT = "Too many tries. Send a new code."
 }
 
@@ -403,6 +442,15 @@ fun VerifyCodeScreen(
      * way out is a new code.
      */
     lockedOut: Boolean = false,
+    /**
+     * A failure that came from the network rather than from the digits.
+     *
+     * Wins over both [mismatch] and [lockedOut], because neither of those is known to have
+     * happened when the request never reached the server. Telling someone their code was wrong
+     * on the strength of a dropped connection is worse than saying nothing, and saying nothing
+     * is what this screen did until 10 September 2026.
+     */
+    serverError: String? = null,
     cooldownSeconds: Int = 21,
     onBack: () -> Unit = {},
     onVerify: () -> Unit = {},
@@ -548,7 +596,10 @@ fun VerifyCodeScreen(
             //
             // Locked out wins over mismatch: once the cap is reached the last submit was also a
             // mismatch, and "try again" would be the wrong instruction to leave on screen.
-            if (lockedOut) {
+            if (serverError != null) {
+                // First, because a request that never arrived tells us nothing about the code.
+                InlineErrorCard(serverError, maxLines = 2)
+            } else if (lockedOut) {
                 InlineErrorCard(VerifyCopy.LOCKED_OUT)
             } else if (mismatch) {
                 // Was fourteen lines of the same card the profile flow draws: radius errorBox, the

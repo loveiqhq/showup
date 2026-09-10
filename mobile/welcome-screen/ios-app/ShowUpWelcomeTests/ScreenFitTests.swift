@@ -38,33 +38,11 @@ final class ScreenFitTests: XCTestCase {
     /// The 320-wide Galaxy Fold cover screen is kept even though it is not an iPhone: it is the
     /// narrowest thing either platform has to survive, and a reserve that holds at 320 holds
     /// everywhere. The iOS floor proper is the 375x667 SE, named by the product side.
-    struct Device {
-        let name: String, width: CGFloat, height: CGFloat, top: CGFloat, bottom: CGFloat
-    }
-
-    /// Insets included, and they are not decoration: the status bar and home indicator take up to
-    /// 96pt on the taller iPhones, so a harness that renders into the full frame is optimistic by
-    /// exactly the amount that decides whether a bottom band fits. Devices.kt carries the same
-    /// numbers; these are copied from it so the two matrices cannot drift.
-    let devices: [Device] = [
-        Device(name: "Galaxy Fold cover screen", width: 320, height: 686, top: 24, bottom: 24),
-        Device(name: "small Android (HD)", width: 360, height: 640, top: 24, bottom: 24),
-        Device(name: "Galaxy A / common Android", width: 360, height: 740, top: 24, bottom: 24),
-        Device(name: "iPhone 12 mini / 13 mini", width: 360, height: 780, top: 50, bottom: 34),
-        Device(name: "common modern Android", width: 360, height: 800, top: 24, bottom: 24),
-        Device(name: "iPhone SE (3rd gen)", width: 375, height: 667, top: 20, bottom: 0),
-        Device(name: "iPhone X / XS / 11 Pro", width: 375, height: 812, top: 44, bottom: 34),
-        Device(name: "iPhone 12 / 13 / 14", width: 390, height: 844, top: 47, bottom: 34),
-        Device(name: "Pixel 4a / 5", width: 393, height: 851, top: 24, bottom: 24),
-        Device(name: "iPhone 15 / 16", width: 393, height: 852, top: 59, bottom: 34),
-        Device(name: "iPhone 16 Pro", width: 402, height: 874, top: 62, bottom: 34),
-        Device(name: "Pixel 6 / 7", width: 411, height: 891, top: 24, bottom: 24),
-        Device(name: "Pixel 7 Pro / 8 Pro", width: 412, height: 915, top: 24, bottom: 24),
-        Device(name: "iPhone XR / 11", width: 414, height: 896, top: 48, bottom: 34),
-        Device(name: "iPhone 12/13/14 Pro Max", width: 428, height: 926, top: 47, bottom: 34),
-        Device(name: "iPhone 15/16 Pro Max", width: 430, height: 932, top: 59, bottom: 34),
-        Device(name: "iPhone 16 Pro Max", width: 440, height: 956, top: 62, bottom: 34),
-    ]
+    // The matrix lives in FitDevices.swift now, so every fit suite in this target measures the
+    // same phones -- and `audit/verify-welcome.py` checks that list against Devices.kt row for
+    // row, so neither can drift from Android's.
+    typealias Device = FitDevice
+    var devices: [FitDevice] { fitDevices }
 
     // MARK: - the instrument
     //
