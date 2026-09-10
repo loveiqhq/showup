@@ -210,6 +210,11 @@ final class PhoneAuthRepositoryTests: XCTestCase {
         // Recorded against the session so a person can see where they are signed in. One shared
         // constant, so this row and the one a refresh creates name the same device.
         XCTAssertEqual(sent?.headerFields[.userAgent], ShowUpAPI.userAgent)
+        // And it survives the wire intact. This assertion is the whole reason the bug was found:
+        // the constant read `ShowUp-iOS/0.1` and the request carried `ShowUp-iOS%2F0.1`, because
+        // the generator serialises a header parameter as a URI component. Correct in source,
+        // wrong in the database, and invisible to every check that reads source.
+        XCTAssertEqual(sent?.headerFields[.userAgent]?.contains("%"), false)
     }
 
     func testACompleteProfileIsReportedAsComplete() async {

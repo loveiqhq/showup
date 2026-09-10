@@ -97,7 +97,16 @@ public struct ShowUpAPI: Sendable {
     /// here, and `/auth/phone/verify` is called from the app. A second definition would make the
     /// devices list disagree with itself -- the same phone appearing under two names depending on
     /// which request created the row.
-    public static let userAgent = "ShowUp-iOS/0.1"
+    ///
+    /// NO SLASH, deliberately, and this is not a style choice. Apple's generator serialises a
+    /// header parameter as a URI component, so `ShowUp-iOS/0.1` leaves the app as
+    /// `ShowUp-iOS%2F0.1` and that is what the backend stores. Every refresh this app has ever
+    /// sent recorded the encoded form; nothing asserted the header, so nothing noticed. Only
+    /// unreserved characters survive the encoding unchanged, so the version is joined with a
+    /// hyphen. Android sends `ShowUp-Android/<version>` unencoded through Retrofit, so the two
+    /// platforms read slightly differently in that list -- readable and correct beats matching
+    /// and wrong.
+    public static let userAgent = "ShowUp-iOS-0.1"
 }
 
 /// Which backend a build talks to.
