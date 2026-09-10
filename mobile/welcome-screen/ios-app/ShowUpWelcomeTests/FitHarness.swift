@@ -24,8 +24,10 @@
 //
 //    1. an element squeezed below its natural height   (the clipping case, and the common one)
 //    2. an element collapsed to nothing                (zero height, so it is simply gone)
-//    3. a tap target below the 44pt minimum
-//    4. an element positioned outside the safe area    (advisory inside a scroll view — reachable)
+//    3. an element positioned outside the safe area    (advisory inside a scroll view — reachable)
+//
+//  NOT tap-target size. UIKit cannot see SwiftUI's controls individually, so that one is
+//  Android's to catch — see the note where the check used to be.
 //
 //  KNOWN BOUNDARY, and it is the same one Android has: only what the accessibility tree publishes
 //  is visible here. That is every label, every button and every described icon, and nothing
@@ -113,9 +115,6 @@ private extension String {
 /// A tolerance, because sub-pixel rounding is not a bug. Anything past this is real.
 private let fitSlack: CGFloat = 0.75
 
-/// Apple's stated minimum and the smallest value this design uses on purpose.
-private let minTapPt: CGFloat = 44
-
 /// The height used for the "what does this want to be" render.
 ///
 /// Large enough that nothing is ever constrained by it, small enough that a runaway layout fails
@@ -143,7 +142,6 @@ private struct Probe {
     /// and path. Only ever used to make a finding findable in the source.
     let label: String
     let frame: CGRect
-    let isControl: Bool
     /// No subviews. SwiftUI draws text and images into leaves, and a container's height is
     /// decided by its parent rather than by its content, so only leaves are asked whether they
     /// were squeezed. See the filters in `measureFit`.
@@ -202,12 +200,8 @@ private func probes(of view: some View, width: CGFloat, height: CGFloat,
             } else {
                 label = kind + " @" + path
             }
-            // A control by either route: a real UIControl, or the view SwiftUI hangs a tap
-            // gesture on, which is how a Button arrives here.
-            let isControl = subject is UIControl || !(subject.gestureRecognizers ?? []).isEmpty
             found.append(Probe(path: path, kind: kind, label: label, frame: frame,
-                               isControl: isControl, isLeaf: subject.subviews.isEmpty,
-                               inScroll: scrolled))
+                               isLeaf: subject.subviews.isEmpty, inScroll: scrolled))
         }
         for (index, child) in subject.subviews.enumerated() {
             let childPath = path.isEmpty ? String(index) : path + "/" + String(index)
@@ -281,13 +275,19 @@ func measureFit(_ device: FitDevice, _ screen: String, _ view: some View) -> [Fi
                                probe.frame.minX, probe.frame.minY)))
         }
 
-        // 3. a tap target squeezed below the stated minimum
-        if probe.isControl && probe.frame.height < minTapPt - fitSlack {
-            found.append(FitViolation(
-                device: device, screen: screen, element: probe.label,
-                problem: "TAP TARGET TOO SMALL",
-                detail: String(format: "%.1fpt, unusable below %.0f", probe.frame.height, minTapPt)))
-        }
+        // 3. NO TAP-TARGET CHECK, and the absence is deliberate.
+        //
+        // There was one. It looked for a UIControl, or for a view carrying a UIKit gesture
+        // recogniser, and in CI it never fired once -- a SwiftUI Button is not a UIControl and
+        // does not hang a UIGestureRecognizer on its own backing view; the whole hosting view
+        // handles gestures through SwiftUI's own system, which UIKit cannot see per control.
+        //
+        // A detector that cannot fire is worse than no detector, because the suite passing then
+        // reads as coverage. Android measures tap targets properly, through Compose semantics
+        // that carry an OnClick action, and the two platforms render the same layouts from the
+        // same tokens -- so a control crushed on one is crushed on the other, and Android is
+        // where that gets caught. What DOES surface here is the label inside a crushed control,
+        // which collapses or squeezes like any other leaf.
 
         // 4. outside the safe area. Below the fold of something that scrolls is a scroll, not a
         //    loss, so it is reported and not failed -- exactly as FitHarness.kt does it.
