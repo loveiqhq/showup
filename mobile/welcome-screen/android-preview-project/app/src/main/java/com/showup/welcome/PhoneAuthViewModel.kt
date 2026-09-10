@@ -21,6 +21,7 @@ package com.showup.welcome
 
 import androidx.lifecycle.ViewModel
 import com.showup.api.MAX_VERIFY_ATTEMPTS
+import com.showup.api.RESEND_COOLDOWN_SECONDS
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -50,6 +51,27 @@ data class PhoneAuthState(
     val devCode: String? = null,
 ) {
     fun locked(): Boolean = attempts >= MAX_VERIFY_ATTEMPTS
+}
+
+/**
+ * Seconds still to wait before a resend is offered, CLAMPED AT BOTH ENDS.
+ *
+ * The upper clamp is not defensive padding. This subtracts the DEVICE's clock from the SERVER's
+ * timestamp, and nothing makes those agree: a device an hour behind computes an hour of cooldown,
+ * the countdown renders "162024:02", and the resend link never comes back -- the user is locked
+ * out of the only recovery the code screen offers, by a clock.
+ *
+ * Seen on 10 September 2026 against a stub returning a far-future timestamp, which is the same
+ * arithmetic a skewed clock produces. Above the policy window the two clocks disagree rather than
+ * the wait being real, so the window is the honest answer. If the server really does want longer,
+ * it says so again with a 429 and [StartAuthResult.TooSoon] leaves the countdown running.
+ *
+ * A plain function so it can be tested with no ViewModel, no dispatcher and no clock -- which is
+ * the rule in the Android CLAUDE.md and the reason this is not inlined in the ticker.
+ */
+fun cooldownRemaining(now: OffsetDateTime, until: OffsetDateTime?): Int {
+    if (until == null) return 0
+    return Duration.between(now, until).seconds.coerceIn(0L, RESEND_COOLDOWN_SECONDS).toInt()
 }
 
 class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
@@ -139,10 +161,7 @@ class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
         ticker?.cancel()
         ticker = viewModelScope.launch {
             while (true) {
-                val until = _state.value.resendAvailableAt
-                val left = until?.let {
-                    Duration.between(now(), it).seconds.coerceAtLeast(0L).toInt()
-                } ?: 0
+                val left = cooldownRemaining(now(), _state.value.resendAvailableAt)
                 _state.update { it.copy(cooldownSeconds = left) }
                 if (left <= 0) return@launch
                 delay(1000)

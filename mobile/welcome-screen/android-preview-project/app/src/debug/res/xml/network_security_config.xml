@@ -1,0 +1,30 @@
+<!--l version="1.0" encoding="utf-8"?>
+<!—
+    Debug only. This file lives in src/debug, so it is not part of a release build and the
+    release APK keeps Android's default: cleartext HTTP refused outright.
+
+    WHY IT IS NEEDED
+
+    Since API 28 cleartext is blocked unless an app opts in, and this app targets 36. The debug
+    build talks to http://10.0.2.2:3000 — the loopback alias the emulator maps to the developer's
+    own machine — so without this every request fails before a socket is opened. It fails
+    silently, too: OkHttp raises it as an IOException like any other, so the app cannot tell it
+    apart from a server being down.
+
+    That is exactly how it presented on 10 September 2026. Tapping "Send me the code" did nothing
+    at all, the flow never advanced, and there was nothing in logcat, because the request was
+    refused by policy before it left the process.
+
+    Scoped to the two hosts a developer machine actually answers on, rather than
+    cleartextTrafficPermitted="true" across the board. A blanket permission in a debug build is
+    how a debug build ends up trusting a coffee-shop network.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- The emulator's alias for the host machine's loopback. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- A device on the same network, or a physical device over adb reverse. -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

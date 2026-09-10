@@ -335,6 +335,10 @@ fun SignUpFlow(
                         }
                     },
                     onOpenCountryList = { showCountrySheet = true },
+                    // The send failed and the flow did not advance. Without this the screen is
+                    // silent and the CTA reads as broken -- which is precisely how a blocked
+                    // cleartext request presented on 10 September.
+                    serverError = PhoneCopy.SEND_FAILED_PROPOSED.takeIf { authState.transportFailed },
                 )
             }
 
@@ -351,6 +355,10 @@ fun SignUpFlow(
                     },
                     mismatch = codeMismatch,
                     lockedOut = verifyAttempts >= MAX_VERIFY_ATTEMPTS,
+                    // A verify or a resend that never reached the server. Silent before, which
+                    // made a dead network look like a dead button.
+                    serverError = VerifyCopy.SEND_FAILED_PROPOSED
+                        .takeIf { authState.transportFailed },
                     cooldownSeconds = cooldown,
                     onBack = { step = Step.Phone },
                     onVerify = {
