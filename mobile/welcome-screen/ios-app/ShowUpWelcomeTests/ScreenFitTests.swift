@@ -275,6 +275,47 @@ final class ScreenFitTests: XCTestCase {
                 ("Profile email consent on", try render(
                     ProfileEmailView(value: .constant("leo@hey.com"),
                                      consent: .constant(true)), on: device), .orange),
+
+                // SHOWUP-153. The CTA here is the SUNSET pill, not the circular NextButton — the
+                // only screen in the group that uses it — so these probe on violet. The locked
+                // out and expired states disable it, which draws at 45%: .violetDim.
+                ("Verify arrival", try render(
+                    ProfileVerifyEmailView(digits: .constant("")), on: device), .violetDim),
+                ("Verify typed", try render(
+                    ProfileVerifyEmailView(digits: .constant("4821")), on: device), .violetDim),
+                ("Verify mismatch", try render(
+                    ProfileVerifyEmailView(digits: .constant("482170"), state: .mismatch),
+                    on: device), .violet),
+                ("Verify expired", try render(
+                    ProfileVerifyEmailView(digits: .constant("482170"), state: .expired),
+                    on: device), .violetDim),
+                ("Verify locked out", try render(
+                    ProfileVerifyEmailView(digits: .constant("482170"), state: .lockedOut),
+                    on: device), .violetDim),
+                ("Verify long address", try render(
+                    ProfileVerifyEmailView(email: "leonardo.buonarroti@a-very-long-domain.example",
+                                           digits: .constant("")), on: device), .violetDim),
+
+                // SHOWUP-154. Circular NextButton, always enabled — the CTA is never disabled on
+                // this screen, which is the group rule the code screen is the one exception to.
+                ("DoB empty", try render(
+                    ProfileDobView(value: .constant(""), hideAge: .constant(false)),
+                    on: device), .orange),
+                ("DoB confirm", try render(
+                    ProfileDobView(value: .constant("03/22/1998"), hideAge: .constant(false)),
+                    on: device), .orange),
+                ("DoB impossible", try render(
+                    ProfileDobView(value: .constant("02/30/1990"), hideAge: .constant(false)),
+                    on: device), .orange),
+                ("DoB under 18", try render(
+                    ProfileDobView(value: .constant("05/19/2015"), hideAge: .constant(false)),
+                    on: device), .orange),
+                ("DoB incomplete after press", try render(
+                    ProfileDobView(value: .constant("03/22"), hideAge: .constant(false),
+                                   attempted: true), on: device), .orange),
+                ("DoB age hidden", try render(
+                    ProfileDobView(value: .constant("03/22/1998"), hideAge: .constant(true)),
+                    on: device), .orange),
             ]
             for (label, image, tint) in screens {
                 guard let rows = ctaRows(in: image, tint: tint) else {

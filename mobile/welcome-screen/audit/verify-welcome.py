@@ -77,6 +77,7 @@ start_sw = read(SW, "StartupView.swift")
 back_kt = read(KT, "welcome/WelcomeBackScreen.kt")
 back_sw = read(SW, "WelcomeBackView.swift")
 ver_kt = read(KT, "welcome/PhoneVerificationScreen.kt")
+slots_kt = read(KT, "designsystem/CodeSlotRow.kt")
 ver_sw = read(SW, "PhoneVerificationView.swift")
 # The number field moved out of the screen into the design system on 8 September 2026.
 input_kt = read(KT, "designsystem/InputField.kt")
@@ -315,11 +316,16 @@ check("143 field height 56 (swift)", "height: CGFloat = 56" in code_only(input_s
 check("143 field fills its box (kotlin)", "fillMaxHeight()" in code_only(input_kt))
 check("143 field fills its box (swift)",
       "frame(maxHeight: .infinity)" in code_only(input_sw))
-check("143 field radius 14 (kotlin)", "RoundedCornerShape(14.dp)" in ver_kt)
+# The slot geometry moved into designsystem/CodeSlotRow.kt when the row became shared with the
+# email code screen (SHOWUP-153). The checks follow the component rather than being deleted --
+# what they guard is unchanged, and the phone screen still passes its own sizes in.
+# read() expands token references, so Radius.control arrives here as 14.dp -- which is the point
+# of the expansion: this asserts the VALUE, so redefining the token to 20 fails the check.
+check("143 field radius 14 (kotlin)", "RoundedCornerShape(14.dp)" in slots_kt)
 check("143 field radius 14 (swift)", "cornerRadius: 14" in ver_sw)
 check("143 field border 1.5 (kotlin)", "1.5.dp, outline, shape" in code_only(input_kt))
 check("143 field border 1.5 (swift)", "lineWidth: 1.5" in code_only(input_sw))
-check("143 slot border 1.5 (kotlin)", "1.5.dp" in code_only(ver_kt))
+check("143 slot border 1.5 (kotlin)", "1.5.dp" in slots_kt)
 check("143 slot border 1.5 (swift)", "lineWidth: 1.5" in code_only(ver_sw))
 # BOTH fields declare what they hold, on BOTH platforms. iOS had done this since the screens were
 # written and Android had done it on neither, which is a difference no screenshot shows and no
@@ -367,11 +373,12 @@ check("143 slots 49x62 (kotlin)", "49.dp" in ver_kt and "62.dp" in ver_kt)
 check("143 slots 49x62 (swift)", "49" in ver_sw and "62" in ver_sw)
 check("143 slots shrink to 44x56 (kotlin)", "44.dp" in ver_kt and "56.dp" in ver_kt)
 check("143 slots shrink to 44x56 (swift)", "44 : 49" in ver_sw and "56 : 62" in ver_sw)
-check("143 digit Lora 700 30 (kotlin)", "fontSize = 30.sp" in ver_kt)
+check("143 digit Lora 700 30 (kotlin)", "fontSize = 30.sp" in slots_kt)
 check("143 digit Lora 700 30 (swift)", "size: 30" in ver_sw)
-check("143 caret 2x28 (kotlin)", "width = 2.dp, height = 28.dp" in ver_kt)
+# 28 on this screen, 26 on the profile one -- each sheet's own number, carried by the halo flag.
+check("143 caret 2x28 (kotlin)", "if (halo) 26.dp else 28.dp" in slots_kt)
 check("143 caret 2x28 (swift)", "width: 2, height: 28" in ver_sw)
-check("143 mismatch wash 4% (kotlin)", "alpha = 0.04f" in ver_kt)
+check("143 mismatch wash 4% (kotlin)", "alpha = 0.04f" in slots_kt)
 check("143 mismatch wash 4% (swift)", "opacity(0.04)" in ver_sw)
 check("143 shake 480ms once (kotlin)", "480" in ver_kt)
 check("143 shake 480ms once (swift)", "0.48" in ver_sw)

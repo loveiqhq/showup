@@ -399,7 +399,7 @@ final class WashLabel: UILabel {
 /// Drawn rather than imported: CLAUDE.md requires inline stroke-only SVG at Lucide geometry and
 /// forbids icon fonts, PNGs and unicode glyphs as icons.
 enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, chevronLeft,
-                 arrowLeft, arrowRight, pencil, close, check, shield, heart }
+                 arrowLeft, arrowRight, pencil, close, check, shield, heart, eyeOff }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -479,6 +479,35 @@ struct BrandIconView: View {
                 p = Path { b in
                     b.move(to: .init(x: 20, y: 6)); b.addLine(to: .init(x: 9, y: 17))
                     b.addLine(to: .init(x: 4, y: 12))
+                }
+            // The visibility band's mark (SHOWUP-154 callout 11). Feather's eye-off: the eye's
+            // two arcs with the pupil, struck through corner to corner. Same 24 grid as the rest.
+            case .eyeOff:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 17.94, y: 17.94))
+                    b.addCurve(to: .init(x: 12, y: 20),
+                               control1: .init(x: 16.23, y: 19.24), control2: .init(x: 14.15, y: 19.97))
+                    b.addCurve(to: .init(x: 1, y: 12),
+                               control1: .init(x: 5, y: 20), control2: .init(x: 1, y: 12))
+                    b.addCurve(to: .init(x: 6.06, y: 6.06),
+                               control1: .init(x: 2.24, y: 9.68), control2: .init(x: 3.97, y: 7.65))
+                    b.move(to: .init(x: 9.9, y: 4.24))
+                    b.addCurve(to: .init(x: 12, y: 4),
+                               control1: .init(x: 10.59, y: 4.08), control2: .init(x: 11.29, y: 4))
+                    b.addCurve(to: .init(x: 23, y: 12),
+                               control1: .init(x: 19, y: 4), control2: .init(x: 23, y: 12))
+                    b.addCurve(to: .init(x: 20.84, y: 15.19),
+                               control1: .init(x: 22.39, y: 13.13), control2: .init(x: 21.68, y: 14.2))
+                    b.move(to: .init(x: 14.12, y: 14.12))
+                    b.addCurve(to: .init(x: 11.93, y: 15.1),
+                               control1: .init(x: 13.55, y: 14.73), control2: .init(x: 12.76, y: 15.09))
+                    b.addCurve(to: .init(x: 8.87, y: 12.04),
+                               control1: .init(x: 10.24, y: 15.1), control2: .init(x: 8.87, y: 13.73))
+                    b.addCurve(to: .init(x: 9.85, y: 9.85),
+                               control1: .init(x: 8.88, y: 11.21), control2: .init(x: 9.24, y: 10.42))
+                    b.move(to: .init(x: 1, y: 1))
+                    b.addLine(to: .init(x: 23, y: 23))
                 }
             case .shield:
                 filled = false

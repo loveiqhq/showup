@@ -51,6 +51,15 @@ enum FlowScreen: String, CaseIterable, Comparable {
     /// Profile creation, step 2.
     case profileEmail
 
+    /// Profile creation, the code screen.
+    ///
+    /// Its own position but NOT its own progress segment: the bar holds at 2 because the user is
+    /// on the email step until the code is confirmed. See `BasicsStep`.
+    case profileVerifyEmail
+
+    /// Profile creation, step 3. The last screen of "The basics".
+    case profileDob
+
     /// Where the flow ends, for both the tutorial and a returning member.
     case home
 

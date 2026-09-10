@@ -150,8 +150,13 @@ class FlowRestorationTest {
                 FlowScreen.MatchMeansMeet,
                 FlowScreen.ThirtyMinutes,
                 FlowScreen.ShowUpEveryTime,
-                // Step 2 of the basics: the gesture has to agree with the chevron the screen draws.
+                // The three basics screens that draw a chevron. The gesture has to agree with
+                // it -- a header with a back control that the OS can dismiss differently is worse
+                // than no rule at all. ProfileName is absent on purpose: profile creation is
+                // mandatory once entered, so back does NOTHING there.
                 FlowScreen.ProfileEmail,
+                FlowScreen.ProfileVerifyEmail,
+                FlowScreen.ProfileDob,
             ),
             withBack,
         )
@@ -169,9 +174,10 @@ class FlowRestorationTest {
      */
     @Test
     fun everyScreenIsDistinctAndNamed() {
-        // 10 since profile creation joined the flow: the eight originals plus ProfileName and
-        // ProfileEmail, which sit between the tutorial's end and Home.
-        assertEquals(10, FlowScreen.entries.size)
+        // 12 since "The basics" is complete: the eight originals plus the four profile steps --
+        // ProfileName, ProfileEmail, ProfileVerifyEmail and ProfileDob -- which sit between the
+        // tutorial's end and Home.
+        assertEquals(12, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }
