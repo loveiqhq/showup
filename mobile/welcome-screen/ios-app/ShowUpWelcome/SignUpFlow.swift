@@ -34,6 +34,14 @@ enum DevAuth {
     /// would go live at 30s and the server would answer 429 for another 30.
     static let resendCooldown = 60
 
+    /// Wrong guesses allowed against one code, matching the server's `OTP_MAX_ATTEMPTS`.
+    ///
+    /// The same 5 governs SMS and email — `otp.service.ts` and `email-otp.service.ts` read one
+    /// config value and throw the same message, so this mirrors one rule rather than inventing a
+    /// second. The client counts too, because it has to know when to stop offering an action the
+    /// server will refuse.
+    static let maxVerifyAttempts = 5
+
     /// Set false to hide the on-screen hint without removing the fixed code.
     static let showHint = true
 }
@@ -312,11 +320,16 @@ struct SignUpFlowView: View {
                         }
                     ),
                     mismatch: codeMismatch,
+                    lockedOut: verifyAttempts >= DevAuth.maxVerifyAttempts,
                     cooldownSeconds: cooldown,
                     // Back and "Edit phone number" are the same journey, so they behave
                     // identically: return to A with the number intact, per SHOWUP-143.
                     onBack: { go(to: .phone) },
                     onVerify: {
+                        // Locked out: the server would refuse this, so the client does not ask.
+                        // The CTA is already disabled in that state; this is the second guard,
+                        // for a submit arriving from the keyboard's action key.
+                        guard verifyAttempts < DevAuth.maxVerifyAttempts else { return }
                         analytics.track(SignUpAnalytics.codeSubmitted, properties: [:])
                         verifyAttempts += 1
                         if codeDigits == DevAuth.testCode {
@@ -349,6 +362,10 @@ struct SignUpFlowView: View {
                         lastVerifyFailed = false
                         codeDigits = ""
                         codeMismatch = false
+                        // A new code is a new challenge and the server starts its attempt count
+                        // at zero for it. Not resetting would lock the user out of a code the
+                        // server is perfectly willing to accept.
+                        verifyAttempts = 0
                         cooldown = DevAuth.resendCooldown
                     },
                     onEditNumber: {

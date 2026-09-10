@@ -229,6 +229,13 @@ final class ScreenFitTests: XCTestCase {
                  try render(VerifyCodeView(digits: .constant("482170")), on: device), .violet),
                 ("Code mismatch", try render(
                     VerifyCodeView(digits: .constant("482170"), mismatch: true), on: device), .violet),
+                // The attempt cap's own state. Its card carries a DIFFERENT string from the
+                // mismatch one, and the region under the slots is sized for a single line — a
+                // message that wrapped would grow the region and take the CTA with it. This is
+                // the sweep that would catch that.
+                ("Code locked out", try render(
+                    VerifyCodeView(digits: .constant("482170"), mismatch: true, lockedOut: true),
+                    on: device), .violet),
                 ("Tutorial card 1", try render(WelcomeView(), on: device), .violet),
                 // Profile creation "The basics" — SHOWUP-150 / 152, every state.
                 //

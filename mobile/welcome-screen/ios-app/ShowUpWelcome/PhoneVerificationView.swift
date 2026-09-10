@@ -201,10 +201,29 @@ struct PhoneNumberView: View {
 
 // MARK: - States C and D
 
+/// The code screen's two failure strings. Mirrors `VerifyCopy` in PhoneVerificationScreen.kt.
+///
+/// `lockedOut` is PROPOSED COPY, not yet signed off. The server has enforced this cap since
+/// Epic 2 and no ticket has specified what the user reads when it trips. Kept to the length of
+/// `mismatch` deliberately — the reserved region is sized for one line of card, and a longer
+/// sentence wraps at 320 and takes the CTA with it.
+enum VerifyCopy {
+    static let mismatch = "That code didn’t match. Try again."
+    /// PROPOSED — awaiting design sign-off.
+    static let lockedOut = "Too many tries. Send a new code."
+}
+
 struct VerifyCodeView: View {
     var phone: String = "+49 176 123 45 678"
     @Binding var digits: String
     var mismatch: Bool = false
+    /// The code has taken its last wrong guess.
+    ///
+    /// The server stops accepting attempts after `DevAuth.maxVerifyAttempts` and answers every
+    /// further submit identically, so without this the user is told to "try again" against a code
+    /// that can no longer succeed. A distinct state, not a louder mismatch: the only way out is a
+    /// new code.
+    var lockedOut: Bool = false
     var cooldownSeconds: Int = 21
     var onBack: () -> Void = {}
     var onVerify: () -> Void = {}
@@ -324,8 +343,15 @@ struct VerifyCodeView: View {
                 // component now rather than a fifth copy.
                 //
                 // Copy unchanged: informative, never "Wrong" / "Failed" / "Error".
-                InlineErrorCard(message: Text("That code didn’t match. Try again."))
-                .opacity(mismatch ? 1 : 0)
+                // One card, two messages. Locked out wins over mismatch: reaching the cap means
+                // the last submit was also a mismatch, and "try again" would be the wrong
+                // instruction to leave on screen.
+                //
+                // Still hidden with opacity rather than an `if` — a ViewBuilder branch that
+                // evaluates to nil reserves nothing, and this row's height is what keeps the CTA
+                // still. Both strings are one line inside the 42 reserve.
+                InlineErrorCard(message: Text(lockedOut ? VerifyCopy.lockedOut : VerifyCopy.mismatch))
+                .opacity(mismatch || lockedOut ? 1 : 0)
                 // Invisible is not the same as absent: without this VoiceOver would read an error
                 // that is not being shown.
                 .accessibilityHidden(!mismatch)
@@ -338,7 +364,12 @@ struct VerifyCodeView: View {
                 Spacer().frame(height: compact ? 8 : 16)
                 // Disabled until all six digits are in. In mismatch the digits are still there, so
                 // it stays enabled — the user edits one digit and resubmits.
-                PrimaryButton("Verify code", enabled: digits.count == 6, action: onVerify)
+                // Locked out disables it: the server refuses every further submit for this code,
+                // so a live button would promise an action that cannot happen. The resend below
+                // is live in its place.
+                PrimaryButton("Verify code",
+                              enabled: digits.count == 6 && !lockedOut,
+                              action: onVerify)
 
                 Spacer().frame(height: compact ? 8 : 14)
                 VStack(spacing: compact ? 4 : 6) {
@@ -352,7 +383,9 @@ struct VerifyCodeView: View {
                     // tapping the question sent another SMS — a question that silently spends
                     // money and restarts the cooldown, with nothing on screen to suggest it would.
                     // The reference has it as plain text and the button as a button.
-                    let resendLive = mismatch || cooldownSeconds <= 0
+                    // Locked out MUST make the resend live regardless of the clock: it is the
+                    // only exit, and a countdown with no working action is a dead end.
+                    let resendLive = mismatch || lockedOut || cooldownSeconds <= 0
                     Text("Didn’t receive a code?")
                         .font(F.manrope(14, .medium))
                         .foregroundColor(.liqMuted)

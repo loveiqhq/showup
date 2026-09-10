@@ -74,6 +74,16 @@ object DevAuth {
      */
     const val RESEND_COOLDOWN = 60
 
+    /**
+     * Wrong guesses allowed against one code, matching the server's `OTP_MAX_ATTEMPTS`.
+     *
+     * The same 5 governs SMS and email -- `otp.service.ts` and `email-otp.service.ts` read one
+     * config value and throw the same message, so this is one rule mirrored on the client rather
+     * than a second one invented here. The client counts too because it has to know when to stop
+     * offering an action the server will refuse.
+     */
+    const val MAX_VERIFY_ATTEMPTS = 5
+
     /** Set false to hide the on-screen hint without removing the fixed code. */
     const val SHOW_HINT = true
 }
@@ -347,9 +357,14 @@ fun SignUpFlow(
                         codeMismatch = false
                     },
                     mismatch = codeMismatch,
+                    lockedOut = verifyAttempts >= DevAuth.MAX_VERIFY_ATTEMPTS,
                     cooldownSeconds = cooldown,
                     onBack = { step = Step.Phone },
                     onVerify = {
+                        // Locked out: the server would refuse this, so the client does not ask.
+                        // The CTA is already disabled in that state; this is the second guard, for
+                        // a submit arriving from the keyboard's action key.
+                        if (verifyAttempts >= DevAuth.MAX_VERIFY_ATTEMPTS) return@VerifyCodeScreen
                         analytics.track(SignUpAnalytics.CODE_SUBMITTED, emptyMap())
                         verifyAttempts += 1
                         if (codeDigits == DevAuth.TEST_CODE) {
@@ -383,6 +398,10 @@ fun SignUpFlow(
                         lastVerifyFailed = false
                         codeDigits = ""
                         codeMismatch = false
+                        // A new code is a new challenge, and the server starts its attempt count
+                        // at zero for it. Not resetting here would lock the user out of a code
+                        // the server is perfectly willing to accept.
+                        verifyAttempts = 0
                         cooldown = DevAuth.RESEND_COOLDOWN
                     },
                     onEditNumber = {
