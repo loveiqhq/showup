@@ -51,8 +51,8 @@ val DEVICES: List<Device> = listOf(
     // ── the middle ──────────────────────────────────────────────────────────
     Device("iPhone SE (3rd gen)", 375, 667, 20, 0, inAcceptanceCriteria = true),
     Device("iPhone X / XS / 11 Pro", 375, 812, 44, 34),
-    Device("Pixel 4a / 5", 393, 851, 24, 24),
     Device("iPhone 12 / 13 / 14", 390, 844, 47, 34, inAcceptanceCriteria = true),
+    Device("Pixel 4a / 5", 393, 851, 24, 24),
     Device("iPhone 15 / 16", 393, 852, 59, 34),
     Device("iPhone 16 Pro", 402, 874, 62, 34),
 

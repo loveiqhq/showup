@@ -218,7 +218,19 @@ private fun MethodListLayout(
     val errored = state == ConnectState.Error
     val short = methodSpec(provider).short
 
-    WelcomeScaffold {
+    // Scroll only when the frame runs out, per the 10 September decision.
+    //
+    // This is the screen the fit sweep had the most to say about: 39 findings across five short
+    // phones, every one of them the same shape. The states that add a banner -- cancelled, and
+    // both errors -- push the bottom group down until the one weighted spacer has nothing left,
+    // and a Column with nothing left shrinks its children in place. The legal line went to zero
+    // height and "Skip and continue to profile" was measured at 15dp: the escape hatch from a
+    // failed social sign-in, too small to hit, on the phones most likely to be someone's only
+    // phone.
+    //
+    // Nothing changes where it already fits. The inner column is floored at the viewport, so on
+    // all twelve devices 390dp and wider the spacer divides the leftover space exactly as before.
+    WelcomeScaffold(scrollWhenTight = true) {
         val compact = LocalConfiguration.current.screenHeightDp < 700
         Wordmark()
 

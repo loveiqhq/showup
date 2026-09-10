@@ -62,12 +62,25 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
                     // button carries, which is what stops the modal reading as two equal choices.
                     .font(variant == .plain ? F.manrope(15, .semibold)
                                             : F.manrope(labelSize, .bold))
-                    .lineLimit(1)
+                    // Two, so a label too wide for a narrow phone wraps instead of being
+                    // cut. Still bounded: unlimited would let a translation grow the control
+                    // without end. Mirrors PrimaryButton.kt.
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
                     .foregroundColor(labelColor)
                 trailing()
             }
             .frame(maxWidth: .infinity)
-            .frame(height: height)
+            // A MINIMUM, not a fixed height, since 10 September.
+            //
+            // On every device where the label fits on one line this is exactly `height` and
+            // nothing changes — 16 of the 17 in the fit matrix. On the 320pt Fold cover screen
+            // "Continue with phone number" does not fit: 272 of button, less 56 of padding and
+            // 28 of mark and gap, leaves 188 for a label that wants about 234. Android measured
+            // it ellipsised, so the primary sign-in control on that phone read "Continue with
+            // phone numb...". Letting the pill grow keeps the type size, the padding and the
+            // copy the design specifies.
+            .frame(minHeight: height)
             .padding(.horizontal, 28)
             .background(background)
             .clipShape(Capsule())

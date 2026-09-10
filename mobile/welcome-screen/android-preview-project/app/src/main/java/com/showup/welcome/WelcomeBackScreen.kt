@@ -80,7 +80,17 @@ fun WelcomeBackScreen(
     val known = lastUsed != AuthMethod.Unknown && lastUsed in methods
     val primary = if (known) lastUsed else methods.firstOrNull() ?: AuthMethod.Phone
 
-    WelcomeScaffold {
+    // Scroll only when the frame runs out, per the 10 September decision.
+    //
+    // On every phone where the content fits -- all twelve at 390dp and wider, and most of the
+    // 360s -- this changes nothing at all: the inner column is floored at the viewport height, so
+    // the two weighted spacers still divide the leftover space and the layout is what it was.
+    //
+    // On the short ones it is the difference between a screen and a broken one. At 320x686 with a
+    // 24-character name, "Continue with Facebook" was measured at 7.5dp tall: a real sign-in
+    // button squeezed to a sliver, because a Column with nothing left to give shrinks its children
+    // in place rather than pushing them off the edge. Nothing looked wrong in a preview.
+    WelcomeScaffold(scrollWhenTight = true) {
         val compact = LocalConfiguration.current.screenHeightDp < 700
         Wordmark()
 

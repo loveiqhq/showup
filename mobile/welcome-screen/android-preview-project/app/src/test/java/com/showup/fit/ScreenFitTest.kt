@@ -2,8 +2,9 @@
  * ScreenFitTest.kt
  * ShowUp · every screen, every state, on every phone the app has to run on
  *
- * This is the answer to "does it actually fit". Eighteen device sizes from the 320x568 iPhone SE up
- * to the 440x956 iPhone 16 Pro Max, against every screen and every state either flow can be in --
+ * This is the answer to "does it actually fit". Seventeen device sizes from the 320x686 Galaxy Fold
+ * cover screen up to the 440x956 iPhone 16 Pro Max, against every screen and every state either
+ * flow can be in --
  * including the states a person only reaches by getting something wrong, which is exactly where a
  * layout is least likely to have been looked at.
  *
@@ -58,36 +59,32 @@ class ScreenFitTest {
     }
 
     /**
-     * The findings already recorded in audit/FIT-2026-08-31.md, so this suite fails on something
-     * NEW rather than on the backlog.
+     * EMPTY, since 10 September 2026, and that is the headline.
      *
-     * Every one of these is the same shape -- the bottom band of a screen squeezed on a short
-     * phone -- and every one needs a layout decision on a screen that is in PO Acceptance, which
-     * is not a decision to take silently inside a test file. They are counted on every run so they
-     * cannot be quietly forgotten, and this list is meant to SHRINK. Adding to it is a defeat.
+     * This held eight element labels -- the findings recorded in audit/FIT-2026-08-31.md, all of
+     * them the bottom band of a screen squeezed on a short phone. The comment here said the list
+     * was meant to shrink and that adding to it was a defeat. It has shrunk to nothing: 117
+     * findings across Connect and Welcome back are gone, fixed rather than accepted.
+     *
+     * Two changes did it. `WelcomeScaffold(scrollWhenTight = true)` on both screens lets the
+     * layout ask for the height it needs instead of being clamped, and `PrimaryButton` takes a
+     * minimum height rather than a fixed one so a label too wide for a 320dp phone wraps instead
+     * of being cut. Neither changes anything on a device where the content already fitted.
+     *
+     * Keep it empty. A finding that appears here again is a real regression on a real phone, and
+     * the honest response is to fix the screen rather than to write its name down.
      */
-    private val known = listOf(
-        "Already have an account", "By continuing you agree", "Continue with",
-        "Legal Notice", "Skip and continue", "Trouble signing in",
-        "ready to show up", "Takes less than a minute",
-        // The phone-error family was baselined here on 2026-09-01 and is deliberately gone again.
-        //
-        // It was never a boundary between two lines and three. The helper row was written as
-        // `.height(36.dp).padding(top = 10.dp)`, and Compose applies modifiers outside-in: that
-        // reserves 36 and then spends 10 of it, leaving the text 26. Two lines of 17.55sp need
-        // 35.1, so they overflowed by ~9dp -- which is the "20px of text below the cut, 2 line(s)
-        // drawn" CI reported, exactly. Putting the padding outside the height gives the text the
-        // 36 it was always meant to have and the findings go with it.
-        //
-        // Worth recording because the baseline was reasonable and still wrong: the report said two
-        // lines were drawn, and two lines have never been the problem. Nothing here is masked now,
-        // which is the point -- "For example" appears in five of the seven phone errors, so
-        // suppressing it would have blinded this suite to the whole family.
-    )
+    private val known = emptyList<String>()
 
-    /** Short labels are matched whole, so "Next" cannot swallow an unrelated future finding. */
-    private fun Violation.isKnown(): Boolean =
-        known.any { element.contains(it) } || element == "\"Next\"" || element == "\"Back\""
+    /**
+     * Nothing is known any more, so nothing is excused.
+     *
+     * The blanket passes for "Next" and "Back" went with the list. They were there because those
+     * two words are short enough to appear inside an unrelated label, which mattered when the
+     * list was doing real suppression; with nothing to suppress they only stood between this
+     * suite and a genuine finding on the two most important controls in the flow.
+     */
+    private fun Violation.isKnown(): Boolean = known.any { element.contains(it) }
 
     private val collected = mutableListOf<Violation>()
 

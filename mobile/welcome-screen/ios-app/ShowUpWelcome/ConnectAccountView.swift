@@ -151,7 +151,12 @@ private struct MethodListLayout: View {
         GeometryReader { geo in
             let compact = geo.size.height < 700
 
-            WelcomeScaffold {
+            // Scroll only when the frame runs out, per the 10 September decision. Mirrors
+            // ConnectAccountScreen.kt, which is the screen the Android sweep had the most to say
+            // about: 39 findings across five short phones, the legal line at zero height and
+            // "Skip and continue to profile" measured at 15dp — the escape hatch from a failed
+            // social sign-in, too small to hit.
+            WelcomeScaffold(scrollWhenTight: true) {
                 Wordmark()
 
                 // "At 375 x 667 the wordmark -> headline 96 collapses first, then the headline

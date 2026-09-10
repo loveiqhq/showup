@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -91,7 +93,17 @@ fun PrimaryButton(
     Row(
         modifier
             .fillMaxWidth()
-            .height(height)
+            // A MINIMUM, not a fixed height, since 10 September.
+            //
+            // On every device where the label fits on one line this is exactly [height] and
+            // nothing changes -- which is 16 of the 17 in the fit matrix. On the 320dp Fold cover
+            // screen "Continue with phone number" does not fit: 272dp of button, less 56 of
+            // padding and 28 of mark and gap, leaves 188 for a label that wants about 234. It was
+            // ellipsised, so the primary sign-in control on that phone read "Continue with phone
+            // numb...". Letting the pill grow to two lines keeps the type size, the padding and
+            // the copy the design specifies, and the screens that use it now scroll when the
+            // frame runs out, so the extra height has somewhere to go.
+            .heightIn(min = height)
             .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.45f }
             .then(
                 when (variant) {
@@ -148,7 +160,10 @@ fun PrimaryButton(
             // carries, which is what stops the modal reading as two equal choices.
             fontWeight = if (variant == PrimaryButtonVariant.Plain) FontWeight.SemiBold else FontWeight.Bold,
             fontSize = if (variant == PrimaryButtonVariant.Plain) 15.sp else labelSize,
-            maxLines = 1,
+            // Two, so a label too wide for a narrow phone wraps instead of being cut. Still
+            // bounded: an unbounded label would let a translation grow the control without limit.
+            maxLines = 2,
+            textAlign = TextAlign.Center,
         )
         trailing?.invoke()
     }

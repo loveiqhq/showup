@@ -22,6 +22,17 @@
  *   3. text collapsed to nothing                   (zero height, so it is simply gone)
  *   4. a tap target below the 56dp the tickets require
  *
+ * SCROLLING CHANGES WHAT (2) MEANS, AND ONLY (2)
+ *
+ * A screen that scrolls when it runs out of room puts content below the fold on purpose. That is
+ * reachable, not lost, so it is reported as an advisory rather than a failure -- but it is still
+ * reported, because "you have to scroll on a 360x640" is worth knowing and is exactly the kind of
+ * thing that silently spreads to every screen if nobody is counting.
+ *
+ * The other three detectors are unchanged by scrolling and must stay failures: text clipped inside
+ * a scroll view is still text you cannot read, and a 15dp button is still unusable however far you
+ * scrolled to reach it.
+ *
  * Insets are modelled rather than borrowed. Robolectric reports no status bar and no gesture bar,
  * so a screen tested against the raw size would be handed ~80dp it does not have on a real phone.
  * Each device carries its own inset figures and the content is rendered into what is left.
@@ -144,7 +155,12 @@ fun measureFit(device: Device, screen: String, content: @Composable () -> Unit):
         val wDp = device.width.toFloat()
         val hDp = device.safeHeight.toFloat()
 
-        fun walk(node: SemanticsNode) {
+        // Carried DOWN the tree rather than read off each node: only the scroll container itself
+        // advertises VerticalScrollAxisRange, and it is its descendants whose positions the flag
+        // has to reinterpret.
+        fun walk(node: SemanticsNode, inScroll: Boolean = false) {
+            val scrollable = inScroll ||
+                node.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) != null
             val left = (node.positionInRoot.x - originX) / density
             val top = (node.positionInRoot.y - originY) / density
             val right = left + node.size.width / density
@@ -188,8 +204,15 @@ fun measureFit(device: Device, screen: String, content: @Composable () -> Unit):
             if (node.size.width > 0 && node.size.height > 0) {
                 // 2. positioned outside the safe area
                 if (bottom > hDp + SLACK_DP) {
-                    found += Violation(device, screen, name, "OFF THE BOTTOM",
-                        "by %.1fdp".format(bottom - hDp))
+                    // Below the fold of something that scrolls is a scroll, not a loss.
+                    found += if (scrollable) {
+                        Violation(device, screen, name, "BELOW THE FOLD",
+                            "by %.1fdp, reachable by scrolling".format(bottom - hDp),
+                            advisory = true)
+                    } else {
+                        Violation(device, screen, name, "OFF THE BOTTOM",
+                            "by %.1fdp".format(bottom - hDp))
+                    }
                 }
                 if (right > wDp + SLACK_DP) {
                     found += Violation(device, screen, name, "OFF THE RIGHT",
@@ -219,7 +242,7 @@ fun measureFit(device: Device, screen: String, content: @Composable () -> Unit):
                 // 3. text collapsed to nothing at all
                 found += Violation(device, screen, name, "TEXT COLLAPSED", "zero height")
             }
-            node.children.forEach(::walk)
+            node.children.forEach { walk(it, scrollable) }
         }
         walk(boxNode)
     }
