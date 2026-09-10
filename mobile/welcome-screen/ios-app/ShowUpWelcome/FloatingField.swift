@@ -171,6 +171,19 @@ struct DangerGlyph: View {
 /// reserved its own space would take that choice away from the screens.
 struct InlineErrorCard: View {
     let message: Text
+    /// Ceiling on the message, for a screen whose reserved region is a fixed height.
+    ///
+    /// Unbounded by default, which is right for the profile screens: their copy is one short
+    /// sentence and their region is sized to the card. The phone screen is the exception — its
+    /// messages name a country and an example number, so they run to three lines, and its region
+    /// is fixed so the CTA cannot move. Two lines there is the ceiling that screen already had
+    /// before the card existed, not a new decision.
+    var lineLimit: Int?
+
+    init(message: Text, lineLimit: Int? = nil) {
+        self.message = message
+        self.lineLimit = lineLimit
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.lg) {
@@ -180,6 +193,7 @@ struct InlineErrorCard: View {
                 .font(F.manrope(13.5, .medium))
                 .foregroundColor(.liqDangerFg)
                 .lineSpacing(13.5 * 0.4)
+                .lineLimit(lineLimit)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }

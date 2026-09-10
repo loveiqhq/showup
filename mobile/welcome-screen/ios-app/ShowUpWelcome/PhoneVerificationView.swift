@@ -135,17 +135,54 @@ struct PhoneNumberView: View {
                 //
                 // A fixed height rather than a minimum, so the row cannot grow either; the scale
                 // factor lets a long country name shrink to fit instead of being cut off.
-                Text(error?.message(country) ?? "Standard message rates may apply.")
-                    .font(F.manrope(13, invalid ? .semibold : .medium))
-                    // Muted, not Subtle — helper text has to be readable. Audit finding 7.
-                    .foregroundColor(invalid ? .liqDangerFg : .liqMuted)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .topLeading)
-                    .padding(.top, Spacing.lg)
-                    .padding(.leading, Spacing.xs)
-                    .accessibilityAddTraits(.updatesFrequently)
+                // ERRORS ARE A CARD, HELPER TEXT IS NOT
+                //
+                // One error style across the app, decided 10 September 2026: the red card with
+                // the glyph and the message inside it, never bare red text. This row was the last
+                // place the bare style survived.
+                //
+                // The calm string is NOT an error — "Standard message rates may apply." is
+                // advice, and wrapping advice in a danger card would say something the sentence
+                // does not. So the row swaps component, not just colour.
+                //
+                // A ZStack, not a bare `if`. In a ViewBuilder a branch that evaluates to nil
+                // reserves nothing, and a frame around nothing is 0 — the defect that shipped a
+                // 56pt CTA jump on this very flow. The frame is on the container, so the reserve
+                // holds whichever branch renders.
+                //
+                // 80 rather than 36. The card carries 1pt of border and 10 of padding top and
+                // bottom, and 14 of padding plus an 18 glyph and a 10 gap eating the text
+                // column's WIDTH — and the narrower column is what actually drove this. The same
+                // sentences that fitted two lines as bare 13pt text need three inside the card.
+                //
+                // Measured on Android's ScreenFitTest across all seventeen sizes: at two lines
+                // three messages clipped on the 320-wide Fold cover screen, at three they fit and
+                // the CTA neither moves nor leaves the screen. iOS keeps minimumScaleFactor as
+                // well, so a long country name shrinks rather than truncating.
+                //
+                // The region stays fixed at 80 in BOTH states, because a region that fits its
+                // content moves the CTA when the content changes, which is what SHOWUP-143
+                // forbids.
+                ZStack(alignment: .topLeading) {
+                    if invalid {
+                        InlineErrorCard(
+                            message: Text(error?.message(country) ?? ""),
+                            lineLimit: 3
+                        )
+                    } else {
+                        Text("Standard message rates may apply.")
+                            .font(F.manrope(13, .medium))
+                            // Muted, not Subtle — helper text has to be readable. Audit finding 7.
+                            .foregroundColor(.liqMuted)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 80, alignment: .topLeading)
+                .padding(.top, Spacing.lg)
+                .padding(.leading, Spacing.xs)
+                .accessibilityAddTraits(.updatesFrequently)
 
                 Spacer().frame(height: compact ? 12 : 22)
                 // Validation runs on submit, not per keystroke. The button stays live so the

@@ -27,7 +27,12 @@ enum DevAuth {
     static let testCode = "480726"
 
     /// Seconds before a resend is offered. Real cooldown, fake send.
-    static let resendCooldown = 30
+    /// Seconds before a resend is offered. Real cooldown, fake send.
+    ///
+    /// 60, matching the server's `OTP_RESEND_COOLDOWN`. It was 30 — the mismatch the product side
+    /// ruled against for email on 10 September 2026, which the phone screen had as well: the link
+    /// would go live at 30s and the server would answer 429 for another 30.
+    static let resendCooldown = 60
 
     /// Set false to hide the on-screen hint without removing the fixed code.
     static let showHint = true
