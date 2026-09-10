@@ -362,7 +362,7 @@ check("143 helper C/D reserved (swift)", "minHeight: 42" in ver_sw)
 # padding wrapped around nil both collapse -- the CTA jumped the full 56pt. So the Swift card has
 # to be present in every state and hidden with opacity, and that is what is checked.
 # a card behind a bare `if` reserves nothing in SwiftUI, and the CTA moves
-check("143 C/D card is hidden, not absent (swift)", ".opacity(mismatch ? 1 : 0)" in ver_sw)
+check("143 C/D card is hidden, not absent (swift)", ".opacity(mismatch || lockedOut ? 1 : 0)" in ver_sw)
 check("143 slots 49x62 (kotlin)", "49.dp" in ver_kt and "62.dp" in ver_kt)
 check("143 slots 49x62 (swift)", "49" in ver_sw and "62" in ver_sw)
 check("143 slots shrink to 44x56 (kotlin)", "44.dp" in ver_kt and "56.dp" in ver_kt)
@@ -377,8 +377,18 @@ check("143 shake 480ms once (kotlin)", "480" in ver_kt)
 check("143 shake 480ms once (swift)", "0.48" in ver_sw)
 check("143 CTA disabled until 6 digits (kotlin)", "digits.length == 6" in ver_kt)
 check("143 CTA disabled until 6 digits (swift)", "digits.count == 6" in ver_sw)
-check("143 mismatch releases the cooldown (kotlin)", "mismatch || cooldownSeconds <= 0" in ver_kt)
-check("143 mismatch releases the cooldown (swift)", "mismatch || cooldownSeconds <= 0" in ver_sw)
+# Both failures release the cooldown, and lockout MUST: it is the only exit, so a countdown with
+# no working action would be a dead end. Added 10 September 2026 with the attempt cap.
+check("143 mismatch releases the cooldown (kotlin)",
+      "mismatch || lockedOut || cooldownSeconds <= 0" in ver_kt)
+check("143 mismatch releases the cooldown (swift)",
+      "mismatch || lockedOut || cooldownSeconds <= 0" in ver_sw)
+# Locked out is its own message, in the shared card -- not a louder mismatch.
+check("143 lockout has its own copy (kotlin)", "Too many tries. Send a new code." in ver_kt)
+check("143 lockout has its own copy (swift)", "Too many tries. Send a new code." in ver_sw)
+# The CTA cannot stay live against a code the server will refuse.
+check("143 lockout disables the CTA (kotlin)", "digits.length == 6 && !lockedOut" in ver_kt)
+check("143 lockout disables the CTA (swift)", "digits.count == 6 && !lockedOut" in ver_sw)
 check("143 slot row has an aria label (kotlin)", "Enter your 6-digit verification code" in ver_kt)
 check("143 slot row has an aria label (swift)", "Enter your 6-digit verification code" in ver_sw)
 # the keypad is a mock and must not be shipped
@@ -539,6 +549,10 @@ check("142 no demo name survives as a default (kotlin)", 'name: String = "Leo"' 
 check("142 no demo name survives as a default (swift)", 'var name: String = "Leo"' not in back_sw)
 
 # The flow has to model "does this device remember anyone" as a real state, not leave it implied.
+# The cap is the server's, mirrored -- not a second rule invented on the client. If these two ever
+# disagree with OTP_MAX_ATTEMPTS the client blocks at a different count than the backend does.
+check("143 attempt cap matches the server (kotlin)", "MAX_VERIFY_ATTEMPTS = 5" in flow_kt)
+check("143 attempt cap matches the server (swift)", "maxVerifyAttempts = 5" in flow_sw)
 check("the flow models a remembered account (kotlin)", "RememberedAccount" in flow_kt)
 check("the flow models a remembered account (swift)", "RememberedAccount" in flow_sw)
 check("no account means no name (kotlin)", "account?.name.orEmpty()" in flow_kt)

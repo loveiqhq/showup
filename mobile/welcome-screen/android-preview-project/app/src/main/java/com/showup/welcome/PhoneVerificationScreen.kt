@@ -364,12 +364,44 @@ private class GroupedDigits(private val country: Country) : VisualTransformation
 // States C and D — enter code / code mismatch
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The code screen's two failure strings.
+ *
+ * [LOCKED_OUT] is PROPOSED COPY, not yet signed off by the design side. The server has enforced
+ * this cap since Epic 2 and no ticket has ever specified what the user reads when it trips, so the
+ * choice was between a screen that says nothing useful and a sentence written to the group's own
+ * rules: name the state, point at the one recovery, and never say "Error" or "Failed". It mirrors
+ * the shape of the approved expired-code line on profile/03.
+ */
+object VerifyCopy {
+    const val MISMATCH = "That code didn’t match. Try again."
+
+    /**
+     * PROPOSED — awaiting design sign-off. One recovery, so the sentence names only that one.
+     *
+     * Kept to the length of [MISMATCH] on purpose. The reserved region under the slots is a
+     * 42 floor sized for ONE line of card; a longer sentence wraps to two at 320 and takes the
+     * CTA down with it, which is the movement SHOWUP-143 forbids. "Send a new code to try
+     * again" was the first draft and is four characters too long to survive that.
+     */
+    const val LOCKED_OUT = "Too many tries. Send a new code."
+}
+
 @Composable
 fun VerifyCodeScreen(
     phone: String = "+49 176 123 45 678",
     digits: String = "",
     onDigitsChange: (String) -> Unit = {},
     mismatch: Boolean = false,
+    /**
+     * The code has taken its last wrong guess.
+     *
+     * The server stops accepting attempts after [DevAuth.MAX_VERIFY_ATTEMPTS] and answers every
+     * further submit the same way, so without this the user would be told to "try again" against
+     * a code that can no longer succeed. It is a distinct state, not a louder mismatch: the only
+     * way out is a new code.
+     */
+    lockedOut: Boolean = false,
     cooldownSeconds: Int = 21,
     onBack: () -> Unit = {},
     onVerify: () -> Unit = {},
@@ -534,26 +566,39 @@ fun VerifyCodeScreen(
                 .heightIn(min = 42.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            if (mismatch) {
+            // Two failures, one card, and the message is the difference between them. Both use
+            // the shared InlineErrorCard, which is the one error style in the app.
+            //
+            // Locked out wins over mismatch: once the cap is reached the last submit was also a
+            // mismatch, and "try again" would be the wrong instruction to leave on screen.
+            if (lockedOut) {
+                InlineErrorCard(VerifyCopy.LOCKED_OUT)
+            } else if (mismatch) {
                 // Was fourteen lines of the same card the profile flow draws: radius errorBox, the
                 // 7% and 18% danger tints, 14/10 padding, gap 10, an 18 glyph at Lora 12, and
                 // Manrope 500 / 13.5 in DangerFg. Value for value identical, so it is now the
                 // shared component rather than a fifth copy.
                 //
                 // Copy unchanged: informative, never "Wrong" / "Failed" / "Error".
-                InlineErrorCard("That code didn’t match. Try again.")
+                InlineErrorCard(VerifyCopy.MISMATCH)
             }
         }
 
         Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         // Disabled until all six digits are in. In mismatch the digits are still there, so it stays
         // enabled — the user edits one digit and resubmits.
-        PrimaryButton("Verify code", onVerify, enabled = digits.length == 6)
+        //
+        // Locked out disables it too, and that is the honest control: the server will refuse every
+        // further submit for this code, so a live button would promise an action that cannot
+        // happen. The resend below is live in its place, which is the only way forward.
+        PrimaryButton("Verify code", onVerify, enabled = digits.length == 6 && !lockedOut)
 
         Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
         // A mistyped code must not cost another 24s wait, so the mismatch state releases the
         // cooldown to 0 and the resend becomes a live button.
-        val resendLive = mismatch || cooldownSeconds <= 0
+        // Locked out MUST make the resend live regardless of the clock: it is the only exit, and
+        // leaving the user to wait out a countdown with no working action is a dead end.
+        val resendLive = mismatch || lockedOut || cooldownSeconds <= 0
         Column(
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,

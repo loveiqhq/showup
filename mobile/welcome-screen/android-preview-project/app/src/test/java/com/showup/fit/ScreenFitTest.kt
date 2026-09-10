@@ -164,6 +164,13 @@ class ScreenFitTest {
         sweep("Code/typed") { VerifyCodeScreen(digits = "4807") }
         sweep("Code/mismatch") { VerifyCodeScreen(digits = "480000", mismatch = true) }
         sweep("Code/resend ready") { VerifyCodeScreen(cooldownSeconds = 0) }
+        // The attempt cap's own state. Its card carries a DIFFERENT string from the mismatch one,
+        // and the region under the slots is a 42 floor sized for one line -- so a message that
+        // wrapped would grow the region and take the CTA with it. This is the sweep that would
+        // catch that, and the reason the copy was kept to the mismatch line's length.
+        sweep("Code/locked out") {
+            VerifyCodeScreen(digits = "480000", mismatch = true, lockedOut = true)
+        }
         // The number is echoed back, so a long international one is the widest this can get.
         sweep("Code/long number") { VerifyCodeScreen(phone = "+880 1712 345678") }
         assertClean()
