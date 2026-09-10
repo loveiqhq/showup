@@ -93,10 +93,21 @@ private struct TutorialFlow: View {
     // the moment the iOS CLAUDE.md names for @Observable. The @SceneStorage values that used to
     // live here could not own a request in flight.
     //
-    // Built once for the scene, with credentials from the Keychain — a refresh token is a
-    // durable credential and does not belong in UserDefaults.
+    // Built once for the scene, from `APIAccess` — one client and one Keychain store for the
+    // whole app. This used to construct its own `ShowUpAPI(tokens: KeychainTokenStore())`, which
+    // was a second client deciding for itself which environment to talk to.
     @State private var basics = BasicsModel(
-        repo: BasicsRepository(api: ShowUpAPI(tokens: KeychainTokenStore()))
+        repo: BasicsRepository(api: APIAccess.client)
+    )
+
+    // ── Signing in ─────────────────────────────────────────────────────────
+    //
+    // The other half of the same session. It shares `APIAccess.tokens` with `basics` deliberately
+    // and not incidentally: this model WRITES the tokens that model then sends. Two stores would
+    // both read the same Keychain items and so would probably work, and would fail confusingly
+    // the first time one of them cached anything.
+    @State private var phoneAuth = PhoneAuthModel(
+        repo: PhoneAuthRepository(api: APIAccess.client, tokens: APIAccess.tokens)
     )
 
     // The date and the visibility choice stay scene-scoped as well as living on the model, so a
@@ -144,7 +155,7 @@ private struct TutorialFlow: View {
                 case .signUp: SignUpFlowView(onFinished: { o in
                     outcomeRaw = o.storageKey
                     go(to: showsTutorial(o) ? .tutorialWelcome : .home)
-                })
+                }, auth: phoneAuth)
                 case .tutorialWelcome: WelcomeView(onContinue: { go(to: .meetInRealLife) })
                 case .meetInRealLife: MeetInRealLifeView(onNext: { go(to: .matchOnAvailability) })
                 case .matchOnAvailability:

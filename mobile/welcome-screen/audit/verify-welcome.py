@@ -555,11 +555,38 @@ check("142 default method is unknown (swift)", "var lastUsed: AuthMethod = .unkn
 check("142 no demo name survives as a default (kotlin)", 'name: String = "Leo"' not in back_kt)
 check("142 no demo name survives as a default (swift)", 'var name: String = "Leo"' not in back_sw)
 
-# The flow has to model "does this device remember anyone" as a real state, not leave it implied.
-# The cap is the server's, mirrored -- not a second rule invented on the client. If these two ever
+# The cap is the server's, mirrored -- not a second rule invented on the client. If these ever
 # disagree with OTP_MAX_ATTEMPTS the client blocks at a different count than the backend does.
-check("143 attempt cap matches the server (kotlin)", "MAX_VERIFY_ATTEMPTS = 5" in flow_kt)
-check("143 attempt cap matches the server (swift)", "maxVerifyAttempts = 5" in flow_sw)
+policy_kt = read(KT, "api/OtpPolicy.kt")
+policy_sw = read(SW, "OtpPolicy.swift")
+check("143 attempt cap matches the server (kotlin)", "MAX_VERIFY_ATTEMPTS = 5" in policy_kt)
+check("143 attempt cap matches the server (swift)", "maxVerifyAttempts = 5" in policy_sw)
+
+# And it is mirrored ONCE. It was written down twice -- in the sign-up flow's DevAuth and again in
+# the profile flow -- which compiles perfectly and means raising the server's cap silently changes
+# the behaviour of one screen and not the other. These two checks are the only thing standing
+# between here and that state coming back; no compiler can see it.
+for name, body in (("kotlin", flow_kt), ("swift", flow_sw)):
+    check(f"143 the flow does not keep a second copy of the cap ({name})",
+          "MAX_VERIFY_ATTEMPTS = 5" not in body and "maxVerifyAttempts = 5" not in body)
+check("143 the resend window is mirrored once (kotlin)",
+      "RESEND_COOLDOWN_SECONDS = 60L" in policy_kt and "COOLDOWN_HINT" not in flow_kt)
+check("143 the resend window is mirrored once (swift)",
+      "resendCooldownSeconds = 60" in policy_sw and "resendCooldown = 60" not in flow_sw)
+
+# `afterMismatch` shipped as a constant false: it read a flag the flow set to false on resend and
+# never set to true anywhere. Nothing caught it -- both platforms compiled, 208 unit tests passed,
+# and the event fired with a plausible-looking payload. It is derived from the model's attempt
+# count now, which the server increments and `start` resets, so there is no flag to forget.
+check("143 afterMismatch is derived, not a flag the flow maintains (kotlin)",
+      "afterMismatch = verifyAttempts > 0" in flow_kt and "lastVerifyFailed" not in flow_kt)
+check("143 afterMismatch is derived, not a flag the flow maintains (swift)",
+      "afterMismatch: verifyAttempts > 0" in flow_sw and "lastVerifyFailed" not in flow_sw)
+
+# And the flow keeps no clock of its own. The model recomputes the countdown from the server's
+# resendAvailableAt, so a decrement here would fight it and win on a device that had been asleep.
+check("143 the flow does not decrement its own countdown (kotlin)", "cooldown--" not in flow_kt)
+check("143 the flow does not decrement its own countdown (swift)", "cooldown -= 1" not in flow_sw)
 check("the flow models a remembered account (kotlin)", "RememberedAccount" in flow_kt)
 check("the flow models a remembered account (swift)", "RememberedAccount" in flow_sw)
 check("no account means no name (kotlin)", "account?.name.orEmpty()" in flow_kt)

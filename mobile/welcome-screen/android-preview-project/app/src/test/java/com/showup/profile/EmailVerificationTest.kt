@@ -4,7 +4,7 @@
  */
 package com.showup.profile
 
-import com.showup.welcome.DevAuth
+import com.showup.api.MAX_VERIFY_ATTEMPTS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -98,6 +98,6 @@ class EmailVerificationTest {
 
     @Test
     fun `the client cap equals the constant the server's is mirrored into`() {
-        assertEquals(5, DevAuth.MAX_VERIFY_ATTEMPTS)
+        assertEquals(5, MAX_VERIFY_ATTEMPTS)
     }
 }

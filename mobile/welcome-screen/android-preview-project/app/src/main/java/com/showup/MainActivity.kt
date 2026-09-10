@@ -36,6 +36,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.showup.api.EncryptedTokenStore
 import com.showup.api.ShowUpApi
 import com.showup.profile.BasicsRepository
+import com.showup.welcome.PhoneAuthRepository
+import com.showup.welcome.PhoneAuthViewModel
 import com.showup.profile.BasicsViewModel
 import com.showup.profile.EmailCopy
 import com.showup.profile.ProfileDobScreen
@@ -87,12 +89,21 @@ class MainActivity : ComponentActivity() {
             // The api is built once per Activity, not per recomposition, and its tokens come from
             // the encrypted store -- a refresh token is a durable credential.
             val context = LocalContext.current
+            // One store, two models: the sign-up flow WRITES the tokens and the profile flow
+            // reads them through the interceptor. Sharing the instance is what makes that work.
+            val tokenStore = remember(context) { EncryptedTokenStore(context) }
+            val api = remember(tokenStore) { ShowUpApi(tokens = tokenStore) }
+
+            val phoneAuth: PhoneAuthViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { PhoneAuthViewModel(PhoneAuthRepository(api, tokenStore)) }
+                },
+            )
+
             val basics: BasicsViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
-                        BasicsViewModel(
-                            BasicsRepository(ShowUpApi(tokens = EncryptedTokenStore(context))),
-                        )
+                        BasicsViewModel(BasicsRepository(api))
                     }
                 },
             )
@@ -141,7 +152,7 @@ class MainActivity : ComponentActivity() {
                     // SignUpFlow owns every step and every piece of state inside it.
                     // SHOWUP-146, the whole ticket in one line: the tutorial for a new
                     // account, straight into the app for a returning member.
-                    FlowScreen.SignUp -> SignUpFlow(onFinished = {
+                    FlowScreen.SignUp -> SignUpFlow(auth = phoneAuth, onFinished = {
                         outcome = it
                         screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
                     })

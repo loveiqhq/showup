@@ -156,7 +156,7 @@ final class EmailVerificationTests: XCTestCase {
     func testTheCapIsTheServersFive() {
         XCTAssertEqual(state(attempts: 4, refused: true), .mismatch)
         XCTAssertEqual(state(attempts: 5, refused: true), .lockedOut)
-        XCTAssertEqual(DevAuth.maxVerifyAttempts, 5)
+        XCTAssertEqual(maxVerifyAttempts, 5)
     }
 
     func testPrecedence() {

@@ -5,16 +5,20 @@
  * This is the piece that turns five rendered screens into something a person can actually walk
  * through. Every screen stays pure: it takes values and emits events. All the state lives here.
  *
- * DEV SCAFFOLDING, CLEARLY MARKED. Two things in this file are stand-ins for services that do not
- * exist yet, and both are gathered into [DevAuth] so they are one edit to remove:
+ * NOTHING HERE IS A STAND-IN ANY MORE. This file used to open with a scaffolding notice: the
+ * code was a constant, the resend restarted a local timer, and a `DevAuth` object held both so
+ * they were one edit to remove. That edit has happened.
  *
- *   1. The verification code is fixed at [DevAuth.TEST_CODE]. Twilio is not connected, so no SMS is
- *      sent and no server checks anything. The code is shown on screen in a dev strip, because a
- *      test flow you cannot get through is not a test flow.
- *   2. The resend "sends" nothing. It restarts the cooldown, which is the only visible behaviour.
+ *   - The code is real. `/auth/phone/start` asks the backend to send one and
+ *     `/auth/phone/verify` confirms it, returning a JWT pair written to the encrypted store.
+ *   - The resend really sends, and the countdown counts to the server's `resendAvailableAt`
+ *     rather than down from a number this file chose.
  *
- * Nothing else here is fake. The typing, the validation, the country list, the error states, the
- * cooldown timer, the routing and the back behaviour are all real and all survive Twilio landing.
+ * No SMS provider is involved and none is needed. `LogSmsSender` is the only sender the backend
+ * has; it writes the code to the server log, and `AUTH_EXPOSE_OTP` -- on unless NODE_ENV is
+ * production -- also returns it on the challenge, which is what the debug-only strip displays.
+ * A complete signup is walkable for nothing, and switching a paid provider on later changes one
+ * binding in `auth.module.ts` and nothing in this file.
  */
 package com.showup.welcome
 
@@ -35,6 +39,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.showup.BuildConfig
+import com.showup.api.MAX_VERIFY_ATTEMPTS
+import com.showup.api.RESEND_COOLDOWN_SECONDS
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,51 +61,20 @@ import com.showup.designsystem.Manrope
 import kotlinx.coroutines.delay
 
 /** Everything that stands in for a backend. Delete this object and the compiler finds every use. */
-object DevAuth {
-    /**
-     * The code that "works" until Twilio is wired up.
-     *
-     * Six digits, because SHOWUP-143 specifies six and the slots are built for six. Deliberately
-     * not 123456: that is the first thing anyone tries by accident, and it would hide the mismatch
-     * state — which is a state we need to be able to demonstrate.
-     */
-    const val TEST_CODE = "480726"
-
-    /**
-     * Seconds before a resend is offered. Real cooldown, fake send.
-     *
-     * 60, matching the server's `OTP_RESEND_COOLDOWN`. It was 30, which is the mismatch the
-     * product side ruled against for email on 10 September 2026 -- and the phone screen had it
-     * too: the link would go live at 30s and `/auth/phone/start` would answer 429 for another 30.
-     * Latent only because DevAuth sends nothing yet, so it would have surfaced the day Twilio
-     * landed. One number, and the server owns it.
-     */
-    const val RESEND_COOLDOWN = 60
-
-    /**
-     * Wrong guesses allowed against one code, matching the server's `OTP_MAX_ATTEMPTS`.
-     *
-     * The same 5 governs SMS and email -- `otp.service.ts` and `email-otp.service.ts` read one
-     * config value and throw the same message, so this is one rule mirrored on the client rather
-     * than a second one invented here. The client counts too because it has to know when to stop
-     * offering an action the server will refuse.
-     */
-    const val MAX_VERIFY_ATTEMPTS = 5
-
-    /**
-     * How long a code stays valid, matching the server's `OTP_TTL` (300s).
-     *
-     * The ticket calls code lifetime "unspecified"; the backend has specified it since Epic 2.
-     * The client needs the number because `/auth/email/verify` returns the SAME 401 for a wrong
-     * code and an expired one -- so the only way to tell the user which happened is to know when
-     * the code dies, which `/auth/email/start` also returns as `expiresAt`.
-     */
-    const val CODE_TTL_SECONDS = 300
-
-    /** Set false to hide the on-screen hint without removing the fixed code. */
-    const val SHOW_HINT = true
-}
-
+/**
+ * Numbers the client mirrors from the backend, and one it uses only for arithmetic.
+ *
+ * WHAT THIS USED TO BE
+ *
+ * A fake. It held a fixed code the app compared against, a cooldown the app counted down on its
+ * own, and a banner announcing both. All three are gone: the flow now calls
+ * `/auth/phone/start` and `/auth/phone/verify`, and every number it shows comes from the
+ * response. What is left is not a stand-in for a backend — it is the backend's own values,
+ * written down where the client needs them.
+ *
+ * The name is kept because renaming an object referenced from three files and a test is churn
+ * that would bury this explanation in a diff. It is on the list.
+ */
 /** Where the user is. One flat enum — this flow has no nesting and no side routes. */
 private enum class Step { Startup, WelcomeBack, Phone, Code, Connect }
 
@@ -124,6 +101,14 @@ fun SignUpFlow(
      * tutorial, [SignUpOutcome.ReturningMember] goes straight into the app.
      */
     onFinished: (SignUpOutcome) -> Unit = {},
+    /**
+     * The asynchronous half of this flow: sending a code, confirming it, and the countdown.
+     *
+     * Nullable ONLY so the previews and ScreenFitTest can render every screen without a backend.
+     * A null model cannot sign anyone in — it renders the same screens with a default state and
+     * inert actions, which is what a preview should be. The app always passes one.
+     */
+    auth: PhoneAuthViewModel? = null,
     onOpenLegal: (String) -> Unit = {},
     /**
      * Where events go. NoOp by default, so nothing is sent and the flow behaves identically
@@ -160,14 +145,15 @@ fun SignUpFlow(
     var showCountrySheet by rememberSaveable { mutableStateOf(false) }
 
     var codeDigits by rememberSaveable { mutableStateOf("") }
-    var codeMismatch by rememberSaveable { mutableStateOf(false) }
-    var cooldown by rememberSaveable { mutableIntStateOf(DevAuth.RESEND_COOLDOWN) }
 
-    // Tracking-only state. SHOWUP-143 wants the attempt number on a failed verify and whether a
-    // resend followed a mismatch; neither is derivable from the screen's own state, because the
-    // mismatch flag is cleared the moment the user edits a digit.
-    var verifyAttempts by rememberSaveable { mutableIntStateOf(0) }
-    var lastVerifyFailed by rememberSaveable { mutableStateOf(false) }
+    // The countdown, the attempt count and the mismatch flag now belong to the model, because
+    // every one of them is decided by a server response rather than by this composable. What is
+    // left here is what the user typed.
+    val authState by (auth?.state?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf(PhoneAuthState()) })
+    val cooldown = authState.cooldownSeconds
+    val codeMismatch = authState.lastSubmitRefused
+    val verifyAttempts = authState.attempts
 
     /** Reports an event built by the SignUpAnalytics catalogue. */
     fun track(pair: Pair<String, Map<String, Any>>) = analytics.track(pair.first, pair.second)
@@ -213,13 +199,9 @@ fun SignUpFlow(
         }
     }
 
-    // One ticking clock for the resend. Restarts whenever the cooldown is reset.
-    LaunchedEffect(step, cooldown) {
-        if (step == Step.Code && cooldown > 0) {
-            delay(1000)
-            cooldown -= 1
-        }
-    }
+    // No ticking clock here any more. The model recomputes the countdown from the server's
+    // resendAvailableAt once a second, so a device that slept through half the window wakes up
+    // with the right number rather than one that was decremented while it was asleep.
 
     /** The number as it is shown back to the user on the code screen. */
     val fullNumber = "${country.dial} ${formatNational(phoneDigits, country)}"
@@ -346,9 +328,10 @@ fun SignUpFlow(
                         }
                         if (problem == null) {
                             codeDigits = ""
-                            codeMismatch = false
-                            cooldown = DevAuth.RESEND_COOLDOWN
-                            step = Step.Code
+                            // Advance only once the server has accepted the request. Moving
+                            // first would put the user on a code screen waiting for an SMS that
+                            // was never dispatched.
+                            auth?.start(country.e164(phoneDigits)) { step = Step.Code }
                         }
                     },
                     onOpenCountryList = { showCountrySheet = true },
@@ -364,36 +347,32 @@ fun SignUpFlow(
                     digits = codeDigits,
                     onDigitsChange = {
                         codeDigits = it
-                        codeMismatch = false
+                        auth?.clearRefusal()
                     },
                     mismatch = codeMismatch,
-                    lockedOut = verifyAttempts >= DevAuth.MAX_VERIFY_ATTEMPTS,
+                    lockedOut = verifyAttempts >= MAX_VERIFY_ATTEMPTS,
                     cooldownSeconds = cooldown,
                     onBack = { step = Step.Phone },
                     onVerify = {
                         // Locked out: the server would refuse this, so the client does not ask.
-                        // The CTA is already disabled in that state; this is the second guard, for
-                        // a submit arriving from the keyboard's action key.
-                        if (verifyAttempts >= DevAuth.MAX_VERIFY_ATTEMPTS) return@VerifyCodeScreen
+                        // The CTA is already disabled in that state; this is the second guard,
+                        // for a submit arriving from the keyboard's action key.
+                        if (verifyAttempts >= MAX_VERIFY_ATTEMPTS) return@VerifyCodeScreen
                         analytics.track(SignUpAnalytics.CODE_SUBMITTED, emptyMap())
-                        verifyAttempts += 1
-                        if (codeDigits == DevAuth.TEST_CODE) {
-                            // SHOWUP-146. Connect (SHOWUP-144) belongs to account creation: it is
-                            // where a brand-new account is offered a provider to link. Someone
-                            // signing back in has been past it already, so they skip both it and
-                            // the tutorial and land in the app.
-                            if (entry == Entry.LogIn) {
-                                onFinished(outcomeOf(entry, null))
+                        auth?.verify(country.e164(phoneDigits), codeDigits) { profileComplete ->
+                            // SHOWUP-146, decided by the PROFILE rather than by what the user
+                            // said they were doing. Connect and the tutorial belong to building
+                            // an account; someone whose profile is already complete has been
+                            // past both, whichever button they tapped to get here.
+                            //
+                            // Completeness rather than an "is this account new" flag because it
+                            // survives an interrupted signup: a user who quit halfway through
+                            // profile creation is not new, but must not be sent to Home.
+                            if (profileComplete) {
+                                onFinished(outcomeOf(Entry.LogIn, null))
                             } else {
                                 step = Step.Connect
                             }
-                        } else {
-                            codeMismatch = true
-                            lastVerifyFailed = true
-                            track(SignUpAnalytics.codeVerifyFailed(verifyAttempts))
-                            // A mistyped code must not cost another wait — the ticket says the
-                            // mismatch releases the cooldown, so the resend is live immediately.
-                            cooldown = 0
                         }
                     },
                     onResend = {
@@ -402,17 +381,24 @@ fun SignUpFlow(
                         // actually waited is the difference -- and after a mismatch it is released
                         // to 0, which would otherwise read as a full wait.
                         track(SignUpAnalytics.resendRequested(
-                            secondsWaited = DevAuth.RESEND_COOLDOWN - cooldown,
-                            afterMismatch = lastVerifyFailed,
+                            // Seconds actually waited, from the server's own window rather than
+                            // from a local constant that no longer exists.
+                            secondsWaited = authState.resendAvailableAt
+                                ?.let { java.time.Duration.between(java.time.OffsetDateTime.now(), it).seconds }
+                                ?.let { remaining -> (RESEND_COOLDOWN_SECONDS - remaining).coerceAtLeast(0L).toInt() }
+                                ?: 0,
+                            // READ FROM THE MODEL, not from a flag this composable maintains.
+                            // It was such a flag, and nothing ever set it to true, so the
+                            // property shipped as a constant false that no test could see. The
+                            // count cannot drift the same way: the server increments it and
+                            // `start` resets it, so "attempts against this challenge" is true by
+                            // construction.
+                            afterMismatch = verifyAttempts > 0,
                         ))
-                        lastVerifyFailed = false
                         codeDigits = ""
-                        codeMismatch = false
-                        // A new code is a new challenge, and the server starts its attempt count
-                        // at zero for it. Not resetting here would lock the user out of a code
-                        // the server is perfectly willing to accept.
-                        verifyAttempts = 0
-                        cooldown = DevAuth.RESEND_COOLDOWN
+                        // A new code is a new challenge; the model resets the attempt count and
+                        // adopts the server's fresh resendAvailableAt.
+                        auth?.start(country.e164(phoneDigits))
                     },
                     onEditNumber = {
                         analytics.track(SignUpAnalytics.EDIT_PHONE_TAPPED, emptyMap())
@@ -446,8 +432,18 @@ fun SignUpFlow(
         }
 
         // ── dev strip ────────────────────────────────────────────────────────
-        // Only on the code screen, only while the code is fixed. Goes away with DevAuth.
-        if (DevAuth.SHOW_HINT && step == Step.Code) {
+        //
+        // Shows the code the SERVER generated, not a constant the app invented. It is present
+        // because `LogSmsSender` is the only sender the backend has and `AUTH_EXPOSE_OTP`
+        // returns the code outside production — so a signup is testable with no paid provider
+        // and without reading server logs.
+        //
+        // THREE conditions, and each removes a different way this could leak. BuildConfig.DEBUG
+        // keeps it out of any release binary; the null check keeps it absent when a server
+        // chooses not to expose it; and the step check keeps it off every other screen. A
+        // release build with a misconfigured server still shows nothing.
+        val devCode = authState.devCode
+        if (BuildConfig.DEBUG && devCode != null && step == Step.Code) {
             Row(
                 Modifier
                     .align(Alignment.TopCenter)
@@ -463,7 +459,7 @@ fun SignUpFlow(
                     fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 0.7.sp,
                 )
                 Text(
-                    "no SMS is sent · the code is ${DevAuth.TEST_CODE}",
+                    "logged, not sent · the code is $devCode",
                     color = Color.White, fontFamily = Manrope,
                     fontWeight = FontWeight.Medium, fontSize = 11.sp,
                 )

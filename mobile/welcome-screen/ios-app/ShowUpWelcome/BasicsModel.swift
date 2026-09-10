@@ -21,13 +21,6 @@ import Foundation
 import Observation
 import ShowUpAPI
 
-/// Mirrors the server's `OTP_MAX_ATTEMPTS`.
-///
-/// The client counts as well as the server so it can stop OFFERING an action the server would
-/// refuse. The server remains the authority: a 401 that says the cap is reached moves the count
-/// to the cap even if the client thought there was one left.
-let maxVerifyAttempts = 5
-
 @MainActor
 @Observable
 final class BasicsModel {

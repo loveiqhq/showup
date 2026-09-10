@@ -397,7 +397,7 @@ fun VerifyCodeScreen(
     /**
      * The code has taken its last wrong guess.
      *
-     * The server stops accepting attempts after [DevAuth.MAX_VERIFY_ATTEMPTS] and answers every
+     * The server stops accepting attempts after `com.showup.api.MAX_VERIFY_ATTEMPTS` and answers every
      * further submit the same way, so without this the user would be told to "try again" against
      * a code that can no longer succeed. It is a distinct state, not a louder mismatch: the only
      * way out is a new code.
