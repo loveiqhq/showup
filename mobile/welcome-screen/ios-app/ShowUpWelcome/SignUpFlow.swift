@@ -443,7 +443,9 @@ struct SignUpFlowView: View {
                     .font(F.manrope(9, .bold))
                     .tracking(0.7)
                     .foregroundColor(Color(hex: 0xFFAE8F))
-                Text("logged, not sent · the code is \(devCode)")
+                Text(auth?.offline == true
+                     ? "OFFLINE · no server · the code is \(devCode)"
+                     : "logged, not sent · the code is \(devCode)")
                     .font(F.manrope(11, .medium))
                     .foregroundColor(.white)
             }

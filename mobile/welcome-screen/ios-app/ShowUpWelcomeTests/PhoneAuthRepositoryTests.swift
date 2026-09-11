@@ -81,10 +81,13 @@ final class PhoneAuthRepositoryTests: XCTestCase {
     private func makeRepo(_ script: [String: Canned],
                           recorder: ScriptedTransport.Recorder,
                           tokens: InMemoryTokenStore) -> PhoneAuthRepository {
+        // `offline: nil`, so this suite measures what a RELEASE build does. The debug
+        // stand-in is covered separately; mixing the two would mean neither was checked.
         PhoneAuthRepository(
             api: ShowUpAPI(tokens: tokens,
                            transport: ScriptedTransport(script: script, recorder: recorder)),
-            tokens: tokens)
+            tokens: tokens,
+            offline: nil)
     }
 
     private let challenge = #"""
@@ -120,7 +123,7 @@ final class PhoneAuthRepositoryTests: XCTestCase {
         let repo = makeRepo(["startPhoneVerification": Canned(200, challenge)],
                             recorder: rec, tokens: InMemoryTokenStore())
         let result = await repo.start(phoneE164: "+4917612345678")
-        guard case let .sent(expiresAt, resendAvailableAt, devCode) = result else {
+        guard case let .sent(expiresAt, resendAvailableAt, devCode, _) = result else {
             return XCTFail("expected .sent, got \(result)")
         }
         // resendAvailableAt is what the countdown counts to. The client used to hold its own
@@ -136,7 +139,7 @@ final class PhoneAuthRepositoryTests: XCTestCase {
         let body = #"{"expiresAt":"2026-09-10T10:20:30Z","resendAvailableAt":"2026-09-10T10:16:00Z"}"#
         let repo = makeRepo(["startPhoneVerification": Canned(200, body)],
                             recorder: rec, tokens: InMemoryTokenStore())
-        guard case let .sent(_, _, devCode) = await repo.start(phoneE164: "+4917612345678") else {
+        guard case let .sent(_, _, devCode, _) = await repo.start(phoneE164: "+4917612345678") else {
             return XCTFail("expected .sent")
         }
         // Production behaviour: the challenge is valid, there is simply nothing to show a tester.
@@ -275,11 +278,75 @@ final class PhoneAuthRepositoryTests: XCTestCase {
         XCTAssertEqual(result, .tooManyAttempts)
     }
 
+    // MARK: - the debug stand-in
+    //
+    // Same repository, with the offline fallback wired in as a debug build has it. What these
+    // check is the boundary: it takes over when nothing answered, and never when something did.
+
+    private func offlineRepo() -> PhoneAuthRepository {
+        let tokens = InMemoryTokenStore()
+        return PhoneAuthRepository(
+            api: ShowUpAPI(tokens: tokens, transport: DeadTransport()),
+            tokens: tokens,
+            offline: DevOfflineAuth.shared)
+    }
+
+    func testWithNoServerAtAllADebugBuildIssuesItsOwnCode() async {
+        await DevOfflineAuth.shared.reset()
+        let result = await offlineRepo().start(phoneE164: "+4917612345678")
+        guard case let .sent(_, _, devCode, offline) = result else {
+            return XCTFail("expected .sent, got \(result)")
+        }
+        XCTAssertEqual(devCode?.count, 6)
+        // Flagged, so the screen can say so. A stand-in nobody can tell apart from a backend is
+        // how a broken integration gets demoed as working.
+        XCTAssertTrue(offline, "the code must be shown as offline")
+    }
+
+    func testTheOfflineCodeIsTheOneTheOfflineVerifyAccepts() async {
+        await DevOfflineAuth.shared.reset()
+        let repo = offlineRepo()
+        guard case let .sent(_, _, devCode, _) = await repo.start(phoneE164: "+4917612345678"),
+              let code = devCode else { return XCTFail("no code issued") }
+        let result = await repo.verify(phoneE164: "+4917612345678", code: code)
+        XCTAssertEqual(result, .signedIn(profileComplete: false))
+    }
+
+    func testTheOfflineStandInStillRefusesAWrongCode() async {
+        await DevOfflineAuth.shared.reset()
+        let repo = offlineRepo()
+        guard case let .sent(_, _, devCode, _) = await repo.start(phoneE164: "+4917612345678"),
+              let code = devCode else { return XCTFail("no code issued") }
+        // It models the failures too. A stand-in that only ever succeeds would leave the
+        // mismatch card and the lockout card to rot unseen.
+        let wrong = code == "000000" ? "111111" : "000000"
+        let result = await repo.verify(phoneE164: "+4917612345678", code: wrong)
+        XCTAssertEqual(result, .refused)
+    }
+
+    func testAServerThatAnswersIsNeverReplacedByTheStandIn() async {
+        await DevOfflineAuth.shared.reset()
+        // The boundary, and the whole reason this is safe. A 500 is a server WORKING, and its
+        // answer must reach the app untouched — otherwise a backend bug would present as a
+        // cheerful offline session and nobody would ever find it.
+        let rec = ScriptedTransport.Recorder()
+        let tokens = InMemoryTokenStore()
+        let repo = PhoneAuthRepository(
+            api: ShowUpAPI(tokens: tokens, transport: ScriptedTransport(
+                script: ["startPhoneVerification": Canned(500, apiError(500, "boom", "Server"))],
+                recorder: rec)),
+            tokens: tokens,
+            offline: DevOfflineAuth.shared)
+        let result = await repo.start(phoneE164: "+4917612345678")
+        XCTAssertEqual(result, .failed)
+    }
+
     func testAnUnreachableServerIsAFailureNotARefusal() async {
         let tokens = InMemoryTokenStore()
         let repo = PhoneAuthRepository(
             api: ShowUpAPI(tokens: tokens, transport: DeadTransport()),
-            tokens: tokens)
+            tokens: tokens,
+            offline: nil)
         let result = await repo.verify(phoneE164: "+4917612345678", code: "123456")
         // .refused would tell the user their code was wrong when it may have been perfect.
         XCTAssertEqual(result, .failed)

@@ -18,6 +18,7 @@
  */
 package com.showup.welcome
 
+import com.showup.BuildConfig
 import com.showup.api.ApiError
 import com.showup.api.ShowUpApi
 import com.showup.api.TokenStore
@@ -32,6 +33,13 @@ sealed interface StartAuthResult {
         val resendAvailableAt: OffsetDateTime,
         /** Present only when the server is exposing it. Never shown outside a debug build. */
         val devCode: String?,
+        /**
+         * True when NOTHING ANSWERED and a debug build carried on locally -- see DevOfflineAuth.
+         *
+         * It exists to be displayed. A stand-in the user cannot tell apart from a backend is how
+         * somebody demos a broken integration and believes it works.
+         */
+        val offline: Boolean = false,
     ) : StartAuthResult
 
     /** 429. Either the per-challenge cooldown or the route's 5-per-minute throttle. */
@@ -68,6 +76,19 @@ sealed interface VerifyPhoneResult {
 class PhoneAuthRepository(
     private val api: ShowUpApi,
     private val tokens: TokenStore,
+    /**
+     * The stand-in used when NOTHING ANSWERED, or null to let that failure be a failure.
+     *
+     * A constructor parameter rather than a `BuildConfig.DEBUG` check buried in the catch block,
+     * and the difference matters for more than taste: unit tests run against the DEBUG variant,
+     * so an inlined guard would mean the release behaviour of this path -- the one real users
+     * get -- could never be asserted. `an unreachable server is a failure, not a refusal` caught
+     * exactly that the moment it was tried.
+     *
+     * The default preserves the intent: debug builds carry on locally, release builds do not,
+     * and R8 folds the constant so [DevOfflineAuth] is stripped from a release binary entirely.
+     */
+    private val offline: DevOfflineAuth? = if (BuildConfig.DEBUG) DevOfflineAuth else null,
 ) {
 
     suspend fun start(phoneE164: String): StartAuthResult = runCatching {
@@ -82,7 +103,11 @@ class PhoneAuthRepository(
             response.code() == 429 -> StartAuthResult.TooSoon
             else -> StartAuthResult.Failed(errorOf(response.code(), response.errorBody()?.string()))
         }
-    }.getOrElse { StartAuthResult.Failed(null) }
+    }.getOrElse {
+        // Nothing answered. A server that replies -- with anything, including 500 -- never
+        // reaches here, so this cannot hide a backend bug.
+        offline?.start(OffsetDateTime.now()) ?: StartAuthResult.Failed(null)
+    }
 
     /**
      * Confirms the code and STORES THE TOKENS.
@@ -111,7 +136,9 @@ class PhoneAuthRepository(
 
         tokens.save(accessToken = body.accessToken, refreshToken = body.refreshToken)
         VerifyPhoneResult.SignedIn(profileComplete = readProfileComplete())
-    }.getOrElse { VerifyPhoneResult.Failed(null) }
+    }.getOrElse {
+        offline?.verify(code, OffsetDateTime.now()) ?: VerifyPhoneResult.Failed(null)
+    }
 
     /**
      * Whether the signed-in user already has a usable profile.

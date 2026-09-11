@@ -14,6 +14,7 @@
 package com.showup.welcome
 
 import com.showup.api.InMemoryTokenStore
+import com.showup.api.MAX_VERIFY_ATTEMPTS
 import com.showup.api.ShowUpApi
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -38,9 +39,12 @@ class PhoneAuthRepositoryTest {
         // Deliberately EMPTY. A pre-seeded store would let the profile read pass on a token this
         // flow never produced, which is the bug the last test in this file exists to catch.
         tokens = InMemoryTokenStore()
+        // `offline = null`, so this suite measures what a RELEASE build does. The debug
+        // stand-in has its own tests below; mixing the two would mean neither was checked.
         repo = PhoneAuthRepository(
             ShowUpApi(baseUrl = server.url("/").toString(), tokens = tokens),
             tokens,
+            offline = null,
         )
     }
 
@@ -211,5 +215,79 @@ class PhoneAuthRepositoryTest {
         // Refused would tell the user their code was wrong when it may have been perfect.
         assertTrue("expected Failed, got $result", result is VerifyPhoneResult.Failed)
         assertNotEquals(VerifyPhoneResult.Refused, result)
+    }
+
+    // ── the debug stand-in ────────────────────────────────────────────────────
+    //
+    // Same repository, with the offline fallback wired in as a debug build has it. What these
+    // check is the boundary: it takes over when nothing answered, and never when something did.
+
+    private fun offlineRepo() = PhoneAuthRepository(
+        ShowUpApi(baseUrl = server.url("/").toString(), tokens = tokens),
+        tokens,
+        offline = DevOfflineAuth,
+    )
+
+    @Test
+    fun `with no server at all, a debug build issues its own code`() = runTest {
+        DevOfflineAuth.reset()
+        server.shutdown()
+        val result = offlineRepo().start("+4917612345678")
+        assertTrue("expected Sent, got $result", result is StartAuthResult.Sent)
+        result as StartAuthResult.Sent
+        // Six digits, and flagged as offline so the screen can say so. A stand-in nobody can
+        // tell apart from a backend is how a broken integration gets demoed as working.
+        assertEquals(6, result.devCode?.length)
+        assertTrue("the code must be shown as offline", result.offline)
+    }
+
+    @Test
+    fun `the offline code is the one the offline verify accepts`() = runTest {
+        DevOfflineAuth.reset()
+        server.shutdown()
+        val repo = offlineRepo()
+        val sent = repo.start("+4917612345678") as StartAuthResult.Sent
+        assertEquals(
+            VerifyPhoneResult.SignedIn(profileComplete = false),
+            repo.verify("+4917612345678", sent.devCode!!),
+        )
+    }
+
+    @Test
+    fun `the offline stand-in still refuses a wrong code`() = runTest {
+        DevOfflineAuth.reset()
+        server.shutdown()
+        val repo = offlineRepo()
+        val sent = repo.start("+4917612345678") as StartAuthResult.Sent
+        val wrong = if (sent.devCode == "000000") "111111" else "000000"
+        // It models the failures too. A stand-in that only ever succeeds would leave the
+        // mismatch card and the lockout card to rot unseen, which is most of what anyone
+        // walking this flow needs to look at.
+        assertEquals(VerifyPhoneResult.Refused, repo.verify("+4917612345678", wrong))
+    }
+
+    @Test
+    fun `the offline stand-in enforces the same five-attempt cap`() = runTest {
+        DevOfflineAuth.reset()
+        server.shutdown()
+        val repo = offlineRepo()
+        val sent = repo.start("+4917612345678") as StartAuthResult.Sent
+        val wrong = if (sent.devCode == "000000") "111111" else "000000"
+        repeat(MAX_VERIFY_ATTEMPTS - 1) { repo.verify("+4917612345678", wrong) }
+        assertEquals(
+            VerifyPhoneResult.TooManyAttempts,
+            repo.verify("+4917612345678", wrong),
+        )
+    }
+
+    @Test
+    fun `a server that answers is never replaced by the stand-in`() = runTest {
+        DevOfflineAuth.reset()
+        // The boundary, and the whole reason this is safe. A 500 is a server WORKING, and its
+        // answer must reach the app untouched -- otherwise a backend bug would present as a
+        // cheerful offline session and nobody would ever find it.
+        respond(500, apiError(500, "Internal server error", "Internal Server Error"))
+        val result = offlineRepo().start("+4917612345678")
+        assertTrue("expected Failed, got $result", result is StartAuthResult.Failed)
     }
 }

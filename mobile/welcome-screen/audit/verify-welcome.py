@@ -612,6 +612,36 @@ _sw_devices = _rows(
 check("fit matrix has all seventeen phones (kotlin)", len(_kt_devices) == 17)
 check("fit matrix has all seventeen phones (swift)", len(_sw_devices) == 17)
 check("the two fit matrices are the same seventeen phones", _kt_devices == _sw_devices)
+
+# ── the offline stand-in can never reach a release build ────────────────────
+#
+# DevOfflineAuth lets the whole sign-up flow be walked with no backend, which is why it exists and
+# also why it is the single most dangerous file in the flow: shipped, it would hand a real user a
+# session no server ever issued. Two things keep it out, and both are checked here rather than
+# trusted, because neither is visible at the call site.
+repo_kt = read(KT, "welcome/PhoneAuthRepository.kt")
+repo_sw = read(SW, "PhoneAuthRepository.swift")
+offline_kt = read(KT, "welcome/DevOfflineAuth.kt")
+offline_sw = read(SW, "DevOfflineAuth.swift")
+
+check("the offline stand-in is gated on a debug build (kotlin)",
+      "if (BuildConfig.DEBUG) DevOfflineAuth else null" in repo_kt)
+check("the offline stand-in is gated on a debug build (swift)",
+      "#if DEBUG" in repo_sw and "DevOfflineAuth.shared" in repo_sw)
+
+# It engages ONLY where nothing answered. A server that replies -- with any status -- must reach
+# the app untouched, or a backend outage would present as a cheerful offline session.
+check("the stand-in is reached only from the transport-failure path (kotlin)",
+      repo_kt.count("offline?.start") == 1 and repo_kt.count("offline?.verify") == 1)
+check("the stand-in is reached only from the transport-failure path (swift)",
+      repo_sw.count("await offline.start") == 1 and repo_sw.count("await offline.verify") == 1)
+
+# And it announces itself. A stand-in indistinguishable from a backend is how somebody demos a
+# broken integration and believes it works -- which is how the cleartext bug survived a day.
+for name, body in (("kotlin", flow_kt), ("swift", flow_sw)):
+    check(f"an offline code says so on screen ({name})", "OFFLINE" in body)
+check("the offline flag is carried on the result (kotlin)", "val offline: Boolean = false" in repo_kt)
+check("the offline flag is carried on the result (swift)", "offline: Bool = false" in repo_sw)
 check("the flow models a remembered account (kotlin)", "RememberedAccount" in flow_kt)
 check("the flow models a remembered account (swift)", "RememberedAccount" in flow_sw)
 check("no account means no name (kotlin)", "account?.name.orEmpty()" in flow_kt)

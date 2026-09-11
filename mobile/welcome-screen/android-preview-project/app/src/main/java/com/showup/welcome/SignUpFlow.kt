@@ -467,7 +467,11 @@ fun SignUpFlow(
                     fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 0.7.sp,
                 )
                 Text(
-                    "logged, not sent · the code is $devCode",
+                    if (authState.offline) {
+                        "OFFLINE · no server · the code is $devCode"
+                    } else {
+                        "logged, not sent · the code is $devCode"
+                    },
                     color = Color.White, fontFamily = Manrope,
                     fontWeight = FontWeight.Medium, fontSize = 11.sp,
                 )

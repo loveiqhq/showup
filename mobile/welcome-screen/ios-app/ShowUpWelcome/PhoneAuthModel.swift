@@ -52,6 +52,8 @@ final class PhoneAuthModel {
     private(set) var transportFailed = false
     /// The code, straight from the server, shown ONLY in a debug build.
     private(set) var devCode: String?
+    /// True when the code came from `DevOfflineAuth` rather than from a backend.
+    private(set) var offline = false
 
     private var ticker: Task<Void, Never>?
 
@@ -69,12 +71,13 @@ final class PhoneAuthModel {
             let result = await repo.start(phoneE164: phoneE164)
             busy = false
             switch result {
-            case let .sent(expiresAt, resendAvailableAt, devCode):
+            case let .sent(expiresAt, resendAvailableAt, devCode, offline):
                 attempts = 0
                 lastSubmitRefused = false
                 self.expiresAt = expiresAt
                 self.resendAvailableAt = resendAvailableAt
                 self.devCode = devCode
+                self.offline = offline
                 startTicker()
                 onSent()
             case .tooSoon:

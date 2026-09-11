@@ -49,6 +49,8 @@ data class PhoneAuthState(
      * sender the backend has. Without it, testing a signup means reading server logs.
      */
     val devCode: String? = null,
+    /** True when the code came from [DevOfflineAuth] rather than from a backend. */
+    val offline: Boolean = false,
 ) {
     fun locked(): Boolean = attempts >= MAX_VERIFY_ATTEMPTS
 }
@@ -99,6 +101,7 @@ class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
                             expiresAt = result.expiresAt,
                             resendAvailableAt = result.resendAvailableAt,
                             devCode = result.devCode,
+                            offline = result.offline,
                         )
                     }
                     startTicker()
