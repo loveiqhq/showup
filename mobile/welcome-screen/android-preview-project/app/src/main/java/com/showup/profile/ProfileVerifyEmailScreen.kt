@@ -78,6 +78,7 @@ import com.showup.designsystem.autofill
 import com.showup.designsystem.minTapTarget
 import com.showup.tutorial.StepProgress
 import com.showup.welcome.WashHeadline
+import com.showup.designsystem.ComponentSizes
 
 /** Final strings. Every one is quoted from the ticket; `verify-profile.py` checks them. */
 object VerifyEmailCopy {
@@ -214,14 +215,29 @@ fun ProfileVerifyEmailScreen(
                 },
             )
 
-            // ⑭ reserved at 30 so the CTA and BOTH secondary rows sit at the same Y in either
-            // state. heightIn, not height: the mismatch string wraps to two lines at 320 and the
-            // card is then taller than 30 -- the floor is what stops the CALM state collapsing.
+            // ⑭ A RESERVE, not a floor, and that is the whole point of it.
+            //
+            // This was `heightIn(min = 30)`, and the comment above it admitted the problem it was
+            // creating: "the mismatch string wraps to two lines at 320 and the card is then
+            // taller than 30". A minimum does not reserve anything -- it lets the region grow the
+            // moment a card appears, and everything below it moves. Reported from a device on
+            // 11 September: the CTA, the resend row and the change-address link all shifted down
+            // when the mismatch card arrived.
+            //
+            // Fixed at 80, the same number and the same reason as the phone screen's helper
+            // region: the tallest message this screen can show, wrapped at the narrowest width in
+            // the matrix, and the quiet space under the slots in the calm state is what that
+            // guarantee costs. SHOWUP-143 forbids the CTA moving when a state goes wrong, and
+            // this screen was exempt from that only by oversight.
+            //
+            // If the copy ever grows past three lines at 320 this number grows with it, and
+            // ScreenFitTest is what says so -- it measures every state at 17 sizes and reports
+            // clipped text.
             Box(
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp, start = 2.dp)
-                    .heightIn(min = 30.dp)
+                    .height(80.dp)
                     .semantics { liveRegion = LiveRegionMode.Polite },
             ) {
                 val message = when (state) {
@@ -233,7 +249,8 @@ fun ProfileVerifyEmailScreen(
                 if (message != null) InlineErrorCard(message)
             }
 
-            Spacer(Modifier.height(14.dp))
+            // No spacer: the reserved region above is fixed and already carries the gap.
+            // A spacer here on top of it was 14dp tuned against the old 30dp floor.
             // The group's ONE disabled CTA, and a settled exception rather than drift: a partial
             // code has nothing to validate, and the six boxes already say "six digits".
             PrimaryButton(
@@ -249,33 +266,51 @@ fun ProfileVerifyEmailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                // One baseline row: the question and the timer/link sit together.
+                // One row, ONE HEIGHT, whichever branch is showing.
+                //
+                // The link carries `minTapTarget()` and the countdown does not, so swapping
+                // between them changed this row from about 18dp to 48 -- and with the row
+                // aligned to Bottom, the question slid down while the link's text floated in the
+                // middle of its taller box. On a device that read as the two lines swapping
+                // places. A mismatch RELEASES the cooldown (SHOWUP-143), so an error is exactly
+                // when the swap happens, which is why it looked like the error moved them.
+                //
+                // The slot below is a fixed 48 either way, so nothing moves; centring the row
+                // against it keeps the question on the link's optical line.
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.Bottom,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         VerifyEmailCopy.RESEND_QUESTION,
                         color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp, lineHeight = 18.2.sp,
                     )
-                    if (canResend(cooldownSeconds, state)) {
-                        Text(
-                            VerifyEmailCopy.RESEND_AVAILABLE,
-                            modifier = Modifier
-                                .clickable(role = Role.Button, onClick = onResend)
-                                .minTapTarget(),
-                            color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp, lineHeight = 18.2.sp,
-                            textDecoration = TextDecoration.Underline,
-                        )
-                    } else {
-                        Text(
-                            // tabular-nums so the countdown does not jitter as digits change width
-                            VerifyEmailCopy.resendIn(cooldownSeconds),
-                            color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp, lineHeight = 18.2.sp,
-                        )
+                    Box(
+                        Modifier.height(ComponentSizes.minTapTarget),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (canResend(cooldownSeconds, state)) {
+                            Text(
+                                VerifyEmailCopy.RESEND_AVAILABLE,
+                                modifier = Modifier
+                                    .clickable(role = Role.Button, onClick = onResend)
+                                    // The box already holds the 48; this keeps the WIDTH floor,
+                                    // which a short label still needs.
+                                    .minTapTarget(),
+                                color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp, lineHeight = 18.2.sp,
+                                textDecoration = TextDecoration.Underline,
+                            )
+                        } else {
+                            Text(
+                                // tabular-nums so the countdown does not jitter as digits change
+                                VerifyEmailCopy.resendIn(cooldownSeconds),
+                                color = Subtle, fontFamily = Manrope,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp, lineHeight = 18.2.sp,
+                            )
+                        }
                     }
                 }
                 Text(
