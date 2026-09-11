@@ -99,7 +99,8 @@ check("153 verify reserves a FIXED height, not a floor (kotlin)",
 
 
 check("153 verify reserves a FIXED height, not a floor (swift)",
-      "height: 80" in verify_sw and "minHeight: 30" not in code_only(verify_sw))
+      ("minHeight: 80, maxHeight: 80" in verify_sw
+       and "minHeight: 30" not in code_only(verify_sw)))
 check("154 dob reserves 84 (kotlin)", "heightIn(min = 84.dp)" in dob_kt)
 check("154 dob reserves 84 (swift)", "minHeight: 84" in dob_sw)
 

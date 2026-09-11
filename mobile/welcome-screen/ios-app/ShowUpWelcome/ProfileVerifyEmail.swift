@@ -129,7 +129,10 @@ struct ProfileVerifyEmailView: View {
                 InlineErrorCard(message: Text(message ?? VerifyEmailCopy.mismatch))
                     .opacity(isError ? 1 : 0)
             }
-            .frame(maxWidth: .infinity, height: 80, alignment: .topLeading)
+            // minHeight AND maxHeight rather than `height:`, which belongs to the other frame
+            // overload and cannot be combined with maxWidth. Same pin, same pair the phone
+            // screen uses for its own reserved region.
+            .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 80, alignment: .topLeading)
             .padding(.top, 12)
             .padding(.leading, 2)
             .accessibilityAddTraits(.updatesFrequently)
