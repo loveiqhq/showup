@@ -16,7 +16,10 @@ import ShowUpAPI
 
 /// The answer to "text this number a code".
 enum StartAuthResult: Equatable {
-    case sent(expiresAt: Date, resendAvailableAt: Date, devCode: String?)
+    /// - Parameter offline: true when NOTHING ANSWERED and a debug build carried on locally.
+    ///   It exists to be displayed — a stand-in the user cannot tell apart from a backend is how
+    ///   somebody demos a broken integration and believes it works. See DevOfflineAuth.
+    case sent(expiresAt: Date, resendAvailableAt: Date, devCode: String?, offline: Bool = false)
     /// 429. Either the per-challenge cooldown or the route's 5-per-minute throttle.
     case tooSoon
     case failed
@@ -44,6 +47,21 @@ struct PhoneAuthRepository: Sendable {
     /// credentials is visible in its signature instead of buried in one line of a method.
     let tokens: any TokenStoring
 
+    /// The stand-in used when NOTHING ANSWERED, or nil to let that failure be a failure.
+    ///
+    /// A stored property rather than an `#if DEBUG` inside the catch block, for the same reason
+    /// as `PhoneAuthRepository.kt`: tests build in DEBUG, so an inlined guard would mean the
+    /// release behaviour of this path — the one real users get — could never be asserted.
+    ///
+    /// LAST, deliberately. The memberwise initialiser takes its parameters in declaration order,
+    /// so putting this above `api` would break every existing `PhoneAuthRepository(api:tokens:)`
+    /// call site for no reason at all.
+    #if DEBUG
+    var offline: DevOfflineAuth? = DevOfflineAuth.shared
+    #else
+    var offline: DevOfflineAuth?
+    #endif
+
 
     func start(phoneE164: String) async -> StartAuthResult {
         do {
@@ -54,7 +72,8 @@ struct PhoneAuthRepository: Sendable {
                 let json = try ok.body.json
                 return .sent(expiresAt: json.expiresAt,
                              resendAvailableAt: json.resendAvailableAt,
-                             devCode: json.devCode)
+                             devCode: json.devCode,
+                             offline: false)
             default:
                 if case let .undocumented(statusCode, _) = response, statusCode == 429 {
                     return .tooSoon
@@ -62,6 +81,9 @@ struct PhoneAuthRepository: Sendable {
                 return .failed
             }
         } catch {
+            // Nothing answered. A server that replies — with anything, including 500 — returns
+            // above, so this cannot hide a backend bug.
+            if let offline { return await offline.start(now: Date()) }
             return .failed
         }
     }
@@ -96,6 +118,7 @@ struct PhoneAuthRepository: Sendable {
                 return .failed
             }
         } catch {
+            if let offline { return await offline.verify(code, now: Date()) }
             return .failed
         }
     }
