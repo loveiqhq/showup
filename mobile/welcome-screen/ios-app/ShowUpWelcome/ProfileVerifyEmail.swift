@@ -111,14 +111,28 @@ struct ProfileVerifyEmailView: View {
 
             codeRow.padding(.top, 22)
 
-            // ⑭ reserved at 30 so the CTA and BOTH secondary rows sit at the same Y in every
-            // state. The card is ALWAYS present and hidden with opacity — a ViewBuilder branch
-            // that evaluates to nil reserves nothing, which shipped a 56pt CTA jump on this flow.
+            // ⑭ A RESERVE, not a floor, and that is the whole point of it.
+            //
+            // The card is ALWAYS present and hidden with opacity — a ViewBuilder branch that
+            // evaluates to nil reserves nothing, which shipped a 56pt CTA jump on this flow.
+            // That much was right. What was wrong was `minHeight: 30`: a minimum lets the region
+            // grow the moment the copy wraps, and everything below it moves with it. Reported
+            // from an Android device on 11 September, where the CTA, the resend row and the
+            // change-address link all slid down when the mismatch card arrived; this file had
+            // the same defect and the same number.
+            //
+            // Fixed at 80, matching ProfileVerifyEmailScreen.kt and the phone screen's helper
+            // region: the tallest message this screen can show, wrapped at the narrowest width
+            // in the matrix. The quiet space under the slots in the calm state is what the
+            // guarantee costs, and SHOWUP-143 is explicit that it is worth paying.
             ZStack(alignment: .topLeading) {
                 InlineErrorCard(message: Text(message ?? VerifyEmailCopy.mismatch))
                     .opacity(isError ? 1 : 0)
             }
-            .frame(maxWidth: .infinity, minHeight: 30, alignment: .topLeading)
+            // minHeight AND maxHeight rather than `height:`, which belongs to the other frame
+            // overload and cannot be combined with maxWidth. Same pin, same pair the phone
+            // screen uses for its own reserved region.
+            .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 80, alignment: .topLeading)
             .padding(.top, 12)
             .padding(.leading, 2)
             .accessibilityAddTraits(.updatesFrequently)
@@ -176,26 +190,54 @@ struct ProfileVerifyEmailView: View {
 
     private var secondaryActions: some View {
         VStack(spacing: 6) {
-            // One baseline row: the question and the timer/link sit together.
-            HStack(alignment: .lastTextBaseline, spacing: 6) {
+            // One row, ONE HEIGHT, whichever branch is showing.
+            //
+            // The link carries the 44pt tap floor and the countdown beside it does not, so
+            // swapping between them changed this row's height — and with the row aligned to a
+            // text baseline, the question moved as the link's box grew around it. A mismatch
+            // RELEASES the cooldown (SHOWUP-143), so the swap happens at exactly the moment the
+            // error appears, which is why it read as the error moving the links.
+            //
+            // The slot is a fixed height either way now, so nothing moves; centring the row
+            // against it keeps the question on the link's optical line.
+            HStack(alignment: .center, spacing: 6) {
                 Text(VerifyEmailCopy.resendQuestion)
                     .font(F.manrope(14, .semibold))
                     .foregroundColor(.liqFg)
-                if canResend(cooldownSeconds: cooldownSeconds, state: state) {
-                    Button(action: onResend) {
-                        Text(VerifyEmailCopy.resendAvailable)
-                            .font(F.manrope(14, .bold))
-                            .foregroundColor(.liqPurple)
-                            .underline()
-                    }
-                    .frame(minHeight: ComponentSizes.minTapTarget)
-                } else {
-                    Text(VerifyEmailCopy.resendIn(cooldownSeconds))
+                ZStack {
+                    // The sizer. Drawn at zero opacity and hidden from VoiceOver, so it holds
+                    // width for the layout and exists for nobody else.
+                    //
+                    // "Send a new code in 0:32" is wider than "Send a new code", and this row is
+                    // centred — so swapping them re-centres the whole row and the question slides
+                    // sideways. Android measured that at 22.5pt. Reserving the longer of the two
+                    // in every state is the only way to hold a centred row still when its content
+                    // changes, short of not centring it. The countdown's length never varies: the
+                    // minutes are computed and the digits are monospaced.
+                    Text(VerifyEmailCopy.resendIn(0))
                         .font(F.manrope(14, .semibold))
-                        .foregroundColor(.liqSubtle)
-                        // tabular so the countdown does not jitter as digits change width
                         .monospacedDigit()
+                        .opacity(0)
+                        .accessibilityHidden(true)
+                    if canResend(cooldownSeconds: cooldownSeconds, state: state) {
+                        Button(action: onResend) {
+                            Text(VerifyEmailCopy.resendAvailable)
+                                .font(F.manrope(14, .bold))
+                                .foregroundColor(.liqPurple)
+                                .underline()
+                                // The whole slot answers to a finger, and SwiftUI centres a
+                                // label in a frame, so the text stays on the question's line.
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    } else {
+                        Text(VerifyEmailCopy.resendIn(cooldownSeconds))
+                            .font(F.manrope(14, .semibold))
+                            .foregroundColor(.liqSubtle)
+                            // tabular so the countdown does not jitter as digits change width
+                            .monospacedDigit()
+                    }
                 }
+                .frame(height: ComponentSizes.minTapTarget)
             }
             Button(action: onChangeEmail) {
                 Text(VerifyEmailCopy.changeAddress)
