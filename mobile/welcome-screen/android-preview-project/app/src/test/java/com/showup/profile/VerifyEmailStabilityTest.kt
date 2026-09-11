@@ -47,21 +47,26 @@ class VerifyEmailStabilityTest {
     private val root = "verify-email-root"
 
     /**
-     * The Y of one labelled element, in dp from the top of the rendered frame.
+     * Where one labelled element sits, in dp from the top-left of the rendered frame.
+     *
+     * BOTH axes, since 11 September. Measuring only Y let the second defect through: the row is
+     * centred, so when "Send a new code in 0:32" became the shorter "Send a new code" the whole
+     * row re-centred and everything in it slid sideways -- at a constant Y, which a Y-only test
+     * reports as perfectly stable.
      *
      * Null when the element is absent, which matters: "Send a new code" only exists once the
      * cooldown has been released, and a test that silently compared nothing to nothing would
      * pass on a screen where the link had vanished entirely.
      */
     @OptIn(ExperimentalTestApi::class)
-    private fun yOf(
+    private fun positionOf(
         label: String,
         state: VerifyState,
         cooldown: Int,
         width: Int,
         height: Int,
-    ): Float? {
-        var y: Float? = null
+    ): Pair<Float, Float>? {
+        var at: Pair<Float, Float>? = null
         runComposeUiTest {
             var density = 1f
             setContent {
@@ -76,11 +81,14 @@ class VerifyEmailStabilityTest {
                 }
             }
             waitForIdle()
-            val origin = onNodeWithTag(root).fetchSemanticsNode().positionInRoot.y
+            val origin = onNodeWithTag(root).fetchSemanticsNode().positionInRoot
             val node = runCatching { onNodeWithText(label).fetchSemanticsNode() }.getOrNull()
-            y = node?.let { (it.positionInRoot.y - origin) / density }
+            at = node?.let {
+                ((it.positionInRoot.x - origin.x) / density) to
+                    ((it.positionInRoot.y - origin.y) / density)
+            }
         }
-        return y
+        return at
     }
 
 
@@ -93,15 +101,20 @@ class VerifyEmailStabilityTest {
     )
 
     private fun assertDoesNotMove(label: String, width: Int, height: Int) {
-        val calm = yOf(label, VerifyState.Calm, cooldown = 41, width, height)
+        val calm = positionOf(label, VerifyState.Calm, cooldown = 41, width, height)
             ?: error("\"$label\" is not on the calm screen at ${width}x$height")
         for ((state, cooldown) in states) {
-            val moved = yOf(label, state, cooldown, width, height)
+            val moved = positionOf(label, state, cooldown, width, height)
                 ?: error("\"$label\" disappeared in $state at ${width}x$height")
             assertEquals(
-                "\"$label\" moved ${"%.1f".format(moved - calm)}dp when the state became " +
-                    "$state at ${width}x$height",
-                calm, moved, 0.75f,
+                "\"$label\" moved ${"%.1f".format(moved.second - calm.second)}dp DOWN when the " +
+                    "state became $state at ${width}x$height",
+                calm.second, moved.second, 0.75f,
+            )
+            assertEquals(
+                "\"$label\" moved ${"%.1f".format(moved.first - calm.first)}dp SIDEWAYS when " +
+                    "the state became $state at ${width}x$height",
+                calm.first, moved.first, 0.75f,
             )
         }
     }

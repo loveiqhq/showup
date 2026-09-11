@@ -79,6 +79,10 @@ import com.showup.designsystem.minTapTarget
 import com.showup.tutorial.StepProgress
 import com.showup.welcome.WashHeadline
 import com.showup.designsystem.ComponentSizes
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
 
 /** Final strings. Every one is quoted from the ticket; `verify-profile.py` checks them. */
 object VerifyEmailCopy {
@@ -266,17 +270,28 @@ fun ProfileVerifyEmailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                // One row, ONE HEIGHT, whichever branch is showing.
+                // One row, ONE HEIGHT and ONE WIDTH, whichever branch is showing.
                 //
-                // The link carries `minTapTarget()` and the countdown does not, so swapping
-                // between them changed this row from about 18dp to 48 -- and with the row
-                // aligned to Bottom, the question slid down while the link's text floated in the
-                // middle of its taller box. On a device that read as the two lines swapping
-                // places. A mismatch RELEASES the cooldown (SHOWUP-143), so an error is exactly
-                // when the swap happens, which is why it looked like the error moved them.
+                // Three things had to be pinned here, and the first two were found one screenshot
+                // at a time because each was hiding behind the last.
                 //
-                // The slot below is a fixed 48 either way, so nothing moves; centring the row
-                // against it keeps the question on the link's optical line.
+                //   HEIGHT. The link carried minTapTarget() and the countdown did not, so the row
+                //   went from about 18dp to 48 when they swapped. A mismatch RELEASES the
+                //   cooldown (SHOWUP-143), so the swap happens at exactly the moment an error
+                //   appears -- which is why it read as the error moving the links.
+                //
+                //   BASELINE. Fixing the height was not enough. `Text.minTapTarget()` expands the
+                //   composable to 48 but Compose draws the glyphs at the TOP of that box, not the
+                //   middle, so the link sat about 15dp above the question it was meant to sit
+                //   beside. The tap target belongs to the BOX now; the label fills it and centres
+                //   its own glyphs, so the touch area is still 48 and the text is where the eye
+                //   expects it.
+                //
+                //   WIDTH. "Send a new code in 0:32" is wider than "Send a new code", and this
+                //   row is centred -- so swapping them re-centred the whole row and the question
+                //   slid sideways. The invisible sizer below reserves the longer of the two in
+                //   every state. It is the only way to hold a centred row still when its content
+                //   changes, short of not centring it.
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -290,14 +305,28 @@ fun ProfileVerifyEmailScreen(
                         Modifier.height(ComponentSizes.minTapTarget),
                         contentAlignment = Alignment.Center,
                     ) {
+                        // The sizer. Drawn at zero alpha and stripped of semantics, so it holds
+                        // width for the layout and exists for nobody else -- not the eye, not
+                        // TalkBack, not a test looking for text. The countdown is always the
+                        // longer string, and its length does not change: the minutes are computed
+                        // and the digits are tabular.
+                        Text(
+                            VerifyEmailCopy.resendIn(0),
+                            modifier = Modifier
+                                .alpha(0f)
+                                .clearAndSetSemantics {},
+                            fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp, lineHeight = 18.2.sp,
+                        )
                         if (canResend(cooldownSeconds, state)) {
                             Text(
                                 VerifyEmailCopy.RESEND_AVAILABLE,
                                 modifier = Modifier
                                     .clickable(role = Role.Button, onClick = onResend)
-                                    // The box already holds the 48; this keeps the WIDTH floor,
-                                    // which a short label still needs.
-                                    .minTapTarget(),
+                                    // The whole 48 answers to a finger, and the label is centred
+                                    // inside it rather than pinned to its top edge.
+                                    .fillMaxHeight()
+                                    .wrapContentHeight(Alignment.CenterVertically),
                                 color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp, lineHeight = 18.2.sp,
                                 textDecoration = TextDecoration.Underline,

@@ -205,12 +205,29 @@ struct ProfileVerifyEmailView: View {
                     .font(F.manrope(14, .semibold))
                     .foregroundColor(.liqFg)
                 ZStack {
+                    // The sizer. Drawn at zero opacity and hidden from VoiceOver, so it holds
+                    // width for the layout and exists for nobody else.
+                    //
+                    // "Send a new code in 0:32" is wider than "Send a new code", and this row is
+                    // centred — so swapping them re-centres the whole row and the question slides
+                    // sideways. Android measured that at 22.5pt. Reserving the longer of the two
+                    // in every state is the only way to hold a centred row still when its content
+                    // changes, short of not centring it. The countdown's length never varies: the
+                    // minutes are computed and the digits are monospaced.
+                    Text(VerifyEmailCopy.resendIn(0))
+                        .font(F.manrope(14, .semibold))
+                        .monospacedDigit()
+                        .opacity(0)
+                        .accessibilityHidden(true)
                     if canResend(cooldownSeconds: cooldownSeconds, state: state) {
                         Button(action: onResend) {
                             Text(VerifyEmailCopy.resendAvailable)
                                 .font(F.manrope(14, .bold))
                                 .foregroundColor(.liqPurple)
                                 .underline()
+                                // The whole slot answers to a finger, and SwiftUI centres a
+                                // label in a frame, so the text stays on the question's line.
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     } else {
                         Text(VerifyEmailCopy.resendIn(cooldownSeconds))
