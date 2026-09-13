@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.VisualTransformation
 
 /**
  * The outlined input with a label that rides up and notches the border.
@@ -78,6 +79,18 @@ fun FloatingField(
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.Words,
     imeAction: ImeAction = ImeAction.Go,
+    /**
+     * Paints the value without changing it.
+     *
+     * Added for the date field, which needs slashes on screen and digits in state. Defaulted to
+     * None, so every other call site is untouched and unmeasured.
+     *
+     * The alternative -- reformatting the value on each keystroke -- is what the phone field's
+     * own comment warns against, and what the date field was doing: rewriting the string moves
+     * the caret, so the next digit lands somewhere the user did not put it. Typing 03221995
+     * produced 03/21/9592, reproducibly, at one digit per second.
+     */
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     onSubmit: () -> Unit = {},
     focusRequester: FocusRequester? = null,
 ) {
@@ -149,6 +162,7 @@ fun FloatingField(
                     fontSize = 17.sp,
                 ),
                 singleLine = true,
+                visualTransformation = visualTransformation,
                 cursorBrush = SolidColor(Purple),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = keyboardType,

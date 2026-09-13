@@ -92,6 +92,10 @@ import com.showup.tutorial.StepProgress
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 
 /** Final strings, quoted from the ticket. The mono chip is generated from the locale's order. */
 object DobCopy {
@@ -151,6 +155,9 @@ fun ProfileDobScreen(
     previewShakeKey: Int = 0,
 ) {
     val motion = rememberMotion()
+    // Tolerant of either form. Call sites that still pass a formatted date -- previews, the fit
+    // sweep -- keep working, because the field only ever wants the digits.
+    val digits = dobDigits(value)
     var shakeKey by remember { mutableIntStateOf(previewShakeKey) }
 
     val parsed = parseDob(value, order)
@@ -213,13 +220,26 @@ fun ProfileDobScreen(
             )
             Spacer(Modifier.height(18.dp))
 
+            // DIGITS in, slashes painted on. The field's value is `03221998`; what the user
+            // sees is `03/22/1998`, and the caret is mapped between the two.
+            //
+            // It used to call `onValueChange(formatDob(dobDigits(raw)))` -- rewriting the value
+            // on every keystroke, which is exactly what the phone field's own comment warns
+            // against: "Reformatting the value itself is what makes a phone field jump the cursor
+            // to the end." Here it did worse than jump to the end. Typing 03221995 produced
+            // 03/21/9592, reproducibly, at one digit per second, because each reformat moved the
+            // caret and the next digit landed where the caret had been left.
+            //
+            // Nothing downstream notices the change: `dobDigits` and `parseDob` both strip to
+            // digits as their first act, so they were already reading past the slashes.
             FloatingField(
-                value = value,
+                value = digits,
                 onValueChange = { raw ->
-                    // Digits only, re-formatted every time. Backspace therefore deletes a DIGIT
-                    // and the slashes look after themselves — the user never deletes a slash.
-                    onValueChange(formatDob(dobDigits(raw)))
+                    // Digits only, and capped at eight. Backspace deletes a DIGIT; the slashes
+                    // are painted and are never in the value to be deleted.
+                    onValueChange(dobDigits(raw))
                 },
+                visualTransformation = DateSlashes,
                 label = DobCopy.LABEL,
                 placeholder = order.pattern,
                 modifier = Modifier.shakeOnce(shakeKey, isError && motion.enabled),
@@ -256,13 +276,50 @@ fun ProfileDobScreen(
     )
 }
 
+/**
+ * Paints `03221998` as `03/22/1998` without putting the slashes in the value.
+ *
+ * The sibling of `GroupedDigits` on the phone screen, and for the same reason: the value stays
+ * the digits the user typed, the separators are presentation, and the OffsetMapping keeps the
+ * caret where they put it. Order-independent -- the first pair is whatever the locale asked for
+ * first, which `formatDob` already handles.
+ */
+private object DateSlashes : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = dobDigits(text.text)
+        val shown = formatDob(digits)
+
+        // digit index -> index in the painted string, plus one entry for one-past-the-end
+        val toShown = IntArray(digits.length + 1)
+        var d = 0
+        shown.forEachIndexed { i, c -> if (c.isDigit()) { toShown[d] = i; d++ } }
+        toShown[digits.length] = shown.length
+
+        return TransformedText(
+            AnnotatedString(shown),
+            object : OffsetMapping {
+                override fun originalToTransformed(offset: Int) =
+                    toShown[offset.coerceIn(0, digits.length)]
+
+                override fun transformedToOriginal(offset: Int) =
+                    shown.take(offset.coerceIn(0, shown.length)).count { it.isDigit() }
+            },
+        )
+    }
+}
+
 /** State A's helper. The reason the field is not scary: it says what is published and what is not. */
 @Composable
 private fun DobHelper() {
     Text(
         buildAnnotatedString {
             append(DobCopy.HELPER_LEAD)
-            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(DobCopy.HELPER_BOLD) }
+            // 700 AND -liq-fg, both, per the spec sheet's note ⑩: `"age" inline at 700,
+            // -liq-fg`. Only the weight was applied, and bold muted grey at 13sp does not read
+            // as emphasis -- the word the whole line exists to land was the one nobody saw.
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Fg)) {
+                append(DobCopy.HELPER_BOLD)
+            }
             append(DobCopy.HELPER_TAIL)
         },
         color = Muted, fontFamily = Manrope, fontWeight = FontWeight.Medium,
