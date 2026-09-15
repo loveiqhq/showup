@@ -678,6 +678,72 @@
         ],
         "type": "object"
       },
+      "ProfileProgressDto": {
+        "properties": {
+          "displayName": {
+            "description": "Step 1. Null when the name has not been given.",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "description": "Step 2. Null when no address has been submitted.",
+            "nullable": true,
+            "type": "string"
+          },
+          "emailVerified": {
+            "description": "Step 3. False while an address is present but its code has not been confirmed.",
+            "type": "boolean"
+          },
+          "hasDateOfBirth": {
+            "description": "Step 4. The date itself is never returned — only whether it is set.",
+            "type": "boolean"
+          },
+          "photoCount": {
+            "description": "Confirmed uploads. \"The real you\" step 1 needs four.",
+            "type": "integer"
+          },
+          "promptCount": {
+            "description": "\"The real you\" step 2 needs one.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "displayName",
+          "email",
+          "emailVerified",
+          "hasDateOfBirth",
+          "photoCount",
+          "promptCount"
+        ],
+        "type": "object"
+      },
+      "PromptDto": {
+        "properties": {
+          "answer": {
+            "example": "Talk about anything real.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "position": {
+            "description": "Reading order on the profile, from 0. A new prompt lands last.",
+            "type": "integer"
+          },
+          "topicId": {
+            "description": "Stable topic id from the app’s topic list — never the question’s display text.",
+            "example": "first_date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "topicId",
+          "answer",
+          "position"
+        ],
+        "type": "object"
+      },
       "PushTokenDto": {
         "properties": {
           "createdAt": {
@@ -1083,6 +1149,19 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UpsertPromptDto": {
+        "properties": {
+          "answer": {
+            "example": "Talk about anything real.",
+            "maxLength": 160,
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
         "type": "object"
       },
       "UserDto": {
@@ -4364,6 +4443,53 @@
         ]
       }
     },
+    "/me/profile/progress": {
+      "get": {
+        "operationId": "getProfileProgress",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileProgressDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
     "/me/profile/verification": {
       "post": {
         "operationId": "requestProfileVerification",
@@ -4378,6 +4504,191 @@
               }
             },
             "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/me/prompts": {
+      "get": {
+        "operationId": "listPrompts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PromptDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/me/prompts/{topicId}": {
+      "delete": {
+        "operationId": "deletePrompt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "topicId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
+        ]
+      },
+      "put": {
+        "operationId": "upsertPrompt",
+        "parameters": [
+          {
+            "description": "Stable topic id from the app’s list. Not validated against a catalogue — the fifteen topics are design content and live in the app.",
+            "in": "path",
+            "name": "topicId",
+            "required": true,
+            "schema": {
+              "example": "first_date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertPromptDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
           },
           "401": {
             "content": {

@@ -118,7 +118,7 @@ private struct TutorialFlow: View {
     // Its own model for the same reason as the two above, and a sharper one: this screen holds
     // several uploads at once, each of which has to be cancellable on its own.
     @State private var photos = PhotosModel(
-        repo: PhotosRepository(),
+        repo: PhotosRepository(api: APIAccess.client),
         access: SystemPhotoAccess()
     )
 
@@ -126,10 +126,19 @@ private struct TutorialFlow: View {
     /// asked first — a slot tap opens the sheet, and the sheet opens one of these.
     @State private var pickerSource: PhotoSource?
 
-    /// The prompts screen owns no asynchronous work — there is no prompt endpoint to call — so it
-    /// gets hoisted state rather than a model, which is the rule in CLAUDE.md applied rather than
-    /// abandoned. It becomes an `@Observable` the day persistence lands.
+    /// The prompts screen has a model now, and the comment that used to sit here said when it
+    /// would: "it becomes an `@Observable` the day persistence lands." `/me/prompts` exists.
+    ///
+    /// The scene storage is still here and still does the same job: the SAVED prompts come from
+    /// the server, and this holds the half-written DRAFT, which is not a prompt and has nothing to
+    /// send. The model writes through to it on every change.
     @SceneStorage("profile.prompts") private var promptsStored: String = ""
+
+    @State private var prompts = PromptsModel(repo: PromptsRepository(api: APIAccess.client))
+
+    /// Read once per launch to decide where a half-finished profile picks up (flow rule 4a).
+    private let progressRepo = ProfileProgressRepository(api: APIAccess.client)
+    @State private var resumeChecked = false
 
     @SceneStorage("basics.dob") private var dobStored: String = ""
     @SceneStorage("basics.hideAge") private var hideAgeStored: Bool = false
@@ -162,87 +171,27 @@ private struct TutorialFlow: View {
 
     /// SHOWUP-158, as its own property.
     ///
-    /// Eight intent closures inline in a `switch` case would make the routing unreadable, and each
-    /// one carries a rule rather than plumbing — which sheet replaces which, when a draft is kept,
-    /// and what an empty Save does.
+    /// Every closure is one call on the model, which owns the state and the requests. It was eight
+    /// inline closures rewriting a scene-storage string until `/me/prompts` existed.
     private var promptsScreen: some View {
-        let state = PromptsState.decode(promptsStored)
-        func write(_ next: PromptsState) { promptsStored = next.encoded }
-
-        return ProfilePromptsView(
-            state: state,
+        ProfilePromptsView(
+            state: prompts.state,
             onBack: { go(to: .profilePhotos) },
-            onOpenTopics: {
-                var next = state
-                next.sheet = .topics
-                write(next)
-            },
-            // Picking a topic REPLACES the topic sheet with the write sheet — the two never stack
-            // — and resets the example, which is per sheet rather than per session.
-            onWriteTopic: { topicId in
-                var next = state
-                next.sheet = .write(topicId: topicId,
-                                    editing: state.usedTopicIds.contains(topicId))
-                next.nudge = false
-                next.exampleHiddenFor = nil
-                write(next)
-            },
-            // Editing reopens the sheet WITH THE SAVED TEXT IN THE FIELD, which is what makes Save
-            // an overwrite rather than a second prompt.
-            onEditPrompt: { topicId in
-                var next = state
-                next.sheet = .write(topicId: topicId, editing: true)
-                next.drafts[topicId] = state.prompts.first { $0.topicId == topicId }?.answer ?? ""
-                next.nudge = false
-                next.exampleHiddenFor = nil
-                write(next)
-            },
-            onDraftChange: { text in
-                guard case .write(let topicId, _) = state.sheet else { return }
-                var next = state
-                next.drafts[topicId] = text
-                // The empty-submit error clears on the FIRST CHARACTER TYPED, not on blur and not
-                // on a re-press.
-                next.nudge = false
-                write(next)
-            },
-            onHideExample: {
-                guard case .write(let topicId, _) = state.sheet else { return }
-                var next = state
-                next.exampleHiddenFor = topicId
-                write(next)
-            },
-            onSave: {
-                guard case .write(let topicId, _) = state.sheet else { return }
-                let answer = state.draftFor(topicId)
-                var next = state
-                if promptAnswerIsEmpty(answer) {
-                    // SAVE IS NEVER DISABLED. An empty press explains.
-                    next.nudge = true
-                } else {
-                    let entry = SavedPrompt(topicId: topicId, answer: answer)
-                    if let existing = next.prompts.firstIndex(where: { $0.topicId == topicId }) {
-                        next.prompts[existing] = entry
-                    } else {
-                        // A new card appears at the BOTTOM of the list, so the reading order stays
-                        // chronological.
-                        next.prompts.append(entry)
-                    }
-                    next.sheet = nil
-                    // The draft is cleared only once it has become a prompt.
-                    next.drafts.removeValue(forKey: topicId)
-                    next.nudge = false
-                }
-                write(next)
-            },
-            // DISMISSAL KEEPS THE DRAFT. Only Save writes a prompt, so nothing is touched here but
-            // the sheet itself.
-            onDismissSheet: {
-                var next = state
-                next.sheet = nil
-                write(next)
-            },
+            onOpenTopics: { prompts.openTopics() },
+            onWriteTopic: { prompts.writeTopic($0) },
+            onEditPrompt: { prompts.editPrompt($0) },
+            onDraftChange: { prompts.draftChanged($0) },
+            onHideExample: { prompts.hideExample() },
+            onSave: { prompts.save() },
+            onDismissSheet: { prompts.dismissSheet() },
             onContinue: { go(to: .home) })
+            // Reads what the account already holds. Idempotent and cheap — arriving from photos
+            // and arriving from a resume both land here.
+            .onAppear {
+                let stored = $promptsStored
+                prompts.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
+                prompts.load()
+            }
     }
 
     var body: some View {
@@ -406,6 +355,37 @@ private struct TutorialFlow: View {
             // transitions.
             .id(screen.rawValue)
             .transition(transition)
+        }
+        // ── resuming a half-finished profile (flow rule 4a) ─────────────────
+        //
+        // "On launch, an account with an incomplete profile routes straight to its last incomplete
+        // step, with everything already entered still present."
+        //
+        // RESUMING IS SILENT. No prompt, no toast, no "welcome back" — the user lands on the step,
+        // and a resumed step behaves like a freshly reached one, which is why nothing here sets an
+        // error or an attempted flag.
+        //
+        // Once per launch, and only while the screen is still the flow's entry point: a user who
+        // has already walked somewhere must not be yanked back by a late answer.
+        .task {
+            guard !resumeChecked else { return }
+            resumeChecked = true
+            guard let progress = await progressRepo.fetch() else { return }
+            guard screen == .signUp else { return }
+            // Everything already entered, still present.
+            firstName = progress.displayName ?? ""
+            basics.email = progress.email ?? ""
+            switch resumePoint(progress) {
+            case .name: go(to: .profileName)
+            case .email: go(to: .profileEmail)
+            case .verifyEmail: go(to: .profileVerifyEmail)
+            case .dob: go(to: .profileDob)
+            // NEVER the bridge. SHOWUP-155: "relaunching lands on photos and not on this bridge" —
+            // it is a beat on the forward walk, not a place to return to.
+            case .photos: go(to: .profilePhotos)
+            case .prompts: go(to: .profilePrompts)
+            case .done: go(to: .home)
+            }
         }
     }
 }

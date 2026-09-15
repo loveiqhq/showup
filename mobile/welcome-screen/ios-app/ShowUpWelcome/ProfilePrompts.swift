@@ -48,6 +48,14 @@ enum PromptsCopy {
     static let floor = "One good sentence is enough."
     static let atCap = "That's the full 160 — short and specific lands harder anyway."
     static let emptySubmit = "Write a few words to save this prompt."
+
+    /// PROPOSED — not yet approved.
+    ///
+    /// SHOWUP-158 specifies three status messages and this is a fourth: the ticket was written
+    /// before `/me/prompts` existed, so a save could not fail. Worded to match the two the flow
+    /// already has for a transport failure, and marked with the same `_PROPOSED` convention the
+    /// rest of the flow uses for copy design has not signed off.
+    static let saveFailedProposed = "We couldn't save that just now. Please try again."
     static let save = "Save"
 
     static let dismiss = "Dismiss"
@@ -86,6 +94,17 @@ struct PromptsState: Equatable, Codable {
     /// "The example is per sheet, not per session. Dismissing it hides it for that sheet only; the
     /// next prompt shows it again." One id rather than a set, because only one sheet is ever open.
     var exampleHiddenFor: String? = nil
+    /// A save is in flight.
+    ///
+    /// Save is NEVER DISABLED — the group rule holds — so this changes nothing on screen. What it
+    /// does is stop a second press starting a second request while the first is open.
+    var saving = false
+    /// The last save did not land.
+    ///
+    /// NEW GROUND. SHOWUP-158 has no failure state for Save, because there was no endpoint when it
+    /// was written. A fourth message goes in the same RESERVED row, so nothing about the layout
+    /// changes, and the sheet stays open with the text still in it.
+    var failed = false
 
     var count: Int { prompts.count }
     var canContinue: Bool { count >= promptsRequired }
@@ -446,6 +465,7 @@ private struct WritePromptSheet: View {
     let topicId: String
     let draft: String
     let nudge: Bool
+    let failed: Bool
     let exampleHidden: Bool
     let onDraftChange: (String) -> Void
     let onHideExample: () -> Void
@@ -561,7 +581,20 @@ private struct WritePromptSheet: View {
 
             // RESERVED AT 34, in every state.
             HStack(alignment: .top, spacing: Spacing.md) {
-                if showNudge {
+                // The failure sits ABOVE the nudge in this order because it is the more recent
+                // thing that happened: a user whose save failed has a non-empty field, so the two
+                // cannot both be true anyway.
+                if failed {
+                    ZStack {
+                        Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
+                        UnscaledGlyph(glyph: "!", size: 12)
+                    }
+                    .padding(.top, 1)
+                    Text(PromptsCopy.saveFailedProposed)
+                        .font(F.manrope(13.5, .medium))
+                        .foregroundColor(.liqDangerFg)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if showNudge {
                     ZStack {
                         Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
                         // AN ICON, NOT READING TEXT. See `UnscaledGlyph`.
@@ -767,6 +800,7 @@ struct ProfilePromptsView: View {
                         topicId: topicId,
                         draft: state.draftFor(topicId),
                         nudge: state.nudge,
+                        failed: state.failed,
                         exampleHidden: state.exampleHiddenFor == topicId,
                         onDraftChange: onDraftChange,
                         onHideExample: onHideExample,
@@ -850,3 +884,10 @@ private let fullDraft = cappedAnswer(
 }
 
 #Preview("toast · refused") { ProfilePromptsView(previewToast: true) }
+
+#Preview("I · save failed") {
+    ProfilePromptsView(state: PromptsState(
+        sheet: .write(topicId: "first_date", editing: false),
+        drafts: ["first_date": midDraft],
+        failed: true))
+}

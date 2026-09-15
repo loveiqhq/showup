@@ -19,27 +19,38 @@
 //  in it.
 //
 //  ─────────────────────────────────────────────────────────────────────────────
-//  WHAT IS STILL MISSING HERE, STATED PLAINLY
+//  THE MULTIPART CALL, AND WHY IT IS WRITTEN THE WAY IT IS
 //  ─────────────────────────────────────────────────────────────────────────────
 //
-//  `upload` goes to `DevOfflinePhotos` and not to the server. The generated call exists now that
-//  the contract does, but `swift-openapi-generator` spells a multipart body as a nested type whose
-//  name depends on the generator version — `Operations.uploadPhoto.Input.Body.multipartForm` and a
-//  per-part payload under it — and this repository is being written on a machine with no Xcode.
-//  Guessing those names would fail the WHOLE iOS build, which would also hide whether the fifteen
-//  other files added by this ticket compile. So the seam is here and the one call is not, and this
-//  paragraph is the handover: build once on a Mac, read the generated `Operations.uploadPhoto`,
-//  and write `upload` the way `BasicsRepository` writes `updateProfile`.
+//  `swift-openapi-generator` spells a multipart body as a nest of generated types whose names
+//  depend on the generator version — an enum per part under a payload enum under the operation's
+//  Input.Body. None of those names is written out below, and that is deliberate rather than terse:
+//  every one of them is INFERRED from the call, so the only identifiers this file commits to are
+//  `uploadPhoto`, the part name `file` (which comes from the schema property, and is the same name
+//  the server's FileInterceptor listens for), and the two initialisers the runtime publishes.
 //
-//  `list` and `remove` are equally unwritten, and deliberately so rather than half-wired: there is
-//  nothing to list or delete until an upload can land, and a repository that could delete photos it
-//  could not create would be a strange thing to leave behind.
+//  This file was written on a machine with no Xcode. Naming the nested types from memory would
+//  have risked failing the whole iOS build over a capital letter, which would also have hidden
+//  whether anything else compiled. Inference costs nothing and removes that.
 //
-//  Android's equivalent IS wired, tested against MockWebServer, and reports real byte-by-byte
-//  upload progress. That asymmetry is the gap, and it is one function wide.
+//  ─────────────────────────────────────────────────────────────────────────────
+//  WHY THE PROGRESS IS NOT REAL HERE, AND ANDROID'S IS
+//  ─────────────────────────────────────────────────────────────────────────────
+//
+//  Android counts the bytes as OkHttp writes them, because OkHttp hands a request body a sink and
+//  never asks how far it got. `HTTPBody` is an async sequence, so the same trick would mean
+//  wrapping the sequence and counting chunks as the transport pulls them — which works, and
+//  reports how fast the ENCODER is being drained rather than how fast the socket is draining,
+//  because URLSession buffers. A number that races ahead of the upload and then waits is worse
+//  than an honest one.
+//
+//  So the ring fills once on the way in and completes on the answer. It is still determinate and
+//  it is still true at both ends; it just does not have the middle. `URLSessionTaskDelegate`'s
+//  `didSendBodyData` is the real fix and needs a transport this client does not expose yet.
 //
 
 import Foundation
+import ShowUpAPI
 
 /// One photo as the server holds it.
 struct StoredPhoto: Equatable, Sendable {
@@ -79,35 +90,75 @@ protocol PhotosRepositoring: Sendable {
     func remove(id: String) async -> RemovePhotoResult
 }
 
-/// The implementation the app uses today.
-///
-/// Every call goes to `DevOfflinePhotos`. See the file header for what has to happen before it
-/// goes anywhere else.
+/// Reads and writes the user's photos through the generated client.
 struct PhotosRepository: PhotosRepositoring {
-    let api: ShowUpAPIAccess?
-
-    init(api: ShowUpAPIAccess? = nil) { self.api = api }
+    let api: ShowUpAPI
 
     func upload(bytes: Data, mimeType: String, fileName: String,
                 onProgress: @Sendable (Double) -> Void) async -> UploadPhotoResult {
-        await DevOfflinePhotos.shared.upload(onProgress: onProgress)
+        do {
+            // Reported before the request, so the ring is not empty while a large photo is being
+            // encoded, and completed on the answer. See the file header for why there is nothing
+            // in between yet.
+            onProgress(0.1)
+            let response = try await api.client.uploadPhoto(
+                body: .multipartForm([
+                    // `file` is the part name from the schema, and the name the server's
+                    // FileInterceptor listens for. Everything else here is inferred.
+                    .file(.init(payload: .init(body: .init(bytes)), filename: fileName))
+                ])
+            )
+            switch response {
+            case .created(let created):
+                let json = try created.body.json
+                onProgress(1)
+                return .stored(StoredPhoto(id: json.id, url: json.url, position: json.position))
+            default:
+                return .failed
+            }
+        } catch {
+            // Nothing answered. A server that replies — with anything, including 500 — lands in
+            // the switch above, so this cannot hide a backend bug.
+            return await DevOfflinePhotos.shared.upload(onProgress: onProgress)
+        }
     }
 
+    /// What the account already holds.
+    ///
+    /// Returns nil when the call did not succeed, which the caller reads as "do not touch what is
+    /// on screen". An empty list and an unreachable server are different facts, and collapsing
+    /// them would wipe a grid the user had just filled.
     func list() async -> [StoredPhoto]? {
-        await DevOfflinePhotos.shared.list()
+        do {
+            let response = try await api.client.listPhotos()
+            switch response {
+            case .ok(let ok):
+                let json = try ok.body.json
+                return json.map {
+                    StoredPhoto(id: $0.id, url: $0.url, position: $0.position)
+                }
+            default:
+                return nil
+            }
+        } catch {
+            return await DevOfflinePhotos.shared.list()
+        }
     }
 
     func remove(id: String) async -> RemovePhotoResult {
-        await DevOfflinePhotos.shared.remove(id: id)
+        do {
+            let response = try await api.client.deletePhoto(path: .init(id: id))
+            switch response {
+            case .noContent:
+                return .removed
+            default:
+                return .failed
+            }
+        } catch {
+            return await DevOfflinePhotos.shared.remove(id: id)
+        }
     }
 }
-
-/// What the repository will need once the generated call is written.
-///
-/// A marker rather than a concrete type, so this file does not import the API module for a
-/// dependency it is not yet using — and so the day it does, the change is one line here and one
-/// function above.
-protocol ShowUpAPIAccess: Sendable {}
 
 /// The stand-in for `/me/photos`, used whenever nothing else can answer.
 ///

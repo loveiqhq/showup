@@ -181,7 +181,7 @@ class PromptTopicsTest {
     }
 
     @Test
-    fun `the saved state survives a round trip through its saver`() {
+    fun `the saved state survives a round trip through its encoding`() {
         val state = PromptsState(
             prompts = listOf(SavedPrompt("first_date", "an answer")),
             sheet = PromptSheet.Write("hot_take", editing = true),
@@ -189,22 +189,15 @@ class PromptTopicsTest {
             nudge = true,
             exampleHiddenFor = "hot_take",
         )
-        val saver = PromptsState.Saver
-        val scope = object : androidx.compose.runtime.saveable.SaverScope {
-            override fun canBeSaved(value: Any) = true
-        }
-        val saved = with(saver) { scope.save(state) }
-        assertEquals(state, saver.restore(saved!!))
+        assertEquals(state, PromptsState.decode(PromptsState.encode(state)))
     }
 
     @Test
-    fun `an empty state round-trips too`() {
+    fun `an empty state round-trips too, and rubbish decodes to one`() {
         // The case a saver usually gets wrong: no sheet, no drafts, nothing hidden.
-        val saver = PromptsState.Saver
-        val scope = object : androidx.compose.runtime.saveable.SaverScope {
-            override fun canBeSaved(value: Any) = true
-        }
-        val saved = with(saver) { scope.save(PromptsState()) }
-        assertEquals(PromptsState(), saver.restore(saved!!))
+        assertEquals(PromptsState(), PromptsState.decode(PromptsState.encode(PromptsState())))
+        // And a stored value from an older build is an empty screen rather than a crash.
+        assertEquals(PromptsState(), PromptsState.decode("not json at all"))
+        assertEquals(PromptsState(), PromptsState.decode(""))
     }
 }
