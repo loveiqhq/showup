@@ -120,9 +120,16 @@ class PhoneAuthRepositoryTest {
             429,
             apiError(429, "Please wait 41s before requesting another code", "Too Many Requests"),
         )
-        // The distinction is the point: TooSoon leaves the countdown running, Failed would put an
-        // error card on a screen where nothing is actually wrong.
-        assertEquals(StartAuthResult.TooSoon, repo.start("+4917612345678"))
+        // The distinction is the point: TooSoon leaves the live challenge alone, Failed would put
+        // a transport error on a screen where the network is perfectly fine.
+        val result = repo.start("+4917612345678")
+        assertTrue("expected TooSoon, got $result", result is StartAuthResult.TooSoon)
+        // And it CARRIES the server's sentence. It used to be a data object that said nothing,
+        // so the screen showed nothing and a refused resend looked like a dead button.
+        assertEquals(
+            "Please wait 41s before requesting another code",
+            (result as StartAuthResult.TooSoon).message,
+        )
     }
 
     // -- verifying ------------------------------------------------------------

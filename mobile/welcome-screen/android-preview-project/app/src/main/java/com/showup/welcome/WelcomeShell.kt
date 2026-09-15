@@ -579,15 +579,45 @@ private fun phonePath() = androidx.compose.ui.graphics.Path().apply {
     close()
 }
 
+/*
+ * The Apple mark, on the 24 grid, in two subpaths: the body and the leaf.
+ *
+ * REDRAWN 11 September 2026, because the previous one was not the Apple logo. It was a hand-drawn
+ * approximation and it showed: the body had no bite, the shoulders were square, and the leaf sat
+ * as a lens floating clear of the fruit. On a 16dp mark inside a black pill it read as a smudge.
+ *
+ * Apple's Sign in with Apple guidelines say the mark may be scaled but not redrawn, so the one
+ * thing this must not be is somebody's impression of an apple. The geometry below is the standard
+ * 24-unit outline -- the same one Google's four-colour G beside it uses, and for the same reason:
+ * "close enough" is altering a mark we are not permitted to alter.
+ *
+ * Two subpaths and NonZero winding, which is the default. The bite is not a hole to be subtracted;
+ * it is part of the body's own outline, curving inward on the right. Drawing it as a second
+ * subpath would punch a notch through the leaf as well.
+ */
 private fun applePath() = androidx.compose.ui.graphics.Path().apply {
-    moveTo(16f, 4f); cubicTo(16.5f, 5.5f, 15.5f, 7f, 14f, 7.5f)
-    cubicTo(12f, 8f, 11f, 7f, 11f, 5.5f); cubicTo(12.5f, 4f, 14f, 3.5f, 16f, 4f); close()
-    moveTo(18.4f, 13.5f); cubicTo(17.8f, 15f, 17f, 16.5f, 15.5f, 16.5f)
-    cubicTo(14.1f, 16.5f, 13.6f, 15.7f, 12f, 15.7f); cubicTo(10.4f, 15.7f, 9.9f, 16.5f, 8.5f, 16.5f)
-    cubicTo(7f, 16.5f, 6.1f, 15.1f, 5.4f, 13.6f); cubicTo(4f, 11f, 4.6f, 7.6f, 6.6f, 6.5f)
-    cubicTo(7.9f, 5.8f, 9.1f, 6.2f, 10.1f, 6.5f); cubicTo(11.1f, 6.8f, 11.5f, 6.8f, 12.5f, 6.5f)
-    cubicTo(13.6f, 6.1f, 14.7f, 5.6f, 16.1f, 6.3f); cubicTo(14.4f, 7.4f, 14f, 9.8f, 15.7f, 11.1f)
-    cubicTo(16.2f, 12.2f, 16.5f, 12.7f, 18.4f, 13.5f); close()
+    // The body. Starts at the top of the bite and runs anticlockwise around the fruit.
+    moveTo(17.05f, 12.54f)
+    cubicTo(17.04f, 10.2f, 18.98f, 9.07f, 19.07f, 9.01f)
+    cubicTo(17.97f, 7.41f, 16.26f, 7.19f, 15.65f, 7.17f)
+    cubicTo(14.2f, 7.02f, 12.8f, 8.03f, 12.06f, 8.03f)
+    cubicTo(11.31f, 8.03f, 10.16f, 7.19f, 8.93f, 7.21f)
+    cubicTo(7.35f, 7.23f, 5.89f, 8.14f, 5.08f, 9.56f)
+    cubicTo(3.42f, 12.43f, 4.66f, 16.67f, 6.27f, 18.99f)
+    cubicTo(7.06f, 20.13f, 7.99f, 21.4f, 9.22f, 21.36f)
+    cubicTo(10.41f, 21.31f, 10.86f, 20.59f, 12.3f, 20.59f)
+    cubicTo(13.73f, 20.59f, 14.14f, 21.36f, 15.39f, 21.33f)
+    cubicTo(16.67f, 21.31f, 17.47f, 20.18f, 18.25f, 19.04f)
+    cubicTo(19.16f, 17.72f, 19.53f, 16.44f, 19.55f, 16.37f)
+    cubicTo(19.52f, 16.36f, 17.07f, 15.42f, 17.05f, 12.54f)
+    close()
+    // The leaf, meeting the body at the stem rather than floating above it.
+    moveTo(14.7f, 5.64f)
+    cubicTo(15.36f, 4.85f, 15.8f, 3.74f, 15.68f, 2.64f)
+    cubicTo(14.74f, 2.68f, 13.6f, 3.27f, 12.92f, 4.06f)
+    cubicTo(12.31f, 4.76f, 11.78f, 5.89f, 11.92f, 6.96f)
+    cubicTo(12.97f, 7.04f, 14.04f, 6.42f, 14.7f, 5.64f)
+    close()
 }
 
 /*

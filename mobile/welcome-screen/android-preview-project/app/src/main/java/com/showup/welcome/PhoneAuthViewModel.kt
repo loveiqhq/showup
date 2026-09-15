@@ -35,13 +35,39 @@ import java.time.OffsetDateTime
 
 /** Everything the phone and code screens need that comes from, or waits on, the backend. */
 data class PhoneAuthState(
+    /**
+     * Which challenge the codes on this screen belong to. 0 means none has been issued.
+     *
+     * A client-side counter, not the server's id -- the contract does not return one. What it
+     * buys is the only thing that matters here: the ability to say whether the answer coming back
+     * is about the challenge that is still on screen. Without it the app could not tell a live
+     * code from a superseded one, and a verify could be submitted against a challenge the server
+     * had already deleted.
+     */
+    val challengeId: Long = 0,
     val cooldownSeconds: Int = 0,
     val attempts: Int = 0,
     val lastSubmitRefused: Boolean = false,
     val expiresAt: OffsetDateTime? = null,
     val resendAvailableAt: OffsetDateTime? = null,
-    val busy: Boolean = false,
+    /**
+     * A start is in flight. SEPARATE from [verifying], and that separation is a bug fix.
+     *
+     * One shared `busy` meant a resend tapped while a verify was in flight returned early and
+     * said nothing -- and a verify tapped during a resend did the same. Two silent drops that
+     * look exactly like a dead button, which is half of what was reported on 15 September.
+     */
+    val sending: Boolean = false,
+    /** A verify is in flight. */
+    val verifying: Boolean = false,
     val transportFailed: Boolean = false,
+    /**
+     * The server refused a resend because its cooldown has not elapsed, and this is what it said.
+     *
+     * Non-null means the ACTIVE challenge is unchanged and still valid -- a 429 supersedes
+     * nothing. The screen shows this instead of appearing to do nothing.
+     */
+    val resendRejected: String? = null,
     /**
      * The code, straight from the server, shown ONLY in a debug build.
      *
@@ -52,6 +78,9 @@ data class PhoneAuthState(
     /** True when the code came from [DevOfflineAuth] rather than from a backend. */
     val offline: Boolean = false,
 ) {
+    /** Anything in flight. The CTA reads this; the guards read the two flags separately. */
+    val busy: Boolean get() = sending || verifying
+
     fun locked(): Boolean = attempts >= MAX_VERIFY_ATTEMPTS
 }
 
@@ -86,33 +115,75 @@ class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
     /** Overridable in tests so a countdown does not need a real second to pass. */
     internal var now: () -> OffsetDateTime = { OffsetDateTime.now() }
 
+    /**
+     * Every start this view model has dispatched. Only the newest may apply its answer.
+     *
+     * Two requests can be in flight in ways the `sending` guard does not cover -- a retry after a
+     * slow failure, a resend racing a start from the phone screen -- and the network does not
+     * promise to answer them in order. Without a sequence, whichever replies LAST wins, so an
+     * older challenge can overwrite a newer one and the code on screen stops being the code the
+     * server is holding. That is unprovable after the fact and indistinguishable, to the user,
+     * from "I typed it correctly and it said it was wrong".
+     */
+    private var dispatched = 0L
+
+    /** Challenges actually accepted, which is what [PhoneAuthState.challengeId] counts. */
+    private var issued = 0L
+
     /** Sends a code. Used by the phone screen's CTA and by the code screen's resend. */
     fun start(phoneE164: String, onSent: () -> Unit = {}) {
-        if (_state.value.busy) return
-        _state.update { it.copy(busy = true, transportFailed = false) }
+        // Only a start blocks a start. It used to be `busy`, which also blocked on a verify in
+        // flight and dropped the tap without a word.
+        if (_state.value.sending) return
+        val seq = ++dispatched
+        _state.update { it.copy(sending = true, transportFailed = false, resendRejected = null) }
+        AuthTrace.log("start dispatched seq=$seq")
         viewModelScope.launch {
-            when (val result = repo.start(phoneE164)) {
+            val result = repo.start(phoneE164)
+            if (seq != dispatched) {
+                // A newer start was dispatched while this one was in flight. Its answer is about
+                // a challenge the server has already replaced; applying it would put a dead code
+                // on screen.
+                AuthTrace.log("start seq=$seq DROPPED, superseded by seq=$dispatched")
+                return@launch
+            }
+            when (result) {
                 is StartAuthResult.Sent -> {
+                    val id = ++issued
                     _state.update {
                         it.copy(
-                            busy = false,
+                            sending = false,
+                            challengeId = id,
                             attempts = 0,
                             lastSubmitRefused = false,
+                            resendRejected = null,
                             expiresAt = result.expiresAt,
                             resendAvailableAt = result.resendAvailableAt,
                             devCode = result.devCode,
                             offline = result.offline,
                         )
                     }
+                    AuthTrace.log("challenge $id issued (seq=$seq), attempts reset")
                     startTicker()
                     onSent()
                 }
-                // The server's own cooldown, or the route's 5-per-minute throttle. Either way the
-                // client's countdown was the optimistic one, so let the ticker re-read the
-                // server's timestamp rather than arguing with it.
-                StartAuthResult.TooSoon -> _state.update { it.copy(busy = false) }
-                is StartAuthResult.Failed ->
-                    _state.update { it.copy(busy = false, transportFailed = true) }
+                // The server's cooldown, or the route's throttle. It refuses BEFORE it supersedes,
+                // so the challenge already on screen is still the live one -- nothing here may
+                // touch challengeId, expiresAt, devCode or attempts. All that changes is that the
+                // user is told why, which is the whole defect this branch used to have.
+                is StartAuthResult.TooSoon -> {
+                    _state.update {
+                        it.copy(
+                            sending = false,
+                            resendRejected = result.message ?: VerifyCopy.RESEND_TOO_SOON_PROPOSED,
+                        )
+                    }
+                    AuthTrace.log("start seq=$seq refused 429; challenge ${_state.value.challengeId} still active")
+                }
+                is StartAuthResult.Failed -> {
+                    _state.update { it.copy(sending = false, transportFailed = true) }
+                    AuthTrace.log("start seq=$seq failed in transport")
+                }
             }
         }
     }
@@ -127,24 +198,62 @@ class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
      */
     fun verify(phoneE164: String, code: String, onSignedIn: (profileComplete: Boolean) -> Unit) {
         val s = _state.value
-        if (s.busy || s.locked() || code.length != 6) return
-        _state.update { it.copy(busy = true, transportFailed = false) }
+        // Only a verify blocks a verify, for the same reason a start only blocks a start.
+        if (s.verifying || s.locked() || code.length != 6) return
+        // Nothing has been issued, so there is nothing this code could be an answer to. Sending it
+        // would earn a 401 that the screen would report as "that code doesn't match", blaming the
+        // user for a challenge the app never had.
+        if (s.challengeId == 0L) {
+            AuthTrace.log("verify refused locally: no challenge has been issued")
+            return
+        }
+        val against = s.challengeId
+        _state.update { it.copy(verifying = true, transportFailed = false) }
+        AuthTrace.log("verify submitted against challenge $against")
         viewModelScope.launch {
-            when (val result = repo.verify(phoneE164, code)) {
+            val result = repo.verify(phoneE164, code)
+            if (against != _state.value.challengeId) {
+                // A new challenge arrived while this was in flight, so this answer is about a code
+                // the server has since deleted. Reporting it would mark the CURRENT code wrong,
+                // and count an attempt against a challenge it was never submitted to.
+                AuthTrace.log(
+                    "verify for challenge $against DROPPED, now on ${_state.value.challengeId}",
+                )
+                _state.update { it.copy(verifying = false) }
+                return@launch
+            }
+            when (result) {
                 is VerifyPhoneResult.SignedIn -> {
-                    _state.update { it.copy(busy = false, lastSubmitRefused = false) }
+                    _state.update { it.copy(verifying = false, lastSubmitRefused = false) }
+                    AuthTrace.log("challenge $against accepted")
                     onSignedIn(result.profileComplete)
                 }
-                VerifyPhoneResult.Refused -> _state.update {
-                    it.copy(busy = false, attempts = it.attempts + 1, lastSubmitRefused = true)
+                VerifyPhoneResult.Refused -> {
+                    _state.update {
+                        it.copy(
+                            verifying = false,
+                            attempts = it.attempts + 1,
+                            lastSubmitRefused = true,
+                        )
+                    }
+                    AuthTrace.log(
+                        "challenge $against refused, attempt ${_state.value.attempts}",
+                    )
                 }
                 // The server says the cap is reached, so the count goes TO the cap rather than up
                 // by one -- the two can disagree if a request was lost, and the server wins.
-                VerifyPhoneResult.TooManyAttempts -> _state.update {
-                    it.copy(busy = false, attempts = MAX_VERIFY_ATTEMPTS, lastSubmitRefused = true)
+                VerifyPhoneResult.TooManyAttempts -> {
+                    _state.update {
+                        it.copy(
+                            verifying = false,
+                            attempts = MAX_VERIFY_ATTEMPTS,
+                            lastSubmitRefused = true,
+                        )
+                    }
+                    AuthTrace.log("challenge $against hit the attempt cap")
                 }
                 is VerifyPhoneResult.Failed ->
-                    _state.update { it.copy(busy = false, transportFailed = true) }
+                    _state.update { it.copy(verifying = false, transportFailed = true) }
             }
         }
     }
@@ -158,7 +267,9 @@ class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
      * Only the flag — the attempt COUNT stays, because the server counted those attempts and
      * they are what the cap is measured against.
      */
-    fun clearRefusal() = _state.update { it.copy(lastSubmitRefused = false) }
+    fun clearRefusal() = _state.update {
+        it.copy(lastSubmitRefused = false, resendRejected = null)
+    }
 
     private fun startTicker() {
         ticker?.cancel()

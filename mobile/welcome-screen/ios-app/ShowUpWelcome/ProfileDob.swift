@@ -173,10 +173,14 @@ struct ProfileDobView: View {
             AgeCard(age: age, onEdit: onEdit)
         } else {
             // The reason the field is not scary: it says what is published and what is not.
-            (Text(DobCopy.helperLead).font(F.manrope(13, .medium))
-             + Text(DobCopy.helperBold).font(F.manrope(13, .bold))
-             + Text(DobCopy.helperTail).font(F.manrope(13, .medium)))
-                .foregroundColor(.liqMuted)
+            // 700 AND -liq-fg on "age", both, per the spec sheet's note 10:
+            // `"age" inline at 700, -liq-fg`. Only the weight was applied, and bold muted grey
+            // at 13pt does not read as emphasis -- the word the whole line exists to land was
+            // the one nobody saw. The colour goes on the RUN, not the whole Text, which is why
+            // the other two runs still carry .liqMuted of their own.
+            (Text(DobCopy.helperLead).font(F.manrope(13, .medium)).foregroundColor(.liqMuted)
+             + Text(DobCopy.helperBold).font(F.manrope(13, .bold)).foregroundColor(.liqFg)
+             + Text(DobCopy.helperTail).font(F.manrope(13, .medium)).foregroundColor(.liqMuted))
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

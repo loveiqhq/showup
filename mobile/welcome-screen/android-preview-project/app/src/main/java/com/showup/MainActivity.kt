@@ -52,6 +52,26 @@ import com.showup.welcome.SignUpOutcome
 import com.showup.welcome.showsTutorial
 import com.showup.tutorial.WelcomeScreen
 import com.showup.designsystem.rememberMotion
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.showup.designsystem.Manrope
+import com.showup.designsystem.Spacing
+import com.showup.profile.DevOfflineBasics
 
 /**
  * Host for the six tutorial screens. Edge-to-edge so each screen's own safe-area handling is what
@@ -121,6 +141,7 @@ class MainActivity : ComponentActivity() {
                 screen = FlowScreen.entries[screen.ordinal - 1]
             }
 
+            Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = screen,
                 label = "tutorialCard",
@@ -255,6 +276,46 @@ class MainActivity : ComponentActivity() {
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
                 }
+            }
+
+            // The email code, on screen, in a debug build only.
+            //
+            // The phone flow has had this since the day it stopped faking its code; the email
+            // flow never did, because `/auth/email/start` answers 204 with no body and the
+            // challenge carries no `devCode` to show. With no backend running that left the
+            // verification screen unwalkable: a code was required and nothing anywhere could
+            // tell you what it was.
+            //
+            // Three conditions, each closing a different way this could leak: BuildConfig.DEBUG
+            // keeps it out of any release build, the null check keeps it absent when the code
+            // came from a real server rather than the offline stand-in, and the screen check
+            // keeps it off every other screen.
+            val offlineEmailCode = DevOfflineBasics.lastIssued
+            if (BuildConfig.DEBUG &&
+                offlineEmailCode != null &&
+                screen == FlowScreen.ProfileVerifyEmail
+            ) {
+                Row(
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(top = Spacing.xs)
+                        .background(Color(0xE61D1129), RoundedCornerShape(50))
+                        .padding(horizontal = Spacing.xl, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "TEST BUILD", color = Color(0xFFFFAE8F), fontFamily = Manrope,
+                        fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 0.7.sp,
+                    )
+                    Text(
+                        "OFFLINE · no server · the code is $offlineEmailCode",
+                        color = Color.White, fontFamily = Manrope,
+                        fontWeight = FontWeight.Medium, fontSize = 11.sp,
+                    )
+                }
+            }
             }
         }
     }

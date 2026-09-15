@@ -14,6 +14,8 @@
 package com.showup.profile
 
 import com.showup.api.InMemoryTokenStore
+import java.time.OffsetDateTime
+import com.showup.api.MAX_VERIFY_ATTEMPTS
 import com.showup.api.ShowUpApi
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -33,8 +35,11 @@ class BasicsRepositoryTest {
     fun start() {
         server = MockWebServer()
         server.start()
+        // `offline = null`, so this suite measures what a RELEASE build does. The debug
+        // stand-in has its own tests below; mixing the two would mean neither was checked.
         repo = BasicsRepository(
             ShowUpApi(baseUrl = server.url("/").toString(), tokens = InMemoryTokenStore(access = "t")),
+            offline = null,
         )
     }
 
@@ -207,4 +212,84 @@ class BasicsRepositoryTest {
          "isVisible":true,"hiddenFields":$hidden,"isComplete":false,
          "verificationStatus":"none"}
     """.trimIndent()
+
+    // ── the debug stand-in ────────────────────────────────────────────────────
+    //
+    // Same repository with the offline fallback wired in, as a debug build has it. What these
+    // check is the boundary: it takes over when nothing answered, and never when something did.
+
+    private fun offlineRepo() = BasicsRepository(
+        ShowUpApi(baseUrl = server.url("/").toString(), tokens = InMemoryTokenStore(access = "t")),
+        offline = DevOfflineBasics,
+    )
+
+    @Test
+    fun `with no server at all, a debug build issues its own email code`() = runTest {
+        DevOfflineBasics.reset()
+        server.shutdown()
+        val result = offlineRepo().sendCode("leo@hey.com")
+        assertTrue("expected Sent, got $result", result is SendCodeResult.Sent)
+        // The screen has no devCode field to read -- /auth/email/start answers 204 -- so the
+        // code is read back from the stand-in for the debug strip. Six digits, as the real one.
+        assertEquals(6, DevOfflineBasics.lastIssued?.length)
+    }
+
+    @Test
+    fun `the offline email code is the one the offline verify accepts`() = runTest {
+        DevOfflineBasics.reset()
+        server.shutdown()
+        val repo = offlineRepo()
+        repo.sendCode("leo@hey.com")
+        assertEquals(
+            VerifyCodeResult.Verified,
+            repo.verifyCode(DevOfflineBasics.lastIssued!!),
+        )
+    }
+
+    @Test
+    fun `the offline email stand-in still refuses a wrong code`() = runTest {
+        DevOfflineBasics.reset()
+        server.shutdown()
+        val repo = offlineRepo()
+        repo.sendCode("leo@hey.com")
+        val wrong = if (DevOfflineBasics.lastIssued == "000000") "111111" else "000000"
+        // It models the failures too. A stand-in that only ever accepts would leave the mismatch
+        // card, the expiry copy and the lockout state unreachable -- and those three are most of
+        // what SHOWUP-153 is about.
+        assertEquals(VerifyCodeResult.Refused, repo.verifyCode(wrong))
+    }
+
+    @Test
+    fun `the offline email stand-in enforces the same five-attempt cap`() = runTest {
+        DevOfflineBasics.reset()
+        server.shutdown()
+        val repo = offlineRepo()
+        repo.sendCode("leo@hey.com")
+        val wrong = if (DevOfflineBasics.lastIssued == "000000") "111111" else "000000"
+        repeat(MAX_VERIFY_ATTEMPTS - 1) { repo.verifyCode(wrong) }
+        assertEquals(VerifyCodeResult.TooManyAttempts, repo.verifyCode(wrong))
+    }
+
+    @Test
+    fun `the offline stand-in refuses an under-age date of birth`() = runTest {
+        DevOfflineBasics.reset()
+        server.shutdown()
+        val born = OffsetDateTime.now().minusYears(15)
+        val iso = "%04d-%02d-%02d".format(born.year, born.monthValue, born.dayOfMonth)
+        // The DoB screen's rejection state has to be reachable offline too, or the one state
+        // SHOWUP-154 cares most about could never be looked at without a backend.
+        assertEquals(SaveBasicsResult.UnderAge, offlineRepo().saveDateOfBirth(iso, hideAge = false))
+    }
+
+    @Test
+    fun `a server that answers is never replaced by the stand-in`() = runTest {
+        DevOfflineBasics.reset()
+        // The boundary, and the whole reason this is safe. A 500 is a server WORKING, and its
+        // answer must reach the app untouched -- otherwise a backend bug would present as a
+        // cheerful offline session and nobody would ever find it.
+        respond(500, apiError(500, "Internal server error", "Internal Server Error"))
+        val result = offlineRepo().sendCode("leo@hey.com")
+        assertTrue("expected Failed, got $result", result is SendCodeResult.Failed)
+    }
 }
+

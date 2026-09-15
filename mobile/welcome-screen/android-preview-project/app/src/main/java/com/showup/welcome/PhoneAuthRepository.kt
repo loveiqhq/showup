@@ -42,8 +42,20 @@ sealed interface StartAuthResult {
         val offline: Boolean = false,
     ) : StartAuthResult
 
-    /** 429. Either the per-challenge cooldown or the route's 5-per-minute throttle. */
-    data object TooSoon : StartAuthResult
+    /**
+     * 429. Either the per-challenge cooldown or the route's 5-per-minute throttle.
+     *
+     * [message] is the server's own sentence -- "Please wait 59s before requesting another code"
+     * -- and it is carried rather than discarded because this used to be a `data object` that
+     * said nothing, and the screen showed nothing with it. Reported on 15 September: "I tapped to
+     * send a new code but initially I did not get a new code / it looked like resend was not
+     * working." It was working exactly as designed; the design forgot to say so.
+     *
+     * Critically, a TooSoon does NOT supersede anything. `otp.service.ts` refuses the request
+     * before it deletes the prior challenge, so the code already in the user's hand is still the
+     * live one -- which is why the client must not touch its challenge state here.
+     */
+    data class TooSoon(val message: String?) : StartAuthResult
 
     data class Failed(val error: ApiError?) : StartAuthResult
 }
@@ -73,7 +85,7 @@ sealed interface VerifyPhoneResult {
  * @param tokens passed in rather than reached through [api], so the fact that this class WRITES
  *   credentials is visible in its signature instead of buried in one line of a method.
  */
-class PhoneAuthRepository(
+open class PhoneAuthRepository(
     private val api: ShowUpApi,
     private val tokens: TokenStore,
     /**
@@ -91,7 +103,7 @@ class PhoneAuthRepository(
     private val offline: DevOfflineAuth? = if (BuildConfig.DEBUG) DevOfflineAuth else null,
 ) {
 
-    suspend fun start(phoneE164: String): StartAuthResult = runCatching {
+    open suspend fun start(phoneE164: String): StartAuthResult = runCatching {
         val response = api.auth.startPhoneVerification(RequestOtpDto(phone = phoneE164))
         val body = response.body()
         when {
@@ -100,7 +112,9 @@ class PhoneAuthRepository(
                 resendAvailableAt = body.resendAvailableAt,
                 devCode = body.devCode,
             )
-            response.code() == 429 -> StartAuthResult.TooSoon
+            response.code() == 429 -> StartAuthResult.TooSoon(
+                errorOf(response.code(), response.errorBody()?.string())?.messages?.firstOrNull(),
+            )
             else -> StartAuthResult.Failed(errorOf(response.code(), response.errorBody()?.string()))
         }
     }.getOrElse {
@@ -116,7 +130,7 @@ class PhoneAuthRepository(
      * that forgot it would leave the app holding a session it cannot prove, and every later
      * request would 401 for a reason nothing on screen could explain.
      */
-    suspend fun verify(phoneE164: String, code: String): VerifyPhoneResult = runCatching {
+    open suspend fun verify(phoneE164: String, code: String): VerifyPhoneResult = runCatching {
         // The route records the user-agent against the session so a person can later see where
         // they are signed in, which is why the generated signature requires it.
         val response = api.auth.verifyPhone(

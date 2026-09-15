@@ -26,6 +26,7 @@
  */
 package com.showup.profile
 
+import com.showup.BuildConfig
 import com.showup.api.ApiError
 import com.showup.api.ShowUpApi
 import com.showup.api.generated.model.RequestEmailDto
@@ -87,7 +88,17 @@ sealed interface SaveBasicsResult {
  * Takes a [ShowUpApi] rather than building one, so a test can hand it a client pointed at a
  * MockWebServer — which is how every mapping below is verified without a backend.
  */
-class BasicsRepository(private val api: ShowUpApi) {
+class BasicsRepository(
+    private val api: ShowUpApi,
+    /**
+     * The stand-in used when NOTHING ANSWERED, or null to let that failure be a failure.
+     *
+     * Injected rather than an inlined `BuildConfig.DEBUG` check, for the reason the phone flow
+     * learned the hard way: unit tests build DEBUG, so a guard inside the catch block would mean
+     * the release behaviour of this path could never be asserted at all.
+     */
+    private val offline: DevOfflineBasics? = if (BuildConfig.DEBUG) DevOfflineBasics else null,
+) {
 
     /** Sends a code to [email]. Authenticated: the server takes the user from the bearer token. */
     suspend fun sendCode(email: String): SendCodeResult = runCatching {
@@ -104,7 +115,11 @@ class BasicsRepository(private val api: ShowUpApi) {
             response.code() == 400 -> SendCodeResult.EmailInUse
             else -> SendCodeResult.Failed(errorOf(response.code(), response.errorBody()?.string()))
         }
-    }.getOrElse { SendCodeResult.Failed(null) }
+    }.getOrElse {
+        // Nothing answered. A server that replies -- with anything, including 500 -- never
+        // reaches here, so this cannot hide a backend bug.
+        offline?.start(OffsetDateTime.now()) ?: SendCodeResult.Failed(null)
+    }
 
     /** Confirms [code]. 204 on success — the route returns no body. */
     suspend fun verifyCode(code: String): VerifyCodeResult = runCatching {
@@ -119,7 +134,9 @@ class BasicsRepository(private val api: ShowUpApi) {
                 VerifyCodeResult.TooManyAttempts
             else -> VerifyCodeResult.Refused
         }
-    }.getOrElse { VerifyCodeResult.Failed(null) }
+    }.getOrElse {
+        offline?.verify(code, OffsetDateTime.now()) ?: VerifyCodeResult.Failed(null)
+    }
 
     /**
      * Writes the date of birth and the age-visibility choice.
@@ -149,7 +166,9 @@ class BasicsRepository(private val api: ShowUpApi) {
             response.code() == 400 -> SaveBasicsResult.UnderAge
             else -> SaveBasicsResult.Failed(errorOf(response.code(), response.errorBody()?.string()))
         }
-    }.getOrElse { SaveBasicsResult.Failed(null) }
+    }.getOrElse {
+        offline?.save(iso, OffsetDateTime.now()) ?: SaveBasicsResult.Failed(null)
+    }
 
     private fun errorOf(code: Int, body: String?): ApiError? =
         body?.let { ApiError.parse(code, it) }

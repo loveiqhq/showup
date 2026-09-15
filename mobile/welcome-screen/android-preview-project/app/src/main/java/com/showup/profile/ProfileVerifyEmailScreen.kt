@@ -78,6 +78,11 @@ import com.showup.designsystem.autofill
 import com.showup.designsystem.minTapTarget
 import com.showup.tutorial.StepProgress
 import com.showup.welcome.WashHeadline
+import com.showup.designsystem.ComponentSizes
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
 
 /** Final strings. Every one is quoted from the ticket; `verify-profile.py` checks them. */
 object VerifyEmailCopy {
@@ -214,14 +219,29 @@ fun ProfileVerifyEmailScreen(
                 },
             )
 
-            // ⑭ reserved at 30 so the CTA and BOTH secondary rows sit at the same Y in either
-            // state. heightIn, not height: the mismatch string wraps to two lines at 320 and the
-            // card is then taller than 30 -- the floor is what stops the CALM state collapsing.
+            // ⑭ A RESERVE, not a floor, and that is the whole point of it.
+            //
+            // This was `heightIn(min = 30)`, and the comment above it admitted the problem it was
+            // creating: "the mismatch string wraps to two lines at 320 and the card is then
+            // taller than 30". A minimum does not reserve anything -- it lets the region grow the
+            // moment a card appears, and everything below it moves. Reported from a device on
+            // 11 September: the CTA, the resend row and the change-address link all shifted down
+            // when the mismatch card arrived.
+            //
+            // Fixed at 80, the same number and the same reason as the phone screen's helper
+            // region: the tallest message this screen can show, wrapped at the narrowest width in
+            // the matrix, and the quiet space under the slots in the calm state is what that
+            // guarantee costs. SHOWUP-143 forbids the CTA moving when a state goes wrong, and
+            // this screen was exempt from that only by oversight.
+            //
+            // If the copy ever grows past three lines at 320 this number grows with it, and
+            // ScreenFitTest is what says so -- it measures every state at 17 sizes and reports
+            // clipped text.
             Box(
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp, start = 2.dp)
-                    .heightIn(min = 30.dp)
+                    .height(80.dp)
                     .semantics { liveRegion = LiveRegionMode.Polite },
             ) {
                 val message = when (state) {
@@ -233,7 +253,8 @@ fun ProfileVerifyEmailScreen(
                 if (message != null) InlineErrorCard(message)
             }
 
-            Spacer(Modifier.height(14.dp))
+            // No spacer: the reserved region above is fixed and already carries the gap.
+            // A spacer here on top of it was 14dp tuned against the old 30dp floor.
             // The group's ONE disabled CTA, and a settled exception rather than drift: a partial
             // code has nothing to validate, and the six boxes already say "six digits".
             PrimaryButton(
@@ -249,31 +270,58 @@ fun ProfileVerifyEmailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                // One baseline row: the question and the timer/link sit together.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.Bottom,
+                // THREE STACKED ROWS, each centred. Not a side-by-side pair.
+                //
+                // Corrected 15 September 2026 against the handoff, which draws this group the way
+                // the phone code screen already builds it: the question on its own line, the link
+                // or countdown beneath it, the escape hatch beneath that, all centred. The email
+                // screen had them in a Row, and everything that went wrong with this group
+                // followed from that one decision.
+                //
+                // What the Row cost, in order of discovery:
+                //
+                //   · the link carries a 48dp tap floor and the countdown does not, so swapping
+                //     them resized the row and the question slid down beside it
+                //   · `Text.minTapTarget()` draws its glyphs at the TOP of the enlarged box, so
+                //     the link sat about 15dp above the question's line
+                //   · "Send a new code in 0:32" is wider than "Send a new code", so a centred Row
+                //     re-centred itself when they swapped and the whole group moved sideways
+                //
+                // All three were being patched INSIDE a layout that was the wrong shape. Stacked,
+                // none of them can happen: each line centres independently, a taller line pushes
+                // nothing sideways, and the group's width stops depending on which branch is up.
+                // The reserved region above still holds the vertical position.
+                //
+                // The parent Column already centres and already spaces at 6, so the question and
+                // the slot are simply its children now.
+                Text(
+                    VerifyEmailCopy.RESEND_QUESTION,
+                    color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp, lineHeight = 18.2.sp,
+                )
+                Box(
+                    Modifier.height(ComponentSizes.minTapTarget),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        VerifyEmailCopy.RESEND_QUESTION,
-                        color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp, lineHeight = 18.2.sp,
-                    )
                     if (canResend(cooldownSeconds, state)) {
                         Text(
                             VerifyEmailCopy.RESEND_AVAILABLE,
                             modifier = Modifier
                                 .clickable(role = Role.Button, onClick = onResend)
-                                .minTapTarget(),
+                                // The whole 48 answers to a finger, and the label is centred
+                                // inside it rather than pinned to its top edge.
+                                .fillMaxHeight()
+                                .wrapContentHeight(Alignment.CenterVertically),
                             color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
                             fontSize = 14.sp, lineHeight = 18.2.sp,
                             textDecoration = TextDecoration.Underline,
                         )
                     } else {
                         Text(
-                            // tabular-nums so the countdown does not jitter as digits change width
+                            // tabular-nums so the countdown does not jitter as digits change
                             VerifyEmailCopy.resendIn(cooldownSeconds),
-                            color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                            color = Subtle, fontFamily = Manrope,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp, lineHeight = 18.2.sp,
                         )
                     }

@@ -61,13 +61,46 @@ step_sw = read(SW, "BasicsStep.swift")
 # CTA-does-not-move guarantee expressed as four integers, and every one of them has been wrong at
 # least once on some screen in this project.
 #
-# The email screen is the deliberate exception and has none: it is too dense to reserve the taller
-# height without pushing the CTA into the keyboard, so its consent row and CTA sit ~18 lower in
-# the error state. That is accepted, and the acceptance test is that the CTA stays clear of the
-# keys -- which is ScreenFitTest's job, not this file's.
+# The EMAIL ADDRESS screen is the deliberate exception and has none: it is too dense to reserve
+# the taller height without pushing the CTA into the keyboard, so its consent row and CTA sit ~18
+# lower in the error state. That is accepted, and the acceptance test is that the CTA stays clear
+# of the keys -- ScreenFitTest's job, not this file's.
+#
+# The VERIFY screen was never meant to be part of that exception and was treated as one by
+# accident. It reserves properly now.
 check("150 name reserves 44 (kotlin)", "44.dp" in name_kt)
-check("153 verify reserves 30 (kotlin)", "heightIn(min = 30.dp)" in verify_kt)
-check("153 verify reserves 30 (swift)", "minHeight: 30" in verify_sw)
+# 153's region is FIXED, not a floor, since 11 September 2026. It was `heightIn(min = 30)` and
+# this file asserted that -- codifying the defect rather than catching it. A minimum reserves
+# nothing: the card grew past 30 the moment the copy wrapped, and a device screenshot showed the
+# CTA, the resend row and the change-address link all sliding down when a code was refused.
+#
+# The behaviour itself is covered by VerifyEmailStabilityTest, which measures the laid-out Y of
+# each of those three in every state and is injection-tested both ways. What this check adds is
+# the one thing a behavioural test cannot say: that nobody has quietly turned the reserve back
+# into a floor on a screen size the test does not sweep.
+def code_only(text):
+    """The file with comment lines removed.
+
+    A "not in" assertion cannot read raw source: the comment explaining what a value used to be
+    contains the value it used to be, so the check fails on its own explanation. That happened
+    here the moment the reserve was fixed and documented in the same edit.
+    """
+    out = []
+    for line in text.split("\n"):
+        stripped = line.lstrip()
+        if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+check("153 verify reserves a FIXED height, not a floor (kotlin)",
+      ".height(80.dp)" in verify_kt and "heightIn(min = 30.dp)" not in code_only(verify_kt))
+
+
+check("153 verify reserves a FIXED height, not a floor (swift)",
+      ("minHeight: 80, maxHeight: 80" in verify_sw
+       and "minHeight: 30" not in code_only(verify_sw)))
 check("154 dob reserves 84 (kotlin)", "heightIn(min = 84.dp)" in dob_kt)
 check("154 dob reserves 84 (swift)", "minHeight: 84" in dob_sw)
 

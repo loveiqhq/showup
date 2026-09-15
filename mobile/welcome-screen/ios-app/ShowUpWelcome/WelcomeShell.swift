@@ -625,23 +625,41 @@ struct BrandIconView: View {
         b.closeSubpath()
     }
 
+    // The Apple mark, on the 24 grid, in two subpaths: the body and the leaf.
+    //
+    // REDRAWN 11 September 2026, because the previous one was not the Apple logo. It was a
+    // hand-drawn approximation and it showed: the body had no bite, the shoulders were square,
+    // and the leaf sat as a lens floating clear of the fruit. On a 16pt mark inside a black pill
+    // it read as a smudge.
+    //
+    // Apple's Sign in with Apple guidelines say the mark may be scaled but not redrawn, so the
+    // one thing this must not be is somebody's impression of an apple. Same geometry as
+    // `applePath()` in WelcomeShell.kt, and the same argument as Google's G beside it.
+    //
+    // Two subpaths, non-zero winding. The bite is not a hole to be subtracted -- it is part of
+    // the body's own outline, curving inward on the right.
     static let applePath = Path { b in
-        b.move(to: .init(x: 16, y: 4))
-        b.addCurve(to: .init(x: 14, y: 7.5), control1: .init(x: 16.5, y: 5.5), control2: .init(x: 15.5, y: 7))
-        b.addCurve(to: .init(x: 11, y: 5.5), control1: .init(x: 12, y: 8), control2: .init(x: 11, y: 7))
-        b.addCurve(to: .init(x: 16, y: 4), control1: .init(x: 12.5, y: 4), control2: .init(x: 14, y: 3.5))
+        // The body. Starts at the top of the bite and runs anticlockwise around the fruit.
+        b.move(to: .init(x: 17.05, y: 12.54))
+        b.addCurve(to: .init(x: 19.07, y: 9.01), control1: .init(x: 17.04, y: 10.2), control2: .init(x: 18.98, y: 9.07))
+        b.addCurve(to: .init(x: 15.65, y: 7.17), control1: .init(x: 17.97, y: 7.41), control2: .init(x: 16.26, y: 7.19))
+        b.addCurve(to: .init(x: 12.06, y: 8.03), control1: .init(x: 14.2, y: 7.02), control2: .init(x: 12.8, y: 8.03))
+        b.addCurve(to: .init(x: 8.93, y: 7.21), control1: .init(x: 11.31, y: 8.03), control2: .init(x: 10.16, y: 7.19))
+        b.addCurve(to: .init(x: 5.08, y: 9.56), control1: .init(x: 7.35, y: 7.23), control2: .init(x: 5.89, y: 8.14))
+        b.addCurve(to: .init(x: 6.27, y: 18.99), control1: .init(x: 3.42, y: 12.43), control2: .init(x: 4.66, y: 16.67))
+        b.addCurve(to: .init(x: 9.22, y: 21.36), control1: .init(x: 7.06, y: 20.13), control2: .init(x: 7.99, y: 21.4))
+        b.addCurve(to: .init(x: 12.3, y: 20.59), control1: .init(x: 10.41, y: 21.31), control2: .init(x: 10.86, y: 20.59))
+        b.addCurve(to: .init(x: 15.39, y: 21.33), control1: .init(x: 13.73, y: 20.59), control2: .init(x: 14.14, y: 21.36))
+        b.addCurve(to: .init(x: 18.25, y: 19.04), control1: .init(x: 16.67, y: 21.31), control2: .init(x: 17.47, y: 20.18))
+        b.addCurve(to: .init(x: 19.55, y: 16.37), control1: .init(x: 19.16, y: 17.72), control2: .init(x: 19.53, y: 16.44))
+        b.addCurve(to: .init(x: 17.05, y: 12.54), control1: .init(x: 19.52, y: 16.36), control2: .init(x: 17.07, y: 15.42))
         b.closeSubpath()
-        b.move(to: .init(x: 18.4, y: 13.5))
-        b.addCurve(to: .init(x: 15.5, y: 16.5), control1: .init(x: 17.8, y: 15), control2: .init(x: 17, y: 16.5))
-        b.addCurve(to: .init(x: 12, y: 15.7), control1: .init(x: 14.1, y: 16.5), control2: .init(x: 13.6, y: 15.7))
-        b.addCurve(to: .init(x: 8.5, y: 16.5), control1: .init(x: 10.4, y: 15.7), control2: .init(x: 9.9, y: 16.5))
-        b.addCurve(to: .init(x: 5.4, y: 13.6), control1: .init(x: 7, y: 16.5), control2: .init(x: 6.1, y: 15.1))
-        b.addCurve(to: .init(x: 6.6, y: 6.5), control1: .init(x: 4, y: 11), control2: .init(x: 4.6, y: 7.6))
-        b.addCurve(to: .init(x: 10.1, y: 6.5), control1: .init(x: 7.9, y: 5.8), control2: .init(x: 9.1, y: 6.2))
-        b.addCurve(to: .init(x: 12.5, y: 6.5), control1: .init(x: 11.1, y: 6.8), control2: .init(x: 11.5, y: 6.8))
-        b.addCurve(to: .init(x: 16.1, y: 6.3), control1: .init(x: 13.6, y: 6.1), control2: .init(x: 14.7, y: 5.6))
-        b.addCurve(to: .init(x: 15.7, y: 11.1), control1: .init(x: 14.4, y: 7.4), control2: .init(x: 14, y: 9.8))
-        b.addCurve(to: .init(x: 18.4, y: 13.5), control1: .init(x: 16.2, y: 12.2), control2: .init(x: 16.5, y: 12.7))
+        // The leaf, meeting the body at the stem rather than floating above it.
+        b.move(to: .init(x: 14.7, y: 5.64))
+        b.addCurve(to: .init(x: 15.68, y: 2.64), control1: .init(x: 15.36, y: 4.85), control2: .init(x: 15.8, y: 3.74))
+        b.addCurve(to: .init(x: 12.92, y: 4.06), control1: .init(x: 14.74, y: 2.68), control2: .init(x: 13.6, y: 3.27))
+        b.addCurve(to: .init(x: 11.92, y: 6.96), control1: .init(x: 12.31, y: 4.76), control2: .init(x: 11.78, y: 5.89))
+        b.addCurve(to: .init(x: 14.7, y: 5.64), control1: .init(x: 12.97, y: 7.04), control2: .init(x: 14.04, y: 6.42))
         b.closeSubpath()
     }
 
