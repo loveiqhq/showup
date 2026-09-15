@@ -43,6 +43,28 @@ extension Color {
     static let liqDangerDigit = Color(hex: 0x7A1F26)                 // mismatch digits - a one-off
     static let liqLavender   = Color(hex: 0xA78BFA)
 
+    /// `--liq-lavender-50`. The quietest lavender in the ramp, and a SURFACE rather than an accent.
+    ///
+    /// Nearly white with a violet cast, so a card can read as "ours" without competing with
+    /// anything on it. Used by the prompts screen's worked-example card and the small pip behind
+    /// its plus glyph (SHOWUP-158). Distinct from `liqEyebrowBg`, which is lavender-400 at 16% —
+    /// that one is a tint OF the accent, this one is a named step in the ramp.
+    static let liqLavenderWash = Color(hex: 0xF9F7FF)
+
+    /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
+    /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
+    ///
+    /// CORRECTED 15 September 2026, from `#F2EAFB -> #F8F2FB`. That pair came from the INLINE
+    /// FALLBACK in the date-of-birth reference — `var(--su-grad-lilac, linear-gradient(…))` — and
+    /// a CSS fallback only applies when the variable is undefined. `tokens/colors_and_type.css`
+    /// defines the variable, so the fallback never rendered anywhere and the ported pair was a
+    /// colour nothing in the design actually uses. The prompts screen reads the variable with no
+    /// fallback at all, so there is only one correct answer there.
+    ///
+    /// A pair of stops rather than a `LinearGradient`, so a call site can choose its own direction
+    /// and shape — the same shape the Kotlin side's `LilacStops` has.
+    static let suGradLilac: [Color] = [Color(hex: 0xF1E6FF), Color(hex: 0xE8DCF5)]
+
     init(hex: UInt) {
         self.init(.sRGB,
                   red:   Double((hex >> 16) & 0xFF) / 255,

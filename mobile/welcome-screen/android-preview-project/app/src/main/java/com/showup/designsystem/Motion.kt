@@ -31,11 +31,27 @@ object Motion {
     /** The one-shot mismatch shake. SHOWUP-143 specifies 480ms exactly. */
     const val SHAKE = 480
 
+    /**
+     * `sheet-rise` — a bottom sheet arriving (SHOWUP-158). 28 up and 0.85 -> 1 opacity.
+     *
+     * Longer than [SCREEN] on purpose: a sheet is a new surface taking the bottom of the screen,
+     * and the extra 40ms is what makes it read as rising rather than appearing.
+     */
+    const val SHEET = 360
+
     /** The in-flight pulse on a provider button. */
     const val PULSE_SLOW = 900
 
     /** The linking animation on the Connect screen. */
     const val PULSE_LONG = 1400
+
+    /**
+     * How long a refusal toast stays up. SHOWUP-156 and SHOWUP-158 both specify 2600ms exactly.
+     *
+     * Not a fade and not a transition: it is a READING duration, which is why it is an order of
+     * magnitude longer than everything above it. The fade in and out is [FAST] either side.
+     */
+    const val TOAST = 2600
 }
 
 /**

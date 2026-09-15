@@ -27,9 +27,21 @@ enum Motion {
     /// The one-shot mismatch shake. SHOWUP-143 specifies 480ms exactly.
     static let shake: TimeInterval = 0.48
 
+    /// `sheet-rise` — a bottom sheet arriving (SHOWUP-158). 28 up and 0.85 -> 1 opacity.
+    ///
+    /// Longer than `screen` on purpose: a sheet is a new surface taking the bottom of the screen,
+    /// and the extra 40ms is what makes it read as rising rather than appearing.
+    static let sheet: TimeInterval = 0.36
+
     /// The in-flight pulse on a provider button.
     static let pulseSlow: TimeInterval = 0.9
 
     /// The linking animation on the Connect screen.
     static let pulseLong: TimeInterval = 1.4
+
+    /// How long a refusal toast stays up. SHOWUP-156 and SHOWUP-158 both specify 2600ms exactly.
+    ///
+    /// Not a fade and not a transition: it is a READING duration, which is why it is an order of
+    /// magnitude longer than everything above it. The fade in and out is `fast` either side.
+    static let toast: TimeInterval = 2.6
 }

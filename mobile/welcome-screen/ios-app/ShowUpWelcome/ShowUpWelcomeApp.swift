@@ -113,10 +113,30 @@ private struct TutorialFlow: View {
     // The date and the visibility choice stay scene-scoped as well as living on the model, so a
     // rotation mid-typing does not lose them. The model is the source of truth while the screen
     // is alive; these are what survive it.
+    // ── "The real you" ─────────────────────────────────────────────────────
+    //
+    // Its own model for the same reason as the two above, and a sharper one: this screen holds
+    // several uploads at once, each of which has to be cancellable on its own.
+    @State private var photos = PhotosModel(
+        repo: PhotosRepository(),
+        access: SystemPhotoAccess()
+    )
+
+    /// Which OS surface is up, if any. Never both, and never one without the source sheet having
+    /// asked first — a slot tap opens the sheet, and the sheet opens one of these.
+    @State private var pickerSource: PhotoSource?
+
+    /// The prompts screen owns no asynchronous work — there is no prompt endpoint to call — so it
+    /// gets hoisted state rather than a model, which is the rule in CLAUDE.md applied rather than
+    /// abandoned. It becomes an `@Observable` the day persistence lands.
+    @SceneStorage("profile.prompts") private var promptsStored: String = ""
+
     @SceneStorage("basics.dob") private var dobStored: String = ""
     @SceneStorage("basics.hideAge") private var hideAgeStored: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Becoming active again is the only moment a permission granted in Settings can be noticed.
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
@@ -138,6 +158,91 @@ private struct TutorialFlow: View {
             removal: .modifier(active: SlideFade(x: -dx, opacity: 0),
                                identity: SlideFade(x: 0, opacity: 1))
         )
+    }
+
+    /// SHOWUP-158, as its own property.
+    ///
+    /// Eight intent closures inline in a `switch` case would make the routing unreadable, and each
+    /// one carries a rule rather than plumbing — which sheet replaces which, when a draft is kept,
+    /// and what an empty Save does.
+    private var promptsScreen: some View {
+        let state = PromptsState.decode(promptsStored)
+        func write(_ next: PromptsState) { promptsStored = next.encoded }
+
+        return ProfilePromptsView(
+            state: state,
+            onBack: { go(to: .profilePhotos) },
+            onOpenTopics: {
+                var next = state
+                next.sheet = .topics
+                write(next)
+            },
+            // Picking a topic REPLACES the topic sheet with the write sheet — the two never stack
+            // — and resets the example, which is per sheet rather than per session.
+            onWriteTopic: { topicId in
+                var next = state
+                next.sheet = .write(topicId: topicId,
+                                    editing: state.usedTopicIds.contains(topicId))
+                next.nudge = false
+                next.exampleHiddenFor = nil
+                write(next)
+            },
+            // Editing reopens the sheet WITH THE SAVED TEXT IN THE FIELD, which is what makes Save
+            // an overwrite rather than a second prompt.
+            onEditPrompt: { topicId in
+                var next = state
+                next.sheet = .write(topicId: topicId, editing: true)
+                next.drafts[topicId] = state.prompts.first { $0.topicId == topicId }?.answer ?? ""
+                next.nudge = false
+                next.exampleHiddenFor = nil
+                write(next)
+            },
+            onDraftChange: { text in
+                guard case .write(let topicId, _) = state.sheet else { return }
+                var next = state
+                next.drafts[topicId] = text
+                // The empty-submit error clears on the FIRST CHARACTER TYPED, not on blur and not
+                // on a re-press.
+                next.nudge = false
+                write(next)
+            },
+            onHideExample: {
+                guard case .write(let topicId, _) = state.sheet else { return }
+                var next = state
+                next.exampleHiddenFor = topicId
+                write(next)
+            },
+            onSave: {
+                guard case .write(let topicId, _) = state.sheet else { return }
+                let answer = state.draftFor(topicId)
+                var next = state
+                if promptAnswerIsEmpty(answer) {
+                    // SAVE IS NEVER DISABLED. An empty press explains.
+                    next.nudge = true
+                } else {
+                    let entry = SavedPrompt(topicId: topicId, answer: answer)
+                    if let existing = next.prompts.firstIndex(where: { $0.topicId == topicId }) {
+                        next.prompts[existing] = entry
+                    } else {
+                        // A new card appears at the BOTTOM of the list, so the reading order stays
+                        // chronological.
+                        next.prompts.append(entry)
+                    }
+                    next.sheet = nil
+                    // The draft is cleared only once it has become a prompt.
+                    next.drafts.removeValue(forKey: topicId)
+                    next.nudge = false
+                }
+                write(next)
+            },
+            // DISMISSAL KEEPS THE DRAFT. Only Save writes a prompt, so nothing is touched here but
+            // the sheet itself.
+            onDismissSheet: {
+                var next = state
+                next.sheet = nil
+                write(next)
+            },
+            onContinue: { go(to: .home) })
     }
 
     var body: some View {
@@ -237,7 +342,60 @@ private struct TutorialFlow: View {
                     // back — the absences are the design. Its one exit is forward.
                     ProfileEmbraceView(
                         firstName: firstName,
-                        onContinue: { go(to: .home) })
+                        onContinue: { go(to: .profilePhotos) })
+
+                case .profilePhotos:
+                    // SHOWUP-156. Every state here is real: uploads run, report their own progress
+                    // and can fail, and the count only moves when one is confirmed. The picker,
+                    // the camera UI and the permission alert are the OS's, and none of them is
+                    // drawn here.
+                    ProfilePhotosView(
+                        state: photos.grid,
+                        library: photos.library,
+                        camera: photos.camera,
+                        sheetOpen: photos.sheetOpen,
+                        onBack: { go(to: .profileEmbrace) },
+                        onSlotTap: { photos.tapSlot($0) },
+                        onRemove: { photos.remove($0) },
+                        onRetry: { photos.retry($0) },
+                        onRevealOptional: { photos.revealOptional() },
+                        onReorder: { from, to in photos.reorder(from: from, to: to) },
+                        onChooseLibrary: { pickerSource = .library; photos.dismissSheet() },
+                        onChooseCamera: { pickerSource = .camera; photos.dismissSheet() },
+                        onCameraSettings: { openAppSettings() },
+                        onDismissSheet: { photos.dismissSheet() },
+                        onOpenSettings: { openAppSettings() },
+                        onContinue: { go(to: .profilePrompts) })
+                        // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug
+                        // on this screen is a user who granted access in Settings returning to the
+                        // blocked card, and becoming active again is the only moment to notice.
+                        .onAppear { photos.refreshAccess() }
+                        .onChange(of: scenePhase) { _, phase in
+                            if phase == .active { photos.refreshAccess() }
+                        }
+                        .sheet(isPresented: Binding(
+                            get: { pickerSource != nil },
+                            set: { if !$0 { pickerSource = nil } }
+                        )) {
+                            if pickerSource == .camera {
+                                SystemCameraPicker { picked in
+                                    if let picked { photos.picked(picked, source: .camera) }
+                                    pickerSource = nil
+                                }
+                                .ignoresSafeArea()
+                            } else {
+                                SystemPhotoPicker { picked in
+                                    if let picked { photos.picked(picked, source: .library) }
+                                    pickerSource = nil
+                                }
+                                .ignoresSafeArea()
+                            }
+                        }
+
+                case .profilePrompts:
+                    // SHOWUP-158. Two sheets, one screen, and every transition between them is a
+                    // change to the one stored value.
+                    promptsScreen
 
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })

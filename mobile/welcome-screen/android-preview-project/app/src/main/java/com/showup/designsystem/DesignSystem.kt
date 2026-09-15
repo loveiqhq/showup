@@ -54,6 +54,16 @@ val DangerFg = Color(0xFFB71F26)       // --liq-danger-fg   · error helper text
 val DangerDigit = Color(0xFF7A1F26)    // mismatch digit colour — a one-off, not a token
 val Lavender = Color(0xFFA78BFA)       // --liq-lavender-400
 
+/**
+ * --liq-lavender-50. The quietest lavender in the ramp, and a SURFACE rather than an accent.
+ *
+ * Nearly white with a violet cast, so a card can read as "ours" without competing with anything
+ * on it. Used by the prompts screen's worked-example card and the small pip behind its plus glyph
+ * (SHOWUP-158). Distinct from [EyebrowBg], which is lavender-400 at 16% -- that one is a tint OF
+ * the accent, this one is a named step in the ramp.
+ */
+val LavenderWash = Color(0xFFF9F7FF)   // --liq-lavender-50 · the palest surface in the ramp
+
 /** --su-grad-sunset · 135°, midpoint at 38%. Not an even three-stop ramp. */
 val SunsetStops = listOf(0.00f to Color(0xFFFE6839), 0.38f to Color(0xFFD05976), 1.00f to Color(0xFF812AEC))
 
@@ -65,8 +75,23 @@ val WordmarkStops = listOf(0.00f to Color(0xFF812AEC), 0.55f to Color(0xFFD05976
  *
  * Lavender and not green, which is the whole point of the card: it asks the user to confirm a
  * value that is about to be locked, so it is a question rather than a success message.
+ *
+ * CORRECTED 15 September 2026, from #F2EAFB -> #F8F2FB to the values above. The old pair came from
+ * the INLINE FALLBACK in the date-of-birth reference --
+ *
+ *     background: 'var(--su-grad-lilac, linear-gradient(180deg, #F2EAFB 0%, #F8F2FB 100%))'
+ *
+ * -- and a CSS fallback only applies when the variable is undefined. `tokens/colors_and_type.css`
+ * defines `--su-grad-lilac` as `#F1E6FF -> #E8DCF5`, so the fallback never rendered anywhere and
+ * the ported pair was a colour nothing in the design actually uses. The token file is the
+ * authority the handoff names for exactly this ("../tokens/colors_and_type.css <- authoritative
+ * token values"), and the prompts screen's saved card (SHOWUP-158) reads the variable with NO
+ * fallback at all, so there is only one correct answer there.
+ *
+ * What visibly changes: the age-confirmation card on screen 04 gets slightly more saturated and
+ * its gradient a little deeper. Nothing moves, and no other screen used this.
  */
-val LilacStops = listOf(0.00f to Color(0xFFF2EAFB), 1.00f to Color(0xFFF8F2FB))
+val LilacStops = listOf(0.00f to Color(0xFFF1E6FF), 1.00f to Color(0xFFE8DCF5))
 
 // ── Type ─────────────────────────────────────────────────────────────────
 //

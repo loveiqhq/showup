@@ -47,6 +47,19 @@
 	     had the same gap against the same local backend.
 
 	     Staging and production are https, so this changes nothing for a shipped build. -->
+	<!-- THE ONE PERMISSION THE PHOTO STEP ASKS FOR (SHOWUP-156).
+
+	     There is deliberately no NSPhotoLibraryUsageDescription and there must not be one: the
+	     library is reached through PHPickerViewController, which runs out of process and needs no
+	     permission at all. Adding the key would not grant access, but it would be the first step
+	     towards asking for something the picker exists to avoid. See PhotoAccess.swift.
+
+	     The camera is different — it is the one permission that always applies, on both
+	     platforms. iOS shows this sentence in the alert and shows the alert ONCE, ever, so it has
+	     to say what the camera is for rather than that the app would like to use it. A denied
+	     camera blocks nothing: the library path still works and the step is still completable. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo for your profile without leaving Show Up.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

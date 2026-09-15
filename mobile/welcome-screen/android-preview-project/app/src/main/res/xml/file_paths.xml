@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What the FileProvider is allowed to share, and nothing else.
+
+    ONE DIRECTORY, IN THE CACHE. A camera capture is a temporary file: it is read once, uploaded,
+    and has no reason to survive. Putting it in the cache means the OS can reclaim it and that it
+    is never backed up. Widening this path is how a provider ends up exposing a token store.
+-->
+<paths>
+    <cache-path name="camera" path="camera/" />
+</paths>

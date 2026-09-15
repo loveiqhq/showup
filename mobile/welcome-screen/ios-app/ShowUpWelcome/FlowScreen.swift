@@ -67,6 +67,15 @@ enum FlowScreen: String, CaseIterable, Comparable {
     /// "The real you", which is exactly where the user meets it.
     case profileEmbrace
 
+    /// "The real you", step 1 of 3 (SHOWUP-156).
+    ///
+    /// A DIFFERENT GROUP from "The basics", with its own header title and its own progress bar.
+    /// See `RealYouStep`.
+    case profilePhotos
+
+    /// "The real you", step 2 of 3 (SHOWUP-158).
+    case profilePrompts
+
     /// Where the flow ends, for both the tutorial and a returning member.
     case home
 

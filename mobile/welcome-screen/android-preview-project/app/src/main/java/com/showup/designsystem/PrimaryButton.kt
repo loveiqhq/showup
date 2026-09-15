@@ -120,6 +120,13 @@ fun PrimaryButton(
                         .shadow(12.dp, shape, ambientColor = Purple, spotColor = Purple)
                         .clip(shape)
                         .background(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()))
+                    // Flat violet, not a gradient. The same glow as [Sunset], and the same
+                    // flag on it: this is Android's elevation system, whose light moves with the
+                    // control's position on screen.
+                    PrimaryButtonVariant.Violet -> Modifier
+                        .shadow(12.dp, shape, ambientColor = Purple, spotColor = Purple)
+                        .clip(shape)
+                        .background(Purple)
                     PrimaryButtonVariant.Ghost -> Modifier
                         .clip(shape)
                         .border(1.dp, Border, shape)
@@ -149,8 +156,8 @@ fun PrimaryButton(
         Text(
             label,
             color = when (variant) {
-                PrimaryButtonVariant.Sunset, PrimaryButtonVariant.Apple,
-                PrimaryButtonVariant.Facebook -> Color.White
+                PrimaryButtonVariant.Sunset, PrimaryButtonVariant.Violet,
+                PrimaryButtonVariant.Apple, PrimaryButtonVariant.Facebook -> Color.White
                 PrimaryButtonVariant.Google -> Color(0xFF1F1F1F)  // Google's specified label colour
                 PrimaryButtonVariant.Ghost -> Fg
                 PrimaryButtonVariant.Plain -> Muted
@@ -170,7 +177,7 @@ fun PrimaryButton(
 }
 
 /**
- * Six, and every one is required.
+ * Seven, and every one is required.
  *
  * [Apple], [Google] and [Facebook] are not style choices -- each provider dictates the appearance
  * of its own sign-in button and enforces it. Google forbids recolouring or resizing the G and
@@ -182,5 +189,10 @@ fun PrimaryButton(
  *
  * [Plain] is not a provider treatment and never carries one: it is the conflict modal's secondary,
  * which has no border precisely so the pair does not read as two equal choices.
+ *
+ * [Violet] is the recovery action on a permission card (SHOWUP-156). FLAT violet rather than the
+ * sunset gradient, and that difference is the point: sunset is reserved for commitment beats, and
+ * "Allow photo access" is the user getting back to where they already were. Added as a variant
+ * rather than a second button, which is the rule this file exists to enforce.
  */
-enum class PrimaryButtonVariant { Sunset, Ghost, Plain, Apple, Google, Facebook }
+enum class PrimaryButtonVariant { Sunset, Violet, Ghost, Plain, Apple, Google, Facebook }

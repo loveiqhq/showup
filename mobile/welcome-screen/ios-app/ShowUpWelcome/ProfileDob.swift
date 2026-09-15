@@ -222,7 +222,7 @@ private struct AgeCard: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 // Lavender, not green — a question to answer, not a success message.
-                .fill(LinearGradient(colors: [Color(hex: 0xF2EAFB), Color(hex: 0xF8F2FB)],
+                .fill(LinearGradient(colors: Color.suGradLilac,
                                      startPoint: .top, endPoint: .bottom))
         )
         .overlay(

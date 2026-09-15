@@ -418,3 +418,70 @@ the Connect screen" — whereas three event names record the document and lose t
 links across three screens would have needed seven names to say less.
 
 Not open any more. Do not re-litigate.
+
+## E4 · "The real you" step_index: the registry and the tickets disagree. OPEN
+
+Found 15 September 2026, building SHOWUP-156 and SHOWUP-158.
+
+`enums.json` §2, at registry **1.3.0**, gives:
+
+| step_id | step_index | screen |
+| --- | --- | --- |
+| `photos` | 1 | The real you · step 1 of **4** · outside the Share-some-details progress bar |
+| `prompts` | **10** | **Share some details · step 10** |
+
+Both rows are stale, in different ways, and SHOWUP-158 says so about one of them: "the corrected
+`step_index` for photos and media must be added before the ticket is picked up." It has not been.
+
+- **`photos`** has the right index and a stale count. "Step 1 of 4" was true until verify profile
+  was dropped from the MVP; the group is three steps now.
+- **`prompts`** is in the wrong group entirely. It sat in "Share some details" at step 10 before
+  the conversion pass moved it into "The real you" as step 2, and the row never followed.
+
+**Implemented from the tickets**, which are authoritative on behaviour: `RealYouStep.stepIndex`
+returns the position in THIS group — photos 1, prompts 2, media 3. Recorded here and in
+`RealYouChrome.kt` / `RealYouChrome.swift` rather than silently resolved either way.
+
+**Decision needed:** update §2's two rows. Until then a funnel joining `profile_step_viewed` to
+the registry will read `prompts` as a step of a group it is not in.
+
+## E5 · `profile_prompts` has no §11 row. OPEN
+
+Found the same day. §11 (the screen registry) carries `profile_photos` / `ProfilePhotos` and stops.
+SHOWUP-158's own tracking section flags it: "The registry row for this screen must be added before
+the ticket is picked up."
+
+**Implemented with the values the ticket quotes** — `profile_prompts` / `Profile - Prompts` — in
+`ProfileAnalytics` on both platforms, marked as unregistered at the definition. If the design side
+chooses differently, that is the one place to correct.
+
+Note that `screen_name` there is the only one in the registry with spaces and a hyphen; every other
+row is PascalCase. Worth settling when the row is added rather than after a funnel binds to it.
+
+## E6 · `entry_point` for prompts has no value set. OPEN, and it is the measurement the ticket exists for
+
+SHOWUP-158 calls it "the one measurement this revision exists to produce": whether a topic came
+from a **suggestion card** or from **browse all**. It asks for a closed set — `suggestion` |
+`browse` | `edit` — in `enums.json`, and there is none at 1.3.0.
+
+**Not implemented, and deliberately not invented.** A free string is exactly what the tracking
+rules forbid, and this property is the whole reason the suggestion cards were built. The events it
+would hang off (`prompt_topic_selected`, `prompt_answered`) ARE registered and are emitted; only
+the property is missing.
+
+Also still missing, and also not invented: an **abandonment** event for a write sheet opened and
+closed without saving, which is the precise drop-off the screen is designed against.
+
+## E7 · The prompts ticket's tracking section is out of date. NOT A CONFLICT, a correction
+
+SHOWUP-158 says "the whole prompt-authoring funnel is unregistered… there is nothing for topic
+chosen, write sheet opened, prompt saved, prompt edited, or prompt deleted."
+
+That was true of registry 1.2.0. At **1.3.0** the family "Profile Attributes" carries
+`prompt_topic_picker_opened`, `prompt_topic_selected`, `prompt_answered`, `prompt_edited` and
+`prompt_removed`, with payloads. Following the ticket would have meant minting five names that
+already exist.
+
+**Implemented against the registry**, not the ticket. Recorded here because the next person to read
+that section will reach the same wrong conclusion. The ticket also files these under family "E —
+Profile Photos/Media"; they are in "Profile Attributes".

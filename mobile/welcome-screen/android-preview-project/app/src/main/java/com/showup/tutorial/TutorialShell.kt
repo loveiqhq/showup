@@ -22,6 +22,7 @@ import com.showup.designsystem.rememberMotion
 
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Spacing
+import com.showup.designsystem.StepProgress
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.CornerRadius
@@ -77,47 +78,6 @@ import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Subtle
 import com.showup.designsystem.Track
-
-/**
- * ② Step progress — 5 segments, height 5, gap 6, full content width.
- *
- * The segment colour animates rather than snapping, so advancing a card reads as progress being
- * made rather than as the bar being redrawn. It is one colour tween per segment, which costs
- * nothing and is skipped entirely when the device asks for no motion.
- *
- * Semantics: the bar is one node reporting "Step N of 5", not five anonymous boxes. Without this a
- * screen reader announces nothing at all here — the segments carry no text.
- */
-@Composable
-fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
-    val motion = rememberMotion()
-    Row(
-        modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                progressBarRangeInfo =
-                    ProgressBarRangeInfo(current.toFloat(), 0f..steps.toFloat(), steps)
-                contentDescription = "Step " + current + " of " + steps
-            },
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        repeat(steps) { i ->
-            val target = if (i < current) Purple else Track
-            val segment by animateColorAsState(
-                targetValue = target,
-                animationSpec = tween(durationMillis = if (motion.enabled) 320 else 0),
-                label = "segment",
-            )
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(5.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(segment)
-            )
-        }
-    }
-}
 
 /**
  * ③ Eyebrow pill — Manrope 700 / 11 / uppercase, tracking .08, padding 5/10.
@@ -195,6 +155,15 @@ fun NextButton(
      * tutorial being the only caller.
      */
     arrowSize: Dp = if (variant == NextVariant.Sunset) 22.dp else 20.dp,
+    /**
+     * The circle around the arrow.
+     *
+     * 56 on every tutorial card and every screen in "The basics", which is where the default comes
+     * from. "The real you" draws 52 -- both of its reference files pass `size={52}` -- because
+     * those screens scroll and their footer is a band over the content rather than the end of a
+     * column, so the same circle reads heavier there.
+     */
+    circleSize: Dp = IconSizes.badge,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -229,7 +198,7 @@ fun NextButton(
                 // where the control happens to sit on screen, and this circle lives at the right
                 // edge, which threw its glow down and to the LEFT. The token is a glow: no light
                 // source, no direction, spread evenly and pushed straight down.
-                .size(IconSizes.badge)
+                .size(circleSize)
                 .ctaGlow(glow)
                 .clip(CircleShape)
                 .then(

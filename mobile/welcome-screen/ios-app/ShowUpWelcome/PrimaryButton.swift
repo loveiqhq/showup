@@ -25,7 +25,16 @@ import SwiftUI
 /// The pill silhouette, the 56 height and the Manrope label stay — those are ours.
 /// `.plain` is not a provider treatment and never carries one: it is the conflict modal's
 /// secondary, which has no border precisely so the pair does not read as two equal choices.
-enum PrimaryButtonVariant { case sunset, ghost, plain, apple, google, facebook }
+/// Seven, and every one is required.
+///
+/// `apple`, `google` and `facebook` are not style choices — each provider dictates the appearance
+/// of its own sign-in button and enforces it. `plain` is the conflict modal's secondary.
+///
+/// `violet` is the recovery action on a permission card (SHOWUP-156). FLAT violet rather than the
+/// sunset gradient, and that difference is the point: sunset is reserved for commitment beats, and
+/// "Allow photo access" is the user getting back to where they already were. Added as a variant
+/// rather than a second button, which is the rule this file exists to enforce.
+enum PrimaryButtonVariant { case sunset, violet, ghost, plain, apple, google, facebook }
 
 /// `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
 /// Manrope 700 16, gap 8.
@@ -101,7 +110,7 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
 
     private var labelColor: Color {
         switch variant {
-        case .sunset, .apple, .facebook: return .white
+        case .sunset, .violet, .apple, .facebook: return .white
         case .google: return Color(hex: 0x1F1F1F)     // Google's specified label colour
         case .ghost: return .liqFg
         case .plain: return .liqMuted
@@ -119,6 +128,9 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
                     .init(color: .liqPurple, location: 1.00),
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing)
+        // Flat violet, not a gradient.
+        case .violet:
+            Color.liqPurple
         case .ghost, .plain:
             Color.clear
         // Black is one of the three appearances Apple's guidelines allow.

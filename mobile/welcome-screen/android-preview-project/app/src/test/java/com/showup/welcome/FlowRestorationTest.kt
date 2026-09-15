@@ -157,6 +157,10 @@ class FlowRestorationTest {
                 FlowScreen.ProfileEmail,
                 FlowScreen.ProfileVerifyEmail,
                 FlowScreen.ProfileDob,
+                // Both screens in "The real you" draw a back chevron, so the gesture agrees with
+                // it. ProfileEmbrace sits between them and the basics with no chevron at all.
+                FlowScreen.ProfilePhotos,
+                FlowScreen.ProfilePrompts,
             ),
             withBack,
         )
@@ -177,11 +181,12 @@ class FlowRestorationTest {
      */
     @Test
     fun everyScreenIsDistinctAndNamed() {
-        // 13 since SHOWUP-155: the eight originals, the four profile steps -- ProfileName,
-        // ProfileEmail, ProfileVerifyEmail and ProfileDob -- and ProfileEmbrace, the bridge that
-        // follows them. The bridge is a POSITION and not a step, which is why it is counted here
-        // and deliberately absent from BasicsStep.
-        assertEquals(13, FlowScreen.entries.size)
+        // 15: the eight originals, the four steps of "The basics", ProfileEmbrace (the bridge
+        // that follows them, a POSITION and not a step, which is why it is counted here and
+        // deliberately absent from BasicsStep), and the two built steps of "The real you" --
+        // ProfilePhotos and ProfilePrompts. Media is the third segment of that group's bar and
+        // has no screen yet, so it is in RealYouStep and not here.
+        assertEquals(15, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

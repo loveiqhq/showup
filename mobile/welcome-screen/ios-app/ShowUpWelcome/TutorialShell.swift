@@ -15,29 +15,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - ② Step progress — 5 segments, height 5, gap 6, full content width
-
-struct StepProgress: View {
-    let steps: Int
-    let current: Int
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            ForEach(0..<steps, id: \.self) { i in
-                Capsule()
-                    .fill(i < current ? Color.liqPurple : Color.liqTrack)
-                    .frame(height: 5)
-            }
-        }
-        // Advancing a card should read as progress being made, not as the bar being redrawn.
-        .animation(reduceMotion ? nil : .easeInOut(duration: Motion.screen), value: current)
-        // Five anonymous capsules carry no text: without this VoiceOver announces nothing here.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Step \(current) of \(steps)"))
-    }
-}
-
 // MARK: - ③ Eyebrow pill — Manrope 700 / 11 / uppercase, tracking .08, padding 5 / 10
 //
 // Placed by the caller inside an HStack with a trailing Spacer, so it hugs its text rather than
@@ -90,6 +67,8 @@ private struct NextCircle: View {
     let variant: NextVariant
     /// Overrides the variant's default. See `NextButton.arrowSize`.
     var arrowOverride: CGFloat? = nil
+    /// The circle itself. See `NextButton.circleSize`.
+    var circleSize: CGFloat = IconSizes.badge
     @Environment(\.nextIsPressed) private var isPressed
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -115,7 +94,7 @@ private struct NextCircle: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(fill).frame(width: IconSizes.badge, height: IconSizes.badge)
+            Circle().fill(fill).frame(width: circleSize, height: circleSize)
             ArrowRight()
                 .stroke(Color.white,
                         style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
@@ -146,6 +125,15 @@ struct NextButton: View {
      and coupling them was a coincidence of the tutorial being the only caller.
      */
     var arrowSize: CGFloat? = nil
+    /**
+     The circle around the arrow.
+
+     56 on every tutorial card and every screen in "The basics", which is where the default comes
+     from. "The real you" draws 52 — both of its reference files pass `size={52}` — because those
+     screens scroll and their footer is a band over the content rather than the end of a column,
+     so the same circle reads heavier there.
+     */
+    var circleSize: CGFloat = IconSizes.badge
     var action: () -> Void
 
     var body: some View {
@@ -154,7 +142,7 @@ struct NextButton: View {
                 Text(label)
                     .font(F.manrope(17, .bold))
                     .foregroundColor(.liqFg)
-                NextCircle(variant: variant, arrowOverride: arrowSize)
+                NextCircle(variant: variant, arrowOverride: arrowSize, circleSize: circleSize)
             }
         }
         .buttonStyle(PressReporter())

@@ -81,6 +81,17 @@ enum class FlowScreen {
      */
     ProfileEmbrace,
 
+    /**
+     * "The real you", step 1 of 3 (SHOWUP-156).
+     *
+     * A DIFFERENT GROUP from "The basics", with its own header title and its own progress bar.
+     * See [com.showup.profile.RealYouStep].
+     */
+    ProfilePhotos,
+
+    /** "The real you", step 2 of 3 (SHOWUP-158). */
+    ProfilePrompts,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;
@@ -105,5 +116,8 @@ enum class FlowScreen {
      */
     val hasSystemBack: Boolean
         get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal ||
-            this == ProfileEmail || this == ProfileVerifyEmail || this == ProfileDob
+            this == ProfileEmail || this == ProfileVerifyEmail || this == ProfileDob ||
+            // Both screens in "The real you" draw a back chevron, so the gesture has to agree
+            // with it -- the same fix, and the same reason, as ProfileEmail above.
+            this == ProfilePhotos || this == ProfilePrompts
 }

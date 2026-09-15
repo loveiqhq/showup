@@ -6,7 +6,22 @@ import androidx.compose.runtime.setValue
 
 import com.showup.designsystem.Motion
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.DisposableEffect
+import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -35,7 +50,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import com.showup.api.EncryptedTokenStore
 import com.showup.api.ShowUpApi
+import com.showup.profile.AndroidPhotoAccess
 import com.showup.profile.BasicsRepository
+import com.showup.profile.CameraAccess
+import com.showup.profile.CameraAskLog
+import com.showup.profile.PickedBytes
+import com.showup.profile.PhotoSource
+import com.showup.profile.PhotosRepository
+import com.showup.profile.PhotosViewModel
+import com.showup.profile.ProfilePhotosScreen
+import com.showup.profile.ProfilePromptsScreen
+import com.showup.profile.PromptSheet
+import com.showup.profile.PromptsState
+import com.showup.profile.SavedPrompt
+import com.showup.profile.promptAnswerIsEmpty
 import com.showup.welcome.PhoneAuthRepository
 import com.showup.welcome.PhoneAuthViewModel
 import com.showup.profile.BasicsViewModel
@@ -132,6 +160,75 @@ class MainActivity : ComponentActivity() {
             // while the app is backgrounded, which for a countdown means burning a wakelock to
             // update a screen nobody is looking at.
             val basicsState by basics.state.collectAsStateWithLifecycle()
+
+            // ── "The real you" ──────────────────────────────────────────────
+            //
+            // Its own ViewModel for the same reason as the one above, and a sharper one: this
+            // screen holds several uploads at once, each of which has to be cancellable on its
+            // own. `readBytes` is a lambda so the ViewModel knows nothing about ContentResolver
+            // and can be driven from a JVM test.
+            val photos: PhotosViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        PhotosViewModel(
+                            repo = PhotosRepository(api),
+                            access = AndroidPhotoAccess(context),
+                            readBytes = { uri -> readPickedImage(context, uri) },
+                        )
+                    }
+                },
+            )
+            val photosState by photos.state.collectAsStateWithLifecycle()
+
+            // SHOWUP-158 gets no ViewModel, and that is the rule being applied rather than
+            // abandoned: the prompts screen owns no asynchronous work. There is no prompt endpoint
+            // to call -- `openapi.json` carries none -- so every state on it is local, and hoisted
+            // state with a Saver is what CLAUDE.md asks for until a screen loads, uploads or
+            // retries. It becomes a ViewModel the day persistence lands.
+            var promptsState by rememberSaveable(stateSaver = PromptsState.Saver) {
+                mutableStateOf(PromptsState())
+            }
+
+            // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug on the photo
+            // screen is a user who granted access in Settings returning to the blocked card, and
+            // ON_RESUME is the only moment that can be noticed.
+            val lifecycleOwner = LocalLifecycleOwner.current
+            DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) photos.refreshAccess()
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+
+            // THE SYSTEM PICKER. No permission is requested and none is declared: it runs out of
+            // process, shows the user their whole library, and returns only what they chose.
+            val pickImage = rememberLauncherForActivityResult(
+                ActivityResultContracts.PickVisualMedia(),
+            ) { uri -> if (uri != null) photos.picked(uri.toString(), PhotoSource.Library) }
+
+            // The camera writes into a file we create, shared through the FileProvider for the
+            // life of the intent. The URI has to exist before the intent is sent, which is why it
+            // is remembered across the launch rather than produced by the result.
+            var cameraTarget by remember { mutableStateOf<Uri?>(null) }
+            val takePhoto = rememberLauncherForActivityResult(
+                ActivityResultContracts.TakePicture(),
+            ) { saved ->
+                val target = cameraTarget
+                if (saved && target != null) photos.picked(target.toString(), PhotoSource.Camera)
+                cameraTarget = null
+            }
+            val launchCamera = {
+                val target = newCameraTarget(context)
+                cameraTarget = target
+                takePhoto.launch(target)
+            }
+            val askCamera = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { granted ->
+                photos.refreshAccess()
+                if (granted) launchCamera()
+            }
             val motion = rememberMotion()
 
             // The system back gesture mirrors the on-screen Back, so hardware back never drops
@@ -282,6 +379,123 @@ class MainActivity : ComponentActivity() {
                     // gesture itself. Its one exit is forward.
                     FlowScreen.ProfileEmbrace -> ProfileEmbraceScreen(
                         firstName = firstName,
+                        onContinue = { screen = FlowScreen.ProfilePhotos },
+                    )
+
+                    // SHOWUP-156. Every state on this screen is real: uploads run, report their
+                    // own progress and can fail, and the count only moves when one is confirmed.
+                    // The picker, the camera UI and the permission alert are the OS's and none of
+                    // them is drawn here.
+                    FlowScreen.ProfilePhotos -> ProfilePhotosScreen(
+                        state = photosState.grid,
+                        library = photosState.library,
+                        camera = photosState.camera,
+                        sheetOpen = photosState.sheetOpen,
+                        onBack = { screen = FlowScreen.ProfileEmbrace },
+                        onSlotTap = photos::tapSlot,
+                        onRemove = photos::remove,
+                        onRetry = photos::retry,
+                        onRevealOptional = photos::revealOptional,
+                        onReorder = photos::reorder,
+                        onChooseLibrary = {
+                            pickImage.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                ),
+                            )
+                        },
+                        onChooseCamera = {
+                            if (photosState.camera == CameraAccess.Granted) {
+                                launchCamera()
+                            } else {
+                                // Recorded BEFORE the prompt, because the record is what tells a
+                                // later "no rationale" apart from a first run -- see CameraAskLog.
+                                CameraAskLog.recordAsked(context)
+                                askCamera.launch(android.Manifest.permission.CAMERA)
+                            }
+                        },
+                        onCameraSettings = { openAppSettings(context) },
+                        onDismissSheet = photos::dismissSheet,
+                        onOpenSettings = { openAppSettings(context) },
+                        onContinue = { screen = FlowScreen.ProfilePrompts },
+                    )
+
+                    // SHOWUP-158. Two sheets, one screen, and every transition between them is a
+                    // change to the one hoisted value above.
+                    FlowScreen.ProfilePrompts -> ProfilePromptsScreen(
+                        state = promptsState,
+                        onBack = { screen = FlowScreen.ProfilePhotos },
+                        onOpenTopics = {
+                            promptsState = promptsState.copy(sheet = PromptSheet.Topics)
+                        },
+                        // Picking a topic REPLACES the topic sheet with the write sheet -- the two
+                        // never stack -- and resets the example, which is per sheet rather than
+                        // per session.
+                        onWriteTopic = { topicId ->
+                            promptsState = promptsState.copy(
+                                sheet = PromptSheet.Write(
+                                    topicId,
+                                    editing = topicId in promptsState.usedTopicIds,
+                                ),
+                                nudge = false,
+                                exampleHiddenFor = null,
+                            )
+                        },
+                        // Editing reopens the sheet WITH THE SAVED TEXT IN THE FIELD, which is
+                        // what makes Save an overwrite rather than a second prompt.
+                        onEditPrompt = { topicId ->
+                            val saved = promptsState.prompts
+                                .firstOrNull { it.topicId == topicId }?.answer.orEmpty()
+                            promptsState = promptsState.copy(
+                                sheet = PromptSheet.Write(topicId, editing = true),
+                                drafts = promptsState.drafts + (topicId to saved),
+                                nudge = false,
+                                exampleHiddenFor = null,
+                            )
+                        },
+                        onDraftChange = { text ->
+                            val sheet = promptsState.sheet as? PromptSheet.Write ?: return@ProfilePromptsScreen
+                            promptsState = promptsState.copy(
+                                drafts = promptsState.drafts + (sheet.topicId to text),
+                                // The empty-submit error clears on the FIRST CHARACTER TYPED, not
+                                // on blur and not on a re-press.
+                                nudge = false,
+                            )
+                        },
+                        onHideExample = {
+                            val sheet = promptsState.sheet as? PromptSheet.Write ?: return@ProfilePromptsScreen
+                            promptsState = promptsState.copy(exampleHiddenFor = sheet.topicId)
+                        },
+                        onSave = {
+                            val sheet = promptsState.sheet as? PromptSheet.Write ?: return@ProfilePromptsScreen
+                            val answer = promptsState.draftFor(sheet.topicId)
+                            if (promptAnswerIsEmpty(answer)) {
+                                // SAVE IS NEVER DISABLED. An empty press explains.
+                                promptsState = promptsState.copy(nudge = true)
+                            } else {
+                                val existing = promptsState.prompts
+                                    .indexOfFirst { it.topicId == sheet.topicId }
+                                val entry = SavedPrompt(sheet.topicId, answer)
+                                val updated = if (existing >= 0) {
+                                    promptsState.prompts.toMutableList()
+                                        .also { it[existing] = entry }
+                                } else {
+                                    // A new card appears at the BOTTOM of the list, so the reading
+                                    // order stays chronological.
+                                    promptsState.prompts + entry
+                                }
+                                promptsState = promptsState.copy(
+                                    prompts = updated,
+                                    sheet = null,
+                                    // The draft is cleared only once it has become a prompt.
+                                    drafts = promptsState.drafts - sheet.topicId,
+                                    nudge = false,
+                                )
+                            }
+                        },
+                        // DISMISSAL KEEPS THE DRAFT. Only Save writes a prompt, so nothing is
+                        // touched here but the sheet itself.
+                        onDismissSheet = { promptsState = promptsState.copy(sheet = null) },
                         onContinue = { screen = FlowScreen.Home },
                     )
 
@@ -331,4 +545,65 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+// ── the platform edges the photo step needs ─────────────────────────────────
+//
+// Three small functions rather than three lines inside a composable, because each one is a
+// PLATFORM contract with a reason attached, and none of them is about layout.
+
+/**
+ * Reads a picked image into memory.
+ *
+ * ON [Dispatchers.IO], because a content URI can point at a file on a network share, a cloud
+ * provider or a slow SD card -- `openInputStream` is I/O whatever the URI looks like.
+ *
+ * WHOLE-FILE, AND THAT IS A REAL LIMIT. A modern phone photo is 3-8 MB, which is fine; a 50 MB
+ * panorama is not, and would be held twice over while the multipart body copies it. Streaming
+ * straight from the resolver into the request body would fix that and is the right shape once
+ * `PhotosRepository` needs to retry -- a stream can only be read once, so a retry would need the
+ * URI rather than the bytes. Written down rather than pre-built.
+ *
+ * Returns null when the URI cannot be read at all: a revoked grant, or a file deleted between
+ * picking and reading. The caller shows the failed slot, which is what a user can act on.
+ */
+private suspend fun readPickedImage(context: Context, uri: String): PickedBytes? =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val parsed = Uri.parse(uri)
+            val resolver = context.contentResolver
+            val bytes = resolver.openInputStream(parsed)?.use { it.readBytes() } ?: return@runCatching null
+            val mime = resolver.getType(parsed) ?: "image/jpeg"
+            // A name the server can log and a person can recognise. NEVER the library's own
+            // display name: that is the user's filename and is not ours to send.
+            val extension = mime.substringAfterLast('/', "jpg")
+            PickedBytes(bytes = bytes, mimeType = mime, fileName = "photo.$extension")
+        }.getOrNull()
+    }
+
+/**
+ * A file for the camera to write into, shared through the FileProvider.
+ *
+ * In the cache, because a capture is read once and uploaded. `file_paths.xml` exposes this one
+ * directory and nothing else.
+ */
+private fun newCameraTarget(context: Context): Uri {
+    val dir = File(context.cacheDir, "camera").apply { mkdirs() }
+    val file = File(dir, "capture-" + System.currentTimeMillis() + ".jpg")
+    return FileProvider.getUriForFile(context, context.packageName + ".photos", file)
+}
+
+/**
+ * Opens this app's settings page.
+ *
+ * THE APP'S PAGE, NOT A PERMISSION TOGGLE. Neither platform can deep-link to a single row, which
+ * is exactly why the blocked copy NAMES the row the user has to find -- the copy and this function
+ * are two halves of one decision.
+ */
+private fun openAppSettings(context: Context) {
+    val intent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", context.packageName, null),
+    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }

@@ -53,6 +53,19 @@ enum ProfileScreen: String {
     /// carries the rule rather than a comment asking people to remember it.
     case embraceBuild = "profile_embrace_build"
 
+    /// "The real you", step 1 (SHOWUP-156). The §11 row was added by the design side before the
+    /// ticket was written.
+    case photos = "profile_photos"
+
+    /// "The real you", step 2 (SHOWUP-158).
+    ///
+    /// **NOT IN §11 AT REGISTRY 1.3.0.** The ticket's tracking section says the row "must be added
+    /// before the ticket is picked up", and it has not been — §11 carries `profile_photos` and
+    /// stops. The two values here are the ones SHOWUP-158 quotes verbatim, so when the row lands
+    /// they should match and nothing changes; if the design side chooses differently, this is the
+    /// single place to correct. Recorded rather than silently invented.
+    case prompts = "profile_prompts"
+
     var screenId: String { rawValue }
 
     var screenName: String {
@@ -62,6 +75,8 @@ enum ProfileScreen: String {
         case .emailVerification: return "ProfileEmailVerification"
         case .dob: return "ProfileDoB"
         case .embraceBuild: return "ProfileEmbraceBuild"
+        case .photos: return "ProfilePhotos"
+        case .prompts: return "Profile - Prompts"
         }
     }
 }
@@ -81,12 +96,24 @@ enum EmbraceVariant {
 enum ProfileField {
     static let firstName = "first_name"
     static let email = "email"
+
+    /// The photo grid, as one field. A refused Continue is about the set, not about a slot.
+    static let photos = "photos"
+
+    /// The prompt list, as one field. Same reason.
+    static let prompts = "prompts"
 }
 
 /// The `rule` vocabulary shared by the validation events.
 enum ValidationRule {
     static let requiredMissing = "required_missing"
     static let format = "format"
+
+    /// Continue pressed with fewer than four CONFIRMED photos (SHOWUP-156).
+    static let photosBelowMinimum = "photos_below_minimum"
+
+    /// Continue pressed with no prompt saved (SHOWUP-158).
+    static let nothingSelected = "nothing_selected"
 }
 
 /// `channel` from enums.json §8.
@@ -141,6 +168,15 @@ enum ProfileAnalytics {
     static let formValidationFailed = "form_validation_failed"
     static let consentChangedName = "consent_changed"
     static let embraceBridgeViewedName = "embrace_bridge_viewed"
+    static let photoSlotTappedName = "photo_slot_tapped"
+    static let photoAddedName = "photo_added"
+    static let photoRemovedName = "photo_removed"
+    static let photoReorderedName = "photo_reordered"
+    static let photosMinimumMetName = "photos_minimum_met"
+    static let promptTopicPickerOpenedName = "prompt_topic_picker_opened"
+    static let promptTopicSelectedName = "prompt_topic_selected"
+    static let promptAnsweredName = "prompt_answered"
+    static let promptEditedName = "prompt_edited"
 
     /// T1, class 0. `referrer_screen_id` is B2 and travels empty until Step 3 lands.
     static func screenViewed(_ screen: ProfileScreen,
@@ -172,6 +208,100 @@ enum ProfileAnalytics {
         variant: String = EmbraceVariant.buildProfile
     ) -> (String, [String: any Sendable]) {
         (embraceBridgeViewedName, ["variant": variant].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    // MARK: family E · Profile Photos/Media (SHOWUP-156)
+    //
+    // NEVER A PHOTO, A FILENAME OR A LIBRARY IDENTIFIER. Slot indices, a source and counts only.
+    // What makes that true is that none of the builders below takes anything else.
+
+    /// T2, class 0. A slot tap, or `Add more` revealing slots 5-6.
+    static func photoSlotTapped(slotIndex: Int, isOptional: Bool,
+                                action: String) -> (String, [String: any Sendable]) {
+        (photoSlotTappedName, ["slot_index": slotIndex, "is_optional": isOptional,
+                               "action": action].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Fires on the CONFIRMED upload, never on the pick.
+    ///
+    /// `filled_count` is the confirmed count after this one landed, which is what makes the funnel
+    /// agree with the number on screen.
+    static func photoAdded(slotIndex: Int, source: PhotoSource,
+                           filledCount: Int) -> (String, [String: any Sendable]) {
+        (photoAddedName, ["slot_index": slotIndex, "source": source.trackingValue,
+                          "filled_count": filledCount,
+                          "max_slots": photosMax].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0.
+    static func photoRemoved(slotIndex: Int,
+                             filledCount: Int) -> (String, [String: any Sendable]) {
+        (photoRemovedName, ["slot_index": slotIndex,
+                            "filled_count": filledCount].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Drag finished somewhere other than where it started.
+    static func photoReordered(from: Int, to: Int) -> (String, [String: any Sendable]) {
+        (photoReorderedName, ["from": from, "to": to].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. ONCE, on the first crossing of four CONFIRMED uploads.
+    ///
+    /// Not on the fourth pick, and not again after a removal takes the count below four and back
+    /// up — `PhotoGridState.minimumReported` holds that, because a funnel step that can fire twice
+    /// for one user cannot be counted.
+    static func photosMinimumMet(count: Int) -> (String, [String: any Sendable]) {
+        (photosMinimumMetName, ["count": count,
+                                "max_slots": photosMax].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    // MARK: family · Profile Attributes (SHOWUP-158)
+    //
+    // THE TICKET'S TRACKING SECTION IS OUT OF DATE, and following it would have meant inventing
+    // five names. It says "the whole prompt-authoring funnel is unregistered"; registry 1.3.0
+    // carries them under "Profile Attributes", so they are used as named rather than re-minted.
+    //
+    // STILL GENUINELY MISSING, and NOT invented here: `entry_point` (suggestion | browse | edit),
+    // which the ticket calls "the one measurement this revision exists to produce" and whose value
+    // set is not in enums.json; and abandonment, a write sheet opened and closed without saving.
+    //
+    // NEVER THE ANSWER AND NEVER THE DRAFT - `char_count` and `at_char_limit` only.
+
+    /// T2, class 0. `Browse all 15 topics` was pressed.
+    static func promptTopicPickerOpened(slotIndex: Int) -> (String, [String: any Sendable]) {
+        (promptTopicPickerOpenedName, ["slot_index": slotIndex].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. A topic was chosen, from a suggestion card or from the sheet.
+    static func promptTopicSelected(topicId: String) -> (String, [String: any Sendable]) {
+        (promptTopicSelectedName, ["topic_id": topicId].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. An answer was saved.
+    ///
+    /// `prompt_id` is the topic id plus the slot, per §5's own prose and its own example -
+    /// `match_me_if_you__slot2` - so a topic moved between slots stays traceable.
+    static func promptAnswered(promptId: String, charCount: Int,
+                               atCharLimit: Bool) -> (String, [String: any Sendable]) {
+        (promptAnsweredName, ["prompt_id": promptId, "char_count": charCount,
+                              "at_char_limit": atCharLimit].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. An existing answer was changed rather than a new one added.
+    static func promptEdited(promptId: String) -> (String, [String: any Sendable]) {
+        (promptEditedName, ["prompt_id": promptId].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. The refused press on a step outside "The basics".
+    ///
+    /// A second builder rather than a widened first one: `formValidationFailed` takes a
+    /// `BasicsStep` and there is none for a photo or a prompt. The payload is identical and both
+    /// come from the same registry row - what differs is which step vocabulary the caller can
+    /// offer.
+    static func realYouValidationFailed(fieldId: String, rule: String, screen: ProfileScreen,
+                                        step: RealYouStep) -> (String, [String: any Sendable]) {
+        (formValidationFailed, ["field_id": fieldId, "rule": rule, "screen_id": screen.screenId,
+                                "step_id": step.stepId].merging(Stamp.of(0)) { a, _ in a })
     }
 
     /// T2, class 0. Once per profile build, on the first step only.
@@ -235,5 +365,12 @@ enum ProfileAnalytics {
     /// T2, class 0. **BLOCKED** — the skip path itself is an open question in ticket 02.
     static func stepSkipped(_ step: BasicsStep) -> (String, [String: any Sendable]) {
         (profileStepSkipped, ["step_id": step.stepId].merging(Stamp.of(0)) { a, _ in a })
+    }
+}
+
+/// Reports a catalogue-built event. Mirrors the Kotlin helper of the same name exactly.
+extension AnalyticsTracking {
+    func report(_ event: (String, [String: any Sendable])) {
+        track(event.0, properties: event.1)
     }
 }
