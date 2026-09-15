@@ -67,7 +67,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
@@ -536,9 +540,15 @@ private fun SheetScaffold(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .graphicsLayer { translationY = rise * density; alpha = fade }
-                // The keyboard is not ours, and its height is not knowable. imePadding is what
-                // keeps the field, the status row and Save above it without anybody guessing.
-                .imePadding(),
+                // The keyboard is not ours and its height is not knowable, and neither is the
+                // gesture bar's. `safeDrawing` bottom is BOTH -- it reports the keyboard when one
+                // is up and the navigation inset when one is not, taking whichever is larger, so
+                // Save clears the keys while typing and the gesture bar while not.
+                //
+                // `imePadding()` alone was wrong here: with the keyboard down it reserves nothing,
+                // and this sheet's own bottom padding is 16, which on a gesture-navigation device
+                // puts Save underneath the bar.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
         ) {
             content()
         }
