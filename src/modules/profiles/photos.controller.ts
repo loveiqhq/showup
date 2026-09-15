@@ -12,6 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -34,6 +35,26 @@ export class PhotosController {
   @ApiOperation({ operationId: 'uploadPhoto' })
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
+  // @ApiConsumes alone describes the CONTENT TYPE and nothing else, so without this the emitted
+  // operation carries no requestBody at all -- and a generated client therefore exposes
+  // `uploadPhoto()` with no file parameter, which is what both mobile clients had until
+  // 15 September 2026. Found while wiring SHOWUP-156: the screen was finished and there was no
+  // generated call that could carry a photo. The field name must stay `file`, because that is
+  // what FileInterceptor above is listening for.
+  @ApiBody({
+    required: true,
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'One image. JPEG, PNG or HEIC.',
+        },
+      },
+    },
+  })
   @ApiCreatedResponse({ type: PhotoDto })
   async upload(
     @CurrentUser() user: User,
