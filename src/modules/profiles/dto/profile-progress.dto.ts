@@ -51,7 +51,8 @@ export class ProfileProgressDto {
   emailVerified: boolean;
 
   @ApiProperty({
-    description: 'Step 4. The date itself is never returned — only whether it is set.',
+    description:
+      'Step 4. The date itself is never returned — only whether it is set.',
   })
   hasDateOfBirth: boolean;
 

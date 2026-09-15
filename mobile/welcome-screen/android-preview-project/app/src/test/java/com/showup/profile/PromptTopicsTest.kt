@@ -105,6 +105,17 @@ class PromptTopicsTest {
     }
 
     @Test
+    fun `the at-cap sample is actually at the cap`() {
+        // State G is "at the cap", and a sample one character short is state F wearing its name.
+        // The fit sweep and the evidence screenshots both carried a shortened paraphrase once, and
+        // the image filed as G showed a grey 130/160 -- the calm state -- rather than the amber it
+        // exists to demonstrate.
+        assertEquals(PROMPT_MAX_CHARS, PROMPT_SAMPLE_AT_CAP.length)
+        // And the mid-draft has to be under the counter's threshold, or state F shows a counter.
+        assertTrue(PROMPT_SAMPLE_MID.length < PROMPT_COUNTER_FROM)
+    }
+
+    @Test
     fun `the counter starts at one hundred, not at zero`() {
         // The single change this revision is most about: below 100 a numeral is not information,
         // it is a target.

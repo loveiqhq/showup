@@ -1168,8 +1168,22 @@ private val THREE = ONE + listOf(
     SavedPrompt("hill_to_die_on", "Showing up. Cancelling last minute isn't a scheduling problem, it's an answer."),
     SavedPrompt("cross_town", "A proper conversation. An old cinema. The 8pm walk after a long day."),
 )
-private const val MID_DRAFT = "Talk about anything real. Not jobs, not pets, not the weather."
-private val FULL_DRAFT = cappedAnswer(
+/** The reference's mid-draft: about 63 characters, under the counter's threshold. */
+internal const val PROMPT_SAMPLE_MID =
+    "Talk about anything real. Not jobs, not pets, not the weather."
+
+/**
+ * The reference's full draft, which is EXACTLY 160 characters.
+ *
+ * Shared rather than retyped, because state G is "at the cap" and a sample one character short is
+ * state F wearing its name. That is not hypothetical: the fit sweep and the evidence screenshots
+ * each carried their own shortened paraphrase, and the image filed as `G-write-at-cap` showed a
+ * grey `130/160` and a violet border -- the calm state -- rather than the amber the state exists
+ * to demonstrate. Caught by looking at the picture.
+ *
+ * `PromptTopicsTest` asserts the 160, so a copy edit here cannot quietly undo it again.
+ */
+internal val PROMPT_SAMPLE_AT_CAP = cappedAnswer(
     "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on your " +
         "mind this week. Bring it. I will listen for the entire thirty minutes!",
 )
@@ -1201,7 +1215,7 @@ private val FULL_DRAFT = cappedAnswer(
     ProfilePromptsScreen(
         PromptsState(
             sheet = PromptSheet.Write("first_date"),
-            drafts = mapOf("first_date" to MID_DRAFT),
+            drafts = mapOf("first_date" to PROMPT_SAMPLE_MID),
         ),
     )
 }
@@ -1211,7 +1225,7 @@ private val FULL_DRAFT = cappedAnswer(
     ProfilePromptsScreen(
         PromptsState(
             sheet = PromptSheet.Write("first_date"),
-            drafts = mapOf("first_date" to FULL_DRAFT),
+            drafts = mapOf("first_date" to PROMPT_SAMPLE_AT_CAP),
         ),
     )
 }
@@ -1229,7 +1243,7 @@ private val FULL_DRAFT = cappedAnswer(
     ProfilePromptsScreen(
         PromptsState(
             sheet = PromptSheet.Write("first_date"),
-            drafts = mapOf("first_date" to MID_DRAFT),
+            drafts = mapOf("first_date" to PROMPT_SAMPLE_MID),
             failed = true,
         ),
     )

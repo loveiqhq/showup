@@ -26,7 +26,8 @@ export class PromptDto {
 
   @ApiProperty({
     type: 'integer',
-    description: 'Reading order on the profile, from 0. A new prompt lands last.',
+    description:
+      'Reading order on the profile, from 0. A new prompt lands last.',
   })
   position: number;
 
@@ -51,7 +52,10 @@ export class PromptDto {
  * it has to mean the same thing at the API.
  */
 export class UpsertPromptDto {
-  @ApiProperty({ maxLength: PROMPT_MAX_CHARS, example: 'Talk about anything real.' })
+  @ApiProperty({
+    maxLength: PROMPT_MAX_CHARS,
+    example: 'Talk about anything real.',
+  })
   @IsString()
   @MinLength(1)
   @MaxLength(PROMPT_MAX_CHARS)

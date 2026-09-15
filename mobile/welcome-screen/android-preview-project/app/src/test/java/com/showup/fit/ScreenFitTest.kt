@@ -40,6 +40,7 @@ import com.showup.profile.PhotoGridState
 import com.showup.profile.PickedPhoto
 import com.showup.profile.ProfilePhotosScreen
 import com.showup.profile.ProfilePromptsScreen
+import com.showup.profile.PROMPT_SAMPLE_AT_CAP
 import com.showup.profile.PromptSheet
 import com.showup.profile.PromptsState
 import com.showup.profile.SavedPrompt
@@ -421,8 +422,6 @@ class ScreenFitTest {
                 "A proper conversation. An old cinema. The 8pm walk after a long day.",
             ),
         )
-        val full = "Talk about anything real. Not jobs, not pets, not the weather. The thing " +
-            "actually on your mind this week. Bring it. I will listen for the entire thirty!"
 
         sweep("Prompts/A none") { ProfilePromptsScreen() }
         sweep("Prompts/B one") { ProfilePromptsScreen(PromptsState(prompts = one)) }
@@ -445,7 +444,7 @@ class ScreenFitTest {
             ProfilePromptsScreen(
                 PromptsState(
                     sheet = PromptSheet.Write("first_date"),
-                    drafts = mapOf("first_date" to full.take(160)),
+                    drafts = mapOf("first_date" to PROMPT_SAMPLE_AT_CAP),
                 ),
             )
         }
@@ -544,10 +543,7 @@ class ScreenFitTest {
             ProfilePromptsScreen(
                 PromptsState(
                     sheet = PromptSheet.Write("first_date"),
-                    drafts = mapOf(
-                        "first_date" to ("Talk about anything real. Not jobs, not pets, not the " +
-                            "weather. The thing actually on your mind this week. Bring it now!"),
-                    ),
+                    drafts = mapOf("first_date" to PROMPT_SAMPLE_AT_CAP),
                 ),
             )
         }
