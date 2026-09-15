@@ -355,10 +355,18 @@ fun SignUpFlow(
                     },
                     mismatch = codeMismatch,
                     lockedOut = verifyAttempts >= MAX_VERIFY_ATTEMPTS,
-                    // A verify or a resend that never reached the server. Silent before, which
-                    // made a dead network look like a dead button.
-                    serverError = VerifyCopy.SEND_FAILED_PROPOSED
-                        .takeIf { authState.transportFailed },
+                    // Two different failures, both of which used to be silent.
+                    //
+                    // `resendRejected` is the server refusing a resend because its cooldown has
+                    // not elapsed -- a 429, carrying the server's own "Please wait 41s". That was
+                    // swallowed whole: the tap did nothing, said nothing, and looked exactly like
+                    // a broken button. It is FIRST because it is the more specific of the two and
+                    // it is the one the user is waiting on an answer about.
+                    //
+                    // The 429 does not supersede anything, so the code already on screen is still
+                    // live -- which is why this is a message and not a reset.
+                    serverError = authState.resendRejected
+                        ?: VerifyCopy.SEND_FAILED_PROPOSED.takeIf { authState.transportFailed },
                     cooldownSeconds = cooldown,
                     onBack = { step = Step.Phone },
                     onVerify = {

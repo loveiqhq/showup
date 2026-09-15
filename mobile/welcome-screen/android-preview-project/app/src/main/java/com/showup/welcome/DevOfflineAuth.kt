@@ -38,6 +38,7 @@ package com.showup.welcome
 
 import com.showup.api.MAX_VERIFY_ATTEMPTS
 import com.showup.api.RESEND_COOLDOWN_SECONDS
+import java.time.Duration
 import java.time.OffsetDateTime
 import kotlin.random.Random
 
@@ -62,6 +63,10 @@ object DevOfflineAuth {
     /** How long a code lives, matching the server's `OTP_TTL`. */
     private const val TTL_SECONDS = 300L
 
+    /** When the current challenge was issued, so the resend cooldown can be enforced. */
+    @Volatile
+    private var issuedAt: OffsetDateTime? = null
+
     /**
      * Issues a code, the way `/auth/phone/start` would.
      *
@@ -69,9 +74,35 @@ object DevOfflineAuth {
      * the second is what a broken generator returns, and either would hide a real mismatch from
      * whoever is testing the mismatch state.
      */
-    fun start(now: OffsetDateTime): StartAuthResult.Sent {
+    /**
+     * Issues a code, or refuses if the server would have refused.
+     *
+     * THE COOLDOWN IS NOT DECORATION, and leaving it out is how a real bug reached a user.
+     *
+     * `otp.service.ts` refuses a resend inside `OTP_RESEND_COOLDOWN` with a 429 and, crucially,
+     * refuses BEFORE it supersedes -- so the code already in the user's hand stays live. This
+     * stand-in had no cooldown at all: every resend issued a fresh code and reset the attempt
+     * count. That is not a small divergence. It meant the one server rule that governs this
+     * screen could not be exercised offline, so every offline test passed while the client
+     * silently swallowed the 429 it would meet the moment a real backend answered.
+     *
+     * A stand-in that is easier than the thing it stands in for does not shorten the work; it
+     * moves the discovery to a user.
+     */
+    fun start(now: OffsetDateTime): StartAuthResult {
+        val since = issuedAt
+        if (code != null && since != null) {
+            val elapsed = Duration.between(since, now).seconds
+            if (elapsed < RESEND_COOLDOWN_SECONDS) {
+                val wait = RESEND_COOLDOWN_SECONDS - elapsed
+                return StartAuthResult.TooSoon(
+                    "Please wait ${wait}s before requesting another code",
+                )
+            }
+        }
         val issued = "%06d".format(Random.nextInt(100_000, 1_000_000))
         code = issued
+        issuedAt = now
         expiresAt = now.plusSeconds(TTL_SECONDS)
         attempts = 0
         return StartAuthResult.Sent(
@@ -113,6 +144,7 @@ object DevOfflineAuth {
     /** Forgets everything. For tests, so one case cannot leak into the next. */
     fun reset() {
         code = null
+        issuedAt = null
         expiresAt = null
         attempts = 0
     }

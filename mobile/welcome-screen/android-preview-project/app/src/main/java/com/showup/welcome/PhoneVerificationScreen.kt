@@ -407,6 +407,14 @@ private class GroupedDigits(private val country: Country) : VisualTransformation
  * the shape of the approved expired-code line on profile/03.
  */
 object VerifyCopy {
+    /**
+     * PROPOSED — NOT APPROVED. Shown only if a 429 arrives without a message of its own; the
+     * server normally supplies "Please wait 41s before requesting another code" and that is
+     * preferred, because it names the number.
+     */
+    const val RESEND_TOO_SOON_PROPOSED =
+        "A code was just sent. Please wait a moment before asking for another."
+
     const val MISMATCH = "That code didn’t match. Try again."
 
     /**

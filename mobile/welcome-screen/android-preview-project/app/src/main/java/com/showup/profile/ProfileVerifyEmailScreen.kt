@@ -270,76 +270,60 @@ fun ProfileVerifyEmailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                // One row, ONE HEIGHT and ONE WIDTH, whichever branch is showing.
+                // THREE STACKED ROWS, each centred. Not a side-by-side pair.
                 //
-                // Three things had to be pinned here, and the first two were found one screenshot
-                // at a time because each was hiding behind the last.
+                // Corrected 15 September 2026 against the handoff, which draws this group the way
+                // the phone code screen already builds it: the question on its own line, the link
+                // or countdown beneath it, the escape hatch beneath that, all centred. The email
+                // screen had them in a Row, and everything that went wrong with this group
+                // followed from that one decision.
                 //
-                //   HEIGHT. The link carried minTapTarget() and the countdown did not, so the row
-                //   went from about 18dp to 48 when they swapped. A mismatch RELEASES the
-                //   cooldown (SHOWUP-143), so the swap happens at exactly the moment an error
-                //   appears -- which is why it read as the error moving the links.
+                // What the Row cost, in order of discovery:
                 //
-                //   BASELINE. Fixing the height was not enough. `Text.minTapTarget()` expands the
-                //   composable to 48 but Compose draws the glyphs at the TOP of that box, not the
-                //   middle, so the link sat about 15dp above the question it was meant to sit
-                //   beside. The tap target belongs to the BOX now; the label fills it and centres
-                //   its own glyphs, so the touch area is still 48 and the text is where the eye
-                //   expects it.
+                //   · the link carries a 48dp tap floor and the countdown does not, so swapping
+                //     them resized the row and the question slid down beside it
+                //   · `Text.minTapTarget()` draws its glyphs at the TOP of the enlarged box, so
+                //     the link sat about 15dp above the question's line
+                //   · "Send a new code in 0:32" is wider than "Send a new code", so a centred Row
+                //     re-centred itself when they swapped and the whole group moved sideways
                 //
-                //   WIDTH. "Send a new code in 0:32" is wider than "Send a new code", and this
-                //   row is centred -- so swapping them re-centred the whole row and the question
-                //   slid sideways. The invisible sizer below reserves the longer of the two in
-                //   every state. It is the only way to hold a centred row still when its content
-                //   changes, short of not centring it.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                // All three were being patched INSIDE a layout that was the wrong shape. Stacked,
+                // none of them can happen: each line centres independently, a taller line pushes
+                // nothing sideways, and the group's width stops depending on which branch is up.
+                // The reserved region above still holds the vertical position.
+                //
+                // The parent Column already centres and already spaces at 6, so the question and
+                // the slot are simply its children now.
+                Text(
+                    VerifyEmailCopy.RESEND_QUESTION,
+                    color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp, lineHeight = 18.2.sp,
+                )
+                Box(
+                    Modifier.height(ComponentSizes.minTapTarget),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        VerifyEmailCopy.RESEND_QUESTION,
-                        color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp, lineHeight = 18.2.sp,
-                    )
-                    Box(
-                        Modifier.height(ComponentSizes.minTapTarget),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        // The sizer. Drawn at zero alpha and stripped of semantics, so it holds
-                        // width for the layout and exists for nobody else -- not the eye, not
-                        // TalkBack, not a test looking for text. The countdown is always the
-                        // longer string, and its length does not change: the minutes are computed
-                        // and the digits are tabular.
+                    if (canResend(cooldownSeconds, state)) {
                         Text(
-                            VerifyEmailCopy.resendIn(0),
+                            VerifyEmailCopy.RESEND_AVAILABLE,
                             modifier = Modifier
-                                .alpha(0f)
-                                .clearAndSetSemantics {},
-                            fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                                .clickable(role = Role.Button, onClick = onResend)
+                                // The whole 48 answers to a finger, and the label is centred
+                                // inside it rather than pinned to its top edge.
+                                .fillMaxHeight()
+                                .wrapContentHeight(Alignment.CenterVertically),
+                            color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp, lineHeight = 18.2.sp,
+                            textDecoration = TextDecoration.Underline,
+                        )
+                    } else {
+                        Text(
+                            // tabular-nums so the countdown does not jitter as digits change
+                            VerifyEmailCopy.resendIn(cooldownSeconds),
+                            color = Subtle, fontFamily = Manrope,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp, lineHeight = 18.2.sp,
                         )
-                        if (canResend(cooldownSeconds, state)) {
-                            Text(
-                                VerifyEmailCopy.RESEND_AVAILABLE,
-                                modifier = Modifier
-                                    .clickable(role = Role.Button, onClick = onResend)
-                                    // The whole 48 answers to a finger, and the label is centred
-                                    // inside it rather than pinned to its top edge.
-                                    .fillMaxHeight()
-                                    .wrapContentHeight(Alignment.CenterVertically),
-                                color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp, lineHeight = 18.2.sp,
-                                textDecoration = TextDecoration.Underline,
-                            )
-                        } else {
-                            Text(
-                                // tabular-nums so the countdown does not jitter as digits change
-                                VerifyEmailCopy.resendIn(cooldownSeconds),
-                                color = Subtle, fontFamily = Manrope,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp, lineHeight = 18.2.sp,
-                            )
-                        }
                     }
                 }
                 Text(

@@ -141,6 +141,12 @@ android {
     testOptions {
         // Robolectric needs the real resources -- fonts and the drawable the welcome card uses.
         unitTests.isIncludeAndroidResources = true
+        // android.jar in a unit test is stubs that THROW. Without this, touching anything from
+        // the framework -- android.util.Log, in AuthTrace -- fails the test with "not mocked"
+        // rather than doing nothing, which is a strange default for code whose whole job is to
+        // be absent from a test. Robolectric tests provide the real implementations regardless;
+        // this only affects the plain JVM ones.
+        unitTests.isReturnDefaultValues = true
     }
 }
 
