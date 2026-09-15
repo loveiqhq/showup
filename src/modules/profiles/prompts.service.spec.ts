@@ -45,12 +45,14 @@ describe('PromptsService', () => {
         rows[existing] = { ...rows[existing], ...row };
         return Promise.resolve(rows[existing]);
       }
-      const created = { id: `id-${rows.length}`, ...row } as ProfilePrompt;
+      const created = { id: `id-${rows.length}`, ...row };
       rows.push(created);
       return Promise.resolve(created);
     },
     delete: ({ userId, topicId }: { userId: string; topicId: string }) => {
-      rows = rows.filter((r) => !(r.userId === userId && r.topicId === topicId));
+      rows = rows.filter(
+        (r) => !(r.userId === userId && r.topicId === topicId),
+      );
       return Promise.resolve({ affected: 1 });
     },
   };
@@ -136,7 +138,9 @@ describe('PromptsService', () => {
   });
 
   it('treats removing something that is not there as success', async () => {
-    await expect(service.remove(USER, 'never_written')).resolves.toBeUndefined();
+    await expect(
+      service.remove(USER, 'never_written'),
+    ).resolves.toBeUndefined();
   });
 
   it('never returns another account’s prompts', async () => {
