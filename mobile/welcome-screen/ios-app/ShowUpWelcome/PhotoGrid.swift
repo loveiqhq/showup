@@ -44,7 +44,7 @@ struct PickedPhoto: Identifiable, Equatable {
     let localId: Int64
     var uri: String?
     var status: UploadStatus
-    var remoteId: String?
+    var remoteId: String? = nil
     /// 0…1 while in flight. A REAL value: the ring is determinate because an indeterminate spinner
     /// on a large upload says nothing about whether it is moving.
     var progress: Double = 0

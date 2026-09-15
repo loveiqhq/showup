@@ -77,7 +77,7 @@ enum PromptSheet: Equatable, Codable {
 /// that topic is reopened": a draft belongs to a TOPIC, not to the sheet currently up.
 struct PromptsState: Equatable, Codable {
     var prompts: [SavedPrompt] = []
-    var sheet: PromptSheet?
+    var sheet: PromptSheet? = nil
     var drafts: [String: String] = [:]
     /// Set by an empty Save. Cleared by the first character typed, never by blur or a re-press.
     var nudge = false
@@ -85,7 +85,7 @@ struct PromptsState: Equatable, Codable {
     ///
     /// "The example is per sheet, not per session. Dismissing it hides it for that sheet only; the
     /// next prompt shows it again." One id rather than a set, because only one sheet is ever open.
-    var exampleHiddenFor: String?
+    var exampleHiddenFor: String? = nil
 
     var count: Int { prompts.count }
     var canContinue: Bool { count >= promptsRequired }
