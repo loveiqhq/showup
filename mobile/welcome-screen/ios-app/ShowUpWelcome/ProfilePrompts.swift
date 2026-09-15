@@ -235,6 +235,27 @@ private struct FilledPromptCard: View {
     }
 }
 
+/// A character used as an ICON, drawn at a fixed size whatever the system font is set to.
+///
+/// Icons in this app are drawn in points and do not scale; two of them happen to be characters
+/// rather than paths — the danger "!" in the failed photo slot and the one in the empty-submit
+/// row. Both live inside a circle whose size is fixed by the layout around it, so scaling the
+/// glyph only clips it. `.dynamicTypeSize(.large)` pins the subtree to the default step, which is
+/// the supported way for a glyph to opt out.
+///
+/// Reading text is NEVER drawn through this. Everything a user reads scales.
+struct UnscaledGlyph: View {
+    let glyph: String
+    let size: CGFloat
+
+    var body: some View {
+        Text(glyph)
+            .font(F.lora(size, bold: true))
+            .foregroundColor(.white)
+            .dynamicTypeSize(.large)
+    }
+}
+
 /// The drag grabber. Decorative: a sheet is dismissed by the X or the scrim, not by this.
 private struct SheetGrabber: View {
     var body: some View {
@@ -452,6 +473,35 @@ private struct WritePromptSheet: View {
     }
 
     var body: some View {
+        // THE SHEET ASKS FOR 560 AND TAKES LESS WHEN THERE IS LESS.
+        //
+        // `minHeight: 560` on its own was a bug, and the Android fit harness found it the first
+        // time it was given a keyboard: on a 320 x 686 phone with a 300dp IME there are 362 of
+        // screen left, the column demanded 560, and `Save` measured ZERO HEIGHT. A control the
+        // user cannot see, on the only screen where it is the way out. The same arithmetic applies
+        // here -- an iOS keyboard is shorter, which makes it the same bug one phone further down.
+        //
+        // The scroll is what makes the minimum a minimum rather than a demand: with room nothing
+        // scrolls and the sheet is exactly what it was; without room it scrolls, which is the
+        // answer `WelcomeScaffold(scrollWhenTight)` already reached -- "between a CTA the user
+        // cannot reach and a few points of scroll, the scroll is the right failure."
+        ScrollView(.vertical, showsIndicators: false) {
+            content
+        }
+        // Bounce off, so a sheet that already fits does not rubber-band and read as a scroll view
+        // that happens to be full.
+        .scrollBounceBehavior(.basedOnSize)
+        .background(
+            UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32)
+                .fill(Color.liqCream)
+        )
+        // The field takes focus as the sheet arrives, so the keyboard is already up and the user
+        // types without a second tap.
+        .onAppear { focused = true }
+        .modifier(ShakeOnce(key: showNudge ? 1 : 0, active: showNudge && !reduceMotion))
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .top) {
                 SheetGrabber().frame(maxWidth: .infinity)
@@ -514,9 +564,8 @@ private struct WritePromptSheet: View {
                 if showNudge {
                     ZStack {
                         Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
-                        Text("!")
-                            .font(F.lora(12, bold: true))
-                            .foregroundColor(.white)
+                        // AN ICON, NOT READING TEXT. See `UnscaledGlyph`.
+                        UnscaledGlyph(glyph: "!", size: 12)
                     }
                     .padding(.top, 1)
                     Text(PromptsCopy.emptySubmit)
@@ -549,14 +598,6 @@ private struct WritePromptSheet: View {
         .padding(.top, Spacing.md)
         .padding(.bottom, Spacing.xxl)
         .frame(minHeight: 560, alignment: .top)
-        .background(
-            UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32)
-                .fill(Color.liqCream)
-        )
-        // The field takes focus as the sheet arrives, so the keyboard is already up and the user
-        // types without a second tap.
-        .onAppear { focused = true }
-        .modifier(ShakeOnce(key: showNudge ? 1 : 0, active: showNudge && !reduceMotion))
     }
 
     private var field: some View {
@@ -693,10 +734,18 @@ struct ProfilePromptsView: View {
                     }
                 }
 
+                // NO lineLimit, and that is a correction rather than an omission.
+                //
+                // The ticket asks for one line at 390 (`white-space: nowrap`) and it is, at every
+                // width in the matrix, at the default font size. At the largest accessibility size
+                // it is not, and a line limit turned that into an ELLIPSIS on all seventeen
+                // devices -- "1/3 prompts · enough to c…" -- which loses the half of the sentence
+                // that says the requirement is met. nowrap describes the 1x layout; it is not a
+                // promise to somebody using large type.
                 Text(PromptsCopy.counter(state.count))
                     .font(F.manrope(13, .semibold))
                     .foregroundColor(state.canContinue ? .liqSuccessFg : .liqSubtle)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 14)
                     .padding(.leading, 2)
 

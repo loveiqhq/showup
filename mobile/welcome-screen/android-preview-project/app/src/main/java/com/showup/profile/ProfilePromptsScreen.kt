@@ -93,6 +93,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -105,6 +106,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -724,12 +727,34 @@ private fun WritePromptSheet(
     // attached, and a convenience must never be fatal.
     LaunchedEffect(topicId) { runCatching { focus.requestFocus() } }
 
+    // THE SHEET ASKS FOR 560 AND TAKES LESS WHEN THERE IS LESS.
+    //
+    // `heightIn(min = 560)` on its own was a bug, and the fit harness found it the first time it
+    // was given a keyboard: on a 320 x 686 phone with a 300dp IME there are 362dp of screen left,
+    // the column demanded 560, and Compose resolved that by giving its children what was left --
+    // which was nothing. `Save` measured ZERO HEIGHT on the narrowest phones, and the status line
+    // with it. A control the user cannot see, on the only screen where it is the way out.
+    //
+    // The outer scroll is what makes the minimum a minimum rather than a demand: it measures the
+    // content with no height limit, then takes the smaller of that and what the parent offers. On
+    // a phone with room nothing scrolls and the sheet is exactly what it was -- 560 or its
+    // content, whichever is larger. On a phone without room it scrolls, which is the same answer
+    // `WelcomeScaffold(scrollWhenTight)` reached for the same reason: "between a CTA the user
+    // cannot reach and a few points of scroll, the scroll is the right failure."
+    //
+    // The insets are OUTSIDE the scroll, so the keyboard shortens the viewport rather than
+    // scrolling with the content.
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+            .background(Cream)
+            .verticalScroll(rememberScrollState()),
+    ) {
     Column(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 560.dp)
-            .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-            .background(Cream)
             .padding(start = 24.dp, end = 24.dp, top = Spacing.md, bottom = Spacing.xxl),
     ) {
         Box(Modifier.fillMaxWidth()) {
@@ -873,11 +898,15 @@ private fun WritePromptSheet(
                             .background(Danger),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            "!",
-                            color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                        )
+                        // AN ICON, NOT READING TEXT, so it does not scale with the system font.
+                        //
+                        // Every other glyph in this app is drawn in dp and is unaffected by the
+                        // user's type size; this one happens to be a character, which at 2x turned
+                        // a 12sp "!" into 24sp inside an 18dp circle and clipped it on all
+                        // seventeen devices. Pinning the font scale is how a glyph opts out --
+                        // the circle it lives in cannot grow, because the row it sits in is
+                        // reserved at 34.
+                        UnscaledGlyph("!", 12.sp, Lora)
                     }
                     Text(
                         PromptsCopy.EMPTY_SUBMIT,
@@ -904,6 +933,35 @@ private fun WritePromptSheet(
             onClick = onSave,
             modifier = Modifier.padding(top = Spacing.lg),
             variant = PrimaryButtonVariant.Sunset,
+        )
+    }
+    }
+}
+
+/**
+ * A character used as an ICON, drawn at a fixed size whatever the system font is set to.
+ *
+ * Icons in this app are drawn in dp and do not scale; two of them happen to be characters rather
+ * than paths -- the danger "!" in the failed photo slot and the one in the empty-submit row. Both
+ * live inside a circle whose size is fixed by the layout around it, so scaling the glyph only
+ * clips it. `Density(density, fontScale = 1f)` is the supported way to opt a subtree out.
+ *
+ * Reading text is NEVER drawn through this. Everything a user reads scales.
+ */
+@Composable
+internal fun UnscaledGlyph(
+    glyph: String,
+    size: androidx.compose.ui.unit.TextUnit,
+    family: androidx.compose.ui.text.font.FontFamily,
+) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(density.density, fontScale = 1f),
+    ) {
+        Text(
+            glyph,
+            color = Color.White, fontFamily = family, fontWeight = FontWeight.Bold,
+            fontSize = size,
         )
     }
 }
@@ -1029,12 +1087,22 @@ fun ProfilePromptsScreen(
                 }
             }
 
+            // NO maxLines, and that is a correction rather than an omission.
+            //
+            // The ticket asks for this on one line at 390 (`white-space: nowrap`) and it is, at
+            // every width in the matrix -- at the system's default font size. At the largest
+            // accessibility size it is not, and `maxLines = 1` turned that into an ELLIPSIS on all
+            // seventeen devices: "1/3 prompts · enough to c…", which loses the half of the sentence
+            // that says the requirement is met.
+            //
+            // nowrap is a statement about the 1x layout, not a promise to the user who has turned
+            // their type up. Wrapping costs one line on a screen that already scrolls.
             Text(
                 PromptsCopy.counter(state.count),
                 modifier = Modifier.padding(top = 14.dp, start = 2.dp),
                 color = if (state.canContinue) SuccessFg else Subtle,
                 fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                maxLines = 1, textAlign = TextAlign.Start,
+                textAlign = TextAlign.Start,
             )
 
             Spacer(Modifier.height(20.dp))

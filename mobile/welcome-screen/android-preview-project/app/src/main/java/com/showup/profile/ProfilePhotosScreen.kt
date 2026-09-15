@@ -63,6 +63,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSizeIn
@@ -339,11 +340,9 @@ private fun FailedSlot(modifier: Modifier, onRetry: () -> Unit) {
             Modifier.size(34.dp).clip(CircleShape).background(Danger),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                "!",
-                color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-            )
+            // AN ICON, NOT READING TEXT. See [UnscaledGlyph]: at 2x this became a 34sp "!" inside
+            // a 34dp circle and clipped on every device in the matrix.
+            UnscaledGlyph("!", 17.sp, Lora)
         }
         Text(
             PhotosCopy.UPLOAD_FAILED,
@@ -363,12 +362,16 @@ private fun FailedSlot(modifier: Modifier, onRetry: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
+                    // A MINIMUM, not a fixed height. 32 is what the reference draws and what this
+                    // is at every default-font size; at 2x a 12.5sp label needs about 34, and a
+                    // fixed 32 clipped it on all seventeen devices. The slot's 158 has the room --
+                    // the column is centred and its content comes to about 118 even at 2x.
                     Modifier
-                        .height(32.dp)
+                        .heightIn(min = 32.dp)
                         .clip(CircleShape)
                         .background(Elevated)
                         .dashedOutlineSolid(Danger.copy(alpha = 0.34f))
-                        .padding(horizontal = 15.dp),
+                        .padding(horizontal = 15.dp, vertical = Spacing.xs),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -531,7 +534,18 @@ private fun EmptySlot(
 
     Column(
         modifier
-            .height(SlotHeight)
+            // A FLOOR, and this is the one place the "every slot is 158" rule bends -- only for
+            // the system font, and only upwards.
+            //
+            // The rule exists so the grid does not reflow BETWEEN STATES: a slot must not change
+            // height when its photo starts uploading. It still cannot. What it may now do is be
+            // taller than 158 on a phone whose type is set to 2x, where "Start with your face"
+            // takes four lines under a 40 pip and simply does not fit in 158 -- the harness
+            // measured 42px of it below the cut on the 320 x 686 cover screen. The row sizes both
+            // of its cells to the taller of the two, so a row is still a row.
+            //
+            // At every default font size this resolves to exactly 158 and nothing moves.
+            .heightIn(min = SlotHeight)
             .clip(RoundedCornerShape(SlotRadius))
             .then(
                 if (cta) {
@@ -593,11 +607,16 @@ private fun PhotoCount(filled: Int) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // NO maxLines. The ticket asks for one line at 390 (`white-space: nowrap`) and it is one
+        // line at every width in the matrix at the default font size. At the largest accessibility
+        // size it is not, and `maxLines = 1` made that an ELLIPSIS on the narrowest phone --
+        // "Photos · 4 required, 6 m…" -- which cuts the maximum out of the sentence that states
+        // it. nowrap describes the 1x layout; it is not a promise to somebody using large type.
         Text(
             PhotosCopy.COUNT_LABEL,
+            modifier = Modifier.weight(1f, fill = false),
             color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.ExtraBold,
             fontSize = 10.5.sp, letterSpacing = 0.08.em,
-            maxLines = 1,
         )
         Text(
             PhotosCopy.countValue(filled),
@@ -1115,7 +1134,13 @@ private fun PhotoGrid(
     val filled = state.confirmedCount
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         for (row in 0 until (count + 1) / 2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+            // IntrinsicSize.Min so the two cells in a row match: a slot may grow past 158 at a
+            // large system font, and a row with one tall cell and one short one would read as a
+            // broken grid rather than a roomy one.
+            Row(
+                Modifier.height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xl),
+            ) {
                 for (column in 0..1) {
                     val index = first + row * 2 + column
                     if (index >= first + count) {

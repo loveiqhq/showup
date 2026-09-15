@@ -174,9 +174,9 @@ private struct FailedSlot: View {
         VStack(spacing: 9) {
             ZStack {
                 Circle().fill(Color.liqDanger).frame(width: 34, height: 34)
-                Text("!")
-                    .font(F.lora(17, bold: true))
-                    .foregroundColor(.white)
+                // AN ICON, NOT READING TEXT. At 2x this became a 34pt "!" inside a 34pt circle
+                // and clipped on every device in the matrix. See `UnscaledGlyph`.
+                UnscaledGlyph(glyph: "!", size: 17)
             }
             Text(PhotosCopy.uploadFailed)
                 .font(F.manrope(13, .bold))
@@ -189,7 +189,11 @@ private struct FailedSlot: View {
                     .font(F.manrope(12.5, .bold))
                     .foregroundColor(.liqDangerFg)
                     .padding(.horizontal, 15)
-                    .frame(height: 32)
+                    .padding(.vertical, Spacing.xs)
+                    // A MINIMUM, not a fixed height. 32 is what the reference draws and what this
+                    // is at every default font size; at 2x a 12.5pt label needs about 34, and a
+                    // fixed 32 clipped it on all seventeen devices.
+                    .frame(minHeight: 32)
                     .background(Capsule().fill(Color.liqElevated))
                     .overlay(Capsule().strokeBorder(Color.liqDanger.opacity(0.34), lineWidth: 1.5))
                     .minTapTarget(alignment: .center)
@@ -329,7 +333,15 @@ private struct EmptySlot: View {
             }
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity)
-            .frame(height: photoSlotHeight)
+            // A FLOOR, and this is the one place the "every slot is 158" rule bends — only for the
+            // system font, and only upwards.
+            //
+            // The rule exists so the grid does not reflow BETWEEN STATES: a slot must not change
+            // height when its photo starts uploading. It still cannot. What it may now do is be
+            // taller than 158 on a phone whose type is at 2x, where "Start with your face" takes
+            // four lines under a 40 pip and does not fit in 158. At every default font size this
+            // resolves to exactly 158 and nothing moves.
+            .frame(minHeight: photoSlotHeight)
             .background {
                 if cta {
                     RoundedRectangle(cornerRadius: slotRadius)
@@ -357,11 +369,16 @@ private struct PhotoCount: View {
 
     var body: some View {
         HStack {
+            // NO lineLimit. The ticket asks for one line at 390 (`white-space: nowrap`) and it is
+            // one line at every width in the matrix at the default font size. At the largest
+            // accessibility size it is not, and a line limit made that an ELLIPSIS on the
+            // narrowest phone — "Photos · 4 required, 6 m…" — which cuts the maximum out of the
+            // sentence that states it.
             Text(PhotosCopy.countLabel)
                 .font(F.manrope(10.5, .heavy))
                 .tracking(0.84)
                 .foregroundColor(.liqSubtle)
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: Spacing.md)
             Text(PhotosCopy.countValue(filled))
                 .font(F.manrope(13, .bold))
@@ -771,7 +788,11 @@ private struct PhotoGridRows: View {
     var body: some View {
         VStack(spacing: Spacing.xl) {
             ForEach(0..<((count + 1) / 2), id: \.self) { row in
-                HStack(spacing: Spacing.xl) {
+                // `.fixedSize` on neither cell and equal frames on both: a slot may grow past
+                // 158 at a large system font, and a row with one tall cell and one short one would
+                // read as a broken grid rather than a roomy one. `HStack` with `.top` alignment
+                // plus `maxHeight: .infinity` on each cell makes them match the taller.
+                HStack(alignment: .top, spacing: Spacing.xl) {
                     ForEach(0..<2, id: \.self) { column in
                         let index = first + row * 2 + column
                         if index < first + count {
@@ -779,8 +800,12 @@ private struct PhotoGridRows: View {
                         } else {
                             Color.clear.frame(maxWidth: .infinity)
                         }
+                        // fixedSize on the row so it hugs the taller cell rather than filling the
+                        // scroll view: `maxHeight: .infinity` on a cell would otherwise make each
+                        // row take the whole viewport.
                     }
                 }
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -798,7 +823,7 @@ private struct PhotoGridRows: View {
             onRemove: { onRemove(index) },
             onRetry: { onRetry(index) }
         )
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(GeometryReader { geo in
             Color.clear.onAppear { cell = geo.size }.onChange(of: geo.size) { _, new in cell = new }
         })
