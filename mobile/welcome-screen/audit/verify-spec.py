@@ -95,6 +95,13 @@ for name, byte, opacity in [
 # ------------------------------------------------------------------ shared shell
 kt = read(os.path.join(KT, "tutorial/TutorialShell.kt"))
 sw = read(os.path.join(SW, "TutorialShell.swift"))
+
+# The progress bar moved out of the tutorial's shell on 15 September 2026, when "The real you"
+# became the THIRD flow to use it -- a shared primitive sitting in a screen package that two other
+# packages reach into is the defect that produced three primary buttons. Nothing about the
+# component changed in the move, so the checks below read it where it lives now.
+progress_kt = read(os.path.join(KT, "designsystem/StepProgress.kt"))
+progress_sw = read(os.path.join(SW, "StepProgress.swift"))
 # The eyebrow pill moved out of the three screens into the design system on 8 September 2026.
 # code_only throughout below: StatusBadge documents the values it draws, so raw text would let
 # the comment about a number stand in for the number.
@@ -118,10 +125,12 @@ check("pad-top 8 (kotlin)", "top = 8.dp" in kt)
 check("pad-top 8 (swift)", ".padding(.top, 8)" in sw)
 
 # progress bar
-check("progress h5 (kotlin)", "height(5.dp)" in kt)
-check("progress h5 (swift)", "frame(height: 5)" in sw)
-check("progress gap 6 (kotlin)", "spacedBy(6.dp)" in kt)
-check("progress gap 6 (swift)", "HStack(spacing: 6)" in sw)
+check("progress h5 (kotlin)", "height(5.dp)" in progress_kt)
+check("progress h5 (swift)", "frame(height: 5)" in progress_sw)
+# Both files write `Spacing.sm`, which `read` expands to the 6 the spec sheet states -- the point
+# of that expansion being that every assertion here checks a VALUE rather than a name.
+check("progress gap 6 (kotlin)", "spacedBy(6.dp)" in progress_kt)
+check("progress gap 6 (swift)", "HStack(spacing: 6)" in progress_sw)
 
 # eyebrow pill
 check("eyebrow 11 (kotlin)", "fontSize = 11.sp" in code_only(badge_kt))
@@ -158,8 +167,13 @@ if "fun StatementRow" in kt:
     check("statement has no negative tracking (kotlin)", "letterSpacing" not in body)
 
 # nav row / CTA
-check("CTA circle 56 (kotlin)", "size(56.dp)" in kt)
-check("CTA circle 56 (swift)", "width: 56, height: 56" in sw)
+# 56 is now the DEFAULT rather than a literal: "The real you" draws 52, and both of its reference
+# files say so, so the circle became a parameter whose default is IconSizes.badge. The 56 itself is
+# asserted where it is defined; what matters here is that the tutorial still takes the default.
+check("CTA circle 56 (kotlin)",
+      "circleSize: Dp = 56.dp" in kt and "size(circleSize)" in kt)
+check("CTA circle 56 (swift)",
+      "circleSize: CGFloat = 56" in sw and "width: circleSize" in sw)
 check("CTA gap 14 (kotlin)", "spacedBy(14.dp)" in kt)
 check("CTA gap 14 (swift)", "HStack(spacing: 14)" in sw)
 check("CTA label 17 (kotlin)", "fontSize = 17.sp" in kt)

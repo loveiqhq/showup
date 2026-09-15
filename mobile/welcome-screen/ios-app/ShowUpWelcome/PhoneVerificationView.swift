@@ -34,7 +34,7 @@ private struct VerificationFrame<Content: View>: View {
         // SwiftUI's automatic keyboard avoidance only guarantees the *focused field* is visible —
         // it says nothing about the CTA below it. scrollWhenTight makes the whole column reachable
         // instead, so the button cannot end up stranded under the keyboard.
-        WelcomeScaffold(peachWash: false, topWeighted: true,
+        WelcomeScaffold(peachWash: false, placement: .phoneVerify,
                         orangeAlpha: 0.26, violetAlpha: 0.22,
                         topPadding: 4,          // pad-top 4 here, not the launch screens' 20
                         scrollWhenTight: true) {

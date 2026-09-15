@@ -62,18 +62,74 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     Email("profile_email", "ProfileEmail"),
     EmailVerification("profile_email_verification", "ProfileEmailVerification"),
     Dob("profile_dob", "ProfileDoB"),
+
+    /**
+     * The bridge out of "The basics" (SHOWUP-155).
+     *
+     * A SCREEN BUT NOT A STEP, and §11's naming rules say so in as many words: this row exists and
+     * the matching §2 row deliberately does not, "because firing profile_step_viewed on it would
+     * put a phantom step in the completion funnel". That is why there is no `BasicsStep` for it and
+     * why [ProfileAnalytics.stepViewed] cannot be called with it -- the type system carries the
+     * rule rather than a comment asking people to remember it.
+     */
+    EmbraceBuild("profile_embrace_build", "ProfileEmbraceBuild"),
+
+    /** "The real you", step 1 (SHOWUP-156). §11 row added by the design side before the ticket. */
+    Photos("profile_photos", "ProfilePhotos"),
+
+    /**
+     * "The real you", step 2 (SHOWUP-158).
+     *
+     * **NOT IN §11 AT REGISTRY 1.3.0.** The ticket's own tracking section says the row "must be
+     * added before the ticket is picked up", and it has not been -- §11 carries `profile_photos`
+     * and stops. The two values here are the ones SHOWUP-158 quotes verbatim, so when the row
+     * lands they should match and nothing changes; if the design side chooses differently, this is
+     * the single place to correct. Recorded rather than silently invented, which is the rule the
+     * tracking sections state twice.
+     */
+    Prompts("profile_prompts", "Profile - Prompts"),
+}
+
+/**
+ * `variant` from enums.json §16 — which of the two bridges fired [ProfileAnalytics.embraceBridgeViewed].
+ *
+ * Two screens, one shell, two copy payloads. The set maps onto §11 one-for-one:
+ * `build_profile` -> `profile_embrace_build` · `add_details` -> `profile_embrace_details`.
+ * [ADD_DETAILS] is the sibling bridge, registered and not yet ticketed; it is listed here because
+ * the value set has one home by design, not because anything calls it yet.
+ */
+object EmbraceVariant {
+    const val BUILD_PROFILE = "build_profile"
+    const val ADD_DETAILS = "add_details"
 }
 
 /** `field_id` from §1. */
 object ProfileField {
     const val FIRST_NAME = "first_name"
     const val EMAIL = "email"
+
+    /** The photo grid, as one field. A refused Continue is about the set, not about a slot. */
+    const val PHOTOS = "photos"
+
+    /** The prompt list, as one field. Same reason. */
+    const val PROMPTS = "prompts"
 }
 
-/** The `rule` vocabulary shared by the validation events. */
+/**
+ * The `rule` vocabulary shared by the validation events.
+ *
+ * A closed set in the registry: `required_missing` · `photos_below_minimum` · `nothing_selected` ·
+ * `at_char_limit` · `format` · `impossible`. Only the four this flow can produce are named.
+ */
 object ValidationRule {
     const val REQUIRED_MISSING = "required_missing"
     const val FORMAT = "format"
+
+    /** Continue pressed with fewer than four CONFIRMED photos (SHOWUP-156). */
+    const val PHOTOS_BELOW_MINIMUM = "photos_below_minimum"
+
+    /** Continue pressed with no prompt saved (SHOWUP-158). */
+    const val NOTHING_SELECTED = "nothing_selected"
 }
 
 /**
@@ -142,6 +198,16 @@ object ProfileAnalytics {
     const val EMAIL_VALIDATION_FAILED = "email_validation_failed"
     const val FORM_VALIDATION_FAILED = "form_validation_failed"
     const val CONSENT_CHANGED = "consent_changed"
+    const val EMBRACE_BRIDGE_VIEWED = "embrace_bridge_viewed"
+    const val PHOTO_SLOT_TAPPED = "photo_slot_tapped"
+    const val PHOTO_ADDED = "photo_added"
+    const val PHOTO_REMOVED = "photo_removed"
+    const val PHOTO_REORDERED = "photo_reordered"
+    const val PHOTOS_MINIMUM_MET = "photos_minimum_met"
+    const val PROMPT_TOPIC_PICKER_OPENED = "prompt_topic_picker_opened"
+    const val PROMPT_TOPIC_SELECTED = "prompt_topic_selected"
+    const val PROMPT_ANSWERED = "prompt_answered"
+    const val PROMPT_EDITED = "prompt_edited"
 
     /** T1, class 0. `referrer_screen_id` is B2 and travels as null until Step 3 lands. */
     fun screenViewed(screen: ProfileScreen, referrer: ProfileScreen? = null) =
@@ -162,6 +228,21 @@ object ProfileAnalytics {
         put("step_index", step.stepIndex)
         putAll(Stamp.of(0))
     }
+
+    /**
+     * T2, class 0. The bridge screen was shown.
+     *
+     * Fires ALONGSIDE [screenViewed] and instead of nothing else. SHOWUP-155 is explicit about the
+     * three that must NOT fire here: [stepViewed] and [stepCompleted], because a bridge is not a
+     * step and would otherwise show up as a phantom stage in the completion funnel; and
+     * [buildStarted], because the build started four screens ago on the name step. There is also
+     * no CTA event -- the screen has one exit and [screenViewed] on photos already records it.
+     */
+    fun embraceBridgeViewed(variant: String = EmbraceVariant.BUILD_PROFILE) =
+        EMBRACE_BRIDGE_VIEWED to buildMap<String, Any> {
+            put("variant", variant)
+            putAll(Stamp.of(0))
+        }
 
     /** T2, class 0. Once per profile build, on the first step only. */
     fun buildStarted(entryPoint: String) = PROFILE_BUILD_STARTED to buildMap {
@@ -210,6 +291,141 @@ object ProfileAnalytics {
             put("step_id", step.stepId)
             putAll(Stamp.of(0))
         }
+
+    // ── family E · Profile Photos/Media (SHOWUP-156) ─────────────────────────
+    //
+    // NEVER A PHOTO, A FILENAME OR A LIBRARY IDENTIFIER. Slot indices, a source and counts only.
+    // The registry says so and so does the ticket; what makes it true is that none of the
+    // builders below takes anything else.
+
+    /** T2, class 0. A slot tap, or `Add more` revealing slots 5-6. */
+    fun photoSlotTapped(slotIndex: Int, isOptional: Boolean, action: String) =
+        PHOTO_SLOT_TAPPED to buildMap<String, Any> {
+            put("slot_index", slotIndex)
+            put("is_optional", isOptional)
+            put("action", action)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T2, class 0. Fires on the CONFIRMED upload, never on the pick.
+     *
+     * `filled_count` is the confirmed count after this one landed, which is what makes the funnel
+     * agree with the number on screen.
+     */
+    fun photoAdded(slotIndex: Int, source: PhotoSource, filledCount: Int) =
+        PHOTO_ADDED to buildMap<String, Any> {
+            put("slot_index", slotIndex)
+            put("source", source.trackingValue)
+            put("filled_count", filledCount)
+            put("max_slots", PHOTOS_MAX)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. */
+    fun photoRemoved(slotIndex: Int, filledCount: Int) =
+        PHOTO_REMOVED to buildMap<String, Any> {
+            put("slot_index", slotIndex)
+            put("filled_count", filledCount)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. Drag finished somewhere other than where it started. */
+    fun photoReordered(from: Int, to: Int) =
+        PHOTO_REORDERED to buildMap<String, Any> {
+            put("from", from)
+            put("to", to)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T2, class 0. ONCE, on the first crossing of four CONFIRMED uploads.
+     *
+     * Not on the fourth pick, and not again after a removal takes the count below four and back
+     * up -- `PhotoGridState.minimumReported` is what holds that, because a funnel step that can
+     * fire twice for one user cannot be counted.
+     */
+    fun photosMinimumMet(count: Int) = PHOTOS_MINIMUM_MET to buildMap<String, Any> {
+        put("count", count)
+        put("max_slots", PHOTOS_MAX)
+        putAll(Stamp.of(0))
+    }
+
+    // ── family · Profile Attributes (SHOWUP-158) ─────────────────────────────
+    //
+    // THE TICKET'S TRACKING SECTION IS OUT OF DATE, and following it would have meant inventing
+    // five names. It says "the whole prompt-authoring funnel is unregistered... there is nothing
+    // for topic chosen, write sheet opened, prompt saved, prompt edited, or prompt deleted".
+    // Registry 1.3.0 carries four of those five under "Profile Attributes" --
+    // prompt_topic_picker_opened, prompt_topic_selected, prompt_answered, prompt_edited and
+    // prompt_removed -- so they are used as named rather than re-minted.
+    //
+    // STILL GENUINELY MISSING, and NOT invented here:
+    //
+    //   · `entry_point` -- whether the topic came from a SUGGESTION CARD or from BROWSE ALL. The
+    //     ticket calls it "the one measurement this revision exists to produce", and its value set
+    //     (suggestion | browse | edit) is not in enums.json. A free string would be exactly what
+    //     the tracking rules forbid, so nothing is sent and the gap is recorded.
+    //   · ABANDONMENT -- a write sheet opened and closed without saving is the precise drop-off
+    //     this screen is designed against, and there is no event for it.
+    //
+    // NEVER THE ANSWER AND NEVER THE DRAFT. `char_count` and `at_char_limit` only, which is what
+    // §5's prose says and what the builders below enforce by taking nothing else.
+
+    /** T2, class 0. `Browse all 15 topics` was pressed. */
+    fun promptTopicPickerOpened(slotIndex: Int) =
+        PROMPT_TOPIC_PICKER_OPENED to buildMap<String, Any> {
+            put("slot_index", slotIndex)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. A topic was chosen, from a suggestion card or from the sheet. */
+    fun promptTopicSelected(topicId: String) =
+        PROMPT_TOPIC_SELECTED to buildMap<String, Any> {
+            put("topic_id", topicId)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T2, class 0. An answer was saved.
+     *
+     * `prompt_id` is the topic id plus the slot, per §5's own prose and its own example --
+     * `match_me_if_you__slot2` -- so a topic moved between slots stays traceable.
+     */
+    fun promptAnswered(promptId: String, charCount: Int, atCharLimit: Boolean) =
+        PROMPT_ANSWERED to buildMap<String, Any> {
+            put("prompt_id", promptId)
+            put("char_count", charCount)
+            put("at_char_limit", atCharLimit)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. An existing answer was changed rather than a new one added. */
+    fun promptEdited(promptId: String) = PROMPT_EDITED to buildMap<String, Any> {
+        put("prompt_id", promptId)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, class 0. The refused press on a step outside "The basics".
+     *
+     * A second builder rather than a widened first one: [formValidationFailed] takes a
+     * [BasicsStep] and there is no BasicsStep for a photo or a prompt. The payload is identical
+     * and both come from the same registry row -- what differs is which step vocabulary the caller
+     * can offer.
+     */
+    fun realYouValidationFailed(
+        fieldId: String,
+        rule: String,
+        screen: ProfileScreen,
+        step: RealYouStep,
+    ) = FORM_VALIDATION_FAILED to buildMap<String, Any> {
+        put("field_id", fieldId)
+        put("rule", rule)
+        put("screen_id", screen.screenId)
+        put("step_id", step.stepId)
+        putAll(Stamp.of(0))
+    }
 
     /**
      * T2, class 1. Fires in **both** directions.

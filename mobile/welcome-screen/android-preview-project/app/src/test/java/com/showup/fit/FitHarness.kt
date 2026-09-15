@@ -51,6 +51,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
@@ -123,9 +124,30 @@ private fun layoutOf(node: SemanticsNode): TextLayoutResult? {
     return sink.firstOrNull()
 }
 
-/** Renders [content] into [device]'s SAFE area and returns everything wrong with the result. */
+/**
+ * Renders [content] into [device]'s SAFE area and returns everything wrong with the result.
+ *
+ * @param fontScale the system font size, as a multiplier. 1.0 is the default; Android's largest
+ *   non-accessibility step is 1.3 and its largest accessibility step is 2.0, which is what
+ *   `CLAUDE.md`'s "usable at the largest system font" has always meant and what nothing here
+ *   measured until 15 September 2026. Added because "The real you" is the first group with several
+ *   FIXED heights -- a 158 slot, a 44 pill, a 32 retry control -- and a fixed height is exactly
+ *   what large type overflows.
+ *
+ * @param keyboardDp how much of the bottom the keyboard has taken. 0 for a screen with no input.
+ *   The IME is the one thing the shared CLAUDE.md lists as "not yet automated on either platform --
+ *   check it by hand", and by hand is not a thing seventeen devices get. Modelled as a bite out of
+ *   the usable height, which is exactly what `WindowInsets.ime` does to a layout that respects it;
+ *   a screen that ignores the inset will not notice this and is caught by reading instead.
+ */
 @OptIn(ExperimentalTestApi::class)
-fun measureFit(device: Device, screen: String, content: @Composable () -> Unit): List<Violation> {
+fun measureFit(
+    device: Device,
+    screen: String,
+    fontScale: Float = 1f,
+    keyboardDp: Int = 0,
+    content: @Composable () -> Unit,
+): List<Violation> {
     val found = mutableListOf<Violation>()
     runComposeUiTest {
         var density = 1f
@@ -138,12 +160,20 @@ fun measureFit(device: Device, screen: String, content: @Composable () -> Unit):
             val cfg = Configuration(LocalConfiguration.current).apply {
                 screenWidthDp = device.width
                 screenHeightDp = device.height
+                this.fontScale = fontScale
             }
-            CompositionLocalProvider(LocalConfiguration provides cfg) {
+            // Both, not one. The Configuration is what a composable reading
+            // `LocalConfiguration.fontScale` sees; LocalDensity is what actually sizes an `sp`.
+            // Setting only the first scales nothing and would have reported every screen as clean
+            // at every font size, which is worse than not testing it.
+            CompositionLocalProvider(
+                LocalConfiguration provides cfg,
+                LocalDensity provides Density(LocalDensity.current.density, fontScale),
+            ) {
                 Box(
                     Modifier
                         .testTag(FIT_ROOT)
-                        .requiredSize(device.width.dp, device.safeHeight.dp),
+                        .requiredSize(device.width.dp, (device.safeHeight - keyboardDp).dp),
                 ) { content() }
             }
         }
@@ -153,7 +183,7 @@ fun measureFit(device: Device, screen: String, content: @Composable () -> Unit):
         val originX = boxNode.positionInRoot.x
         val originY = boxNode.positionInRoot.y
         val wDp = device.width.toFloat()
-        val hDp = device.safeHeight.toFloat()
+        val hDp = (device.safeHeight - keyboardDp).toFloat()
 
         // Carried DOWN the tree rather than read off each node: only the scroll container itself
         // advertises VerticalScrollAxisRange, and it is its descendants whose positions the flag

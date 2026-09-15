@@ -77,11 +77,14 @@ final class FlowScreenTests: XCTestCase {
     }
 
     func testEveryScreenIsDistinctAndNamed() {
-        // 12 since "The basics" is complete: the eight originals plus the four profile steps —
-        // profileName, profileEmail, profileVerifyEmail and profileDob — which sit between the
-        // tutorial's end and home. Mirrors the Android assertion in FlowRestorationTest.
-        XCTAssertEqual(FlowScreen.allCases.count, 12)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 12)
+        // 15: the eight originals, the four steps of "The basics", profileEmbrace (the bridge
+        // that follows them, a POSITION and not a step, which is why it is counted here and
+        // deliberately absent from BasicsStep), and the two built steps of "The real you" —
+        // profilePhotos and profilePrompts. Media is the third segment of that group's bar and
+        // has no screen yet, so it is in RealYouStep and not here.
+        // Mirrors FlowRestorationTest on Android.
+        XCTAssertEqual(FlowScreen.allCases.count, 15)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 15)
     }
 
     // MARK: - the routing vocabulary a scene stores

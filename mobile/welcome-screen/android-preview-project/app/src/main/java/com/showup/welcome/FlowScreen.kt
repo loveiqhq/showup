@@ -68,6 +68,30 @@ enum class FlowScreen {
     /** Profile creation, step 3. The last screen of "The basics". */
     ProfileDob,
 
+    /**
+     * The bridge out of "The basics" (SHOWUP-155).
+     *
+     * A position in the flow, and deliberately NOT a step: it belongs to neither progress bar, has
+     * no header and collects nothing. It sits between [ProfileDob] and the first screen of "The
+     * real you", which is exactly where the user meets it.
+     *
+     * Excluded from [hasSystemBack] for the same reason as [ProfileName]: profile creation is
+     * mandatory once entered, so back must do NOTHING rather than step anywhere. The screen
+     * swallows the gesture with its own handler.
+     */
+    ProfileEmbrace,
+
+    /**
+     * "The real you", step 1 of 3 (SHOWUP-156).
+     *
+     * A DIFFERENT GROUP from "The basics", with its own header title and its own progress bar.
+     * See [com.showup.profile.RealYouStep].
+     */
+    ProfilePhotos,
+
+    /** "The real you", step 2 of 3 (SHOWUP-158). */
+    ProfilePrompts,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;
@@ -92,5 +116,8 @@ enum class FlowScreen {
      */
     val hasSystemBack: Boolean
         get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal ||
-            this == ProfileEmail || this == ProfileVerifyEmail || this == ProfileDob
+            this == ProfileEmail || this == ProfileVerifyEmail || this == ProfileDob ||
+            // Both screens in "The real you" draw a back chevron, so the gesture has to agree
+            // with it -- the same fix, and the same reason, as ProfileEmail above.
+            this == ProfilePhotos || this == ProfilePrompts
 }

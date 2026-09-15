@@ -227,6 +227,267 @@ check("153 has four distinct states (swift)",
 check("154 visibility never mentions isVisible (kotlin)", "isVisible" not in dob_kt)
 check("154 visibility never mentions isVisible (swift)", "isVisible" not in dob_sw)
 
+# ── SHOWUP-155 · the embrace bridge ─────────────────────────────────────────
+#
+# THE ABSENCES ARE THE DESIGN, so most of this section is "not in". The reference file names
+# adding a header or a progress bar "the single most likely mistake on this screen", and both are
+# exactly the kind of thing a later consistency pass adds without malice. A "not in" assertion is
+# the only way to hold a decision that is expressed by something not being there.
+#
+# `code_only` throughout, because the comments in both files explain WHY there is no AppHeader --
+# and therefore contain the word.
+embrace_kt = code_only(read(KT, "profile", "ProfileEmbraceScreen.kt"))
+embrace_sw = code_only(read(SW, "ProfileEmbrace.swift"))
+
+check("155 no AppHeader (kotlin)", "AppHeader" not in embrace_kt)
+check("155 no AppHeader (swift)", "AppHeader" not in embrace_sw)
+check("155 no StepProgress (kotlin)", "StepProgress" not in embrace_kt)
+check("155 no StepProgress (swift)", "StepProgress" not in embrace_sw)
+check("155 no BasicsScaffold (kotlin)", "BasicsScaffold" not in embrace_kt)
+check("155 no BasicsScaffold (swift)", "BasicsScaffold" not in embrace_sw)
+
+# The bridge is a SCREEN but NOT A STEP. §11's naming rules say the §2 row is deliberately absent
+# "because firing profile_step_viewed on it would put a phantom step in the completion funnel".
+check("155 fires no step event (kotlin)", "stepViewed" not in embrace_kt)
+check("155 fires no step event (swift)", "stepViewed" not in embrace_sw)
+check("155 the bridge event exists (kotlin)",
+      "embrace_bridge_viewed" in read(KT, "profile", "ProfileAnalytics.kt"))
+check("155 the variant vocabulary is registry-backed (kotlin)",
+      'BUILD_PROFILE = "build_profile"' in read(KT, "profile", "ProfileAnalytics.kt"))
+check("155 the screen row is registry-backed (kotlin)",
+      '"profile_embrace_build", "ProfileEmbraceBuild"' in read(KT, "profile", "ProfileAnalytics.kt"))
+
+# Rule 5's named exception: the ONE profile screen with the ambient backdrop, and it gets it from
+# the shared component rather than redrawing the orbs.
+check("155 uses the shared backdrop scaffold (kotlin)", "WelcomeScaffold" in embrace_kt)
+check("155 uses the shared backdrop scaffold (swift)", "WelcomeScaffold" in embrace_sw)
+check("155 gutter 28 (kotlin)", "gutter = 28.dp" in embrace_kt)
+check("155 gutter 28 (swift)", "gutter: 28" in embrace_sw)
+check("155 top 64 (kotlin)", "topPadding = 64.dp" in embrace_kt)
+check("155 top 64 (swift)", "topPadding: 64" in embrace_sw)
+
+# Rule 7's named exception: full-width SUNSET, not the round orange NextButton.
+check("155 CTA is sunset (kotlin)", "PrimaryButtonVariant.Sunset" in embrace_kt)
+check("155 CTA is sunset (swift)", "variant: .sunset" in embrace_sw)
+check("155 CTA is not the round NextButton (kotlin)", "NextButton" not in embrace_kt)
+check("155 CTA is not the round NextButton (swift)", "NextButton" not in embrace_sw)
+
+# Headline: Lora 700 / 34 / 1.1 / -0.015em, ONE italic em.
+check("155 headline 34 (kotlin)", "fontSize = 34.sp" in embrace_kt)
+check("155 headline 34 (swift)", "fontSize: 34" in embrace_sw)
+check("155 headline tracking (kotlin)", "(-0.015).em" in embrace_kt)
+check("155 headline tracking (swift)", "trackingEm: -0.015" in embrace_sw)
+
+# The bullet dots are ELEMENTS, not glyphs -- no unicode bullet, no emoji, no list marker.
+for label, text in (("kotlin", embrace_kt), ("swift", embrace_sw)):
+    check("155 no bullet glyph (%s)" % label, "•" not in text)
+check("155 dot is 7 round orange (kotlin)", ".size(7.dp)" in embrace_kt and "Orange" in embrace_kt)
+check("155 dot is 7 round orange (swift)",
+      "width: 7, height: 7" in embrace_sw and "liqOrange" in embrace_sw)
+
+# Copy — final strings, both platforms, quoted from the ticket.
+for label, text in (("kotlin", embrace_kt), ("swift", embrace_sw)):
+    check("155 anonymous greeting (%s)" % label, "Glad you're here." in text)
+    check("155 named greeting (%s)" % label, "Nice to see you," in text)
+    check("155 headline em is 'behind' (%s)" % label, '"behind"' in text)
+    check("155 lead copy (%s)" % label, "You are wonderful as you are." in text)
+    check("155 bullet 1 (%s)" % label, "Upload meaningful photos." in text)
+    check("155 bullet 2 (%s)" % label, "Record a voice or video prompt." in text)
+    check("155 closing copy (%s)" % label,
+          "More of you means better matches" in text)
+    check("155 CTA copy (%s)" % label, '"Upload my photos"' in text)
+
+# ── "The real you" · the group shell ────────────────────────────────────────
+#
+# BUILT ONCE AND CONSUMED THREE TIMES. Both tickets say it in the same words, and SHOWUP-158 says
+# why it matters: the group went from four segments to three when verify profile was dropped, and
+# a second copy of the shell would have meant editing three screens instead of one constant.
+chrome_kt = read(KT, "profile", "RealYouChrome.kt")
+chrome_sw = read(SW, "RealYouChrome.swift")
+photos_kt = read(KT, "profile", "ProfilePhotosScreen.kt")
+photos_sw = read(SW, "ProfilePhotos.swift")
+prompts_kt = read(KT, "profile", "ProfilePromptsScreen.kt")
+prompts_sw = read(SW, "ProfilePrompts.swift")
+grid_kt = read(KT, "profile", "PhotoGrid.kt")
+grid_sw = read(SW, "PhotoGrid.swift")
+topics_kt = read(KT, "profile", "PromptTopics.kt")
+topics_sw = read(SW, "PromptTopics.swift")
+access_kt = read(KT, "profile", "PhotoAccess.kt")
+access_sw = read(SW, "PhotoAccess.swift")
+
+check("group header title (kotlin)", 'SECTION = "The real you"' in chrome_kt)
+check("group header title (swift)", 'section = "The real you"' in chrome_sw)
+
+# THREE SEGMENTS, NOT FOUR. SHOWUP-158 supersedes SHOWUP-156's `steps={4}` acceptance criterion in
+# as many words, and the count lives in one place so profile verification returning is one edit.
+check("group is three segments (kotlin)", "const val COUNT = 3" in chrome_kt)
+check("group is three segments (swift)", "static let count = 3" in chrome_sw)
+check("no screen hardcodes a segment count (kotlin)",
+      "steps = 4" not in code_only(photos_kt) and "steps = 4" not in code_only(prompts_kt))
+check("no screen hardcodes a segment count (swift)",
+      "steps: 4" not in code_only(photos_sw) and "steps: 4" not in code_only(prompts_sw))
+check("both screens read the shared count (kotlin)",
+      "RealYouStep.COUNT" in chrome_kt and "RealYouStep.COUNT" in prompts_kt)
+check("both screens read the shared count (swift)",
+      "RealYouStep.count" in chrome_sw and "RealYouStep.count" in prompts_sw)
+
+# THE BAR IS FIXED ON PHOTOS AND SCROLLS ON PROMPTS. Deliberate, and the thing most likely to be
+# "fixed" into a third fixed row later, so the parameter and its one false caller are both asserted.
+check("the bar's placement is a parameter (kotlin)", "progressFixed" in chrome_kt)
+check("the bar's placement is a parameter (swift)", "progressFixed" in chrome_sw)
+check("prompts scrolls its bar (kotlin)", "progressFixed = false" in prompts_kt)
+check("prompts scrolls its bar (swift)", "progressFixed: false" in prompts_sw)
+
+# ── SHOWUP-156 · photos ─────────────────────────────────────────────────────
+
+# EVERY SLOT IS 158 IN EVERY STATE. One constant, because the grid's geometry -- and therefore the
+# reorder arithmetic -- is only a closed form while the cell height does not depend on its content.
+check("slot height is one constant (kotlin)", "PHOTO_SLOT_HEIGHT = 158" in grid_kt)
+check("slot height is one constant (swift)", "photoSlotHeight: CGFloat = 158" in grid_sw)
+check("four required, six max (kotlin)",
+      "PHOTOS_REQUIRED = 4" in grid_kt and "PHOTOS_MAX = 6" in grid_kt)
+check("four required, six max (swift)",
+      "photosRequired = 4" in grid_sw and "photosMax = 6" in grid_sw)
+
+# THE COUNT ONLY ADVANCES ON A CONFIRMED UPLOAD.
+check("the count reads confirmed only (kotlin)",
+      "status == UploadStatus.Confirmed }" in grid_kt)
+check("the count reads confirmed only (swift)", "$0.status == .confirmed" in grid_sw)
+check("three upload statuses (kotlin)",
+      all(v in grid_kt for v in ["Confirmed", "InFlight", "Failed"]))
+check("three upload statuses (swift)",
+      all(v in grid_sw for v in ["confirmed", "inFlight", "failed"]))
+
+# THERE IS NO LIMITED-ACCESS STATE ANYWHERE IN THE BUILD. An earlier draft had a partial-library
+# banner; it was DELETED, not redesigned, because it explained a state the system picker makes
+# unreachable. A "not in" check is the only way to hold a decision expressed by an absence.
+for label, text in (("kotlin", code_only(access_kt)), ("swift", code_only(access_sw))):
+    check("156 no limited-access state (%s)" % label, "limited" not in text.lower())
+check("156 iOS never reads a library status",
+      "PHPhotoLibrary" not in code_only(access_sw)
+      and "authorizationStatus(for: .video)" in access_sw)
+# And no library permission is declared on either platform.
+manifest = read(MOBILE, "android-preview-project", "app", "src", "main", "AndroidManifest.xml")
+# The manifest's own comment names both permissions to say they are absent, and an XML comment is
+# not something `code_only` strips -- so the element is what gets checked, not the word.
+check("156 no library permission (android)",
+      'android.permission.READ_EXTERNAL_STORAGE"' not in manifest
+      and 'android.permission.READ_MEDIA_IMAGES"' not in manifest)
+check("156 camera permission is declared (android)", "permission.CAMERA" in manifest)
+plist = read(SW, "Info.plist")
+check("156 no library usage string (ios)",
+      "<key>NSPhotoLibraryUsageDescription</key>" not in plist)
+check("156 camera usage string (ios)", "NSCameraUsageDescription" in plist)
+
+# ONE CARD, TWO MODES.
+for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
+    check("156 access title (%s)" % label, "Photo access is needed to continue" in text)
+    check("156 access ask body (%s)" % label,
+          "Allow access so you can pick your photos." in text)
+    check("156 access blocked names the row (%s)" % label,
+          "Open Settings, turn on " in text)
+    check("156 access ask button (%s)" % label, '"Allow photo access"' in text)
+    check("156 access blocked button (%s)" % label, '"Open Settings"' in text)
+
+# Copy -- final strings, both platforms.
+for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
+    check("156 headline em (%s)" % label, '"messy hair"' in text)
+    check("156 sub copy (%s)" % label, "Show who you actually are" in text)
+    check("156 count label (%s)" % label, "required, " in text and "max" in text)
+    check("156 first-slot hint (%s)" % label, '"Start with your face"' in text)
+    check("156 optional divider (%s)" % label, "Optional · slots 5 & 6" in text)
+    check("156 add more (%s)" % label, '"Add more"' in text)
+    check("156 reorder hint (%s)" % label,
+          "Drag to reorder · the first one is your main photo" in text)
+    check("156 main badge (%s)" % label, '"MAIN"' in text)
+    check("156 uploading label (%s)" % label, "Uploading…" in text)
+    check("156 failure label (%s)" % label, '"Upload failed"' in text)
+    check("156 retry (%s)" % label, '"Retry"' in text)
+    check("156 sheet title (%s)" % label, '"Add a photo"' in text)
+    check("156 sheet library row (%s)" % label, '"Choose from library"' in text)
+    check("156 sheet library sub (%s)" % label, '"Pick one or more"' in text)
+    check("156 sheet camera row (%s)" % label, '"Take a photo"' in text)
+    check("156 sheet camera sub (%s)" % label, '"Use the camera now"' in text)
+    check("156 camera blocked sub (%s)" % label,
+          "Camera access is off. Turn on Camera in Settings to use it." in text)
+    # The default toast interpolates the requirement rather than restating it, so the two halves
+    # are matched either side of the number -- which is also what proves the number is not typed
+    # twice.
+    check("156 three toast variants (%s)" % label,
+          "Upload at least " in text and " photos to continue" in text
+          and "Turn on Photos in Settings to continue" in text
+          and "Allow photo access to continue" in text)
+
+# ── SHOWUP-158 · prompts ────────────────────────────────────────────────────
+
+check("158 fifteen topics (kotlin)", topics_kt.count("PromptTopic(") >= 15)
+check("158 fifteen topics (swift)", topics_sw.count("PromptTopic(id:") >= 15)
+check("158 three groups (kotlin)", topics_kt.count("label = \"") == 3)
+check("158 three groups (swift)", topics_sw.count("TopicGroup(label:") == 3)
+for label, text in (("kotlin", topics_kt), ("swift", topics_sw)):
+    check("158 group labels (%s)" % label,
+          '"Dating me"' in text and '"Me in real life"' in text
+          and '"Opinions & obsessions"' in text)
+    check("158 cap is 160 (%s)" % label, "160" in text)
+    check("158 counter starts at 100 (%s)" % label, "100" in text)
+    check("158 one required, three max (%s)" % label,
+          ("PROMPTS_REQUIRED = 1" in text and "PROMPTS_MAX = 3" in text)
+          or ("promptsRequired = 1" in text and "promptsMax = 3" in text))
+    # prompt_id is the topic id plus the slot, per the registry's own prose and example.
+    check("158 prompt_id carries the slot (%s)" % label, "__slot" in text)
+
+for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
+    check("158 headline em (%s)" % label, '"personal"' in text)
+    check("158 sub copy (%s)" % label,
+          "One is enough to continue. Add up to 3 if you're enjoying yourself." in text)
+    check("158 section label, none saved (%s)" % label, '"Start with one of these"' in text)
+    check("158 section label, some saved (%s)" % label, '"Add another · optional"' in text)
+    check("158 suggestion action (%s)" % label, '"Write this"' in text)
+    check("158 browse control (%s)" % label, '"Browse all 15 topics"' in text)
+    check("158 toast (%s)" % label, '"Write 1 prompt to continue"' in text)
+    check("158 topic sheet headline em (%s)" % label, '"topic"' in text)
+    check("158 topic sheet sub (%s)" % label,
+          "Pick something you'd want a match to actually know." in text)
+    check("158 used marker (%s)" % label, '"Used"' in text)
+    check("158 example eyebrow (%s)" % label, '"FOR EXAMPLE"' in text)
+    check("158 field placeholder (%s)" % label, "Say it like you'd tell it to a friend…" in text)
+    check("158 floor line (%s)" % label, '"One good sentence is enough."' in text)
+    check("158 cap line (%s)" % label, "That's the full 160" in text)
+    check("158 empty-submit line (%s)" % label,
+          '"Write a few words to save this prompt."' in text)
+    check("158 save (%s)" % label, '"Save"' in text)
+
+# THE CAP IS AMBER, NOT DANGER. The single thing in the write sheet most likely to be "corrected"
+# later: red says you did something wrong, and writing to the end of the box is not wrong.
+check("158 cap is amber not danger (kotlin)",
+      "atCap -> Orange" in prompts_kt and "atCap -> Danger" not in prompts_kt)
+check("158 cap is amber not danger (swift)",
+      "if atCap { return .liqOrange }" in prompts_sw)
+
+# THE EXAMPLE IS NOT A PLACEHOLDER. A placeholder vanishes at the first keystroke, which is exactly
+# when the user still wants it -- so the two strings are different things and both must exist.
+check("158 example is not the placeholder (kotlin)",
+      "EXAMPLE_EYEBROW" in prompts_kt and "PLACEHOLDER" in prompts_kt)
+check("158 example is not the placeholder (swift)",
+      "exampleEyebrow" in prompts_sw and "placeholder" in prompts_sw)
+
+# ── both screens · Continue is never disabled ───────────────────────────────
+#
+# The group-wide rule, and the reason the specific requirement is ever read: a dead button cannot
+# say what is missing. Neither screen's CTA takes an `enabled` argument at all.
+check("156 Continue is never disabled (kotlin)", "enabled = false" not in code_only(photos_kt))
+check("156 Continue is never disabled (swift)", "enabled: false" not in code_only(photos_sw))
+check("158 Continue and Save are never disabled (kotlin)",
+      "enabled = false" not in code_only(prompts_kt))
+check("158 Continue and Save are never disabled (swift)",
+      "enabled: false" not in code_only(prompts_sw))
+
+# The CTA is ORANGE on both screens and 52 rather than the 56 everything else draws.
+for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
+    check("156 CTA circle 52 (%s)" % label, "circleSize" in text and "52" in text)
+for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
+    check("158 CTA circle 52 (%s)" % label, "circleSize" in text and "52" in text)
+
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
 if failures:

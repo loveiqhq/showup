@@ -294,6 +294,86 @@ final class ScreenFitTests: XCTestCase {
                 ("DoB age hidden", try render(
                     ProfileDobView(value: .constant("03/22/1998"), hideAge: .constant(true)),
                     on: device), .orange),
+
+                // SHOWUP-155, the bridge. A FULL-WIDTH SUNSET pill, always enabled — rule 7's
+                // named exception — so these probe on violet rather than orange like the four
+                // screens above them. The long name is swept because the headline is the only
+                // thing on this screen that can reflow, and every point it grows comes out of
+                // the single spacer above the CTA.
+                ("Embrace named", try render(
+                    ProfileEmbraceView(firstName: "Leo"), on: device), .violet),
+                ("Embrace no name", try render(
+                    ProfileEmbraceView(), on: device), .violet),
+                ("Embrace long name", try render(
+                    ProfileEmbraceView(firstName: "Maximiliana-Rose"), on: device), .violet),
+
+                // SHOWUP-156, all seven states. The round ORANGE NextButton, always enabled —
+                // Continue is never disabled on this screen, whatever the count says.
+                //
+                // This is the first screen in the flow that scrolls, so a finding here means
+                // something FIXED has overflowed: the header, the progress bar, the footer, or a
+                // slot whose 158 has been compromised. The middle region can always scroll.
+                ("Photos empty", try render(
+                    ProfilePhotosView(), on: device), .orange),
+                ("Photos partial", try render(
+                    ProfilePhotosView(state: PhotoGridState(photos: fitConfirmedPhotos(2))),
+                    on: device), .orange),
+                ("Photos uploading", try render(
+                    ProfilePhotosView(state: PhotoGridState(photos: [
+                        PickedPhoto(localId: 0, uri: nil, status: .confirmed),
+                        PickedPhoto(localId: 1, uri: nil, status: .inFlight, progress: 0.62),
+                        PickedPhoto(localId: 2, uri: nil, status: .failed),
+                    ])), on: device), .orange),
+                ("Photos library blocked", try render(
+                    ProfilePhotosView(library: .blocked), on: device), .orange),
+                ("Photos library can ask", try render(
+                    ProfilePhotosView(library: .canAsk), on: device), .orange),
+                // The two source-sheet states are NOT here, and that is the probe's limit
+                // rather than a gap in the screen. With the sheet up, Continue is
+                // deliberately behind a 42% scrim — the user dismisses the sheet to reach
+                // it — and the sheet's own actions are rows in `liqRaised`, not a tinted
+                // pill this probe can recognise. It reported them as "CTA off screen" on
+                // all seventeen devices, which is true and is not a defect. Same reason
+                // the tutorial cards are absent from this sweep. Both states ARE measured
+                // element by element by the Android harness, which does not depend on
+                // recognising a colour.
+                ("Photos six revealed", try render(
+                    ProfilePhotosView(state: PhotoGridState(photos: fitConfirmedPhotos(6),
+                                                            optionalRevealed: true)),
+                    on: device), .orange),
+
+                // SHOWUP-158, all eight. The two sheets are the point: the topic sheet is capped
+                // at 600 and scrolls inside that, the write sheet has a 560 minimum, and 375 x 667
+                // is where those two numbers meet the smallest frame. A write sheet that overflowed
+                // would put Save off the bottom on the one screen where the CTA is the only way
+                // out — and both sheets cover the screen's own CTA, which is why the sheet states
+                // are probed on the SAVE button's violet rather than on the round orange one.
+                ("Prompts none", try render(
+                    ProfilePromptsView(), on: device), .orange),
+                ("Prompts one", try render(
+                    ProfilePromptsView(state: PromptsState(prompts: fitOnePrompt)),
+                    on: device), .orange),
+                ("Prompts three", try render(
+                    ProfilePromptsView(state: PromptsState(prompts: fitThreePrompts)),
+                    on: device), .orange),
+                ("Prompts write empty", try render(
+                    ProfilePromptsView(state: PromptsState(
+                        sheet: .write(topicId: "first_date", editing: false))),
+                    on: device), .violet),
+                ("Prompts write mid", try render(
+                    ProfilePromptsView(state: PromptsState(
+                        sheet: .write(topicId: "first_date", editing: false),
+                        drafts: ["first_date": "Talk about anything real. Not the weather."])),
+                    on: device), .violet),
+                ("Prompts write at cap", try render(
+                    ProfilePromptsView(state: PromptsState(
+                        sheet: .write(topicId: "first_date", editing: false),
+                        drafts: ["first_date": fitFullDraft])),
+                    on: device), .violet),
+                ("Prompts write nudge", try render(
+                    ProfilePromptsView(state: PromptsState(
+                        sheet: .write(topicId: "first_date", editing: false), nudge: true)),
+                    on: device), .violet),
             ]
             for (label, image, tint) in screens {
                 guard let rows = ctaRows(in: image, tint: tint) else {
@@ -304,7 +384,10 @@ final class ScreenFitTests: XCTestCase {
                 }
             }
         }
-        XCTAssertTrue(offscreen.isEmpty, "CTA off screen:\n" + offscreen.joined(separator: "\n"))
+        // One line, not one per finding. A newline-separated assertion message is truncated
+        // to its first line by the CI log renderer, so a failure reported the count and hid
+        // every offender — which cost a round trip on a Mac this machine does not have.
+        XCTAssertTrue(offscreen.isEmpty, "CTA off screen: " + offscreen.joined(separator: " · "))
     }
 
     // MARK: - the copy has to fit the room reserved for it
@@ -367,3 +450,30 @@ final class FixedInsetWindow: UIWindow {
     var fixedInsets: UIEdgeInsets = .zero
     override var safeAreaInsets: UIEdgeInsets { fixedInsets }
 }
+
+// MARK: - fixtures for "The real you"
+//
+// At file scope rather than inside the test, because the sweep above builds one array literal and
+// a `let` inside it would have to be hoisted anyway.
+
+private func fitConfirmedPhotos(_ n: Int) -> [PickedPhoto] {
+    (0..<n).map { PickedPhoto(localId: Int64($0), uri: nil, status: .confirmed) }
+}
+
+private let fitOnePrompt = [SavedPrompt(
+    topicId: "first_date",
+    answer: "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on "
+        + "your mind this week. Bring it. I'll listen."
+)]
+
+private let fitThreePrompts = fitOnePrompt + [
+    SavedPrompt(topicId: "hill_to_die_on",
+                answer: "Showing up. Cancelling last minute isn't a scheduling problem, "
+                    + "it's an answer."),
+    SavedPrompt(topicId: "cross_town",
+                answer: "A proper conversation. An old cinema. The 8pm walk after a long day."),
+]
+
+private let fitFullDraft = cappedAnswer(
+    "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on your "
+    + "mind this week. Bring it. I will listen for the entire thirty minutes!")

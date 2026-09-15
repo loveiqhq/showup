@@ -76,7 +76,7 @@ import com.showup.designsystem.rememberMotion
 import com.showup.designsystem.Subtle
 import com.showup.designsystem.autofill
 import com.showup.designsystem.minTapTarget
-import com.showup.tutorial.StepProgress
+import com.showup.designsystem.StepProgress
 import com.showup.welcome.WashHeadline
 import com.showup.designsystem.ComponentSizes
 import androidx.compose.foundation.layout.fillMaxHeight

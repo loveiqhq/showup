@@ -88,7 +88,7 @@ import com.showup.designsystem.Purple
 import com.showup.designsystem.Subtle
 import com.showup.designsystem.rememberMotion
 import com.showup.tutorial.NextButton
-import com.showup.tutorial.StepProgress
+import com.showup.designsystem.StepProgress
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline

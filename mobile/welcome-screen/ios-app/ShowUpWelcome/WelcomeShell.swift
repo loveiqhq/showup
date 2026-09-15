@@ -17,9 +17,36 @@ import UIKit
 ///
 /// Startup and Welcome back carry all three layers; phone verification carries two (no peach wash)
 /// at lower intensity, because its keyboard owns the bottom half and nothing should glow behind it.
+/// Where the two orbs sit, and how big they are.
+///
+/// Four recipes, because four groups of screens ask for four. They were a boolean until 15
+/// September 2026, when "The real you" arrived with two more — and a second backdrop component
+/// would have been the primary button all over again. The differences are small and deliberate:
+/// every one of them is a number the reference file for that screen sets, and none of them mean
+/// anything on their own, which is why they live here as named recipes rather than as five
+/// properties a call site has to get right.
+enum OrbPlacement {
+    /// Startup and Welcome back: orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%.
+    case startup
+    /// Phone verification: orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%.
+    case phoneVerify
+    /// Profile photos: orange 460 at top -22% / right -30%, violet 420 at top -12% / left -28%.
+    ///
+    /// Both orbs at the top, because the screen below them scrolls: an orb anchored to the bottom
+    /// of a scrolling screen sits behind the sticky footer, where it reads as a smudge under the
+    /// CTA rather than as atmosphere.
+    case realYouTop
+    /// Profile prompts: orange 460 at top -20% / right -25%, violet 420 at BOTTOM -12% / left -28%.
+    ///
+    /// The one split pair. This screen's footer is a bare CTA row with no gradient mask over it, so
+    /// there is nothing for a low violet to muddy — and the suggestion cards fill the middle, which
+    /// a second top orb would sit behind.
+    case realYouSplit
+}
+
 struct WelcomeBackdrop: View {
     var peachWash: Bool = true
-    var topWeighted: Bool = false
+    var placement: OrbPlacement = .startup
     var orangeAlpha: Double = 0.32
     var violetAlpha: Double = 0.28
 
@@ -28,14 +55,23 @@ struct WelcomeBackdrop: View {
             let w = geo.size.width
             let h = geo.size.height
             ZStack(alignment: .topLeading) {
-                if topWeighted {
-                    // orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%
+                switch placement {
+                case .phoneVerify:
                     orb(460, .liqOrange, orangeAlpha)
                         .position(x: w * 1.30 - 230, y: -0.18 * h + 230)
                     orb(420, .liqPurple, violetAlpha)
                         .position(x: -0.25 * w + 210, y: -0.10 * h + 210)
-                } else {
-                    // orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%
+                case .realYouTop:
+                    orb(460, .liqOrange, orangeAlpha)
+                        .position(x: w * 1.30 - 230, y: -0.22 * h + 230)
+                    orb(420, .liqPurple, violetAlpha)
+                        .position(x: -0.28 * w + 210, y: -0.12 * h + 210)
+                case .realYouSplit:
+                    orb(460, .liqOrange, orangeAlpha)
+                        .position(x: w * 1.25 - 230, y: -0.20 * h + 230)
+                    orb(420, .liqPurple, violetAlpha)
+                        .position(x: -0.28 * w + 210, y: h * 1.12 - 210)
+                case .startup:
                     orb(520, .liqOrange, orangeAlpha)
                         .position(x: w * 1.25 - 260, y: -0.15 * h + 260)
                     orb(600, .liqPurple, violetAlpha)
@@ -76,10 +112,18 @@ struct WelcomeBackdrop: View {
 /// behind the status bar and home indicator with no seam — an acceptance criterion on 140 and 142.
 struct WelcomeScaffold<Content: View>: View {
     var peachWash: Bool = true
-    var topWeighted: Bool = false
+    var placement: OrbPlacement = .startup
     var orangeAlpha: Double = 0.32
     var violetAlpha: Double = 0.28
     var topPadding: CGFloat = 20
+    /// The side gutter.
+    ///
+    /// `Spacing.screenGutter` on every screen this scaffold was written for. A property because
+    /// the embrace bridge (SHOWUP-155) draws at 28 — its reference sets `padding: '64px 28px 0'`
+    /// on the headline and `'28px 28px 0'` on the body, and a bridge is a wider, quieter beat than
+    /// the screens either side of it. Not a token: 28 means "this one screen", which is exactly
+    /// the case the design-system rules say to keep local.
+    var gutter: CGFloat = Spacing.screenGutter
     /// Scroll only as a last resort, for screens that share the frame with a keyboard.
     ///
     /// The handoff says these screens never scroll, and once the SHOWUP-143 design decisions land
@@ -96,7 +140,7 @@ struct WelcomeScaffold<Content: View>: View {
     var body: some View {
         ZStack {
             Color.liqCream.ignoresSafeArea()
-            WelcomeBackdrop(peachWash: peachWash, topWeighted: topWeighted,
+            WelcomeBackdrop(peachWash: peachWash, placement: placement,
                             orangeAlpha: orangeAlpha, violetAlpha: violetAlpha)
                 .ignoresSafeArea()
 
@@ -104,7 +148,7 @@ struct WelcomeScaffold<Content: View>: View {
                 GeometryReader { geo in
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 0) { content() }
-                            .padding(.horizontal, Spacing.screenGutter)
+                            .padding(.horizontal, gutter)
                             .padding(.top, topPadding)
                             .frame(minHeight: geo.size.height, alignment: .top)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,7 +163,7 @@ struct WelcomeScaffold<Content: View>: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 0) { content() }
-                    .padding(.horizontal, Spacing.screenGutter)
+                    .padding(.horizontal, gutter)
                     .padding(.top, topPadding)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -399,7 +443,8 @@ final class WashLabel: UILabel {
 /// Drawn rather than imported: CLAUDE.md requires inline stroke-only SVG at Lucide geometry and
 /// forbids icon fonts, PNGs and unicode glyphs as icons.
 enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, chevronLeft,
-                 arrowLeft, arrowRight, pencil, close, check, shield, heart, eyeOff }
+                 chevronRight, arrowLeft, arrowRight, pencil, pen, edit, close, check,
+                 shield, heart, eyeOff, plus, image, camera, lock, sliders }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -453,6 +498,109 @@ struct BrandIconView: View {
                 p = Path { b in
                     b.move(to: .init(x: 15, y: 18)); b.addLine(to: .init(x: 9, y: 12))
                     b.addLine(to: .init(x: 15, y: 6))
+                }
+
+            // ── added for "The real you" (SHOWUP-156 / SHOWUP-158) ────────────────
+            //
+            // Every one is copied from `components/shared.jsx`, the design system's own icon set,
+            // at its exact 24-grid geometry — not from a screen's inline SVG and not from memory.
+            // The back control was drawn `arrow-left` where the design says `chevron-left` once
+            // already, and no test catches that.
+            case .chevronRight:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 9, y: 18)); b.addLine(to: .init(x: 15, y: 12))
+                    b.addLine(to: .init(x: 9, y: 6))
+                }
+            case .plus:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 12, y: 5)); b.addLine(to: .init(x: 12, y: 19))
+                    b.move(to: .init(x: 5, y: 12)); b.addLine(to: .init(x: 19, y: 12))
+                }
+            case .image:
+                filled = false
+                p = Path { b in
+                    b.addRoundedRect(in: CGRect(x: 3, y: 3, width: 18, height: 18),
+                                     cornerSize: CGSize(width: 2, height: 2))
+                    b.addEllipse(in: CGRect(x: 6.9, y: 6.9, width: 3.2, height: 3.2))
+                    b.move(to: .init(x: 21, y: 15)); b.addLine(to: .init(x: 16, y: 10))
+                    b.addLine(to: .init(x: 5, y: 21))
+                }
+            case .camera:
+                filled = false
+                p = Path { b in
+                    // The body: a 2-radius rounded rect with a notch cut into its top edge for the
+                    // lens housing. One path rather than a rect plus a trapezium, so the stroke has
+                    // no join artefacts where the notch meets the edge.
+                    b.move(to: .init(x: 23, y: 19))
+                    b.addArc(center: .init(x: 21, y: 19), radius: 2,
+                             startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
+                    b.addLine(to: .init(x: 3, y: 21))
+                    b.addArc(center: .init(x: 3, y: 19), radius: 2,
+                             startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
+                    b.addLine(to: .init(x: 1, y: 8))
+                    b.addArc(center: .init(x: 3, y: 8), radius: 2,
+                             startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
+                    b.addLine(to: .init(x: 7, y: 6)); b.addLine(to: .init(x: 9, y: 3))
+                    b.addLine(to: .init(x: 15, y: 3)); b.addLine(to: .init(x: 17, y: 6))
+                    b.addLine(to: .init(x: 21, y: 6))
+                    b.addArc(center: .init(x: 21, y: 8), radius: 2,
+                             startAngle: .degrees(270), endAngle: .degrees(360), clockwise: false)
+                    b.closeSubpath()
+                    b.addEllipse(in: CGRect(x: 8, y: 9, width: 8, height: 8))
+                }
+            case .lock:
+                filled = false
+                p = Path { b in
+                    b.addRoundedRect(in: CGRect(x: 3, y: 11, width: 18, height: 11),
+                                     cornerSize: CGSize(width: 2, height: 2))
+                    // The shackle: up, over the top as a true semicircle, back down.
+                    b.move(to: .init(x: 7, y: 11)); b.addLine(to: .init(x: 7, y: 7))
+                    b.addArc(center: .init(x: 12, y: 7), radius: 5,
+                             startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+                    b.addLine(to: .init(x: 17, y: 11))
+                }
+            case .sliders:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 4, y: 21)); b.addLine(to: .init(x: 4, y: 14))
+                    b.move(to: .init(x: 4, y: 10)); b.addLine(to: .init(x: 4, y: 3))
+                    b.move(to: .init(x: 12, y: 21)); b.addLine(to: .init(x: 12, y: 12))
+                    b.move(to: .init(x: 12, y: 8)); b.addLine(to: .init(x: 12, y: 3))
+                    b.move(to: .init(x: 20, y: 21)); b.addLine(to: .init(x: 20, y: 16))
+                    b.move(to: .init(x: 20, y: 12)); b.addLine(to: .init(x: 20, y: 3))
+                    b.move(to: .init(x: 1, y: 14)); b.addLine(to: .init(x: 7, y: 14))
+                    b.move(to: .init(x: 9, y: 8)); b.addLine(to: .init(x: 15, y: 8))
+                    b.move(to: .init(x: 17, y: 16)); b.addLine(to: .init(x: 23, y: 16))
+                }
+            // `edit` from the shared set: a pen over a baseline stroke. The arc in the source path
+            // — `a2.121 2.121 0 0 1 3 3` — is a true semicircle, because the chord (3, 3) has
+            // length 4.243 and the radius is 2.121, so 2r is the chord. Centre is the midpoint.
+            case .edit:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 12, y: 20)); b.addLine(to: .init(x: 21, y: 20))
+                    b.move(to: .init(x: 16.5, y: 3.5))
+                    b.addArc(center: .init(x: 18, y: 5), radius: 2.121,
+                             startAngle: .degrees(225), endAngle: .degrees(45), clockwise: false)
+                    b.addLine(to: .init(x: 7, y: 19)); b.addLine(to: .init(x: 3, y: 20))
+                    b.addLine(to: .init(x: 4, y: 16))
+                    b.closeSubpath()
+                }
+            // The prompts card's edit pip. A pen with NO baseline stroke, which is what makes it a
+            // different glyph from `edit` rather than the same one at another size — SHOWUP-158's
+            // reference draws this one inline.
+            case .pen:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 17, y: 3))
+                    b.addArc(center: .init(x: 19, y: 5), radius: 2.83,
+                             startAngle: .degrees(225), endAngle: .degrees(45), clockwise: false)
+                    b.addLine(to: .init(x: 7.5, y: 20.5)); b.addLine(to: .init(x: 2, y: 22))
+                    b.addLine(to: .init(x: 3.5, y: 16.5))
+                    b.closeSubpath()
+                    b.move(to: .init(x: 15, y: 5)); b.addLine(to: .init(x: 19, y: 9))
                 }
             case .arrowLeft:
                 filled = false

@@ -60,6 +60,22 @@ enum FlowScreen: String, CaseIterable, Comparable {
     /// Profile creation, step 3. The last screen of "The basics".
     case profileDob
 
+    /// The bridge out of "The basics" (SHOWUP-155).
+    ///
+    /// A position in the flow, and deliberately NOT a step: it belongs to neither progress bar,
+    /// has no header and collects nothing. It sits between `profileDob` and the first screen of
+    /// "The real you", which is exactly where the user meets it.
+    case profileEmbrace
+
+    /// "The real you", step 1 of 3 (SHOWUP-156).
+    ///
+    /// A DIFFERENT GROUP from "The basics", with its own header title and its own progress bar.
+    /// See `RealYouStep`.
+    case profilePhotos
+
+    /// "The real you", step 2 of 3 (SHOWUP-158).
+    case profilePrompts
+
     /// Where the flow ends, for both the tutorial and a returning member.
     case home
 
