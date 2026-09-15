@@ -227,6 +227,76 @@ check("153 has four distinct states (swift)",
 check("154 visibility never mentions isVisible (kotlin)", "isVisible" not in dob_kt)
 check("154 visibility never mentions isVisible (swift)", "isVisible" not in dob_sw)
 
+# ── SHOWUP-155 · the embrace bridge ─────────────────────────────────────────
+#
+# THE ABSENCES ARE THE DESIGN, so most of this section is "not in". The reference file names
+# adding a header or a progress bar "the single most likely mistake on this screen", and both are
+# exactly the kind of thing a later consistency pass adds without malice. A "not in" assertion is
+# the only way to hold a decision that is expressed by something not being there.
+#
+# `code_only` throughout, because the comments in both files explain WHY there is no AppHeader --
+# and therefore contain the word.
+embrace_kt = code_only(read(KT, "profile", "ProfileEmbraceScreen.kt"))
+embrace_sw = code_only(read(SW, "ProfileEmbrace.swift"))
+
+check("155 no AppHeader (kotlin)", "AppHeader" not in embrace_kt)
+check("155 no AppHeader (swift)", "AppHeader" not in embrace_sw)
+check("155 no StepProgress (kotlin)", "StepProgress" not in embrace_kt)
+check("155 no StepProgress (swift)", "StepProgress" not in embrace_sw)
+check("155 no BasicsScaffold (kotlin)", "BasicsScaffold" not in embrace_kt)
+check("155 no BasicsScaffold (swift)", "BasicsScaffold" not in embrace_sw)
+
+# The bridge is a SCREEN but NOT A STEP. §11's naming rules say the §2 row is deliberately absent
+# "because firing profile_step_viewed on it would put a phantom step in the completion funnel".
+check("155 fires no step event (kotlin)", "stepViewed" not in embrace_kt)
+check("155 fires no step event (swift)", "stepViewed" not in embrace_sw)
+check("155 the bridge event exists (kotlin)",
+      "embrace_bridge_viewed" in read(KT, "profile", "ProfileAnalytics.kt"))
+check("155 the variant vocabulary is registry-backed (kotlin)",
+      'BUILD_PROFILE = "build_profile"' in read(KT, "profile", "ProfileAnalytics.kt"))
+check("155 the screen row is registry-backed (kotlin)",
+      '"profile_embrace_build", "ProfileEmbraceBuild"' in read(KT, "profile", "ProfileAnalytics.kt"))
+
+# Rule 5's named exception: the ONE profile screen with the ambient backdrop, and it gets it from
+# the shared component rather than redrawing the orbs.
+check("155 uses the shared backdrop scaffold (kotlin)", "WelcomeScaffold" in embrace_kt)
+check("155 uses the shared backdrop scaffold (swift)", "WelcomeScaffold" in embrace_sw)
+check("155 gutter 28 (kotlin)", "gutter = 28.dp" in embrace_kt)
+check("155 gutter 28 (swift)", "gutter: 28" in embrace_sw)
+check("155 top 64 (kotlin)", "topPadding = 64.dp" in embrace_kt)
+check("155 top 64 (swift)", "topPadding: 64" in embrace_sw)
+
+# Rule 7's named exception: full-width SUNSET, not the round orange NextButton.
+check("155 CTA is sunset (kotlin)", "PrimaryButtonVariant.Sunset" in embrace_kt)
+check("155 CTA is sunset (swift)", "variant: .sunset" in embrace_sw)
+check("155 CTA is not the round NextButton (kotlin)", "NextButton" not in embrace_kt)
+check("155 CTA is not the round NextButton (swift)", "NextButton" not in embrace_sw)
+
+# Headline: Lora 700 / 34 / 1.1 / -0.015em, ONE italic em.
+check("155 headline 34 (kotlin)", "fontSize = 34.sp" in embrace_kt)
+check("155 headline 34 (swift)", "fontSize: 34" in embrace_sw)
+check("155 headline tracking (kotlin)", "(-0.015).em" in embrace_kt)
+check("155 headline tracking (swift)", "trackingEm: -0.015" in embrace_sw)
+
+# The bullet dots are ELEMENTS, not glyphs -- no unicode bullet, no emoji, no list marker.
+for label, text in (("kotlin", embrace_kt), ("swift", embrace_sw)):
+    check("155 no bullet glyph (%s)" % label, "•" not in text)
+check("155 dot is 7 round orange (kotlin)", ".size(7.dp)" in embrace_kt and "Orange" in embrace_kt)
+check("155 dot is 7 round orange (swift)",
+      "width: 7, height: 7" in embrace_sw and "liqOrange" in embrace_sw)
+
+# Copy — final strings, both platforms, quoted from the ticket.
+for label, text in (("kotlin", embrace_kt), ("swift", embrace_sw)):
+    check("155 anonymous greeting (%s)" % label, "Glad you're here." in text)
+    check("155 named greeting (%s)" % label, "Nice to see you," in text)
+    check("155 headline em is 'behind' (%s)" % label, '"behind"' in text)
+    check("155 lead copy (%s)" % label, "You are wonderful as you are." in text)
+    check("155 bullet 1 (%s)" % label, "Upload meaningful photos." in text)
+    check("155 bullet 2 (%s)" % label, "Record a voice or video prompt." in text)
+    check("155 closing copy (%s)" % label,
+          "More of you means better matches" in text)
+    check("155 CTA copy (%s)" % label, '"Upload my photos"' in text)
+
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
 if failures:

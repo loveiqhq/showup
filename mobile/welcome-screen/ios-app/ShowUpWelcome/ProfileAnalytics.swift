@@ -44,6 +44,15 @@ enum ProfileScreen: String {
     case emailVerification = "profile_email_verification"
     case dob = "profile_dob"
 
+    /// The bridge out of "The basics" (SHOWUP-155).
+    ///
+    /// A SCREEN BUT NOT A STEP, and §11's naming rules say so in as many words: this row exists
+    /// and the matching §2 row deliberately does not, "because firing profile_step_viewed on it
+    /// would put a phantom step in the completion funnel". That is why there is no `BasicsStep`
+    /// for it and why `ProfileAnalytics.stepViewed` cannot be called with it — the type system
+    /// carries the rule rather than a comment asking people to remember it.
+    case embraceBuild = "profile_embrace_build"
+
     var screenId: String { rawValue }
 
     var screenName: String {
@@ -52,8 +61,20 @@ enum ProfileScreen: String {
         case .email: return "ProfileEmail"
         case .emailVerification: return "ProfileEmailVerification"
         case .dob: return "ProfileDoB"
+        case .embraceBuild: return "ProfileEmbraceBuild"
         }
     }
+}
+
+/// `variant` from enums.json §16 — which of the two bridges fired `embraceBridgeViewed`.
+///
+/// Two screens, one shell, two copy payloads. The set maps onto §11 one-for-one:
+/// `build_profile` -> `profile_embrace_build` · `add_details` -> `profile_embrace_details`.
+/// `addDetails` is the sibling bridge, registered and not yet ticketed; it is listed here because
+/// the value set has one home by design, not because anything calls it yet.
+enum EmbraceVariant {
+    static let buildProfile = "build_profile"
+    static let addDetails = "add_details"
 }
 
 /// `field_id` from §1.
@@ -119,6 +140,7 @@ enum ProfileAnalytics {
     static let emailValidationFailed = "email_validation_failed"
     static let formValidationFailed = "form_validation_failed"
     static let consentChangedName = "consent_changed"
+    static let embraceBridgeViewedName = "embrace_bridge_viewed"
 
     /// T1, class 0. `referrer_screen_id` is B2 and travels empty until Step 3 lands.
     static func screenViewed(_ screen: ProfileScreen,
@@ -137,6 +159,19 @@ enum ProfileAnalytics {
         (profileStepViewed, [
             "step_id": step.stepId, "step_index": step.stepIndex,
         ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. The bridge screen was shown.
+    ///
+    /// Fires ALONGSIDE `screenViewed` and instead of nothing else. SHOWUP-155 is explicit about
+    /// the three that must NOT fire here: `stepViewed` and `stepCompleted`, because a bridge is
+    /// not a step and would otherwise show up as a phantom stage in the completion funnel; and
+    /// `buildStarted`, because the build started four screens ago on the name step. There is also
+    /// no CTA event — the screen has one exit and `screenViewed` on photos already records it.
+    static func embraceBridgeViewed(
+        variant: String = EmbraceVariant.buildProfile
+    ) -> (String, [String: any Sendable]) {
+        (embraceBridgeViewedName, ["variant": variant].merging(Stamp.of(0)) { a, _ in a })
     }
 
     /// T2, class 0. Once per profile build, on the first step only.

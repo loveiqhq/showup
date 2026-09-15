@@ -41,6 +41,7 @@ import com.showup.welcome.PhoneAuthViewModel
 import com.showup.profile.BasicsViewModel
 import com.showup.profile.EmailCopy
 import com.showup.profile.ProfileDobScreen
+import com.showup.profile.ProfileEmbraceScreen
 import java.time.OffsetDateTime
 import com.showup.profile.ProfileEmailScreen
 import com.showup.profile.ProfileNameScreen
@@ -267,12 +268,23 @@ class MainActivity : ComponentActivity() {
                         busy = basicsState.busy,
                         serverRejectedAge = basicsState.serverRejectedAge,
                         onContinue = { valid ->
-                            basics.saveDateOfBirth(valid.iso, onSaved = { screen = FlowScreen.Home })
+                            basics.saveDateOfBirth(
+                                valid.iso,
+                                onSaved = { screen = FlowScreen.ProfileEmbrace },
+                            )
                         },
                         onRefused = { basics.markDobAttempted() },
                         onEdit = { basics.clearDob() },
                         onBack = { screen = FlowScreen.ProfileVerifyEmail },
                     )
+                    // SHOWUP-155. The bridge out of "The basics". No header, no progress bar,
+                    // no back -- the absences are the design, and the screen swallows the system
+                    // gesture itself. Its one exit is forward.
+                    FlowScreen.ProfileEmbrace -> ProfileEmbraceScreen(
+                        firstName = firstName,
+                        onContinue = { screen = FlowScreen.Home },
+                    )
+
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
                 }

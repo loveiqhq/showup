@@ -68,6 +68,19 @@ enum class FlowScreen {
     /** Profile creation, step 3. The last screen of "The basics". */
     ProfileDob,
 
+    /**
+     * The bridge out of "The basics" (SHOWUP-155).
+     *
+     * A position in the flow, and deliberately NOT a step: it belongs to neither progress bar, has
+     * no header and collects nothing. It sits between [ProfileDob] and the first screen of "The
+     * real you", which is exactly where the user meets it.
+     *
+     * Excluded from [hasSystemBack] for the same reason as [ProfileName]: profile creation is
+     * mandatory once entered, so back must do NOTHING rather than step anywhere. The screen
+     * swallows the gesture with its own handler.
+     */
+    ProfileEmbrace,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;

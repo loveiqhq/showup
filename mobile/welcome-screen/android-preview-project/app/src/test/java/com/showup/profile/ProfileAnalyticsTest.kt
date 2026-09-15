@@ -91,6 +91,48 @@ class ProfileAnalyticsTest {
         assertEquals("format", payload["rule"])
     }
 
+    // ── SHOWUP-155 · the bridge is a screen and NOT a step ────────────────────
+
+    @Test
+    fun `the bridge has a screen row and reports the build variant`() {
+        val (name, payload) = ProfileAnalytics.embraceBridgeViewed()
+        assertEquals("embrace_bridge_viewed", name)
+        assertEquals("build_profile", payload["variant"])
+        assertEquals(0, payload["sensitivity_class"])
+    }
+
+    @Test
+    fun `the bridge screen carries both registry vocabularies`() {
+        val (_, payload) = ProfileAnalytics.screenViewed(ProfileScreen.EmbraceBuild)
+        // §11: screen_id is the stable key, screen_name the human label. Two vocabularies, and
+        // collapsing them breaks one of the two uses.
+        assertEquals("profile_embrace_build", payload["screen_id"])
+        assertEquals("ProfileEmbraceBuild", payload["screen_name"])
+    }
+
+    @Test
+    fun `no BasicsStep exists for the bridge, so no step event can name it`() {
+        // The registry's own words: the §2 row is deliberately absent "because firing
+        // profile_step_viewed on it would put a phantom step in the completion funnel". The rule
+        // is carried by the type system -- `stepViewed` takes a BasicsStep and there is none --
+        // and this test is what would notice somebody adding one.
+        assertEquals(
+            listOf("name", "email", "email_verify", "dob"),
+            BasicsStep.entries.map { it.stepId },
+        )
+    }
+
+    @Test
+    fun `the sibling bridge variant is registered but unused`() {
+        // §16 is a closed pair. It lives in one place so the sibling bridge does not arrive with
+        // its value typed into a second ticket, which is how a vocabulary drifts.
+        assertEquals("add_details", EmbraceVariant.ADD_DETAILS)
+        assertEquals(
+            "add_details",
+            ProfileAnalytics.embraceBridgeViewed(EmbraceVariant.ADD_DETAILS).second["variant"],
+        )
+    }
+
     // ── privacy ───────────────────────────────────────────────────────────────
 
     @Test

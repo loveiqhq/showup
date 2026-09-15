@@ -62,6 +62,30 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     Email("profile_email", "ProfileEmail"),
     EmailVerification("profile_email_verification", "ProfileEmailVerification"),
     Dob("profile_dob", "ProfileDoB"),
+
+    /**
+     * The bridge out of "The basics" (SHOWUP-155).
+     *
+     * A SCREEN BUT NOT A STEP, and §11's naming rules say so in as many words: this row exists and
+     * the matching §2 row deliberately does not, "because firing profile_step_viewed on it would
+     * put a phantom step in the completion funnel". That is why there is no `BasicsStep` for it and
+     * why [ProfileAnalytics.stepViewed] cannot be called with it -- the type system carries the
+     * rule rather than a comment asking people to remember it.
+     */
+    EmbraceBuild("profile_embrace_build", "ProfileEmbraceBuild"),
+}
+
+/**
+ * `variant` from enums.json §16 — which of the two bridges fired [ProfileAnalytics.embraceBridgeViewed].
+ *
+ * Two screens, one shell, two copy payloads. The set maps onto §11 one-for-one:
+ * `build_profile` -> `profile_embrace_build` · `add_details` -> `profile_embrace_details`.
+ * [ADD_DETAILS] is the sibling bridge, registered and not yet ticketed; it is listed here because
+ * the value set has one home by design, not because anything calls it yet.
+ */
+object EmbraceVariant {
+    const val BUILD_PROFILE = "build_profile"
+    const val ADD_DETAILS = "add_details"
 }
 
 /** `field_id` from §1. */
@@ -142,6 +166,7 @@ object ProfileAnalytics {
     const val EMAIL_VALIDATION_FAILED = "email_validation_failed"
     const val FORM_VALIDATION_FAILED = "form_validation_failed"
     const val CONSENT_CHANGED = "consent_changed"
+    const val EMBRACE_BRIDGE_VIEWED = "embrace_bridge_viewed"
 
     /** T1, class 0. `referrer_screen_id` is B2 and travels as null until Step 3 lands. */
     fun screenViewed(screen: ProfileScreen, referrer: ProfileScreen? = null) =
@@ -162,6 +187,21 @@ object ProfileAnalytics {
         put("step_index", step.stepIndex)
         putAll(Stamp.of(0))
     }
+
+    /**
+     * T2, class 0. The bridge screen was shown.
+     *
+     * Fires ALONGSIDE [screenViewed] and instead of nothing else. SHOWUP-155 is explicit about the
+     * three that must NOT fire here: [stepViewed] and [stepCompleted], because a bridge is not a
+     * step and would otherwise show up as a phantom stage in the completion funnel; and
+     * [buildStarted], because the build started four screens ago on the name step. There is also
+     * no CTA event -- the screen has one exit and [screenViewed] on photos already records it.
+     */
+    fun embraceBridgeViewed(variant: String = EmbraceVariant.BUILD_PROFILE) =
+        EMBRACE_BRIDGE_VIEWED to buildMap<String, Any> {
+            put("variant", variant)
+            putAll(Stamp.of(0))
+        }
 
     /** T2, class 0. Once per profile build, on the first step only. */
     fun buildStarted(entryPoint: String) = PROFILE_BUILD_STARTED to buildMap {

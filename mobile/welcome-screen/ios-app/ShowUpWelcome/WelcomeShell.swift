@@ -80,6 +80,14 @@ struct WelcomeScaffold<Content: View>: View {
     var orangeAlpha: Double = 0.32
     var violetAlpha: Double = 0.28
     var topPadding: CGFloat = 20
+    /// The side gutter.
+    ///
+    /// `Spacing.screenGutter` on every screen this scaffold was written for. A property because
+    /// the embrace bridge (SHOWUP-155) draws at 28 — its reference sets `padding: '64px 28px 0'`
+    /// on the headline and `'28px 28px 0'` on the body, and a bridge is a wider, quieter beat than
+    /// the screens either side of it. Not a token: 28 means "this one screen", which is exactly
+    /// the case the design-system rules say to keep local.
+    var gutter: CGFloat = Spacing.screenGutter
     /// Scroll only as a last resort, for screens that share the frame with a keyboard.
     ///
     /// The handoff says these screens never scroll, and once the SHOWUP-143 design decisions land
@@ -104,7 +112,7 @@ struct WelcomeScaffold<Content: View>: View {
                 GeometryReader { geo in
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 0) { content() }
-                            .padding(.horizontal, Spacing.screenGutter)
+                            .padding(.horizontal, gutter)
                             .padding(.top, topPadding)
                             .frame(minHeight: geo.size.height, alignment: .top)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,7 +127,7 @@ struct WelcomeScaffold<Content: View>: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 0) { content() }
-                    .padding(.horizontal, Spacing.screenGutter)
+                    .padding(.horizontal, gutter)
                     .padding(.top, topPadding)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }

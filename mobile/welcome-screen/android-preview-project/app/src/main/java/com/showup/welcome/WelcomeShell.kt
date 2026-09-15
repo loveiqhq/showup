@@ -697,6 +697,16 @@ fun WelcomeScaffold(
     violetAlpha: Float = 0.28f,
     topPadding: Dp = 20.dp,
     /**
+     * The side gutter.
+     *
+     * [Spacing.screenGutter] on every screen this scaffold was written for. A parameter because
+     * the embrace bridge (SHOWUP-155) draws at 28 -- its reference sets `padding: '64px 28px 0'`
+     * on the headline and `'28px 28px 0'` on the body, and a bridge is a wider, quieter beat than
+     * the screens either side of it. Not a token: 28 has no meaning beyond "this one screen",
+     * which is exactly the case the design-system rules say to keep local.
+     */
+    gutter: Dp = Spacing.screenGutter,
+    /**
      * Scroll only as a last resort, for screens that share the frame with a keyboard.
      *
      * The handoff says these screens never scroll, and with the design decisions on SHOWUP-143
@@ -722,7 +732,7 @@ fun WelcomeScaffold(
         val insets = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = topPadding)
+            .padding(start = gutter, end = gutter, top = topPadding)
 
         if (scrollWhenTight) {
             BoxWithConstraints(insets) {

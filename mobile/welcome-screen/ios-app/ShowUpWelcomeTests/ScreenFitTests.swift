@@ -294,6 +294,18 @@ final class ScreenFitTests: XCTestCase {
                 ("DoB age hidden", try render(
                     ProfileDobView(value: .constant("03/22/1998"), hideAge: .constant(true)),
                     on: device), .orange),
+
+                // SHOWUP-155, the bridge. A FULL-WIDTH SUNSET pill, always enabled — rule 7's
+                // named exception — so these probe on violet rather than orange like the four
+                // screens above them. The long name is swept because the headline is the only
+                // thing on this screen that can reflow, and every point it grows comes out of
+                // the single spacer above the CTA.
+                ("Embrace named", try render(
+                    ProfileEmbraceView(firstName: "Leo"), on: device), .violet),
+                ("Embrace no name", try render(
+                    ProfileEmbraceView(), on: device), .violet),
+                ("Embrace long name", try render(
+                    ProfileEmbraceView(firstName: "Maximiliana-Rose"), on: device), .violet),
             ]
             for (label, image, tint) in screens {
                 guard let rows = ctaRows(in: image, tint: tint) else {

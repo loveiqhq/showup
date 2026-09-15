@@ -33,6 +33,7 @@ import com.showup.welcome.SignUpOutcome
 import com.showup.profile.DateOrder
 import com.showup.profile.ProfileDobScreen
 import com.showup.profile.ProfileEmailScreen
+import com.showup.profile.ProfileEmbraceScreen
 import com.showup.profile.ProfileNameScreen
 import com.showup.profile.ProfileVerifyEmailScreen
 import com.showup.profile.VerifyState
@@ -277,6 +278,28 @@ class ScreenFitTest {
         sweep("DoB/day-first locale") {
             ProfileDobScreen(value = "22/03/1998", order = DateOrder.DayFirst)
         }
+        assertClean()
+    }
+
+    // ── profile creation · the bridge ───────────────────────────────────────
+
+    /**
+     * SHOWUP-155, both greetings.
+     *
+     * One state and no input, so what this sweep is really measuring is the single flexible
+     * spacer: the whole screen is a headline, three paragraphs and a full-width CTA, and the
+     * spacer between them resolves to about 240 at 390 x 844 and nearly nothing at 320 x 686.
+     * If the CTA is ever clipped or the closing line pushed off, it is this screen's spacer that
+     * ran out, and 320 x 686 is where it runs out first.
+     *
+     * The long name is swept because the headline is the only thing here that can reflow: the
+     * greeting owns its own line, so a long enough name takes two and everything below moves.
+     */
+    @Test
+    fun `profile embrace bridge, both greetings`() {
+        sweep("Embrace/named") { ProfileEmbraceScreen(firstName = "Leo") }
+        sweep("Embrace/no name") { ProfileEmbraceScreen() }
+        sweep("Embrace/long name") { ProfileEmbraceScreen(firstName = "Maximiliana-Rose") }
         assertClean()
     }
 

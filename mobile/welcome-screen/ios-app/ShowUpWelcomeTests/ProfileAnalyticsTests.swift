@@ -81,6 +81,40 @@ final class ProfileAnalyticsTests: XCTestCase {
         XCTAssertEqual(payload["rule"] as? String, "format")
     }
 
+    // MARK: - SHOWUP-155 · the bridge is a screen and NOT a step
+
+    func testTheBridgeHasAScreenRowAndReportsTheBuildVariant() {
+        let (name, payload) = ProfileAnalytics.embraceBridgeViewed()
+        XCTAssertEqual(name, "embrace_bridge_viewed")
+        XCTAssertEqual(payload["variant"] as? String, "build_profile")
+        XCTAssertEqual(payload["sensitivity_class"] as? Int, 0)
+    }
+
+    func testTheBridgeScreenCarriesBothRegistryVocabularies() {
+        let (_, payload) = ProfileAnalytics.screenViewed(.embraceBuild)
+        // §11: screen_id is the stable key, screen_name the human label. Two vocabularies, and
+        // collapsing them breaks one of the two uses.
+        XCTAssertEqual(payload["screen_id"] as? String, "profile_embrace_build")
+        XCTAssertEqual(payload["screen_name"] as? String, "ProfileEmbraceBuild")
+    }
+
+    func testNoBasicsStepExistsForTheBridgeSoNoStepEventCanNameIt() {
+        // The registry's own words: the §2 row is deliberately absent "because firing
+        // profile_step_viewed on it would put a phantom step in the completion funnel". The rule
+        // is carried by the type system — `stepViewed` takes a BasicsStep and there is none — and
+        // this test is what would notice somebody adding one.
+        XCTAssertEqual(BasicsStep.allCases.map(\.stepId),
+                       ["name", "email", "email_verify", "dob"])
+    }
+
+    func testTheSiblingBridgeVariantIsRegisteredButUnused() {
+        // §16 is a closed pair. It lives in one place so the sibling bridge does not arrive with
+        // its value typed into a second ticket, which is how a vocabulary drifts.
+        XCTAssertEqual(EmbraceVariant.addDetails, "add_details")
+        let (_, payload) = ProfileAnalytics.embraceBridgeViewed(variant: EmbraceVariant.addDetails)
+        XCTAssertEqual(payload["variant"] as? String, "add_details")
+    }
+
     // MARK: - privacy
 
     func testNoProfilePayloadCarriesAnAddressANameOrARawDate() {

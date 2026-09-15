@@ -164,8 +164,11 @@ class FlowRestorationTest {
         assertTrue(!FlowScreen.TutorialWelcome.hasSystemBack)
         assertTrue(!FlowScreen.SignUp.hasSystemBack)
         assertTrue(!FlowScreen.Home.hasSystemBack)
-        // Mandatory once entered: back must do nothing here, not step backwards.
+        // Mandatory once entered: back must do nothing here, not step backwards. The bridge is
+        // the same case for the same reason -- it has no chevron and no exit but forward, and
+        // each screen swallows the gesture with its own handler.
         assertTrue(!FlowScreen.ProfileName.hasSystemBack)
+        assertTrue(!FlowScreen.ProfileEmbrace.hasSystemBack)
     }
 
     /**
@@ -174,10 +177,11 @@ class FlowRestorationTest {
      */
     @Test
     fun everyScreenIsDistinctAndNamed() {
-        // 12 since "The basics" is complete: the eight originals plus the four profile steps --
-        // ProfileName, ProfileEmail, ProfileVerifyEmail and ProfileDob -- which sit between the
-        // tutorial's end and Home.
-        assertEquals(12, FlowScreen.entries.size)
+        // 13 since SHOWUP-155: the eight originals, the four profile steps -- ProfileName,
+        // ProfileEmail, ProfileVerifyEmail and ProfileDob -- and ProfileEmbrace, the bridge that
+        // follows them. The bridge is a POSITION and not a step, which is why it is counted here
+        // and deliberately absent from BasicsStep.
+        assertEquals(13, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

@@ -222,7 +222,7 @@ private struct TutorialFlow: View {
                         busy: basics.busy,
                         serverRejectedAge: basics.serverRejectedAge,
                         onContinue: { _, iso in
-                            basics.saveDateOfBirth(iso: iso) { go(to: .home) }
+                            basics.saveDateOfBirth(iso: iso) { go(to: .profileEmbrace) }
                         },
                         onRefused: { basics.dobAttempted = true },
                         onEdit: { basics.dob = ""; basics.dobAttempted = false; dobStored = "" },
@@ -232,6 +232,13 @@ private struct TutorialFlow: View {
                         if basics.dob.isEmpty { basics.dob = dobStored }
                         basics.hideAge = hideAgeStored
                     }
+                case .profileEmbrace:
+                    // SHOWUP-155. The bridge out of "The basics". No header, no progress bar, no
+                    // back — the absences are the design. Its one exit is forward.
+                    ProfileEmbraceView(
+                        firstName: firstName,
+                        onContinue: { go(to: .home) })
+
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
                 }
