@@ -375,3 +375,103 @@ final class RealYouStepTests: XCTestCase {
         }
     }
 }
+
+/// Where a half-finished profile picks up (flow README rule 4a).
+///
+/// The Swift half of `ProfileResumeTest.kt`. The rule is one sentence -- "route straight to the
+/// last incomplete step" -- and six ways to get wrong, so every gap is checked, plus the two cases
+/// that are not gaps: the bridge, which must never be resumed onto, and a finished profile.
+final class ProfileResumeTests: XCTestCase {
+
+    private let complete = ProfileProgress(
+        displayName: "Leo",
+        email: "leo@hey.com",
+        emailVerified: true,
+        hasDateOfBirth: true,
+        photoCount: photosRequired,
+        promptCount: promptsRequired)
+
+    func testABrandNewAccountStartsAtTheName() {
+        XCTAssertEqual(resumePoint(ProfileProgress()), .name)
+    }
+
+    func testANameButNoAddressHoldsAtTheEmailStep() {
+        var progress = complete
+        progress.email = nil
+        progress.emailVerified = false
+        XCTAssertEqual(resumePoint(progress), .email)
+    }
+
+    func testAnUnconfirmedAddressHoldsAtTheCodeScreenNotTheEmailScreen() {
+        // The address is already stored; sending the user back to re-type it would lose the
+        // challenge that is in flight. The progress bar holds at 2 for the same reason.
+        var progress = complete
+        progress.emailVerified = false
+        XCTAssertEqual(resumePoint(progress), .verifyEmail)
+    }
+
+    func testAVerifiedAddressWithNoDateOfBirthHoldsAtTheDate() {
+        var progress = complete
+        progress.hasDateOfBirth = false
+        XCTAssertEqual(resumePoint(progress), .dob)
+    }
+
+    func testAFinishedBasicsSectionGoesToPhotosAndNeverToTheBridge() {
+        // SHOWUP-155: "relaunching lands on photos and not on this bridge".
+        var progress = complete
+        progress.photoCount = 0
+        progress.promptCount = 0
+        XCTAssertEqual(resumePoint(progress), .photos)
+    }
+
+    func testThreePhotosIsNotFour() {
+        var progress = complete
+        progress.photoCount = photosRequired - 1
+        progress.promptCount = 0
+        XCTAssertEqual(resumePoint(progress), .photos)
+    }
+
+    func testFourPhotosAndNoPromptHoldsAtPrompts() {
+        var progress = complete
+        progress.promptCount = 0
+        XCTAssertEqual(resumePoint(progress), .prompts)
+    }
+
+    func testOnePromptIsEnoughToBeFinished() {
+        XCTAssertEqual(resumePoint(complete), .done)
+    }
+
+    func testABlankNameIsNoName() {
+        // The screen refuses whitespace, but a value that arrived some other way must not skip the
+        // step -- otherwise the user lands on email with an empty profile behind them.
+        var progress = complete
+        progress.displayName = "   "
+        XCTAssertEqual(resumePoint(progress), .name)
+    }
+
+    func testTheOrderIsTheRuleSoAnEarlyGapWinsOverALaterOne() {
+        var progress = complete
+        progress.displayName = nil
+        XCTAssertEqual(resumePoint(progress), .name)
+    }
+
+    func testEveryStepIsReachableAsAResumePoint() {
+        // A guard against a future reorder quietly making one unreachable -- which would mean a
+        // user could get stuck on a step the resume never returns them to.
+        var noEmail = complete; noEmail.email = nil
+        var unverified = complete; unverified.emailVerified = false
+        var noDob = complete; noDob.hasDateOfBirth = false
+        var noPhotos = complete; noPhotos.photoCount = 0
+        var noPrompts = complete; noPrompts.promptCount = 0
+        let reached = Set([
+            resumePoint(ProfileProgress()),
+            resumePoint(noEmail),
+            resumePoint(unverified),
+            resumePoint(noDob),
+            resumePoint(noPhotos),
+            resumePoint(noPrompts),
+            resumePoint(complete),
+        ])
+        XCTAssertEqual(reached, Set(ResumePoint.allCases))
+    }
+}

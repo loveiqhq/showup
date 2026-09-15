@@ -150,6 +150,7 @@ fun topicText(id: String): String = topicFor(id)?.text ?: id
 fun exampleFor(id: String): String = PROMPT_EXAMPLES[id] ?: PROMPT_EXAMPLE_FALLBACK
 
 /** One saved answer. The id, never the display string — see the file header. */
+@kotlinx.serialization.Serializable
 data class SavedPrompt(val topicId: String, val answer: String)
 
 /**

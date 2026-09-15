@@ -81,7 +81,14 @@ data class Violation(
 }
 
 /** Identifies the box representing the device's safe area, so measurements have a known origin. */
-private const val FIT_ROOT = "fit-root"
+/**
+ * The tag the harness hangs the device frame on.
+ *
+ * Internal rather than private since 15 September 2026: `EvidenceScreenshots` renders into the
+ * same frame to capture the images each ticket asks for, and a second copy of the tag would be
+ * two strings that have to match by inspection.
+ */
+internal const val FIT_ROOT = "fit-root"
 
 /** A tolerance, because sub-pixel rounding is not a bug. Anything past this is real. */
 private const val SLACK_DP = 0.75f

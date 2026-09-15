@@ -100,6 +100,13 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/me/profile' },
   { method: 'patch', path: '/me/profile' },
   { method: 'post', path: '/me/profile/verification' },
+  // Reads where a half-finished profile left off (flow rule 4a). Authenticated like every other
+  // /me route: it names the account's own address and its own progress.
+  { method: 'get', path: '/me/profile/progress' },
+  // prompts.controller.ts
+  { method: 'get', path: '/me/prompts' },
+  { method: 'put', path: `/me/prompts/${ID}` },
+  { method: 'delete', path: `/me/prompts/${ID}` },
   // safety.controller.ts — no HTTP coverage anywhere before this file
   { method: 'post', path: '/blocks' },
   { method: 'delete', path: `/blocks/${ID}` },

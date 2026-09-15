@@ -123,6 +123,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import com.showup.designsystem.Border
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Cream
@@ -186,6 +188,17 @@ internal object PromptsCopy {
     const val FLOOR = "One good sentence is enough."
     const val AT_CAP = "That's the full 160 — short and specific lands harder anyway."
     const val EMPTY_SUBMIT = "Write a few words to save this prompt."
+
+    /**
+     * PROPOSED — not yet approved.
+     *
+     * SHOWUP-158 specifies three status messages and this is a fourth: the ticket was written
+     * before `/me/prompts` existed, so a save could not fail. Worded to match the two the flow
+     * already has for a transport failure ("We couldn't send the code just now. Please try
+     * again."), and marked with the same `_PROPOSED` suffix the rest of the flow uses for copy
+     * that design has not signed off.
+     */
+    const val SAVE_FAILED_PROPOSED = "We couldn't save that just now. Please try again."
     const val SAVE = "Save"
 
     const val DISMISS = "Dismiss"
@@ -194,8 +207,10 @@ internal object PromptsCopy {
 }
 
 /** Which sheet is up, if any. */
+@Serializable
 sealed interface PromptSheet {
     /** All fifteen. Opened by `Browse all 15 topics` only — never the critical path. */
+    @Serializable
     data object Topics : PromptSheet
 
     /**
@@ -205,6 +220,7 @@ sealed interface PromptSheet {
      * rather than derived from whether the topic is already used — because a user can open the
      * topic sheet, pick a topic, and be editing nothing at all.
      */
+    @Serializable
     data class Write(val topicId: String, val editing: Boolean = false) : PromptSheet
 }
 
@@ -219,6 +235,7 @@ sealed interface PromptSheet {
  * when that topic is reopened", so a draft belongs to a TOPIC rather than to the sheet that is
  * currently up.
  */
+@Serializable
 data class PromptsState(
     val prompts: List<SavedPrompt> = emptyList(),
     val sheet: PromptSheet? = null,
@@ -232,6 +249,23 @@ data class PromptsState(
      * next prompt shows it again." One id rather than a set, because only one sheet is ever open.
      */
     val exampleHiddenFor: String? = null,
+    /**
+     * A save is in flight.
+     *
+     * Save is NEVER DISABLED -- the group rule holds -- so this changes nothing on screen. What it
+     * does is stop a second press starting a second request while the first is still open, which
+     * on an idempotent PUT would be harmless and on a slow connection would still be two.
+     */
+    val saving: Boolean = false,
+    /**
+     * The last save did not land.
+     *
+     * NEW GROUND. SHOWUP-158 has no failure state for Save, because there was no endpoint when it
+     * was written -- the sheet's three status messages are the floor, the cap and the empty press.
+     * A fourth message goes in the same RESERVED row, so nothing about the layout changes, and the
+     * sheet stays open with the text still in it.
+     */
+    val failed: Boolean = false,
 ) {
     val count: Int get() = prompts.size
     val canContinue: Boolean get() = count >= PROMPTS_REQUIRED
@@ -241,60 +275,32 @@ data class PromptsState(
 
     companion object {
         /**
-         * Survives a rotation and process death.
+         * Survives a rotation AND process death.
          *
-         * `rememberSaveable` writes into a Bundle, which takes primitives and lists of them and
-         * nothing else — so the sheet, which is a sealed interface, is flattened into a kind, a
-         * topic and a flag, and the draft map into two parallel lists. Ugly, and the alternative
-         * is worse: the flow README's rule 4a says a resumed step behaves like a freshly-reached
-         * one WITH EVERYTHING ALREADY ENTERED STILL PRESENT, and a half-written prompt lost to a
-         * rotation is exactly the failure that rule exists to prevent.
+         * WHY JSON RATHER THAN A FLATTENED LIST. This was a hand-written `listSaver` that packed
+         * the sheet into three parallel fields and the drafts into two parallel lists, read back
+         * by index. It worked, and every future field would have had to be added to two ordered
+         * lists that only agree by inspection.
          *
-         * The lists are written and read in the same order in one place, which is the only thing
-         * that keeps a flattened saver honest.
+         * `@Serializable` costs nothing here -- kotlinx-serialization is already a dependency,
+         * because the generated API client is built on it -- and it is the SAME mechanism the iOS
+         * side uses to put this value in `@SceneStorage`. The two platforms now persist the same
+         * shape rather than two hand-rolled encodings that have to be kept in step.
+         *
+         * The rule this serves is the flow README's 4a: a resumed step behaves like a freshly
+         * reached one WITH EVERYTHING ALREADY ENTERED STILL PRESENT. A half-written prompt lost to
+         * a rotation is exactly the failure that rule exists to prevent.
          */
-        val Saver: androidx.compose.runtime.saveable.Saver<PromptsState, Any> =
-            androidx.compose.runtime.saveable.listSaver(
-                save = { state ->
-                    val sheet = state.sheet
-                    listOf(
-                        state.prompts.map { it.topicId },
-                        state.prompts.map { it.answer },
-                        when (sheet) {
-                            null -> ""
-                            PromptSheet.Topics -> "topics"
-                            is PromptSheet.Write -> "write"
-                        },
-                        (sheet as? PromptSheet.Write)?.topicId.orEmpty(),
-                        (sheet as? PromptSheet.Write)?.editing ?: false,
-                        state.drafts.keys.toList(),
-                        state.drafts.values.toList(),
-                        state.nudge,
-                        state.exampleHiddenFor.orEmpty(),
-                    )
-                },
-                restore = { saved ->
-                    @Suppress("UNCHECKED_CAST")
-                    val topics = saved[0] as List<String>
-                    @Suppress("UNCHECKED_CAST")
-                    val answers = saved[1] as List<String>
-                    @Suppress("UNCHECKED_CAST")
-                    val draftKeys = saved[5] as List<String>
-                    @Suppress("UNCHECKED_CAST")
-                    val draftValues = saved[6] as List<String>
-                    PromptsState(
-                        prompts = topics.zip(answers).map { SavedPrompt(it.first, it.second) },
-                        sheet = when (saved[2] as String) {
-                            "topics" -> PromptSheet.Topics
-                            "write" -> PromptSheet.Write(saved[3] as String, saved[4] as Boolean)
-                            else -> null
-                        },
-                        drafts = draftKeys.zip(draftValues).toMap(),
-                        nudge = saved[7] as Boolean,
-                        exampleHiddenFor = (saved[8] as String).ifEmpty { null },
-                    )
-                },
-            )
+        fun encode(state: PromptsState): String = Json.encodeToString(serializer(), state)
+
+        /**
+         * Anything that does not decode is an empty screen rather than a crash.
+         *
+         * A stored value from an older build is a shape this one has never seen, and losing a
+         * draft is survivable where refusing to launch is not.
+         */
+        fun decode(raw: String): PromptsState =
+            runCatching { Json.decodeFromString<PromptsState>(raw) }.getOrDefault(PromptsState())
     }
 }
 
@@ -692,6 +698,7 @@ private fun WritePromptSheet(
     topicId: String,
     draft: String,
     nudge: Boolean,
+    failed: Boolean,
     exampleHidden: Boolean,
     onDraftChange: (String) -> Unit,
     onHideExample: () -> Unit,
@@ -889,6 +896,26 @@ private fun WritePromptSheet(
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             when {
+                // The failure sits ABOVE the nudge in this order because it is the more recent
+                // thing that happened: a user whose save failed has a non-empty field, so the two
+                // cannot both be true anyway.
+                failed -> {
+                    Box(
+                        Modifier
+                            .padding(top = 1.dp)
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(Danger),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        UnscaledGlyph("!", 12.sp, Lora)
+                    }
+                    Text(
+                        PromptsCopy.SAVE_FAILED_PROPOSED,
+                        color = DangerFg, fontFamily = Manrope, fontWeight = FontWeight.Medium,
+                        fontSize = 13.5.sp, lineHeight = (13.5f * 1.4f).sp,
+                    )
+                }
                 showNudge -> {
                     Box(
                         Modifier
@@ -1121,6 +1148,7 @@ fun ProfilePromptsScreen(
                     topicId = sheet.topicId,
                     draft = state.draftFor(sheet.topicId),
                     nudge = state.nudge,
+                    failed = state.failed,
                     exampleHidden = state.exampleHiddenFor == sheet.topicId,
                     onDraftChange = onDraftChange,
                     onHideExample = onHideExample,
@@ -1140,8 +1168,22 @@ private val THREE = ONE + listOf(
     SavedPrompt("hill_to_die_on", "Showing up. Cancelling last minute isn't a scheduling problem, it's an answer."),
     SavedPrompt("cross_town", "A proper conversation. An old cinema. The 8pm walk after a long day."),
 )
-private const val MID_DRAFT = "Talk about anything real. Not jobs, not pets, not the weather."
-private val FULL_DRAFT = cappedAnswer(
+/** The reference's mid-draft: about 63 characters, under the counter's threshold. */
+internal const val PROMPT_SAMPLE_MID =
+    "Talk about anything real. Not jobs, not pets, not the weather."
+
+/**
+ * The reference's full draft, which is EXACTLY 160 characters.
+ *
+ * Shared rather than retyped, because state G is "at the cap" and a sample one character short is
+ * state F wearing its name. That is not hypothetical: the fit sweep and the evidence screenshots
+ * each carried their own shortened paraphrase, and the image filed as `G-write-at-cap` showed a
+ * grey `130/160` and a violet border -- the calm state -- rather than the amber the state exists
+ * to demonstrate. Caught by looking at the picture.
+ *
+ * `PromptTopicsTest` asserts the 160, so a copy edit here cannot quietly undo it again.
+ */
+internal val PROMPT_SAMPLE_AT_CAP = cappedAnswer(
     "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on your " +
         "mind this week. Bring it. I will listen for the entire thirty minutes!",
 )
@@ -1173,7 +1215,7 @@ private val FULL_DRAFT = cappedAnswer(
     ProfilePromptsScreen(
         PromptsState(
             sheet = PromptSheet.Write("first_date"),
-            drafts = mapOf("first_date" to MID_DRAFT),
+            drafts = mapOf("first_date" to PROMPT_SAMPLE_MID),
         ),
     )
 }
@@ -1183,7 +1225,7 @@ private val FULL_DRAFT = cappedAnswer(
     ProfilePromptsScreen(
         PromptsState(
             sheet = PromptSheet.Write("first_date"),
-            drafts = mapOf("first_date" to FULL_DRAFT),
+            drafts = mapOf("first_date" to PROMPT_SAMPLE_AT_CAP),
         ),
     )
 }
@@ -1195,3 +1237,14 @@ private val FULL_DRAFT = cappedAnswer(
 
 @Preview(name = "toast · refused · 375", showBackground = true, widthDp = 375, heightDp = 667)
 @Composable private fun PR_T375() { ProfilePromptsScreen(previewToast = true) }
+
+@Preview(name = "I · save failed · 390", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable private fun PR_I390() {
+    ProfilePromptsScreen(
+        PromptsState(
+            sheet = PromptSheet.Write("first_date"),
+            drafts = mapOf("first_date" to PROMPT_SAMPLE_MID),
+            failed = true,
+        ),
+    )
+}

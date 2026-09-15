@@ -44,6 +44,8 @@ import com.showup.tutorial.MeetInRealLifeScreen
 import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,10 +62,11 @@ import com.showup.profile.PhotosRepository
 import com.showup.profile.PhotosViewModel
 import com.showup.profile.ProfilePhotosScreen
 import com.showup.profile.ProfilePromptsScreen
-import com.showup.profile.PromptSheet
-import com.showup.profile.PromptsState
-import com.showup.profile.SavedPrompt
-import com.showup.profile.promptAnswerIsEmpty
+import com.showup.profile.ProfileProgressRepository
+import com.showup.profile.PromptsRepository
+import com.showup.profile.ResumePoint
+import com.showup.profile.resumePoint
+import com.showup.profile.PromptsViewModel
 import com.showup.welcome.PhoneAuthRepository
 import com.showup.welcome.PhoneAuthViewModel
 import com.showup.profile.BasicsViewModel
@@ -180,13 +183,62 @@ class MainActivity : ComponentActivity() {
             )
             val photosState by photos.state.collectAsStateWithLifecycle()
 
-            // SHOWUP-158 gets no ViewModel, and that is the rule being applied rather than
-            // abandoned: the prompts screen owns no asynchronous work. There is no prompt endpoint
-            // to call -- `openapi.json` carries none -- so every state on it is local, and hoisted
-            // state with a Saver is what CLAUDE.md asks for until a screen loads, uploads or
-            // retries. It becomes a ViewModel the day persistence lands.
-            var promptsState by rememberSaveable(stateSaver = PromptsState.Saver) {
-                mutableStateOf(PromptsState())
+            // SHOWUP-158 has a ViewModel now, and the comment that used to sit here said when it
+            // would: "it becomes a ViewModel the day persistence lands." `/me/prompts` exists, so
+            // saving a prompt is a request that has to outlive a redraw and be cancellable.
+            //
+            // The saved prompts come from the server; the half-written draft lives in the
+            // SavedStateHandle, because a draft is not a prompt and there is nothing to send.
+            // One call, made once, and only when there is a session to make it with. The
+            // repository answers null for a 401, which routes to the flow's own entry point.
+            val progressRepo = remember(api) { ProfileProgressRepository(api) }
+
+            val prompts: PromptsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        PromptsViewModel(
+                            repo = PromptsRepository(api),
+                            saved = createSavedStateHandle(),
+                        )
+                    }
+                },
+            )
+            val promptsState by prompts.state.collectAsStateWithLifecycle()
+
+            // ── resuming a half-finished profile (flow rule 4a) ─────────────
+            //
+            // "On launch, an account with an incomplete profile routes straight to its last
+            // incomplete step, with everything already entered still present."
+            //
+            // RESUMING IS SILENT. No prompt, no toast, no "welcome back" -- the user lands on the
+            // step, and a resumed step behaves like a freshly reached one, which is why nothing
+            // here sets an error or an attempted flag.
+            //
+            // Asked ONCE per launch, not on every recomposition, and only while the screen is
+            // still the flow's entry point: a user who has already walked somewhere must not be
+            // yanked back by a late answer.
+            var resumeChecked by rememberSaveable { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                if (resumeChecked) return@LaunchedEffect
+                resumeChecked = true
+                val progress = progressRepo.fetch() ?: return@LaunchedEffect
+                if (screen != FlowScreen.SignUp) return@LaunchedEffect
+                // Everything already entered, still present.
+                firstName = progress.displayName.orEmpty()
+                email = progress.email.orEmpty()
+                basics.setEmail(progress.email.orEmpty())
+                screen = when (resumePoint(progress)) {
+                    ResumePoint.Name -> FlowScreen.ProfileName
+                    ResumePoint.Email -> FlowScreen.ProfileEmail
+                    ResumePoint.VerifyEmail -> FlowScreen.ProfileVerifyEmail
+                    ResumePoint.Dob -> FlowScreen.ProfileDob
+                    // NEVER the bridge. SHOWUP-155: "relaunching lands on photos and not on this
+                    // bridge" -- it is a beat on the forward walk, not a place to return to.
+                    ResumePoint.Photos -> FlowScreen.ProfilePhotos
+                    ResumePoint.Prompts -> FlowScreen.ProfilePrompts
+                    ResumePoint.Done -> FlowScreen.Home
+                }
+                if (screen == FlowScreen.ProfilePrompts) prompts.load()
             }
 
             // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug on the photo
@@ -421,83 +473,24 @@ class MainActivity : ComponentActivity() {
                     )
 
                     // SHOWUP-158. Two sheets, one screen, and every transition between them is a
-                    // change to the one hoisted value above.
+                    // change to the one value the ViewModel owns.
                     FlowScreen.ProfilePrompts -> ProfilePromptsScreen(
                         state = promptsState,
                         onBack = { screen = FlowScreen.ProfilePhotos },
-                        onOpenTopics = {
-                            promptsState = promptsState.copy(sheet = PromptSheet.Topics)
-                        },
-                        // Picking a topic REPLACES the topic sheet with the write sheet -- the two
-                        // never stack -- and resets the example, which is per sheet rather than
-                        // per session.
-                        onWriteTopic = { topicId ->
-                            promptsState = promptsState.copy(
-                                sheet = PromptSheet.Write(
-                                    topicId,
-                                    editing = topicId in promptsState.usedTopicIds,
-                                ),
-                                nudge = false,
-                                exampleHiddenFor = null,
-                            )
-                        },
-                        // Editing reopens the sheet WITH THE SAVED TEXT IN THE FIELD, which is
-                        // what makes Save an overwrite rather than a second prompt.
-                        onEditPrompt = { topicId ->
-                            val saved = promptsState.prompts
-                                .firstOrNull { it.topicId == topicId }?.answer.orEmpty()
-                            promptsState = promptsState.copy(
-                                sheet = PromptSheet.Write(topicId, editing = true),
-                                drafts = promptsState.drafts + (topicId to saved),
-                                nudge = false,
-                                exampleHiddenFor = null,
-                            )
-                        },
-                        onDraftChange = { text ->
-                            val sheet = promptsState.sheet as? PromptSheet.Write ?: return@ProfilePromptsScreen
-                            promptsState = promptsState.copy(
-                                drafts = promptsState.drafts + (sheet.topicId to text),
-                                // The empty-submit error clears on the FIRST CHARACTER TYPED, not
-                                // on blur and not on a re-press.
-                                nudge = false,
-                            )
-                        },
-                        onHideExample = {
-                            val sheet = promptsState.sheet as? PromptSheet.Write ?: return@ProfilePromptsScreen
-                            promptsState = promptsState.copy(exampleHiddenFor = sheet.topicId)
-                        },
-                        onSave = {
-                            val sheet = promptsState.sheet as? PromptSheet.Write ?: return@ProfilePromptsScreen
-                            val answer = promptsState.draftFor(sheet.topicId)
-                            if (promptAnswerIsEmpty(answer)) {
-                                // SAVE IS NEVER DISABLED. An empty press explains.
-                                promptsState = promptsState.copy(nudge = true)
-                            } else {
-                                val existing = promptsState.prompts
-                                    .indexOfFirst { it.topicId == sheet.topicId }
-                                val entry = SavedPrompt(sheet.topicId, answer)
-                                val updated = if (existing >= 0) {
-                                    promptsState.prompts.toMutableList()
-                                        .also { it[existing] = entry }
-                                } else {
-                                    // A new card appears at the BOTTOM of the list, so the reading
-                                    // order stays chronological.
-                                    promptsState.prompts + entry
-                                }
-                                promptsState = promptsState.copy(
-                                    prompts = updated,
-                                    sheet = null,
-                                    // The draft is cleared only once it has become a prompt.
-                                    drafts = promptsState.drafts - sheet.topicId,
-                                    nudge = false,
-                                )
-                            }
-                        },
-                        // DISMISSAL KEEPS THE DRAFT. Only Save writes a prompt, so nothing is
-                        // touched here but the sheet itself.
-                        onDismissSheet = { promptsState = promptsState.copy(sheet = null) },
+                        onOpenTopics = prompts::openTopics,
+                        onWriteTopic = prompts::writeTopic,
+                        onEditPrompt = prompts::editPrompt,
+                        onDraftChange = prompts::draftChanged,
+                        onHideExample = prompts::hideExample,
+                        onSave = prompts::save,
+                        onDismissSheet = prompts::dismissSheet,
                         onContinue = { screen = FlowScreen.Home },
-                    )
+                    ).also {
+                        // Reads what the account already holds. Idempotent and cheap -- the
+                        // ViewModel keeps the answer, and arriving from photos or from a resume
+                        // both land here.
+                        LaunchedEffect(Unit) { prompts.load() }
+                    }
 
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
