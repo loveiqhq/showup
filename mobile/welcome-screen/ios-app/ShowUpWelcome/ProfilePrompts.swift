@@ -78,7 +78,12 @@ enum PromptSheet: Equatable, Codable {
     /// the control that was tapped". Two of its three values have the sheet open, so there is
     /// nothing to infer from. It rides on the sheet so that `prompt_saved` and
     /// `prompt_editor_dismissed`, which happen later, still report the control that started this.
-    case write(topicId: String, editing: Bool, entryPoint: PromptEntryPoint = .suggestion)
+    ///
+    /// NO DEFAULT, and not only because Swift forbids one on an enum case: a defaulted entry point
+    /// is a real 18 value that nobody chose, and the whole reason this property exists is that it
+    /// must come from the control that was tapped. A preview naming `.suggestion` is stating what
+    /// it is drawing; a default would be stating it by accident.
+    case write(topicId: String, editing: Bool, entryPoint: PromptEntryPoint)
 }
 
 /// Everything the prompts screen renders.
@@ -941,31 +946,31 @@ private let fullDraft = cappedAnswer(
 }
 
 #Preview("E · write empty") {
-    ProfilePromptsView(state: PromptsState(sheet: .write(topicId: "first_date_usually", editing: false)))
+    ProfilePromptsView(state: PromptsState(sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion)))
 }
 
 #Preview("F · write mid") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false),
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
         drafts: ["first_date_usually": midDraft]))
 }
 
 #Preview("G · write at cap") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false),
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
         drafts: ["first_date_usually": fullDraft]))
 }
 
 #Preview("H · write nudge") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false), nudge: true))
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion), nudge: true))
 }
 
 #Preview("toast · refused") { ProfilePromptsView(previewToast: true) }
 
 #Preview("I · save failed") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false),
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
         drafts: ["first_date_usually": midDraft],
         failed: true))
 }

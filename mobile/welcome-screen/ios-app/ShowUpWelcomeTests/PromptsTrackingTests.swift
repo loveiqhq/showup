@@ -26,7 +26,7 @@ private struct FakePromptsRepo: PromptsRepositoring {
 
     func list() async -> [SavedPrompt]? { nil }
     func save(topicId: String, answer: String) async -> SavePromptResult {
-        fail ? .failed(nil) : .saved(SavedPrompt(topicId: topicId, answer: answer))
+        fail ? .failed : .saved(SavedPrompt(topicId: topicId, answer: answer))
     }
     func remove(topicId: String) async -> RemovePromptResult { .removed }
 }
@@ -44,10 +44,12 @@ private final class Recorder: AnalyticsTracking {
         events.append((event, properties))
     }
 
-    func names() -> [String] { events.map(\.0) }
+    // `events.map { $0.0 }` rather than `events.map(\.0)`: Swift key paths do not address tuple
+    // components, and the compiler only says so on a Mac.
+    func names() -> [String] { events.map { $0.0 } }
     func count(_ name: String) -> Int { events.filter { $0.0 == name }.count }
     func all(_ name: String) -> [[String: any Sendable]] {
-        events.filter { $0.0 == name }.map(\.1)
+        events.filter { $0.0 == name }.map { $0.1 }
     }
     func only(_ name: String) -> [String: any Sendable] { all(name).first ?? [:] }
     func clear() { events.removeAll() }
@@ -454,8 +456,9 @@ final class PromptsTrackingTests: XCTestCase {
         _ = model.continuePressed()
 
         let rendered = analytics.events
-            .map { name, payload in
-                name + " " + payload.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
+            .map { event in
+                event.0 + " "
+                    + event.1.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
             }
             .joined(separator: " ")
         for fragment in ["specific sentence", "wrote about themselves", secret] {

@@ -362,11 +362,11 @@ final class PromptTopicsTests: XCTestCase {
     // MARK: the state the screen is a function of
 
     func testADraftBelongsToATopicSoDismissingAndReopeningRestoresIt() {
-        var state = PromptsState(sheet: .write(topicId: "first_date_usually", editing: false),
+        var state = PromptsState(sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
                                  drafts: ["first_date_usually": "half a sentence"])
         state.sheet = nil
         XCTAssertEqual(state.draftFor("first_date_usually"), "half a sentence")
-        state.sheet = .write(topicId: "first_date_usually", editing: false)
+        state.sheet = .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion)
         XCTAssertEqual(state.draftFor("first_date_usually"), "half a sentence")
         // And a different topic starts empty.
         XCTAssertEqual(state.draftFor("hot_take"), "")
@@ -381,7 +381,7 @@ final class PromptTopicsTests: XCTestCase {
     func testTheSavedStateSurvivesARoundTripThroughItsEncoding() {
         let state = PromptsState(
             prompts: [SavedPrompt(topicId: "first_date_usually", answer: "an answer")],
-            sheet: .write(topicId: "hot_take", editing: true),
+            sheet: .write(topicId: "hot_take", editing: true, entryPoint: .edit),
             drafts: ["hot_take": "half written"],
             nudge: true,
             exampleHiddenFor: "hot_take")
