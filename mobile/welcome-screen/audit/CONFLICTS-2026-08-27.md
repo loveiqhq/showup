@@ -485,3 +485,26 @@ already exist.
 **Implemented against the registry**, not the ticket. Recorded here because the next person to read
 that section will reach the same wrong conclusion. The ticket also files these under family "E —
 Profile Photos/Media"; they are in "Profile Attributes".
+
+## E8 · "The real you" is three steps, not two. DECIDED 16 September 2026
+
+Raised 15 September 2026, building SHOWUP-155/156/158: the group's progress bar has three
+segments — photos, prompts, media — and **no media screen is designed or ticketed**. So the bar
+shows a third step nothing can reach, which is either correct (a step that is coming) or a bar that
+lies about how long the flow is.
+
+**Confirmed by the product side on 16 September: media is planned and arrives in a later ticket.
+Keep three segments.**
+
+So `RealYouStep.COUNT` / `RealYouStep.count` stays 3 on both platforms and `Media` stays declared
+and unbuilt. Nothing else changes: nothing routes to `Media` — only `Photos` and `Prompts` are ever
+passed as the current step — and `resumePoint` has no `Media` case, so a user who finishes prompts
+resumes at `Done` rather than at a screen that does not exist. When media is built it gains a
+`ResumePoint` case before `Done`, and the bar is already the right length.
+
+Do not "simplify" the count to 2 while the screen is missing. The third segment is the point: a
+progress bar that only ever shows steps you have already reached is a counter.
+
+Still open, and separate from this: which `step_id` a single media screen reports. §2 of the
+registry carries `media_voice` and `media_video` as two steps, both outside this bar. That is a
+question for the media ticket, not this one — see the note on `RealYouStep.stepId`.
