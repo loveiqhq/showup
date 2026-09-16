@@ -11,34 +11,32 @@
  */
 package com.showup.welcome
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+
+import com.showup.designsystem.Spacing
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -47,9 +45,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -64,17 +60,12 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.showup.designsystem.Border
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
-import com.showup.designsystem.Manrope
-import com.showup.designsystem.Muted
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
-import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.WordmarkStops
-import com.showup.tutorial.rememberMotion
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ① Backdrop — full-bleed, BEHIND the status bar and home indicator
@@ -89,26 +80,71 @@ import com.showup.tutorial.rememberMotion
  * would give hard-edged circles on a third of devices. A radial gradient's own alpha falloff carries
  * the softness on every API level.
  */
+/**
+ * Where the two orbs sit, and how big they are.
+ *
+ * Four recipes, because four groups of screens ask for four. They were a boolean until 15
+ * September 2026, when "The real you" arrived with two more -- and a second backdrop component
+ * would have been the primary button all over again. The differences are small and deliberate:
+ * every one of them is a number the reference file for that screen sets, and none of them mean
+ * anything on their own, which is why they live here as named recipes rather than as five
+ * parameters a call site has to get right.
+ */
+enum class OrbPlacement {
+    /** Startup and Welcome back: orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%. */
+    Startup,
+
+    /** Phone verification: orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%. */
+    PhoneVerify,
+
+    /**
+     * Profile photos: orange 460 at top -22% / right -30%, violet 420 at top -12% / left -28%.
+     *
+     * Both orbs at the top, because the screen below them scrolls: an orb anchored to the bottom
+     * of a scrolling screen sits behind the sticky footer, where it reads as a smudge under the
+     * CTA rather than as atmosphere.
+     */
+    RealYouTop,
+
+    /**
+     * Profile prompts: orange 460 at top -20% / right -25%, violet 420 at BOTTOM -12% / left -28%.
+     *
+     * The one split pair. This screen's footer is a bare CTA row with no gradient mask over it, so
+     * there is nothing for a low violet to muddy -- and the suggestion cards fill the middle, which
+     * a second top orb would sit behind.
+     */
+    RealYouSplit,
+}
+
 @Composable
 fun WelcomeBackdrop(
     modifier: Modifier = Modifier,
     peachWash: Boolean = true,
     orangeAlpha: Float = 0.32f,
     violetAlpha: Float = 0.28f,
-    topWeighted: Boolean = false,
+    placement: OrbPlacement = OrbPlacement.Startup,
 ) {
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
 
-        if (topWeighted) {
-            // Phone verification: orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%
-            radial(Offset(w * 1.30f - 230.dp.toPx(), -0.18f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
-            radial(Offset(-0.25f * w + 210.dp.toPx(), -0.10f * h + 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
-        } else {
-            // Startup / Welcome back: orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%
-            radial(Offset(w + 0.25f * w - 260.dp.toPx(), -0.15f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
-            radial(Offset(-0.30f * w + 300.dp.toPx(), h + 0.20f * h - 300.dp.toPx()), 300.dp.toPx(), Purple, violetAlpha)
+        when (placement) {
+            OrbPlacement.PhoneVerify -> {
+                radial(Offset(w * 1.30f - 230.dp.toPx(), -0.18f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.25f * w + 210.dp.toPx(), -0.10f * h + 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.RealYouTop -> {
+                radial(Offset(w * 1.30f - 230.dp.toPx(), -0.22f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.28f * w + 210.dp.toPx(), -0.12f * h + 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.RealYouSplit -> {
+                radial(Offset(w * 1.25f - 230.dp.toPx(), -0.20f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.28f * w + 210.dp.toPx(), h + 0.12f * h - 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.Startup -> {
+                radial(Offset(w + 0.25f * w - 260.dp.toPx(), -0.15f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.30f * w + 300.dp.toPx(), h + 0.20f * h - 300.dp.toPx()), 300.dp.toPx(), Purple, violetAlpha)
+            }
         }
 
         if (peachWash) {
@@ -432,98 +468,6 @@ private fun inkOffset(icon: BrandIcon): Offset {
     return Offset(12f - (left + right) / 2f, 12f - (top + bottom) / 2f)
 }
 
-enum class PillVariant { Sunset, Ghost, Plain, Apple, Google, Facebook }
-
-/**
- * `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
- * Manrope 700 16, gap 8.
- *
- * Press is `scale(0.98)` over 180ms on `cubic-bezier(.22,1,.36,1)` — CLAUDE.md states it as a
- * non-negotiable, and there are no hover states because the product is mobile-first.
- */
-@Composable
-fun PillButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    variant: PillVariant = PillVariant.Sunset,
-    enabled: Boolean = true,
-    /**
-     * 56 everywhere except the conflict modal's resolve CTA, which the reference draws at 54.
-     * Both clear every provider's published minimum (Apple's is 44pt), so the smaller one is a
-     * layout choice rather than a compliance question.
-     */
-    height: Dp = 56.dp,
-    leading: (@Composable () -> Unit)? = null,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val motion = rememberMotion()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled && motion.enabled) 0.98f else 1f,
-        animationSpec = tween(durationMillis = if (motion.enabled) 180 else 0, easing = ShowUpEasing),
-        label = "press",
-    )
-    val shape = RoundedCornerShape(50)
-    Row(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.45f }
-            .then(
-                when (variant) {
-                    // --liq-shadow-violet on the sunset CTA
-                    PillVariant.Sunset -> Modifier
-                        .shadow(12.dp, shape, ambientColor = Purple, spotColor = Purple)
-                        .clip(shape)
-                        .background(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()))
-                    PillVariant.Ghost -> Modifier
-                        .clip(shape)
-                        .border(1.dp, Border, shape)
-                    PillVariant.Plain -> Modifier.clip(shape)
-                    // Black is one of the three appearances Apple's guidelines allow.
-                    PillVariant.Apple -> Modifier.clip(shape).background(Color.Black)
-                    // White background is required, not preferred — the G may not sit on anything
-                    // else. #747775 is the border colour from Google's own button.
-                    PillVariant.Google -> Modifier
-                        .clip(shape)
-                        .background(Color.White)
-                        .border(1.dp, Color(0xFF747775), shape)
-                    // Facebook Blue. Recolouring to our palette is explicitly prohibited.
-                    PillVariant.Facebook -> Modifier.clip(shape).background(Color(0xFF1877F2))
-                }
-            )
-            .clickable(
-                interactionSource = interaction, indication = null,
-                enabled = enabled, role = Role.Button, onClick = onClick,
-            )
-            .padding(horizontal = 28.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        leading?.invoke()
-        Text(
-            label,
-            color = when (variant) {
-                PillVariant.Sunset, PillVariant.Apple, PillVariant.Facebook -> Color.White
-                PillVariant.Google -> Color(0xFF1F1F1F)   // Google's specified label colour
-                PillVariant.Ghost -> Fg
-                PillVariant.Plain -> Muted
-            },
-            fontFamily = Manrope,
-            // The plain secondary is 600/15 — one step down from the 700/16 every real button
-            // carries, which is what stops the modal reading as two equal choices.
-            fontWeight = if (variant == PillVariant.Plain) FontWeight.SemiBold else FontWeight.Bold,
-            fontSize = if (variant == PillVariant.Plain) 15.sp else 16.sp,
-            maxLines = 1,
-        )
-    }
-}
-
-/** CLAUDE.md: easing is `cubic-bezier(.22,1,.36,1)` · 180ms state · 280ms progress. */
-val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ⑤ Icons — Lucide geometry, 24x24, stroke 1.7, currentColor
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -533,7 +477,8 @@ val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 
  * paths in the source, so they are drawn filled here.
  */
 enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ChevronLeft,
-                       ArrowLeft, ArrowRight, Pencil, Close, Check, Shield, Heart }
+                       ChevronRight, ArrowLeft, ArrowRight, Pencil, Pen, Edit, Close, Check,
+                       Shield, Heart, EyeOff, Plus, Image, Camera, Lock, Sliders }
 
 @Composable
 /**
@@ -584,11 +529,133 @@ fun Icon(
                     drawLine(tint, Offset(5f, 12f), Offset(19f, 12f), stroke.width, StrokeCap.Round)
                     drawPath(path(listOf(12f to 5f, 19f to 12f, 12f to 19f)), tint, style = stroke)
                 }
+                // ── added for "The real you" (SHOWUP-156 / SHOWUP-158) ──────────────
+                //
+                // Every one of these is copied from `components/shared.jsx`, the design system's
+                // own icon set, at its exact 24-grid geometry. Not from a screen's inline SVG and
+                // not from memory: the back control was drawn `arrow-left` where the design says
+                // `chevron-left` once already, and no test catches that.
+                BrandIcon.ChevronRight ->
+                    drawPath(path(listOf(9f to 18f, 15f to 12f, 9f to 6f)), tint, style = stroke)
+                BrandIcon.Plus -> {
+                    drawLine(tint, Offset(12f, 5f), Offset(12f, 19f), stroke.width, StrokeCap.Round)
+                    drawLine(tint, Offset(5f, 12f), Offset(19f, 12f), stroke.width, StrokeCap.Round)
+                }
+                BrandIcon.Image -> {
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(3f, 3f), size = Size(18f, 18f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f),
+                        style = stroke,
+                    )
+                    drawCircle(tint, radius = 1.6f, center = Offset(8.5f, 8.5f), style = stroke)
+                    drawPath(path(listOf(21f to 15f, 16f to 10f, 5f to 21f)), tint, style = stroke)
+                }
+                BrandIcon.Camera -> {
+                    // The body is a 2-radius rounded rect with a notch cut into its top edge for
+                    // the lens housing. Drawn as one path rather than a rect plus a trapezium, so
+                    // the stroke has no join artefacts where the notch meets the edge.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(23f, 19f)
+                            arcTo(Rect(19f, 17f, 23f, 21f), 0f, 90f, false)
+                            lineTo(3f, 21f)
+                            arcTo(Rect(1f, 17f, 5f, 21f), 90f, 90f, false)
+                            lineTo(1f, 8f)
+                            arcTo(Rect(1f, 6f, 5f, 10f), 180f, 90f, false)
+                            lineTo(7f, 6f); lineTo(9f, 3f); lineTo(15f, 3f); lineTo(17f, 6f)
+                            lineTo(21f, 6f)
+                            arcTo(Rect(19f, 6f, 23f, 10f), 270f, 90f, false)
+                            close()
+                        }, tint, style = stroke)
+                    drawCircle(tint, radius = 4f, center = Offset(12f, 13f), style = stroke)
+                }
+                BrandIcon.Lock -> {
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(3f, 11f), size = Size(18f, 11f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f),
+                        style = stroke,
+                    )
+                    // The shackle: up, over the top as a true semicircle, back down.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(7f, 11f); lineTo(7f, 7f)
+                            arcTo(Rect(7f, 2f, 17f, 12f), 180f, 180f, false)
+                            lineTo(17f, 11f)
+                        }, tint, style = stroke)
+                }
+                BrandIcon.Sliders -> {
+                    listOf(
+                        4f to (21f to 14f), 4f to (10f to 3f),
+                        12f to (21f to 12f), 12f to (8f to 3f),
+                        20f to (21f to 16f), 20f to (12f to 3f),
+                    ).forEach { (x, span) ->
+                        drawLine(tint, Offset(x, span.first), Offset(x, span.second), stroke.width, StrokeCap.Round)
+                    }
+                    listOf(
+                        Triple(1f, 7f, 14f), Triple(9f, 15f, 8f), Triple(17f, 23f, 16f),
+                    ).forEach { (x1, x2, y) ->
+                        drawLine(tint, Offset(x1, y), Offset(x2, y), stroke.width, StrokeCap.Round)
+                    }
+                }
+                // `edit` from the shared set: a pen over a baseline stroke. The arc in the source
+                // path -- `a2.121 2.121 0 0 1 3 3` -- is a true semicircle, because the chord
+                // (3, 3) has length 4.243 and the radius is 2.121, so 2r is the chord. Centre is
+                // therefore the chord's midpoint.
+                BrandIcon.Edit -> {
+                    drawLine(tint, Offset(12f, 20f), Offset(21f, 20f), stroke.width, StrokeCap.Round)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(16.5f, 3.5f)
+                            arcTo(Rect(15.879f, 2.879f, 20.121f, 7.121f), 225f, 180f, false)
+                            lineTo(7f, 19f); lineTo(3f, 20f); lineTo(4f, 16f)
+                            close()
+                        }, tint, style = stroke)
+                }
+                // The prompts card's edit pip. A pen with NO baseline stroke, which is what makes
+                // it a different glyph from [Edit] rather than the same one at another size --
+                // SHOWUP-158's reference draws this one inline.
+                BrandIcon.Pen -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(17f, 3f)
+                            arcTo(Rect(16.17f, 2.17f, 21.83f, 7.83f), 225f, 180f, false)
+                            lineTo(7.5f, 20.5f); lineTo(2f, 22f); lineTo(3.5f, 16.5f)
+                            close()
+                        }, tint, style = stroke)
+                    drawLine(tint, Offset(15f, 5f), Offset(19f, 9f), stroke.width, StrokeCap.Round)
+                }
                 BrandIcon.Close -> {
                     drawLine(tint, Offset(18f, 6f), Offset(6f, 18f), stroke.width, StrokeCap.Round)
                     drawLine(tint, Offset(6f, 6f), Offset(18f, 18f), stroke.width, StrokeCap.Round)
                 }
                 BrandIcon.Check -> drawPath(path(listOf(20f to 6f, 9f to 17f, 4f to 12f)), tint, style = stroke)
+                // The visibility band's mark (SHOWUP-154 callout 11). Feather's eye-off: the
+                // eye's two arcs with the pupil, struck through corner to corner. Authored on the
+                // same 24 grid as everything else here.
+                BrandIcon.EyeOff -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(17.94f, 17.94f)
+                            cubicTo(16.23f, 19.24f, 14.15f, 19.97f, 12f, 20f)
+                            cubicTo(5f, 20f, 1f, 12f, 1f, 12f)
+                            cubicTo(2.24f, 9.68f, 3.97f, 7.65f, 6.06f, 6.06f)
+                        }, tint, style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(9.9f, 4.24f)
+                            cubicTo(10.59f, 4.08f, 11.29f, 4f, 12f, 4f)
+                            cubicTo(19f, 4f, 23f, 12f, 23f, 12f)
+                            cubicTo(22.39f, 13.13f, 21.678f, 14.2f, 20.84f, 15.19f)
+                        }, tint, style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(14.12f, 14.12f)
+                            cubicTo(13.55f, 14.73f, 12.76f, 15.09f, 11.93f, 15.1f)
+                            cubicTo(10.24f, 15.1f, 8.87f, 13.73f, 8.87f, 12.04f)
+                            cubicTo(8.88f, 11.21f, 9.24f, 10.42f, 9.85f, 9.85f)
+                        }, tint, style = stroke)
+                    drawLine(tint, Offset(1f, 1f), Offset(23f, 23f), stroke.width, StrokeCap.Round)
+                }
                 BrandIcon.Shield -> drawPath(
                     androidx.compose.ui.graphics.Path().apply {
                         moveTo(12f, 22f)
@@ -654,15 +721,45 @@ private fun phonePath() = androidx.compose.ui.graphics.Path().apply {
     close()
 }
 
+/*
+ * The Apple mark, on the 24 grid, in two subpaths: the body and the leaf.
+ *
+ * REDRAWN 11 September 2026, because the previous one was not the Apple logo. It was a hand-drawn
+ * approximation and it showed: the body had no bite, the shoulders were square, and the leaf sat
+ * as a lens floating clear of the fruit. On a 16dp mark inside a black pill it read as a smudge.
+ *
+ * Apple's Sign in with Apple guidelines say the mark may be scaled but not redrawn, so the one
+ * thing this must not be is somebody's impression of an apple. The geometry below is the standard
+ * 24-unit outline -- the same one Google's four-colour G beside it uses, and for the same reason:
+ * "close enough" is altering a mark we are not permitted to alter.
+ *
+ * Two subpaths and NonZero winding, which is the default. The bite is not a hole to be subtracted;
+ * it is part of the body's own outline, curving inward on the right. Drawing it as a second
+ * subpath would punch a notch through the leaf as well.
+ */
 private fun applePath() = androidx.compose.ui.graphics.Path().apply {
-    moveTo(16f, 4f); cubicTo(16.5f, 5.5f, 15.5f, 7f, 14f, 7.5f)
-    cubicTo(12f, 8f, 11f, 7f, 11f, 5.5f); cubicTo(12.5f, 4f, 14f, 3.5f, 16f, 4f); close()
-    moveTo(18.4f, 13.5f); cubicTo(17.8f, 15f, 17f, 16.5f, 15.5f, 16.5f)
-    cubicTo(14.1f, 16.5f, 13.6f, 15.7f, 12f, 15.7f); cubicTo(10.4f, 15.7f, 9.9f, 16.5f, 8.5f, 16.5f)
-    cubicTo(7f, 16.5f, 6.1f, 15.1f, 5.4f, 13.6f); cubicTo(4f, 11f, 4.6f, 7.6f, 6.6f, 6.5f)
-    cubicTo(7.9f, 5.8f, 9.1f, 6.2f, 10.1f, 6.5f); cubicTo(11.1f, 6.8f, 11.5f, 6.8f, 12.5f, 6.5f)
-    cubicTo(13.6f, 6.1f, 14.7f, 5.6f, 16.1f, 6.3f); cubicTo(14.4f, 7.4f, 14f, 9.8f, 15.7f, 11.1f)
-    cubicTo(16.2f, 12.2f, 16.5f, 12.7f, 18.4f, 13.5f); close()
+    // The body. Starts at the top of the bite and runs anticlockwise around the fruit.
+    moveTo(17.05f, 12.54f)
+    cubicTo(17.04f, 10.2f, 18.98f, 9.07f, 19.07f, 9.01f)
+    cubicTo(17.97f, 7.41f, 16.26f, 7.19f, 15.65f, 7.17f)
+    cubicTo(14.2f, 7.02f, 12.8f, 8.03f, 12.06f, 8.03f)
+    cubicTo(11.31f, 8.03f, 10.16f, 7.19f, 8.93f, 7.21f)
+    cubicTo(7.35f, 7.23f, 5.89f, 8.14f, 5.08f, 9.56f)
+    cubicTo(3.42f, 12.43f, 4.66f, 16.67f, 6.27f, 18.99f)
+    cubicTo(7.06f, 20.13f, 7.99f, 21.4f, 9.22f, 21.36f)
+    cubicTo(10.41f, 21.31f, 10.86f, 20.59f, 12.3f, 20.59f)
+    cubicTo(13.73f, 20.59f, 14.14f, 21.36f, 15.39f, 21.33f)
+    cubicTo(16.67f, 21.31f, 17.47f, 20.18f, 18.25f, 19.04f)
+    cubicTo(19.16f, 17.72f, 19.53f, 16.44f, 19.55f, 16.37f)
+    cubicTo(19.52f, 16.36f, 17.07f, 15.42f, 17.05f, 12.54f)
+    close()
+    // The leaf, meeting the body at the stem rather than floating above it.
+    moveTo(14.7f, 5.64f)
+    cubicTo(15.36f, 4.85f, 15.8f, 3.74f, 15.68f, 2.64f)
+    cubicTo(14.74f, 2.68f, 13.6f, 3.27f, 12.92f, 4.06f)
+    cubicTo(12.31f, 4.76f, 11.78f, 5.89f, 11.92f, 6.96f)
+    cubicTo(12.97f, 7.04f, 14.04f, 6.42f, 14.7f, 5.64f)
+    close()
 }
 
 /*
@@ -737,10 +834,20 @@ private fun facebookPath() = androidx.compose.ui.graphics.Path().apply {
 fun WelcomeScaffold(
     modifier: Modifier = Modifier,
     peachWash: Boolean = true,
-    topWeighted: Boolean = false,
+    placement: OrbPlacement = OrbPlacement.Startup,
     orangeAlpha: Float = 0.32f,
     violetAlpha: Float = 0.28f,
     topPadding: Dp = 20.dp,
+    /**
+     * The side gutter.
+     *
+     * [Spacing.screenGutter] on every screen this scaffold was written for. A parameter because
+     * the embrace bridge (SHOWUP-155) draws at 28 -- its reference sets `padding: '64px 28px 0'`
+     * on the headline and `'28px 28px 0'` on the body, and a bridge is a wider, quieter beat than
+     * the screens either side of it. Not a token: 28 has no meaning beyond "this one screen",
+     * which is exactly the case the design-system rules say to keep local.
+     */
+    gutter: Dp = Spacing.screenGutter,
     /**
      * Scroll only as a last resort, for screens that share the frame with a keyboard.
      *
@@ -759,7 +866,7 @@ fun WelcomeScaffold(
 ) {
     Box(modifier.fillMaxSize().background(Cream)) {
         WelcomeBackdrop(
-            peachWash = peachWash, topWeighted = topWeighted,
+            peachWash = peachWash, placement = placement,
             orangeAlpha = orangeAlpha, violetAlpha = violetAlpha,
         )
         // safeDrawing = system bars + display cutout + IME, so the column sits above the keyboard.
@@ -767,7 +874,7 @@ fun WelcomeScaffold(
         val insets = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(start = 24.dp, end = 24.dp, top = topPadding)
+            .padding(start = gutter, end = gutter, top = topPadding)
 
         if (scrollWhenTight) {
             BoxWithConstraints(insets) {

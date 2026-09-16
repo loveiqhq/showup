@@ -157,11 +157,19 @@ for name in sorted(os.listdir(SRC)):
     # every View needs a body
     for i, ln in enumerate(src.split(chr(10)), 1):
         t = ln.strip()
-        if t.startswith("struct ") and ": View" in t and "{" in t:
-            after = src.split(ln, 1)[1]
-            head = after[:after.find(chr(10) + "}")] if (chr(10) + "}") in after else after
-            if "var body" not in head:
-                problems.append((path, i, "a View with no `var body`"))
+        # `": View" in t` was the test here, and ": View" is a PREFIX of ": ViewModifier" --
+        # so every ViewModifier was reported as a View with no `var body`, which is correct for a
+        # View and wrong for a modifier: ViewModifier's requirement is `func body(content:)`.
+        # Caught the day FieldChrome was written. Conformances are matched as whole names now.
+        if t.startswith("struct ") and "{" in t and ":" in t:
+            conformances = [
+                c.strip() for c in t.split(":", 1)[1].split("{")[0].split(",")
+            ]
+            if "View" in conformances:
+                after = src.split(ln, 1)[1]
+                head = after[:after.find(chr(10) + "}")] if (chr(10) + "}") in after else after
+                if "var body" not in head:
+                    problems.append((path, i, "a View with no `var body`"))
 
     print("  %-32s %4d lines" % (name, src.count(chr(10)) + 1))
 

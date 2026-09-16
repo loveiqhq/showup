@@ -16,6 +16,25 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.FieldContent
+import com.showup.designsystem.StatusBadge
+import com.showup.designsystem.minTapTarget
+import com.showup.designsystem.autofill
+import com.showup.designsystem.fieldChrome
+
+import com.showup.designsystem.CodeSlotRow
+import com.showup.designsystem.DangerGlyph
+import com.showup.designsystem.InlineErrorCard
+import com.showup.designsystem.InputField
+import com.showup.designsystem.minTapTarget
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.ShowUpEasing
+
+import com.showup.designsystem.ComponentSizes
+import com.showup.designsystem.Motion
+import com.showup.designsystem.Radius
+import com.showup.designsystem.Spacing
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.BasicTextField
@@ -54,7 +73,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,10 +85,7 @@ import com.showup.designsystem.Border
 // Subtle is 3.04 against the page and 3.14 against the fill. See audit finding 7.
 import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerDigit
-import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
-import com.showup.designsystem.EyebrowOrangeBg
-import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
@@ -78,8 +93,7 @@ import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
-import com.showup.designsystem.Subtle
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 // ─────────────────────────────────────────────────────────────────────────────
 // shared chrome for both halves of the flow
@@ -93,15 +107,26 @@ private fun VerificationFrame(
     // C and D drop the backdrop to .22 / .20 — the code screen is deliberately calmer than the
     // entry screen, and the keyboard owns the bottom half so nothing should glow behind it.
     WelcomeScaffold(
-        peachWash = false, topWeighted = true,
+        peachWash = false, placement = OrbPlacement.PhoneVerify,
         orangeAlpha = 0.26f, violetAlpha = 0.22f,
         topPadding = 4.dp,          // content pad-top 4 on this screen, not the launch screens' 20
         scrollWhenTight = true,     // the keyboard shares this frame; the CTA must stay reachable
     ) {
         Box(
             Modifier
-                .size(44.dp)
-                .clickable(role = Role.Button, onClick = onBack),
+                // The floor lives in the design system now; it was a hardcoded 44 here. Still 44
+                // and not the tutorial's 48 -- see the note in TapTarget.kt, which is where that
+                // disagreement is written down rather than silently resolved.
+                .minTapTarget()
+                .clickable(role = Role.Button, onClick = onBack)
+                // Without this TalkBack announces "button" and nothing else: the chevron is a
+                // Canvas, so there is no text anywhere in this control for a screen reader to
+                // fall back on. iOS has said "Back" since the screen was written.
+                //
+                // On the Box rather than the glyph, because the Box is the control -- it carries
+                // the click and the tap target, and a label on the Canvas would describe a
+                // decoration instead of the thing being pressed.
+                .semantics { contentDescription = "Back" },
             contentAlignment = Alignment.CenterStart,
         ) {
             // chevron-left at 24, stroke 2 -- the handoff's AppHeader with leading="back", which
@@ -120,30 +145,27 @@ private fun VerificationFrame(
     }
 }
 
-@Composable
-private fun ColumnScope.Eyebrow() {
-    Row(
-        Modifier
-            .align(Alignment.Start)
-            .clip(RoundedCornerShape(50))
-            // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on both
-            // of these screens; lavender is the tutorial's tone and was taken here by default.
-            .background(EyebrowOrangeBg)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            "PHONE VERIFICATION", color = Orange, fontFamily = Manrope,
-            fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.88.sp,
-        )
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // States A and B — enter number / invalid number
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** TalkBack's name for the number field. Also what TapTargetTest finds it by. */
+const val PHONE_FIELD_LABEL = "Phone number"
+
+/** Copy this screen needs and no ticket provides. */
+object PhoneCopy {
+    /**
+     * PROPOSED — NOT APPROVED. No ticket says what a failed SEND says; SHOWUP-143 assumed the
+     * call always succeeds, because when it was written there was no call. Offline and
+     * server-down are required states by the shared CLAUDE.md, so the state exists and its
+     * wording does not.
+     *
+     * Deliberately the same sentence as `EmailCopy.SEND_FAILED_PROPOSED`: it is the same event
+     * on a different screen, and two wordings for one failure is how copy drifts. If Philipp
+     * approves one, he approves both.
+     */
+    const val SEND_FAILED_PROPOSED = "We couldn't send the code just now. Please try again."
+}
 
 @Composable
 fun PhoneNumberScreen(
@@ -152,13 +174,30 @@ fun PhoneNumberScreen(
     onValueChange: (String) -> Unit = {},
     country: Country = DEFAULT_COUNTRY,
     error: PhoneError? = null,
+    /**
+     * A failure that came from the network rather than from the digits.
+     *
+     * Separate from [error] because the two are found in different places and one of them is not
+     * the user's fault: [error] is what validation says about what was typed, this is what
+     * happened when the app tried to send. It takes precedence when both are set, because a
+     * request that never left the device is the more immediate fact.
+     *
+     * Nothing rendered this until 10 September 2026, and the cost was exact: with cleartext HTTP
+     * blocked in the debug build, every send failed before a socket opened, the flow did not
+     * advance, and the screen said nothing at all. The button looked broken. A silent failure on
+     * the only action a screen offers is indistinguishable from a dead control.
+     */
+    serverError: String? = null,
     onBack: () -> Unit = {},
     onSubmit: () -> Unit = {},
     onOpenCountryList: () -> Unit = {},
 ) {
     val compact = LocalConfiguration.current.screenHeightDp < 700
     val focus = remember { FocusRequester() }
+    // The field's danger ring belongs to validation only. A send that failed says nothing about
+    // whether the number is right, so outlining it in red would blame the user for the network.
     val invalid = error != null
+    val showsError = invalid || serverError != null
 
     // The keyboard is why the user is here, so it opens with the screen rather than after a tap.
     // runCatching, because a focus request is a convenience and must never be fatal. It throws
@@ -168,7 +207,7 @@ fun PhoneNumberScreen(
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     VerificationFrame(onBack) {
-        Eyebrow()
+        StatusBadge("Phone verification", Modifier.align(Alignment.Start))
         Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("What’s your " to false, "number" to true, "?" to false),
@@ -183,18 +222,14 @@ fun PhoneNumberScreen(
         )
 
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             // Country pill -- opens the list. The default comes from device locale; see SignUpFlow.
+            // A button wearing the field's chrome, so the two cannot drift apart. 14 rather than
+            // the field's 18, because the pill hugs its content and the field does not.
             Row(
-                Modifier
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Elevated)
-                    .border(1.5.dp, Subtle, RoundedCornerShape(14.dp))
-                    .clickable(role = Role.Button, onClick = onOpenCountryList)
-                    .padding(horizontal = 14.dp),
+                Modifier.fieldChrome(horizontalPadding = 14.dp, onClick = onOpenCountryList),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 Flag(country)
                 Text(country.dial, color = Fg, fontFamily = Manrope,
@@ -204,73 +239,42 @@ fun PhoneNumberScreen(
 
             // The invalid field keeps the same geometry as the default one, so it does not move
             // when it fails -- and the digits are preserved, never cleared.
-            Row(
-                Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Elevated)
-                    .border(1.5.dp, if (invalid) Danger else Subtle, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicTextField(
-                    value = value,
-                    // Digits only at the source, so nothing downstream has to strip characters
-                    // that were never allowed in.
-                    //
-                    // The cap is the country's maximum PLUS an allowance, never the maximum itself:
-                    // capping exactly at the limit silently swallows the extra keystrokes, so a
-                    // too-long number cannot be typed and the error that exists for it can never
-                    // fire. See OVERTYPE_ALLOWANCE.
-                    onValueChange = { raw ->
-                        onValueChange(
-                            raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
-                        )
-                    },
-                    // fillMaxHeight, so the touch target matches the field a person can see.
-                    //
-                    // Without it the field measured to the height of its own text -- 23dp inside
-                    // a 56dp row -- and the row centred it. The input LOOKED 56dp tall while only
-                    // the middle 23dp of it would take a tap, so tapping near the top or bottom
-                    // edge did nothing at all. Found by ScreenFitTest on 15 of 18 phone sizes.
-                    modifier = Modifier.weight(1f).fillMaxHeight().focusRequester(focus),
-                    textStyle = TextStyle(
-                        color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp, letterSpacing = 0.3.sp,
-                    ),
-                    singleLine = true,
-                    cursorBrush = SolidColor(Purple),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done,
-                    ),
-                    // Enter submits, so the user never has to dismiss the keyboard to reach the CTA.
-                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-                    visualTransformation = remember(country) { GroupedDigits(country) },
-                    // The field now fills the row's full 56dp so that all of it is tappable, which
-                    // means the text has to be centred here instead of riding the top edge.
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterStart) {
-                            if (value.isEmpty()) {
-                                Text(
-                                    country.sample, color = Faint, fontFamily = Manrope,
-                                    fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                                    letterSpacing = 0.3.sp, maxLines = 1,
-                                )
-                            }
-                            inner()
-                        }
-                    },
-                )
-                if (invalid) {
-                    Spacer(Modifier.width(8.dp))
-                    Box(Modifier.size(22.dp).background(Danger, CircleShape),
-                        contentAlignment = Alignment.Center) {
-                        Text("!", color = Color.White, fontFamily = Lora,
-                             fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                }
-            }
+            //
+            // The whole box takes a tap. That is InputField's guarantee now rather than a modifier
+            // written here, because it was written here once and was wrong: the field measured 23dp
+            // inside this 56dp row and only its middle third responded.
+            InputField(
+                value = value,
+                // Digits only at the source, so nothing downstream has to strip characters that
+                // were never allowed in.
+                //
+                // The cap is the country's maximum PLUS an allowance, never the maximum itself:
+                // capping exactly at the limit silently swallows the extra keystrokes, so a
+                // too-long number cannot be typed and the error that exists for it can never fire.
+                // See OVERTYPE_ALLOWANCE.
+                onValueChange = { raw ->
+                    onValueChange(
+                        raw.filter { it.isDigit() }.take(E164_MAX_DIGITS + OVERTYPE_ALLOWANCE)
+                    )
+                },
+                label = PHONE_FIELD_LABEL,
+                placeholder = country.sample,
+                modifier = Modifier.weight(1f),
+                invalid = invalid,
+                keyboardType = KeyboardType.Phone,
+                // Matches iOS's `.telephoneNumber`, which this screen has declared since it was
+                // written. Android declared nothing, so the number never came from the keychain.
+                contentType = FieldContent.PhoneNumber,
+                onSubmit = onSubmit,
+                focusRequester = focus,
+                visualTransformation = remember(country) { GroupedDigits(country) },
+                // glyphSize 14, not DangerGlyph's default 13: this screen's spec draws 14 and the
+                // profile fields draw 13. Passed explicitly so the shape is shared and neither
+                // screen moves. The inconsistency is reported rather than silently normalised.
+                trailing = if (!invalid) null else {
+                    { DangerGlyph(size = 22.dp, glyphSize = 14.dp) }
+                },
+            )
         }
 
         // The helper row is RESERVED at TWO lines -- 36 -- because that is what an error takes.
@@ -297,29 +301,61 @@ fun PhoneNumberScreen(
         // which is precisely how this row came to render differently on Linux and on Windows. iOS
         // needs no such margin because it can shrink a long message to fit; Compose 1.7 has no
         // autoSize, so the room has to be real.
+        // ERRORS ARE A CARD, HELPER TEXT IS NOT
+        //
+        // One error style across the app, decided 10 September 2026: the red card with the glyph
+        // and the message inside it, never bare red text. This row used to render its failure as
+        // red text alone, which was the last place that style survived.
+        //
+        // The calm string is NOT an error -- "Standard message rates may apply." is advice, and
+        // wrapping advice in a danger card would say something the sentence does not. So the row
+        // swaps component, not just colour.
+        //
+        // THE RESERVE GREW FROM 40 TO 80, AND THAT IS THE COST OF THE CHANGE
+        //
+        // The card adds chrome the bare text did not have -- 1 border and 10 padding top and
+        // bottom, and 14 of padding plus an 18 glyph and a 10 gap eating the text column's WIDTH.
+        // The narrower column is what actually drove this: the same sentences that fitted two
+        // lines as bare 13sp text need three inside the card.
+        //
+        // maxLines 3, and 80 to hold it. Two was tried first, on the assumption that reserving
+        // for three would push the CTA under the keyboard -- ScreenFitTest disproved both halves
+        // of that. At two, three messages CLIPPED on the Galaxy Fold cover screen and the user
+        // lost the example number, which is the useful half of the sentence. At three, all
+        // seventeen sizes pass with the CTA neither moved nor off-screen. The guess was wrong and
+        // the harness is the reason it did not ship.
+        //
+        // The region stays FIXED at 80 in BOTH states, because a region that fits its content is
+        // a region that moves the CTA when the content changes, which is the one thing
+        // SHOWUP-143 forbids. The quiet space under the helper line in the calm state is that
+        // guarantee being paid for, and it is 40dp more of it than before.
         Box(
             Modifier
                 .fillMaxWidth()
-                .padding(top = 10.dp, start = 4.dp)
-                .height(40.dp)
+                .padding(top = Spacing.lg, start = Spacing.xs)
+                .height(80.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            Text(
-                error?.message(country) ?: "Standard message rates may apply.",
-                // Muted, not Subtle -- helper text has to be readable. See audit finding 7.
-                color = if (invalid) DangerFg else Muted,
-                fontFamily = Manrope,
-                fontWeight = if (invalid) FontWeight.SemiBold else FontWeight.Medium,
-                fontSize = 13.sp, lineHeight = 17.55.sp,
-                maxLines = 2,
-            )
+            if (showsError) {
+                InlineErrorCard(serverError ?: error?.message(country) ?: "", maxLines = 3)
+            } else {
+                Text(
+                    "Standard message rates may apply.",
+                    // Muted, not Subtle -- helper text has to be readable. See audit finding 7.
+                    color = Muted,
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp, lineHeight = 17.55.sp,
+                    maxLines = 2,
+                )
+            }
         }
 
         Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
         // Validation runs on submit, not per keystroke. The button stays live so the user can ask
         // for the check -- what changes on failure is the message, not the availability of the
         // action. A disabled CTA cannot explain itself, which the ticket lists as an open concern.
-        PillButton("Send me the code", onSubmit)
+        PrimaryButton("Send me the code", onSubmit)
     }
 }
 
@@ -361,12 +397,68 @@ private class GroupedDigits(private val country: Country) : VisualTransformation
 // States C and D — enter code / code mismatch
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The code screen's two failure strings.
+ *
+ * [LOCKED_OUT] is PROPOSED COPY, not yet signed off by the design side. The server has enforced
+ * this cap since Epic 2 and no ticket has ever specified what the user reads when it trips, so the
+ * choice was between a screen that says nothing useful and a sentence written to the group's own
+ * rules: name the state, point at the one recovery, and never say "Error" or "Failed". It mirrors
+ * the shape of the approved expired-code line on profile/03.
+ */
+object VerifyCopy {
+    /**
+     * PROPOSED — NOT APPROVED. Shown only if a 429 arrives without a message of its own; the
+     * server normally supplies "Please wait 41s before requesting another code" and that is
+     * preferred, because it names the number.
+     */
+    const val RESEND_TOO_SOON_PROPOSED =
+        "A code was just sent. Please wait a moment before asking for another."
+
+    const val MISMATCH = "That code didn’t match. Try again."
+
+    /**
+     * PROPOSED — awaiting design sign-off. One recovery, so the sentence names only that one.
+     *
+     * Kept to the length of [MISMATCH] on purpose. The reserved region under the slots is a
+     * 42 floor sized for ONE line of card; a longer sentence wraps to two at 320 and takes the
+     * CTA down with it, which is the movement SHOWUP-143 forbids. "Send a new code to try
+     * again" was the first draft and is four characters too long to survive that.
+     */
+    /**
+     * PROPOSED — NOT APPROVED. Same event and same sentence as
+     * `PhoneCopy.SEND_FAILED_PROPOSED` and `EmailCopy.SEND_FAILED_PROPOSED`; one failure should
+     * not have three wordings. Approving one approves all three.
+     */
+    const val SEND_FAILED_PROPOSED = "We couldn't reach the server just now. Please try again."
+
+    const val LOCKED_OUT = "Too many tries. Send a new code."
+}
+
 @Composable
 fun VerifyCodeScreen(
     phone: String = "+49 176 123 45 678",
     digits: String = "",
     onDigitsChange: (String) -> Unit = {},
     mismatch: Boolean = false,
+    /**
+     * The code has taken its last wrong guess.
+     *
+     * The server stops accepting attempts after `com.showup.api.MAX_VERIFY_ATTEMPTS` and answers every
+     * further submit the same way, so without this the user would be told to "try again" against
+     * a code that can no longer succeed. It is a distinct state, not a louder mismatch: the only
+     * way out is a new code.
+     */
+    lockedOut: Boolean = false,
+    /**
+     * A failure that came from the network rather than from the digits.
+     *
+     * Wins over both [mismatch] and [lockedOut], because neither of those is known to have
+     * happened when the request never reached the server. Telling someone their code was wrong
+     * on the strength of a dropped connection is worse than saying nothing, and saying nothing
+     * is what this screen did until 10 September 2026.
+     */
+    serverError: String? = null,
     cooldownSeconds: Int = 21,
     onBack: () -> Unit = {},
     onVerify: () -> Unit = {},
@@ -391,14 +483,14 @@ fun VerifyCodeScreen(
     LaunchedEffect(mismatch) {
         if (mismatch && motion.enabled) {
             shake.snapTo(0f)
-            shake.animateTo(1f, androidx.compose.animation.core.tween(480, easing = ShowUpEasing))
+            shake.animateTo(1f, androidx.compose.animation.core.tween(Motion.SHAKE, easing = ShowUpEasing))
         } else {
             shake.snapTo(0f)
         }
     }
 
     VerificationFrame(onBack) {
-        Eyebrow()
+        StatusBadge("Phone verification", Modifier.align(Alignment.Start))
         Spacer(Modifier.height(if (compact) 2.dp else 14.dp))
         WashHeadline(
             parts = listOf("Enter your " to false, "code" to true, "." to false),
@@ -435,11 +527,20 @@ fun VerifyCodeScreen(
         val slotW = if (compact) 44.dp else 49.dp
         val slotH = if (compact) 56.dp else 62.dp
         Spacer(Modifier.height(if (compact) 8.dp else 26.dp))
+        // Typed and autofilled codes take the SAME path. Written once rather than twice, because
+        // an SMS code arrives as "Your code is 123456" in some locales and a second copy of this
+        // filter is a second chance to forget the digit strip or the cap.
+        val acceptCode: (String) -> Unit = { raw ->
+            onDigitsChange(raw.filter { it.isDigit() }.take(6))
+        }
         BasicTextField(
             value = digits,
-            onValueChange = { raw -> onDigitsChange(raw.filter { it.isDigit() }.take(6)) },
+            onValueChange = acceptCode,
             modifier = Modifier
                 .fillMaxWidth()
+                // Matches iOS's `.oneTimeCode`. One field behind all six slots is what makes this
+                // a single hint rather than six that have to hand off to each other.
+                .autofill(FieldContent.SmsCode, acceptCode)
                 .focusRequester(focus)
                 .graphicsLayer {
                     // +/- 6px, three cycles, decaying to nothing
@@ -457,41 +558,17 @@ fun VerifyCodeScreen(
             // no system caret. The violet caret in the active slot is ours.
             textStyle = TextStyle(color = Color.Transparent),
             cursorBrush = SolidColor(Color.Transparent),
+            // The row is the shared CodeSlotRow now, not thirty lines of boxes. Its defaults are
+            // SHOWUP-153's sheet -- a halo and a blinking caret -- so this screen passes its own:
+            // no ring, a static bar, and the 44 x 56 compact tier on a short frame. Both
+            // differences are from 143's own sheet and are documented on the component.
             decorationBox = {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    repeat(6) { i ->
-                        val ch = digits.getOrNull(i)
-                        val active = !mismatch && i == digits.length && digits.length < 6
-                        Box(
-                            Modifier
-                                .size(width = slotW, height = slotH)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (mismatch) Danger.copy(alpha = 0.04f) else Elevated)
-                                .border(
-                                    1.5.dp,
-                                    when {
-                                        mismatch -> Danger
-                                        active -> Purple
-                                        ch != null -> Fg.copy(alpha = 0.32f)
-                                        else -> Border
-                                    },
-                                    RoundedCornerShape(14.dp),
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (ch != null) {
-                                Text(
-                                    ch.toString(),
-                                    color = if (mismatch) DangerDigit else Fg,
-                                    fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 30.sp,
-                                )
-                            } else if (active) {
-                                // 2 x 28 violet caret. No caret at all while in error.
-                                Box(Modifier.size(width = 2.dp, height = 28.dp).background(Purple))
-                            }
-                        }
-                    }
-                }
+                CodeSlotRow(
+                    digits = digits,
+                    error = mismatch,
+                    slotWidth = slotW,
+                    slotHeight = slotH,
+                )
             },
         )
 
@@ -522,37 +599,42 @@ fun VerifyCodeScreen(
                 .heightIn(min = 42.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            if (mismatch) {
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Danger.copy(alpha = 0.07f))
-                        .border(1.dp, Danger.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(Modifier.size(18.dp).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
-                        Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
-                    // informative, never "Wrong" / "Failed" / "Error"
-                    Text(
-                        "That code didn’t match. Try again.",
-                        color = DangerFg, fontFamily = Manrope, fontWeight = FontWeight.Medium,
-                        fontSize = 13.5.sp, lineHeight = 18.9.sp,
-                    )
-                }
+            // Two failures, one card, and the message is the difference between them. Both use
+            // the shared InlineErrorCard, which is the one error style in the app.
+            //
+            // Locked out wins over mismatch: once the cap is reached the last submit was also a
+            // mismatch, and "try again" would be the wrong instruction to leave on screen.
+            if (serverError != null) {
+                // First, because a request that never arrived tells us nothing about the code.
+                InlineErrorCard(serverError, maxLines = 2)
+            } else if (lockedOut) {
+                InlineErrorCard(VerifyCopy.LOCKED_OUT)
+            } else if (mismatch) {
+                // Was fourteen lines of the same card the profile flow draws: radius errorBox, the
+                // 7% and 18% danger tints, 14/10 padding, gap 10, an 18 glyph at Lora 12, and
+                // Manrope 500 / 13.5 in DangerFg. Value for value identical, so it is now the
+                // shared component rather than a fifth copy.
+                //
+                // Copy unchanged: informative, never "Wrong" / "Failed" / "Error".
+                InlineErrorCard(VerifyCopy.MISMATCH)
             }
         }
 
         Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         // Disabled until all six digits are in. In mismatch the digits are still there, so it stays
         // enabled — the user edits one digit and resubmits.
-        PillButton("Verify code", onVerify, enabled = digits.length == 6)
+        //
+        // Locked out disables it too, and that is the honest control: the server will refuse every
+        // further submit for this code, so a live button would promise an action that cannot
+        // happen. The resend below is live in its place, which is the only way forward.
+        PrimaryButton("Verify code", onVerify, enabled = digits.length == 6 && !lockedOut)
 
         Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
         // A mistyped code must not cost another 24s wait, so the mismatch state releases the
         // cooldown to 0 and the resend becomes a live button.
-        val resendLive = mismatch || cooldownSeconds <= 0
+        // Locked out MUST make the resend live regardless of the clock: it is the only exit, and
+        // leaving the user to wait out a countdown with no working action is a dead end.
+        val resendLive = mismatch || lockedOut || cooldownSeconds <= 0
         Column(
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -572,11 +654,11 @@ fun VerifyCodeScreen(
                 Text(
                     "Send a new code",
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(Radius.errorBox))
                         .clickable(role = Role.Button, onClick = onResend)
                         // 44dp is the smallest comfortable touch target; the text alone is ~20.
-                        .heightIn(min = 44.dp)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                        .heightIn(min = ComponentSizes.minTapTarget)
+                        .padding(horizontal = Spacing.xl, vertical = Spacing.xl),
                     color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
                     fontSize = 14.sp, textDecoration = TextDecoration.Underline,
                 )
@@ -585,8 +667,11 @@ fun VerifyCodeScreen(
                 // tappable label during the cooldown would be either a dead control or a rule
                 // broken. tabular figures so the countdown does not jitter as it ticks.
                 Text(
-                    "Send a new code in 0:%02d".format(cooldownSeconds),
-                    modifier = Modifier.padding(vertical = 4.dp),
+                    // The minute is computed, not a literal. It used to read "0:%02d", which was
+                    // true only while the cooldown was 30 -- at the 60 the server actually
+                    // enforces, the first tick rendered "0:60" and counted down from there.
+                    "Send a new code in %d:%02d".format(cooldownSeconds / 60, cooldownSeconds % 60),
+                    modifier = Modifier.padding(vertical = Spacing.xs),
                     color = Muted, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
@@ -595,14 +680,13 @@ fun VerifyCodeScreen(
                 Modifier
                     .clip(RoundedCornerShape(50))
                     .clickable(role = Role.Button, onClick = onEditNumber)
-                    // 44dp minimum, found by ScreenFitTest: a 13dp icon beside a 13sp label with
-                    // 4dp of padding came to 27dp. The row stays visually the same size -- the
-                    // minimum only grows the area that answers to a finger, which is what the
-                    // guideline is about.
-                    .defaultMinSize(minHeight = 44.dp)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    // The shared floor, found here by ScreenFitTest: a 13dp icon beside a 13sp
+                    // label with 4dp of padding came to 27dp. The row stays visually the same size
+                    // -- the minimum only grows the area that answers to a finger.
+                    .minTapTarget()
+                    .padding(horizontal = Spacing.md, vertical = Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Icon(BrandIcon.Pencil, 13.dp, tint = Muted, strokeWidth = 1.8.dp)
                 Text("Edit phone number", color = Muted, fontFamily = Manrope,

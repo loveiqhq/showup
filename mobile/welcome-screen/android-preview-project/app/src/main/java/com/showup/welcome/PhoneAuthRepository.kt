@@ -1,0 +1,171 @@
+/*
+ * PhoneAuthRepository.kt
+ * ShowUp · signing in with a phone number, for real
+ *
+ * Both routes go through the GENERATED client, and both are `@Public` on the server -- this is
+ * the one part of the app that runs without a token, because it is what produces one.
+ *
+ * NO PAID PROVIDER IS INVOLVED, AND NONE NEEDS DISABLING
+ *
+ * `LogSmsSender` is the only SMS sender the backend has and it is hardwired in `auth.module.ts`;
+ * there is no Twilio integration to switch off. It writes the code to the server log, and
+ * `AUTH_EXPOSE_OTP` -- which defaults to true unless NODE_ENV is production -- also returns it as
+ * `devCode` on the challenge. So the whole flow is testable locally and in CI for nothing.
+ *
+ * `devCode` is carried through this layer deliberately rather than being dropped: the screen
+ * decides whether to show it, and it only does so in a debug build. Dropping it here would mean
+ * reading server logs to test a signup.
+ */
+package com.showup.welcome
+
+import com.showup.BuildConfig
+import com.showup.api.ApiError
+import com.showup.api.ShowUpApi
+import com.showup.api.TokenStore
+import com.showup.api.generated.model.RequestOtpDto
+import com.showup.api.generated.model.VerifyOtpDto
+import java.time.OffsetDateTime
+
+/** The answer to "text this number a code". */
+sealed interface StartAuthResult {
+    data class Sent(
+        val expiresAt: OffsetDateTime,
+        val resendAvailableAt: OffsetDateTime,
+        /** Present only when the server is exposing it. Never shown outside a debug build. */
+        val devCode: String?,
+        /**
+         * True when NOTHING ANSWERED and a debug build carried on locally -- see DevOfflineAuth.
+         *
+         * It exists to be displayed. A stand-in the user cannot tell apart from a backend is how
+         * somebody demos a broken integration and believes it works.
+         */
+        val offline: Boolean = false,
+    ) : StartAuthResult
+
+    /**
+     * 429. Either the per-challenge cooldown or the route's 5-per-minute throttle.
+     *
+     * [message] is the server's own sentence -- "Please wait 59s before requesting another code"
+     * -- and it is carried rather than discarded because this used to be a `data object` that
+     * said nothing, and the screen showed nothing with it. Reported on 15 September: "I tapped to
+     * send a new code but initially I did not get a new code / it looked like resend was not
+     * working." It was working exactly as designed; the design forgot to say so.
+     *
+     * Critically, a TooSoon does NOT supersede anything. `otp.service.ts` refuses the request
+     * before it deletes the prior challenge, so the code already in the user's hand is still the
+     * live one -- which is why the client must not touch its challenge state here.
+     */
+    data class TooSoon(val message: String?) : StartAuthResult
+
+    data class Failed(val error: ApiError?) : StartAuthResult
+}
+
+/** The answer to "is this the code". */
+sealed interface VerifyPhoneResult {
+    /**
+     * Signed in, and the tokens are already in the store.
+     *
+     * [profileComplete] is how the flow decides where to go next. It is read from
+     * `/me/profile` rather than from a flag on the auth response, because the server does not
+     * send one -- and because completeness survives an interrupted signup, where "was this
+     * account new" would send a half-registered user straight to Home.
+     */
+    data class SignedIn(val profileComplete: Boolean) : VerifyPhoneResult
+
+    /** Wrong, expired or superseded — the server answers 401 for all three. */
+    data object Refused : VerifyPhoneResult
+
+    /** The cap. Recognised by message text, and it fails safe — see the profile repository. */
+    data object TooManyAttempts : VerifyPhoneResult
+
+    data class Failed(val error: ApiError?) : VerifyPhoneResult
+}
+
+/**
+ * @param tokens passed in rather than reached through [api], so the fact that this class WRITES
+ *   credentials is visible in its signature instead of buried in one line of a method.
+ */
+open class PhoneAuthRepository(
+    private val api: ShowUpApi,
+    private val tokens: TokenStore,
+    /**
+     * The stand-in used when NOTHING ANSWERED, or null to let that failure be a failure.
+     *
+     * A constructor parameter rather than a `BuildConfig.DEBUG` check buried in the catch block,
+     * and the difference matters for more than taste: unit tests run against the DEBUG variant,
+     * so an inlined guard would mean the release behaviour of this path -- the one real users
+     * get -- could never be asserted. `an unreachable server is a failure, not a refusal` caught
+     * exactly that the moment it was tried.
+     *
+     * The default preserves the intent: debug builds carry on locally, release builds do not,
+     * and R8 folds the constant so [DevOfflineAuth] is stripped from a release binary entirely.
+     */
+    private val offline: DevOfflineAuth? = if (BuildConfig.DEBUG) DevOfflineAuth else null,
+) {
+
+    open suspend fun start(phoneE164: String): StartAuthResult = runCatching {
+        val response = api.auth.startPhoneVerification(RequestOtpDto(phone = phoneE164))
+        val body = response.body()
+        when {
+            response.isSuccessful && body != null -> StartAuthResult.Sent(
+                expiresAt = body.expiresAt,
+                resendAvailableAt = body.resendAvailableAt,
+                devCode = body.devCode,
+            )
+            response.code() == 429 -> StartAuthResult.TooSoon(
+                errorOf(response.code(), response.errorBody()?.string())?.messages?.firstOrNull(),
+            )
+            else -> StartAuthResult.Failed(errorOf(response.code(), response.errorBody()?.string()))
+        }
+    }.getOrElse {
+        // Nothing answered. A server that replies -- with anything, including 500 -- never
+        // reaches here, so this cannot hide a backend bug.
+        offline?.start(OffsetDateTime.now()) ?: StartAuthResult.Failed(null)
+    }
+
+    /**
+     * Confirms the code and STORES THE TOKENS.
+     *
+     * The save happens here rather than at the call site because it is not optional: a caller
+     * that forgot it would leave the app holding a session it cannot prove, and every later
+     * request would 401 for a reason nothing on screen could explain.
+     */
+    open suspend fun verify(phoneE164: String, code: String): VerifyPhoneResult = runCatching {
+        // The route records the user-agent against the session so a person can later see where
+        // they are signed in, which is why the generated signature requires it.
+        val response = api.auth.verifyPhone(
+            userAgent = ShowUpApi.USER_AGENT,
+            verifyOtpDto = VerifyOtpDto(phone = phoneE164, code = code),
+        )
+        val body = response.body()
+        if (!response.isSuccessful || body == null) {
+            val error = errorOf(response.code(), response.errorBody()?.string())
+            return when {
+                response.code() != 401 -> VerifyPhoneResult.Failed(error)
+                error?.messages.orEmpty().any { it.contains("Too many attempts", true) } ->
+                    VerifyPhoneResult.TooManyAttempts
+                else -> VerifyPhoneResult.Refused
+            }
+        }
+
+        tokens.save(accessToken = body.accessToken, refreshToken = body.refreshToken)
+        VerifyPhoneResult.SignedIn(profileComplete = readProfileComplete())
+    }.getOrElse {
+        offline?.verify(code, OffsetDateTime.now()) ?: VerifyPhoneResult.Failed(null)
+    }
+
+    /**
+     * Whether the signed-in user already has a usable profile.
+     *
+     * A failure here is treated as INCOMPLETE, not as an error. Sending someone through
+     * onboarding they have already done is a mild annoyance; skipping them past profile creation
+     * because a request timed out leaves an account that cannot be matched.
+     */
+    private suspend fun readProfileComplete(): Boolean = runCatching {
+        val profile = api.profiles.getProfile()
+        profile.body()?.isComplete == true
+    }.getOrElse { false }
+
+    private fun errorOf(code: Int, body: String?): ApiError? = body?.let { ApiError.parse(code, it) }
+
+}

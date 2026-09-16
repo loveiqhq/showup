@@ -41,7 +41,7 @@ struct MatchMeansMeetView: View {
             content: {
                 // ⑤ rule list — gap 12, rows wrap. No body paragraphs here: the slot is simply
                 // unused, so it reserves no height.
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     RuleRow(rule: "You decide who you like", consequence: "if you match, you will meet")
                     RuleRow(rule: "We suggest the time", consequence: "a date and time that works for both of your schedules")
                     RuleRow(rule: "We pick the place", consequence: "a safe, public spot halfway between you")

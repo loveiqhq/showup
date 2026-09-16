@@ -46,7 +46,13 @@ struct WelcomeBackView: View {
         GeometryReader { geo in
             let compact = geo.size.height < 700
 
-            WelcomeScaffold {
+            // Scroll only when the frame runs out, per the 10 September decision. Mirrors
+            // WelcomeBackScreen.kt: on every phone where the content fits this changes nothing,
+            // because the inner column is floored at the viewport height and the two weighted
+            // spacers still divide what is left. On the short ones it is the difference between
+            // a screen and a broken one — Android measured "Continue with Facebook" at 7.5dp on
+            // a 320x686 with a 24-character name.
+            WelcomeScaffold(scrollWhenTight: true) {
                 Wordmark()
 
                 // 120 here against Startup's 132 — same role: the element that yields first.
@@ -74,9 +80,9 @@ struct WelcomeBackView: View {
                 Spacer(minLength: 0)
 
                 // The stack floats between two equal spacers — centred in the lower band.
-                VStack(spacing: 10) {
+                VStack(spacing: Spacing.lg) {
                     if known {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.sm) {
                             // 6pt dot with a 3pt ring — the ring sits outside the dot rather than
                             // growing it, so the dot stays 6.
                             Circle().fill(Color.liqOrange).frame(width: 6, height: 6)
@@ -104,7 +110,7 @@ struct WelcomeBackView: View {
                     .tint(.liqFg)
                     .frame(maxWidth: .infinity)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Spacing.md)
 
                 // No Terms & Conditions here — consent was given at sign-up.
                 Text(legalAttributed)
@@ -112,7 +118,7 @@ struct WelcomeBackView: View {
                     .multilineTextAlignment(.center)
                     .tint(.liqMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Spacing.md)
             }
         }
         .ignoresSafeArea(.keyboard)

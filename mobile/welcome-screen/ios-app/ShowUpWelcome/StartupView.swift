@@ -40,7 +40,7 @@ struct StartupView: View {
             Spacer().frame(minHeight: 64, maxHeight: 132)
 
             VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("Stop texting for days.")
                         .font(.custom(PS.loraBold, size: 32))
                         .tracking(-0.015 * 32)
@@ -62,7 +62,7 @@ struct StartupView: View {
             Spacer(minLength: 0)
 
             if showSocialProof {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.md) {
                     BrandIconView(icon: .calendar, size: 16, stroke: 2, tint: .liqOrange)
                     (Text("234.000 Dates").font(F.manrope(13, .bold)).foregroundColor(.liqFg)
                      + Text(" already organized").font(F.manrope(13, .medium)).foregroundColor(.liqSubtle))
@@ -77,7 +77,7 @@ struct StartupView: View {
             legalLine
                 .padding(.bottom, 14)
 
-            PillButton("Register and date now", action: onCreateAccount)
+            PrimaryButton("Create free account", action: onCreateAccount)
             Spacer().frame(height: 10)
 
             // The reference's own hit area is ~31; the ticket requires at least 44 without
@@ -86,7 +86,9 @@ struct StartupView: View {
                 (Text("Already have an account? ").foregroundColor(.liqSubtle)
                  + Text("Log in").foregroundColor(.liqPurple).underline())
                     .font(F.manrope(14, .semibold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    // The token, not the literal. minTapTarget() is not used here because it
+                    // aligns leading and this row is centred -- the number is what is shared.
+                    .frame(maxWidth: .infinity, minHeight: ComponentSizes.minTapTarget)
                     .contentShape(Rectangle())
             }
             .buttonStyle(PressScale())

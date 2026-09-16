@@ -54,8 +54,21 @@ def declarations(src):
             t = line.strip()
             # stored properties at the top level of the struct, before any computed member
             d = re.match(r"^(?:@ViewBuilder\s+)?(?:let|var) (\w+)\s*:", t)
-            if d and "{" not in t and "func " not in t:
-                params.append(d.group(1))
+            if not d or "func " in t:
+                continue
+            # A brace alone does not mean "computed". `var onSkip: () -> Void = {}` is STORED and
+            # is a real initialiser parameter; `var body: some View {` is computed and is not.
+            # The difference is whether an `=` comes first.
+            #
+            # Excluding every line with a brace hid every closure property from this check --
+            # which is most of the arguments these views take. ConnectAccountView was known here
+            # as seven parameters out of fifteen, so a call passing onTerms before state was
+            # filtered down to three in-order labels and reported as fine. The compiler caught it
+            # instead: "argument 'state' must precede argument 'onTerms'".
+            brace, equals = t.find("{"), t.find("=")
+            if brace != -1 and (equals == -1 or equals > brace):
+                continue
+            params.append(d.group(1))
         if params:
             found[name] = params
     return found

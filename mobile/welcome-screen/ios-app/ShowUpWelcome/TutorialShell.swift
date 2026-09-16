@@ -15,51 +15,11 @@
 import SwiftUI
 import UIKit
 
-// MARK: - ② Step progress — 5 segments, height 5, gap 6, full content width
-
-struct StepProgress: View {
-    let steps: Int
-    let current: Int
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<steps, id: \.self) { i in
-                Capsule()
-                    .fill(i < current ? Color.liqPurple : Color.liqTrack)
-                    .frame(height: 5)
-            }
-        }
-        // Advancing a card should read as progress being made, not as the bar being redrawn.
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.32), value: current)
-        // Five anonymous capsules carry no text: without this VoiceOver announces nothing here.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Step \(current) of \(steps)"))
-    }
-}
-
 // MARK: - ③ Eyebrow pill — Manrope 700 / 11 / uppercase, tracking .08, padding 5 / 10
 //
 // Placed by the caller inside an HStack with a trailing Spacer, so it hugs its text rather than
 // stretching to the content width. The reference render shows the stretched version; the design
 // system component is hug-width.
-
-struct EyebrowPill: View {
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
-            Text(text.uppercased())
-                .font(F.manrope(11, .bold))
-                .tracking(0.08 * 11)
-                .foregroundColor(.liqPurple)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Capsule().fill(Color.liqEyebrowBg))
-    }
-}
 
 // MARK: - ⑨ Next — label plus a 56pt circular arrow, gap 14
 
@@ -105,6 +65,10 @@ private struct PressReporter: ButtonStyle {
 
 private struct NextCircle: View {
     let variant: NextVariant
+    /// Overrides the variant's default. See `NextButton.arrowSize`.
+    var arrowOverride: CGFloat? = nil
+    /// The circle itself. See `NextButton.circleSize`.
+    var circleSize: CGFloat = IconSizes.badge
     @Environment(\.nextIsPressed) private var isPressed
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -124,12 +88,13 @@ private struct NextCircle: View {
         }
     }
     private var glow: Color { variant == .sunset ? .liqPurple : .liqOrange }
-    /// Card 05's arrow is 22; cards 01-04 use 20.
-    private var arrowSize: CGFloat { variant == .sunset ? 22 : 20 }
+    /// Card 05's arrow is 22; cards 01-04 use 20. The profile flow draws 22 with the ORANGE
+    /// circle, which the variant alone cannot express -- so it can be overridden.
+    private var arrowSize: CGFloat { arrowOverride ?? (variant == .sunset ? 22 : 20) }
 
     var body: some View {
         ZStack {
-            Circle().fill(fill).frame(width: 56, height: 56)
+            Circle().fill(fill).frame(width: circleSize, height: circleSize)
             ArrowRight()
                 .stroke(Color.white,
                         style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
@@ -151,6 +116,24 @@ private struct NextCircle: View {
 struct NextButton: View {
     let label: String
     var variant: NextVariant = .orange
+    /**
+     Arrow size inside the circle.
+
+     Defaults to what the tutorial has always drawn — 22 on the terminal sunset card, 20 on the
+     rest — so nothing about those screens moves. It is a parameter because the profile flow's spec
+     draws 22 with the orange circle: arrow size and circle treatment turn out to be independent,
+     and coupling them was a coincidence of the tutorial being the only caller.
+     */
+    var arrowSize: CGFloat? = nil
+    /**
+     The circle around the arrow.
+
+     56 on every tutorial card and every screen in "The basics", which is where the default comes
+     from. "The real you" draws 52 — both of its reference files pass `size={52}` — because those
+     screens scroll and their footer is a band over the content rather than the end of a column,
+     so the same circle reads heavier there.
+     */
+    var circleSize: CGFloat = IconSizes.badge
     var action: () -> Void
 
     var body: some View {
@@ -159,7 +142,7 @@ struct NextButton: View {
                 Text(label)
                     .font(F.manrope(17, .bold))
                     .foregroundColor(.liqFg)
-                NextCircle(variant: variant)
+                NextCircle(variant: variant, arrowOverride: arrowSize, circleSize: circleSize)
             }
         }
         .buttonStyle(PressReporter())
@@ -203,12 +186,12 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 StepProgress(steps: totalSteps, current: step)
-                    .padding(.top, 8)                      // ① pad-top 8 below the safe-area inset
+                    .padding(.top, Spacing.md)                      // ① pad-top 8 below the safe-area inset
 
                 Spacer().frame(height: 24)                 // progress -> eyebrow
 
                 HStack(spacing: 0) {                       // hug-width, not a full-width band
-                    EyebrowPill(text: eyebrow)
+                    StatusBadge(label: eyebrow, tone: .lavender)
                     Spacer(minLength: 0)
                 }
 
@@ -245,8 +228,7 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
                         Text("Back")
                             .font(F.manrope(14, .semibold))
                             .foregroundColor(showBack ? .liqSubtle : .clear)
-                            .frame(minWidth: 44, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
+                            .minTapTarget()
                     }
                     .buttonStyle(.plain)
                     .disabled(!showBack)
@@ -257,7 +239,7 @@ struct TutorialShell<Headline: View, Content: View, Art: View>: View {
                 }
                 .padding(.bottom, 24)
             }
-            .padding(.horizontal, 24)                      // gutter 24
+            .padding(.horizontal, Spacing.screenGutter)                      // gutter 24
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
@@ -275,7 +257,7 @@ struct RuleRow: View {
             Circle()
                 .fill(Color.liqOrange)
                 .frame(width: 6, height: 6)
-                .padding(.top, 6)              // sits on the first line's optical centre
+                .padding(.top, Spacing.sm)              // sits on the first line's optical centre
             Text(TypeMetrics.attributed(
                 colouredRuns: [
                     (rule, TypeMetrics.uiFont(PS.manropeSemi, 13,
@@ -362,7 +344,7 @@ struct StatementRow: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Spacing.xl) {
             Circle().fill(Color.liqOrange).frame(width: 7, height: 7).padding(.top, 7)
             Text(TypeMetrics.attributed(
                 runs: [(text, TypeMetrics.uiFont(PS.manropeSemi, 14.5,

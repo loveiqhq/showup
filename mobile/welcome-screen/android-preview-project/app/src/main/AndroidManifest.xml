@@ -1,7 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+        Required now that the app has an API client. Absent, every request fails with a
+        SecurityException rather than anything that mentions a missing permission, and it fails on
+        a device while working in a unit test — MockWebServer runs in-process and needs nothing.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        THE ONE PERMISSION THE PHOTO STEP ACTUALLY ASKS FOR (SHOWUP-156).
+
+        The library is reached through the SYSTEM PICKER, which runs out of process and needs no
+        permission at all — which is why READ_EXTERNAL_STORAGE and READ_MEDIA_IMAGES are absent
+        here and must stay absent. See profile/PhotoAccess.kt for the whole argument.
+
+        The camera is different: it is the one permission that always applies, on both platforms,
+        and it is declared because ACTION_IMAGE_CAPTURE requires it once an app declares it. A
+        denied camera blocks nothing — the library path still works and the step is still
+        completable — which is why its refusal is a quiet row in the source sheet rather than a
+        screen.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+        required="false" so Play does not filter the app off a device with no camera. Taking a
+        photo is one of two ways to fill a slot and the other one always works.
+    -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <application
+        android:name=".ShowUpApplication"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.ShowUp">
@@ -12,9 +41,61 @@
             the window is in resize mode. Without this the CTA can end up underneath the keyboard
             with no way to reach it — and the default (adjustUnspecified) leaves that to the OEM.
         -->
+        <!--
+            Sentry installs itself from manifest metadata unless told not to. Auto-init reads a DSN
+            from here, which would mean committing one and losing the switch, so it is off and
+            ShowUpApplication starts the SDK explicitly instead.
+        -->
+        <meta-data android:name="io.sentry.auto-init" android:value="false" />
+
+        <!--
+            PORTRAIT ONLY. Product decision, 9 September 2026.
+
+            `portrait` and not `sensorPortrait`: sensorPortrait also allows 180-degree upside-down
+            on devices that report it, which is not what "portrait only" means to anyone who asked
+            for it. It matches iOS, whose Info.plist lists UIInterfaceOrientationPortrait alone.
+
+            THIS IS NOT THE WHOLE STORY ON LARGE SCREENS, AND THAT IS NOT A BUG HERE.
+
+            This app targets SDK 36. From Android 16, orientation, resizability and aspect ratio
+            restrictions are IGNORED for apps targeting SDK 36 on displays whose smallest width is
+            600dp or more, meaning tablets and unfolded foldables. The attribute below still holds
+            on every phone, and on a folded foldable, because those are under 600dp.
+
+            PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY is the documented opt out and is set
+            below, which restores portrait on large screens for now. Google describes it as
+            temporary: it is expected to stop working at a later target level, at which point real
+            large screen layouts become a requirement rather than a deferred decision. Verify on a
+            600dp+ emulator before relying on it. Nothing in this repo's tests can see it.
+        -->
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+            android:value="true" />
+
+        <!--
+            Where the camera writes the photo it just took.
+
+            ACTION_IMAGE_CAPTURE hands the camera app a URI to write into, and since Android 7 a
+            file:// URI thrown at another app is a FileUriExposedException. A FileProvider is the
+            supported way to grant one app temporary read/write on one of our files.
+
+            grantUriPermissions is what makes the grant temporary: the camera app can write this
+            one file for the life of the intent and has no access to anything else of ours.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.photos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.ShowUp">
             <intent-filter>

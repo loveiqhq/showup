@@ -34,7 +34,7 @@ private struct VerificationFrame<Content: View>: View {
         // SwiftUI's automatic keyboard avoidance only guarantees the *focused field* is visible —
         // it says nothing about the CTA below it. scrollWhenTight makes the whole column reachable
         // instead, so the button cannot end up stranded under the keyboard.
-        WelcomeScaffold(peachWash: false, topWeighted: true,
+        WelcomeScaffold(peachWash: false, placement: .phoneVerify,
                         orangeAlpha: 0.26, violetAlpha: 0.22,
                         topPadding: 4,          // pad-top 4 here, not the launch screens' 20
                         scrollWhenTight: true) {
@@ -43,8 +43,7 @@ private struct VerificationFrame<Content: View>: View {
                 // which welcome/screen-phone-reference.jsx uses on both of these screens. It was
                 // an arrow-left at 22: the wrong icon from the same set, and visibly heavier.
                 BrandIconView(icon: .chevronLeft, size: 24, stroke: 2, tint: .liqFg)
-                    .frame(width: 44, height: 44, alignment: .leading)
-                    .contentShape(Rectangle())
+                    .minTapTarget()
             }
             .buttonStyle(PressScale())
             .accessibilityLabel("Back")
@@ -55,23 +54,6 @@ private struct VerificationFrame<Content: View>: View {
             // top-anchored and the keyboard closes the frame. Nothing floats.
             Spacer(minLength: 0)
         }
-    }
-}
-
-private struct VerificationEyebrow: View {
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(Color.liqOrange).frame(width: 5, height: 5)
-            Text("PHONE VERIFICATION")
-                .font(F.manrope(11, .bold))
-                .tracking(0.08 * 11)
-                // The ORANGE tone. screen-phone-reference.jsx uses <Eyebrow color="orange"> on
-                // both of these screens; lavender is the tutorial's and was taken by default.
-                .foregroundColor(.liqOrange)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Capsule().fill(Color.liqEyebrowOrangeBg))
     }
 }
 
@@ -92,7 +74,7 @@ struct PhoneNumberView: View {
         GeometryReader { geo in
             let compact = geo.size.height < 700
             VerificationFrame(onBack: onBack) {
-                VerificationEyebrow()
+                StatusBadge(label: "Phone verification")
                 Spacer().frame(height: compact ? 2 : 14)
                 // No fixed height. The frame was `fontSize * 1.05 * lines`, which is the LINE BOX
                 // and not what the glyphs occupy: a 1.05 line height is tighter than Lora's natural
@@ -111,47 +93,36 @@ struct PhoneNumberView: View {
                     .frame(maxWidth: 320, alignment: .leading)
 
                 Spacer().frame(height: compact ? 12 : 22)
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.md) {
                     // The default comes from device locale; see SignUpFlowView.
                     Button(action: onOpenCountryList) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: Spacing.md) {
                             FlagView(country: country)
                             Text(country.dial).font(F.manrope(16, .semibold)).foregroundColor(.liqFg)
                             BrandIconView(icon: .chevronDown, size: 16, stroke: 2, tint: .liqMuted)
                         }
-                        .padding(.horizontal, 14)
-                        .frame(height: 56)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.liqElevated))
-                        .overlay(RoundedRectangle(cornerRadius: 14)
-                            // Subtle (46%), not Border (12%) — the outline is the only thing identifying the
-                            // field, and Border is 1.28:1 against a 3:1 rule. Audit finding 7.
-                            .strokeBorder(Color.liqSubtle, lineWidth: 1.5))
+                        // A button wearing the field's chrome, so the two cannot drift apart.
+                        // 14 rather than the field's 18: the pill hugs its content, the field
+                        // does not. The contrast argument for Subtle over Border lives in
+                        // FieldChrome now, next to the value it defends.
+                        .fieldChrome(FieldChrome(horizontalPadding: 14))
                     }
                     .buttonStyle(PressScale())
 
                     // Same geometry as the default field, so it does not move when it fails — and
                     // the digits are preserved, never cleared.
-                    HStack(spacing: 0) {
-                        // A UITextField, not SwiftUI's TextField, and the caret is the reason --
-                        // the whole argument is in PhoneNumberField.swift. `value` stays plain
-                        // digits; the grouping is presentation, applied inside the edit.
+                    //
+                    // The chrome, the 56, the outline and the danger ring are all InputField's
+                    // now. What stays here is the one thing specific to this screen: the field
+                    // is a UITextField and not SwiftUI's TextField, because as-you-type grouping
+                    // needs caret control that TextField does not expose. The whole argument is
+                    // in PhoneNumberField.swift. `value` stays plain digits; the grouping is
+                    // presentation, applied inside the edit.
+                    InputField(label: "Phone number", invalid: invalid) {
                         PhoneNumberField(digits: $value, country: country, onSubmit: onSubmit)
-                        if invalid {
-                            Spacer(minLength: 0)
-                            ZStack {
-                                Circle().fill(Color.liqDanger).frame(width: 22, height: 22)
-                                Text("!").font(.custom(PS.loraBold, size: 14)).foregroundColor(.white)
-                            }
-                        }
+                    } trailing: {
+                        if invalid { FieldErrorGlyph() }
                     }
-                    .padding(.horizontal, 18)
-                    .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.liqElevated))
-                    .overlay(RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(invalid ? Color.liqDanger : Color.liqSubtle, lineWidth: 1.5))
-                    .overlay(invalid ? RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(Color.liqDanger.opacity(0.10), lineWidth: 4)
-                        .padding(-2.75) : nil)
                 }
 
                 // Reserved at TWO lines, top-aligned, because that is what the error copy needs.
@@ -164,23 +135,60 @@ struct PhoneNumberView: View {
                 //
                 // A fixed height rather than a minimum, so the row cannot grow either; the scale
                 // factor lets a long country name shrink to fit instead of being cut off.
-                Text(error?.message(country) ?? "Standard message rates may apply.")
-                    .font(F.manrope(13, invalid ? .semibold : .medium))
-                    // Muted, not Subtle — helper text has to be readable. Audit finding 7.
-                    .foregroundColor(invalid ? .liqDangerFg : .liqMuted)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .topLeading)
-                    .padding(.top, 10)
-                    .padding(.leading, 4)
-                    .accessibilityAddTraits(.updatesFrequently)
+                // ERRORS ARE A CARD, HELPER TEXT IS NOT
+                //
+                // One error style across the app, decided 10 September 2026: the red card with
+                // the glyph and the message inside it, never bare red text. This row was the last
+                // place the bare style survived.
+                //
+                // The calm string is NOT an error — "Standard message rates may apply." is
+                // advice, and wrapping advice in a danger card would say something the sentence
+                // does not. So the row swaps component, not just colour.
+                //
+                // A ZStack, not a bare `if`. In a ViewBuilder a branch that evaluates to nil
+                // reserves nothing, and a frame around nothing is 0 — the defect that shipped a
+                // 56pt CTA jump on this very flow. The frame is on the container, so the reserve
+                // holds whichever branch renders.
+                //
+                // 80 rather than 36. The card carries 1pt of border and 10 of padding top and
+                // bottom, and 14 of padding plus an 18 glyph and a 10 gap eating the text
+                // column's WIDTH — and the narrower column is what actually drove this. The same
+                // sentences that fitted two lines as bare 13pt text need three inside the card.
+                //
+                // Measured on Android's ScreenFitTest across all seventeen sizes: at two lines
+                // three messages clipped on the 320-wide Fold cover screen, at three they fit and
+                // the CTA neither moves nor leaves the screen. iOS keeps minimumScaleFactor as
+                // well, so a long country name shrinks rather than truncating.
+                //
+                // The region stays fixed at 80 in BOTH states, because a region that fits its
+                // content moves the CTA when the content changes, which is what SHOWUP-143
+                // forbids.
+                ZStack(alignment: .topLeading) {
+                    if invalid {
+                        InlineErrorCard(
+                            message: Text(error?.message(country) ?? ""),
+                            lineLimit: 3
+                        )
+                    } else {
+                        Text("Standard message rates may apply.")
+                            .font(F.manrope(13, .medium))
+                            // Muted, not Subtle — helper text has to be readable. Audit finding 7.
+                            .foregroundColor(.liqMuted)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 80, alignment: .topLeading)
+                .padding(.top, Spacing.lg)
+                .padding(.leading, Spacing.xs)
+                .accessibilityAddTraits(.updatesFrequently)
 
                 Spacer().frame(height: compact ? 12 : 22)
                 // Validation runs on submit, not per keystroke. The button stays live so the
                 // user can ask for the check -- what changes on failure is the message, not the
                 // availability of the action.
-                PillButton("Send me the code", action: onSubmit)
+                PrimaryButton("Send me the code", action: onSubmit)
             }
             // The keyboard is why the user is here, so it opens with the screen -- see
             // AutoFocusTextField, which takes it the moment the field reaches a window.
@@ -193,10 +201,29 @@ struct PhoneNumberView: View {
 
 // MARK: - States C and D
 
+/// The code screen's two failure strings. Mirrors `VerifyCopy` in PhoneVerificationScreen.kt.
+///
+/// `lockedOut` is PROPOSED COPY, not yet signed off. The server has enforced this cap since
+/// Epic 2 and no ticket has specified what the user reads when it trips. Kept to the length of
+/// `mismatch` deliberately — the reserved region is sized for one line of card, and a longer
+/// sentence wraps at 320 and takes the CTA with it.
+enum VerifyCopy {
+    static let mismatch = "That code didn’t match. Try again."
+    /// PROPOSED — awaiting design sign-off.
+    static let lockedOut = "Too many tries. Send a new code."
+}
+
 struct VerifyCodeView: View {
     var phone: String = "+49 176 123 45 678"
     @Binding var digits: String
     var mismatch: Bool = false
+    /// The code has taken its last wrong guess.
+    ///
+    /// The server stops accepting attempts after `maxVerifyAttempts` and answers every
+    /// further submit identically, so without this the user is told to "try again" against a code
+    /// that can no longer succeed. A distinct state, not a louder mismatch: the only way out is a
+    /// new code.
+    var lockedOut: Bool = false
     var cooldownSeconds: Int = 21
     var onBack: () -> Void = {}
     var onVerify: () -> Void = {}
@@ -214,7 +241,7 @@ struct VerifyCodeView: View {
             let slotH: CGFloat = compact ? 56 : 62
 
             VerificationFrame(onBack: onBack) {
-                VerificationEyebrow()
+                StatusBadge(label: "Phone verification")
                 Spacer().frame(height: compact ? 2 : 14)
                 WashHeadline(parts: [("Enter your ", false), ("code", true), (".", false)],
                              fontSize: 38)
@@ -275,7 +302,7 @@ struct VerifyCodeView: View {
                 .onChange(of: mismatch) { _, isBad in
                     // One shot, 480ms, then still. There is no looping animation in this flow.
                     guard isBad, !reduceMotion else { shake = 0; return }
-                    withAnimation(.linear(duration: 0.48)) { shake = 0 }
+                    withAnimation(.linear(duration: Motion.shake)) { shake = 0 }
                     let steps: [CGFloat] = [6, -6, 5, -5, 3, -3, 0]
 
                     // Absolute deadlines measured from one start point, NOT a chain of sleeps.
@@ -310,24 +337,21 @@ struct VerifyCodeView: View {
                 // collapse to zero rather than holding the row open. Measured on an iPhone 17 Pro,
                 // the CTA jumped 56pt — the full 42 + 14 — the moment the code was wrong, which is
                 // exactly what this region exists to prevent and what SHOWUP-143 forbids outright.
-                HStack(alignment: .top, spacing: 10) {
-                    ZStack {
-                        Circle().fill(Color.liqDanger).frame(width: 18, height: 18)
-                        Text("!").font(.custom(PS.loraBold, size: 12)).foregroundColor(.white)
-                    }
-                    // informative, never "Wrong" / "Failed" / "Error"
-                    Text("That code didn’t match. Try again.")
-                        .font(F.manrope(13.5, .medium))
-                        .lineSpacing(13.5 * 0.4)
-                        .foregroundColor(.liqDangerFg)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color.liqDanger.opacity(0.07)))
-                .overlay(RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.liqDanger.opacity(0.18), lineWidth: 1))
-                .opacity(mismatch ? 1 : 0)
+                // Was the same card the profile flow draws, written out again: radius errorBox,
+                // the 7% and 18% danger tints, 14/10 padding, gap 10, an 18 glyph at Lora 12 and
+                // Manrope 500 / 13.5 in DangerFg. Value for value identical, so it is the shared
+                // component now rather than a fifth copy.
+                //
+                // Copy unchanged: informative, never "Wrong" / "Failed" / "Error".
+                // One card, two messages. Locked out wins over mismatch: reaching the cap means
+                // the last submit was also a mismatch, and "try again" would be the wrong
+                // instruction to leave on screen.
+                //
+                // Still hidden with opacity rather than an `if` — a ViewBuilder branch that
+                // evaluates to nil reserves nothing, and this row's height is what keeps the CTA
+                // still. Both strings are one line inside the 42 reserve.
+                InlineErrorCard(message: Text(lockedOut ? VerifyCopy.lockedOut : VerifyCopy.mismatch))
+                .opacity(mismatch || lockedOut ? 1 : 0)
                 // Invisible is not the same as absent: without this VoiceOver would read an error
                 // that is not being shown.
                 .accessibilityHidden(!mismatch)
@@ -340,7 +364,12 @@ struct VerifyCodeView: View {
                 Spacer().frame(height: compact ? 8 : 16)
                 // Disabled until all six digits are in. In mismatch the digits are still there, so
                 // it stays enabled — the user edits one digit and resubmits.
-                PillButton("Verify code", enabled: digits.count == 6, action: onVerify)
+                // Locked out disables it: the server refuses every further submit for this code,
+                // so a live button would promise an action that cannot happen. The resend below
+                // is live in its place.
+                PrimaryButton("Verify code",
+                              enabled: digits.count == 6 && !lockedOut,
+                              action: onVerify)
 
                 Spacer().frame(height: compact ? 8 : 14)
                 VStack(spacing: compact ? 4 : 6) {
@@ -354,7 +383,9 @@ struct VerifyCodeView: View {
                     // tapping the question sent another SMS — a question that silently spends
                     // money and restarts the cooldown, with nothing on screen to suggest it would.
                     // The reference has it as plain text and the button as a button.
-                    let resendLive = mismatch || cooldownSeconds <= 0
+                    // Locked out MUST make the resend live regardless of the clock: it is the
+                    // only exit, and a countdown with no working action is a dead end.
+                    let resendLive = mismatch || lockedOut || cooldownSeconds <= 0
                     Text("Didn’t receive a code?")
                         .font(F.manrope(14, .medium))
                         .foregroundColor(.liqMuted)
@@ -365,9 +396,11 @@ struct VerifyCodeView: View {
                                 .font(F.manrope(14, .bold))
                                 .foregroundColor(.liqPurple)
                                 .underline()
-                                // 44pt is Apple's own minimum touch target; the text alone is ~20.
-                                .frame(minHeight: 44)
-                                .padding(.horizontal, 12)
+                                // Apple's own minimum touch target; the text alone is ~20. The
+                                // token rather than the literal -- the frame keeps its default
+                                // centre alignment, which minTapTarget() would change to leading.
+                                .frame(minHeight: ComponentSizes.minTapTarget)
+                                .padding(.horizontal, Spacing.xl)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(PressScale())
@@ -375,19 +408,23 @@ struct VerifyCodeView: View {
                         // Inert while cooling, on purpose: the ticket allows no silent resend, so a
                         // tappable label during the cooldown would be either a dead control or a
                         // rule broken. Tabular figures so the countdown does not jitter.
-                        Text(String(format: "Send a new code in 0:%02d", cooldownSeconds))
+                        // The minute is computed, not a literal. It used to read "0:%02d", true
+                        // only while the cooldown was 30 — at the 60 the server enforces, the
+                        // first tick rendered "0:60".
+                        Text(String(format: "Send a new code in %d:%02d",
+                                    cooldownSeconds / 60, cooldownSeconds % 60))
                             .font(F.manrope(14, .semibold))
                             .monospacedDigit()
                             .foregroundColor(.liqMuted)
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Spacing.xs)
                     }
                     Button(action: onEditNumber) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.sm) {
                             BrandIconView(icon: .pencil, size: 13, stroke: 1.8, tint: .liqMuted)
                             Text("Edit phone number")
                                 .font(F.manrope(14, .semibold)).foregroundColor(.liqMuted)
                         }
-                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .padding(.horizontal, Spacing.md).padding(.vertical, Spacing.xs)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(PressScale())
@@ -402,9 +439,9 @@ struct VerifyCodeView: View {
         let ch: Character? = i < digits.count ? Array(digits)[i] : nil
         let active = !mismatch && i == digits.count && digits.count < 6
         ZStack {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Radius.control)
                 .fill(mismatch ? Color.liqDanger.opacity(0.04) : Color.liqElevated)
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Radius.control)
                 .strokeBorder(
                     mismatch ? Color.liqDanger
                         : active ? Color.liqPurple

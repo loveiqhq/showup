@@ -3,6 +3,7 @@ import {
   ApiBearerAuth,
   ApiNoContentResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 
@@ -23,6 +24,7 @@ export class PushTokensController {
 
   /** Register this device's push token (idempotent — re-submitting the same token updates it). */
   @Post()
+  @ApiOperation({ operationId: 'registerPushToken' })
   @ApiOkResponse({ type: PushTokenDto })
   async register(
     @CurrentUser() user: User,
@@ -33,6 +35,7 @@ export class PushTokensController {
 
   /** Remove this device's push token so it stops receiving alerts (e.g. on logout). */
   @Delete()
+  @ApiOperation({ operationId: 'deregisterPushToken' })
   @HttpCode(204)
   @ApiNoContentResponse()
   async deregister(

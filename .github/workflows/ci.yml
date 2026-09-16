@@ -108,6 +108,27 @@ jobs:
       - name: End-to-end tests
         run: npm run test:e2e
 
+      # The OpenAPI contract is the input the iOS and Android clients are generated from, so a
+      # stale openapi.json means both apps are built against an API the server no longer serves --
+      # and nothing would notice until a request failed on a real phone. Regenerating here and
+      # failing on any difference makes that impossible: the committed spec is always exactly what
+      # the current code produces.
+      #
+      # This needs no database or Redis despite running in this job: the emit script uses Nest's
+      # preview mode, which reads every decorator without instantiating a single provider.
+      - name: Regenerate the OpenAPI contract
+        run: npm run openapi:emit
+
+      # Both copies. The iOS one exists because Apple's generator is a build plugin and resolves
+      # its inputs relative to the package directory, so it cannot read the root file. `openapi:emit`
+      # writes both, and diffing both is what stops the second becoming a stale second truth.
+      - name: Fail if either committed contract is stale
+        run: |
+          git diff --exit-code             openapi.json             mobile/welcome-screen/ios-app/ShowUpAPI/Sources/ShowUpAPI/openapi.json || {
+            echo "::error::A committed openapi.json is out of date. Run 'npm run openapi:emit' and commit the result."
+            exit 1
+          }
+
   # ── the mobile half ────────────────────────────────────────────────────────
   #
   # Added when the iOS and Android projects were merged into main. Until then CI covered the
@@ -158,14 +179,31 @@ jobs:
       # The design conformance checkers. Pure Python, a couple of seconds, and they read BOTH
       # platforms' sources, so a rule changed on one and not the other is caught even when both
       # suites pass. The iOS half is compiled and tested in the `ios` job below.
+      # DISCOVERED, not listed. This was a hardcoded list of nine names, and adding a tenth checker
+      # meant remembering to add it here too -- which is the same failure mode as the Swift sources
+      # that were once listed by hand in gen_pbxproj.py, and as the concurrency checker that only
+      # scanned one directory. A checker nobody runs is worse than no checker, because it reads as
+      # coverage.
+      #
+      # `set -e` is explicit rather than assumed, and the exit status is checked per script, so one
+      # failing checker fails the job instead of being buried by the next one's output.
       - name: Design conformance and cross-platform parity
         run: |
-          for f in verify-spec verify-welcome verify-connect check-country-data \
-                   check-tutorial-routing check-swift-structure check-swift-arg-order \
-                   check-ios-availability check-swift-concurrency; do
-            echo "── $f"
-            python3 "audit/$f.py"
+          set -e
+          found=0
+          for f in audit/verify-*.py audit/check-*.py; do
+            [ -e "$f" ] || continue
+            found=$((found + 1))
+            echo "── $(basename "$f")"
+            python3 "$f"
           done
+          echo "── ran $found checkers"
+          # A glob that matched nothing would otherwise pass silently, reporting full conformance
+          # while checking nothing at all.
+          if [ "$found" -lt 9 ]; then
+            echo "::error::expected at least 9 checkers, found $found -- has audit/ moved?"
+            exit 1
+          fi
 
       # Kept when the run fails, so a layout or conformance failure can be read without rerunning
       # anything locally.
@@ -251,13 +289,130 @@ jobs:
             -destination "id=$udid" \
             -clonedSourcePackagesDirPath .spm \
             -resultBundlePath ios-results.xcresult \
+            -skipPackagePluginValidation \
             test \
+            2>&1 | tee xcodebuild-raw.log \
             | { if command -v xcbeautify >/dev/null; then xcbeautify --renderer github-actions; else cat; fi; }
+
+      # `tee` first, prettify second.
+      #
+      # xcbeautify makes a passing log readable and, on a FAILING build, swallows the compiler
+      # diagnostics entirely: the job reported only "exit code 65" with no file, no line and no
+      # message. The xcresult bundle holds them but needs macOS tooling to read, so from a Windows
+      # machine the errors were simply unavailable.
+      #
+      # That is the same failure this whole pipeline exists to prevent -- something broke and
+      # nobody could see what. The raw log is kept, and this prints the errors out of it whatever
+      # the renderer decided to show.
+      - name: Show the compiler errors
+        if: failure()
+        run: |
+          echo "── compiler diagnostics ──────────────────────────────────────"
+          grep -E "error:" xcodebuild-raw.log | head -60 || echo "(no 'error:' lines found)"
+          echo ""
+          echo "── last 40 lines of the raw log ──────────────────────────────"
+          tail -40 xcodebuild-raw.log
+
+      # The generated API client lives in its own local Swift package, so it is built and tested
+      # with plain SwiftPM -- no Xcode project, no simulator, no app target involved. That
+      # independence is the point: the client is provably correct even if app wiring lags behind,
+      # and a generator or contract problem surfaces here rather than inside an app build.
+      #
+      # This is also the step that proves the OpenAPI build plugin runs at all: `swift build`
+      # invokes it, so a failure here means the contract did not generate.
+      - name: Build the generated API client package
+        working-directory: mobile/welcome-screen/ios-app/ShowUpAPI
+        run: swift build
+
+      - name: Test the generated API client package
+        working-directory: mobile/welcome-screen/ios-app/ShowUpAPI
+        run: swift test
 
       - name: Upload the result bundle on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: ios-results
-          path: mobile/welcome-screen/ios-app/ios-results.xcresult
+          # The raw log as well as the xcresult. The bundle needs macOS tooling to open, which is
+          # no use to somebody diagnosing this from Windows -- which is where it was diagnosed from.
+          path: |
+            mobile/welcome-screen/ios-app/ios-results.xcresult
+            mobile/welcome-screen/ios-app/xcodebuild-raw.log
           retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # The acceptance branch cannot be silently stale.
+  #
+  # ADDED 16 SEPTEMBER 2026, after the whole profile-creation flow -- seven screens, 98 commits --
+  # sat on `development` while `staging` still pointed at the commit `main` did. The PO downloaded
+  # a zip from staging, ran it, and after the tutorial landed on "The app starts here" because the
+  # profile package did not exist on that branch at all.
+  #
+  # NOTHING WAS BROKEN AND EVERY GATE WAS GREEN, which is the point. CI has always run on the
+  # branch under test, so a stale acceptance branch produces a passing pipeline and the wrong app
+  # at the same time. The drift is only visible by comparing two branches, and nothing compared
+  # them.
+  #
+  # This does NOT fail a pull request: it runs only on pushes to the long-lived branches, so a
+  # feature branch is never blocked by how far behind staging happens to be. It is a standing
+  # reminder aimed at whoever promotes, not a gate on whoever is coding.
+  staging-drift:
+    name: Acceptance branch is not stale
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+        with:
+          # Both branches, with enough history to count between them. A shallow clone cannot
+          # answer "how far behind" at all.
+          fetch-depth: 0
+
+      - name: Report how far staging is behind development
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # The number of commits that may sit on development unpromoted before this is worth
+          # somebody's attention. Not zero: development is meant to run ahead, and a job that
+          # failed on the first unpromoted commit would be noise that gets switched off. Ten is
+          # roughly a sprint's worth of merged pull requests.
+          MAX_BEHIND: 10
+        run: |
+          set -euo pipefail
+          git fetch origin staging --quiet
+          behind=$(git rev-list --count origin/staging..origin/development)
+          echo "staging is $behind commits behind development (threshold: $MAX_BEHIND)"
+
+          if [ "$behind" -eq 0 ]; then
+            echo "Nothing unpromoted."
+            exit 0
+          fi
+
+          # The screens are what a PO actually notices, so name them rather than only the count.
+          #
+          # `:(top)` anchors the pathspec at the repository ROOT rather than the working
+          # directory. It is the root here and the job was never wrong -- but a pathspec that
+          # silently matches NOTHING when read from a subdirectory is precisely the class of
+          # quiet-wrong this job exists to catch.
+          added=$(git diff --name-only origin/staging..origin/development             -- ':(top)mobile/welcome-screen/**' | wc -l)
+          echo "$behind commits and $added mobile files are on development and not on staging."
+
+          # A PROMOTION ALREADY IN FLIGHT IS NOT DRIFT THAT NEEDS CHASING, and failing here when
+          # one is open is worse than useless: the failure lands on development's head commit,
+          # which is the promotion PR's own head, so the guard blocks the exact merge that fixes
+          # the condition it is complaining about. That catch-22 was real and was hit on the first
+          # promotion after this job was added.
+          open_pr=$(gh pr list --base staging --head development --state open             --json number --jq 'length' || echo 0)
+          if [ "$open_pr" -gt 0 ]; then
+            echo "::notice::A promotion to staging is already open. Nothing to chase."
+            exit 0
+          fi
+
+          echo "Anyone testing a zip built from staging is testing an older app."
+
+          if [ "$behind" -gt "$MAX_BEHIND" ]; then
+            echo "::error::staging is $behind commits behind development.           Open a promotion development -> staging before the next PO acceptance session,           or a tester will run a build without the newest screens in it."
+            exit 1
+          fi
+
+          echo "::warning::staging is $behind commits behind development."

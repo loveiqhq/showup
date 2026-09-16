@@ -10,7 +10,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -48,6 +53,7 @@ export class SafetyAdminController {
 
   /** List users currently in a given moderation standing (the staff queue). */
   @Get('users')
+  @ApiOperation({ operationId: 'listAdminUsers' })
   @ApiOkResponse({ type: [AdminUserRowDto] })
   async listUsers(
     @Query('standing', new ParseEnumPipe(ModerationStanding))
@@ -59,6 +65,7 @@ export class SafetyAdminController {
 
   /** The full safety picture of one user: standing, verification, and blocks in both directions. */
   @Get('users/:id/safety')
+  @ApiOperation({ operationId: 'getUserSafetyContext' })
   @ApiOkResponse({ type: UserSafetyContextDto })
   async userSafety(
     @Param('id', ParseUUIDPipe) id: string,
@@ -83,6 +90,7 @@ export class SafetyAdminController {
 
   /** Set a user's standing (limit / ban / reinstate). Audited. */
   @Patch('users/:id/standing')
+  @ApiOperation({ operationId: 'setUserStanding' })
   @ApiOkResponse({ type: StandingChangeDto })
   async setUserStanding(
     @CurrentUser() admin: User,
@@ -101,6 +109,7 @@ export class SafetyAdminController {
 
   /** Set a profile's standing. Audited. */
   @Patch('profiles/:id/standing')
+  @ApiOperation({ operationId: 'setProfileStanding' })
   @ApiOkResponse({ type: StandingChangeDto })
   async setProfileStanding(
     @CurrentUser() admin: User,
@@ -119,6 +128,7 @@ export class SafetyAdminController {
 
   /** Set a photo's standing. Audited. */
   @Patch('photos/:id/standing')
+  @ApiOperation({ operationId: 'setPhotoStanding' })
   @ApiOkResponse({ type: StandingChangeDto })
   async setPhotoStanding(
     @CurrentUser() admin: User,
@@ -137,6 +147,7 @@ export class SafetyAdminController {
 
   /** The report review list (SHOWUP-78), optionally filtered by status. */
   @Get('reports')
+  @ApiOperation({ operationId: 'listReports' })
   @ApiOkResponse({ type: [StaffReportDto] })
   async listReports(
     @Query('status') statusRaw?: string,
@@ -148,6 +159,7 @@ export class SafetyAdminController {
 
   /** Open one report. */
   @Get('reports/:id')
+  @ApiOperation({ operationId: 'getReport' })
   @ApiOkResponse({ type: StaffReportDto })
   async getReport(
     @Param('id', ParseUUIDPipe) id: string,
@@ -157,6 +169,7 @@ export class SafetyAdminController {
 
   /** Move a report along (reviewing / resolved / dismissed). Records who handled it. */
   @Patch('reports/:id')
+  @ApiOperation({ operationId: 'updateReport' })
   @ApiOkResponse({ type: StaffReportDto })
   async updateReport(
     @CurrentUser() admin: User,

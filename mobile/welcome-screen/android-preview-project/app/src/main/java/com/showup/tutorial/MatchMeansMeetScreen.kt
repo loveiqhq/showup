@@ -10,6 +10,11 @@
  */
 package com.showup.tutorial
 
+import com.showup.designsystem.Spacing
+
+import com.showup.analytics.AnalyticsTracker
+import com.showup.analytics.NoOpAnalytics
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
@@ -66,7 +71,7 @@ fun MatchMeansMeetScreen(
         content = {
             // ⑤ rule list — gap 12, rows wrap. No body paragraphs on this screen: the slot is
             // simply not used, so it reserves no height.
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
                 RuleRow("You decide who you like", "if you match, you will meet")
                 RuleRow("We suggest the time", "a date and time that works for both of your schedules")
                 RuleRow("We pick the place", "a safe, public spot halfway between you")

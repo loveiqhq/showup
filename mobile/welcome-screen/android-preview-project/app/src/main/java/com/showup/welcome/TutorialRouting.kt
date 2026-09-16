@@ -26,10 +26,10 @@ package com.showup.welcome
 /**
  * How the person entered the flow. Decided at the two doors on Startup (SHOWUP-140) and never
  * revised, because it is a statement about intent rather than about outcome: someone who taps
- * "Register and date now" is creating an account even while they are still typing their number.
+ * "Create free account" is creating an account even while they are still typing their number.
  */
 enum class Entry {
-    /** "Register and date now" on Startup. */
+    /** "Create free account" on Startup. */
     CreateAccount,
 
     /** "Log in" on Startup, or a launch onto Welcome back because the device remembers someone. */

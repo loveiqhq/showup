@@ -8,20 +8,36 @@ export class ProfileDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   displayName: string | null;
 
-  @ApiProperty({ nullable: true })
+  // 'integer', not Number: OpenAPI's `number` is an arbitrary-precision decimal, which the
+  // Kotlin generator maps to BigDecimal. An age is a whole number and every caller would have to
+  // convert it.
+  @ApiProperty({ type: 'integer', nullable: true })
   age: number | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   gender: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   lookingFor: string | null;
 
   @ApiProperty()
   isVisible: boolean;
+
+  /**
+   * Returned so a consumer rendering this profile knows which values to omit. Without it the age
+   * is on the wire and every renderer would have to guess.
+   */
+  @ApiProperty({
+    type: [String],
+    example: ['age'],
+    description:
+      'Registry field_ids the user has hidden from their profile. Presentation only — ' +
+      'a hidden field does not affect discovery visibility or matching.',
+  })
+  hiddenFields: string[];
 
   @ApiProperty()
   isComplete: boolean;
@@ -37,6 +53,7 @@ export class ProfileDto {
       gender: profile.gender,
       lookingFor: profile.lookingFor,
       isVisible: profile.isVisible,
+      hiddenFields: profile.hiddenFields ?? [],
       isComplete: profile.isComplete,
       verificationStatus: profile.verificationStatus,
     };

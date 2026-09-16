@@ -41,7 +41,7 @@ struct MatchOnAvailabilityView: View {
             content: {
                 // ⑤ rule list — gap 12, rows wrap. No body paragraphs here: the slot is simply
                 // unused, so it reserves no height.
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     RuleRow(rule: "Visible only when you’re free to date", consequence: "check in and state your available times to meet")
                     RuleRow(rule: "Synchronised schedules", consequence: "we only show you people to date who are available when you are")
                     RuleRow(rule: "Different day, different vibe", consequence: "match on what you’re in the mood for right now, not a static bio")

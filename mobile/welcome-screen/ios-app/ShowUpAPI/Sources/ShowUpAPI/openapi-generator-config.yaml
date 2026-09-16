@@ -1,0 +1,11 @@
+# What the build plugin generates from openapi.json, on every build.
+#
+# `types` gives the DTOs and `client` gives the calling surface. No `server` -- that would generate
+# protocol stubs for implementing this API, which is the backend's job and NestJS's already done.
+#
+# accessModifier: public because the app target imports this as a separate module. Without it the
+# generated types are internal to ShowUpAPI and invisible to the app.
+generate:
+  - types
+  - client
+accessModifier: public

@@ -17,9 +17,36 @@ import UIKit
 ///
 /// Startup and Welcome back carry all three layers; phone verification carries two (no peach wash)
 /// at lower intensity, because its keyboard owns the bottom half and nothing should glow behind it.
+/// Where the two orbs sit, and how big they are.
+///
+/// Four recipes, because four groups of screens ask for four. They were a boolean until 15
+/// September 2026, when "The real you" arrived with two more — and a second backdrop component
+/// would have been the primary button all over again. The differences are small and deliberate:
+/// every one of them is a number the reference file for that screen sets, and none of them mean
+/// anything on their own, which is why they live here as named recipes rather than as five
+/// properties a call site has to get right.
+enum OrbPlacement {
+    /// Startup and Welcome back: orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%.
+    case startup
+    /// Phone verification: orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%.
+    case phoneVerify
+    /// Profile photos: orange 460 at top -22% / right -30%, violet 420 at top -12% / left -28%.
+    ///
+    /// Both orbs at the top, because the screen below them scrolls: an orb anchored to the bottom
+    /// of a scrolling screen sits behind the sticky footer, where it reads as a smudge under the
+    /// CTA rather than as atmosphere.
+    case realYouTop
+    /// Profile prompts: orange 460 at top -20% / right -25%, violet 420 at BOTTOM -12% / left -28%.
+    ///
+    /// The one split pair. This screen's footer is a bare CTA row with no gradient mask over it, so
+    /// there is nothing for a low violet to muddy — and the suggestion cards fill the middle, which
+    /// a second top orb would sit behind.
+    case realYouSplit
+}
+
 struct WelcomeBackdrop: View {
     var peachWash: Bool = true
-    var topWeighted: Bool = false
+    var placement: OrbPlacement = .startup
     var orangeAlpha: Double = 0.32
     var violetAlpha: Double = 0.28
 
@@ -28,14 +55,23 @@ struct WelcomeBackdrop: View {
             let w = geo.size.width
             let h = geo.size.height
             ZStack(alignment: .topLeading) {
-                if topWeighted {
-                    // orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%
+                switch placement {
+                case .phoneVerify:
                     orb(460, .liqOrange, orangeAlpha)
                         .position(x: w * 1.30 - 230, y: -0.18 * h + 230)
                     orb(420, .liqPurple, violetAlpha)
                         .position(x: -0.25 * w + 210, y: -0.10 * h + 210)
-                } else {
-                    // orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%
+                case .realYouTop:
+                    orb(460, .liqOrange, orangeAlpha)
+                        .position(x: w * 1.30 - 230, y: -0.22 * h + 230)
+                    orb(420, .liqPurple, violetAlpha)
+                        .position(x: -0.28 * w + 210, y: -0.12 * h + 210)
+                case .realYouSplit:
+                    orb(460, .liqOrange, orangeAlpha)
+                        .position(x: w * 1.25 - 230, y: -0.20 * h + 230)
+                    orb(420, .liqPurple, violetAlpha)
+                        .position(x: -0.28 * w + 210, y: h * 1.12 - 210)
+                case .startup:
                     orb(520, .liqOrange, orangeAlpha)
                         .position(x: w * 1.25 - 260, y: -0.15 * h + 260)
                     orb(600, .liqPurple, violetAlpha)
@@ -76,10 +112,18 @@ struct WelcomeBackdrop: View {
 /// behind the status bar and home indicator with no seam — an acceptance criterion on 140 and 142.
 struct WelcomeScaffold<Content: View>: View {
     var peachWash: Bool = true
-    var topWeighted: Bool = false
+    var placement: OrbPlacement = .startup
     var orangeAlpha: Double = 0.32
     var violetAlpha: Double = 0.28
     var topPadding: CGFloat = 20
+    /// The side gutter.
+    ///
+    /// `Spacing.screenGutter` on every screen this scaffold was written for. A property because
+    /// the embrace bridge (SHOWUP-155) draws at 28 — its reference sets `padding: '64px 28px 0'`
+    /// on the headline and `'28px 28px 0'` on the body, and a bridge is a wider, quieter beat than
+    /// the screens either side of it. Not a token: 28 means "this one screen", which is exactly
+    /// the case the design-system rules say to keep local.
+    var gutter: CGFloat = Spacing.screenGutter
     /// Scroll only as a last resort, for screens that share the frame with a keyboard.
     ///
     /// The handoff says these screens never scroll, and once the SHOWUP-143 design decisions land
@@ -96,7 +140,7 @@ struct WelcomeScaffold<Content: View>: View {
     var body: some View {
         ZStack {
             Color.liqCream.ignoresSafeArea()
-            WelcomeBackdrop(peachWash: peachWash, topWeighted: topWeighted,
+            WelcomeBackdrop(peachWash: peachWash, placement: placement,
                             orangeAlpha: orangeAlpha, violetAlpha: violetAlpha)
                 .ignoresSafeArea()
 
@@ -104,7 +148,7 @@ struct WelcomeScaffold<Content: View>: View {
                 GeometryReader { geo in
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 0) { content() }
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, gutter)
                             .padding(.top, topPadding)
                             .frame(minHeight: geo.size.height, alignment: .top)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,7 +163,7 @@ struct WelcomeScaffold<Content: View>: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 0) { content() }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, gutter)
                     .padding(.top, topPadding)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -394,130 +438,13 @@ final class WashLabel: UILabel {
     }
 }
 
-// MARK: - ④ Buttons — always pills (9999), never rounded rectangles
-
-/// Button treatments.
-///
-/// `.apple`, `.google` and `.facebook` are not style choices — each provider dictates the appearance
-/// of its own sign-in button and enforces it. Google forbids recolouring or resizing the G and
-/// requires a white background, making compliance a condition of app verification; Meta requires its
-/// mark in white or #1877F2 and prohibits recolouring to a host brand's palette. The uniform ghost
-/// treatment the design specified breaks both.
-///
-/// The pill silhouette, the 56 height and the Manrope label stay — those are ours.
-/// `.plain` is not a provider treatment and never carries one: it is the conflict modal's
-/// secondary, which has no border precisely so the pair does not read as two equal choices.
-enum PillVariant { case sunset, ghost, plain, apple, google, facebook }
-
-/// `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
-/// Manrope 700 16, gap 8.
-///
-/// Press is `scale(0.98)` over 180ms on `cubic-bezier(.22,1,.36,1)`. CLAUDE.md states it as a
-/// non-negotiable, and there are no hover states because the product is mobile-first.
-struct PillButton<Leading: View>: View {
-    let label: String
-    var variant: PillVariant = .sunset
-    var enabled: Bool = true
-    /// 56 everywhere except the conflict modal's resolve CTA, which the reference draws at 54.
-    /// Both clear every provider's published minimum (Apple's is 44pt), so this is a layout
-    /// choice rather than a compliance question.
-    var height: CGFloat = 56
-    var action: () -> Void
-    @ViewBuilder var leading: () -> Leading
-
-    var body: some View {
-        Button(action: { if enabled { action() } }) {
-            HStack(spacing: 8) {
-                leading()
-                Text(label)
-                    // The plain secondary is 600/15 — one step down from the 700/16 every real
-                    // button carries, which is what stops the modal reading as two equal choices.
-                    .font(variant == .plain ? F.manrope(15, .semibold) : F.manrope(16, .bold))
-                    .lineLimit(1)
-                    .foregroundColor(labelColor)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .padding(.horizontal, 28)
-            .background(background)
-            .clipShape(Capsule())
-            .overlay(
-                variant == .ghost ? Capsule().strokeBorder(Color.liqBorder, lineWidth: 1)
-                : variant == .google ? Capsule().strokeBorder(Color(hex: 0x747775), lineWidth: 1)
-                : nil
-            )
-            .shadow(color: variant == .sunset ? Color.liqPurple.opacity(0.28) : .clear,
-                    radius: 10, y: 8)
-            .opacity(enabled ? 1 : 0.45)
-        }
-        .buttonStyle(PressScale())
-        .disabled(!enabled)
-        .accessibilityLabel(Text(label))
-        .accessibilityAddTraits(.isButton)
-    }
-
-    private var labelColor: Color {
-        switch variant {
-        case .sunset, .apple, .facebook: return .white
-        case .google: return Color(hex: 0x1F1F1F)     // Google's specified label colour
-        case .ghost: return .liqFg
-        case .plain: return .liqMuted
-        }
-    }
-
-    @ViewBuilder private var background: some View {
-        switch variant {
-        case .sunset:
-            // 135°, midpoint at 38% — not an even three-stop ramp
-            LinearGradient(
-                stops: [
-                    .init(color: .liqOrange, location: 0.00),
-                    .init(color: Color(hex: 0xD05976), location: 0.38),
-                    .init(color: .liqPurple, location: 1.00),
-                ],
-                startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .ghost, .plain:
-            Color.clear
-        // Black is one of the three appearances Apple's guidelines allow.
-        case .apple:
-            Color.black
-        // A white background is required, not preferred — the G may not sit on anything else.
-        case .google:
-            Color.white
-        // Facebook Blue. Recolouring to our palette is explicitly prohibited.
-        case .facebook:
-            Color(hex: 0x1877F2)
-        }
-    }
-}
-
-extension PillButton where Leading == EmptyView {
-    // Argument order mirrors the stored properties, because Swift's memberwise init is positional
-    // and a call site that reorders them will not compile. See audit/check-swift-arg-order.py.
-    init(_ label: String, variant: PillVariant = .sunset, enabled: Bool = true,
-         height: CGFloat = 56, action: @escaping () -> Void) {
-        self.init(label: label, variant: variant, enabled: enabled, height: height, action: action,
-                  leading: { EmptyView() })
-    }
-}
-
-/// `transform 180ms cubic-bezier(.22,1,.36,1)`, scale 0.98. Honours reduce-motion.
-struct PressScale: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.18),
-                       value: configuration.isPressed)
-    }
-}
-
 // MARK: - ⑤ Icons — Lucide geometry, 24×24, stroke 1.7, currentColor
 
 /// Drawn rather than imported: CLAUDE.md requires inline stroke-only SVG at Lucide geometry and
 /// forbids icon fonts, PNGs and unicode glyphs as icons.
 enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, chevronLeft,
-                 arrowLeft, arrowRight, pencil, close, check, shield, heart }
+                 chevronRight, arrowLeft, arrowRight, pencil, pen, edit, close, check,
+                 shield, heart, eyeOff, plus, image, camera, lock, sliders }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -572,6 +499,109 @@ struct BrandIconView: View {
                     b.move(to: .init(x: 15, y: 18)); b.addLine(to: .init(x: 9, y: 12))
                     b.addLine(to: .init(x: 15, y: 6))
                 }
+
+            // ── added for "The real you" (SHOWUP-156 / SHOWUP-158) ────────────────
+            //
+            // Every one is copied from `components/shared.jsx`, the design system's own icon set,
+            // at its exact 24-grid geometry — not from a screen's inline SVG and not from memory.
+            // The back control was drawn `arrow-left` where the design says `chevron-left` once
+            // already, and no test catches that.
+            case .chevronRight:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 9, y: 18)); b.addLine(to: .init(x: 15, y: 12))
+                    b.addLine(to: .init(x: 9, y: 6))
+                }
+            case .plus:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 12, y: 5)); b.addLine(to: .init(x: 12, y: 19))
+                    b.move(to: .init(x: 5, y: 12)); b.addLine(to: .init(x: 19, y: 12))
+                }
+            case .image:
+                filled = false
+                p = Path { b in
+                    b.addRoundedRect(in: CGRect(x: 3, y: 3, width: 18, height: 18),
+                                     cornerSize: CGSize(width: 2, height: 2))
+                    b.addEllipse(in: CGRect(x: 6.9, y: 6.9, width: 3.2, height: 3.2))
+                    b.move(to: .init(x: 21, y: 15)); b.addLine(to: .init(x: 16, y: 10))
+                    b.addLine(to: .init(x: 5, y: 21))
+                }
+            case .camera:
+                filled = false
+                p = Path { b in
+                    // The body: a 2-radius rounded rect with a notch cut into its top edge for the
+                    // lens housing. One path rather than a rect plus a trapezium, so the stroke has
+                    // no join artefacts where the notch meets the edge.
+                    b.move(to: .init(x: 23, y: 19))
+                    b.addArc(center: .init(x: 21, y: 19), radius: 2,
+                             startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
+                    b.addLine(to: .init(x: 3, y: 21))
+                    b.addArc(center: .init(x: 3, y: 19), radius: 2,
+                             startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
+                    b.addLine(to: .init(x: 1, y: 8))
+                    b.addArc(center: .init(x: 3, y: 8), radius: 2,
+                             startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
+                    b.addLine(to: .init(x: 7, y: 6)); b.addLine(to: .init(x: 9, y: 3))
+                    b.addLine(to: .init(x: 15, y: 3)); b.addLine(to: .init(x: 17, y: 6))
+                    b.addLine(to: .init(x: 21, y: 6))
+                    b.addArc(center: .init(x: 21, y: 8), radius: 2,
+                             startAngle: .degrees(270), endAngle: .degrees(360), clockwise: false)
+                    b.closeSubpath()
+                    b.addEllipse(in: CGRect(x: 8, y: 9, width: 8, height: 8))
+                }
+            case .lock:
+                filled = false
+                p = Path { b in
+                    b.addRoundedRect(in: CGRect(x: 3, y: 11, width: 18, height: 11),
+                                     cornerSize: CGSize(width: 2, height: 2))
+                    // The shackle: up, over the top as a true semicircle, back down.
+                    b.move(to: .init(x: 7, y: 11)); b.addLine(to: .init(x: 7, y: 7))
+                    b.addArc(center: .init(x: 12, y: 7), radius: 5,
+                             startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+                    b.addLine(to: .init(x: 17, y: 11))
+                }
+            case .sliders:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 4, y: 21)); b.addLine(to: .init(x: 4, y: 14))
+                    b.move(to: .init(x: 4, y: 10)); b.addLine(to: .init(x: 4, y: 3))
+                    b.move(to: .init(x: 12, y: 21)); b.addLine(to: .init(x: 12, y: 12))
+                    b.move(to: .init(x: 12, y: 8)); b.addLine(to: .init(x: 12, y: 3))
+                    b.move(to: .init(x: 20, y: 21)); b.addLine(to: .init(x: 20, y: 16))
+                    b.move(to: .init(x: 20, y: 12)); b.addLine(to: .init(x: 20, y: 3))
+                    b.move(to: .init(x: 1, y: 14)); b.addLine(to: .init(x: 7, y: 14))
+                    b.move(to: .init(x: 9, y: 8)); b.addLine(to: .init(x: 15, y: 8))
+                    b.move(to: .init(x: 17, y: 16)); b.addLine(to: .init(x: 23, y: 16))
+                }
+            // `edit` from the shared set: a pen over a baseline stroke. The arc in the source path
+            // — `a2.121 2.121 0 0 1 3 3` — is a true semicircle, because the chord (3, 3) has
+            // length 4.243 and the radius is 2.121, so 2r is the chord. Centre is the midpoint.
+            case .edit:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 12, y: 20)); b.addLine(to: .init(x: 21, y: 20))
+                    b.move(to: .init(x: 16.5, y: 3.5))
+                    b.addArc(center: .init(x: 18, y: 5), radius: 2.121,
+                             startAngle: .degrees(225), endAngle: .degrees(45), clockwise: false)
+                    b.addLine(to: .init(x: 7, y: 19)); b.addLine(to: .init(x: 3, y: 20))
+                    b.addLine(to: .init(x: 4, y: 16))
+                    b.closeSubpath()
+                }
+            // The prompts card's edit pip. A pen with NO baseline stroke, which is what makes it a
+            // different glyph from `edit` rather than the same one at another size — SHOWUP-158's
+            // reference draws this one inline.
+            case .pen:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 17, y: 3))
+                    b.addArc(center: .init(x: 19, y: 5), radius: 2.83,
+                             startAngle: .degrees(225), endAngle: .degrees(45), clockwise: false)
+                    b.addLine(to: .init(x: 7.5, y: 20.5)); b.addLine(to: .init(x: 2, y: 22))
+                    b.addLine(to: .init(x: 3.5, y: 16.5))
+                    b.closeSubpath()
+                    b.move(to: .init(x: 15, y: 5)); b.addLine(to: .init(x: 19, y: 9))
+                }
             case .arrowLeft:
                 filled = false
                 p = Path { b in
@@ -597,6 +627,35 @@ struct BrandIconView: View {
                 p = Path { b in
                     b.move(to: .init(x: 20, y: 6)); b.addLine(to: .init(x: 9, y: 17))
                     b.addLine(to: .init(x: 4, y: 12))
+                }
+            // The visibility band's mark (SHOWUP-154 callout 11). Feather's eye-off: the eye's
+            // two arcs with the pupil, struck through corner to corner. Same 24 grid as the rest.
+            case .eyeOff:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 17.94, y: 17.94))
+                    b.addCurve(to: .init(x: 12, y: 20),
+                               control1: .init(x: 16.23, y: 19.24), control2: .init(x: 14.15, y: 19.97))
+                    b.addCurve(to: .init(x: 1, y: 12),
+                               control1: .init(x: 5, y: 20), control2: .init(x: 1, y: 12))
+                    b.addCurve(to: .init(x: 6.06, y: 6.06),
+                               control1: .init(x: 2.24, y: 9.68), control2: .init(x: 3.97, y: 7.65))
+                    b.move(to: .init(x: 9.9, y: 4.24))
+                    b.addCurve(to: .init(x: 12, y: 4),
+                               control1: .init(x: 10.59, y: 4.08), control2: .init(x: 11.29, y: 4))
+                    b.addCurve(to: .init(x: 23, y: 12),
+                               control1: .init(x: 19, y: 4), control2: .init(x: 23, y: 12))
+                    b.addCurve(to: .init(x: 20.84, y: 15.19),
+                               control1: .init(x: 22.39, y: 13.13), control2: .init(x: 21.68, y: 14.2))
+                    b.move(to: .init(x: 14.12, y: 14.12))
+                    b.addCurve(to: .init(x: 11.93, y: 15.1),
+                               control1: .init(x: 13.55, y: 14.73), control2: .init(x: 12.76, y: 15.09))
+                    b.addCurve(to: .init(x: 8.87, y: 12.04),
+                               control1: .init(x: 10.24, y: 15.1), control2: .init(x: 8.87, y: 13.73))
+                    b.addCurve(to: .init(x: 9.85, y: 9.85),
+                               control1: .init(x: 8.88, y: 11.21), control2: .init(x: 9.24, y: 10.42))
+                    b.move(to: .init(x: 1, y: 1))
+                    b.addLine(to: .init(x: 23, y: 23))
                 }
             case .shield:
                 filled = false
@@ -714,23 +773,41 @@ struct BrandIconView: View {
         b.closeSubpath()
     }
 
+    // The Apple mark, on the 24 grid, in two subpaths: the body and the leaf.
+    //
+    // REDRAWN 11 September 2026, because the previous one was not the Apple logo. It was a
+    // hand-drawn approximation and it showed: the body had no bite, the shoulders were square,
+    // and the leaf sat as a lens floating clear of the fruit. On a 16pt mark inside a black pill
+    // it read as a smudge.
+    //
+    // Apple's Sign in with Apple guidelines say the mark may be scaled but not redrawn, so the
+    // one thing this must not be is somebody's impression of an apple. Same geometry as
+    // `applePath()` in WelcomeShell.kt, and the same argument as Google's G beside it.
+    //
+    // Two subpaths, non-zero winding. The bite is not a hole to be subtracted -- it is part of
+    // the body's own outline, curving inward on the right.
     static let applePath = Path { b in
-        b.move(to: .init(x: 16, y: 4))
-        b.addCurve(to: .init(x: 14, y: 7.5), control1: .init(x: 16.5, y: 5.5), control2: .init(x: 15.5, y: 7))
-        b.addCurve(to: .init(x: 11, y: 5.5), control1: .init(x: 12, y: 8), control2: .init(x: 11, y: 7))
-        b.addCurve(to: .init(x: 16, y: 4), control1: .init(x: 12.5, y: 4), control2: .init(x: 14, y: 3.5))
+        // The body. Starts at the top of the bite and runs anticlockwise around the fruit.
+        b.move(to: .init(x: 17.05, y: 12.54))
+        b.addCurve(to: .init(x: 19.07, y: 9.01), control1: .init(x: 17.04, y: 10.2), control2: .init(x: 18.98, y: 9.07))
+        b.addCurve(to: .init(x: 15.65, y: 7.17), control1: .init(x: 17.97, y: 7.41), control2: .init(x: 16.26, y: 7.19))
+        b.addCurve(to: .init(x: 12.06, y: 8.03), control1: .init(x: 14.2, y: 7.02), control2: .init(x: 12.8, y: 8.03))
+        b.addCurve(to: .init(x: 8.93, y: 7.21), control1: .init(x: 11.31, y: 8.03), control2: .init(x: 10.16, y: 7.19))
+        b.addCurve(to: .init(x: 5.08, y: 9.56), control1: .init(x: 7.35, y: 7.23), control2: .init(x: 5.89, y: 8.14))
+        b.addCurve(to: .init(x: 6.27, y: 18.99), control1: .init(x: 3.42, y: 12.43), control2: .init(x: 4.66, y: 16.67))
+        b.addCurve(to: .init(x: 9.22, y: 21.36), control1: .init(x: 7.06, y: 20.13), control2: .init(x: 7.99, y: 21.4))
+        b.addCurve(to: .init(x: 12.3, y: 20.59), control1: .init(x: 10.41, y: 21.31), control2: .init(x: 10.86, y: 20.59))
+        b.addCurve(to: .init(x: 15.39, y: 21.33), control1: .init(x: 13.73, y: 20.59), control2: .init(x: 14.14, y: 21.36))
+        b.addCurve(to: .init(x: 18.25, y: 19.04), control1: .init(x: 16.67, y: 21.31), control2: .init(x: 17.47, y: 20.18))
+        b.addCurve(to: .init(x: 19.55, y: 16.37), control1: .init(x: 19.16, y: 17.72), control2: .init(x: 19.53, y: 16.44))
+        b.addCurve(to: .init(x: 17.05, y: 12.54), control1: .init(x: 19.52, y: 16.36), control2: .init(x: 17.07, y: 15.42))
         b.closeSubpath()
-        b.move(to: .init(x: 18.4, y: 13.5))
-        b.addCurve(to: .init(x: 15.5, y: 16.5), control1: .init(x: 17.8, y: 15), control2: .init(x: 17, y: 16.5))
-        b.addCurve(to: .init(x: 12, y: 15.7), control1: .init(x: 14.1, y: 16.5), control2: .init(x: 13.6, y: 15.7))
-        b.addCurve(to: .init(x: 8.5, y: 16.5), control1: .init(x: 10.4, y: 15.7), control2: .init(x: 9.9, y: 16.5))
-        b.addCurve(to: .init(x: 5.4, y: 13.6), control1: .init(x: 7, y: 16.5), control2: .init(x: 6.1, y: 15.1))
-        b.addCurve(to: .init(x: 6.6, y: 6.5), control1: .init(x: 4, y: 11), control2: .init(x: 4.6, y: 7.6))
-        b.addCurve(to: .init(x: 10.1, y: 6.5), control1: .init(x: 7.9, y: 5.8), control2: .init(x: 9.1, y: 6.2))
-        b.addCurve(to: .init(x: 12.5, y: 6.5), control1: .init(x: 11.1, y: 6.8), control2: .init(x: 11.5, y: 6.8))
-        b.addCurve(to: .init(x: 16.1, y: 6.3), control1: .init(x: 13.6, y: 6.1), control2: .init(x: 14.7, y: 5.6))
-        b.addCurve(to: .init(x: 15.7, y: 11.1), control1: .init(x: 14.4, y: 7.4), control2: .init(x: 14, y: 9.8))
-        b.addCurve(to: .init(x: 18.4, y: 13.5), control1: .init(x: 16.2, y: 12.2), control2: .init(x: 16.5, y: 12.7))
+        // The leaf, meeting the body at the stem rather than floating above it.
+        b.move(to: .init(x: 14.7, y: 5.64))
+        b.addCurve(to: .init(x: 15.68, y: 2.64), control1: .init(x: 15.36, y: 4.85), control2: .init(x: 15.8, y: 3.74))
+        b.addCurve(to: .init(x: 12.92, y: 4.06), control1: .init(x: 14.74, y: 2.68), control2: .init(x: 13.6, y: 3.27))
+        b.addCurve(to: .init(x: 11.92, y: 6.96), control1: .init(x: 12.31, y: 4.76), control2: .init(x: 11.78, y: 5.89))
+        b.addCurve(to: .init(x: 14.7, y: 5.64), control1: .init(x: 12.97, y: 7.04), control2: .init(x: 14.04, y: 6.42))
         b.closeSubpath()
     }
 

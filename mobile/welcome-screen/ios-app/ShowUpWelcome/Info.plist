@@ -33,6 +33,38 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- App Transport Security: ONE narrow exception, for the developer's own machine.
+
+	     The development build talks to http://localhost:3000, and ATS refuses cleartext unless
+	     an app opts in. NSAllowsLocalNetworking is the narrow opt-in: loopback, .local names and
+	     the private IP ranges, and nothing else. NSAllowsArbitraryLoads, which permits cleartext
+	     to any host on the internet, is deliberately NOT set.
+
+	     Added 10 September 2026 after the identical hole on Android cost a working screen. There,
+	     cleartext was blocked in the debug build, every send failed before a socket opened, and
+	     the app said nothing at all — tapping "Send me the code" simply did nothing, with an
+	     empty logcat, because the request was refused by policy before it left the process. iOS
+	     had the same gap against the same local backend.
+
+	     Staging and production are https, so this changes nothing for a shipped build. -->
+	<!-- THE ONE PERMISSION THE PHOTO STEP ASKS FOR (SHOWUP-156).
+
+	     There is deliberately no NSPhotoLibraryUsageDescription and there must not be one: the
+	     library is reached through PHPickerViewController, which runs out of process and needs no
+	     permission at all. Adding the key would not grant access, but it would be the first step
+	     towards asking for something the picker exists to avoid. See PhotoAccess.swift.
+
+	     The camera is different — it is the one permission that always applies, on both
+	     platforms. iOS shows this sentence in the alert and shows the alert ONCE, ever, so it has
+	     to say what the camera is for rather than that the app would like to use it. A denied
+	     camera blocks nothing: the library path still works and the step is still completable. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo for your profile without leaving Show Up.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<!-- Every bundled font must be listed here or iOS will not load it, and .custom() will
 	     silently fall back to the system face. -->
 	<key>UIAppFonts</key>

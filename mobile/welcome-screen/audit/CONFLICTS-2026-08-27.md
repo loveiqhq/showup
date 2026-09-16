@@ -308,11 +308,16 @@ What *is* built and correct: all four states, the reserved regions, the CTA not 
 `Enter your 6-digit verification code` label, digits preserved on error, the drawn flag rects
 (no emoji), and the resend cooldown released to 0 on mismatch.
 
-## C3 · No analytics on the welcome and sign-up screens
+## C3 · No analytics on the welcome and sign-up screens — CLOSED 6 September 2026
 
 The five tutorial cards call a tracker. **140, 142, 143, 144 and 145 have none** — and each of
 those tickets lists a full tracking section. 144 alone defines twelve events, five of which are
 marked `Not built` in the taxonomy.
+
+**Now implemented on both platforms**, transcribed from each ticket's Tracking section: 23 events
+across the five screens, wired in `SignUpFlow` and `ConnectFlowHost` with no screen file touched,
+`NoOp` by default so nothing is sent. `audit/check-analytics-parity.py` compares the two
+catalogues. Three conflicts surfaced while transcribing, in section E below.
 
 ## C4 · Evidence screenshots are not attached to any ticket
 
@@ -349,3 +354,202 @@ Two accessibility items were fixed rather than left open — 142 lists *"Legal l
 be checked against WCAG AA"* as an open item. It was checked: `--liq-fg-subtle` measures 3.04:1
 against a 4.5:1 requirement, and the legal lines now take `--liq-fg-muted` at 5.03:1. The input
 outlines and the skip button's dashed border moved for the same reason under 1.4.11.
+
+
+---
+
+# E · Conflicts found while implementing tracking (6 September 2026)
+
+Three things the tickets do not settle. All three are implemented one way and recorded here rather
+than decided quietly.
+
+## E1 · SHOWUP-142 and SHOWUP-145 name the same screen differently
+
+142 asks for `Screenname: Signup - welcomeback`. 145 asks for `Screenname - SSOLogin`, and adds that
+it "must be distinguishable from the first-run Startup screenview".
+
+We have **one** `WelcomeBackScreen` / `WelcomeBackView`. The two tickets describe the same screen —
+145 is "Re-login SSO", 142 is "Re Login", and their acceptance criteria are near-identical down to
+the 120px gap.
+
+**Implemented as `Signup - welcomeback`** (142), because 142 describes the screen we built. Both
+constants exist in the catalogue; only that one is wired.
+
+**Decision needed:** one screenview or two? If the product side wants SSO re-login counted
+separately from phone re-login, that is a property on the existing screenview rather than a second
+screen name — but it changes what the funnel looks like, so it is not ours to pick.
+
+## E2 · SHOWUP-143's `reason` vocabulary does not cover what our validator produces
+
+The ticket names three reasons: `too short`, `not a mobile`, `unsupported country`.
+
+Our validator produces **seven** outcomes, because it asks the phone metadata rather than measuring
+length: `empty`, `notANumber`, `tooShort`, `tooLong`, `invalidLength`, `unrecognised`, `notMobile`.
+
+- **Two overlap**: `tooShort` and `notMobile`.
+- **`unsupported country` is unreachable.** There is no supported-country list in the app, and
+  libphonenumber accepts every region. Nothing can emit it.
+- **Five have no bucket in the ticket**, including `empty` — which is the single most common
+  failure, because it is what a user gets for tapping the CTA without typing anything.
+
+**Implemented by reporting our outcome**, not the ticket's vocabulary. Reporting a reason the code
+cannot produce, or collapsing five distinct failures into one, would make the data describe
+something that did not happen.
+
+**Decision needed:** adopt the seven, or define a mapping. If the three are wanted for a dashboard,
+the mapping has to say what happens to the other five, and `empty` in particular should not
+disappear.
+
+## E3 · The legal links: one event with a property. DECIDED 7 September 2026
+
+140, 142, 144 and 145 each list `Terms & Conditions`, `Privacy Policy` and `Legal Notice` as
+**separate click events**.
+
+**Implemented as one `legal_link_tapped` event with a `link` property**, plus `screen_name` —
+because the same three links appear on four screens, and without the screen the taps are
+indistinguishable. Three event names per screen would be twelve events for one behaviour.
+
+This records exactly the same information and matches every other property-bearing event in the
+catalogue.
+
+**Confirmed by the product side on 7 September: keep the one event.** The reason it wins is that it
+answers both questions from one place — "how many tapped Privacy Policy anywhere" and "how many on
+the Connect screen" — whereas three event names record the document and lose the screen. Seven
+links across three screens would have needed seven names to say less.
+
+Not open any more. Do not re-litigate.
+
+## E4 · "The real you" step_index: the registry and the tickets disagree. CLOSED 16 September 2026
+
+Found 15 September 2026, building SHOWUP-156 and SHOWUP-158.
+
+`enums.json` §2, at registry **1.3.0**, gives:
+
+| step_id | step_index | screen |
+| --- | --- | --- |
+| `photos` | 1 | The real you · step 1 of **4** · outside the Share-some-details progress bar |
+| `prompts` | **10** | **Share some details · step 10** |
+
+Both rows are stale, in different ways, and SHOWUP-158 says so about one of them: "the corrected
+`step_index` for photos and media must be added before the ticket is picked up." It has not been.
+
+- **`photos`** has the right index and a stale count. "Step 1 of 4" was true until verify profile
+  was dropped from the MVP; the group is three steps now.
+- **`prompts`** is in the wrong group entirely. It sat in "Share some details" at step 10 before
+  the conversion pass moved it into "The real you" as step 2, and the row never followed.
+
+**Implemented from the tickets**, which are authoritative on behaviour: `RealYouStep.stepIndex`
+returns the position in THIS group — photos 1, prompts 2, media 3. Recorded here and in
+`RealYouChrome.kt` / `RealYouChrome.swift` rather than silently resolved either way.
+
+**Decision needed:** update §2's two rows. Until then a funnel joining `profile_step_viewed` to
+the registry will read `prompts` as a step of a group it is not in.
+
+## E5 · `profile_prompts` has no §11 row. OPEN
+
+Found the same day. §11 (the screen registry) carries `profile_photos` / `ProfilePhotos` and stops.
+SHOWUP-158's own tracking section flags it: "The registry row for this screen must be added before
+the ticket is picked up."
+
+**Implemented with the values the ticket quotes** — `profile_prompts` / `Profile - Prompts` — in
+`ProfileAnalytics` on both platforms, marked as unregistered at the definition. If the design side
+chooses differently, that is the one place to correct.
+
+Note that `screen_name` there is the only one in the registry with spaces and a hyphen; every other
+row is PascalCase. Worth settling when the row is added rather than after a funnel binds to it.
+
+## E6 · `entry_point` for prompts has no value set. OPEN, and it is the measurement the ticket exists for
+
+SHOWUP-158 calls it "the one measurement this revision exists to produce": whether a topic came
+from a **suggestion card** or from **browse all**. It asks for a closed set — `suggestion` |
+`browse` | `edit` — in `enums.json`, and there is none at 1.3.0.
+
+**Not implemented, and deliberately not invented.** A free string is exactly what the tracking
+rules forbid, and this property is the whole reason the suggestion cards were built. The events it
+would hang off (`prompt_topic_selected`, `prompt_answered`) ARE registered and are emitted; only
+the property is missing.
+
+Also still missing, and also not invented: an **abandonment** event for a write sheet opened and
+closed without saving, which is the precise drop-off the screen is designed against.
+
+## E7 · The prompts ticket's tracking section is out of date. OVERTAKEN 16 September 2026
+
+SHOWUP-158 says "the whole prompt-authoring funnel is unregistered… there is nothing for topic
+chosen, write sheet opened, prompt saved, prompt edited, or prompt deleted."
+
+That was true of registry 1.2.0. At **1.3.0** the family "Profile Attributes" carries
+`prompt_topic_picker_opened`, `prompt_topic_selected`, `prompt_answered`, `prompt_edited` and
+`prompt_removed`, with payloads. Following the ticket would have meant minting five names that
+already exist.
+
+**Implemented against the registry**, not the ticket. Recorded here because the next person to read
+that section will reach the same wrong conclusion. The ticket also files these under family "E —
+Profile Photos/Media"; they are in "Profile Attributes".
+
+## E8 · "The real you" is three steps, not two. DECIDED 16 September 2026
+
+Raised 15 September 2026, building SHOWUP-155/156/158: the group's progress bar has three
+segments — photos, prompts, media — and **no media screen is designed or ticketed**. So the bar
+shows a third step nothing can reach, which is either correct (a step that is coming) or a bar that
+lies about how long the flow is.
+
+**Confirmed by the product side on 16 September: media is planned and arrives in a later ticket.
+Keep three segments.**
+
+So `RealYouStep.COUNT` / `RealYouStep.count` stays 3 on both platforms and `Media` stays declared
+and unbuilt. Nothing else changes: nothing routes to `Media` — only `Photos` and `Prompts` are ever
+passed as the current step — and `resumePoint` has no `Media` case, so a user who finishes prompts
+resumes at `Done` rather than at a screen that does not exist. When media is built it gains a
+`ResumePoint` case before `Done`, and the bar is already the right length.
+
+Do not "simplify" the count to 2 while the screen is missing. The third segment is the point: a
+progress bar that only ever shows steps you have already reached is a counter.
+
+Still open, and separate from this: which `step_id` a single media screen reports. §2 of the
+registry carries `media_voice` and `media_video` as two steps, both outside this bar. That is a
+question for the media ticket, not this one — see the note on `RealYouStep.stepId`.
+
+
+## E4 and E7, resolved by registry 1.4.2 — 16 September 2026
+
+Both entries above were written against registry 1.3.0 and are now settled, in opposite directions.
+Recorded together because the pair is the lesson: one was the registry catching up with the code,
+the other was the code having guessed.
+
+**E4 — the code was right.** 1.3.0 gave `prompts` `step_index: 10`, under "Share some details ·
+step 10", which is where prompts sat before it moved into "The real you". The clients shipped
+`stepIndex = progressSegment` — photos 1, prompts 2, media 3 — and said so in a comment rather than
+matching a number they believed to be stale. §2 at **1.4.2** now reads exactly that, "corrected in
+registry 1.3.1 and re-verified against the current flow on 16 Sep 2026". Nothing to change.
+
+**E7 — the code had guessed, and guessed wrong.** At 1.3.0 the only prompt rows that existed were
+family F (`prompt_topic_picker_opened`, `prompt_topic_selected` with `topic_id` alone,
+`prompt_answered`, `prompt_edited`, `prompt_removed`), so the screen used them as named rather than
+minting the five the ticket asked for. 1.4.2 marks all four this screen fired as **SUPERSEDED — DO
+NOT FIRE**, deletes the duplicate `prompt_topic_selected` row outright, and makes family E the only
+vocabulary for written prompts. The screen was rewritten onto family E; `PromptsTrackingTest.kt` and
+`PromptsTrackingTests.swift` fail if a family F name is ever emitted again.
+
+**E9 · Six topic ids were ours and should have been the registry's. FIXED 16 September 2026.**
+
+The reference file carries the fifteen DISPLAY STRINGS and no ids. §17 (`prompt_topic_id registry`),
+which does carry them, did not exist at 1.3.0 — so ids were assigned locally, documented as
+assigned, and six of the fifteen did not match when §17 arrived:
+
+| ours | §17 |
+|---|---|
+| `first_date` | `first_date_usually` |
+| `ideal_thirty` | `ideal_30_min` |
+| `cross_town` | `cross_town_for` |
+| `spontaneous` | `spontaneous_plan` |
+| `thirty_feels` | `thirty_min_feels` |
+| `real_life_more` | `in_real_life_more` |
+
+These are the analytics join key AND what `profile_prompts` rows store, so the correction is a
+database migration (`1717000018000-CanonicalPromptTopicIds.ts`) as well as a rename. §17 also
+carries `topic_group`, which the clients did not have at all.
+
+**The general lesson, and it is not "read the registry".** The registry did not contain the answer
+at the time. It is that a value invented to fill a registry gap has to be recorded as a GAP, not as
+a decision — E7 was filed as "not a conflict, a correction", which read as settled and made the
+guess harder to find later than it should have been.

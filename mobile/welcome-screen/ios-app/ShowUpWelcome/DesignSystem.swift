@@ -32,12 +32,38 @@ extension Color {
     static let liqRaised     = Color(hex: 0xF7F2FA)                  // --liq-bg-raised, the notice
     static let liqBorderSoft = Color(hex: 0x1D1129).opacity(0.06)    // --liq-border-soft
     static let liqSuccess    = Color(hex: 0x00AB55)                  // --liq-success, the badge
+    /// `--liq-success-fg`. A DIFFERENT value from `liqSuccess`, not a shade of it: #00AB55 is
+    /// the badge fill, #0A7A47 the darker ink for a success glyph on a light ground. The
+    /// profile email screen's helper tick is the first use; only the badge one had been ported.
+    static let liqSuccessFg  = Color(hex: 0x0A7A47)                  // --liq-success-fg
     static let liqMuted      = Color(hex: 0x1D1129).opacity(0.62)    // --liq-fg-muted
     static let liqBorder     = Color(hex: 0x1D1129).opacity(0.12)    // --liq-border
     static let liqDanger     = Color(hex: 0xFB323B)                  // invalid borders, the ! glyph
     static let liqDangerFg   = Color(hex: 0xB71F26)                  // error helper text
     static let liqDangerDigit = Color(hex: 0x7A1F26)                 // mismatch digits - a one-off
     static let liqLavender   = Color(hex: 0xA78BFA)
+
+    /// `--liq-lavender-50`. The quietest lavender in the ramp, and a SURFACE rather than an accent.
+    ///
+    /// Nearly white with a violet cast, so a card can read as "ours" without competing with
+    /// anything on it. Used by the prompts screen's worked-example card and the small pip behind
+    /// its plus glyph (SHOWUP-158). Distinct from `liqEyebrowBg`, which is lavender-400 at 16% —
+    /// that one is a tint OF the accent, this one is a named step in the ramp.
+    static let liqLavenderWash = Color(hex: 0xF9F7FF)
+
+    /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
+    /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
+    ///
+    /// CORRECTED 15 September 2026, from `#F2EAFB -> #F8F2FB`. That pair came from the INLINE
+    /// FALLBACK in the date-of-birth reference — `var(--su-grad-lilac, linear-gradient(…))` — and
+    /// a CSS fallback only applies when the variable is undefined. `tokens/colors_and_type.css`
+    /// defines the variable, so the fallback never rendered anywhere and the ported pair was a
+    /// colour nothing in the design actually uses. The prompts screen reads the variable with no
+    /// fallback at all, so there is only one correct answer there.
+    ///
+    /// A pair of stops rather than a `LinearGradient`, so a call site can choose its own direction
+    /// and shape — the same shape the Kotlin side's `LilacStops` has.
+    static let suGradLilac: [Color] = [Color(hex: 0xF1E6FF), Color(hex: 0xE8DCF5)]
 
     init(hex: UInt) {
         self.init(.sRGB,

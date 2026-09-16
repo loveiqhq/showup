@@ -1,0 +1,4 @@
+# SwiftPM build output. Everything the OpenAPI generator produces lands in here, which is what
+# makes generated code un-editable: the next build erases it.
+.build/
+.swiftpm/

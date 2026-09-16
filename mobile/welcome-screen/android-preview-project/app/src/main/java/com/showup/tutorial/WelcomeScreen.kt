@@ -10,13 +10,29 @@
  */
 package com.showup.tutorial
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.em
+import com.showup.designsystem.Lora
+
+import com.showup.designsystem.PrimaryButton
+
+import com.showup.designsystem.IconSizes
+import com.showup.designsystem.Spacing
+
+import com.showup.analytics.AnalyticsTracker
+import com.showup.analytics.NoOpAnalytics
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -24,57 +40,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
 import com.showup.welcome.Wordmark
 import com.showup.welcome.WashHeadline
-import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Subtle
-
-// ── ⑧ Reusable "sunset / lg" button ─────────────────────────────────────
-@Composable
-fun SunsetButton(title: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(56.dp)                                   // size lg
-            .clip(RoundedCornerShape(28.dp))                 // pill
-            .background(Brush.horizontalGradient(listOf(Orange, Purple)))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(title, color = Color.White, fontFamily = Manrope,
-                 fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
-                 tint = Color.White, modifier = Modifier.size(20.dp))
-        }
-    }
-}
 
 // ── ④ Hero heart (200 × 190, gradient orange → purple) ───────────────────
 // The design's heart, drawn from its own curves rather than borrowed from Material's icon set.
@@ -209,7 +193,7 @@ fun WelcomeScreen(
         Column(
             Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)   // safe area
-                .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 20.dp), // 20 / 24 / 0(+20)
+                .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = 20.dp, bottom = 20.dp), // 20 / 24 / 0(+20)
         ) {
             // ③ Wordmark -- the shared one, not a local copy.
             //
@@ -232,15 +216,15 @@ fun WelcomeScreen(
                 parts = listOf("Welcome\nto " to false, "Show Up." to true),
                 fontSize = 42.sp, lineHeight = 44.sp,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.xxl))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("We’re happy to see you", color = Fg, fontFamily = Manrope,
                      fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(Spacing.md))
                 Icon(Icons.Filled.Favorite, contentDescription = null, tint = Orange,
-                     modifier = Modifier.size(20.dp))
+                     modifier = Modifier.size(IconSizes.sm))
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.xxl))
             Text("Let us quickly explain how Show Up works.", color = Neutral, fontFamily = Manrope,
                  fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 24.sp,
                  modifier = Modifier.widthIn(max = 320.dp))
@@ -248,11 +232,26 @@ fun WelcomeScreen(
             Spacer(Modifier.weight(1f))                          // flex:1
 
             // ⑧⑨ button + caption
-            SunsetButton(title = "Show me how", onClick = {
-                analytics.track(TutorialAnalytics.CTA_TAPPED, TutorialAnalytics.welcome)
-                onContinue()
-            })
-            Spacer(Modifier.height(10.dp))
+            //
+            // The shared primitive, not the copy of it that used to live in this file. That copy
+            // predated PrimaryButton by six days and had drifted four ways: a two-stop gradient
+            // instead of SunsetStops, no violet shadow (iOS had one), no press feedback, and a
+            // Material glyph for the arrow where CLAUDE.md requires a drawn 2px stroke. All four
+            // are the same defects the 23 Aug audit fixed on cards 02-06, in the one file it did
+            // not look at.
+            //
+            // 17 is the tutorial's CTA size -- NextButton is 17 too -- against 16 in the sign-up
+            // flow. The arrow is the tour's own, so it is the same one the Next circle draws.
+            PrimaryButton(
+                label = "Show me how",
+                onClick = {
+                    analytics.track(TutorialAnalytics.CTA_TAPPED, TutorialAnalytics.welcome)
+                    onContinue()
+                },
+                labelSize = 17.sp,
+                trailing = { ArrowRight(size = IconSizes.sm) },
+            )
+            Spacer(Modifier.height(Spacing.lg))
             Text("Takes less than a minute", color = Subtle, fontFamily = Manrope,
                  fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                  modifier = Modifier.align(Alignment.CenterHorizontally))

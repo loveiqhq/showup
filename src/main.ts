@@ -2,13 +2,18 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
 
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter';
 import { initSentry } from './common/errors/sentry.setup';
 import { JsonLogger } from './common/logging/json.logger';
+import {
+  applyStandardErrorResponses,
+  buildOpenApiDocument,
+} from './openapi.config';
+import { ApiErrorDto } from './common/errors/api-error.dto';
 
 /** Minimal HTTP Basic auth gate used to protect API docs in staging. */
 function basicAuth(user: string, pass: string) {
@@ -36,28 +41,13 @@ function setupSwagger(app: INestApplication, config: ConfigService) {
     app.use(`/${path}-json`, basicAuth(user, pass));
   }
 
-  const doc = new DocumentBuilder()
-    .setTitle('ShowUp Backend API')
-    .setDescription(
-      'Backend API for ShowUp — real-world dating. Source of truth for users, profiles, ' +
-        'check-ins, matching, dates, payments, notifications, analytics, safety and admin.',
-    )
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .addTag('health', 'Liveness & readiness probes')
-    .addTag('auth', 'Registration, login, sessions (Epic 2)')
-    .addTag('profiles', 'User profiles & media (Epic 3)')
-    .addTag('check-ins', 'Check-in & availability (Epic 4)')
-    .addTag('location', 'Proximity & PostGIS logic (Epic 5)')
-    .addTag('matching', 'Discovery, likes & matches (Epic 6)')
-    .addTag('dates', 'Date scheduling & lifecycle (Epic 7)')
-    .addTag('payments', 'Entitlements & RevenueCat (Epic 9)')
-    .addTag('notifications', 'Push & email (Epic 10)')
-    .addTag('safety', 'Reports, blocks & moderation (Epic 12)')
-    .addTag('admin', 'Internal operations (Epic 19)')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, doc);
+  // Shared with scripts/emit-openapi.ts so the served docs and the committed openapi.json
+  // can never describe different APIs. See src/openapi.config.ts.
+  const document = applyStandardErrorResponses(
+    SwaggerModule.createDocument(app, buildOpenApiDocument(), {
+      extraModels: [ApiErrorDto],
+    }),
+  );
   SwaggerModule.setup(path, app, document, {
     swaggerOptions: { persistAuthorization: true },
   });

@@ -97,11 +97,24 @@ for token, plat, src in [("ConnectExit.Skipped", "android", kt_connect),
     check("%s: Connect can report %s" % (plat, token), "onDone(%s)" % token in src)
 
 # ── a returning member never reaches Connect ────────────────────────────────
+#
+# The RULE is unchanged -- Connect belongs to account creation, so someone who already has an
+# account must not pass through it. What changed on 10 September 2026 is how the flow knows.
+#
+# It used to ask which button the user tapped (`entry == Entry.LogIn`). It now asks the SERVER
+# whether the account already has a usable profile, because intent and reality can disagree:
+# tapping "create account" with a number that already exists used to send a returning member
+# through Connect and the whole tutorial. Completeness also survives an interrupted signup,
+# where an "is this account new" flag would send a half-registered user straight to Home.
 check("android: a verified returning member leaves before Connect",
-      "if (entry == Entry.LogIn) {" in kt_flow and "onFinished(outcomeOf(entry, null))" in kt_flow,
+      "if (profileComplete) {" in kt_flow and "onFinished(outcomeOf(Entry.LogIn, null))" in kt_flow,
       "Connect belongs to account creation, so re-login must not pass through it")
 check("ios: a verified returning member leaves before Connect",
-      "if entry == .logIn {" in sw_flow and "onFinished(outcomeOf(entry, nil))" in sw_flow)
+      "if profileComplete {" in sw_flow and "onFinished(outcomeOf(.logIn, nil))" in sw_flow)
+# The decision has to come from the profile, not from a flag the auth response does not carry.
+check("android: the routing decision reads the profile",
+      "profileComplete" in kt_flow, "must not reintroduce an isNewUser flag")
+check("ios: the routing decision reads the profile", "profileComplete" in sw_flow)
 
 # ── the host sends the two outcomes to two different places ─────────────────
 check("android: the host branches on showsTutorial", "showsTutorial(it)" in kt_host)
@@ -113,10 +126,21 @@ check("ios: there is somewhere for a returning member to land",
 
 # ── the far end of the tutorial ─────────────────────────────────────────────
 # It used to restart the tour, which was honest while there was nowhere to go and is wrong now.
+# The destination was the literal 7 until 8 September 2026, when the Int scheme became FlowScreen.
+# The claim is unchanged and the assertion now reads as the claim does: finishing goes HOME.
+# The DESTINATION changed on 9 September 2026 -- profile creation now sits between the tutorial's
+# end and the app, which is the order the profile epic specifies ("entered from the app tutorial").
+# SHOWUP-146's rule is unchanged and is what is asserted: finishing does not restart the tour.
 check("android: finishing the tutorial does not restart it",
-      "onFinish = { screen = 7 }" in kt_host,
-      "SHOWUP-146 connects the tutorial to the app, not back to card 1")
-check("ios: finishing the tutorial does not restart it", "onFinish: { go(to: 7) }" in sw_host)
+      "onFinish = { screen = FlowScreen.ProfileName }" in kt_host
+      and "onFinish = { screen = FlowScreen.TutorialWelcome }" not in kt_host,
+      "SHOWUP-146 connects the tutorial forwards, not back to card 1")
+check("ios: finishing the tutorial does not restart it",
+      "onFinish: { go(to: .profileName) }" in sw_host
+      and "onFinish: { go(to: .tutorialWelcome) }" not in sw_host)
+# And the first card is still where a fresh tour starts, so "does not restart" means something.
+check("android: the tour starts at card 1", "FlowScreen.TutorialWelcome" in kt_host)
+check("ios: the tour starts at card 1", ".tutorialWelcome" in sw_host)
 
 # ── the rule is actually tested somewhere ───────────────────────────────────
 check("the android rule is tested", "class TutorialRoutingTest" in kt_tests)

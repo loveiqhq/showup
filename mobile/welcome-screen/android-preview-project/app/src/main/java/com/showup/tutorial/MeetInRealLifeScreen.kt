@@ -12,6 +12,11 @@
  */
 package com.showup.tutorial
 
+import com.showup.designsystem.Spacing
+
+import com.showup.analytics.AnalyticsTracker
+import com.showup.analytics.NoOpAnalytics
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,12 +70,12 @@ fun MeetInRealLifeScreen(
         },
         content = {
             // ⑤ rule list — 3 rows, gap 8, block gap below 16
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 RuleRow("No texting for weeks", "date in real life instead", wraps = false)
                 RuleRow("No ghosting", "we penalize unreliability", wraps = false)
                 RuleRow("No collecting matches", "you meet who you match", wraps = false)
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.xxl))
 
             // ⑥ commitment — "will meet" italic 700 · gap below 10
             Text(
@@ -84,7 +89,7 @@ fun MeetInRealLifeScreen(
                 color = Neutral, fontFamily = Manrope, fontWeight = FontWeight.Medium,
                 fontSize = 16.sp, lineHeight = 24.sp,
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(Spacing.lg))
 
             // ⑦ reliability — two bold runs, no gap below (the flexible region takes over)
             Text(

@@ -18,6 +18,17 @@
  */
 package com.showup.welcome
 
+import androidx.compose.runtime.getValue
+import com.showup.designsystem.Subtle
+
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.PrimaryButtonVariant
+
+import com.showup.designsystem.IconSizes
+import com.showup.designsystem.Motion
+import com.showup.designsystem.Radius
+import com.showup.designsystem.Spacing
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -34,7 +45,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -54,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Danger
+import com.showup.designsystem.DangerGlyph
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
@@ -61,8 +72,7 @@ import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Raised
-import com.showup.designsystem.Subtle
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 /**
  * Provider button titles are taken from each provider's own permitted list rather than from the
@@ -105,11 +115,11 @@ fun methodSpec(m: AuthMethod): MethodSpec = when (m) {
  * ticket 02: the stack has a gradient primary in the phone case and none in the other three, and
  * the hint row is what carries the suggestion in all four.
  */
-fun providerVariant(m: AuthMethod, isPrimary: Boolean = false): PillVariant = when (m) {
-    AuthMethod.Apple -> PillVariant.Apple
-    AuthMethod.Google -> PillVariant.Google
-    AuthMethod.Facebook -> PillVariant.Facebook
-    AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PillVariant.Sunset else PillVariant.Ghost
+fun providerVariant(m: AuthMethod, isPrimary: Boolean = false): PrimaryButtonVariant = when (m) {
+    AuthMethod.Apple -> PrimaryButtonVariant.Apple
+    AuthMethod.Google -> PrimaryButtonVariant.Google
+    AuthMethod.Facebook -> PrimaryButtonVariant.Facebook
+    AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PrimaryButtonVariant.Sunset else PrimaryButtonVariant.Ghost
 }
 
 /** The Google G ignores this — it is drawn in its own four colours. */
@@ -165,8 +175,8 @@ fun AuthMethodList(
         if (errorFor != null && errorMessage != null) ErrorBanner(errorMessage)
 
         Column(
-            Modifier.padding(bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             MethodButton(primary, onSelect, loading, errorFor == primary, loading != null, isPrimary = true)
             rest.forEach { m ->
@@ -214,7 +224,7 @@ private fun MethodButton(
         isErrored && !PROVIDER_COMPLIANT_LABELS -> "Try ${spec.short} again"
         else -> spec.label
     }
-    PillButton(
+    PrimaryButton(
         label, { onSelect(method) },
         // Siblings dim to 0.45 while one is in flight; the tapped one stays at full opacity.
         modifier = Modifier.alpha(if (anyLoading && !isLoading) 0.45f else 1f),
@@ -236,11 +246,11 @@ private fun MethodButton(
  */
 @Composable
 private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(Radius.card)
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp)
+            .padding(top = Spacing.xs)
             .height(52.dp)
             .clip(shape)
             .background(Elevated)
@@ -264,7 +274,7 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
             }
             .clickable(role = Role.Button, onClick = onSkip)
             .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -278,10 +288,20 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
     }
 }
 
-/** Danger banner — the failure states. Sits above the list; the buttons do not move. */
+/**
+ * Danger banner — the failure states. Sits above the list; the buttons do not move.
+ *
+ * DELIBERATELY NOT [InlineErrorCard], though the two share a palette.
+ *
+ * The inline card is a field's error: radius 12, 14/10 padding, an 18 glyph. This is a banner above
+ * a list: radius 14, 14/12 padding, a 20 glyph, full width with its own bottom margin. Three of its
+ * four geometry values differ, so unifying them would mean three parameters to express one shape --
+ * the "everything component" this design system keeps declining to build. The glyph is shared
+ * because the glyph genuinely is the same.
+ */
 @Composable
 fun ErrorBanner(message: String) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(Radius.control)
     Row(
         Modifier
             .fillMaxWidth()
@@ -289,11 +309,12 @@ fun ErrorBanner(message: String) {
             .clip(shape)
             .background(Danger.copy(alpha = 0.07f))
             .border(1.dp, Danger.copy(alpha = 0.18f), shape)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.xl),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
-        Box(Modifier.padding(top = 1.dp).size(20.dp).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
-            Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        // The glyph is shared; the BANNER is not. See the note on ErrorBanner above.
+        Box(Modifier.padding(top = 1.dp)) {
+            DangerGlyph(size = IconSizes.sm, glyphSize = 13.dp)
         }
         Text(
             message, color = DangerFg, fontFamily = Manrope,
@@ -310,18 +331,18 @@ fun ErrorBanner(message: String) {
  */
 @Composable
 fun CancelledNotice(provider: AuthMethod) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(Radius.control)
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp)
+            .padding(bottom = Spacing.xl)
             .clip(shape)
             .background(Raised)
             .border(1.dp, BorderSoft, shape)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.xl),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
-        Box(Modifier.size(20.dp).background(Fg.copy(alpha = 0.10f), CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(IconSizes.sm).background(Fg.copy(alpha = 0.10f), CircleShape), contentAlignment = Alignment.Center) {
             Icon(BrandIcon.Close, 12.dp, tint = Fg, strokeWidth = 2.4.dp)
         }
         Text(
@@ -343,7 +364,7 @@ fun Spinner(tint: Color = Color.White, size: androidx.compose.ui.unit.Dp = 18.dp
     val motion = rememberMotion()
     val angle by rememberInfiniteTransition(label = "spin").animateFloat(
         initialValue = 0f, targetValue = if (motion.enabled) 360f else 0f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(Motion.PULSE_SLOW, easing = LinearEasing), RepeatMode.Restart),
         label = "angle",
     )
     Canvas(Modifier.size(size).rotate(angle)) {

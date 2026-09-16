@@ -13,6 +13,8 @@ package com.showup.fit
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -58,6 +60,10 @@ class HarnessSelfTest {
             Box(Modifier.height(18.dp).width(200.dp)) { Text(LONG_TEXT, fontSize = 14.sp) }
         }
         assertTrue("clipped text was not detected: $v", v.any { it.problem == "TEXT CLIPPED" })
+        // Never advisory. Scrolling excuses where a thing sits, never whether it can be read, so
+        // the scroll-aware branch must not have softened this one.
+        assertTrue("clipping must fail a screen, not merely be noted: $v",
+            v.filter { it.problem == "TEXT CLIPPED" }.none { it.advisory })
     }
 
     @Test
@@ -70,6 +76,43 @@ class HarnessSelfTest {
         assertTrue("an element past the bottom was not caught: $v",
             v.any { it.problem == "OFF THE BOTTOM" })
     }
+
+    @Test
+    fun `content below the fold of a scroll view is an advisory, not a failure`() {
+        // The instrument for the scroll-aware branch added on 10 September. Without this, "zero
+        // findings" on a scrolling screen is indistinguishable from a detector that never fires --
+        // and the whole sweep would go quiet the moment a screen started scrolling.
+        val v = measureFit(PHONE, "scrolled") {
+            Column(
+                Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text("top")
+                Text("far below", Modifier.padding(top = 2000.dp))
+            }
+        }
+        val below = v.filter { it.problem == "BELOW THE FOLD" }
+        assertTrue("content below a scroll fold was not reported at all: $v", below.isNotEmpty())
+        assertTrue("below-the-fold content must not FAIL a screen: $below", below.all { it.advisory })
+        assertTrue("it must not also be reported as lost off the bottom: $v",
+            v.none { it.problem == "OFF THE BOTTOM" })
+    }
+
+    // NO SELF-TEST FOR "text clipped inside a scroll view is still a failure", and the absence
+    // is deliberate rather than an oversight.
+    //
+    // The property holds structurally: the `scrollable` flag added on 10 September gates ONLY the
+    // off-the-bottom branch, and the clipping detector above it is untouched. What could not be
+    // built is a synthetic case to prove it, because Compose will not produce the condition. A
+    // scroll container measures its content with an infinite maximum height, and every attempt to
+    // squeeze a text node underneath one -- requiredHeight on the text, a fixed-height Box around
+    // it, a fixed-height Column around it -- leaves the paragraph laid out in full and merely
+    // overhanging its box, which is not clipping and is correctly not reported.
+    //
+    // Three constructions were tried and all three returned no findings at all. Writing a fourth
+    // until something passed would have produced a test asserting whatever it happened to catch.
+    // The clipping detector's own instrument is `text squeezed into too little height is caught
+    // as clipped` above, which also asserts the finding is not advisory.
+
 
     @Test
     fun `an element forced past the right edge is caught`() {

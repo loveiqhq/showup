@@ -14,6 +14,8 @@
  */
 package com.showup
 
+import com.showup.designsystem.Spacing
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Border
+import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
@@ -82,17 +85,19 @@ fun HomePlaceholderScreen(outcome: SignUpOutcome, onStartOver: () -> Unit) {
                 "Placeholder screen. It goes away with the real home screen.",
                 fontFamily = Manrope, fontSize = 12.sp, color = Subtle,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(max = 280.dp).padding(top = 6.dp),
+                modifier = Modifier.widthIn(max = 280.dp).padding(top = Spacing.sm),
             )
             // 44dp minimum, found by ScreenFitTest: 12dp of padding around a 14sp label came to
             // 43dp, one short of the smallest comfortable tap target on any phone.
             Box(
                 Modifier
-                    .padding(top = 10.dp)
-                    .defaultMinSize(minHeight = 48.dp)
+                    .padding(top = Spacing.lg)
+                    // 48, Android's Material floor, passed explicitly: minTapTarget clamps upward
+                    // only, so this raises the shared 44 and cannot lower it.
+                    .minTapTarget(48.dp)
                     .border(1.dp, Border, RoundedCornerShape(50))
                     .clickable(onClick = onStartOver)
-                    .padding(horizontal = 22.dp, vertical = 12.dp),
+                    .padding(horizontal = 22.dp, vertical = Spacing.xl),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("Start over", fontFamily = Manrope, fontSize = 14.sp, color = Fg)

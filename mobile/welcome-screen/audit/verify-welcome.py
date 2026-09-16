@@ -16,6 +16,9 @@ import io
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tokens
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KT = os.path.join(ROOT, "android-preview-project/app/src/main/java/com/showup")
 SW = os.path.join(ROOT, "ios-app/ShowUpWelcome")
@@ -26,7 +29,15 @@ CURLY = chr(0x2019)
 
 
 def read(*parts):
-    return io.open(os.path.join(*parts), encoding="utf-8").read()
+    """The file, with design-token references expanded to the literals they hold.
+
+    The assertions below look for the NUMBERS a spec sheet specifies. Since the tokens landed those
+    numbers are written as `Spacing.screenGutter` and friends, so they are resolved here rather than
+    in each check -- which keeps every assertion checking a value instead of a name. See
+    audit/tokens.py for why that distinction matters.
+    """
+    path = os.path.join(*parts)
+    return tokens.expand(io.open(path, encoding="utf-8").read(), swift=path.endswith(".swift"))
 
 
 def check(name, ok):
@@ -54,13 +65,31 @@ def code_only(src):
 
 
 shell_kt = read(KT, "welcome/WelcomeShell.kt")
+# The primary button moved out of the shell into the design system on 7 September 2026.
+# These read the primitive; the assertions are unchanged.
+btn_kt = read(KT, "designsystem/PrimaryButton.kt")
+btn_sw = read(SW, "PrimaryButton.swift")
+# ShowUpEasing moved here with the button: designsystem cannot depend on a screen.
+motion_kt = read(KT, "designsystem/Motion.kt")
 shell_sw = read(SW, "WelcomeShell.swift")
 start_kt = read(KT, "welcome/StartupScreen.kt")
 start_sw = read(SW, "StartupView.swift")
 back_kt = read(KT, "welcome/WelcomeBackScreen.kt")
 back_sw = read(SW, "WelcomeBackView.swift")
 ver_kt = read(KT, "welcome/PhoneVerificationScreen.kt")
+slots_kt = read(KT, "designsystem/CodeSlotRow.kt")
 ver_sw = read(SW, "PhoneVerificationView.swift")
+# The number field moved out of the screen into the design system on 8 September 2026.
+input_kt = read(KT, "designsystem/InputField.kt")
+input_sw = read(SW, "InputField.swift")
+# iOS keeps its phone field's keyboard and content-type configuration in the representable, not the
+# screen, so the autofill parity check below has to read it there.
+phone_sw = read(SW, "PhoneNumberField.swift")
+# The eyebrow pill moved out of the three screens into the design system on 8 September 2026.
+badge_kt = read(KT, "designsystem/StatusBadge.kt")
+badge_sw = read(SW, "StatusBadge.swift")
+tap_kt = read(KT, "designsystem/TapTarget.kt")
+tap_sw = read(SW, "TapTarget.swift")
 tok_kt = read(KT, "designsystem/DesignSystem.kt")
 tok_sw = read(SW, "DesignSystem.swift")
 
@@ -119,24 +148,28 @@ check("wash tracks the run (swift)", "enumerateEnclosingRects" in shell_kt or
       "enumerateEnclosingRects" in shell_sw)
 
 # ── button — components/shared.jsx size lg ──────────────────────────────────
-check("button height 56 (kotlin)", "height: Dp = 56.dp" in shell_kt)
-check("button height 56 (swift)", "var height: CGFloat = 56" in shell_sw)
-check("button pad 28 (kotlin)", "horizontal = 28.dp" in shell_kt)
-check("button pad 28 (swift)", ".padding(.horizontal, 28)" in shell_sw)
-check("button label 16 bold (kotlin)", "else 16.sp" in shell_kt)
-check("button label 16 bold (swift)", "manrope(16, .bold)" in shell_sw)
-check("button gap 8 (kotlin)", "spacedBy(8.dp" in shell_kt)
-check("button gap 8 (swift)", "HStack(spacing: 8)" in shell_sw)
+check("button height 56 (kotlin)", "height: Dp = 56.dp" in btn_kt)
+check("button height 56 (swift)", "var height: CGFloat = 56" in btn_sw)
+check("button pad 28 (kotlin)", "horizontal = 28.dp" in btn_kt)
+check("button pad 28 (swift)", ".padding(.horizontal, 28)" in btn_sw)
+check("button label 16 bold (kotlin)",
+      "labelSize: TextUnit = 16.sp" in btn_kt
+      and "else labelSize" in btn_kt
+      and "else FontWeight.Bold" in btn_kt)
+check("button label 16 bold (swift)",
+      "var labelSize: CGFloat = 16" in btn_sw and "F.manrope(labelSize, .bold)" in btn_sw)
+check("button gap 8 (kotlin)", "spacedBy(8.dp" in btn_kt)
+check("button gap 8 (swift)", "HStack(spacing: 8)" in btn_sw)
 # CLAUDE.md: press scales to 0.98, 180ms, cubic-bezier(.22,1,.36,1)
-check("press 0.98 (kotlin)", "0.98f" in shell_kt)
-check("press 0.98 (swift)", "0.98" in shell_sw)
+check("press 0.98 (kotlin)", "0.98f" in btn_kt)
+check("press 0.98 (swift)", "0.98" in btn_sw)
 check("press 180ms (kotlin)", "180" in shell_kt)
 check("press 180ms (swift)", "0.18" in shell_sw)
-check("brand easing (kotlin)", "CubicBezierEasing(0.22f, 1f, 0.36f, 1f)" in shell_kt)
-check("brand easing (swift)", "timingCurve(0.22, 1, 0.36, 1" in shell_sw)
+check("brand easing (kotlin)", "CubicBezierEasing(0.22f, 1f, 0.36f, 1f)" in motion_kt)
+check("brand easing (swift)", "timingCurve(0.22, 1, 0.36, 1" in btn_sw)
 # sunset midpoint at 38%
 check("sunset 38% (kotlin)", "0.38f to Color(0xFFD05976)" in tok_kt)
-check("sunset 38% (swift)", "location: 0.38" in shell_sw)
+check("sunset 38% (swift)", "location: 0.38" in btn_sw)
 
 # ── wordmark ────────────────────────────────────────────────────────────────
 check("wordmark gradient not flat (kotlin)", "WordmarkStops" in shell_kt)
@@ -166,6 +199,19 @@ check("back chevron is 24 (kotlin)", "BrandIcon.ChevronLeft, 24.dp" in ver_kt)
 check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in ver_sw)
 check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in ver_kt)
 check("back chevron stroke 2 (swift)", "stroke: 2" in ver_sw)
+# The chevron's hit area comes from the shared floor now, not a hardcoded 44 in this screen.
+# 44 and not the tutorial's 48: that disagreement is recorded in TapTarget.kt and in
+# docs/design-system.md rather than resolved by quietly resizing a control.
+check("back chevron uses the shared tap floor (kotlin)", "minTapTarget()" in code_only(ver_kt))
+check("back chevron uses the shared tap floor (swift)", "minTapTarget()" in code_only(ver_sw))
+check("back chevron has no hardcoded floor (kotlin)", "size(44.dp)" not in code_only(ver_kt))
+check("back chevron has no hardcoded floor (swift)",
+      "width: 44, height: 44" not in code_only(ver_sw))
+# The chevron is a Canvas, so there is no text in this control for a screen reader to fall back
+# on: unlabelled, TalkBack announced "button" and nothing else while VoiceOver said "Back". A
+# parity gap that no layout test could see, because it renders identically either way.
+check("back control is labelled (kotlin)", 'contentDescription = "Back"' in code_only(ver_kt))
+check("back control is labelled (swift)", 'accessibilityLabel("Back")' in code_only(ver_sw))
 
 # The SHAPE, not just the name. Naming the right enum case proves nothing if that case draws the
 # wrong path -- and the two icons live three lines apart, which is exactly where a mis-paste lands.
@@ -184,10 +230,21 @@ check("the arrow still has its shaft (kotlin)",
 # screen-phone-reference.jsx uses <Eyebrow color="orange"> on both phone screens (lines 182, 440),
 # while the tutorial cards use lavender. Both platforms took lavender here, which is the component
 # default -- so the pill and its text came out purple on a screen the design paints orange.
-check("eyebrow uses the orange tone (kotlin)", "EyebrowOrangeBg" in ver_kt)
-check("eyebrow uses the orange tone (swift)", "liqEyebrowOrangeBg" in ver_sw)
-check("eyebrow text is orange (kotlin)", '"PHONE VERIFICATION", color = Orange' in ver_kt)
-check("eyebrow text is orange (swift)", ".foregroundColor(.liqOrange)" in ver_sw)
+# The tone is a StatusBadge variant now, so "this screen's eyebrow is orange" is TWO facts and
+# both are asserted: the orange tone is the token, and this screen asks for the orange tone.
+#
+# code_only on the primitive because it documents the very values it draws, and code_only on the
+# screens because each names the other platform's spelling in a comment.
+check("eyebrow orange tone is the token (kotlin)", "EyebrowOrangeBg" in code_only(badge_kt))
+check("eyebrow orange tone is the token (swift)", "liqEyebrowOrangeBg" in code_only(badge_sw))
+check("eyebrow orange label is Orange (kotlin)", "labelColor = Orange" in code_only(badge_kt))
+check("eyebrow orange label is Orange (swift)", "return .liqOrange" in code_only(badge_sw))
+check("143 eyebrow takes the orange tone (kotlin)",
+      'StatusBadge("Phone verification"' in code_only(ver_kt)
+      and "BadgeTone.Lavender" not in code_only(ver_kt))
+check("143 eyebrow takes the orange tone (swift)",
+      'StatusBadge(label: "Phone verification")' in code_only(ver_sw)
+      and "tone: .lavender" not in code_only(ver_sw))
 check("the lavender tone is not used here (kotlin)", "EyebrowBg" not in ver_kt)
 check("the lavender tone is not used here (swift)", "liqEyebrowBg)" not in ver_sw)
 # rgba(254,104,57,.12) and rgba(167,139,250,.16) -- two tokens, so neither screen can drift.
@@ -252,22 +309,56 @@ check("143 headline 38 (kotlin)", "fontSize = 38.sp" in ver_kt)
 check("143 headline 38 (swift)", "fontSize: 38" in ver_sw)
 check("143 sub 15 medium (kotlin)", "fontSize = 15.sp" in ver_kt)
 check("143 sub 15 medium (swift)", "manrope(15, .medium)" in ver_sw)
-check("143 field height 56 (kotlin)", "height(56.dp)" in ver_kt)
-check("143 field height 56 (swift)", "height: 56" in ver_sw)
-check("143 field radius 14 (kotlin)", "RoundedCornerShape(14.dp)" in ver_kt)
+check("143 field height 56 (kotlin)", "height: Dp = 56.dp" in code_only(input_kt))
+check("143 field height 56 (swift)", "height: CGFloat = 56" in code_only(input_sw))
+# The value is nothing without the guarantee that the FIELD fills it -- the 23dp defect had a
+# 56dp box too. TapTargetTest/TapTargetTests measure it; these assert the mechanism is present.
+check("143 field fills its box (kotlin)", "fillMaxHeight()" in code_only(input_kt))
+check("143 field fills its box (swift)",
+      "frame(maxHeight: .infinity)" in code_only(input_sw))
+# The slot geometry moved into designsystem/CodeSlotRow.kt when the row became shared with the
+# email code screen (SHOWUP-153). The checks follow the component rather than being deleted --
+# what they guard is unchanged, and the phone screen still passes its own sizes in.
+# read() expands token references, so Radius.control arrives here as 14.dp -- which is the point
+# of the expansion: this asserts the VALUE, so redefining the token to 20 fails the check.
+check("143 field radius 14 (kotlin)", "RoundedCornerShape(14.dp)" in slots_kt)
 check("143 field radius 14 (swift)", "cornerRadius: 14" in ver_sw)
-check("143 border 1.5 (kotlin)", "1.5.dp" in ver_kt)
-check("143 border 1.5 (swift)", "lineWidth: 1.5" in ver_sw)
-# A/B reserves TWO lines, pinned, not one as a minimum. Every message names the country and wraps;
-# reserving one line let the CTA drop 15.7pt on rejection, measured on an iPhone 17 Pro.
-# The two numbers differ on purpose and the reasoning is at both sites: Compose sets lineHeight
-# explicitly and cannot shrink text, so it needs real headroom over the 35.1dp two lines take;
-# SwiftUI's two lines are smaller and it can scale a long message down. What has to match is that
-# both reserve two lines and neither can grow.
-check("143 helper A/B reserves two lines (kotlin)",
-      "height(40.dp)" in ver_kt and "maxLines = 2" in ver_kt)
-check("143 helper A/B reserves two lines (swift)",
-      "minHeight: 36, maxHeight: 36" in ver_sw and "lineLimit(2)" in ver_sw)
+check("143 field border 1.5 (kotlin)", "1.5.dp, outline, shape" in code_only(input_kt))
+check("143 field border 1.5 (swift)", "lineWidth: 1.5" in code_only(input_sw))
+check("143 slot border 1.5 (kotlin)", "1.5.dp" in slots_kt)
+check("143 slot border 1.5 (swift)", "lineWidth: 1.5" in code_only(ver_sw))
+# BOTH fields declare what they hold, on BOTH platforms. iOS had done this since the screens were
+# written and Android had done it on neither, which is a difference no screenshot shows and no
+# layout test measures -- so it survived every check there was until 8 September 2026.
+#
+# code_only throughout: each platform's source names the OTHER platform's spelling in a comment, so
+# raw text would let the note about the hint stand in for the hint.
+check("143 phone field autofill (kotlin)",
+      "contentType = FieldContent.PhoneNumber" in code_only(ver_kt))
+check("143 phone field autofill (swift)",
+      "textContentType = .telephoneNumber" in code_only(phone_sw))
+check("143 code field autofill (kotlin)", "FieldContent.SmsCode" in code_only(ver_kt))
+check("143 code field autofill (swift)", "textContentType(.oneTimeCode)" in code_only(ver_sw))
+# A/B reserves THREE lines of card, pinned, not a minimum. Updated 10 September 2026 when the
+# product side ruled that every error in the app is the red card, never bare red text -- this row
+# was the last place the bare style survived.
+#
+# The number moved 40 -> 80 because the card is not just a colour: 1 of border and 10 of padding
+# top and bottom, and 14 of padding plus an 18 glyph and a 10 gap taking WIDTH out of the text
+# column. The narrower column is what forced three lines, since every message names a country and
+# an example number. Two was tried and ScreenFitTest clipped three of them on the 320-wide Fold
+# cover screen; three passes at all seventeen sizes with the CTA neither moved nor off-screen.
+#
+# Both platforms now hold the same 80 and the same three-line ceiling, and neither can grow --
+# a region that fits its content is a region that moves the CTA, which SHOWUP-143 forbids.
+check("143 helper A/B reserves three lines of card (kotlin)",
+      "height(80.dp)" in ver_kt and "maxLines = 3" in ver_kt)
+check("143 helper A/B reserves three lines of card (swift)",
+      "minHeight: 80, maxHeight: 80" in ver_sw and "lineLimit: 3" in ver_sw)
+# The error is the shared card, not a locally styled Text. This is the check that would fail if
+# anyone reverted this row to bare red text.
+check("143 A/B error is the shared card (kotlin)", "InlineErrorCard(" in ver_kt)
+check("143 A/B error is the shared card (swift)", "InlineErrorCard(" in ver_sw)
 # see finding 1 -- 42 cannot hold the specified copy, so the reserve is the measured height
 check("143 helper C/D reserved (kotlin)", "heightIn(min = 42.dp)" in ver_kt)
 check("143 helper C/D reserved (swift)", "minHeight: 42" in ver_sw)
@@ -277,23 +368,34 @@ check("143 helper C/D reserved (swift)", "minHeight: 42" in ver_sw)
 # padding wrapped around nil both collapse -- the CTA jumped the full 56pt. So the Swift card has
 # to be present in every state and hidden with opacity, and that is what is checked.
 # a card behind a bare `if` reserves nothing in SwiftUI, and the CTA moves
-check("143 C/D card is hidden, not absent (swift)", ".opacity(mismatch ? 1 : 0)" in ver_sw)
+check("143 C/D card is hidden, not absent (swift)", ".opacity(mismatch || lockedOut ? 1 : 0)" in ver_sw)
 check("143 slots 49x62 (kotlin)", "49.dp" in ver_kt and "62.dp" in ver_kt)
 check("143 slots 49x62 (swift)", "49" in ver_sw and "62" in ver_sw)
 check("143 slots shrink to 44x56 (kotlin)", "44.dp" in ver_kt and "56.dp" in ver_kt)
 check("143 slots shrink to 44x56 (swift)", "44 : 49" in ver_sw and "56 : 62" in ver_sw)
-check("143 digit Lora 700 30 (kotlin)", "fontSize = 30.sp" in ver_kt)
+check("143 digit Lora 700 30 (kotlin)", "fontSize = 30.sp" in slots_kt)
 check("143 digit Lora 700 30 (swift)", "size: 30" in ver_sw)
-check("143 caret 2x28 (kotlin)", "width = 2.dp, height = 28.dp" in ver_kt)
+# 28 on this screen, 26 on the profile one -- each sheet's own number, carried by the halo flag.
+check("143 caret 2x28 (kotlin)", "if (halo) 26.dp else 28.dp" in slots_kt)
 check("143 caret 2x28 (swift)", "width: 2, height: 28" in ver_sw)
-check("143 mismatch wash 4% (kotlin)", "alpha = 0.04f" in ver_kt)
+check("143 mismatch wash 4% (kotlin)", "alpha = 0.04f" in slots_kt)
 check("143 mismatch wash 4% (swift)", "opacity(0.04)" in ver_sw)
 check("143 shake 480ms once (kotlin)", "480" in ver_kt)
 check("143 shake 480ms once (swift)", "0.48" in ver_sw)
 check("143 CTA disabled until 6 digits (kotlin)", "digits.length == 6" in ver_kt)
 check("143 CTA disabled until 6 digits (swift)", "digits.count == 6" in ver_sw)
-check("143 mismatch releases the cooldown (kotlin)", "mismatch || cooldownSeconds <= 0" in ver_kt)
-check("143 mismatch releases the cooldown (swift)", "mismatch || cooldownSeconds <= 0" in ver_sw)
+# Both failures release the cooldown, and lockout MUST: it is the only exit, so a countdown with
+# no working action would be a dead end. Added 10 September 2026 with the attempt cap.
+check("143 mismatch releases the cooldown (kotlin)",
+      "mismatch || lockedOut || cooldownSeconds <= 0" in ver_kt)
+check("143 mismatch releases the cooldown (swift)",
+      "mismatch || lockedOut || cooldownSeconds <= 0" in ver_sw)
+# Locked out is its own message, in the shared card -- not a louder mismatch.
+check("143 lockout has its own copy (kotlin)", "Too many tries. Send a new code." in ver_kt)
+check("143 lockout has its own copy (swift)", "Too many tries. Send a new code." in ver_sw)
+# The CTA cannot stay live against a code the server will refuse.
+check("143 lockout disables the CTA (kotlin)", "digits.length == 6 && !lockedOut" in ver_kt)
+check("143 lockout disables the CTA (swift)", "digits.count == 6 && !lockedOut" in ver_sw)
 check("143 slot row has an aria label (kotlin)", "Enter your 6-digit verification code" in ver_kt)
 check("143 slot row has an aria label (swift)", "Enter your 6-digit verification code" in ver_sw)
 # the keypad is a mock and must not be shipped
@@ -314,8 +416,22 @@ for label, src in [("kotlin", flag_kt), ("swift", flag_sw)]:
 # ── every named control is actually tappable ───────────────────────────────
 # SHOWUP-140: "Terms & Conditions, Privacy Policy, and Legal Notice are real tappable links"
 # and "each legal link has its own hit area". They were styled but inert on the first pass.
-check("140 CTA tappable (kotlin)", "PillButton(\"Register and date now\"" in start_kt)
-check("140 CTA tappable (swift)", "PillButton(\"Register and date now\"" in start_sw)
+# "Create free account", and it has now been changed away and back once, so the reason is here.
+#
+# SHOWUP-140 states the label outright -- "The CTA is `Create free account`" -- and again under
+# Tracking as "Click event: Create free account". The handoff's own ticket file and reference render
+# agree. And 140 settles precedence explicitly for exactly this situation:
+#
+#     The reference file wins on numbers.
+#     The ticket wins on behaviour, scope, and COPY.
+#     The PNG wins on nothing.
+#
+# It was briefly "Register and date now", taken from the ticket's user-story prose -- "so that I can
+# register and date now" -- and from the PNG, which wins on nothing. Narrative text in a user story
+# is not a button label. This is the third time copy has been lifted from the wrong section of a
+# ticket in this flow; the other two were the phone error messages and the eyebrow tone.
+check("140 CTA tappable (kotlin)", "PrimaryButton(\"Create free account\"" in start_kt)
+check("140 CTA tappable (swift)", "PrimaryButton(\"Create free account\"" in start_sw)
 check("140 Log in tappable (kotlin)", "onClick = onLogin" in start_kt)
 check("140 Log in tappable (swift)", "Button(action: onLogin)" in start_sw)
 for target in ("onTerms", "onPrivacy", "onLegalNotice"):
@@ -364,9 +480,10 @@ check("142 help + legal lines use the design token (swift)", back_sw.count(".liq
 # subtle, so this is not a blanket substitution.
 check("142 legal links stay fg-muted (kotlin)", "color = Muted" in back_kt)
 check("142 legal links stay fg-muted (swift)", ".liqMuted" in back_sw)
-# 143 has no reference file, so there is no design value to revert to. Its helper line, which is
-# the only thing that reports a validation failure, stays on the readable token.
-check("143 helper text stays readable (kotlin)", "else Muted" in ver_kt)
+# 143 has no reference file, so there is no design value to revert to. The CALM helper line stays
+# on the readable token -- it is advice, not a failure, and it keeps Muted now that the failure
+# has moved into the card. `color = Muted` unconditionally, where it used to be a ternary.
+check("143 helper text stays readable (kotlin)", "color = Muted" in ver_kt)
 check("143 helper text stays readable (swift)", ".liqMuted" in ver_sw)
 
 # ── copy, character for character ───────────────────────────────────────────
@@ -376,7 +493,7 @@ COPY = [
         "Start ", "meeting", " today.",
         "Your availability. Your intent. Your date — today or tomorrow.",
         "234.000 Dates", " already organized",
-        "Register and date now", "Already have an account? ", "Log in",
+        "Create free account", "Already have an account? ", "Log in",
         "Terms & Conditions", "Privacy Policy", "Legal Notice",
     ]),
     (back_kt_all, back_sw_all, [
@@ -438,7 +555,93 @@ check("142 default method is unknown (swift)", "var lastUsed: AuthMethod = .unkn
 check("142 no demo name survives as a default (kotlin)", 'name: String = "Leo"' not in back_kt)
 check("142 no demo name survives as a default (swift)", 'var name: String = "Leo"' not in back_sw)
 
-# The flow has to model "does this device remember anyone" as a real state, not leave it implied.
+# The cap is the server's, mirrored -- not a second rule invented on the client. If these ever
+# disagree with OTP_MAX_ATTEMPTS the client blocks at a different count than the backend does.
+policy_kt = read(KT, "api/OtpPolicy.kt")
+policy_sw = read(SW, "OtpPolicy.swift")
+check("143 attempt cap matches the server (kotlin)", "MAX_VERIFY_ATTEMPTS = 5" in policy_kt)
+check("143 attempt cap matches the server (swift)", "maxVerifyAttempts = 5" in policy_sw)
+
+# And it is mirrored ONCE. It was written down twice -- in the sign-up flow's DevAuth and again in
+# the profile flow -- which compiles perfectly and means raising the server's cap silently changes
+# the behaviour of one screen and not the other. These two checks are the only thing standing
+# between here and that state coming back; no compiler can see it.
+for name, body in (("kotlin", flow_kt), ("swift", flow_sw)):
+    check(f"143 the flow does not keep a second copy of the cap ({name})",
+          "MAX_VERIFY_ATTEMPTS = 5" not in body and "maxVerifyAttempts = 5" not in body)
+check("143 the resend window is mirrored once (kotlin)",
+      "RESEND_COOLDOWN_SECONDS = 60L" in policy_kt and "COOLDOWN_HINT" not in flow_kt)
+check("143 the resend window is mirrored once (swift)",
+      "resendCooldownSeconds = 60" in policy_sw and "resendCooldown = 60" not in flow_sw)
+
+# `afterMismatch` shipped as a constant false: it read a flag the flow set to false on resend and
+# never set to true anywhere. Nothing caught it -- both platforms compiled, 208 unit tests passed,
+# and the event fired with a plausible-looking payload. It is derived from the model's attempt
+# count now, which the server increments and `start` resets, so there is no flag to forget.
+check("143 afterMismatch is derived, not a flag the flow maintains (kotlin)",
+      "afterMismatch = verifyAttempts > 0" in flow_kt and "lastVerifyFailed" not in flow_kt)
+check("143 afterMismatch is derived, not a flag the flow maintains (swift)",
+      "afterMismatch: verifyAttempts > 0" in flow_sw and "lastVerifyFailed" not in flow_sw)
+
+# And the flow keeps no clock of its own. The model recomputes the countdown from the server's
+# resendAvailableAt, so a decrement here would fight it and win on a device that had been asleep.
+check("143 the flow does not decrement its own countdown (kotlin)", "cooldown--" not in flow_kt)
+check("143 the flow does not decrement its own countdown (swift)", "cooldown -= 1" not in flow_sw)
+
+# ── the two fit matrices are one matrix ─────────────────────────────────────
+#
+# Devices.kt and FitDevices.swift each list the seventeen phones the app has to fit on, because
+# neither toolchain can read the other's source. A copy nobody compares is a copy that drifts, and
+# a drifted row means one platform is measured on a phone the other never sees -- which is the
+# quiet version of "iOS was never measured at all".
+import re as _re
+
+def _rows(text, pattern):
+    return [tuple(m.groups()) for m in _re.finditer(pattern, text)]
+
+KT_FIT = os.path.join(ROOT, "android-preview-project/app/src/test/java/com/showup/fit")
+SW_FIT = os.path.join(ROOT, "ios-app/ShowUpWelcomeTests")
+
+_kt_devices = _rows(
+    read(KT_FIT, "Devices.kt"),
+    r'Device\("([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)')
+_sw_devices = _rows(
+    read(SW_FIT, "FitDevices.swift"),
+    r'FitDevice\(name: "([^"]+)", width: (\d+), height: (\d+), top: (\d+), bottom: (\d+)\)')
+
+check("fit matrix has all seventeen phones (kotlin)", len(_kt_devices) == 17)
+check("fit matrix has all seventeen phones (swift)", len(_sw_devices) == 17)
+check("the two fit matrices are the same seventeen phones", _kt_devices == _sw_devices)
+
+# ── the offline stand-in can never reach a release build ────────────────────
+#
+# DevOfflineAuth lets the whole sign-up flow be walked with no backend, which is why it exists and
+# also why it is the single most dangerous file in the flow: shipped, it would hand a real user a
+# session no server ever issued. Two things keep it out, and both are checked here rather than
+# trusted, because neither is visible at the call site.
+repo_kt = read(KT, "welcome/PhoneAuthRepository.kt")
+repo_sw = read(SW, "PhoneAuthRepository.swift")
+offline_kt = read(KT, "welcome/DevOfflineAuth.kt")
+offline_sw = read(SW, "DevOfflineAuth.swift")
+
+check("the offline stand-in is gated on a debug build (kotlin)",
+      "if (BuildConfig.DEBUG) DevOfflineAuth else null" in repo_kt)
+check("the offline stand-in is gated on a debug build (swift)",
+      "#if DEBUG" in repo_sw and "DevOfflineAuth.shared" in repo_sw)
+
+# It engages ONLY where nothing answered. A server that replies -- with any status -- must reach
+# the app untouched, or a backend outage would present as a cheerful offline session.
+check("the stand-in is reached only from the transport-failure path (kotlin)",
+      repo_kt.count("offline?.start") == 1 and repo_kt.count("offline?.verify") == 1)
+check("the stand-in is reached only from the transport-failure path (swift)",
+      repo_sw.count("await offline.start") == 1 and repo_sw.count("await offline.verify") == 1)
+
+# And it announces itself. A stand-in indistinguishable from a backend is how somebody demos a
+# broken integration and believes it works -- which is how the cleartext bug survived a day.
+for name, body in (("kotlin", flow_kt), ("swift", flow_sw)):
+    check(f"an offline code says so on screen ({name})", "OFFLINE" in body)
+check("the offline flag is carried on the result (kotlin)", "val offline: Boolean = false" in repo_kt)
+check("the offline flag is carried on the result (swift)", "offline: Bool = false" in repo_sw)
 check("the flow models a remembered account (kotlin)", "RememberedAccount" in flow_kt)
 check("the flow models a remembered account (swift)", "RememberedAccount" in flow_sw)
 check("no account means no name (kotlin)", "account?.name.orEmpty()" in flow_kt)

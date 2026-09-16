@@ -1,12 +1,13 @@
 {
   "name": "showup-backend",
   "version": "0.1.0",
-  "description": "ShowUp backend \u00e2\u20ac\u201d NestJS + PostgreSQL/PostGIS API for real-world dating.",
+  "description": "ShowUp backend â€” NestJS + PostgreSQL/PostGIS API for real-world dating.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "openapi:emit": "ts-node -P tsconfig.json scripts/emit-openapi.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

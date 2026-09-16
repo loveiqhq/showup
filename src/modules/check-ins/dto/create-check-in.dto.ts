@@ -24,7 +24,12 @@ export class CreateCheckInDto {
   @IsDateString()
   availabilityEnd: string;
 
+  // `type: 'integer'` only. The description says 15-60, but the validators are @IsOptional and
+  // @IsInt with no @Min or @Max -- so nothing enforces that range. Declaring minimum/maximum here
+  // would put a constraint in the contract that the server does not apply, and a generated client
+  // would then reject a value the backend accepts happily.
   @ApiPropertyOptional({
+    type: 'integer',
     example: 30,
     description:
       'Minutes the user needs to get ready before heading out (15–60). ' +

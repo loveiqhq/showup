@@ -13,25 +13,10 @@
  */
 package com.showup.tutorial
 
-interface AnalyticsTracker {
-    fun track(event: String, properties: Map<String, Any>)
-}
+// The tracker contract lives in com.showup.analytics so the welcome and sign-up
+// screens can use it without depending on this package.
+import com.showup.analytics.AnalyticsTracker
 
-object NoOpAnalytics : AnalyticsTracker {
-    override fun track(event: String, properties: Map<String, Any>) = Unit
-}
-
-/**
- * Names and properties for the tutorial flow.
- *
- * "Tutorial", deliberately not "onboarding" — onboarding is the separate flow where someone fills
- * in their profile. Conflating them makes the funnel unreadable later.
- *
- * Names follow the backend taxonomy: snake_case, `<noun>_<verb-ed>`, snake_case properties, no free
- * text and no personal data. The card number is a property rather than part of the event name, so
- * all six screens share these two events instead of inventing twelve — and "where do people drop
- * out of the tutorial?" stays one query grouped by `card`.
- */
 object TutorialAnalytics {
     const val CARD_VIEWED = "tutorial_card_viewed"
     const val CTA_TAPPED = "tutorial_cta_tapped"

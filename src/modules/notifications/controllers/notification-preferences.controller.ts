@@ -1,5 +1,10 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../users/entities/user.entity';
@@ -17,6 +22,7 @@ export class NotificationPreferencesController {
 
   /** The signed-in user's current notification preferences (created with defaults on first read). */
   @Get()
+  @ApiOperation({ operationId: 'getNotificationPreferences' })
   @ApiOkResponse({ type: NotificationPreferencesDto })
   async get(@CurrentUser() user: User): Promise<NotificationPreferencesDto> {
     return NotificationPreferencesDto.from(await this.prefs.ensure(user.id));
@@ -24,6 +30,7 @@ export class NotificationPreferencesController {
 
   /** Change which categories of message the user receives. */
   @Patch()
+  @ApiOperation({ operationId: 'updateNotificationPreferences' })
   @ApiOkResponse({ type: NotificationPreferencesDto })
   async update(
     @CurrentUser() user: User,

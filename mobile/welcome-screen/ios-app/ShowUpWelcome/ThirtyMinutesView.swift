@@ -41,7 +41,7 @@ struct ThirtyMinutesView: View {
             content: {
                 // ⑤ rule list — gap 12, rows wrap. No body paragraphs here: the slot is simply
                 // unused, so it reserves no height.
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     RuleRow(rule: "Low-pressure 30-minute dates", consequence: "quick, relaxed meetups to see if you click in real life")
                     RuleRow(rule: "30 minutes up", consequence: "stay if you’re vibing, or leave with a smile — no hard feelings")
                     RuleRow(rule: "Built-in icebreakers", consequence: "fun, easy prompts to keep the conversation flowing")

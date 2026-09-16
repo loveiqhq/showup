@@ -39,19 +39,20 @@ export class DiscoveryProfileDto {
   @ApiProperty()
   userId: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   displayName: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   gender: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   lookingFor: string | null;
 
   @ApiProperty({ description: 'Whether the profile is identity-verified' })
   verified: boolean;
 
   @ApiProperty({
+    type: 'integer',
     description: 'Distance from the viewer, rounded (never exact coordinates)',
   })
   distanceMeters: number;

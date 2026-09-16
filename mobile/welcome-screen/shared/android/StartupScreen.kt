@@ -141,7 +141,7 @@ fun StartupScreen(
             textAlign = TextAlign.Center,
         )
 
-        PillButton("Register and date now", onCreateAccount)
+        PillButton("Create free account", onCreateAccount)
         Spacer(Modifier.height(10.dp))
 
         // The reference's own hit area is ~31; the ticket requires at least 44 without changing the

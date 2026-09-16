@@ -19,6 +19,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tokens
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KT = os.path.join(ROOT, "android-preview-project/app/src/main/java/com/showup")
 SW = os.path.join(ROOT, "ios-app/ShowUpWelcome")
@@ -31,7 +34,15 @@ DQ = chr(0x22)
 
 
 def read(path):
-    return io.open(path, encoding="utf-8").read()
+    """The file, with design-token references expanded to the literals they hold.
+
+    The assertions below look for the NUMBERS a spec sheet specifies. Since the tokens landed those
+    numbers are written as `Spacing.screenGutter` and friends, so they are resolved here rather than
+    in each check -- which keeps every assertion checking a value instead of a name. See
+    audit/tokens.py for why that distinction matters.
+    """
+    raw = io.open(path, encoding="utf-8").read()
+    return tokens.expand(raw, swift=path.endswith(".swift"))
 
 
 def check(name, ok):
@@ -85,6 +96,21 @@ for name, byte, opacity in [
 kt = read(os.path.join(KT, "tutorial/TutorialShell.kt"))
 sw = read(os.path.join(SW, "TutorialShell.swift"))
 
+# The progress bar moved out of the tutorial's shell on 15 September 2026, when "The real you"
+# became the THIRD flow to use it -- a shared primitive sitting in a screen package that two other
+# packages reach into is the defect that produced three primary buttons. Nothing about the
+# component changed in the move, so the checks below read it where it lives now.
+progress_kt = read(os.path.join(KT, "designsystem/StepProgress.kt"))
+progress_sw = read(os.path.join(SW, "StepProgress.swift"))
+# The eyebrow pill moved out of the three screens into the design system on 8 September 2026.
+# code_only throughout below: StatusBadge documents the values it draws, so raw text would let
+# the comment about a number stand in for the number.
+badge_kt = read(os.path.join(KT, "designsystem/StatusBadge.kt"))
+badge_sw = read(os.path.join(SW, "StatusBadge.swift"))
+# The back control's tap floor moved into the design system on 8 September 2026.
+tap_kt = read(os.path.join(KT, "designsystem/TapTarget.kt"))
+tap_sw = read(os.path.join(SW, "TapTarget.swift"))
+
 # The fixed spacing every spec sheet repeats: gutter 24, pad-top 8, 24 / 14 / 28, nav 24.
 for label, kt_pat, sw_pat in [
     ("progress->eyebrow 24", "Spacer(Modifier.height(24.dp))", "Spacer().frame(height: 24)"),
@@ -99,21 +125,27 @@ check("pad-top 8 (kotlin)", "top = 8.dp" in kt)
 check("pad-top 8 (swift)", ".padding(.top, 8)" in sw)
 
 # progress bar
-check("progress h5 (kotlin)", "height(5.dp)" in kt)
-check("progress h5 (swift)", "frame(height: 5)" in sw)
-check("progress gap 6 (kotlin)", "spacedBy(6.dp)" in kt)
-check("progress gap 6 (swift)", "HStack(spacing: 6)" in sw)
+check("progress h5 (kotlin)", "height(5.dp)" in progress_kt)
+check("progress h5 (swift)", "frame(height: 5)" in progress_sw)
+# Both files write `Spacing.sm`, which `read` expands to the 6 the spec sheet states -- the point
+# of that expansion being that every assertion here checks a VALUE rather than a name.
+check("progress gap 6 (kotlin)", "spacedBy(6.dp)" in progress_kt)
+check("progress gap 6 (swift)", "HStack(spacing: 6)" in progress_sw)
 
 # eyebrow pill
-check("eyebrow 11 (kotlin)", "fontSize = 11.sp" in kt)
-check("eyebrow 11 (swift)", "manrope(11, .bold)" in sw)
-check("eyebrow tracking .08 (kotlin)", "0.08.em" in kt)
-check("eyebrow tracking .08 (swift)", "0.08 * 11" in sw)
-check("eyebrow pad 5/10 (kotlin)", "horizontal = 10.dp, vertical = 5.dp" in kt)
-check("eyebrow pad 5/10 (swift)", ".padding(.horizontal, 10)" in sw and ".padding(.vertical, 5)" in sw)
-check("eyebrow dot 5 (kotlin)", "size(5.dp)" in kt)
-check("eyebrow dot 5 (swift)", "width: 5, height: 5" in sw)
-check("eyebrow hug-width (kotlin)", "align(Alignment.Start)" in kt)
+check("eyebrow 11 (kotlin)", "fontSize = 11.sp" in code_only(badge_kt))
+check("eyebrow 11 (swift)", "manrope(11, .bold)" in code_only(badge_sw))
+check("eyebrow tracking .08 (kotlin)", "0.08.em" in code_only(badge_kt))
+check("eyebrow tracking .08 (swift)", "0.08 * 11" in code_only(badge_sw))
+check("eyebrow pad 5/10 (kotlin)", "horizontal = 10.dp, vertical = 5.dp" in code_only(badge_kt))
+check("eyebrow pad 5/10 (swift)",
+      ".padding(.horizontal, 10)" in code_only(badge_sw)
+      and ".padding(.vertical, 5)" in code_only(badge_sw))
+check("eyebrow dot 5 (kotlin)", "size(5.dp)" in code_only(badge_kt))
+check("eyebrow dot 5 (swift)", "width: 5, height: 5" in code_only(badge_sw))
+# The pill no longer aligns itself -- StatusBadge is alignment-agnostic so Connect can centre
+# it. So this asserts the CALL SITE still asks for Start, which is where it now lives.
+check("eyebrow hug-width (kotlin)", "align(Alignment.Start)" in code_only(kt))
 
 # rule row: 13 / 1.4 = 18.2, tracking -0.01em, dot 6 at offset 6, gap 9
 check("rule 13 (kotlin)", "fontSize = 13.sp" in kt)
@@ -135,8 +167,13 @@ if "fun StatementRow" in kt:
     check("statement has no negative tracking (kotlin)", "letterSpacing" not in body)
 
 # nav row / CTA
-check("CTA circle 56 (kotlin)", "size(56.dp)" in kt)
-check("CTA circle 56 (swift)", "width: 56, height: 56" in sw)
+# 56 is now the DEFAULT rather than a literal: "The real you" draws 52, and both of its reference
+# files say so, so the circle became a parameter whose default is IconSizes.badge. The 56 itself is
+# asserted where it is defined; what matters here is that the tutorial still takes the default.
+check("CTA circle 56 (kotlin)",
+      "circleSize: Dp = 56.dp" in kt and "size(circleSize)" in kt)
+check("CTA circle 56 (swift)",
+      "circleSize: CGFloat = 56" in sw and "width: circleSize" in sw)
 check("CTA gap 14 (kotlin)", "spacedBy(14.dp)" in kt)
 check("CTA gap 14 (swift)", "HStack(spacing: 14)" in sw)
 check("CTA label 17 (kotlin)", "fontSize = 17.sp" in kt)
@@ -188,15 +225,30 @@ check("no fixed-width underline survives (swift)", "underlineWidth" not in sw)
 # accessibility
 check("progress announced (kotlin)", "progressBarRangeInfo" in kt)
 check("progress announced (swift)", "accessibilityLabel" in sw)
-check("back 48dp target (kotlin)", "minWidth = 48.dp, minHeight = 48.dp" in kt)
-check("back 44pt target (swift)", "minWidth: 44, minHeight: 44" in sw)
+# The NUMBERS are unchanged and still asserted; only where they are written moved. The
+# asymmetry is deliberate and is why the floor is a parameter: Android's tutorial back passes
+# 48 (Material's minimum), iOS's takes the 44 default (Apple's HIG).
+check("back 48dp target (kotlin)", "minTapTarget(48.dp)" in code_only(kt))
+check("back 44pt target (swift)", "minTapTarget()" in code_only(sw))
+# The floor can be raised and NOT lowered. Asserted against the expanded literal, so redefining
+# ComponentSizes.minTapTarget to something smaller fails this rather than renaming past it.
+check("tap floor clamps upward (kotlin)",
+      "if (min > 44.dp) min else 44.dp" in code_only(tap_kt))
+check("tap floor clamps upward (swift)",
+      "Swift.max(min, 44)" in code_only(tap_sw))
+# contentShape is the half people forget: without it only the glyph takes the touch, whatever
+# frame it was given.
+check("tap area actually takes the touch (swift)", "contentShape(Rectangle())" in code_only(tap_sw))
 check("button role (kotlin)", "Role.Button" in kt)
 check("button trait (swift)", ".isButton" in sw)
 check("art decorative (kotlin)", "clearAndSetSemantics" in kt)
 check("art decorative (swift)", "accessibilityHidden(true)" in sw)
 
 # reduce-motion honoured on both platforms
-check("reduce-motion (kotlin)", "ANIMATOR_DURATION_SCALE" in kt)
+# rememberMotion moved from tutorial/ into designsystem/ with the button on 7 September 2026,
+# and its type was renamed MotionPreference so it stops colliding with the Motion durations.
+check("reduce-motion (kotlin)", "ANIMATOR_DURATION_SCALE"
+      in read(os.path.join(KT, "designsystem/MotionPreference.kt")))
 check("reduce-motion (swift)", "accessibilityReduceMotion" in sw)
 
 # ------------------------------------------------------------------ per-card values

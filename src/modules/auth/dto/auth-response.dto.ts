@@ -12,7 +12,10 @@ export class AuthResponseDto {
   @ApiProperty({ example: 'Bearer' })
   tokenType: string;
 
-  @ApiProperty({ description: 'Access-token lifetime in seconds' })
+  @ApiProperty({
+    type: 'integer',
+    description: 'Access-token lifetime in seconds',
+  })
   expiresIn: number;
 
   @ApiProperty({ type: UserDto })

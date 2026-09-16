@@ -8,7 +8,14 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -37,6 +44,7 @@ export class SafetyController {
 
   /** Block another user. Idempotent; you cannot block yourself. */
   @Post('blocks')
+  @ApiOperation({ operationId: 'blockUser' })
   @ApiOkResponse({ type: BlockDto })
   async block(
     @CurrentUser() user: User,
@@ -47,6 +55,7 @@ export class SafetyController {
 
   /** Lift a block. Idempotent — a no-op if there is no active block. */
   @Delete('blocks/:targetUserId')
+  @ApiOperation({ operationId: 'unblockUser' })
   @HttpCode(204)
   async unblock(
     @CurrentUser() user: User,
@@ -57,6 +66,7 @@ export class SafetyController {
 
   /** The active blocks the user has in place. */
   @Get('me/blocks')
+  @ApiOperation({ operationId: 'listBlocks' })
   @ApiOkResponse({ type: [BlockDto] })
   async myBlocks(@CurrentUser() user: User): Promise<BlockDto[]> {
     const blocks = await this.safety.listBlocks(user.id);
@@ -65,6 +75,7 @@ export class SafetyController {
 
   /** Report another user with a reason. The reason must be valid for where it's made from. */
   @Post('reports')
+  @ApiOperation({ operationId: 'reportUser' })
   @ApiOkResponse({ type: ReportDto })
   async report(
     @CurrentUser() user: User,
@@ -75,6 +86,7 @@ export class SafetyController {
 
   /** Run a selfie-verification attempt (consent required). */
   @Post('me/verification')
+  @ApiOperation({ operationId: 'submitSelfieVerification' })
   @ApiOkResponse({ type: VerificationDto })
   async verify(
     @CurrentUser() user: User,
@@ -87,7 +99,16 @@ export class SafetyController {
 
   /** The user's most recent verification result, or null if they have never tried. */
   @Get('me/verification')
-  @ApiOkResponse({ type: VerificationDto })
+  @ApiOperation({ operationId: 'getSelfieVerification' })
+  @ApiExtraModels(VerificationDto)
+  @ApiOkResponse({
+    description:
+      'The most recent verification attempt, or null if there has never been one.',
+    schema: {
+      allOf: [{ $ref: getSchemaPath(VerificationDto) }],
+      nullable: true,
+    },
+  })
   async myVerification(
     @CurrentUser() user: User,
   ): Promise<VerificationDto | null> {

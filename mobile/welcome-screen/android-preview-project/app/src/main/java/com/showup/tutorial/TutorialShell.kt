@@ -15,6 +15,15 @@
  */
 package com.showup.tutorial
 
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.shadow
+
+import com.showup.designsystem.rememberMotion
+
+import com.showup.designsystem.IconSizes
+import com.showup.designsystem.Spacing
+import com.showup.designsystem.StepProgress
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
@@ -26,13 +35,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -40,7 +46,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -48,7 +53,6 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
-import android.provider.Settings
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.animateColorAsState
@@ -64,7 +68,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.welcome.ctaGlow
-import com.showup.designsystem.EyebrowBg
+import com.showup.designsystem.BadgeTone
+import com.showup.designsystem.minTapTarget
+import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.Faint
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
@@ -72,47 +78,6 @@ import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Subtle
 import com.showup.designsystem.Track
-
-/**
- * ② Step progress — 5 segments, height 5, gap 6, full content width.
- *
- * The segment colour animates rather than snapping, so advancing a card reads as progress being
- * made rather than as the bar being redrawn. It is one colour tween per segment, which costs
- * nothing and is skipped entirely when the device asks for no motion.
- *
- * Semantics: the bar is one node reporting "Step N of 5", not five anonymous boxes. Without this a
- * screen reader announces nothing at all here — the segments carry no text.
- */
-@Composable
-fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
-    val motion = rememberMotion()
-    Row(
-        modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                progressBarRangeInfo =
-                    ProgressBarRangeInfo(current.toFloat(), 0f..steps.toFloat(), steps)
-                contentDescription = "Step " + current + " of " + steps
-            },
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        repeat(steps) { i ->
-            val target = if (i < current) Purple else Track
-            val segment by animateColorAsState(
-                targetValue = target,
-                animationSpec = tween(durationMillis = if (motion.enabled) 320 else 0),
-                label = "segment",
-            )
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(5.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(segment)
-            )
-        }
-    }
-}
 
 /**
  * ③ Eyebrow pill — Manrope 700 / 11 / uppercase, tracking .08, padding 5/10.
@@ -132,26 +97,6 @@ fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
  * spends a minute on it rather than an afternoon. Changing it means overruling the spec text, which
  * is the product side's call and is recorded in audit/CONFLICTS-2026-08-27.md as A10.
  */
-@Composable
-fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .align(Alignment.Start)
-            .clip(RoundedCornerShape(50))
-            .background(EyebrowBg)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            text.uppercase(),
-            color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-            fontSize = 11.sp, lineHeight = 13.sp, letterSpacing = 0.08.em,
-        )
-    }
-}
-
 /**
  * Which circle the nav row's forward action wears.
  *
@@ -161,35 +106,13 @@ fun ColumnScope.EyebrowPill(text: String, modifier: Modifier = Modifier) {
 enum class NextVariant { Orange, Sunset }
 
 /**
- * Whether this device wants motion.
- *
- * Android has no single "reduce motion" flag. The honest signal is the system animator duration
- * scale, which the OS sets to 0 when someone turns animations off — either in Accessibility >
- * Remove animations, or in Developer options. Respecting it keeps the flow usable for people who
- * get motion sick, and has the useful side effect of holding the screens still under UI tests.
- */
-@Immutable
-data class Motion(val enabled: Boolean)
-
-@Composable
-fun rememberMotion(): Motion {
-    val context = LocalContext.current
-    return remember(context) {
-        val scale = runCatching {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
-        }.getOrDefault(1f)
-        Motion(enabled = scale > 0f)
-    }
-}
-
-/**
  * The spec's arrow — a 2px stroke with round caps, not a filled glyph.
  *
  * Material's `Icons.AutoMirrored.Filled.ArrowForward` is a solid shape with a different silhouette;
  * at 56dp against a saturated circle the difference is plainly visible, so the arrow is drawn.
  */
 @Composable
-private fun ArrowRight(size: Dp) {
+fun ArrowRight(size: Dp) {
     Canvas(Modifier.size(size)) {
         val s = this.size.width
         val midY = this.size.height / 2f
@@ -222,6 +145,25 @@ fun NextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     variant: NextVariant = NextVariant.Orange,
+    /**
+     * The arrow inside the circle.
+     *
+     * Defaults to what the tutorial has always drawn -- 22 on the terminal sunset card, 20 on the
+     * rest -- so nothing about those screens moves. It is a parameter because the profile flow's
+     * spec draws 22 with the ORANGE circle, which the variant alone cannot express: arrow size and
+     * circle treatment turn out to be independent, and coupling them was a coincidence of the
+     * tutorial being the only caller.
+     */
+    arrowSize: Dp = if (variant == NextVariant.Sunset) 22.dp else 20.dp,
+    /**
+     * The circle around the arrow.
+     *
+     * 56 on every tutorial card and every screen in "The basics", which is where the default comes
+     * from. "The real you" draws 52 -- both of its reference files pass `size={52}` -- because
+     * those screens scroll and their footer is a band over the content rather than the end of a
+     * column, so the same circle reads heavier there.
+     */
+    circleSize: Dp = IconSizes.badge,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -256,7 +198,7 @@ fun NextButton(
                 // where the control happens to sit on screen, and this circle lives at the right
                 // edge, which threw its glow down and to the LEFT. The token is a glow: no light
                 // source, no direction, spread evenly and pushed straight down.
-                .size(56.dp)
+                .size(circleSize)
                 .ctaGlow(glow)
                 .clip(CircleShape)
                 .then(
@@ -274,7 +216,7 @@ fun NextButton(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            ArrowRight(size = if (variant == NextVariant.Sunset) 22.dp else 20.dp)
+            ArrowRight(size = arrowSize)
         }
     }
 }
@@ -289,7 +231,7 @@ fun NextButton(
 fun RuleRow(rule: String, consequence: String, wraps: Boolean = true) {
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
         // 6dp dot, offset 6 from the top so it sits on the first line's optical centre
-        Box(Modifier.padding(top = 6.dp).size(6.dp).background(Orange, CircleShape))
+        Box(Modifier.padding(top = Spacing.sm).size(6.dp).background(Orange, CircleShape))
         Text(
             buildAnnotatedString {
                 append(rule)
@@ -312,7 +254,7 @@ fun RuleRow(rule: String, consequence: String, wraps: Boolean = true) {
  */
 @Composable
 fun StatementRow(text: String) {
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         Box(Modifier.padding(top = 7.dp).size(7.dp).background(Orange, CircleShape))
         Text(
             text, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
@@ -358,12 +300,12 @@ fun TutorialShell(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 // ① content region: pad-top 8 below the safe-area inset, gutter 24, floor 0
-                .padding(start = 24.dp, end = 24.dp, top = 8.dp),
+                .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = Spacing.md),
         ) {
             StepProgress(totalSteps, step)
             Spacer(Modifier.height(24.dp))          // progress -> eyebrow
 
-            EyebrowPill(eyebrow)
+            StatusBadge(eyebrow, Modifier.align(Alignment.Start), BadgeTone.Lavender)
             Spacer(Modifier.height(14.dp))          // eyebrow -> headline
 
             // ④ headline + the underline accent. Every card's AC asks for it; only the Welcome
@@ -404,7 +346,10 @@ fun TutorialShell(
                 // reader does not announce a "Back" that cannot be pressed.
                 Box(
                     Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        // 48 rather than the shared 44: Material's floor, which this control has
+                        // always used. Passed explicitly because minTapTarget clamps upward only,
+                        // so this raises the floor and cannot lower it.
+                        .minTapTarget(48.dp)
                         .then(
                             if (showBack) Modifier
                                 .clip(RoundedCornerShape(50))
