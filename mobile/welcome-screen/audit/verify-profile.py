@@ -573,7 +573,7 @@ for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
           "Swipe" in text or ".swipe" in text)
 check("158 the Android back gesture closes the sheet", "BackHandler" in prompts_kt)
 check("158 swipe has a threshold (kotlin)", "SWIPE_DISMISS_PX" in prompts_kt)
-check("158 swipe has a threshold (swift)", "swipeDismiss" in prompts_sw)
+check("158 swipe has a threshold (swift)", "sheetSwipeDismiss" in prompts_sw)
 
 # ── both screens · Continue is never disabled ───────────────────────────────
 #

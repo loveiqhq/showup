@@ -343,6 +343,17 @@ private struct SheetCloseButton: View {
 ///
 /// `sheet-rise` is 28 up and 0.85 → 1 opacity over `Motion.sheet` — a shared keyframe, not a
 /// per-sheet animation, and skipped entirely when the device asks for no motion.
+/// How far a sheet has to be pushed down before letting go dismisses it.
+///
+/// A thumb's travel: far enough that a scroll inside the sheet cannot trigger it by accident, near
+/// enough that the gesture does not feel resisted. Local rather than a token -- it is this
+/// gesture's threshold and nothing else's, and `Spacing` holds no value meaning "a deliberate
+/// drag".
+///
+/// AT FILE SCOPE, not inside `SheetScaffold`: that type is generic over its content, and Swift has
+/// no storage for a static on a generic type.
+private let sheetSwipeDismiss: CGFloat = 120
+
 private struct SheetScaffold<Content: View>: View {
     let onDismiss: (SheetDismissMethod) -> Void
     @ViewBuilder let content: () -> Content
@@ -357,10 +368,6 @@ private struct SheetScaffold<Content: View>: View {
     @State private var drag: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// A thumb's travel: far enough that a scroll inside the sheet cannot trigger it by accident,
-    /// near enough that the gesture does not feel resisted. Local, because it is this gesture's
-    /// threshold and nothing else's.
-    private static let swipeDismiss: CGFloat = 120
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -384,7 +391,7 @@ private struct SheetScaffold<Content: View>: View {
                         // by a top offset.
                         .onChanged { drag = max(0, $0.translation.height) }
                         .onEnded { value in
-                            if value.translation.height > Self.swipeDismiss {
+                            if value.translation.height > sheetSwipeDismiss {
                                 onDismiss(.swipe)
                             }
                             drag = 0
