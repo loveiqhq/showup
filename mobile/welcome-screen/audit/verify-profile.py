@@ -547,6 +547,26 @@ for label, text in (("kotlin", analytics_kt), ("swift", analytics_sw)):
     # `prompt_count` on the accepted Continue -- 1 to 3, screen-scoped.
     check("158 prompt_count on step completed (%s)" % label, '"prompt_count"' in text)
 
+# THE TESTS PIN THE REGISTRY TOO, and that is where this bit twice.
+#
+# The source files were corrected to 1.4.2 and the SWIFT tests still asserted 1.3.0 and
+# "Profile - Prompts" -- so the Kotlin suite went green locally, the Swift suite failed on a macOS
+# runner ten minutes later, and the only thing that knew were the assertions themselves. A version
+# string pinned in a test is as much a declaration of the vocabulary as the constant it checks.
+KT_TESTS = os.path.join(MOBILE, "android-preview-project", "app", "src", "test", "java",
+                        "com", "showup", "profile")
+SW_TESTS = os.path.join(MOBILE, "ios-app", "ShowUpWelcomeTests")
+for label, folder in (("kotlin", KT_TESTS), ("swift", SW_TESTS)):
+    if not os.path.isdir(folder):
+        continue
+    for fn in sorted(os.listdir(folder)):
+        if not fn.endswith((".kt", ".swift")):
+            continue
+        body = code_only(io.open(os.path.join(folder, fn), encoding="utf-8").read())
+        check("158 %s pins no stale registry (%s)" % (fn, label), '"1.3.0"' not in body)
+        check("158 %s pins no stale screen_name (%s)" % (fn, label),
+              '"Profile - Prompts"' not in body)
+
 for label, text in (("kotlin", prompts_vm_kt), ("swift", prompts_vm_sw)):
     # THE COUNTER IS NOT RESET BY A SHEET. It lives in the persisted state, so neither a sheet
     # closing nor a process death restarts it.

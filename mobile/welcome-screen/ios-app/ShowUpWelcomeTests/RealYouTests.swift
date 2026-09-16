@@ -419,7 +419,9 @@ final class RealYouStepTests: XCTestCase {
         XCTAssertEqual(photos["screen_name"] as? String, "ProfilePhotos")
         let (_, prompts) = ProfileAnalytics.screenViewed(.prompts)
         XCTAssertEqual(prompts["screen_id"] as? String, "profile_prompts")
-        XCTAssertEqual(prompts["screen_name"] as? String, "Profile - Prompts")
+        // 11 says ProfilePrompts. It said "Profile - Prompts" until 16 September 2026, which is a
+        // label nobody searching the analytics tool would have found.
+        XCTAssertEqual(prompts["screen_name"] as? String, "ProfilePrompts")
     }
 
     func testNoPhotoPayloadCarriesAFilenameOrAUri() {

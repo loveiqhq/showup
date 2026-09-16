@@ -37,12 +37,20 @@ final class ProfileAnalyticsTests: XCTestCase {
     }
 
     func testTheFieldRegistryVersionMatchesTheBundleThatDefinedTheVocabulary() {
-        // enums.json bumped 1.2.0 -> 1.3.0 when the identifiers were corrected. Stamping the old
-        // string would claim a vocabulary these payloads are not using.
-        XCTAssertEqual(Stamp.fieldRegistryVersion, "1.3.0")
+        // enums.json bumped 1.2.0 -> 1.3.0 when the identifiers were corrected, and 1.3.1 ->
+        // 1.4.2 on 16 September 2026, which unified `dismiss_method` across every bottom sheet,
+        // added the `prompts_below_minimum` rule, scoped `prompt_topic_selected` to suggestion and
+        // browse, and re-verified `prompts` at step_index 2. Stamping the old string would claim a
+        // vocabulary these payloads are not using — and this test is the thing that noticed, which
+        // is exactly what it is for.
+        XCTAssertEqual(Stamp.fieldRegistryVersion, "1.4.2")
     }
 
     // MARK: - consent_changed, unblocked by registry 1.3.0
+    //
+    // The unblocking was 1.3.0's; the stamp on the payload is whatever the CURRENT bundle is, and
+    // those are two different facts. A test that pinned the stamp to the version that unblocked
+    // the event would fail on every later bump for no reason.
 
     func testConsentUsesTheMarketingEmailChannelNotEmail() {
         // One address, three uses. "email" is the Stay reachable toggle about match contact;
@@ -69,7 +77,7 @@ final class ProfileAnalyticsTests: XCTestCase {
     func testConsentIsAClassOneAttributeEvent() {
         let (_, payload) = ProfileAnalytics.consentChanged(on: true)
         XCTAssertEqual(payload["sensitivity_class"] as? Int, 1)
-        XCTAssertEqual(payload["field_registry_version"] as? String, "1.3.0")
+        XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.2")
     }
 
     // MARK: - the rule the ticket calls a bug to break
