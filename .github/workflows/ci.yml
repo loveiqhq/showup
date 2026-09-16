@@ -371,6 +371,7 @@ jobs:
 
       - name: Report how far staging is behind development
         env:
+          GH_TOKEN: ${{ github.token }}
           # The number of commits that may sit on development unpromoted before this is worth
           # somebody's attention. Not zero: development is meant to run ahead, and a job that
           # failed on the first unpromoted commit would be noise that gets switched off. Ten is
@@ -393,15 +394,24 @@ jobs:
           # directory. It is the root here and the job was never wrong -- but a pathspec that
           # silently matches NOTHING when read from a subdirectory is precisely the class of
           # quiet-wrong this job exists to catch.
-          added=$(git diff --name-only origin/staging..origin/development \
-            -- ':(top)mobile/welcome-screen/**' | wc -l)
+          added=$(git diff --name-only origin/staging..origin/development             -- ':(top)mobile/welcome-screen/**' | wc -l)
           echo "$behind commits and $added mobile files are on development and not on staging."
+
+          # A PROMOTION ALREADY IN FLIGHT IS NOT DRIFT THAT NEEDS CHASING, and failing here when
+          # one is open is worse than useless: the failure lands on development's head commit,
+          # which is the promotion PR's own head, so the guard blocks the exact merge that fixes
+          # the condition it is complaining about. That catch-22 was real and was hit on the first
+          # promotion after this job was added.
+          open_pr=$(gh pr list --base staging --head development --state open             --json number --jq 'length' || echo 0)
+          if [ "$open_pr" -gt 0 ]; then
+            echo "::notice::A promotion to staging is already open. Nothing to chase."
+            exit 0
+          fi
+
           echo "Anyone testing a zip built from staging is testing an older app."
 
           if [ "$behind" -gt "$MAX_BEHIND" ]; then
-            echo "::error::staging is $behind commits behind development. \
-          Promote development -> staging before the next PO acceptance session, \
-          or a tester will run a build without the newest screens in it."
+            echo "::error::staging is $behind commits behind development.           Open a promotion development -> staging before the next PO acceptance session,           or a tester will run a build without the newest screens in it."
             exit 1
           fi
 
