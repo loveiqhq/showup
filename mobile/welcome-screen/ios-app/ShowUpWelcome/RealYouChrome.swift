@@ -19,6 +19,10 @@ enum RealYouCopy {
 /// `media` is declared and not built. It is here because `count` has to be 3 rather than 2 — the
 /// progress bar shows a step the user has not reached yet, which is the whole point of a progress
 /// bar — and because declaring it is how the count and the last segment stay in agreement.
+///
+/// CONFIRMED BY THE PRODUCT SIDE ON 16 SEPTEMBER 2026: media is planned and arrives in a later
+/// ticket. The third segment is not speculative and must not be dropped to make the bar match the
+/// screens that exist today — see `audit/CONFLICTS-2026-08-27.md` E8.
 enum RealYouStep: String, CaseIterable {
     case photos
     case prompts
@@ -56,6 +60,10 @@ enum RealYouStep: String, CaseIterable {
     ///
     /// THREE, not four. `ScreenProfileVerify` was dropped from the MVP with SHOWUP-158 and gets no
     /// segment. If it returns, this constant changes and nothing else does.
+    ///
+    /// And three, not two: media is a later ticket, confirmed 16 September 2026. Nothing routes to
+    /// `.media` and `resumePoint` has no case for it, so the unbuilt step costs a segment and
+    /// nothing else.
     static let count = 3
 }
 
