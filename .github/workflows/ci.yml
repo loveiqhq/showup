@@ -339,3 +339,65 @@ jobs:
             mobile/welcome-screen/ios-app/ios-results.xcresult
             mobile/welcome-screen/ios-app/xcodebuild-raw.log
           retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # The acceptance branch cannot be silently stale.
+  #
+  # ADDED 16 SEPTEMBER 2026, after the whole profile-creation flow -- seven screens, 98 commits --
+  # sat on `development` while `staging` still pointed at the commit `main` did. The PO downloaded
+  # a zip from staging, ran it, and after the tutorial landed on "The app starts here" because the
+  # profile package did not exist on that branch at all.
+  #
+  # NOTHING WAS BROKEN AND EVERY GATE WAS GREEN, which is the point. CI has always run on the
+  # branch under test, so a stale acceptance branch produces a passing pipeline and the wrong app
+  # at the same time. The drift is only visible by comparing two branches, and nothing compared
+  # them.
+  #
+  # This does NOT fail a pull request: it runs only on pushes to the long-lived branches, so a
+  # feature branch is never blocked by how far behind staging happens to be. It is a standing
+  # reminder aimed at whoever promotes, not a gate on whoever is coding.
+  staging-drift:
+    name: Acceptance branch is not stale
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+        with:
+          # Both branches, with enough history to count between them. A shallow clone cannot
+          # answer "how far behind" at all.
+          fetch-depth: 0
+
+      - name: Report how far staging is behind development
+        env:
+          # The number of commits that may sit on development unpromoted before this is worth
+          # somebody's attention. Not zero: development is meant to run ahead, and a job that
+          # failed on the first unpromoted commit would be noise that gets switched off. Ten is
+          # roughly a sprint's worth of merged pull requests.
+          MAX_BEHIND: 10
+        run: |
+          set -euo pipefail
+          git fetch origin staging --quiet
+          behind=$(git rev-list --count origin/staging..origin/development)
+          echo "staging is $behind commits behind development (threshold: $MAX_BEHIND)"
+
+          if [ "$behind" -eq 0 ]; then
+            echo "Nothing unpromoted."
+            exit 0
+          fi
+
+          # The screens are what a PO actually notices, so name them rather than only the count.
+          added=$(git diff --name-only origin/staging..origin/development \
+            -- 'mobile/welcome-screen/**' | wc -l)
+          echo "$behind commits and $added mobile files are on development and not on staging."
+          echo "Anyone testing a zip built from staging is testing an older app."
+
+          if [ "$behind" -gt "$MAX_BEHIND" ]; then
+            echo "::error::staging is $behind commits behind development. \
+          Promote development -> staging before the next PO acceptance session, \
+          or a tester will run a build without the newest screens in it."
+            exit 1
+          fi
+
+          echo "::warning::staging is $behind commits behind development."
