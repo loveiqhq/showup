@@ -4,10 +4,11 @@
 //
 //  The Swift port of `profile/PromptTopics.kt`. Read that file's header for the argument.
 //
-//  THE IDS ARE ASSIGNED, NOT DERIVED. A slug computed from the display string would change with a
-//  copy edit and orphan every answer saved under the old one. `prompt_id` is built from them:
-//  §5's prose says "prompt_id is topic_id plus the slot it occupies — match_me_if_you__slot2 — so
-//  a topic moved between slots stays traceable".
+//  THE IDS ARE THE REGISTRY'S, NOT OURS — corrected 16 September 2026. A slug computed from the
+//  display string would change with a copy edit and orphan every answer saved under the old one,
+//  so ids are assigned once and never recomputed; the mistake was assigning them HERE. §17 of
+//  `enums.json` is the dictionary and carries `topic_group` too. Six ids were invented against
+//  registry 1.3.0, which had no §17, and six were wrong. The Kotlin header lists them.
 //
 
 import Foundation
@@ -19,8 +20,12 @@ struct PromptTopic: Identifiable, Equatable {
 }
 
 /// Five topics under a name that answers "what kind of thing do you want to say".
+///
+/// `id` is §17's `topic_group` and travels on `prompt_topic_selected` and `prompt_saved`; `label`
+/// is what the browse sheet draws. Two fields rather than one because the label is copy and the id
+/// is a key, and the whole point of the dictionary is that copy can change without moving a row.
 struct TopicGroup: Identifiable, Equatable {
-    var id: String { label }
+    let id: String
     let label: String
     let topics: [PromptTopic]
 }
@@ -45,21 +50,21 @@ let promptsRequired = 1
 ///
 /// GROUPING IS THE WHOLE POINT. "A flat 15 is a scroll, three groups of five is a scan."
 let topicGroups: [TopicGroup] = [
-    TopicGroup(label: "Dating me", topics: [
-        PromptTopic(id: "first_date", text: "On a first date, I usually…"),
+    TopicGroup(id: "dating_me", label: "Dating me", topics: [
+        PromptTopic(id: "first_date_usually", text: "On a first date, I usually…"),
         PromptTopic(id: "out_the_door", text: "The easiest way to get me out the door is…"),
-        PromptTopic(id: "ideal_thirty", text: "My ideal 30-minute date looks like…"),
-        PromptTopic(id: "cross_town", text: "I'd cross town for…"),
-        PromptTopic(id: "spontaneous", text: "A spontaneous plan with me usually involves…"),
+        PromptTopic(id: "ideal_30_min", text: "My ideal 30-minute date looks like…"),
+        PromptTopic(id: "cross_town_for", text: "I'd cross town for…"),
+        PromptTopic(id: "spontaneous_plan", text: "A spontaneous plan with me usually involves…"),
     ]),
-    TopicGroup(label: "Me in real life", topics: [
-        PromptTopic(id: "thirty_feels", text: "What 30 minutes with me feels like…"),
-        PromptTopic(id: "real_life_more", text: "In real life, I'm way more…"),
+    TopicGroup(id: "real_life", label: "Me in real life", topics: [
+        PromptTopic(id: "thirty_min_feels", text: "What 30 minutes with me feels like…"),
+        PromptTopic(id: "in_real_life_more", text: "In real life, I'm way more…"),
         PromptTopic(id: "unsexy_truth", text: "The unsexy truth about me is…"),
         PromptTopic(id: "sunday_energy", text: "My default Sunday energy is…"),
         PromptTopic(id: "weird_habit", text: "A weird or specific habit of mine…"),
     ]),
-    TopicGroup(label: "Opinions & obsessions", topics: [
+    TopicGroup(id: "opinions", label: "Opinions & obsessions", topics: [
         PromptTopic(id: "talk_for_hours", text: "I'll talk for hours about…"),
         PromptTopic(id: "know_too_much", text: "A random topic I know way too much about…"),
         PromptTopic(id: "hill_to_die_on", text: "The hill I'm willing to die on…"),
@@ -75,26 +80,26 @@ let promptTopics: [PromptTopic] = topicGroups.flatMap(\.topics)
 ///
 /// One from each group, and deliberately the three easiest to answer without thinking: "the job of
 /// a suggestion is to be answerable, not to be the best topic".
-let suggestedTopicIds = ["first_date", "weird_habit", "talk_for_hours"]
+let suggestedTopicIds = ["first_date_usually", "weird_habit", "talk_for_hours"]
 
 /// One worked example per topic.
 ///
 /// SHORT ON PURPOSE. Every one is under 120 characters, so the example itself says "this length is
 /// fine". An example that filled the box would undo the floor framing the whole revision is about.
 let promptExamples: [String: String] = [
-    "first_date":
+    "first_date_usually":
         "…talk too fast about something I care about, then apologise for it. Don't let me apologise.",
     "out_the_door":
         "…say the words \"there's a table free at 7\". I'll be there at 6:55.",
-    "ideal_thirty":
+    "ideal_30_min":
         "Coffee, a bench, and the good half of a conversation. No menus, no agenda.",
-    "cross_town":
+    "cross_town_for":
         "A proper conversation. An old cinema. The 8pm walk after a long day.",
-    "spontaneous":
+    "spontaneous_plan":
         "A train, a vague idea of a destination, and somewhere that does chips.",
-    "thirty_feels":
+    "thirty_min_feels":
         "Fast. I ask a lot of questions and I actually wait for the answers.",
-    "real_life_more":
+    "in_real_life_more":
         "…quiet at the start and much louder by minute ten. Give me the ten.",
     "unsexy_truth":
         "I go to bed at 10 and I'm not sorry. Breakfast dates are my best work.",
@@ -130,13 +135,32 @@ struct SavedPrompt: Identifiable, Equatable, Codable {
     let answer: String
 }
 
-/// `prompt_id` for the tracking registry.
+/// Which group a topic belongs to, as §17 spells it.
 ///
-/// Topic id plus the slot it occupies. Slots are numbered from one, because the value appears in
-/// analytics rather than in code and "slot0" reads as a missing value to everybody who is not a
-/// programmer. THE ANSWER IS NEVER PART OF IT and never travels at all — only `char_count` and
-/// `at_char_limit`.
-func promptId(topicId: String, slot: Int) -> String { "\(topicId)__slot\(slot + 1)" }
+/// Looked up rather than stored on `PromptTopic`, so the grouping has exactly one definition —
+/// `topicGroups` — and a topic cannot end up claiming a group it is not listed under.
+func topicGroupFor(_ id: String) -> String {
+    topicGroups.first { $0.topics.contains { $0.id == id } }?.id ?? ""
+}
+
+/// The bucket an answer's length falls in, per §19.
+///
+/// NEVER THE TEXT. These are sentences a user wrote about themselves for a public profile, and the
+/// registry's note is blunt about it: they have no business in the analytics pipeline. The buckets
+/// exist to answer one question — whether framing the field with a floor instead of a 0/160
+/// ceiling moved what people write.
+///
+/// "0" is only ever a DRAFT length: `prompt_saved` cannot carry it, because an empty answer is
+/// refused before it gets that far.
+func promptLengthBucket(_ length: Int) -> String {
+    switch length {
+    case ..<1: return "0"
+    case ..<41: return "1_40"
+    case ..<81: return "41_80"
+    case ..<121: return "81_120"
+    default: return "121_160"
+    }
+}
 
 /// Which topics to suggest, given what is already used.
 ///

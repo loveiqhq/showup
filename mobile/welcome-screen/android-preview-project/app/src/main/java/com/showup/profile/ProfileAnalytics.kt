@@ -87,7 +87,7 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
      * the single place to correct. Recorded rather than silently invented, which is the rule the
      * tracking sections state twice.
      */
-    Prompts("profile_prompts", "Profile - Prompts"),
+    Prompts("profile_prompts", "ProfilePrompts"),
 }
 
 /**
@@ -116,6 +116,69 @@ object ProfileField {
 }
 
 /**
+ * `entry_point` from the registry's 18, in full.
+ *
+ * HOW THE USER ARRIVED AT A TOPIC, and the measurement the whole conversion pass exists to
+ * produce: `suggestion` is one of the three cards on the screen, `browse` is the fifteen-topic
+ * sheet, `edit` is reopening a prompt already written. A closed set, never a free string, and
+ * NEVER INFERRED FROM WHETHER A SHEET WAS OPEN -- it is passed through from the control that was
+ * tapped, because the sheet is open in two of the three cases and that tells you nothing.
+ */
+enum class PromptEntryPoint(val trackingValue: String) {
+    Suggestion("suggestion"),
+    Browse("browse"),
+    Edit("edit"),
+}
+
+/**
+ * The two values a TOPIC CHOICE can carry.
+ *
+ * A separate type with no `edit` case, so `prompt_topic_selected` cannot report one even by
+ * mistake. That rule arrived as prose in registry 1.4.2 -- "prompt_topic_selected is scoped to
+ * suggestion and browse... an edit is not a fresh choice of topic, and firing it there inflated
+ * topic demand with re-edits of prompts already written" -- and prose is not enforcement. The
+ * compiler is.
+ */
+enum class TopicEntryPoint(val trackingValue: String) {
+    Suggestion("suggestion"),
+    Browse("browse"),
+    ;
+
+    /** The same value in the wider set, for the events that also accept an edit. */
+    val entryPoint: PromptEntryPoint
+        get() = when (this) {
+            Suggestion -> PromptEntryPoint.Suggestion
+            Browse -> PromptEntryPoint.Browse
+        }
+}
+
+/**
+ * `dismiss_method` from 23. THE CANONICAL SHEET-CLOSE VOCABULARY, and the only one.
+ *
+ * Every bottom sheet in the product reports its dismissal with these four, created on 16 September
+ * 2026 by unifying three drifted spellings of the same four acts. This screen's write sheet used
+ * to say `close | scrim | swipe | back`; the media prompt list said `cancel | ...`. Neither had
+ * shipped, so nothing in the warehouse needed migrating -- but a value outside this set is now a
+ * bug at the call site rather than a local dialect.
+ *
+ * [SystemBack] IS NOT [Close]. The Android gesture and the X are different acts by different
+ * intentions and must not be folded together.
+ */
+enum class SheetDismissMethod(val trackingValue: String) {
+    /** The X, or a Cancel control. */
+    Close("close"),
+
+    /** A tap on the scrim. */
+    Backdrop("backdrop"),
+
+    /** The drag-down gesture. */
+    Swipe("swipe"),
+
+    /** The Android back gesture or hardware key. Android only. */
+    SystemBack("system_back"),
+}
+
+/**
  * The `rule` vocabulary shared by the validation events.
  *
  * A closed set in the registry: `required_missing` · `photos_below_minimum` · `nothing_selected` ·
@@ -128,8 +191,14 @@ object ValidationRule {
     /** Continue pressed with fewer than four CONFIRMED photos (SHOWUP-156). */
     const val PHOTOS_BELOW_MINIMUM = "photos_below_minimum"
 
-    /** Continue pressed with no prompt saved (SHOWUP-158). */
-    const val NOTHING_SELECTED = "nothing_selected"
+    /**
+     * Continue pressed with no prompt saved (SHOWUP-158).
+     *
+     * `prompts_below_minimum`, added by registry 1.4.2 as "the sibling of photos_below_minimum".
+     * This screen previously reported `nothing_selected`, which is a different act -- it belongs to
+     * a chooser where nothing was ticked, not to a screen where nothing was written.
+     */
+    const val PROMPTS_BELOW_MINIMUM = "prompts_below_minimum"
 }
 
 /**
@@ -170,8 +239,16 @@ object ConsentSurface {
  * unknown field_ids in the *unclassified attributes* metric.
  */
 object Stamp {
-    /** enums.json → registry_version at the time of writing. */
-    const val FIELD_REGISTRY_VERSION = "1.3.0"
+    /**
+     * enums.json -> registry_version at the time of writing.
+     *
+     * 1.4.2 (16 September 2026) is the version that unified `dismiss_method` across every bottom
+     * sheet (§23), added the `prompts_below_minimum` rule (§8), scoped `prompt_topic_selected` to
+     * suggestion and browse, and re-verified `prompts` at `step_index` 2. READ IT FROM HERE AND
+     * NOWHERE ELSE -- a payload stamped with a version the values did not come from is worse than
+     * an unstamped one, because it looks checked.
+     */
+    const val FIELD_REGISTRY_VERSION = "1.4.2"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -204,10 +281,15 @@ object ProfileAnalytics {
     const val PHOTO_REMOVED = "photo_removed"
     const val PHOTO_REORDERED = "photo_reordered"
     const val PHOTOS_MINIMUM_MET = "photos_minimum_met"
-    const val PROMPT_TOPIC_PICKER_OPENED = "prompt_topic_picker_opened"
+    const val PROMPT_TOPIC_LIST_OPENED = "prompt_topic_list_opened"
+    const val PROMPT_TOPIC_LIST_DISMISSED = "prompt_topic_list_dismissed"
     const val PROMPT_TOPIC_SELECTED = "prompt_topic_selected"
-    const val PROMPT_ANSWERED = "prompt_answered"
-    const val PROMPT_EDITED = "prompt_edited"
+    const val PROMPT_EDITOR_OPENED = "prompt_editor_opened"
+    const val PROMPT_EDITOR_DISMISSED = "prompt_editor_dismissed"
+    const val PROMPT_SAVED = "prompt_saved"
+    const val PROMPT_EXAMPLE_DISMISSED = "prompt_example_dismissed"
+    const val PROMPT_CHAR_LIMIT_REACHED = "prompt_char_limit_reached"
+    const val PROMPTS_MINIMUM_MET = "prompts_minimum_met"
 
     /** T1, class 0. `referrer_screen_id` is B2 and travels as null until Step 3 lands. */
     fun screenViewed(screen: ProfileScreen, referrer: ProfileScreen? = null) =
@@ -353,56 +435,193 @@ object ProfileAnalytics {
 
     // ── family · Profile Attributes (SHOWUP-158) ─────────────────────────────
     //
-    // THE TICKET'S TRACKING SECTION IS OUT OF DATE, and following it would have meant inventing
-    // five names. It says "the whole prompt-authoring funnel is unregistered... there is nothing
-    // for topic chosen, write sheet opened, prompt saved, prompt edited, or prompt deleted".
-    // Registry 1.3.0 carries four of those five under "Profile Attributes" --
-    // prompt_topic_picker_opened, prompt_topic_selected, prompt_answered, prompt_edited and
-    // prompt_removed -- so they are used as named rather than re-minted.
+    // FAMILY E, AND NOT FAMILY F -- A COLLISION THE REGISTRY RESOLVED ON 16 SEPTEMBER 2026
     //
-    // STILL GENUINELY MISSING, and NOT invented here:
+    // This screen used to emit `prompt_topic_picker_opened`, `prompt_topic_selected` (topic_id
+    // only), `prompt_answered` and `prompt_edited`. Those are the v1.0 family F names, and at
+    // registry 1.3.0 they were the only prompt rows that existed, so they were used as named.
     //
-    //   · `entry_point` -- whether the topic came from a SUGGESTION CARD or from BROWSE ALL. The
-    //     ticket calls it "the one measurement this revision exists to produce", and its value set
-    //     (suggestion | browse | edit) is not in enums.json. A free string would be exactly what
-    //     the tracking rules forbid, so nothing is sent and the gap is recorded.
-    //   · ABANDONMENT -- a write sheet opened and closed without saving is the precise drop-off
-    //     this screen is designed against, and there is no event for it.
+    // `events.json` at 1.4.2 carries all four marked SUPERSEDED -- DO NOT FIRE, emptied of their
+    // payloads so the name resolves to the notice rather than being re-implemented from a stale
+    // spec, each naming its family E replacement. The duplicate `prompt_topic_selected` row was
+    // deleted outright, so the name now has exactly one definition. Nothing on this screen may
+    // fire a family F prompt event.
     //
-    // NEVER THE ANSWER AND NEVER THE DRAFT. `char_count` and `at_char_limit` only, which is what
-    // §5's prose says and what the builders below enforce by taking nothing else.
+    // WHAT FAMILY E BUYS, which is why it wins: `entry_point` (18) -- whether the topic came from
+    // a suggestion card or from browse-all -- which the ticket calls "the one measurement this
+    // revision exists to produce"; an abandonment event for each sheet; and `selection_index`,
+    // which answers "which topic did they reach for FIRST" without anybody sorting timestamps.
+    //
+    // NEVER THE ANSWER AND NEVER THE DRAFT. Every builder below takes a LENGTH rather than a
+    // string, so there is no signature here that can carry the text even by accident.
 
     /** T2, class 0. `Browse all 15 topics` was pressed. */
-    fun promptTopicPickerOpened(slotIndex: Int) =
-        PROMPT_TOPIC_PICKER_OPENED to buildMap<String, Any> {
-            put("slot_index", slotIndex)
+    fun promptTopicListOpened(usedCount: Int, screen: ProfileScreen = ProfileScreen.Prompts) =
+        PROMPT_TOPIC_LIST_OPENED to buildMap<String, Any> {
+            put("used_count", usedCount)
+            put("screen_id", screen.screenId)
             putAll(Stamp.of(0))
         }
 
-    /** T2, class 0. A topic was chosen, from a suggestion card or from the sheet. */
-    fun promptTopicSelected(topicId: String) =
-        PROMPT_TOPIC_SELECTED to buildMap<String, Any> {
+    /**
+     * T2, class 0. The topic sheet closed WITHOUT a topic being picked.
+     *
+     * MUTUALLY EXCLUSIVE WITH [promptTopicSelected]: picking a topic replaces the sheet with the
+     * write sheet and fires that instead. Together they close the browse sheet's funnel, so
+     * `prompt_topic_list_opened` = selected + dismissed, and a gap in that sum is a bug rather
+     * than a behaviour.
+     */
+    fun promptTopicListDismissed(
+        method: SheetDismissMethod,
+        usedCount: Int,
+        timeOnSheetSeconds: Int,
+        screen: ProfileScreen = ProfileScreen.Prompts,
+    ) = PROMPT_TOPIC_LIST_DISMISSED to buildMap<String, Any> {
+        put("dismiss_method", method.trackingValue)
+        put("used_count", usedCount)
+        put("time_on_sheet_s", timeOnSheetSeconds)
+        put("screen_id", screen.screenId)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T2, class 0. A topic was chosen from a suggestion card or from a row of the browse sheet.
+     *
+     * NEVER ON AN EDIT, and that is enforced by the TYPE: [TopicEntryPoint] has two cases and no
+     * `edit`. This is the registry change of 16 September 2026 -- reopening a saved prompt is not
+     * a fresh choice of topic, and firing this there inflated topic demand with re-edits of
+     * prompts already written. An edit fires [promptEditorOpened] alone.
+     *
+     * `topic_group` is looked up rather than passed, so a caller cannot file a topic under a group
+     * it is not in.
+     */
+    fun promptTopicSelected(
+        topicId: String,
+        entryPoint: TopicEntryPoint,
+        position: Int,
+        selectionIndex: Int,
+    ) = PROMPT_TOPIC_SELECTED to buildMap<String, Any> {
+        put("topic_id", topicId)
+        put("topic_group", topicGroupFor(topicId))
+        put("entry_point", entryPoint.trackingValue)
+        put("position", position)
+        put("selection_index", selectionIndex)
+        putAll(Stamp.of(0))
+    }
+
+    /** T2, class 0. The write sheet mounted -- on a card, on a browse row, or on the pencil. */
+    fun promptEditorOpened(
+        topicId: String,
+        entryPoint: PromptEntryPoint,
+        isEdit: Boolean,
+        promptCount: Int,
+    ) = PROMPT_EDITOR_OPENED to buildMap<String, Any> {
+        put("topic_id", topicId)
+        put("entry_point", entryPoint.trackingValue)
+        put("is_edit", isEdit)
+        put("prompt_count", promptCount)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T2, class 0. The write sheet closed without saving.
+     *
+     * THE ABANDONMENT EVENT THIS SCREEN IS DESIGNED AGAINST. `had_draft` separates "changed their
+     * mind" from "could not finish"; [draftLength] is bucketed on the way in and the draft itself
+     * never leaves the device.
+     */
+    fun promptEditorDismissed(
+        topicId: String,
+        entryPoint: PromptEntryPoint,
+        draftLength: Int,
+        method: SheetDismissMethod,
+    ) = PROMPT_EDITOR_DISMISSED to buildMap<String, Any> {
+        put("topic_id", topicId)
+        put("entry_point", entryPoint.trackingValue)
+        put("had_draft", draftLength > 0)
+        put("draft_length_bucket", promptLengthBucket(draftLength))
+        put("dismiss_method", method.trackingValue)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T2, class 0. Save pressed with a non-empty answer.
+     *
+     * [answerLength] rather than the answer: there is no signature here that can carry the text.
+     * [promptCount] is the number the user holds AFTER this save, and an edit does not raise it.
+     */
+    fun promptSaved(
+        topicId: String,
+        entryPoint: PromptEntryPoint,
+        isEdit: Boolean,
+        answerLength: Int,
+        promptCount: Int,
+    ) = PROMPT_SAVED to buildMap<String, Any> {
+        put("topic_id", topicId)
+        put("topic_group", topicGroupFor(topicId))
+        put("entry_point", entryPoint.trackingValue)
+        put("is_edit", isEdit)
+        put("length_bucket", promptLengthBucket(answerLength))
+        put("prompt_count", promptCount)
+        putAll(Stamp.of(0))
+    }
+
+    /** T2, class 0. The worked example hidden with its X. High volume means it is in the way. */
+    fun promptExampleDismissed(topicId: String) =
+        PROMPT_EXAMPLE_DISMISSED to buildMap<String, Any> {
+            put("topic_id", topicId)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. 160 reached. ONCE PER EDITOR SESSION, not per keystroke. */
+    fun promptCharLimitReached(topicId: String) =
+        PROMPT_CHAR_LIMIT_REACHED to buildMap<String, Any> {
             put("topic_id", topicId)
             putAll(Stamp.of(0))
         }
 
     /**
-     * T2, class 0. An answer was saved.
+     * T2, class 0. The first prompt was saved, so the step can be completed.
      *
-     * `prompt_id` is the topic id plus the slot, per §5's own prose and its own example --
-     * `match_me_if_you__slot2` -- so a topic moved between slots stays traceable.
+     * ONCE, on the first crossing, carrying the topic and entry point that got the user there --
+     * the registry calls that pairing "the single most useful row on the screen".
      */
-    fun promptAnswered(promptId: String, charCount: Int, atCharLimit: Boolean) =
-        PROMPT_ANSWERED to buildMap<String, Any> {
-            put("prompt_id", promptId)
-            put("char_count", charCount)
-            put("at_char_limit", atCharLimit)
+    fun promptsMinimumMet(count: Int, topicId: String, entryPoint: PromptEntryPoint) =
+        PROMPTS_MINIMUM_MET to buildMap<String, Any> {
+            put("count", count)
+            put("topic_id", topicId)
+            put("entry_point", entryPoint.trackingValue)
             putAll(Stamp.of(0))
         }
 
-    /** T2, class 0. An existing answer was changed rather than a new one added. */
-    fun promptEdited(promptId: String) = PROMPT_EDITED to buildMap<String, Any> {
-        put("prompt_id", promptId)
+    /**
+     * T2, class 0. A step of "The real you" was reached.
+     *
+     * `step_index` comes from [RealYouStep] -- photos 1, prompts 2, media 3 -- and 2 of registry
+     * 1.4.2 now says exactly that, re-verified on 16 September 2026. It did not at 1.3.0, where
+     * prompts read 10: the code was right and the registry has caught up.
+     */
+    fun realYouStepViewed(step: RealYouStep) = PROFILE_STEP_VIEWED to buildMap<String, Any> {
+        put("step_id", step.stepId)
+        put("step_index", step.stepIndex)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T2, class 0. Continue was ACCEPTED on a step of "The real you".
+     *
+     * [promptCount] is OPTIONAL AND SCREEN-SCOPED -- 1 to 3 on the prompts step and omitted
+     * everywhere else, which is what the registry's `applies_to` means. An empty property is worse
+     * than an absent one, so null omits the key rather than writing a zero.
+     */
+    fun realYouStepCompleted(
+        step: RealYouStep,
+        timeOnStepSeconds: Int,
+        promptCount: Int? = null,
+    ) = PROFILE_STEP_COMPLETED to buildMap<String, Any> {
+        put("step_id", step.stepId)
+        put("time_on_step_s", timeOnStepSeconds)
+        if (promptCount != null) put("prompt_count", promptCount)
         putAll(Stamp.of(0))
     }
 

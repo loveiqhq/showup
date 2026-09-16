@@ -76,7 +76,7 @@ enum ProfileScreen: String {
         case .dob: return "ProfileDoB"
         case .embraceBuild: return "ProfileEmbraceBuild"
         case .photos: return "ProfilePhotos"
-        case .prompts: return "Profile - Prompts"
+        case .prompts: return "ProfilePrompts"
         }
     }
 }
@@ -104,6 +104,72 @@ enum ProfileField {
     static let prompts = "prompts"
 }
 
+/// `entry_point` from the registry's 18, in full.
+///
+/// HOW THE USER ARRIVED AT A TOPIC, and the measurement the whole conversion pass exists to
+/// produce: `suggestion` is one of the three cards on the screen, `browse` is the fifteen-topic
+/// sheet, `edit` is reopening a prompt already written. A closed set, never a free string, and
+/// NEVER INFERRED FROM WHETHER A SHEET WAS OPEN - it is passed through from the control that was
+/// tapped, because the sheet is open in two of the three cases and that tells you nothing.
+enum PromptEntryPoint: String, Sendable, Codable {
+    // THE WIRE VALUE IS WRITTEN OUT, not inferred from the case name. Swift would derive the same
+    // three strings today, and a rename in a later refactor would silently change what the
+    // warehouse receives -- which is the drift 1.4.2 was published to end, arriving by a different
+    // route. Spelling them makes the value a decision rather than a side effect.
+    case suggestion = "suggestion"
+    case browse = "browse"
+    case edit = "edit"
+
+    var trackingValue: String { rawValue }
+}
+
+/// The two values a TOPIC CHOICE can carry.
+///
+/// A separate type with no `edit` case, so `prompt_topic_selected` cannot report one even by
+/// mistake. That rule arrived as prose in registry 1.4.2 - "prompt_topic_selected is scoped to
+/// suggestion and browse... an edit is not a fresh choice of topic, and firing it there inflated
+/// topic demand with re-edits of prompts already written" - and prose is not enforcement. The
+/// compiler is.
+enum TopicEntryPoint: String, Sendable {
+    case suggestion = "suggestion"
+    case browse = "browse"
+
+    var trackingValue: String { rawValue }
+
+    /// The same value in the wider set, for the events that also accept an edit.
+    var entryPoint: PromptEntryPoint {
+        switch self {
+        case .suggestion: return .suggestion
+        case .browse: return .browse
+        }
+    }
+}
+
+/// `dismiss_method` from 23. THE CANONICAL SHEET-CLOSE VOCABULARY, and the only one.
+///
+/// Every bottom sheet in the product reports its dismissal with these four, created on 16
+/// September 2026 by unifying three drifted spellings of the same four acts. This screen's write
+/// sheet used to say `close | scrim | swipe | back`; the media prompt list said `cancel | ...`.
+/// Neither had shipped, so nothing in the warehouse needed migrating - but a value outside this
+/// set is now a bug at the call site rather than a local dialect.
+///
+/// `systemBack` IS NOT `close`. The Android gesture and the X are different acts by different
+/// intentions and must not be folded together. iOS has no system back gesture of its own, so that
+/// case is declared and never produced here - it exists so the two platforms share one vocabulary
+/// rather than two that agree by inspection.
+enum SheetDismissMethod: String, Sendable {
+    /// The X, or a Cancel control.
+    case close = "close"
+    /// A tap on the scrim.
+    case backdrop = "backdrop"
+    /// The drag-down gesture.
+    case swipe = "swipe"
+    /// The Android back gesture or hardware key. Android only.
+    case systemBack = "system_back"
+
+    var trackingValue: String { rawValue }
+}
+
 /// The `rule` vocabulary shared by the validation events.
 enum ValidationRule {
     static let requiredMissing = "required_missing"
@@ -113,7 +179,11 @@ enum ValidationRule {
     static let photosBelowMinimum = "photos_below_minimum"
 
     /// Continue pressed with no prompt saved (SHOWUP-158).
-    static let nothingSelected = "nothing_selected"
+    ///
+    /// `prompts_below_minimum`, added by registry 1.4.2 as "the sibling of photos_below_minimum".
+    /// This screen previously reported `nothing_selected`, which is a different act - it belongs
+    /// to a chooser where nothing was ticked, not to a screen where nothing was written.
+    static let promptsBelowMinimum = "prompts_below_minimum"
 }
 
 /// `channel` from enums.json §8.
@@ -144,7 +214,14 @@ enum ConsentSurface {
 /// brief says not to do long-term.
 enum Stamp {
     /// enums.json → registry_version at the time of writing.
-    static let fieldRegistryVersion = "1.3.0"
+    /// enums.json -> registry_version at the time of writing.
+    ///
+    /// 1.4.2 (16 September 2026) is the version that unified `dismiss_method` across every bottom
+    /// sheet (23), added the `prompts_below_minimum` rule (8), scoped `prompt_topic_selected` to
+    /// suggestion and browse, and re-verified `prompts` at `step_index` 2. READ IT FROM HERE AND
+    /// NOWHERE ELSE - a payload stamped with a version the values did not come from is worse than
+    /// an unstamped one, because it looks checked.
+    static let fieldRegistryVersion = "1.4.2"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
@@ -173,10 +250,15 @@ enum ProfileAnalytics {
     static let photoRemovedName = "photo_removed"
     static let photoReorderedName = "photo_reordered"
     static let photosMinimumMetName = "photos_minimum_met"
-    static let promptTopicPickerOpenedName = "prompt_topic_picker_opened"
+    static let promptTopicListOpenedName = "prompt_topic_list_opened"
+    static let promptTopicListDismissedName = "prompt_topic_list_dismissed"
     static let promptTopicSelectedName = "prompt_topic_selected"
-    static let promptAnsweredName = "prompt_answered"
-    static let promptEditedName = "prompt_edited"
+    static let promptEditorOpenedName = "prompt_editor_opened"
+    static let promptEditorDismissedName = "prompt_editor_dismissed"
+    static let promptSavedName = "prompt_saved"
+    static let promptExampleDismissedName = "prompt_example_dismissed"
+    static let promptCharLimitReachedName = "prompt_char_limit_reached"
+    static let promptsMinimumMetName = "prompts_minimum_met"
 
     /// T1, class 0. `referrer_screen_id` is B2 and travels empty until Step 3 lands.
     static func screenViewed(_ screen: ProfileScreen,
@@ -254,42 +336,142 @@ enum ProfileAnalytics {
         (photosMinimumMetName, ["count": count,
                                 "max_slots": photosMax].merging(Stamp.of(0)) { a, _ in a })
     }
-
-    // MARK: family · Profile Attributes (SHOWUP-158)
+    // FAMILY E, AND NOT FAMILY F - A COLLISION THE REGISTRY RESOLVED ON 16 SEPTEMBER 2026
     //
-    // THE TICKET'S TRACKING SECTION IS OUT OF DATE, and following it would have meant inventing
-    // five names. It says "the whole prompt-authoring funnel is unregistered"; registry 1.3.0
-    // carries them under "Profile Attributes", so they are used as named rather than re-minted.
+    // This screen used to emit `prompt_topic_picker_opened`, `prompt_topic_selected` (topic_id
+    // only), `prompt_answered` and `prompt_edited`. Those are the v1.0 family F names, and at
+    // registry 1.3.0 they were the only prompt rows that existed, so they were used as named.
     //
-    // STILL GENUINELY MISSING, and NOT invented here: `entry_point` (suggestion | browse | edit),
-    // which the ticket calls "the one measurement this revision exists to produce" and whose value
-    // set is not in enums.json; and abandonment, a write sheet opened and closed without saving.
+    // `events.json` at 1.4.2 carries all four marked SUPERSEDED - DO NOT FIRE, emptied of their
+    // payloads so the name resolves to the notice rather than being re-implemented from a stale
+    // spec. The duplicate `prompt_topic_selected` row was deleted outright. Nothing on this screen
+    // may fire a family F prompt event.
     //
-    // NEVER THE ANSWER AND NEVER THE DRAFT - `char_count` and `at_char_limit` only.
+    // NEVER THE ANSWER AND NEVER THE DRAFT. Every builder below takes a LENGTH rather than a
+    // string, so there is no signature here that can carry the text even by accident.
 
     /// T2, class 0. `Browse all 15 topics` was pressed.
-    static func promptTopicPickerOpened(slotIndex: Int) -> (String, [String: any Sendable]) {
-        (promptTopicPickerOpenedName, ["slot_index": slotIndex].merging(Stamp.of(0)) { a, _ in a })
+    static func promptTopicListOpened(usedCount: Int,
+                                      screen: ProfileScreen = .prompts)
+    -> (String, [String: any Sendable]) {
+        (promptTopicListOpenedName,
+         ["used_count": usedCount, "screen_id": screen.screenId].merging(Stamp.of(0)) { a, _ in a })
     }
 
-    /// T2, class 0. A topic was chosen, from a suggestion card or from the sheet.
-    static func promptTopicSelected(topicId: String) -> (String, [String: any Sendable]) {
-        (promptTopicSelectedName, ["topic_id": topicId].merging(Stamp.of(0)) { a, _ in a })
-    }
-
-    /// T2, class 0. An answer was saved.
+    /// T2, class 0. The topic sheet closed WITHOUT a topic being picked.
     ///
-    /// `prompt_id` is the topic id plus the slot, per §5's own prose and its own example -
-    /// `match_me_if_you__slot2` - so a topic moved between slots stays traceable.
-    static func promptAnswered(promptId: String, charCount: Int,
-                               atCharLimit: Bool) -> (String, [String: any Sendable]) {
-        (promptAnsweredName, ["prompt_id": promptId, "char_count": charCount,
-                              "at_char_limit": atCharLimit].merging(Stamp.of(0)) { a, _ in a })
+    /// MUTUALLY EXCLUSIVE WITH `promptTopicSelected`: picking a topic replaces the sheet with the
+    /// write sheet and fires that instead. Together they close the browse sheet's funnel, so
+    /// `prompt_topic_list_opened` = selected + dismissed, and a gap in that sum is a bug rather
+    /// than a behaviour.
+    static func promptTopicListDismissed(method: SheetDismissMethod, usedCount: Int,
+                                         timeOnSheetSeconds: Int,
+                                         screen: ProfileScreen = .prompts)
+    -> (String, [String: any Sendable]) {
+        (promptTopicListDismissedName,
+         ["dismiss_method": method.trackingValue, "used_count": usedCount,
+          "time_on_sheet_s": timeOnSheetSeconds,
+          "screen_id": screen.screenId].merging(Stamp.of(0)) { a, _ in a })
     }
 
-    /// T2, class 0. An existing answer was changed rather than a new one added.
-    static func promptEdited(promptId: String) -> (String, [String: any Sendable]) {
-        (promptEditedName, ["prompt_id": promptId].merging(Stamp.of(0)) { a, _ in a })
+    /// T2, class 0. A topic was chosen from a suggestion card or from a row of the browse sheet.
+    ///
+    /// NEVER ON AN EDIT, and that is enforced by the TYPE: `TopicEntryPoint` has two cases and no
+    /// `edit`. This is the registry change of 16 September 2026 - reopening a saved prompt is not
+    /// a fresh choice of topic, and firing this there inflated topic demand with re-edits of
+    /// prompts already written. An edit fires `promptEditorOpened` alone.
+    ///
+    /// `topic_group` is looked up rather than passed, so a caller cannot file a topic under a
+    /// group it is not in.
+    static func promptTopicSelected(topicId: String, entryPoint: TopicEntryPoint, position: Int,
+                                    selectionIndex: Int) -> (String, [String: any Sendable]) {
+        (promptTopicSelectedName,
+         ["topic_id": topicId, "topic_group": topicGroupFor(topicId),
+          "entry_point": entryPoint.trackingValue, "position": position,
+          "selection_index": selectionIndex].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. The write sheet mounted - on a card, on a browse row, or on the pencil.
+    static func promptEditorOpened(topicId: String, entryPoint: PromptEntryPoint, isEdit: Bool,
+                                   promptCount: Int) -> (String, [String: any Sendable]) {
+        (promptEditorOpenedName,
+         ["topic_id": topicId, "entry_point": entryPoint.trackingValue, "is_edit": isEdit,
+          "prompt_count": promptCount].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. The write sheet closed without saving.
+    ///
+    /// THE ABANDONMENT EVENT THIS SCREEN IS DESIGNED AGAINST. `had_draft` separates "changed their
+    /// mind" from "could not finish"; `draftLength` is bucketed on the way in and the draft itself
+    /// never leaves the device.
+    static func promptEditorDismissed(topicId: String, entryPoint: PromptEntryPoint,
+                                      draftLength: Int, method: SheetDismissMethod)
+    -> (String, [String: any Sendable]) {
+        (promptEditorDismissedName,
+         ["topic_id": topicId, "entry_point": entryPoint.trackingValue,
+          "had_draft": draftLength > 0,
+          "draft_length_bucket": promptLengthBucket(draftLength),
+          "dismiss_method": method.trackingValue].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Save pressed with a non-empty answer.
+    ///
+    /// `answerLength` rather than the answer: there is no signature here that can carry the text.
+    /// `promptCount` is the number the user holds AFTER this save, and an edit does not raise it.
+    static func promptSaved(topicId: String, entryPoint: PromptEntryPoint, isEdit: Bool,
+                            answerLength: Int, promptCount: Int)
+    -> (String, [String: any Sendable]) {
+        (promptSavedName,
+         ["topic_id": topicId, "topic_group": topicGroupFor(topicId),
+          "entry_point": entryPoint.trackingValue, "is_edit": isEdit,
+          "length_bucket": promptLengthBucket(answerLength),
+          "prompt_count": promptCount].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. The worked example hidden with its X. High volume means it is in the way.
+    static func promptExampleDismissed(topicId: String) -> (String, [String: any Sendable]) {
+        (promptExampleDismissedName, ["topic_id": topicId].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. 160 reached. ONCE PER EDITOR SESSION, not per keystroke.
+    static func promptCharLimitReached(topicId: String) -> (String, [String: any Sendable]) {
+        (promptCharLimitReachedName, ["topic_id": topicId].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. The first prompt was saved, so the step can be completed.
+    ///
+    /// ONCE, on the first crossing, carrying the topic and entry point that got the user there -
+    /// the registry calls that pairing "the single most useful row on the screen".
+    static func promptsMinimumMet(count: Int, topicId: String, entryPoint: PromptEntryPoint)
+    -> (String, [String: any Sendable]) {
+        (promptsMinimumMetName,
+         ["count": count, "topic_id": topicId,
+          "entry_point": entryPoint.trackingValue].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. A step of "The real you" was reached.
+    ///
+    /// `step_index` comes from `RealYouStep` - photos 1, prompts 2, media 3 - and 2 of registry
+    /// 1.4.2 now says exactly that, re-verified on 16 September 2026. It did not at 1.3.0, where
+    /// prompts read 10: the code was right and the registry has caught up.
+    static func realYouStepViewed(_ step: RealYouStep) -> (String, [String: any Sendable]) {
+        (profileStepViewed,
+         ["step_id": step.stepId, "step_index": step.stepIndex].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Continue was ACCEPTED on a step of "The real you".
+    ///
+    /// `promptCount` is OPTIONAL AND SCREEN-SCOPED - 1 to 3 on the prompts step and omitted
+    /// everywhere else, which is what the registry's `applies_to` means. An empty property is
+    /// worse than an absent one, so nil omits the key rather than writing a zero.
+    static func realYouStepCompleted(_ step: RealYouStep, timeOnStepSeconds: Int,
+                                     promptCount: Int? = nil)
+    -> (String, [String: any Sendable]) {
+        var payload: [String: any Sendable] = [
+            "step_id": step.stepId, "time_on_step_s": timeOnStepSeconds,
+        ]
+        if let promptCount { payload["prompt_count"] = promptCount }
+        return (profileStepCompleted, payload.merging(Stamp.of(0)) { a, _ in a })
     }
 
     /// T1, class 0. The refused press on a step outside "The basics".

@@ -2,35 +2,48 @@
  * PromptTopics.kt
  * ShowUp · the fifteen topics, their examples, and the rules about answering them (SHOWUP-158)
  *
- * CONTENT, NOT LAYOUT. The ticket says the reference file is the source for the topics and the
- * examples and that they are to be copied wholesale rather than retyped, so they are here verbatim
- * and in the reference's group order. Nothing in this file draws anything, so all of it can be
+ * CONTENT, NOT LAYOUT. The DISPLAY STRINGS come from the reference file, verbatim and in its group
+ * order. The IDS come from the tracking registry. Nothing here draws anything, so all of it can be
  * checked by a JVM test.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * THE IDS ARE ASSIGNED, NOT DERIVED, AND THAT IS THE POINT
+ * THE IDS ARE THE REGISTRY'S, NOT OURS -- CORRECTED 16 SEPTEMBER 2026
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * The ticket's dependency list says it in one line: "a stable topic id per topic. Store the id,
- * not the display string, or every copy edit orphans existing prompts."
+ * not the display string, or every copy edit orphans existing prompts." A slug computed from the
+ * display string would satisfy the letter of that and miss the reason: change "I'll talk for hours
+ * about…" to "I could talk for hours about…" -- a copy edit, the kind that happens between a
+ * design review and a launch -- and every answer saved under the old slug belongs to a topic that
+ * no longer exists.
  *
- * A slug computed from the display string would satisfy the letter of that and miss the reason.
- * Change "I'll talk for hours about…" to "I could talk for hours about…" -- a copy edit, the kind
- * that happens between a design review and a launch -- and the slug changes with it, so every
- * saved answer under the old slug belongs to a topic that no longer exists. The ids below are
- * short, assigned once, and never recomputed from anything.
+ * SO THE IDS ARE ASSIGNED ONCE AND NEVER RECOMPUTED. The mistake this file made first time was
+ * assigning them HERE. `enums.json` §17 (`prompt_topic_id registry`) is the dictionary, and it
+ * carries `topic_group` as well -- but it did not exist at registry 1.3.0, which is what this file
+ * was written against, so six ids were invented and six of them were wrong:
  *
- * They are also what `prompt_id` is built from: the registry's own prose says "prompt_id is
- * topic_id plus the slot it occupies -- match_me_if_you__slot2 -- so a topic moved between slots
- * stays traceable". See [promptId].
+ *     first_date     -> first_date_usually      thirty_feels    -> thirty_min_feels
+ *     ideal_thirty   -> ideal_30_min            real_life_more  -> in_real_life_more
+ *     cross_town     -> cross_town_for          spontaneous     -> spontaneous_plan
+ *
+ * Those are the ids the analytics warehouse joins on AND the ids the `profile_prompts` rows store,
+ * so the correction is a database migration as well as a rename -- see
+ * `1717000018000-CanonicalPromptTopicIds.ts`. Read §17 rather than this list if the two ever
+ * disagree again: the registry is the dictionary and this is a copy of it.
  */
 package com.showup.profile
 
 /** One topic: a stable id and the question the user sees. */
 data class PromptTopic(val id: String, val text: String)
 
-/** Five topics under a name that answers "what kind of thing do you want to say". */
-data class TopicGroup(val label: String, val topics: List<PromptTopic>)
+/**
+ * Five topics under a name that answers "what kind of thing do you want to say".
+ *
+ * [id] is §17's `topic_group` and travels on `prompt_topic_selected` and `prompt_saved`; [label]
+ * is what the browse sheet draws. Two fields rather than one because the label is copy and the id
+ * is a key, and the whole point of the dictionary is that copy can change without moving a row.
+ */
+data class TopicGroup(val id: String, val label: String, val topics: List<PromptTopic>)
 
 /** How long an answer may be. A hard cap, and a quiet one — reaching it is not a failure. */
 const val PROMPT_MAX_CHARS = 160
@@ -59,26 +72,29 @@ const val PROMPTS_REQUIRED = 1
  */
 val TOPIC_GROUPS: List<TopicGroup> = listOf(
     TopicGroup(
+        id = "dating_me",
         label = "Dating me",
         topics = listOf(
-            PromptTopic("first_date", "On a first date, I usually…"),
+            PromptTopic("first_date_usually", "On a first date, I usually…"),
             PromptTopic("out_the_door", "The easiest way to get me out the door is…"),
-            PromptTopic("ideal_thirty", "My ideal 30-minute date looks like…"),
-            PromptTopic("cross_town", "I'd cross town for…"),
-            PromptTopic("spontaneous", "A spontaneous plan with me usually involves…"),
+            PromptTopic("ideal_30_min", "My ideal 30-minute date looks like…"),
+            PromptTopic("cross_town_for", "I'd cross town for…"),
+            PromptTopic("spontaneous_plan", "A spontaneous plan with me usually involves…"),
         ),
     ),
     TopicGroup(
+        id = "real_life",
         label = "Me in real life",
         topics = listOf(
-            PromptTopic("thirty_feels", "What 30 minutes with me feels like…"),
-            PromptTopic("real_life_more", "In real life, I'm way more…"),
+            PromptTopic("thirty_min_feels", "What 30 minutes with me feels like…"),
+            PromptTopic("in_real_life_more", "In real life, I'm way more…"),
             PromptTopic("unsexy_truth", "The unsexy truth about me is…"),
             PromptTopic("sunday_energy", "My default Sunday energy is…"),
             PromptTopic("weird_habit", "A weird or specific habit of mine…"),
         ),
     ),
     TopicGroup(
+        id = "opinions",
         label = "Opinions & obsessions",
         topics = listOf(
             PromptTopic("talk_for_hours", "I'll talk for hours about…"),
@@ -99,7 +115,7 @@ val PROMPT_TOPICS: List<PromptTopic> = TOPIC_GROUPS.flatMap { it.topics }
  * One from each group, and deliberately the three easiest to answer without thinking: "the job of
  * a suggestion is to be answerable, not to be the best topic".
  */
-val SUGGESTED_TOPIC_IDS: List<String> = listOf("first_date", "weird_habit", "talk_for_hours")
+val SUGGESTED_TOPIC_IDS: List<String> = listOf("first_date_usually", "weird_habit", "talk_for_hours")
 
 /**
  * One worked example per topic.
@@ -108,19 +124,19 @@ val SUGGESTED_TOPIC_IDS: List<String> = listOf("first_date", "weird_habit", "tal
  * fine". An example that filled the box would undo the floor framing the whole revision is about.
  */
 val PROMPT_EXAMPLES: Map<String, String> = mapOf(
-    "first_date" to
+    "first_date_usually" to
         "…talk too fast about something I care about, then apologise for it. Don't let me apologise.",
     "out_the_door" to
         "…say the words \"there's a table free at 7\". I'll be there at 6:55.",
-    "ideal_thirty" to
+    "ideal_30_min" to
         "Coffee, a bench, and the good half of a conversation. No menus, no agenda.",
-    "cross_town" to
+    "cross_town_for" to
         "A proper conversation. An old cinema. The 8pm walk after a long day.",
-    "spontaneous" to
+    "spontaneous_plan" to
         "A train, a vague idea of a destination, and somewhere that does chips.",
-    "thirty_feels" to
+    "thirty_min_feels" to
         "Fast. I ask a lot of questions and I actually wait for the answers.",
-    "real_life_more" to
+    "in_real_life_more" to
         "…quiet at the start and much louder by minute ten. Give me the ten.",
     "unsexy_truth" to
         "I go to bed at 10 and I'm not sorry. Breakfast dates are my best work.",
@@ -154,15 +170,32 @@ fun exampleFor(id: String): String = PROMPT_EXAMPLES[id] ?: PROMPT_EXAMPLE_FALLB
 data class SavedPrompt(val topicId: String, val answer: String)
 
 /**
- * `prompt_id` for the tracking registry.
+ * Which group a topic belongs to, as §17 spells it.
  *
- * Topic id plus the slot it occupies, per §5's own prose and its own example. Slots are numbered
- * from one, because the value appears in analytics rather than in code and "slot0" reads as a
- * missing value to everybody who is not a programmer.
- *
- * THE ANSWER IS NEVER PART OF IT, and never travels at all: only `char_count` and `at_char_limit`.
+ * Looked up rather than stored on [PromptTopic], so the grouping has exactly one definition --
+ * [TOPIC_GROUPS] -- and a topic cannot end up claiming a group it is not listed under.
  */
-fun promptId(topicId: String, slot: Int): String = topicId + "__slot" + (slot + 1)
+fun topicGroupFor(id: String): String =
+    TOPIC_GROUPS.firstOrNull { group -> group.topics.any { it.id == id } }?.id.orEmpty()
+
+/**
+ * The bucket an answer's length falls in, per §19.
+ *
+ * NEVER THE TEXT. These are sentences a user wrote about themselves for a public profile, and the
+ * registry's note is blunt about it: they have no business in the analytics pipeline. The buckets
+ * exist to answer one question -- whether framing the field with a floor instead of a 0/160
+ * ceiling moved what people write.
+ *
+ * "0" is only ever a DRAFT length: `prompt_saved` cannot carry it, because an empty answer is
+ * refused before it gets that far.
+ */
+fun promptLengthBucket(length: Int): String = when {
+    length <= 0 -> "0"
+    length <= 40 -> "1_40"
+    length <= 80 -> "41_80"
+    length <= 120 -> "81_120"
+    else -> "121_160"
+}
 
 /**
  * Which topics to suggest, given what is already used.

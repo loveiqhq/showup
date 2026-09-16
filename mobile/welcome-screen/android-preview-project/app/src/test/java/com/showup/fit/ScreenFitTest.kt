@@ -407,7 +407,7 @@ class ScreenFitTest {
     fun `profile prompts, all eight states`() {
         val one = listOf(
             SavedPrompt(
-                "first_date",
+                "first_date_usually",
                 "Talk about anything real. Not jobs, not pets, not the weather. The thing " +
                     "actually on your mind this week. Bring it. I'll listen.",
             ),
@@ -418,7 +418,7 @@ class ScreenFitTest {
                 "Showing up. Cancelling last minute isn't a scheduling problem, it's an answer.",
             ),
             SavedPrompt(
-                "cross_town",
+                "cross_town_for",
                 "A proper conversation. An old cinema. The 8pm walk after a long day.",
             ),
         )
@@ -430,27 +430,27 @@ class ScreenFitTest {
             ProfilePromptsScreen(PromptsState(prompts = one, sheet = PromptSheet.Topics))
         }
         sweep("Prompts/E write empty") {
-            ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date")))
+            ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date_usually")))
         }
         sweep("Prompts/F write mid") {
             ProfilePromptsScreen(
                 PromptsState(
-                    sheet = PromptSheet.Write("first_date"),
-                    drafts = mapOf("first_date" to "Talk about anything real. Not the weather."),
+                    sheet = PromptSheet.Write("first_date_usually"),
+                    drafts = mapOf("first_date_usually" to "Talk about anything real. Not the weather."),
                 ),
             )
         }
         sweep("Prompts/G write at cap") {
             ProfilePromptsScreen(
                 PromptsState(
-                    sheet = PromptSheet.Write("first_date"),
-                    drafts = mapOf("first_date" to PROMPT_SAMPLE_AT_CAP),
+                    sheet = PromptSheet.Write("first_date_usually"),
+                    drafts = mapOf("first_date_usually" to PROMPT_SAMPLE_AT_CAP),
                 ),
             )
         }
         sweep("Prompts/H write nudge") {
             ProfilePromptsScreen(
-                PromptsState(sheet = PromptSheet.Write("first_date"), nudge = true),
+                PromptsState(sheet = PromptSheet.Write("first_date_usually"), nudge = true),
             )
         }
         sweep("Prompts/toast") { ProfilePromptsScreen(previewToast = true) }
@@ -474,7 +474,7 @@ class ScreenFitTest {
         fun confirmed(n: Int) = List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed) }
         val onePrompt = listOf(
             SavedPrompt(
-                "first_date",
+                "first_date_usually",
                 "Talk about anything real. Not jobs, not pets, not the weather. The thing " +
                     "actually on your mind this week. Bring it. I'll listen.",
             ),
@@ -517,7 +517,7 @@ class ScreenFitTest {
                 ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Topics))
             }
             sweep("Prompts/write @$scale", fontScale = scale) {
-                ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date")))
+                ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date_usually")))
             }
         }
         assertClean()
@@ -537,13 +537,13 @@ class ScreenFitTest {
     @Test
     fun `the write sheet clears the keyboard`() {
         sweep("Prompts/write + keyboard", keyboardDp = 300) {
-            ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date")))
+            ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date_usually")))
         }
         sweep("Prompts/write + keyboard, at cap", keyboardDp = 300) {
             ProfilePromptsScreen(
                 PromptsState(
-                    sheet = PromptSheet.Write("first_date"),
-                    drafts = mapOf("first_date" to PROMPT_SAMPLE_AT_CAP),
+                    sheet = PromptSheet.Write("first_date_usually"),
+                    drafts = mapOf("first_date_usually" to PROMPT_SAMPLE_AT_CAP),
                 ),
             )
         }

@@ -178,18 +178,27 @@ private struct TutorialFlow: View {
             state: prompts.state,
             onBack: { go(to: .profilePhotos) },
             onOpenTopics: { prompts.openTopics() },
-            onWriteTopic: { prompts.writeTopic($0) },
+            onWriteTopic: { prompts.writeSuggestion($0, position: $1) },
+            onPickTopic: { prompts.pickTopic($0, position: $1) },
             onEditPrompt: { prompts.editPrompt($0) },
             onDraftChange: { prompts.draftChanged($0) },
             onHideExample: { prompts.hideExample() },
             onSave: { prompts.save() },
-            onDismissSheet: { prompts.dismissSheet() },
-            onContinue: { go(to: .home) })
-            // Reads what the account already holds. Idempotent and cheap — arriving from photos
-            // and arriving from a resume both land here.
+            onDismissSheet: { prompts.dismissSheet($0) },
+            // The model decides and records; the host only routes. Continue is never disabled, so
+            // the refused press is a real press with a real event behind it rather than a button
+            // that did nothing.
+            onContinue: { if prompts.continuePressed() { go(to: .home) } },
+            // The SAME call on the refused press, which is what makes the two mutually exclusive:
+            // the screen picks a branch, the model re-checks and records whichever one it was.
+            onRefused: { _ = prompts.continuePressed() })
+            // Reads what the account already holds, and reports the arrival. Both are idempotent —
+            // the model keeps the answer and holds the step's start time — and arriving from
+            // photos and arriving from a resume both land here.
             .onAppear {
                 let stored = $promptsStored
                 prompts.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
+                prompts.arrived(referrer: .photos)
                 prompts.load()
             }
     }

@@ -312,6 +312,10 @@ grid_kt = read(KT, "profile", "PhotoGrid.kt")
 grid_sw = read(SW, "PhotoGrid.swift")
 topics_kt = read(KT, "profile", "PromptTopics.kt")
 topics_sw = read(SW, "PromptTopics.swift")
+analytics_kt = read(KT, "profile", "ProfileAnalytics.kt")
+analytics_sw = read(SW, "ProfileAnalytics.swift")
+prompts_vm_kt = read(KT, "profile", "PromptsViewModel.kt")
+prompts_vm_sw = read(SW, "PromptsModel.swift")
 access_kt = read(KT, "profile", "PhotoAccess.kt")
 access_sw = read(SW, "PhotoAccess.swift")
 
@@ -423,7 +427,7 @@ for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
 check("158 fifteen topics (kotlin)", topics_kt.count("PromptTopic(") >= 15)
 check("158 fifteen topics (swift)", topics_sw.count("PromptTopic(id:") >= 15)
 check("158 three groups (kotlin)", topics_kt.count("label = \"") == 3)
-check("158 three groups (swift)", topics_sw.count("TopicGroup(label:") == 3)
+check("158 three groups (swift)", topics_sw.count("TopicGroup(id:") == 3)
 for label, text in (("kotlin", topics_kt), ("swift", topics_sw)):
     check("158 group labels (%s)" % label,
           '"Dating me"' in text and '"Me in real life"' in text
@@ -433,8 +437,22 @@ for label, text in (("kotlin", topics_kt), ("swift", topics_sw)):
     check("158 one required, three max (%s)" % label,
           ("PROMPTS_REQUIRED = 1" in text and "PROMPTS_MAX = 3" in text)
           or ("promptsRequired = 1" in text and "promptsMax = 3" in text))
-    # prompt_id is the topic id plus the slot, per the registry's own prose and example.
-    check("158 prompt_id carries the slot (%s)" % label, "__slot" in text)
+    # THE IDS ARE THE REGISTRY'S, not ours. enums.json 17 is the dictionary and it carries
+    # `topic_group` as well. Six of the fifteen were invented against registry 1.3.0, which had no
+    # 17, and six were wrong -- and these ids are both the analytics join key and what the
+    # `profile_prompts` rows store, so a drift orphans data on both sides at once.
+    for topic_id in ("first_date_usually", "ideal_30_min", "cross_town_for",
+                     "spontaneous_plan", "thirty_min_feels", "in_real_life_more"):
+        check("158 canonical id %s (%s)" % (topic_id, label), '"%s"' % topic_id in text)
+    for group_id in ("dating_me", "real_life", "opinions"):
+        check("158 group id %s (%s)" % (group_id, label), '"%s"' % group_id in text)
+    # The six spellings they replaced must be gone entirely, not merely unused.
+    for stale in ('"first_date"', '"ideal_thirty"', '"cross_town"', '"spontaneous"',
+                  '"thirty_feels"', '"real_life_more"'):
+        check("158 stale id %s is gone (%s)" % (stale, label), stale not in text)
+    # `prompt_id` is a family F concept. No family E event carries it, so the helper that built it
+    # is gone rather than left to be called by accident.
+    check("158 prompt_id is gone with family F (%s)" % label, "__slot" not in text)
 
 for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
     check("158 headline em (%s)" % label, '"personal"' in text)
@@ -470,6 +488,112 @@ check("158 example is not the placeholder (kotlin)",
       "EXAMPLE_EYEBROW" in prompts_kt and "PLACEHOLDER" in prompts_kt)
 check("158 example is not the placeholder (swift)",
       "exampleEyebrow" in prompts_sw and "placeholder" in prompts_sw)
+
+# ── SHOWUP-158 · the tracking registry, at 1.4.2 ────────────────────────────
+#
+# Added 16 September 2026, when the ticket's tracking section was rewritten. Every check here is a
+# rule that a reasonable implementation gets WRONG by default, which is the only kind worth a
+# checker: the compiler cannot see any of them and neither can a screenshot.
+
+for label, text in (("kotlin", analytics_kt), ("swift", analytics_sw)):
+    # THE PAYLOAD STAMP. A payload stamped with a version its values did not come from is worse
+    # than an unstamped one, because it looks checked.
+    check("158 registry stamp is 1.4.2 (%s)" % label, '"1.4.2"' in text)
+    check("158 no stale registry stamp (%s)" % label, '"1.3.0"' not in text)
+
+    # FAMILY E, NOT FAMILY F. The four v1.0 names are marked SUPERSEDED -- DO NOT FIRE in
+    # events.json, emptied of their payloads so the name resolves to the notice. Nothing on this
+    # screen may emit one, so the constants are gone rather than merely uncalled.
+    for dead in ("prompt_topic_picker_opened", "prompt_answered", "prompt_edited",
+                 "prompt_removed"):
+        check("158 family F %s is gone (%s)" % (dead, label), '"%s"' % dead not in text)
+    for live in ("prompt_topic_list_opened", "prompt_topic_list_dismissed",
+                 "prompt_topic_selected", "prompt_editor_opened", "prompt_editor_dismissed",
+                 "prompt_saved", "prompt_example_dismissed", "prompt_char_limit_reached",
+                 "prompts_minimum_met"):
+        check("158 family E %s (%s)" % (live, label), '"%s"' % live in text)
+
+    # 23, THE CANONICAL SHEET-CLOSE VOCABULARY. One set for every bottom sheet in the product.
+    # The write sheet used to say close|scrim|swipe|back; a value outside the four is now a bug.
+    for value in ("close", "backdrop", "swipe", "system_back"):
+        check("158 dismiss_method %s (%s)" % (value, label), '"%s"' % value in text)
+    check("158 no pre-1.4.2 scrim (%s)" % label, '"scrim"' not in text)
+
+    # 18, and the rule that arrived with 1.4.1: `prompt_topic_selected` is scoped to suggestion
+    # and browse. Enforced as a TYPE with no edit case, because prose is not enforcement.
+    check("158 entry_point set (%s)" % label,
+          '"suggestion"' in text and '"browse"' in text and '"edit"' in text)
+    check("158 topic selection cannot carry an edit (%s)" % label, "TopicEntryPoint" in text)
+
+    # 8. `prompts_below_minimum` is the sibling of `photos_below_minimum`; `nothing_selected`
+    # belongs to a chooser where nothing was ticked, not a screen where nothing was written.
+    check("158 prompts_below_minimum (%s)" % label, '"prompts_below_minimum"' in text)
+    check("158 nothing_selected is gone (%s)" % label, '"nothing_selected"' not in text)
+
+    # 11. The human label, which is what a person searches for in the analytics tool.
+    check("158 screen_name is ProfilePrompts (%s)" % label, '"ProfilePrompts"' in text)
+    check("158 old screen_name is gone (%s)" % label, '"Profile - Prompts"' not in text)
+
+    # NEVER THE ANSWER AND NEVER THE DRAFT. Every builder takes a LENGTH, so no signature can
+    # carry the text even by accident; the bucket is computed inside.
+    check("158 length is bucketed, not sent (%s)" % label,
+          "length_bucket" in text and "promptLengthBucket" in text)
+    check("158 no answer or draft property (%s)" % label,
+          '"answer"' not in text and '"draft"' not in text)
+
+    # `selection_index`, and the rule it is most often got wrong by: it counts per VISIT TO THE
+    # STEP, not per sheet.
+    check("158 selection_index (%s)" % label, '"selection_index"' in text)
+    # `prompt_count` on the accepted Continue -- 1 to 3, screen-scoped.
+    check("158 prompt_count on step completed (%s)" % label, '"prompt_count"' in text)
+
+# THE TESTS PIN THE REGISTRY TOO, and that is where this bit twice.
+#
+# The source files were corrected to 1.4.2 and the SWIFT tests still asserted 1.3.0 and
+# "Profile - Prompts" -- so the Kotlin suite went green locally, the Swift suite failed on a macOS
+# runner ten minutes later, and the only thing that knew were the assertions themselves. A version
+# string pinned in a test is as much a declaration of the vocabulary as the constant it checks.
+KT_TESTS = os.path.join(MOBILE, "android-preview-project", "app", "src", "test", "java",
+                        "com", "showup", "profile")
+SW_TESTS = os.path.join(MOBILE, "ios-app", "ShowUpWelcomeTests")
+for label, folder in (("kotlin", KT_TESTS), ("swift", SW_TESTS)):
+    if not os.path.isdir(folder):
+        continue
+    for fn in sorted(os.listdir(folder)):
+        if not fn.endswith((".kt", ".swift")):
+            continue
+        body = code_only(io.open(os.path.join(folder, fn), encoding="utf-8").read())
+        check("158 %s pins no stale registry (%s)" % (fn, label), '"1.3.0"' not in body)
+        check("158 %s pins no stale screen_name (%s)" % (fn, label),
+              '"Profile - Prompts"' not in body)
+
+for label, text in (("kotlin", prompts_vm_kt), ("swift", prompts_vm_sw)):
+    # THE COUNTER IS NOT RESET BY A SHEET. It lives in the persisted state, so neither a sheet
+    # closing nor a process death restarts it.
+    check("158 selection count is persisted state (%s)" % label, "topicSelections" in text)
+    # AN EDIT FIRES ONLY THE EDITOR EVENT. If `promptTopicSelected` appears in the edit path the
+    # topic-demand chart is inflated with re-edits.
+    check("158 edit reports only the editor (%s)" % label,
+          "promptTopicSelected" not in text.split("editPrompt")[-1].split("draftChanged")[0])
+    # The cap is reported once per editor session, not per keystroke.
+    check("158 cap reported once per session (%s)" % label, "charLimitReportedFor" in text)
+    # The refused Continue is the ONLY record that a user tried to leave -- Continue is never
+    # disabled, so there is no dead button to infer it from.
+    check("158 refused Continue is recorded (%s)" % label, "continuePressed" in text)
+
+# ── SHOWUP-158 · the sheets can be closed four ways, and say which ──────────
+#
+# The ticket asks for swipe twice -- "closing the sheet by X, scrim tap or swipe keeps what was
+# typed", and again in the tracking criteria -- and neither platform had it. The scrim and the X
+# also called one lambda, so the two acts were indistinguishable at the call site.
+for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
+    check("158 the scrim reports backdrop (%s)" % label, "Backdrop" in text or ".backdrop" in text)
+    check("158 the X reports close (%s)" % label, "Close)" in text or ".close)" in text)
+    check("158 the sheet can be swiped down (%s)" % label,
+          "Swipe" in text or ".swipe" in text)
+check("158 the Android back gesture closes the sheet", "BackHandler" in prompts_kt)
+check("158 swipe has a threshold (kotlin)", "SWIPE_DISMISS_PX" in prompts_kt)
+check("158 swipe has a threshold (swift)", "sheetSwipeDismiss" in prompts_sw)
 
 # ── both screens · Continue is never disabled ───────────────────────────────
 #

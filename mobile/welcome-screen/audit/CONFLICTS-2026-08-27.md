@@ -419,7 +419,7 @@ links across three screens would have needed seven names to say less.
 
 Not open any more. Do not re-litigate.
 
-## E4 · "The real you" step_index: the registry and the tickets disagree. OPEN
+## E4 · "The real you" step_index: the registry and the tickets disagree. CLOSED 16 September 2026
 
 Found 15 September 2026, building SHOWUP-156 and SHOWUP-158.
 
@@ -472,7 +472,7 @@ the property is missing.
 Also still missing, and also not invented: an **abandonment** event for a write sheet opened and
 closed without saving, which is the precise drop-off the screen is designed against.
 
-## E7 · The prompts ticket's tracking section is out of date. NOT A CONFLICT, a correction
+## E7 · The prompts ticket's tracking section is out of date. OVERTAKEN 16 September 2026
 
 SHOWUP-158 says "the whole prompt-authoring funnel is unregistered… there is nothing for topic
 chosen, write sheet opened, prompt saved, prompt edited, or prompt deleted."
@@ -508,3 +508,48 @@ progress bar that only ever shows steps you have already reached is a counter.
 Still open, and separate from this: which `step_id` a single media screen reports. §2 of the
 registry carries `media_voice` and `media_video` as two steps, both outside this bar. That is a
 question for the media ticket, not this one — see the note on `RealYouStep.stepId`.
+
+
+## E4 and E7, resolved by registry 1.4.2 — 16 September 2026
+
+Both entries above were written against registry 1.3.0 and are now settled, in opposite directions.
+Recorded together because the pair is the lesson: one was the registry catching up with the code,
+the other was the code having guessed.
+
+**E4 — the code was right.** 1.3.0 gave `prompts` `step_index: 10`, under "Share some details ·
+step 10", which is where prompts sat before it moved into "The real you". The clients shipped
+`stepIndex = progressSegment` — photos 1, prompts 2, media 3 — and said so in a comment rather than
+matching a number they believed to be stale. §2 at **1.4.2** now reads exactly that, "corrected in
+registry 1.3.1 and re-verified against the current flow on 16 Sep 2026". Nothing to change.
+
+**E7 — the code had guessed, and guessed wrong.** At 1.3.0 the only prompt rows that existed were
+family F (`prompt_topic_picker_opened`, `prompt_topic_selected` with `topic_id` alone,
+`prompt_answered`, `prompt_edited`, `prompt_removed`), so the screen used them as named rather than
+minting the five the ticket asked for. 1.4.2 marks all four this screen fired as **SUPERSEDED — DO
+NOT FIRE**, deletes the duplicate `prompt_topic_selected` row outright, and makes family E the only
+vocabulary for written prompts. The screen was rewritten onto family E; `PromptsTrackingTest.kt` and
+`PromptsTrackingTests.swift` fail if a family F name is ever emitted again.
+
+**E9 · Six topic ids were ours and should have been the registry's. FIXED 16 September 2026.**
+
+The reference file carries the fifteen DISPLAY STRINGS and no ids. §17 (`prompt_topic_id registry`),
+which does carry them, did not exist at 1.3.0 — so ids were assigned locally, documented as
+assigned, and six of the fifteen did not match when §17 arrived:
+
+| ours | §17 |
+|---|---|
+| `first_date` | `first_date_usually` |
+| `ideal_thirty` | `ideal_30_min` |
+| `cross_town` | `cross_town_for` |
+| `spontaneous` | `spontaneous_plan` |
+| `thirty_feels` | `thirty_min_feels` |
+| `real_life_more` | `in_real_life_more` |
+
+These are the analytics join key AND what `profile_prompts` rows store, so the correction is a
+database migration (`1717000018000-CanonicalPromptTopicIds.ts`) as well as a rename. §17 also
+carries `topic_group`, which the clients did not have at all.
+
+**The general lesson, and it is not "read the registry".** The registry did not contain the answer
+at the time. It is that a value invented to fill a registry gap has to be recorded as a GAP, not as
+a decision — E7 was filed as "not a conflict, a correction", which read as settled and made the
+guess harder to find later than it should have been.

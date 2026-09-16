@@ -72,7 +72,18 @@ enum PromptSheet: Equatable, Codable {
     /// `editing` is what makes Save overwrite rather than append, and it is carried on the sheet
     /// rather than derived from whether the topic is already used — a user can open the topic
     /// sheet, pick a topic, and be editing nothing at all.
-    case write(topicId: String, editing: Bool)
+    ///
+    /// `entryPoint` is carried for the same reason `editing` is, and a sharper one: the registry
+    /// says `entry_point` is "never inferred from whether a sheet was open - pass it through from
+    /// the control that was tapped". Two of its three values have the sheet open, so there is
+    /// nothing to infer from. It rides on the sheet so that `prompt_saved` and
+    /// `prompt_editor_dismissed`, which happen later, still report the control that started this.
+    ///
+    /// NO DEFAULT, and not only because Swift forbids one on an enum case: a defaulted entry point
+    /// is a real 18 value that nobody chose, and the whole reason this property exists is that it
+    /// must come from the control that was tapped. A preview naming `.suggestion` is stating what
+    /// it is drawing; a default would be stating it by accident.
+    case write(topicId: String, editing: Bool, entryPoint: PromptEntryPoint)
 }
 
 /// Everything the prompts screen renders.
@@ -105,6 +116,32 @@ struct PromptsState: Equatable, Codable {
     /// was written. A fourth message goes in the same RESERVED row, so nothing about the layout
     /// changes, and the sheet stays open with the text still in it.
     var failed = false
+    /// When the sheet now up was opened, as seconds since the reference date. 0 when none is.
+    ///
+    /// `time_on_sheet_s` needs a start, and one field serves both sheets because only one is ever
+    /// open. An absolute instant rather than an uptime ON PURPOSE: it is the only one still true
+    /// after the scene is torn down, and a duration that reset when iOS reclaimed the app would
+    /// report the abandonment it is measuring as having taken no time at all.
+    var sheetOpenedAt: Double = 0
+    /// When this visit to the step began. Feeds `time_on_step_s` on the accepted Continue.
+    var stepStartedAt: Double = 0
+    /// How many topics have been chosen in this visit to the step.
+    ///
+    /// `selection_index` is this plus one, and the rule the registry is emphatic about is that it
+    /// COUNTS PER VISIT TO THE STEP, NOT PER SHEET: it does not reset when a sheet closes. Reset
+    /// it per sheet and "which topic did they reach for first" quietly becomes "which topic did
+    /// they reach for first in this sheet", which is a question nobody asked. It lives in the
+    /// persisted state so a scene teardown does not restart the count either. An EDIT does not
+    /// increment it.
+    var topicSelections = 0
+    /// Whether `prompts_minimum_met` has fired. Once, on the FIRST save, never again.
+    var minimumReported = false
+    /// The topic whose 160-character cap has already been reported in this editor session.
+    ///
+    /// `prompt_char_limit_reached` fires ONCE PER EDITOR SESSION, not per keystroke - otherwise
+    /// every character typed at the cap is another row saying the same thing. Cleared when a sheet
+    /// opens, which is what makes it per session rather than per topic.
+    var charLimitReportedFor: String? = nil
 
     var count: Int { prompts.count }
     var canContinue: Bool { count >= promptsRequired }
@@ -311,24 +348,60 @@ private struct SheetCloseButton: View {
 ///
 /// `sheet-rise` is 28 up and 0.85 → 1 opacity over `Motion.sheet` — a shared keyframe, not a
 /// per-sheet animation, and skipped entirely when the device asks for no motion.
+/// How far a sheet has to be pushed down before letting go dismisses it.
+///
+/// A thumb's travel: far enough that a scroll inside the sheet cannot trigger it by accident, near
+/// enough that the gesture does not feel resisted. Local rather than a token -- it is this
+/// gesture's threshold and nothing else's, and `Spacing` holds no value meaning "a deliberate
+/// drag".
+///
+/// AT FILE SCOPE, not inside `SheetScaffold`: that type is generic over its content, and Swift has
+/// no storage for a static on a generic type.
+private let sheetSwipeDismiss: CGFloat = 120
+
 private struct SheetScaffold<Content: View>: View {
-    let onDismiss: () -> Void
+    let onDismiss: (SheetDismissMethod) -> Void
     @ViewBuilder let content: () -> Content
 
     @State private var shown = false
+    /// How far the sheet has been pushed down by the finger now on it.
+    ///
+    /// SWIPE-DOWN, which the ticket asks for twice - "closing the sheet by X, scrim tap or swipe
+    /// keeps what was typed", and again in the tracking criteria - and which nothing here
+    /// implemented. A bottom sheet that cannot be pushed down is wrong on a phone regardless of
+    /// the ticket. It only counts as a dismissal past a threshold, so a small nudge springs back.
+    @State private var drag: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
 
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.liqFg.opacity(0.42)
                 .ignoresSafeArea()
-                .onTapGesture(perform: onDismiss)
+                // THE SCRIM IS `backdrop`, NOT `close`. Four values, four different acts:
+                // the registry unified them on 16 September 2026 precisely because three
+                // spellings of the same four acts had drifted apart, and folding two of them
+                // together here would put the drift back inside one screen.
+                .onTapGesture { onDismiss(.backdrop) }
                 .accessibilityLabel(Text(PromptsCopy.dismiss))
                 .accessibilityAddTraits(.isButton)
 
             content()
-                .offset(y: shown ? 0 : 28)
+                .offset(y: (shown ? 0 : 28) + drag)
                 .opacity(shown ? 1 : 0.85)
+                .gesture(
+                    DragGesture()
+                        // Downwards only. Dragging a bottom sheet UP would detach it from the
+                        // edge it is docked to, and the ticket forbids positioning either sheet
+                        // by a top offset.
+                        .onChanged { drag = max(0, $0.translation.height) }
+                        .onEnded { value in
+                            if value.translation.height > sheetSwipeDismiss {
+                                onDismiss(.swipe)
+                            }
+                            drag = 0
+                        }
+                )
                 // The keyboard is not ours, and its height is not knowable. The safe-area inset
                 // for the keyboard is what keeps the field, the status row and Save above it
                 // without anybody guessing — and SwiftUI applies it by default, which is why
@@ -355,7 +428,7 @@ private struct SheetScaffold<Content: View>: View {
 /// between the first prompt and the second.
 private struct TopicPickerSheet: View {
     let used: [String]
-    let onPick: (String) -> Void
+    let onPick: (String, Int) -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -417,7 +490,11 @@ private struct TopicPickerSheet: View {
     @ViewBuilder
     private func topicRow(_ topic: PromptTopic) -> some View {
         let isUsed = used.contains(topic.id)
-        Button { if !isUsed { onPick(topic.id) } } label: {
+        // Flat across the whole sheet rather than within the group: "the row's index" is what a
+        // person scanning the list sees, and the group boundaries are already carried by
+        // `topic_group`.
+        let position = promptTopics.firstIndex { $0.id == topic.id } ?? 0
+        Button { if !isUsed { onPick(topic.id, position) } } label: {
             HStack(spacing: Spacing.xl) {
                 Text(topic.text)
                     .font(F.manrope(14.5, .semibold))
@@ -699,12 +776,15 @@ struct ProfilePromptsView: View {
     var state: PromptsState = PromptsState()
     var onBack: () -> Void = {}
     var onOpenTopics: () -> Void = {}
-    var onWriteTopic: (String) -> Void = { _ in }
+    /// A suggestion card. The Int is which card, from 0 - `position` in the registry.
+    var onWriteTopic: (String, Int) -> Void = { _, _ in }
+    /// A row of the browse sheet. The Int is the row's index across the whole sheet.
+    var onPickTopic: (String, Int) -> Void = { _, _ in }
     var onEditPrompt: (String) -> Void = { _ in }
     var onDraftChange: (String) -> Void = { _ in }
     var onHideExample: () -> Void = {}
     var onSave: () -> Void = {}
-    var onDismissSheet: () -> Void = {}
+    var onDismissSheet: (SheetDismissMethod) -> Void = { _ in }
     var onContinue: () -> Void = {}
     /// Fires on the REFUSED press, never on render.
     var onRefused: () -> Void = {}
@@ -759,9 +839,12 @@ struct ProfilePromptsView: View {
                         .padding(.bottom, Spacing.lg)
 
                     VStack(alignment: .leading, spacing: Spacing.lg) {
-                        ForEach(suggestionsFor(used: state.usedTopicIds,
-                                               count: state.count == 0 ? 3 : 2)) { topic in
-                            SuggestionCard(topic: topic) { onWriteTopic(topic.id) }
+                        ForEach(Array(suggestionsFor(used: state.usedTopicIds,
+                                                     count: state.count == 0 ? 3 : 2)
+                            .enumerated()), id: \.element.id) { position, topic in
+                            SuggestionCard(topic: topic) {
+                                onWriteTopic(topic.id, position)
+                            }
                         }
                         BrowseAllButton(onTap: onOpenTopics)
                     }
@@ -791,10 +874,10 @@ struct ProfilePromptsView: View {
             case .topics:
                 SheetScaffold(onDismiss: onDismissSheet) {
                     TopicPickerSheet(used: state.usedTopicIds,
-                                     onPick: onWriteTopic,
-                                     onClose: onDismissSheet)
+                                     onPick: onPickTopic,
+                                     onClose: { onDismissSheet(.close) })
                 }
-            case .write(let topicId, _):
+            case .write(let topicId, _, _):
                 SheetScaffold(onDismiss: onDismissSheet) {
                     WritePromptSheet(
                         topicId: topicId,
@@ -805,7 +888,7 @@ struct ProfilePromptsView: View {
                         onDraftChange: onDraftChange,
                         onHideExample: onHideExample,
                         onSave: onSave,
-                        onClose: onDismissSheet
+                        onClose: { onDismissSheet(.close) }
                     )
                 }
             case nil:
@@ -837,14 +920,14 @@ struct ProfilePromptsView: View {
 // MARK: - Previews
 
 private let onePrompt = [SavedPrompt(
-    topicId: "first_date",
+    topicId: "first_date_usually",
     answer: "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on "
         + "your mind this week. Bring it. I'll listen."
 )]
 private let threePrompts = onePrompt + [
     SavedPrompt(topicId: "hill_to_die_on",
                 answer: "Showing up. Cancelling last minute isn't a scheduling problem, it's an answer."),
-    SavedPrompt(topicId: "cross_town",
+    SavedPrompt(topicId: "cross_town_for",
                 answer: "A proper conversation. An old cinema. The 8pm walk after a long day."),
 ]
 private let midDraft = "Talk about anything real. Not jobs, not pets, not the weather."
@@ -863,31 +946,31 @@ private let fullDraft = cappedAnswer(
 }
 
 #Preview("E · write empty") {
-    ProfilePromptsView(state: PromptsState(sheet: .write(topicId: "first_date", editing: false)))
+    ProfilePromptsView(state: PromptsState(sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion)))
 }
 
 #Preview("F · write mid") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date", editing: false),
-        drafts: ["first_date": midDraft]))
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+        drafts: ["first_date_usually": midDraft]))
 }
 
 #Preview("G · write at cap") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date", editing: false),
-        drafts: ["first_date": fullDraft]))
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+        drafts: ["first_date_usually": fullDraft]))
 }
 
 #Preview("H · write nudge") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date", editing: false), nudge: true))
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion), nudge: true))
 }
 
 #Preview("toast · refused") { ProfilePromptsView(previewToast: true) }
 
 #Preview("I · save failed") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date", editing: false),
-        drafts: ["first_date": midDraft],
+        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+        drafts: ["first_date_usually": midDraft],
         failed: true))
 }
