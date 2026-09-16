@@ -388,8 +388,13 @@ jobs:
           fi
 
           # The screens are what a PO actually notices, so name them rather than only the count.
+          #
+          # `:(top)` anchors the pathspec at the repository ROOT rather than the working
+          # directory. It is the root here and the job was never wrong -- but a pathspec that
+          # silently matches NOTHING when read from a subdirectory is precisely the class of
+          # quiet-wrong this job exists to catch.
           added=$(git diff --name-only origin/staging..origin/development \
-            -- 'mobile/welcome-screen/**' | wc -l)
+            -- ':(top)mobile/welcome-screen/**' | wc -l)
           echo "$behind commits and $added mobile files are on development and not on staging."
           echo "Anyone testing a zip built from staging is testing an older app."
 
