@@ -42,6 +42,15 @@ class PromptsViewModel(
     private val repo: PromptsRepository,
     private val saved: SavedStateHandle,
     private val analytics: AnalyticsTracker? = null,
+    /**
+     * The clock, injected.
+     *
+     * `time_on_sheet_s` and `time_on_step_s` are the only two numbers here that cannot be asserted
+     * without one -- a test that read the real clock would have to assert "about zero", which is
+     * the same as asserting nothing. Wall clock rather than elapsed: see
+     * [PromptsState.sheetOpenedAtMillis].
+     */
+    private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -74,26 +83,87 @@ class PromptsViewModel(
         }
     }
 
+    // ── arriving ────────────────────────────────────────────────────────────
+
+    /**
+     * The step was reached.
+     *
+     * TWO EVENTS, NOT ONE, and they answer different questions: `screen_viewed` says WHICH SCREEN
+     * and `profile_step_viewed` says WHERE IN THE FLOW. `step_index` comes from [RealYouStep]
+     * rather than a literal, which is the registry's rule and the reason the 2-vs-10 disagreement
+     * of registry 1.3.0 could be resolved by changing a registry rather than a call site.
+     *
+     * Idempotent on the timer: a re-entry after a process death keeps the original start, so
+     * `time_on_step_s` measures the visit rather than the resumption.
+     */
+    fun arrived(referrer: ProfileScreen? = null) {
+        analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.Prompts, referrer))
+        analytics?.report(ProfileAnalytics.realYouStepViewed(RealYouStep.Prompts))
+        if (_state.value.stepStartedAtMillis == 0L) {
+            set(_state.value.copy(stepStartedAtMillis = now()))
+        }
+    }
+
     // ── the sheets ──────────────────────────────────────────────────────────
 
     fun openTopics() {
-        analytics?.report(
-            ProfileAnalytics.promptTopicPickerOpened(slotIndex = _state.value.count),
-        )
-        set(_state.value.copy(sheet = PromptSheet.Topics))
+        val current = _state.value
+        analytics?.report(ProfileAnalytics.promptTopicListOpened(usedCount = current.count))
+        set(current.copy(sheet = PromptSheet.Topics, sheetOpenedAtMillis = now()))
     }
 
     /**
-     * Picking a topic REPLACES the topic sheet with the write sheet -- the two never stack -- and
-     * resets the example, which is per sheet rather than per session.
+     * A suggestion card on the screen was tapped.
+     *
+     * @param position which card, from 0. The registry wants it so that "were these the right
+     *   three" can be read per slot rather than only per topic.
      */
-    fun writeTopic(topicId: String) {
-        analytics?.report(ProfileAnalytics.promptTopicSelected(topicId))
+    fun writeSuggestion(topicId: String, position: Int) =
+        chooseTopic(topicId, TopicEntryPoint.Suggestion, position)
+
+    /** A row of the browse sheet was tapped. [position] is the row's index within the sheet. */
+    fun pickTopic(topicId: String, position: Int) =
+        chooseTopic(topicId, TopicEntryPoint.Browse, position)
+
+    /**
+     * Picking a topic REPLACES the topic sheet with the write sheet -- the two never stack.
+     *
+     * ONE SELECTION, NOT A DISMISSAL PLUS A SELECTION. The registry says so in as many words, and
+     * it is why this does not route through [dismissSheet]: the browse sheet resolving into the
+     * write sheet is the sheet succeeding, and counting it as an abandonment would make
+     * `prompt_topic_list_opened = selected + dismissed` stop adding up.
+     *
+     * The example resets too -- it is per sheet rather than per session.
+     */
+    private fun chooseTopic(topicId: String, from: TopicEntryPoint, position: Int) {
+        val current = _state.value
+        val selections = current.topicSelections + 1
+        analytics?.report(
+            ProfileAnalytics.promptTopicSelected(
+                topicId = topicId,
+                entryPoint = from,
+                position = position,
+                // 1-based, and counted across the whole visit to the step.
+                selectionIndex = selections,
+            ),
+        )
+        val editing = topicId in current.usedTopicIds
+        analytics?.report(
+            ProfileAnalytics.promptEditorOpened(
+                topicId = topicId,
+                entryPoint = from.entryPoint,
+                isEdit = editing,
+                promptCount = current.count,
+            ),
+        )
         set(
-            _state.value.copy(
-                sheet = PromptSheet.Write(topicId, editing = topicId in _state.value.usedTopicIds),
+            current.copy(
+                sheet = PromptSheet.Write(topicId, editing = editing, entryPoint = from.entryPoint),
                 nudge = false,
                 exampleHiddenFor = null,
+                sheetOpenedAtMillis = now(),
+                topicSelections = selections,
+                charLimitReportedFor = null,
             ),
         )
     }
@@ -101,16 +171,33 @@ class PromptsViewModel(
     /**
      * Editing reopens the sheet WITH THE SAVED TEXT IN THE FIELD, which is what makes Save an
      * overwrite rather than a second prompt.
+     *
+     * NO `prompt_topic_selected` HERE, and that is the registry change of 16 September 2026: an
+     * edit is not a fresh choice of topic, and firing it inflated the topic-demand chart with
+     * re-edits of prompts already written. [PromptAnalytics.promptTopicSelected] could not accept
+     * this entry point even if it were called -- [TopicEntryPoint] has no `edit` case.
+     *
+     * It does not raise [PromptsState.topicSelections] either, for the same reason.
      */
     fun editPrompt(topicId: String) {
         val current = _state.value
         val existing = current.prompts.firstOrNull { it.topicId == topicId }?.answer.orEmpty()
+        analytics?.report(
+            ProfileAnalytics.promptEditorOpened(
+                topicId = topicId,
+                entryPoint = PromptEntryPoint.Edit,
+                isEdit = true,
+                promptCount = current.count,
+            ),
+        )
         set(
             current.copy(
-                sheet = PromptSheet.Write(topicId, editing = true),
+                sheet = PromptSheet.Write(topicId, editing = true, entryPoint = PromptEntryPoint.Edit),
                 drafts = current.drafts + (topicId to existing),
                 nudge = false,
                 exampleHiddenFor = null,
+                sheetOpenedAtMillis = now(),
+                charLimitReportedFor = null,
             ),
         )
     }
@@ -118,12 +205,19 @@ class PromptsViewModel(
     fun draftChanged(text: String) {
         val current = _state.value
         val sheet = current.sheet as? PromptSheet.Write ?: return
+        // ONCE PER EDITOR SESSION. Every keystroke at the cap is the same fact, and 160 rows
+        // saying it is not 160 times the information.
+        val reachedCap = text.length >= PROMPT_MAX_CHARS
+        val report = reachedCap && current.charLimitReportedFor != sheet.topicId
+        if (report) analytics?.report(ProfileAnalytics.promptCharLimitReached(sheet.topicId))
         set(
             current.copy(
                 drafts = current.drafts + (sheet.topicId to text),
                 // The empty-submit error clears on the FIRST CHARACTER TYPED, not on blur and not
                 // on a re-press.
                 nudge = false,
+                charLimitReportedFor =
+                    if (report) sheet.topicId else current.charLimitReportedFor,
             ),
         )
     }
@@ -131,12 +225,86 @@ class PromptsViewModel(
     fun hideExample() {
         val current = _state.value
         val sheet = current.sheet as? PromptSheet.Write ?: return
+        analytics?.report(ProfileAnalytics.promptExampleDismissed(sheet.topicId))
         set(current.copy(exampleHiddenFor = sheet.topicId))
     }
 
-    /** DISMISSAL KEEPS THE DRAFT. Only Save writes a prompt. */
-    fun dismissSheet() {
-        set(_state.value.copy(sheet = null))
+    /**
+     * DISMISSAL KEEPS THE DRAFT. Only Save writes a prompt.
+     *
+     * [method] is required rather than defaulted, because the four §23 values are four different
+     * acts and a default would quietly make three of them look like the fourth. The X is not the
+     * Android back gesture, and the registry calls that out by name.
+     */
+    fun dismissSheet(method: SheetDismissMethod) {
+        val current = _state.value
+        when (val sheet = current.sheet) {
+            is PromptSheet.Topics -> analytics?.report(
+                ProfileAnalytics.promptTopicListDismissed(
+                    method = method,
+                    usedCount = current.count,
+                    timeOnSheetSeconds = secondsSince(current.sheetOpenedAtMillis),
+                ),
+            )
+
+            is PromptSheet.Write -> analytics?.report(
+                ProfileAnalytics.promptEditorDismissed(
+                    topicId = sheet.topicId,
+                    entryPoint = sheet.entryPoint,
+                    // The LENGTH, never the draft. The bucket is computed inside the builder.
+                    draftLength = current.draftFor(sheet.topicId).trim().length,
+                    method = method,
+                ),
+            )
+
+            null -> return
+        }
+        set(current.copy(sheet = null, sheetOpenedAtMillis = 0))
+    }
+
+    // ── continuing ──────────────────────────────────────────────────────────
+
+    /**
+     * Continue was pressed.
+     *
+     * CONTINUE IS NEVER DISABLED, so this event is the only record that a user tried to leave with
+     * nothing written -- there is no disabled button to infer it from. The refused press reports
+     * `prompts_below_minimum`, which registry 1.4.2 added as the sibling of `photos_below_minimum`;
+     * this screen used to send `nothing_selected`, which belongs to a chooser where nothing was
+     * ticked rather than a screen where nothing was written.
+     *
+     * @return whether the flow may advance. The host routes; this decides and records.
+     */
+    fun continuePressed(): Boolean {
+        val current = _state.value
+        if (!current.canContinue) {
+            analytics?.report(
+                ProfileAnalytics.realYouValidationFailed(
+                    fieldId = ProfileField.PROMPTS,
+                    rule = ValidationRule.PROMPTS_BELOW_MINIMUM,
+                    screen = ProfileScreen.Prompts,
+                    step = RealYouStep.Prompts,
+                ),
+            )
+            return false
+        }
+        analytics?.report(
+            ProfileAnalytics.realYouStepCompleted(
+                step = RealYouStep.Prompts,
+                timeOnStepSeconds = secondsSince(current.stepStartedAtMillis),
+                // 1 to 3, the count at the moment Continue was ACCEPTED. Screen-scoped: no other
+                // step sends it.
+                promptCount = current.count,
+            ),
+        )
+        return true
+    }
+
+    /** Whole seconds since a wall-clock stamp, never negative and never a lie about 0. */
+    private fun secondsSince(startedAtMillis: Long): Int {
+        if (startedAtMillis <= 0L) return 0
+        val elapsed = now() - startedAtMillis
+        return if (elapsed <= 0L) 0 else (elapsed / 1000L).toInt()
     }
 
     // ── saving ──────────────────────────────────────────────────────────────
@@ -148,6 +316,10 @@ class PromptsViewModel(
      * and then failed would leave the user looking at a list that does not have their answer in it
      * and no way back to the text they wrote -- so the draft is only cleared once the server has
      * it, and a failure leaves the sheet exactly as it was.
+     *
+     * NOTHING IS REPORTED ON THE EMPTY PRESS. State H is a nudge, not a validation failure: the
+     * one refusal this screen registers is Continue, and adding a second would double-count the
+     * same user against a rule that only exists once.
      */
     fun save() {
         val current = _state.value
@@ -174,18 +346,28 @@ class PromptsViewModel(
                         now.prompts + result.prompt
                     }
                     analytics?.report(
-                        if (sheet.editing) {
-                            ProfileAnalytics.promptEdited(
-                                promptId(sheet.topicId, maxOf(existing, 0)),
-                            )
-                        } else {
-                            ProfileAnalytics.promptAnswered(
-                                promptId = promptId(sheet.topicId, updated.lastIndex),
-                                charCount = result.prompt.answer.length,
-                                atCharLimit = result.prompt.answer.length >= PROMPT_MAX_CHARS,
-                            )
-                        },
+                        ProfileAnalytics.promptSaved(
+                            topicId = sheet.topicId,
+                            entryPoint = sheet.entryPoint,
+                            // An edit does not consume a slot, and `is_edit` has to be honest
+                            // about that: `prompt_count` is the count AFTER the action either way.
+                            isEdit = sheet.editing,
+                            answerLength = result.prompt.answer.length,
+                            promptCount = updated.size,
+                        ),
                     )
+                    // ONCE, on the FIRST save, carrying the topic and entry point that got the
+                    // user there -- the registry calls that pairing the most useful row here.
+                    val crossed = !now.minimumReported && updated.size >= PROMPTS_REQUIRED
+                    if (crossed) {
+                        analytics?.report(
+                            ProfileAnalytics.promptsMinimumMet(
+                                count = updated.size,
+                                topicId = sheet.topicId,
+                                entryPoint = sheet.entryPoint,
+                            ),
+                        )
+                    }
                     set(
                         now.copy(
                             prompts = updated,
@@ -195,6 +377,9 @@ class PromptsViewModel(
                             nudge = false,
                             saving = false,
                             failed = false,
+                            sheetOpenedAtMillis = 0,
+                            minimumReported = now.minimumReported || crossed,
+                            charLimitReportedFor = null,
                         ),
                     )
                 }

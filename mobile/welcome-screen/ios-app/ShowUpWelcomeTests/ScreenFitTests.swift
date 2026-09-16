@@ -358,21 +358,21 @@ final class ScreenFitTests: XCTestCase {
                     on: device), .orange),
                 ("Prompts write empty", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date", editing: false))),
+                        sheet: .write(topicId: "first_date_usually", editing: false))),
                     on: device), .violet),
                 ("Prompts write mid", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date", editing: false),
-                        drafts: ["first_date": "Talk about anything real. Not the weather."])),
+                        sheet: .write(topicId: "first_date_usually", editing: false),
+                        drafts: ["first_date_usually": "Talk about anything real. Not the weather."])),
                     on: device), .violet),
                 ("Prompts write at cap", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date", editing: false),
-                        drafts: ["first_date": fitFullDraft])),
+                        sheet: .write(topicId: "first_date_usually", editing: false),
+                        drafts: ["first_date_usually": fitFullDraft])),
                     on: device), .violet),
                 ("Prompts write nudge", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date", editing: false), nudge: true)),
+                        sheet: .write(topicId: "first_date_usually", editing: false), nudge: true)),
                     on: device), .violet),
             ]
             for (label, image, tint) in screens {
@@ -461,7 +461,7 @@ private func fitConfirmedPhotos(_ n: Int) -> [PickedPhoto] {
 }
 
 private let fitOnePrompt = [SavedPrompt(
-    topicId: "first_date",
+    topicId: "first_date_usually",
     answer: "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on "
         + "your mind this week. Bring it. I'll listen."
 )]
@@ -470,7 +470,7 @@ private let fitThreePrompts = fitOnePrompt + [
     SavedPrompt(topicId: "hill_to_die_on",
                 answer: "Showing up. Cancelling last minute isn't a scheduling problem, "
                     + "it's an answer."),
-    SavedPrompt(topicId: "cross_town",
+    SavedPrompt(topicId: "cross_town_for",
                 answer: "A proper conversation. An old cinema. The 8pm walk after a long day."),
 ]
 

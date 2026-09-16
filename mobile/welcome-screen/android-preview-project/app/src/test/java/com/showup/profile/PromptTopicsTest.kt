@@ -44,8 +44,8 @@ class PromptTopicsTest {
         // ASSIGNED, NOT DERIVED. A slug computed from the display string would change with a copy
         // edit and orphan every answer saved under the old one. These two are spot-checked because
         // a derived slug would produce something quite different.
-        assertEquals("first_date", topicFor("first_date")?.id)
-        assertEquals("On a first date, I usually…", topicText("first_date"))
+        assertEquals("first_date_usually", topicFor("first_date_usually")?.id)
+        assertEquals("On a first date, I usually…", topicText("first_date_usually"))
     }
 
     @Test
@@ -74,12 +74,12 @@ class PromptTopicsTest {
     @Test
     fun `three are offered at zero saved and two after that`() {
         assertEquals(3, suggestionsFor(used = emptyList(), count = 3).size)
-        assertEquals(2, suggestionsFor(used = listOf("first_date"), count = 2).size)
+        assertEquals(2, suggestionsFor(used = listOf("first_date_usually"), count = 2).size)
     }
 
     @Test
     fun `a used topic is never suggested again`() {
-        val used = listOf("first_date", "weird_habit")
+        val used = listOf("first_date_usually", "weird_habit")
         val offered = suggestionsFor(used, count = 2).map { it.id }
         assertTrue(offered.none { it in used })
     }
@@ -146,27 +146,100 @@ class PromptTopicsTest {
         assertEquals("3/3 prompts · enough to continue", PromptsCopy.counter(3))
     }
 
-    // ── prompt_id ───────────────────────────────────────────────────────────
+    // ── the ids are the registry's ──────────────────────────────────────────
 
     @Test
-    fun `prompt_id is the topic id plus the slot, numbered from one`() {
-        // §5's own prose and its own example: "prompt_id is topic_id plus the slot it occupies --
-        // match_me_if_you__slot2 -- so a topic moved between slots stays traceable".
-        assertEquals("first_date__slot1", promptId("first_date", 0))
-        assertEquals("hot_take__slot3", promptId("hot_take", 2))
+    fun `every topic id is the one the registry dictates`() {
+        // enums.json 17, verbatim and in order. THE POINT OF THE TEST is that these ids are not
+        // ours to choose: they are what the analytics warehouse joins on and what the
+        // `profile_prompts` rows store, so a drift here orphans data on both sides at once. Six
+        // of these were invented against registry 1.3.0, which had no 17, and six were wrong.
+        assertEquals(
+            listOf(
+                "first_date_usually", "out_the_door", "ideal_30_min", "cross_town_for",
+                "spontaneous_plan",
+                "thirty_min_feels", "in_real_life_more", "unsexy_truth", "sunday_energy",
+                "weird_habit",
+                "talk_for_hours", "know_too_much", "hill_to_die_on", "green_flag", "hot_take",
+            ),
+            PROMPT_TOPICS.map { it.id },
+        )
     }
 
     @Test
-    fun `no prompt payload can carry an answer`() {
-        val answer = "Talk about anything real."
-        val (_, payload) = ProfileAnalytics.promptAnswered(
-            promptId = promptId("first_date", 0),
-            charCount = answer.length,
-            atCharLimit = false,
+    fun `every group id is the one the registry dictates`() {
+        assertEquals(listOf("dating_me", "real_life", "opinions"), TOPIC_GROUPS.map { it.id })
+    }
+
+    @Test
+    fun `a topic reports the group it is actually listed under`() {
+        assertEquals("dating_me", topicGroupFor("first_date_usually"))
+        assertEquals("real_life", topicGroupFor("weird_habit"))
+        assertEquals("opinions", topicGroupFor("hot_take"))
+        // An id nobody registered reports nothing rather than guessing a group.
+        assertEquals("", topicGroupFor("not_a_topic"))
+    }
+
+    @Test
+    fun `every example is written against a real topic id`() {
+        // The examples are keyed by id, so a renamed topic with an unrenamed example key is a
+        // silent fallback to the generic line rather than an error.
+        val ids = PROMPT_TOPICS.map { it.id }.toSet()
+        assertEquals(emptySet<String>(), PROMPT_EXAMPLES.keys - ids)
+        assertEquals(emptySet<String>(), ids - PROMPT_EXAMPLES.keys)
+    }
+
+    @Test
+    fun `the three suggestions are real topics, one from each group`() {
+        val groups = SUGGESTED_TOPIC_IDS.map(::topicGroupFor)
+        assertEquals(listOf("dating_me", "real_life", "opinions"), groups)
+    }
+
+    // ── length buckets, which exist so the text never travels ────────────────
+
+    @Test
+    fun `a length falls in the bucket 19 says it does`() {
+        assertEquals("0", promptLengthBucket(0))
+        assertEquals("1_40", promptLengthBucket(1))
+        assertEquals("1_40", promptLengthBucket(40))
+        assertEquals("41_80", promptLengthBucket(41))
+        assertEquals("41_80", promptLengthBucket(80))
+        assertEquals("81_120", promptLengthBucket(81))
+        assertEquals("81_120", promptLengthBucket(120))
+        assertEquals("121_160", promptLengthBucket(121))
+        // The cap is 160 and the top bucket is open-ended, so a value that somehow got past the
+        // slice still lands somewhere rather than falling out of the set.
+        assertEquals("121_160", promptLengthBucket(PROMPT_MAX_CHARS))
+        assertEquals("121_160", promptLengthBucket(400))
+    }
+
+    @Test
+    fun `no prompt payload can carry an answer or a draft`() {
+        // STRUCTURAL, NOT A CONVENTION. Every builder takes a LENGTH, so there is no signature
+        // that could carry the text even if a caller wanted it to. This asserts the outcome.
+        val answer = "Talk about anything real, not the safe thing."
+        val payloads = listOf(
+            ProfileAnalytics.promptSaved(
+                topicId = "first_date_usually",
+                entryPoint = PromptEntryPoint.Suggestion,
+                isEdit = false,
+                answerLength = answer.length,
+                promptCount = 1,
+            ).second,
+            ProfileAnalytics.promptEditorDismissed(
+                topicId = "first_date_usually",
+                entryPoint = PromptEntryPoint.Browse,
+                draftLength = answer.length,
+                method = SheetDismissMethod.Backdrop,
+            ).second,
         )
-        val rendered = payload.values.joinToString(" ")
-        assertFalse("the answer reached a payload: $rendered", rendered.contains("anything real"))
-        assertEquals(answer.length, payload["char_count"])
+        payloads.forEach { payload ->
+            val rendered = payload.values.joinToString(" ")
+            assertFalse("text reached a payload: $rendered", rendered.contains("anything real"))
+            assertFalse("text reached a payload: $rendered", rendered.contains("safe thing"))
+        }
+        assertEquals("41_80", payloads[0]["length_bucket"])
+        assertEquals("41_80", payloads[1]["draft_length_bucket"])
     }
 
     // ── the state the screen is a function of ───────────────────────────────
@@ -174,13 +247,13 @@ class PromptTopicsTest {
     @Test
     fun `a draft belongs to a topic, so dismissing and reopening restores it`() {
         val state = PromptsState(
-            sheet = PromptSheet.Write("first_date"),
-            drafts = mapOf("first_date" to "half a sentence"),
+            sheet = PromptSheet.Write("first_date_usually"),
+            drafts = mapOf("first_date_usually" to "half a sentence"),
         )
         val dismissed = state.copy(sheet = null)
-        assertEquals("half a sentence", dismissed.draftFor("first_date"))
-        val reopened = dismissed.copy(sheet = PromptSheet.Write("first_date"))
-        assertEquals("half a sentence", reopened.draftFor("first_date"))
+        assertEquals("half a sentence", dismissed.draftFor("first_date_usually"))
+        val reopened = dismissed.copy(sheet = PromptSheet.Write("first_date_usually"))
+        assertEquals("half a sentence", reopened.draftFor("first_date_usually"))
         // And a different topic starts empty.
         assertEquals("", reopened.draftFor("hot_take"))
     }
@@ -188,13 +261,13 @@ class PromptTopicsTest {
     @Test
     fun `one prompt is enough to continue and none is not`() {
         assertFalse(PromptsState().canContinue)
-        assertTrue(PromptsState(prompts = listOf(SavedPrompt("first_date", "x"))).canContinue)
+        assertTrue(PromptsState(prompts = listOf(SavedPrompt("first_date_usually", "x"))).canContinue)
     }
 
     @Test
     fun `the saved state survives a round trip through its encoding`() {
         val state = PromptsState(
-            prompts = listOf(SavedPrompt("first_date", "an answer")),
+            prompts = listOf(SavedPrompt("first_date_usually", "an answer")),
             sheet = PromptSheet.Write("hot_take", editing = true),
             drafts = mapOf("hot_take" to "half written"),
             nudge = true,

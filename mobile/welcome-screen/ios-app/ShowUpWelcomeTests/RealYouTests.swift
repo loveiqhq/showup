@@ -204,8 +204,8 @@ final class PromptTopicsTests: XCTestCase {
         XCTAssertEqual(ids.count, Set(ids).count)
         // ASSIGNED, NOT DERIVED. A slug computed from the display string would change with a copy
         // edit and orphan every answer saved under the old one.
-        XCTAssertEqual(topicFor("first_date")?.id, "first_date")
-        XCTAssertEqual(topicText("first_date"), "On a first date, I usually…")
+        XCTAssertEqual(topicFor("first_date_usually")?.id, "first_date_usually")
+        XCTAssertEqual(topicText("first_date_usually"), "On a first date, I usually…")
     }
 
     func testEveryTopicHasAShortWorkedExample() {
@@ -230,11 +230,11 @@ final class PromptTopicsTests: XCTestCase {
 
     func testThreeAreOfferedAtZeroSavedAndTwoAfterThat() {
         XCTAssertEqual(suggestionsFor(used: [], count: 3).count, 3)
-        XCTAssertEqual(suggestionsFor(used: ["first_date"], count: 2).count, 2)
+        XCTAssertEqual(suggestionsFor(used: ["first_date_usually"], count: 2).count, 2)
     }
 
     func testAUsedTopicIsNeverSuggestedAgain() {
-        let used = ["first_date", "weird_habit"]
+        let used = ["first_date_usually", "weird_habit"]
         let offered = suggestionsFor(used: used, count: 2).map(\.id)
         XCTAssertTrue(offered.allSatisfy { !used.contains($0) })
     }
@@ -279,47 +279,108 @@ final class PromptTopicsTests: XCTestCase {
         XCTAssertEqual(PromptsCopy.counter(3), "3/3 prompts · enough to continue")
     }
 
-    // MARK: prompt_id
+    // MARK: the ids are the registry's
 
-    func testPromptIdIsTheTopicIdPlusTheSlotNumberedFromOne() {
-        // §5's own prose and its own example: "prompt_id is topic_id plus the slot it occupies —
-        // match_me_if_you__slot2 — so a topic moved between slots stays traceable".
-        XCTAssertEqual(promptId(topicId: "first_date", slot: 0), "first_date__slot1")
-        XCTAssertEqual(promptId(topicId: "hot_take", slot: 2), "hot_take__slot3")
+    func testEveryTopicIdIsTheOneTheRegistryDictates() {
+        // enums.json 17, verbatim and in order. THE POINT OF THE TEST is that these ids are not
+        // ours to choose: they are what the analytics warehouse joins on and what the
+        // `profile_prompts` rows store, so a drift here orphans data on both sides at once. Six
+        // of these were invented against registry 1.3.0, which had no 17, and six were wrong.
+        XCTAssertEqual(promptTopics.map(\.id), [
+            "first_date_usually", "out_the_door", "ideal_30_min", "cross_town_for",
+            "spontaneous_plan",
+            "thirty_min_feels", "in_real_life_more", "unsexy_truth", "sunday_energy",
+            "weird_habit",
+            "talk_for_hours", "know_too_much", "hill_to_die_on", "green_flag", "hot_take",
+        ])
     }
 
-    func testNoPromptPayloadCanCarryAnAnswer() {
-        let answer = "Talk about anything real."
-        let (_, payload) = ProfileAnalytics.promptAnswered(
-            promptId: promptId(topicId: "first_date", slot: 0),
-            charCount: answer.count, atCharLimit: false)
-        let rendered = payload.values.map { "\($0)" }.joined(separator: " ")
-        XCTAssertFalse(rendered.contains("anything real"), "the answer reached a payload")
-        XCTAssertEqual(payload["char_count"] as? Int, answer.count)
+    func testEveryGroupIdIsTheOneTheRegistryDictates() {
+        XCTAssertEqual(topicGroups.map(\.id), ["dating_me", "real_life", "opinions"])
+    }
+
+    func testATopicReportsTheGroupItIsActuallyListedUnder() {
+        XCTAssertEqual(topicGroupFor("first_date_usually"), "dating_me")
+        XCTAssertEqual(topicGroupFor("weird_habit"), "real_life")
+        XCTAssertEqual(topicGroupFor("hot_take"), "opinions")
+        // An id nobody registered reports nothing rather than guessing a group.
+        XCTAssertEqual(topicGroupFor("not_a_topic"), "")
+    }
+
+    func testEveryExampleIsWrittenAgainstARealTopicId() {
+        // The examples are keyed by id, so a renamed topic with an unrenamed example key is a
+        // silent fallback to the generic line rather than an error.
+        let ids = Set(promptTopics.map(\.id))
+        XCTAssertEqual(Set(promptExamples.keys).subtracting(ids), [])
+        XCTAssertEqual(ids.subtracting(Set(promptExamples.keys)), [])
+    }
+
+    func testTheThreeSuggestionsAreRealTopicsOneFromEachGroup() {
+        XCTAssertEqual(suggestedTopicIds.map(topicGroupFor),
+                       ["dating_me", "real_life", "opinions"])
+    }
+
+    // MARK: length buckets, which exist so the text never travels
+
+    func testALengthFallsInTheBucket19SaysItDoes() {
+        XCTAssertEqual(promptLengthBucket(0), "0")
+        XCTAssertEqual(promptLengthBucket(1), "1_40")
+        XCTAssertEqual(promptLengthBucket(40), "1_40")
+        XCTAssertEqual(promptLengthBucket(41), "41_80")
+        XCTAssertEqual(promptLengthBucket(80), "41_80")
+        XCTAssertEqual(promptLengthBucket(81), "81_120")
+        XCTAssertEqual(promptLengthBucket(120), "81_120")
+        XCTAssertEqual(promptLengthBucket(121), "121_160")
+        // The cap is 160 and the top bucket is open-ended, so a value that somehow got past the
+        // slice still lands somewhere rather than falling out of the set.
+        XCTAssertEqual(promptLengthBucket(promptMaxChars), "121_160")
+        XCTAssertEqual(promptLengthBucket(400), "121_160")
+    }
+
+    func testNoPromptPayloadCanCarryAnAnswerOrADraft() {
+        // STRUCTURAL, NOT A CONVENTION. Every builder takes a LENGTH, so there is no signature
+        // that could carry the text even if a caller wanted it to. This asserts the outcome.
+        let answer = "Talk about anything real, not the safe thing."
+        let payloads = [
+            ProfileAnalytics.promptSaved(topicId: "first_date_usually", entryPoint: .suggestion,
+                                         isEdit: false, answerLength: answer.count,
+                                         promptCount: 1).1,
+            ProfileAnalytics.promptEditorDismissed(topicId: "first_date_usually",
+                                                   entryPoint: .browse,
+                                                   draftLength: answer.count,
+                                                   method: .backdrop).1,
+        ]
+        for payload in payloads {
+            let rendered = payload.values.map { "\($0)" }.joined(separator: " ")
+            XCTAssertFalse(rendered.contains("anything real"), "text reached a payload")
+            XCTAssertFalse(rendered.contains("safe thing"), "text reached a payload")
+        }
+        XCTAssertEqual(payloads[0]["length_bucket"] as? String, "41_80")
+        XCTAssertEqual(payloads[1]["draft_length_bucket"] as? String, "41_80")
     }
 
     // MARK: the state the screen is a function of
 
     func testADraftBelongsToATopicSoDismissingAndReopeningRestoresIt() {
-        var state = PromptsState(sheet: .write(topicId: "first_date", editing: false),
-                                 drafts: ["first_date": "half a sentence"])
+        var state = PromptsState(sheet: .write(topicId: "first_date_usually", editing: false),
+                                 drafts: ["first_date_usually": "half a sentence"])
         state.sheet = nil
-        XCTAssertEqual(state.draftFor("first_date"), "half a sentence")
-        state.sheet = .write(topicId: "first_date", editing: false)
-        XCTAssertEqual(state.draftFor("first_date"), "half a sentence")
+        XCTAssertEqual(state.draftFor("first_date_usually"), "half a sentence")
+        state.sheet = .write(topicId: "first_date_usually", editing: false)
+        XCTAssertEqual(state.draftFor("first_date_usually"), "half a sentence")
         // And a different topic starts empty.
         XCTAssertEqual(state.draftFor("hot_take"), "")
     }
 
     func testOnePromptIsEnoughToContinueAndNoneIsNot() {
         XCTAssertFalse(PromptsState().canContinue)
-        XCTAssertTrue(PromptsState(prompts: [SavedPrompt(topicId: "first_date", answer: "x")])
+        XCTAssertTrue(PromptsState(prompts: [SavedPrompt(topicId: "first_date_usually", answer: "x")])
             .canContinue)
     }
 
     func testTheSavedStateSurvivesARoundTripThroughItsEncoding() {
         let state = PromptsState(
-            prompts: [SavedPrompt(topicId: "first_date", answer: "an answer")],
+            prompts: [SavedPrompt(topicId: "first_date_usually", answer: "an answer")],
             sheet: .write(topicId: "hot_take", editing: true),
             drafts: ["hot_take": "half written"],
             nudge: true,

@@ -150,7 +150,7 @@ class EvidenceScreenshots {
 
     private val onePrompt = listOf(
         SavedPrompt(
-            "first_date",
+            "first_date_usually",
             "Talk about anything real. Not jobs, not pets, not the weather. The thing actually " +
                 "on your mind this week. Bring it. I'll listen.",
         ),
@@ -161,7 +161,7 @@ class EvidenceScreenshots {
             "Showing up. Cancelling last minute isn't a scheduling problem, it's an answer.",
         ),
         SavedPrompt(
-            "cross_town",
+            "cross_town_for",
             "A proper conversation. An old cinema. The 8pm walk after a long day.",
         ),
     )
@@ -217,29 +217,29 @@ class EvidenceScreenshots {
             ProfilePromptsScreen(PromptsState(prompts = onePrompt, sheet = PromptSheet.Topics))
         }
         shoot("SHOWUP-158", "E-write-empty") {
-            ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date")))
+            ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date_usually")))
         }
         shoot("SHOWUP-158", "F-write-mid") {
             ProfilePromptsScreen(
                 PromptsState(
-                    sheet = PromptSheet.Write("first_date"),
-                    drafts = mapOf("first_date" to PROMPT_SAMPLE_MID),
+                    sheet = PromptSheet.Write("first_date_usually"),
+                    drafts = mapOf("first_date_usually" to PROMPT_SAMPLE_MID),
                 ),
             )
         }
         shoot("SHOWUP-158", "G-write-at-cap") {
             ProfilePromptsScreen(
                 PromptsState(
-                    sheet = PromptSheet.Write("first_date"),
+                    sheet = PromptSheet.Write("first_date_usually"),
                     // EXACTLY 160. A sample one character short is state F wearing state G's
                     // name, which is what the first run of this actually produced.
-                    drafts = mapOf("first_date" to PROMPT_SAMPLE_AT_CAP),
+                    drafts = mapOf("first_date_usually" to PROMPT_SAMPLE_AT_CAP),
                 ),
             )
         }
         shoot("SHOWUP-158", "H-write-nudge") {
             ProfilePromptsScreen(
-                PromptsState(sheet = PromptSheet.Write("first_date"), nudge = true),
+                PromptsState(sheet = PromptSheet.Write("first_date_usually"), nudge = true),
             )
         }
 

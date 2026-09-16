@@ -56,6 +56,7 @@ package com.showup.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,10 +84,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -94,6 +97,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -206,6 +210,16 @@ internal object PromptsCopy {
     const val EDIT_PROMPT = "Edit prompt"
 }
 
+/**
+ * How far a sheet has to be pushed down before letting go dismisses it.
+ *
+ * In PIXELS because a drag arrives in pixels. 120 is roughly a thumb's travel: far enough that a
+ * scroll inside the sheet cannot trigger it by accident, near enough that the gesture does not
+ * feel like it is being resisted. Local rather than a token -- it is this gesture's threshold and
+ * nothing else's, and `Spacing` holds no value that means "a deliberate drag".
+ */
+private const val SWIPE_DISMISS_PX = 120f
+
 /** Which sheet is up, if any. */
 @Serializable
 sealed interface PromptSheet {
@@ -219,9 +233,19 @@ sealed interface PromptSheet {
      * [editing] is what makes Save overwrite rather than append, and it is carried on the sheet
      * rather than derived from whether the topic is already used — because a user can open the
      * topic sheet, pick a topic, and be editing nothing at all.
+     *
+     * [entryPoint] is carried for the same reason and a sharper one: the registry says
+     * `entry_point` is "never inferred from whether a sheet was open — pass it through from the
+     * control that was tapped". Two of its three values have the sheet open, so there is nothing
+     * to infer from. It rides on the sheet so that `prompt_saved` and `prompt_editor_dismissed`,
+     * which happen later, still report the control that started this.
      */
     @Serializable
-    data class Write(val topicId: String, val editing: Boolean = false) : PromptSheet
+    data class Write(
+        val topicId: String,
+        val editing: Boolean = false,
+        val entryPoint: PromptEntryPoint = PromptEntryPoint.Suggestion,
+    ) : PromptSheet
 }
 
 /**
@@ -266,6 +290,37 @@ data class PromptsState(
      * sheet stays open with the text still in it.
      */
     val failed: Boolean = false,
+    /**
+     * When the sheet now up was opened, as wall-clock millis. 0 when none is.
+     *
+     * `time_on_sheet_s` needs a start, and one field serves both sheets because only one is ever
+     * open. Wall clock rather than elapsed-since-boot ON PURPOSE: it is the only one still true
+     * after process death, and a duration that resets when Android kills the app would report the
+     * abandonment it is measuring as having taken no time at all.
+     */
+    val sheetOpenedAtMillis: Long = 0,
+    /** When this visit to the step began. Feeds `time_on_step_s` on the accepted Continue. */
+    val stepStartedAtMillis: Long = 0,
+    /**
+     * How many topics have been chosen in this visit to the step.
+     *
+     * `selection_index` is this plus one, and the rule the registry is emphatic about is that it
+     * COUNTS PER VISIT TO THE STEP, NOT PER SHEET: it does not reset when a sheet closes. Reset it
+     * per sheet and "which topic did they reach for first" quietly becomes "which topic did they
+     * reach for first in this sheet", which is a question nobody asked. It lives in the persisted
+     * state so a process death does not restart the count either. An EDIT does not increment it.
+     */
+    val topicSelections: Int = 0,
+    /** Whether `prompts_minimum_met` has fired. Once, on the FIRST save, never again. */
+    val minimumReported: Boolean = false,
+    /**
+     * The topic whose 160-character cap has already been reported in this editor session.
+     *
+     * `prompt_char_limit_reached` fires ONCE PER EDITOR SESSION, not per keystroke — otherwise
+     * every character typed at the cap is another row saying the same thing. Cleared when a sheet
+     * opens, which is what makes it per session rather than per topic.
+     */
+    val charLimitReportedFor: String? = null,
 ) {
     val count: Int get() = prompts.size
     val canContinue: Boolean get() = count >= PROMPTS_REQUIRED
@@ -516,7 +571,7 @@ private fun SheetCloseButton(onClose: () -> Unit, modifier: Modifier = Modifier)
  */
 @Composable
 private fun SheetScaffold(
-    onDismiss: () -> Unit,
+    onDismiss: (SheetDismissMethod) -> Unit,
     content: @Composable () -> Unit,
 ) {
     val motion = rememberMotion()
@@ -536,19 +591,56 @@ private fun SheetScaffold(
         label = "sheetFade",
     )
 
+    // THE ANDROID BACK GESTURE CLOSES THE SHEET, and reports itself as what it is.
+    //
+    // Without this the gesture fell through to the host and left the step entirely, which is a
+    // different act with a different outcome, and the sheet the user was trying to close was
+    // still open when they got back. `system_back` is Android-only and the registry is explicit
+    // that it is NOT the same as the X.
+    BackHandler { onDismiss(SheetDismissMethod.SystemBack) }
+
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier
                 .fillMaxSize()
                 .background(Fg.copy(alpha = 0.42f))
-                .clickable(role = Role.Button, onClick = onDismiss)
+                // THE SCRIM IS `backdrop`, NOT `close`. Four values, four different acts:
+                // the registry unified them on 16 September 2026 precisely because three
+                // spellings of the same four acts had drifted apart, and folding two of them
+                // together here would put the drift back inside one screen.
+                .clickable(role = Role.Button) { onDismiss(SheetDismissMethod.Backdrop) }
                 .semantics { contentDescription = PromptsCopy.DISMISS },
         )
+        // SWIPE-DOWN, which the ticket asks for twice -- "closing the sheet by X, scrim tap or
+        // swipe keeps what was typed", and again in the tracking criteria -- and which nothing
+        // here implemented. A bottom sheet that cannot be pushed down is wrong on a phone
+        // regardless of the ticket; the drag is tracked so the finger stays on the sheet, and it
+        // only counts as a dismissal past a threshold, so a small nudge springs back.
+        var drag by remember { mutableFloatStateOf(0f) }
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .graphicsLayer { translationY = rise * density; alpha = fade }
+                .graphicsLayer {
+                    translationY = rise * density + drag
+                    alpha = fade
+                }
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            if (drag > SWIPE_DISMISS_PX) {
+                                onDismiss(SheetDismissMethod.Swipe)
+                            }
+                            drag = 0f
+                        },
+                        onDragCancel = { drag = 0f },
+                    ) { _, delta ->
+                        // Downwards only. Dragging a bottom sheet UP would detach it from the
+                        // edge it is docked to, and the ticket forbids positioning either sheet
+                        // by a top offset.
+                        drag = (drag + delta).coerceAtLeast(0f)
+                    }
+                }
                 // The keyboard is not ours and its height is not knowable, and neither is the
                 // gesture bar's. `safeDrawing` bottom is BOTH -- it reports the keyboard when one
                 // is up and the navigation inset when one is not, taking whichever is larger, so
@@ -578,7 +670,7 @@ private fun SheetScaffold(
 @Composable
 private fun TopicPickerSheet(
     used: List<String>,
-    onPick: (String) -> Unit,
+    onPick: (topicId: String, position: Int) -> Unit,
     onClose: () -> Unit,
 ) {
     Column(
@@ -634,6 +726,10 @@ private fun TopicPickerSheet(
                 )
                 group.topics.forEach { topic ->
                     val isUsed = topic.id in used
+                    // Flat across the whole sheet rather than within the group: "the row's
+                    // index" is what a person scanning the list sees, and the group boundaries
+                    // are already carried by `topic_group`.
+                    val position = PROMPT_TOPICS.indexOfFirst { it.id == topic.id }
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -645,7 +741,9 @@ private fun TopicPickerSheet(
                                 if (isUsed) {
                                     Modifier
                                 } else {
-                                    Modifier.clickable(role = Role.Button) { onPick(topic.id) }
+                                    Modifier.clickable(role = Role.Button) {
+                                        onPick(topic.id, position)
+                                    }
                                 },
                             )
                             .padding(horizontal = 20.dp, vertical = Spacing.lg)
@@ -1000,12 +1098,15 @@ fun ProfilePromptsScreen(
     state: PromptsState = PromptsState(),
     onBack: () -> Unit = {},
     onOpenTopics: () -> Unit = {},
-    onWriteTopic: (String) -> Unit = {},
+    /** A suggestion card. The Int is which card, from 0 -- `position` in the registry. */
+    onWriteTopic: (topicId: String, position: Int) -> Unit = { _, _ -> },
+    /** A row of the browse sheet. The Int is the row's index across the whole sheet. */
+    onPickTopic: (topicId: String, position: Int) -> Unit = { _, _ -> },
     onEditPrompt: (String) -> Unit = {},
     onDraftChange: (String) -> Unit = {},
     onHideExample: () -> Unit = {},
     onSave: () -> Unit = {},
-    onDismissSheet: () -> Unit = {},
+    onDismissSheet: (SheetDismissMethod) -> Unit = {},
     onContinue: () -> Unit = {},
     /** Fires on the REFUSED press, never on render. */
     onRefused: () -> Unit = {},
@@ -1107,8 +1208,8 @@ fun ProfilePromptsScreen(
                     suggestionsFor(
                         used = state.usedTopicIds,
                         count = if (state.count == 0) 3 else 2,
-                    ).forEach { topic ->
-                        SuggestionCard(topic) { onWriteTopic(topic.id) }
+                    ).forEachIndexed { position, topic ->
+                        SuggestionCard(topic) { onWriteTopic(topic.id, position) }
                     }
                     BrowseAllButton(onOpenTopics)
                 }
@@ -1139,8 +1240,8 @@ fun ProfilePromptsScreen(
             is PromptSheet.Topics -> SheetScaffold(onDismiss = onDismissSheet) {
                 TopicPickerSheet(
                     used = state.usedTopicIds,
-                    onPick = onWriteTopic,
-                    onClose = onDismissSheet,
+                    onPick = onPickTopic,
+                    onClose = { onDismissSheet(SheetDismissMethod.Close) },
                 )
             }
             is PromptSheet.Write -> SheetScaffold(onDismiss = onDismissSheet) {
@@ -1153,7 +1254,7 @@ fun ProfilePromptsScreen(
                     onDraftChange = onDraftChange,
                     onHideExample = onHideExample,
                     onSave = onSave,
-                    onClose = onDismissSheet,
+                    onClose = { onDismissSheet(SheetDismissMethod.Close) },
                 )
             }
             null -> Unit

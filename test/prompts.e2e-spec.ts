@@ -19,6 +19,18 @@ import { ProfilePrompt } from './../src/modules/profiles/entities/profile-prompt
  */
 const PHONE = '+491701234997';
 
+/**
+ * Topic ids as the tracking registry's 17 dictates them, not as this repo once invented them.
+ *
+ * Named here rather than inlined so the set is checkable at a glance: `first_date_usually` and
+ * `cross_town_for` are two of the six corrected on 16 September 2026, and `hot_take` is one of the
+ * nine that always agreed. A test that used the old spellings would still pass -- the route stores
+ * whatever id it is given -- which is exactly why it has to be asserted rather than assumed.
+ */
+const TOPIC_A = 'first_date_usually';
+const TOPIC_B = 'hot_take';
+const TOPIC_C = 'cross_town_for';
+
 describe('Prompts (e2e)', () => {
   let app: INestApplication;
   let server: ReturnType<INestApplication['getHttpServer']>;
@@ -78,11 +90,11 @@ describe('Prompts (e2e)', () => {
 
   it('saves a prompt and reads it back', async () => {
     const res = await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: 'Talk about anything real.' })
       .expect(200);
-    expect(res.body.topicId).toBe('first_date');
+    expect(res.body.topicId).toBe(TOPIC_A);
     expect(res.body.answer).toBe('Talk about anything real.');
     expect(res.body.position).toBe(0);
 
@@ -97,12 +109,12 @@ describe('Prompts (e2e)', () => {
     // What "Save overwrites" means on the write sheet, and what stops a double-tap writing two
     // rows for one question.
     await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: 'First answer.' })
       .expect(200);
     const second = await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: 'Second answer.' })
       .expect(200);
@@ -117,7 +129,7 @@ describe('Prompts (e2e)', () => {
 
   it('puts a new prompt at the bottom of the list', async () => {
     // "A new card appears at the bottom, not the top — the reading order stays chronological."
-    for (const topic of ['first_date', 'hot_take', 'cross_town']) {
+    for (const topic of [TOPIC_A, TOPIC_B, TOPIC_C]) {
       await request(server)
         .put(`/me/prompts/${topic}`)
         .set('Authorization', bearer())
@@ -129,9 +141,9 @@ describe('Prompts (e2e)', () => {
       .set('Authorization', bearer())
       .expect(200);
     expect(list.body.map((p: { topicId: string }) => p.topicId)).toEqual([
-      'first_date',
-      'hot_take',
-      'cross_town',
+      TOPIC_A,
+      TOPIC_B,
+      TOPIC_C,
     ]);
     expect(list.body.map((p: { position: number }) => p.position)).toEqual([
       0, 1, 2,
@@ -139,7 +151,7 @@ describe('Prompts (e2e)', () => {
   });
 
   it('refuses a fourth topic', async () => {
-    for (const topic of ['first_date', 'hot_take', 'cross_town']) {
+    for (const topic of [TOPIC_A, TOPIC_B, TOPIC_C]) {
       await request(server)
         .put(`/me/prompts/${topic}`)
         .set('Authorization', bearer())
@@ -155,7 +167,7 @@ describe('Prompts (e2e)', () => {
 
   it('still lets an existing prompt be edited at the cap', async () => {
     // Refusing this would mean a user with three prompts could never fix a typo.
-    for (const topic of ['first_date', 'hot_take', 'cross_town']) {
+    for (const topic of [TOPIC_A, TOPIC_B, TOPIC_C]) {
       await request(server)
         .put(`/me/prompts/${topic}`)
         .set('Authorization', bearer())
@@ -172,7 +184,7 @@ describe('Prompts (e2e)', () => {
 
   it('refuses an answer over 160 characters', async () => {
     await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: 'x'.repeat(161) })
       .expect(400);
@@ -180,7 +192,7 @@ describe('Prompts (e2e)', () => {
 
   it('accepts exactly 160', async () => {
     const res = await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: 'x'.repeat(160) })
       .expect(200);
@@ -191,7 +203,7 @@ describe('Prompts (e2e)', () => {
     // `MinLength(1)` cannot see this — " " has length 1. Whitespace-only counts as empty on both
     // clients and it has to mean the same thing here.
     await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: '   ' })
       .expect(400);
@@ -199,7 +211,7 @@ describe('Prompts (e2e)', () => {
 
   it('trims the answer it stores', async () => {
     const res = await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: '  Talk about anything real.  ' })
       .expect(200);
@@ -207,7 +219,7 @@ describe('Prompts (e2e)', () => {
   });
 
   it('deletes a prompt and closes the gap it left', async () => {
-    for (const topic of ['first_date', 'hot_take', 'cross_town']) {
+    for (const topic of [TOPIC_A, TOPIC_B, TOPIC_C]) {
       await request(server)
         .put(`/me/prompts/${topic}`)
         .set('Authorization', bearer())
@@ -228,8 +240,8 @@ describe('Prompts (e2e)', () => {
       0, 1,
     ]);
     expect(list.body.map((p: { topicId: string }) => p.topicId)).toEqual([
-      'first_date',
-      'cross_town',
+      'first_date_usually',
+      'cross_town_for',
     ]);
   });
 
@@ -243,10 +255,32 @@ describe('Prompts (e2e)', () => {
   it('refuses everything without a token', async () => {
     await request(server).get('/me/prompts').expect(401);
     await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .send({ answer: 'x' })
       .expect(401);
-    await request(server).delete('/me/prompts/first_date').expect(401);
+    await request(server).delete(`/me/prompts/${TOPIC_A}`).expect(401);
+  });
+
+  it('stores the registry id verbatim, including the six that were corrected', async () => {
+    // The ids are the dictionary's, and the route has no opinion about them -- it stores what it
+    // is given. So this asserts the one thing that can actually drift: that the client and the
+    // database agree on the spelling the analytics warehouse will later join on.
+    for (const topic of [TOPIC_A, TOPIC_C]) {
+      const res = await request(server)
+        .put(`/me/prompts/${topic}`)
+        .set('Authorization', bearer())
+        .send({ answer: 'Something.' })
+        .expect(200);
+      expect(res.body.topicId).toBe(topic);
+    }
+    const list = await request(server)
+      .get('/me/prompts')
+      .set('Authorization', bearer())
+      .expect(200);
+    expect(list.body.map((p: { topicId: string }) => p.topicId)).toEqual([
+      'first_date_usually',
+      'cross_town_for',
+    ]);
   });
 
   it('reports the prompt count on the profile progress read', async () => {
@@ -262,7 +296,7 @@ describe('Prompts (e2e)', () => {
     expect(before.body).toHaveProperty('photoCount');
 
     await request(server)
-      .put('/me/prompts/first_date')
+      .put(`/me/prompts/${TOPIC_A}`)
       .set('Authorization', bearer())
       .send({ answer: 'Something.' })
       .expect(200);

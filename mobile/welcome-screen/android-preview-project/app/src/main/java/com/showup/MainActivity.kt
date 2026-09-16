@@ -66,6 +66,7 @@ import com.showup.profile.ProfileProgressRepository
 import com.showup.profile.PromptsRepository
 import com.showup.profile.ResumePoint
 import com.showup.profile.resumePoint
+import com.showup.profile.ProfileScreen
 import com.showup.profile.PromptsViewModel
 import com.showup.welcome.PhoneAuthRepository
 import com.showup.welcome.PhoneAuthViewModel
@@ -478,18 +479,31 @@ class MainActivity : ComponentActivity() {
                         state = promptsState,
                         onBack = { screen = FlowScreen.ProfilePhotos },
                         onOpenTopics = prompts::openTopics,
-                        onWriteTopic = prompts::writeTopic,
+                        onWriteTopic = prompts::writeSuggestion,
+                        onPickTopic = prompts::pickTopic,
                         onEditPrompt = prompts::editPrompt,
                         onDraftChange = prompts::draftChanged,
                         onHideExample = prompts::hideExample,
                         onSave = prompts::save,
                         onDismissSheet = prompts::dismissSheet,
-                        onContinue = { screen = FlowScreen.Home },
+                        // The ViewModel decides and records; the host only routes. Continue is
+                        // never disabled, so the refused press is a real press with a real event
+                        // behind it rather than a button that did nothing.
+                        onContinue = { if (prompts.continuePressed()) screen = FlowScreen.Home },
+                        // The SAME call on the refused press, which is what makes the two
+                        // mutually exclusive: the screen picks a branch, the ViewModel re-checks
+                        // and records whichever one it was. Wiring only the accepted branch would
+                        // leave the refusal -- the one record that a user tried to leave -- with
+                        // nothing to fire it.
+                        onRefused = { prompts.continuePressed() },
                     ).also {
-                        // Reads what the account already holds. Idempotent and cheap -- the
-                        // ViewModel keeps the answer, and arriving from photos or from a resume
-                        // both land here.
-                        LaunchedEffect(Unit) { prompts.load() }
+                        // Reads what the account already holds, and reports the arrival. Both are
+                        // idempotent -- the ViewModel keeps the answer and holds the step's start
+                        // time -- and arriving from photos or from a resume both land here.
+                        LaunchedEffect(Unit) {
+                            prompts.arrived(referrer = ProfileScreen.Photos)
+                            prompts.load()
+                        }
                     }
 
                     FlowScreen.Home ->
