@@ -40,6 +40,7 @@ package com.showup.profile
 import com.showup.BuildConfig
 import com.showup.api.ApiError
 import com.showup.api.ShowUpApi
+import com.showup.api.generated.model.ReorderPhotosDto
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -64,6 +65,20 @@ sealed interface UploadPhotoResult {
      * a 500 than for a dropped connection. [error] is carried for the log, not for the copy.
      */
     data class Failed(val error: ApiError?) : UploadPhotoResult
+}
+
+/**
+ * The answer to "store this order".
+ *
+ * ONE FAILED CASE, like the upload, and for a sharper reason. The server refuses a list that is
+ * not this account’s photos exactly once each, and every way of getting that wrong -- one
+ * missing, one duplicated, one belonging to somebody else -- has the same cause (this client’s
+ * idea of what is stored is out of date) and the same recovery (re-read and adopt what comes
+ * back). Splitting them would give the caller three branches that do one thing.
+ */
+sealed interface ReorderPhotosResult {
+    data class Stored(val photos: List<StoredPhoto>) : ReorderPhotosResult
+    data class Failed(val error: ApiError?) : ReorderPhotosResult
 }
 
 /** The answer to "delete this photo". */
@@ -138,6 +153,33 @@ open class PhotosRepository(
             null
         }
     }.getOrElse { offline?.list() }
+
+    /**
+     * Stores the order the user dragged the grid into.
+     *
+     * SENDS THE WHOLE ORDER, not the pair of indices that moved. A from/to pair is a diff against
+     * an order the server has to already agree with, and two drags in quick succession on a slow
+     * connection arrive as two diffs applied to a list that moved in between -- which produces an
+     * order the user never made. A whole list is also idempotent, so a retry after a dropped
+     * connection is safe.
+     *
+     * STORED PHOTOS ONLY. An in-flight photo has no server id yet and a failed one never had one,
+     * so neither can appear in a list the server will accept -- and the complete set is exactly
+     * what it requires. The caller is the one that knows when the grid is all stored; this states
+     * what it has to hand over.
+     */
+    open suspend fun reorder(remoteIds: List<String>): ReorderPhotosResult = runCatching {
+        val response = api.profiles.reorderPhotos(ReorderPhotosDto(ids = remoteIds))
+        val body = response.body()
+        if (response.isSuccessful && body != null) {
+            ReorderPhotosResult.Stored(
+                body.sortedBy { it.position }
+                    .map { StoredPhoto(id = it.id, url = it.url, position = it.position) },
+            )
+        } else {
+            ReorderPhotosResult.Failed(errorOf(response.code(), response.errorBody()?.string()))
+        }
+    }.getOrElse { offline?.reorder(remoteIds) ?: ReorderPhotosResult.Failed(null) }
 
     /** Deletes one. 204 on success. */
     open suspend fun remove(id: String): RemovePhotoResult = runCatching {

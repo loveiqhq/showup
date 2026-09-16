@@ -45,7 +45,9 @@ describe('PromptsService', () => {
         rows[existing] = { ...rows[existing], ...row };
         return Promise.resolve(rows[existing]);
       }
-      const created = { id: `id-${rows.length}`, ...row };
+      // The spread LAST would overwrite the id with row's own undefined one, which typescript
+      // flags and which would have made every created row share a key of `undefined`.
+      const created = { ...row, id: row.id ?? `id-${rows.length}` };
       rows.push(created);
       return Promise.resolve(created);
     },

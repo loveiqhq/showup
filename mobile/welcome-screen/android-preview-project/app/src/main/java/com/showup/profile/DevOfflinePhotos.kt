@@ -64,6 +64,26 @@ object DevOfflinePhotos {
     /** What the stand-in is holding. Empty on a fresh launch -- nothing is persisted. */
     fun list(): List<StoredPhoto> = stored.toList()
 
+    /**
+     * Applies an order, refusing an incomplete list exactly as the server does.
+     *
+     * The refusal is the point. A stand-in that accepted anything would make the one path worth
+     * walking here -- a drag whose write is rejected, and the re-read that follows -- unreachable
+     * without a backend.
+     */
+    fun reorder(ids: List<String>): ReorderPhotosResult {
+        val byId = stored.associateBy { it.id }
+        if (ids.size != stored.size || ids.toSet().size != ids.size ||
+            !ids.all { byId.containsKey(it) }
+        ) {
+            return ReorderPhotosResult.Failed(null)
+        }
+        val reordered = ids.mapIndexed { index, id -> byId.getValue(id).copy(position = index) }
+        stored.clear()
+        stored += reordered
+        return ReorderPhotosResult.Stored(reordered)
+    }
+
     fun remove(id: String): RemovePhotoResult {
         stored.removeAll { it.id == id }
         return RemovePhotoResult.Removed

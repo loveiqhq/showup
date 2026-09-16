@@ -76,6 +76,18 @@ enum RemovePhotoResult: Equatable, Sendable {
     case failed
 }
 
+/// The answer to "store this order".
+enum ReorderPhotosResult: Equatable, Sendable {
+    case stored([StoredPhoto])
+    /// The order was not stored.
+    ///
+    /// ONE FAILED CASE, and for a sharper reason than the upload's. The server refuses a list that
+    /// is not this account's photos exactly once each, and every way of getting that wrong — one
+    /// missing, one duplicated, one belonging to somebody else — has the same cause (this client's
+    /// idea of what is stored is out of date) and the same recovery (re-read and adopt the answer).
+    case failed
+}
+
 /// Reads and writes the user's photos.
 ///
 /// A protocol so the model can be driven from a test with no network, and so the one place the
@@ -88,6 +100,19 @@ protocol PhotosRepositoring: Sendable {
                 onProgress: @Sendable (Double) -> Void) async -> UploadPhotoResult
     func list() async -> [StoredPhoto]?
     func remove(id: String) async -> RemovePhotoResult
+
+    /// Stores the order the user dragged the grid into.
+    ///
+    /// TAKES THE WHOLE ORDER, not the pair of indices that moved. A from/to pair is a diff against
+    /// an order the server has to already agree with, and two drags in quick succession on a slow
+    /// connection arrive as two diffs applied to a list that moved in between — which produces an
+    /// order the user never made. A whole list is also idempotent, so a retry after a dropped
+    /// connection is safe.
+    ///
+    /// STORED PHOTOS ONLY. An in-flight photo has no server id yet and a failed one never had one,
+    /// so neither can appear in a list the server will accept — and the complete set is exactly
+    /// what it requires.
+    func reorder(ids: [String]) async -> ReorderPhotosResult
 }
 
 /// Reads and writes the user's photos through the generated client.
@@ -158,6 +183,26 @@ struct PhotosRepository: PhotosRepositoring {
             return await DevOfflinePhotos.shared.remove(id: id)
         }
     }
+
+    func reorder(ids: [String]) async -> ReorderPhotosResult {
+        do {
+            let response = try await api.client.reorderPhotos(body: .json(.init(ids: ids)))
+            switch response {
+            case .ok(let ok):
+                let json = try ok.body.json
+                // Sorted rather than trusted to arrive sorted: the server orders its reply and
+                // nothing in HTTP guarantees it, and a grid drawn in the order bytes happened to
+                // arrive would be a drag that landed somewhere else.
+                return .stored(
+                    json.sorted { $0.position < $1.position }
+                        .map { StoredPhoto(id: $0.id, url: $0.url, position: $0.position) })
+            default:
+                return .failed
+            }
+        } catch {
+            return await DevOfflinePhotos.shared.reorder(ids: ids)
+        }
+    }
 }
 
 /// The stand-in for `/me/photos`, used whenever nothing else can answer.
@@ -208,6 +253,23 @@ actor DevOfflinePhotos {
     func remove(id: String) -> RemovePhotoResult {
         stored.removeAll { $0.id == id }
         return .removed
+    }
+
+    /// Applies an order, refusing an incomplete list exactly as the server does.
+    ///
+    /// The refusal is the point. A stand-in that accepted anything would make the one path worth
+    /// walking here — a drag whose write is rejected, and the re-read that follows — unreachable
+    /// without a backend.
+    func reorder(ids: [String]) -> ReorderPhotosResult {
+        let byId = Dictionary(uniqueKeysWithValues: stored.map { ($0.id, $0) })
+        guard ids.count == stored.count, Set(ids).count == ids.count,
+              ids.allSatisfy({ byId[$0] != nil }) else {
+            return .failed
+        }
+        stored = ids.enumerated().map { index, id in
+            StoredPhoto(id: id, url: byId[id]!.url, position: index)
+        }
+        return .stored(stored)
     }
 
     /// Forgets everything. For tests, so one case cannot leak into the next.
