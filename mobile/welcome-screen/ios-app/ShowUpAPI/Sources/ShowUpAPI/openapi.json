@@ -799,6 +799,21 @@
         ],
         "type": "object"
       },
+      "ReorderPhotosDto": {
+        "properties": {
+          "ids": {
+            "description": "Every one of the account’s photo ids, in the order they should be shown. The first is the main photo. Must be the complete set — a partial list is rejected.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "type": "object"
+      },
       "ReportDto": {
         "properties": {
           "context": {
@@ -4160,6 +4175,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PhotoDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/me/photos/order": {
+      "patch": {
+        "operationId": "reorderPhotos",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderPhotosDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PhotoDto"
+                  },
+                  "type": "array"
                 }
               }
             },

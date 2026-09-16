@@ -81,6 +81,9 @@ class PhotosViewModel(
 
     private var nextLocalId = 1L
 
+    /** A drag that could not be sent yet because the grid was not all stored. See [pushOrder]. */
+    private var orderPending = false
+
     // ── access ──────────────────────────────────────────────────────────────
 
     /** Re-reads both permission statuses. Call on every foreground. */
@@ -171,15 +174,73 @@ class PhotosViewModel(
     /**
      * Drag finished.
      *
-     * Local only. `PATCH` for a photo's position is NOT in the contract -- `PhotoDto` carries a
-     * `position` and no route writes it -- so the order survives until the screen is left and no
-     * further. Recorded as a dependency on SHOWUP-156 rather than papered over with a delete and
-     * re-upload, which would lose the photo if the second call failed.
+     * THE GRID MOVES FIRST AND THE WRITE FOLLOWS. A tile that sprang back to wait for a round trip
+     * would read as the drag having failed, so the move is applied on the frame the finger lifts
+     * and `PATCH /me/photos/order` catches up. If the server refuses, [pushOrder] adopts the order
+     * it reports instead -- see there for why that is the safe direction.
      */
     fun reorder(from: Int, to: Int) {
         if (from == to) return
         _state.update { it.copy(grid = it.grid.copy(photos = it.grid.photos.movedTo(from, to))) }
         analytics?.report(ProfileAnalytics.photoReordered(from, to))
+        pushOrder()
+    }
+
+    /**
+     * Sends the current order, or remembers to send it once the grid is all stored.
+     *
+     * THE ROUTE TAKES THE COMPLETE SET OF STORED PHOTOS AND NOTHING ELSE, so a grid with an upload
+     * still in flight -- or a failed slot the user has not retried -- has no complete list to send
+     * yet. Dropping the drag on the floor in that case would lose it: the upload lands, the server
+     * appends the new photo, and the order the user made is gone. So the drag is remembered in
+     * [orderPending] and [confirm] pushes it the moment the last slot is stored.
+     *
+     * A FAILED SLOT NEVER RESOLVES ON ITS OWN, which is why this is not a wait for "no uploads in
+     * flight": the pending order simply stays pending until the user retries or removes it, and
+     * either of those ends with a complete grid and a push.
+     */
+    private fun pushOrder() {
+        val photos = _state.value.grid.photos
+        val ids = photos.mapNotNull { it.remoteId }
+        if (ids.size != photos.size) {
+            orderPending = true
+            return
+        }
+        orderPending = false
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            when (val result = repo.reorder(ids)) {
+                is ReorderPhotosResult.Stored -> Unit
+                // The server and this grid disagree about what the account holds -- a photo removed
+                // on another device, most likely. Re-read and adopt: the list it returns is the one
+                // both sides can agree on, and guessing which end is stale is how two devices end
+                // up overwriting each other.
+                is ReorderPhotosResult.Failed -> repo.list()?.let { adoptServerOrder(it, ids) }
+            }
+        }
+    }
+
+    /**
+     * Rebuilds the grid from the server's list, after a refusal.
+     *
+     * Photos the read mentions take the order it gives. A photo this grid thought was stored and
+     * the read does NOT mention is dropped -- that is the whole reason for re-reading, and the
+     * likeliest cause is that it was removed on another device.
+     *
+     * DROPPED ONLY IF IT WAS IN THE ORDER WE SENT. Anything else is newer than the answer: a photo
+     * still uploading, or one that landed between the refusal and the read going out. The read
+     * cannot know about either, so its silence is not evidence that they are gone, and deleting a
+     * photo from the grid because of a race the user never saw is the worse of the two mistakes.
+     */
+    private fun adoptServerOrder(fresh: List<StoredPhoto>, sent: List<String>) {
+        _state.update { current ->
+            val byRemote = current.grid.photos.associateBy { it.remoteId }
+            val listed = fresh.map { it.id }.toSet()
+            val asked = sent.toSet()
+            val ordered = fresh.sortedBy { it.position }.mapNotNull { byRemote[it.id] }
+            val newer = current.grid.photos.filter { it.remoteId !in listed && it.remoteId !in asked }
+            current.copy(grid = current.grid.copy(photos = ordered + newer))
+        }
     }
 
     // ── uploading ───────────────────────────────────────────────────────────
@@ -233,6 +294,9 @@ class PhotosViewModel(
         analytics?.report(ProfileAnalytics.photoAdded(slotIndex, source, confirmedAfter))
         // ON THE FOURTH CONFIRMED UPLOAD, NOT THE FOURTH PICK -- and once, on the first crossing.
         if (crossed) analytics?.report(ProfileAnalytics.photosMinimumMet(confirmedAfter))
+        // The grid may have just become complete, and a drag made while this was uploading is
+        // waiting on exactly that. The server put this photo last; the user may not have.
+        if (orderPending) pushOrder()
     }
 
     private fun setStatus(localId: Long, status: UploadStatus, progress: Float? = null) {

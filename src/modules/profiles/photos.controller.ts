@@ -1,10 +1,12 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -23,6 +25,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { PhotoDto } from './dto/photo.dto';
+import { ReorderPhotosDto } from './dto/reorder-photos.dto';
 import { PhotosService } from './photos.service';
 
 @ApiTags('profiles')
@@ -69,6 +72,25 @@ export class PhotosController {
   @ApiOkResponse({ type: [PhotoDto] })
   async list(@CurrentUser() user: User): Promise<PhotoDto[]> {
     const photos = await this.photos.list(user.id);
+    return photos.map((photo) => PhotoDto.from(photo, this.photos.url(photo)));
+  }
+
+  /**
+   * Stores the order the user dragged the grid into (SHOWUP-156).
+   *
+   * PATCH rather than PUT on the collection: this changes one property of the photos that are
+   * already there and creates or deletes nothing. The body carries the WHOLE order rather than a
+   * from/to pair -- see `ReorderPhotosDto` for why -- which also makes it idempotent, so a retry
+   * after a dropped connection is safe.
+   */
+  @Patch('order')
+  @ApiOperation({ operationId: 'reorderPhotos' })
+  @ApiOkResponse({ type: [PhotoDto] })
+  async reorder(
+    @CurrentUser() user: User,
+    @Body() dto: ReorderPhotosDto,
+  ): Promise<PhotoDto[]> {
+    const photos = await this.photos.reorder(user.id, dto.ids);
     return photos.map((photo) => PhotoDto.from(photo, this.photos.url(photo)));
   }
 

@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -49,6 +50,24 @@ class PhotosUploadStateTest {
         val removed = mutableListOf<String>()
         var reportProgress = false
 
+        /** Every order this repository was asked to store, in the order it was asked. */
+        val orders = mutableListOf<List<String>>()
+
+        /** What the next reorder answers. Null means "stored, in the order it was given". */
+        var reorderAnswer: ReorderPhotosResult? = null
+
+        /** What a re-read returns. Null is "nothing answered", which is the default here. */
+        var listAnswer: List<StoredPhoto>? = null
+
+        /**
+         * Makes a re-read suspend once before answering.
+         *
+         * The only way to reproduce a real race on a test dispatcher: it lets an upload queued
+         * AFTER the re-read finish BEFORE the answer arrives, which is what a network read does
+         * every time and an instant fake never does.
+         */
+        var slowList = false
+
         override suspend fun upload(
             bytes: ByteArray,
             mimeType: String,
@@ -69,7 +88,17 @@ class PhotosUploadStateTest {
             return RemovePhotoResult.Removed
         }
 
-        override suspend fun list(): List<StoredPhoto>? = null
+        override suspend fun reorder(remoteIds: List<String>): ReorderPhotosResult {
+            orders += remoteIds
+            return reorderAnswer ?: ReorderPhotosResult.Stored(
+                remoteIds.mapIndexed { index, id -> StoredPhoto(id, "u", index) },
+            )
+        }
+
+        override suspend fun list(): List<StoredPhoto>? {
+            if (slowList) yield()
+            return listAnswer
+        }
     }
 
     private class Recorder : AnalyticsTracker {
@@ -239,7 +268,130 @@ class PhotosUploadStateTest {
         pick(1); advanceUntilIdle()
         val second = grid().at(1)?.localId
         vm.reorder(from = 1, to = 0)
+        // Before anything is advanced: the tile has already moved. A grid that waited for the
+        // round trip would read as the drag having failed.
         assertEquals(second, grid().at(0)?.localId)
+    }
+
+    @Test
+    fun `a drag sends the whole order, not the pair that moved`() = runTest(dispatcher) {
+        repeat(3) { slot -> pick(slot); advanceUntilIdle() }
+        val ids = grid().photos.mapNotNull { it.remoteId }
+        vm.reorder(from = 2, to = 0)
+        advanceUntilIdle()
+        // One call, carrying the complete list. Two drags racing as two diffs is exactly what
+        // sending the whole order avoids.
+        assertEquals(1, repo.orders.size)
+        assertEquals(listOf(ids[2], ids[0], ids[1]), repo.orders.single())
+    }
+
+    @Test
+    fun `a drag that changes nothing sends nothing`() = runTest(dispatcher) {
+        pick(0); advanceUntilIdle()
+        pick(1); advanceUntilIdle()
+        vm.reorder(from = 1, to = 1)
+        advanceUntilIdle()
+        assertTrue(repo.orders.isEmpty())
+    }
+
+    @Test
+    fun `a drag made during an upload is sent once the upload lands`() = runTest(dispatcher) {
+        pick(0); advanceUntilIdle()
+        pick(1); advanceUntilIdle()
+        // A third photo, still going up.
+        vm.tapSlot(2)
+        vm.picked("content://pick/2", PhotoSource.Library)
+        vm.reorder(from = 1, to = 0)
+        // Nothing yet: the route takes the complete set of STORED photos and one of these is not.
+        assertTrue(repo.orders.isEmpty())
+
+        advanceUntilIdle()
+        // The upload landed, and the drag the user made while it was in flight was not lost --
+        // which is the whole reason it is remembered rather than dropped.
+        assertEquals(1, repo.orders.size)
+        assertEquals(grid().photos.mapNotNull { it.remoteId }, repo.orders.single())
+    }
+
+    @Test
+    fun `an order is not sent while a slot is still failed`() = runTest(dispatcher) {
+        pick(0); advanceUntilIdle()
+        repo.queued += UploadPhotoResult.Failed(null)
+        pick(1); advanceUntilIdle()
+        vm.reorder(from = 1, to = 0)
+        advanceUntilIdle()
+        // A failed slot has no server id and never had one, so there is no complete list to send.
+        assertTrue(repo.orders.isEmpty())
+
+        vm.retry(0)
+        advanceUntilIdle()
+        // Retrying completes the grid, and the pending drag goes out with it.
+        assertEquals(1, repo.orders.size)
+    }
+
+    @Test
+    fun `a refused order is replaced by the one the server reports`() = runTest(dispatcher) {
+        repeat(3) { slot -> pick(slot); advanceUntilIdle() }
+        val ids = grid().photos.mapNotNull { it.remoteId }
+        repo.reorderAnswer = ReorderPhotosResult.Failed(null)
+        // The server no longer holds the middle photo -- removed on another device, say.
+        repo.listAnswer = listOf(
+            StoredPhoto(ids[2], "u", 0),
+            StoredPhoto(ids[0], "u", 1),
+        )
+
+        vm.reorder(from = 2, to = 0)
+        advanceUntilIdle()
+        // The grid adopts what the server actually holds rather than keeping a photo that is gone.
+        assertEquals(listOf(ids[2], ids[0]), grid().photos.mapNotNull { it.remoteId })
+    }
+
+    @Test
+    fun `a refused order that cannot be re-read leaves the grid alone`() = runTest(dispatcher) {
+        repeat(2) { slot -> pick(slot); advanceUntilIdle() }
+        repo.reorderAnswer = ReorderPhotosResult.Failed(null)
+        repo.listAnswer = null
+        vm.reorder(from = 1, to = 0)
+        advanceUntilIdle()
+        // Nothing answered, so there is nothing to adopt. Emptying a grid the user just filled
+        // because the network dropped would be the worse bug.
+        assertEquals(2, grid().photos.size)
+    }
+
+    @Test
+    fun `adopting the server order keeps a photo that is still uploading`() = runTest(dispatcher) {
+        repeat(2) { slot -> pick(slot); advanceUntilIdle() }
+        val ids = grid().photos.mapNotNull { it.remoteId }
+        repo.reorderAnswer = ReorderPhotosResult.Failed(null)
+        repo.listAnswer = listOf(StoredPhoto(ids[1], "u", 0), StoredPhoto(ids[0], "u", 1))
+        vm.reorder(from = 1, to = 0)
+        // A new photo starts uploading before the refusal comes back.
+        vm.tapSlot(2)
+        vm.picked("content://pick/2", PhotoSource.Library)
+        advanceUntilIdle()
+        // Three slots still: the in-flight one exists only here, so a read cannot know about it
+        // and must not delete it.
+        assertEquals(3, grid().photos.size)
+    }
+
+    @Test
+    fun `an upload that lands during the re-read is not dropped by it`() = runTest(dispatcher) {
+        repeat(2) { slot -> pick(slot); advanceUntilIdle() }
+        val ids = grid().photos.mapNotNull { it.remoteId }
+        repo.reorderAnswer = ReorderPhotosResult.Failed(null)
+        // What the server held when the read went out: the third photo had not arrived yet.
+        repo.listAnswer = listOf(StoredPhoto(ids[1], "u", 0), StoredPhoto(ids[0], "u", 1))
+        repo.slowList = true
+
+        vm.reorder(from = 1, to = 0)
+        vm.tapSlot(2)
+        vm.picked("content://pick/2", PhotoSource.Library)
+        advanceUntilIdle()
+
+        // The third upload CONFIRMED while the read was in the air, so it has a server id the
+        // answer does not mention. That silence is not evidence it is gone -- it was never in the
+        // order that was sent -- and dropping it here would delete a photo the user watched land.
+        assertEquals(3, grid().photos.size)
+        assertEquals(listOf(ids[1], ids[0]), grid().photos.take(2).mapNotNull { it.remoteId })
     }
 
     // ── tracking ────────────────────────────────────────────────────────────

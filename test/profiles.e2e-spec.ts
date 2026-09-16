@@ -270,6 +270,89 @@ describe('Profiles (e2e)', () => {
     expect(res.body.isComplete).toBe(true);
   });
 
+  it('PATCH /me/photos/order stores the order the grid was dragged into', async () => {
+    // Runs while four photos are on the account, between the completeness test above and the
+    // delete below -- which is also the state the screen is in when a drag is possible at all.
+    const before = await request(server)
+      .get('/me/photos')
+      .set('Authorization', bearer())
+      .expect(200);
+    const ids = before.body.map((p: { id: string }) => p.id);
+    expect(ids).toHaveLength(4);
+
+    const reversed = [...ids].reverse();
+    const res = await request(server)
+      .patch('/me/photos/order')
+      .set('Authorization', bearer())
+      .send({ ids: reversed })
+      .expect(200);
+    expect(res.body.map((p: { id: string }) => p.id)).toEqual(reversed);
+    expect(res.body.map((p: { position: number }) => p.position)).toEqual([
+      0, 1, 2, 3,
+    ]);
+
+    // And it is what a later read returns -- the point of the whole route.
+    const after = await request(server)
+      .get('/me/photos')
+      .set('Authorization', bearer())
+      .expect(200);
+    expect(after.body.map((p: { id: string }) => p.id)).toEqual(reversed);
+
+    // Idempotent: sending the same order again is not an error, so a retry after a dropped
+    // connection is safe.
+    await request(server)
+      .patch('/me/photos/order')
+      .set('Authorization', bearer())
+      .send({ ids: reversed })
+      .expect(200);
+
+    // Put it back, so the delete test below still finds `photoId` where it expects it.
+    await request(server)
+      .patch('/me/photos/order')
+      .set('Authorization', bearer())
+      .send({ ids })
+      .expect(200);
+  });
+
+  it('PATCH /me/photos/order refuses a partial or duplicated list', async () => {
+    const list = await request(server)
+      .get('/me/photos')
+      .set('Authorization', bearer())
+      .expect(200);
+    const ids = list.body.map((p: { id: string }) => p.id);
+
+    // Missing one: the server would have to invent a position for it.
+    await request(server)
+      .patch('/me/photos/order')
+      .set('Authorization', bearer())
+      .send({ ids: ids.slice(0, 3) })
+      .expect(400);
+
+    // The same photo twice.
+    await request(server)
+      .patch('/me/photos/order')
+      .set('Authorization', bearer())
+      .send({ ids: [ids[0], ids[0], ids[1], ids[2]] })
+      .expect(400);
+
+    // A well-formed uuid that is nobody's photo. 400 rather than 404: the caller is told the
+    // ORDER is wrong, not whether that id exists somewhere else.
+    await request(server)
+      .patch('/me/photos/order')
+      .set('Authorization', bearer())
+      .send({
+        ids: [...ids.slice(0, 3), '00000000-0000-4000-8000-000000000000'],
+      })
+      .expect(400);
+
+    // Not a uuid at all -- caught by the DTO before the service sees it.
+    await request(server)
+      .patch('/me/photos/order')
+      .set('Authorization', bearer())
+      .send({ ids: ['not-a-uuid'] })
+      .expect(400);
+  });
+
   it('rejects a non-image upload', async () => {
     await request(server)
       .post('/me/photos')
@@ -292,11 +375,48 @@ describe('Profiles (e2e)', () => {
       .set('Authorization', bearer())
       .expect(200);
     expect(list.body).toHaveLength(3);
+    // And the gap it left is closed. `upload` gives a new photo `position = count`, which is the
+    // end of the list only while positions are dense -- see the next test for what a hole costs.
+    expect(list.body.map((p: { position: number }) => p.position)).toEqual([
+      0, 1, 2,
+    ]);
     const profile = await request(server)
       .get('/me/profile')
       .set('Authorization', bearer())
       .expect(200);
     expect(profile.body.isComplete).toBe(false);
+  });
+
+  it('a photo uploaded after a delete lands at the end, not in the hole', async () => {
+    const before = await request(server)
+      .get('/me/photos')
+      .set('Authorization', bearer())
+      .expect(200);
+    // Delete the FIRST photo, which is the one whose position a later upload could collide with.
+    await request(server)
+      .delete(`/me/photos/${before.body[0].id}`)
+      .set('Authorization', bearer())
+      .expect(204);
+
+    const added = await request(server)
+      .post('/me/photos')
+      .set('Authorization', bearer())
+      .attach('file', Buffer.from([0xff, 0xd8, 0xff, 0xd9]), {
+        filename: 'late.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(201);
+
+    const after = await request(server)
+      .get('/me/photos')
+      .set('Authorization', bearer())
+      .expect(200);
+    // Last, and the list is still dense. Without renumbering on delete this photo would have
+    // taken a position already in use and sorted ahead of photos the user had had for weeks.
+    expect(after.body[after.body.length - 1].id).toBe(added.body.id);
+    expect(after.body.map((p: { position: number }) => p.position)).toEqual([
+      0, 1, 2,
+    ]);
   });
 
   it('POST /me/profile/verification sets status to pending', async () => {

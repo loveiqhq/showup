@@ -56,6 +56,8 @@ final class PhotosModel {
     /// picker, the behaviour the ticket requires on both platforms.
     private var pickedBytes: [Int64: PickedBytes] = [:]
     private var nextLocalId: Int64 = 1
+    /// A drag that could not be sent yet because the grid was not all stored. See `pushOrder`.
+    private var orderPending = false
 
     init(repo: any PhotosRepositoring,
          access: any PhotoAccessReading,
@@ -137,14 +139,76 @@ final class PhotosModel {
 
     /// Drag finished.
     ///
-    /// Local only. `PATCH` for a photo's position is NOT in the contract — `PhotoDto` carries a
-    /// `position` and no route writes it — so the order survives until the screen is left and no
-    /// further. Recorded as a dependency rather than papered over with a delete and re-upload,
-    /// which would lose the photo if the second call failed.
+    /// THE GRID MOVES FIRST AND THE WRITE FOLLOWS. A tile that sprang back to wait for a round
+    /// trip would read as the drag having failed, so the move is applied on the frame the finger
+    /// lifts and `PATCH /me/photos/order` catches up. If the server refuses, `pushOrder` adopts
+    /// the order it reports instead — see there for why that is the safe direction.
     func reorder(from: Int, to: Int) {
         guard from != to else { return }
         grid.photos = moved(grid.photos, from: from, to: to)
         analytics?.report(ProfileAnalytics.photoReordered(from: from, to: to))
+        pushOrder()
+    }
+
+    /// Sends the current order, or remembers to send it once the grid is all stored.
+    ///
+    /// THE ROUTE TAKES THE COMPLETE SET OF STORED PHOTOS AND NOTHING ELSE, so a grid with an
+    /// upload still in flight — or a failed slot the user has not retried — has no complete list
+    /// to send yet. Dropping the drag on the floor in that case would lose it: the upload lands,
+    /// the server appends the new photo, and the order the user made is gone. So the drag is
+    /// remembered in `orderPending` and `confirm` pushes it the moment the last slot is stored.
+    ///
+    /// A FAILED SLOT NEVER RESOLVES ON ITS OWN, which is why this is not a wait for "no uploads in
+    /// flight": the pending order simply stays pending until the user retries or removes it, and
+    /// either of those ends with a complete grid and a push.
+    private func pushOrder() {
+        let ids = grid.photos.compactMap(\.remoteId)
+        guard ids.count == grid.photos.count else {
+            orderPending = true
+            return
+        }
+        orderPending = false
+        guard !ids.isEmpty else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            switch await self.repo.reorder(ids: ids) {
+            case .stored:
+                break
+            case .failed:
+                // The server and this grid disagree about what the account holds — a photo removed
+                // on another device, most likely. Re-read and adopt: the list it returns is the one
+                // both sides can agree on, and guessing which end is stale is how two devices end
+                // up overwriting each other.
+                if let fresh = await self.repo.list() {
+                    self.adoptServerOrder(fresh, sent: ids)
+                }
+            }
+        }
+    }
+
+    /// Rebuilds the grid from the server's list, after a refusal.
+    ///
+    /// Photos the read mentions take the order it gives. A photo this grid thought was stored and
+    /// the read does NOT mention is dropped — that is the whole reason for re-reading, and the
+    /// likeliest cause is that it was removed on another device.
+    ///
+    /// DROPPED ONLY IF IT WAS IN THE ORDER WE SENT. Anything else is newer than the answer: a
+    /// photo still uploading, or one that landed between the refusal and the read going out. The
+    /// read cannot know about either, so its silence is not evidence that they are gone, and
+    /// deleting a photo from the grid because of a race the user never saw is the worse of the two
+    /// mistakes.
+    private func adoptServerOrder(_ fresh: [StoredPhoto], sent: [String]) {
+        let byRemote = Dictionary(
+            grid.photos.compactMap { photo in photo.remoteId.map { ($0, photo) } },
+            uniquingKeysWith: { first, _ in first })
+        let listed = Set(fresh.map(\.id))
+        let asked = Set(sent)
+        let ordered = fresh.sorted { $0.position < $1.position }.compactMap { byRemote[$0.id] }
+        let newer = grid.photos.filter { photo in
+            guard let remoteId = photo.remoteId else { return true }
+            return !listed.contains(remoteId) && !asked.contains(remoteId)
+        }
+        grid.photos = ordered + newer
     }
 
     // MARK: uploading
@@ -187,6 +251,9 @@ final class PhotosModel {
             slotIndex: index, source: source, filledCount: confirmedAfter))
         // ON THE FOURTH CONFIRMED UPLOAD, NOT THE FOURTH PICK — and once, on the first crossing.
         if crossed { analytics?.report(ProfileAnalytics.photosMinimumMet(count: confirmedAfter)) }
+        // The grid may have just become complete, and a drag made while this was uploading is
+        // waiting on exactly that. The server put this photo last; the user may not have.
+        if orderPending { pushOrder() }
     }
 
     private func setStatus(_ localId: Int64, _ status: UploadStatus, progress: Double? = nil) {

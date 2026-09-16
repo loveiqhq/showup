@@ -45,7 +45,9 @@ const PHONE = '+491701234777';
 // Stands in for any :id / :userId path parameter. Never resolved — the guard answers first.
 const ID = '00000000-0000-4000-8000-000000000000';
 
-type Method = 'get' | 'post' | 'patch' | 'delete';
+// `put` joined the list with the prompt routes (SHOWUP-158): `PUT /me/prompts/{topicId}` is
+// idempotent on the topic, which is what makes "Save overwrites" one call rather than two.
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 interface Route {
   method: Method;
   path: string;
@@ -95,6 +97,7 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/me/photos' },
   { method: 'get', path: '/me/photos' },
   { method: 'delete', path: `/me/photos/${ID}` },
+  { method: 'patch', path: '/me/photos/order' },
   // profiles.controller.ts
   { method: 'get', path: '/me/profile' },
   { method: 'post', path: '/me/profile' },
