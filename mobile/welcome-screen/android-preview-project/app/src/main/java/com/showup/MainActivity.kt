@@ -474,7 +474,14 @@ class MainActivity : ComponentActivity() {
                         onDismissSheet = photos::dismissSheet,
                         onOpenSettings = { openAppSettings(context) },
                         onContinue = { screen = FlowScreen.ProfilePrompts },
-                    )
+                    ).also {
+                        // Reads what the account already holds. Without it the grid started empty
+                        // on every launch, and an account already at the server's six-photo limit
+                        // answered the next upload with a 400 the slot could only render as
+                        // `Upload failed` -- with a Retry that re-sent the same bytes to the same
+                        // full account.
+                        LaunchedEffect(Unit) { photos.load() }
+                    }
 
                     // SHOWUP-158. Two sheets, one screen, and every transition between them is a
                     // change to the one value the ViewModel owns.

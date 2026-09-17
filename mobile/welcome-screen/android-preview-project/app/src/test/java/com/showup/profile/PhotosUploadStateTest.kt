@@ -260,6 +260,73 @@ class PhotosUploadStateTest {
         assertEquals(UploadStatus.Confirmed, grid().at(0)?.status)
     }
 
+    // ── what the account already holds ──────────────────────────────────────
+
+    @Test
+    fun `arriving reads the photos the account already has`() = runTest(dispatcher) {
+        repo.listAnswer = listOf(
+            StoredPhoto("a", "https://cdn/a.jpg", 0),
+            StoredPhoto("b", "https://cdn/b.jpg", 1),
+        )
+        vm.load()
+        advanceUntilIdle()
+        // Without this the grid started empty on every launch, and an account already at the
+        // server's six-photo limit answered the next upload with a 400 that the slot could only
+        // render as `Upload failed` -- with a Retry that re-sent the same bytes to the same full
+        // account.
+        assertEquals(listOf("a", "b"), grid().photos.mapNotNull { it.remoteId })
+        assertEquals(2, grid().confirmedCount)
+    }
+
+    @Test
+    fun `a read does not throw away a photo still uploading`() = runTest(dispatcher) {
+        vm.tapSlot(0)
+        vm.picked("content://pick/0", PhotoSource.Library)
+        repo.listAnswer = listOf(StoredPhoto("a", "https://cdn/a.jpg", 0))
+        vm.load()
+        advanceUntilIdle()
+        // The in-flight one exists only here; a read cannot know about it and must not delete it.
+        assertEquals(2, grid().photos.size)
+    }
+
+    @Test
+    fun `photos already on the account are not a fresh crossing of the minimum`() =
+        runTest(dispatcher) {
+            repo.listAnswer = (0 until 4).map { StoredPhoto("id-$it", "u", it) }
+            vm.load()
+            advanceUntilIdle()
+            // `photos_minimum_met` fires when the count FIRST reaches four. An account that
+            // already held four did not reach it just now, and reporting it here would put a
+            // threshold event on every relaunch.
+            assertEquals(0, analytics.count("photos_minimum_met"))
+            assertEquals(4, grid().confirmedCount)
+        }
+
+    @Test
+    fun `six stored photos open the optional block that two of them sit in`() =
+        runTest(dispatcher) {
+            repo.listAnswer = (0 until 6).map { StoredPhoto("id-$it", "u", it) }
+            vm.load()
+            advanceUntilIdle()
+            // Slots 5 and 6 are behind `Add more`; with six stored, two photos would otherwise
+            // have nowhere to be.
+            assertTrue(grid().optionalRevealed)
+            assertEquals(6, grid().photos.size)
+        }
+
+    @Test
+    fun `a read that answers nothing leaves the grid alone`() = runTest(dispatcher) {
+        vm.tapSlot(0)
+        vm.picked("content://pick/0", PhotoSource.Library)
+        advanceUntilIdle()
+        repo.listAnswer = null
+        vm.load()
+        advanceUntilIdle()
+        // An empty list and an unreachable server are different facts; collapsing them would wipe
+        // a grid the user had just filled.
+        assertEquals(1, grid().photos.size)
+    }
+
     // ── reordering ──────────────────────────────────────────────────────────
 
     @Test

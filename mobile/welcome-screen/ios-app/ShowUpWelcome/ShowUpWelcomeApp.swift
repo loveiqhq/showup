@@ -371,7 +371,14 @@ private struct TutorialFlow: View {
                         // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug
                         // on this screen is a user who granted access in Settings returning to the
                         // blocked card, and becoming active again is the only moment to notice.
-                        .onAppear { photos.refreshAccess() }
+                        .onAppear {
+                            photos.refreshAccess()
+                            // Reads what the account already holds. Without it the grid started
+                            // empty on every launch, and an account at the server's six-photo
+                            // limit answered the next upload with a 400 the slot could only
+                            // render as `Upload failed`.
+                            photos.load()
+                        }
                         .onChange(of: scenePhase) { _, phase in
                             if phase == .active { photos.refreshAccess() }
                         }

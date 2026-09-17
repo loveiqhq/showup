@@ -67,6 +67,58 @@ final class PhotosModel {
         self.analytics = analytics
     }
 
+    // MARK: arriving
+
+    /// Reads the photos the account already holds.
+    ///
+    /// WHY THIS WAS MISSING, AND WHAT IT COST. The prompts screen has had a `load` since
+    /// persistence landed; this one never did, so the grid started EMPTY on every launch however
+    /// many photos the account held. Nothing looked wrong — an empty grid is what a new user sees
+    /// — right up until the seventh upload.
+    ///
+    /// The server allows six. An account already at six answers every further upload with a 400,
+    /// and a refused slot renders `Upload failed` with a `Retry` that re-sends the same bytes to
+    /// the same full account. So a user who had already added six came back to an empty screen,
+    /// added one, and was told it failed, forever, with no sight of the six that were the reason.
+    ///
+    /// That is the third bug of this shape on this screen: a PERMANENT refusal wearing a
+    /// transient failure's clothes. The other two — a HEIC the server would not take, and a photo
+    /// past its size cap — were fixed by sending something acceptable. This one is not fixable at
+    /// the upload: the only honest fix is to SHOW the photos, because the grid being wrong is
+    /// what made the refusal look arbitrary.
+    ///
+    /// ANYTHING PICKED IN THIS SESSION SURVIVES a read that lands while an upload is in flight.
+    func load() {
+        Task { [weak self] in
+            guard let self, let stored = await self.repo.list() else { return }
+            let fromServer = stored.sorted { $0.position < $1.position }.map { photo -> PickedPhoto in
+                let id = self.nextLocalId
+                self.nextLocalId += 1
+                // The server's URL. The slot draws a placeholder for anything it cannot decode
+                // locally, which is honest: this build has no image loader, and a blank tile would
+                // claim the photo was not there.
+                var entry = PickedPhoto(localId: id, uri: photo.url, status: .confirmed)
+                entry.remoteId = photo.id
+                entry.progress = 1
+                return entry
+            }
+            // ANYTHING THE READ DID NOT MENTION IS KEPT, not just the in-flight ones. A photo
+            // that confirmed between the request going out and this merge running has a remote id
+            // the answer predates, and filtering on "no remote id" would drop the slot the user
+            // just watched land. Same rule, same reason, as `adoptServerOrder`.
+            let listed = Set(stored.map(\.id))
+            let unstored = self.grid.photos.filter { $0.remoteId.map { !listed.contains($0) } ?? true }
+            self.grid.photos = fromServer + unstored
+            // NOT A CROSSING. `photos_minimum_met` fires when the count FIRST reaches four, and an
+            // account that already held four did not reach it just now — reporting it here would
+            // put a threshold event on every relaunch.
+            if fromServer.count >= photosRequired { self.grid.minimumReported = true }
+            // Six already stored means slots 5 and 6 are occupied, so the block they sit behind
+            // has to be open or two of the photos would have nowhere to be.
+            if fromServer.count > photosRequired { self.grid.optionalRevealed = true }
+        }
+    }
+
     // MARK: access
 
     /// Re-reads both permission statuses. Call on every foreground.
