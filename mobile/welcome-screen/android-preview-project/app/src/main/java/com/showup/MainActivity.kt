@@ -11,6 +11,7 @@ import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -612,7 +613,7 @@ class MainActivity : ComponentActivity() {
 private suspend fun readPickedImage(context: Context, uri: String): PickedBytes? =
     withContext(Dispatchers.IO) {
         runCatching {
-            val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(uri))
+            val source = ImageDecoder.createSource(context.contentResolver, uri.toUri())
             val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                 decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 // The arithmetic is in `uploadTargetSize`, where a JVM test can reach it. Null
@@ -622,8 +623,14 @@ private suspend fun readPickedImage(context: Context, uri: String): PickedBytes?
                 }
             }
             val out = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, UPLOAD_JPEG_QUALITY, out)
+            // CHECKED, NOT ASSUMED. `compress` returns false when it could not encode -- a
+            // bitmap in a config JPEG cannot represent, or a device that has just run out of
+            // memory, which is exactly the condition this whole function exists to be careful
+            // about. Ignoring it would upload an empty body, and an empty body is a 400 that
+            // reads on screen as the same `Upload failed` as everything else.
+            val encoded = bitmap.compress(Bitmap.CompressFormat.JPEG, UPLOAD_JPEG_QUALITY, out)
             bitmap.recycle()
+            if (!encoded || out.size() == 0) return@runCatching null
             // ALWAYS JPEG, whatever came in. The server names three types it accepts and this is
             // the one every path can produce; the extension matches so a person reading a log sees
             // the truth. NEVER the library's own display name -- that is the user's filename and
