@@ -136,7 +136,7 @@ private fun VerificationFrame(
             // The 44dp hit area above is deliberately larger than the reference's 36, which would
             // fail the 44dp minimum every tap target on these screens is held to. Nothing visible
             // changes -- the button has no fill, only the icon is drawn.
-            Icon(BrandIcon.ChevronLeft, 24.dp, tint = Fg, strokeWidth = 2.dp)
+            Icon(BrandIcon.ChevronLeft, 24.dp, tint = Fg, strokeWidth = 2f)
         }
         content()
         // One flex:1 spacer at the bottom — unlike Startup and Welcome back, everything here is
@@ -234,7 +234,7 @@ fun PhoneNumberScreen(
                 Flag(country)
                 Text(country.dial, color = Fg, fontFamily = Manrope,
                      fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                Icon(BrandIcon.ChevronDown, 16.dp, tint = Muted, strokeWidth = 2.dp)
+                Icon(BrandIcon.ChevronDown, 16.dp, tint = Muted, strokeWidth = 2f)
             }
 
             // The invalid field keeps the same geometry as the default one, so it does not move
@@ -688,7 +688,7 @@ fun VerifyCodeScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                Icon(BrandIcon.Pencil, 13.dp, tint = Muted, strokeWidth = 1.8.dp)
+                Icon(BrandIcon.Pencil, 13.dp, tint = Muted, strokeWidth = 1.8f)
                 Text("Edit phone number", color = Muted, fontFamily = Manrope,
                      fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             }

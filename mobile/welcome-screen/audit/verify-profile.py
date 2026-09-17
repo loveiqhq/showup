@@ -636,6 +636,39 @@ check("156 ios applies the exif transform",
 check("156 ios does not return the embedded thumbnail",
       "kCGImageSourceCreateThumbnailFromImageAlways" in picker_sw)
 
+# ── the eyebrow labels are UPPERCASE, as the CSS transforms them ────────────
+#
+# The reference marks these `textTransform: 'uppercase'`. CSS applies that at render, so the
+# strings are authored in sentence case and the ticket quotes them that way -- which is why the
+# constants stay sentence case and the transform happens at the render site. Nothing did it, so
+# six labels shipped in sentence case; two more (`MAIN`, `FOR EXAMPLE`) had the capitals typed
+# into the constant by hand, which is exactly how the omission hid: some eyebrows looked right, so
+# none of them looked wrong.
+for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
+    check("158 section label is uppercased (%s)" % label, "eyebrowCase" in text)
+for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
+    check("156 counter row is uppercased (%s)" % label,
+          text.count("eyebrowCase") >= 2)
+
+# ── every drawn icon speaks the 24-grid, not Dp ─────────────────────────────
+#
+# `Icon` scales its paths with `withTransform { scale(s, s) }`. A stroke converted to pixels
+# OUTSIDE that transform is multiplied by the scale a SECOND time inside it, which is the bug this
+# guards: every icon in the app came out `density` times too heavy -- 2.6x on a 2.625x phone, fat
+# enough that the embrace CTA's arrowhead merged into a solid triangle. It looked right at exactly
+# one density, 1.0, so every preview agreed with it.
+#
+# `IconStrokeTest` measures the rendered ink. This keeps the CALL SITES from reintroducing the
+# unit that caused it.
+import glob as _glob
+_kt_sources = _glob.glob(os.path.join(KT, "**", "*.kt"), recursive=True)
+for _f in _kt_sources:
+    _body = io.open(_f, encoding="utf-8").read()
+    for _line in _body.splitlines():
+        if "Icon(" in _line and "strokeWidth" in _line and "CheckGlyph" not in _line:
+            check("icon stroke is grid units, not dp (%s)" % os.path.basename(_f),
+                  ".dp" not in _line.split("strokeWidth")[1])
+
 # ── both screens · Continue is never disabled ───────────────────────────────
 #
 # The group-wide rule, and the reason the specific requirement is ever read: a dead button cannot

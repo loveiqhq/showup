@@ -8,6 +8,7 @@
 //  Values come from the spec sheets, which carry colour and type tokens only. There is deliberately
 //  no spacing scale: the raw px values in each screen are what design specified, not an oversight.
 
+import Foundation
 import SwiftUI
 import UIKit
 
@@ -92,6 +93,7 @@ enum PS {
     static let manropeMedium  = "Manrope-Medium"
     static let manropeSemi    = "Manrope-SemiBold"
     static let manropeBold    = "Manrope-Bold"
+    static let manropeXBold   = "Manrope-ExtraBold"
 }
 
 enum F {
@@ -103,7 +105,11 @@ enum F {
     static func manrope(_ size: CGFloat, _ weight: Font.Weight) -> Font {
         let name: String
         switch weight {
-        case .bold, .heavy:  name = PS.manropeBold
+        case .bold:          name = PS.manropeBold
+        // 800, and it used to fall in with 700 above. The design's eyebrow labels are authored at
+        // `fontWeight: 800` and eleven call sites ask for `.heavy`; every one of them rendered a
+        // step light, and Android did the same by having no 800 in its family to match.
+        case .heavy:         name = PS.manropeXBold
         case .semibold:      name = PS.manropeSemi
         default:             name = PS.manropeMedium
         }
@@ -197,4 +203,21 @@ enum TypeMetrics {
         }
         return AttributedString(out)
     }
+}
+
+extension String {
+    /// `text-transform: uppercase`, which SwiftUI has no equivalent of.
+    ///
+    /// The design's eyebrow labels — Manrope 800 at 10.5 with 0.08em tracking — are authored in
+    /// sentence case and transformed by CSS. The ticket's copy section quotes them in sentence
+    /// case too, which is why the STRINGS stay that way and the transform happens here: the copy a
+    /// verifier checks against the ticket and the pixels a person sees are two different things,
+    /// and baking the capitals into the constant would make the first one lie.
+    ///
+    /// Two of these were already written in capitals by hand — `MAIN` and `FOR EXAMPLE` — which is
+    /// how the omission hid: some of the eyebrows looked right, so none of them looked wrong.
+    ///
+    /// The invariant locale rather than the device's: these are English product strings, and a
+    /// Turkish locale uppercases "i" to a dotted capital that is not in our font's Latin set.
+    var eyebrowCase: String { uppercased(with: Locale(identifier: "en_US_POSIX")) }
 }

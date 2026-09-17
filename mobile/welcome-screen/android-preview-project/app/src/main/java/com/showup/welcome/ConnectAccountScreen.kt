@@ -449,7 +449,7 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
                         .background(Success, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(BrandIcon.Check, 18.dp, tint = Color.White, strokeWidth = 2.4.dp)
+                    Icon(BrandIcon.Check, 18.dp, tint = Color.White, strokeWidth = 2.4f)
                 }
             }
             Column(
@@ -522,7 +522,7 @@ private fun ConflictSheet(
                 Modifier.size(IconSizes.badge).background(Orange.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(BrandIcon.Shield, 26.dp, tint = Orange, strokeWidth = 1.8.dp)
+                Icon(BrandIcon.Shield, 26.dp, tint = Orange, strokeWidth = 1.8f)
             }
             Spacer(Modifier.height(Spacing.xxl))
 

@@ -374,7 +374,7 @@ private struct PhotoCount: View {
             // accessibility size it is not, and a line limit made that an ELLIPSIS on the
             // narrowest phone — "Photos · 4 required, 6 m…" — which cuts the maximum out of the
             // sentence that states it.
-            Text(PhotosCopy.countLabel)
+            Text(PhotosCopy.countLabel.eyebrowCase)
                 .font(F.manrope(10.5, .heavy))
                 .tracking(0.84)
                 .foregroundColor(.liqSubtle)
@@ -664,7 +664,7 @@ struct ProfilePhotosView: View {
 
                     if state.optionalRevealed {
                         HStack(spacing: Spacing.md) {
-                            Text(PhotosCopy.optionalDivider)
+                            Text(PhotosCopy.optionalDivider.eyebrowCase)
                                 .font(F.manrope(10.5, .heavy))
                                 .tracking(0.84)
                                 .foregroundColor(.liqSubtle)

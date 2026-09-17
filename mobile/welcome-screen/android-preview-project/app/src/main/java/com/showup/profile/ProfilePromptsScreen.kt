@@ -131,6 +131,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import com.showup.designsystem.Border
 import com.showup.designsystem.ComponentSizes
+import com.showup.designsystem.eyebrowCase
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerFg
@@ -432,7 +433,7 @@ private fun SuggestionCard(topic: PromptTopic, onClick: () -> Unit) {
                 Modifier.size(20.dp).clip(CircleShape).background(LavenderWash),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(BrandIcon.Plus, 13.dp, tint = Purple, strokeWidth = 2.6.dp)
+                Icon(BrandIcon.Plus, 13.dp, tint = Purple, strokeWidth = 2.6f)
             }
             Text(
                 PromptsCopy.WRITE_THIS,
@@ -515,7 +516,7 @@ private fun FilledPromptCard(prompt: SavedPrompt, onEdit: () -> Unit) {
                     .background(Color.White.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(BrandIcon.Pen, 14.dp, tint = Purple, strokeWidth = 1.8.dp)
+                Icon(BrandIcon.Pen, 14.dp, tint = Purple, strokeWidth = 1.8f)
             }
         }
     }
@@ -557,7 +558,7 @@ private fun SheetCloseButton(onClose: () -> Unit, modifier: Modifier = Modifier)
                 Modifier.size(36.dp).clip(CircleShape).background(Fg.copy(alpha = 0.04f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(BrandIcon.Close, 20.dp, tint = Fg, strokeWidth = 1.8.dp)
+                Icon(BrandIcon.Close, 20.dp, tint = Fg, strokeWidth = 1.8f)
             }
         }
     }
@@ -716,7 +717,7 @@ private fun TopicPickerSheet(
         ) {
             TOPIC_GROUPS.forEachIndexed { groupIndex, group ->
                 Text(
-                    group.label,
+                    group.label.eyebrowCase(),
                     modifier = Modifier.padding(
                         start = 2.dp,
                         top = if (groupIndex == 0) 2.dp else Spacing.xl,
@@ -761,13 +762,13 @@ private fun TopicPickerSheet(
                         )
                         if (isUsed) {
                             Text(
-                                PromptsCopy.TOPIC_USED,
+                                PromptsCopy.TOPIC_USED.eyebrowCase(),
                                 color = Subtle, fontFamily = Manrope,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 10.5.sp, letterSpacing = 0.06.em,
                             )
                         } else {
-                            Icon(BrandIcon.Plus, Spacing.xxl, tint = Purple, strokeWidth = 2.4.dp)
+                            Icon(BrandIcon.Plus, Spacing.xxl, tint = Purple, strokeWidth = 2.4f)
                         }
                     }
                 }
@@ -921,7 +922,7 @@ private fun WritePromptSheet(
                                 .background(Purple.copy(alpha = 0.10f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(BrandIcon.Close, 13.dp, tint = Purple, strokeWidth = 2.2.dp)
+                            Icon(BrandIcon.Close, 13.dp, tint = Purple, strokeWidth = 2.2f)
                         }
                     }
                 }
@@ -1193,9 +1194,9 @@ fun ProfilePromptsScreen(
             if (state.count < PROMPTS_MAX) {
                 Text(
                     if (state.count == 0) {
-                        PromptsCopy.SECTION_NONE_SAVED
+                        PromptsCopy.SECTION_NONE_SAVED.eyebrowCase()
                     } else {
-                        PromptsCopy.SECTION_SOME_SAVED
+                        PromptsCopy.SECTION_SOME_SAVED.eyebrowCase()
                     },
                     modifier = Modifier.padding(
                         top = if (state.count == 0) 20.dp else 22.dp,
