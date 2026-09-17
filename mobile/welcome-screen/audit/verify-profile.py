@@ -636,6 +636,31 @@ check("156 ios applies the exif transform",
 check("156 ios does not return the embedded thumbnail",
       "kCGImageSourceCreateThumbnailFromImageAlways" in picker_sw)
 
+# ── the two platforms test the same photo-grid behaviour ────────────────────
+#
+# The grid's boxes are POSITIONAL: emptying one leaves it empty and the next photo goes back into
+# it. That rule was changed on both platforms at once and the Kotlin suite was updated while the
+# Swift one was not, so CI caught it on a macOS runner ten minutes later -- the second time this
+# session that a behaviour change landed in one test suite and not its mirror.
+#
+# A checker cannot compare assertions. It can insist the mirrored SCENARIO exists on both sides,
+# which is what actually went missing.
+_photo_tests_kt = io.open(os.path.join(
+    MOBILE, "android-preview-project", "app", "src", "test", "java", "com", "showup",
+    "profile", "PhotosUploadStateTest.kt"), encoding="utf-8").read()
+_photo_tests_sw = io.open(os.path.join(
+    MOBILE, "ios-app", "ShowUpWelcomeTests", "PhotosReorderTests.swift"), encoding="utf-8").read()
+for scenario, kt_frag, sw_frag in (
+    ("deleting the second photo leaves the others in place",
+     "leaves the others exactly where they were", "LeavesTheOthersExactlyWhereTheyWere"),
+    ("a new photo goes into the box that was emptied",
+     "goes into the box that was emptied", "GoesIntoTheBoxThatWasEmptied"),
+    ("the first free box is the gap, not the end",
+     "first free box", "FirstFreeBoxIsTheGap"),
+):
+    check("156 %s (kotlin)" % scenario, kt_frag in _photo_tests_kt)
+    check("156 %s (swift)" % scenario, sw_frag in _photo_tests_sw)
+
 # ── the eyebrow labels are UPPERCASE, as the CSS transforms them ────────────
 #
 # The reference marks these `textTransform: 'uppercase'`. CSS applies that at render, so the
