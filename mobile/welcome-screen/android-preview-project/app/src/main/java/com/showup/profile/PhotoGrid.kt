@@ -69,6 +69,21 @@ data class PickedPhoto(
     val status: UploadStatus,
     val remoteId: String? = null,
     val progress: Float = 0f,
+    /**
+     * WHICH BOX ON SCREEN THIS PHOTO IS IN, 0 to 5.
+     *
+     * The grid is six FIXED slots, each filled or empty -- that is how the reference draws it,
+     * mapping `SLOTS[i]` positionally with its own hint. This list used to be dense and a slot was
+     * its index in it, which meant removing a photo from the middle slid every later photo one box
+     * to the left: delete the second and the fourth appears to vanish, because the empty box moves
+     * to the end. Then tapping the box you emptied was a REPLACE of the photo that had slid into
+     * it, so a new photo could never go back where the old one was.
+     *
+     * Carried on the photo rather than implied by its position, because the list also has to stay
+     * ordered for the drag and for the order sent to the server, and one of those two jobs was
+     * always going to lose if a single index tried to do both.
+     */
+    val slot: Int = 0,
 )
 
 /** Four required, six maximum. Stated in three places on the screen, on purpose. */
@@ -93,7 +108,13 @@ const val PHOTO_SLOT_HEIGHT = 158
  * with the list it is derived from.
  */
 data class PhotoGridState(
-    /** In slot order. Index 0 is the main photo. */
+    /**
+     * Every photo the grid holds, in reading order. The lowest [PickedPhoto.slot] is the main one.
+     *
+     * KEPT ORDERED AND SPARSE AT ONCE: the list is what the drag reorders and what the server's
+     * order is built from, and [PickedPhoto.slot] is which box each one occupies. A photo removed
+     * from the middle leaves its box empty rather than pulling the rest along.
+     */
     val photos: List<PickedPhoto> = emptyList(),
     /**
      * Whether slots 5 and 6 are on screen.
@@ -120,7 +141,10 @@ data class PhotoGridState(
     val canReorder: Boolean get() = confirmedCount >= 2
 
     /** What occupies a slot, or null if it is empty. */
-    fun at(index: Int): PickedPhoto? = photos.getOrNull(index)
+    fun at(index: Int): PickedPhoto? = photos.firstOrNull { it.slot == index }
+
+    /** The lowest slot nothing occupies, or null when all six are taken. */
+    fun firstFreeSlot(): Int? = (0 until PHOTOS_MAX).firstOrNull { slot -> at(slot) == null }
 
     /**
      * Whether this upload is the one that crosses the line.
@@ -217,4 +241,26 @@ fun <T> List<T>.movedTo(from: Int, to: Int): List<T> {
     val out = toMutableList()
     out.add(to, out.removeAt(from))
     return out
+}
+
+/**
+ * A drag from one box to another, on a grid whose boxes are fixed.
+ *
+ * SWAPS RATHER THAN SHUFFLES. On a dense list a move means "take it out and put it back in",
+ * pushing everything between along one place. On a grid of six boxes where any of them may be
+ * empty, that has no meaning: there is nothing to push into an empty box. Two occupied boxes swap;
+ * a photo dragged onto an empty box simply moves there.
+ *
+ * The list's ORDER is rebuilt from the slots afterwards, so the first box is still the main photo
+ * and the order sent to the server still reads left to right, top to bottom.
+ */
+fun List<PickedPhoto>.slotsSwapped(from: Int, to: Int): List<PickedPhoto> {
+    if (from == to) return this
+    return map { photo ->
+        when (photo.slot) {
+            from -> photo.copy(slot = to)
+            to -> photo.copy(slot = from)
+            else -> photo
+        }
+    }.sortedBy { it.slot }
 }

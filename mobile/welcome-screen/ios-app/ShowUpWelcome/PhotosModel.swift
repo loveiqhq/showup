@@ -91,7 +91,8 @@ final class PhotosModel {
     func load() {
         Task { [weak self] in
             guard let self, let stored = await self.repo.list() else { return }
-            let fromServer = stored.sorted { $0.position < $1.position }.map { photo -> PickedPhoto in
+            let fromServer = stored.sorted { $0.position < $1.position }
+                .enumerated().map { index, photo -> PickedPhoto in
                 let id = self.nextLocalId
                 self.nextLocalId += 1
                 // The server's URL. The slot draws a placeholder for anything it cannot decode
@@ -100,6 +101,7 @@ final class PhotosModel {
                 var entry = PickedPhoto(localId: id, uri: photo.url, status: .confirmed)
                 entry.remoteId = photo.id
                 entry.progress = 1
+                entry.slot = index
                 return entry
             }
             // ANYTHING THE READ DID NOT MENTION IS KEPT, not just the in-flight ones. A photo
@@ -160,8 +162,13 @@ final class PhotosModel {
         pickedBytes[id] = bytes
         // `uri` is a marker for the slot rather than something to fetch: on this platform the
         // bytes ARE the photo. It is non-nil so the slot draws as occupied from this frame.
-        let entry = PickedPhoto(localId: id, uri: "picked://\(id)", status: .inFlight)
-        if slot < grid.photos.count { grid.photos[slot] = entry } else { grid.photos.append(entry) }
+        // THE BOX THE USER TAPPED, and a photo already in it is replaced rather than pushed
+        // aside — "on a filled slot the chosen photo replaces that one". `Add more` taps the first
+        // free box, so an append is just a tap on an empty one.
+        var entry = PickedPhoto(localId: id, uri: "picked://\(id)", status: .inFlight)
+        entry.slot = slot
+        grid.photos = (grid.photos.filter { $0.slot != slot } + [entry])
+            .sorted { $0.slot < $1.slot }
         sheetOpen = false
         startUpload(localId: id, source: source)
     }
@@ -181,7 +188,10 @@ final class PhotosModel {
         guard let photo = grid.at(index) else { return }
         uploads.removeValue(forKey: photo.localId)?.cancel()
         pickedBytes.removeValue(forKey: photo.localId)
-        grid.photos.remove(at: index)
+        // THE BOX STAYS EMPTY. It used to close up, so deleting the second photo slid the third
+        // and fourth left and the empty box appeared at the END — which reads as "the last one was
+        // deleted", and left no way to put a new photo back where the old one was.
+        grid.photos.removeAll { $0.slot == index }
         analytics?.report(ProfileAnalytics.photoRemoved(
             slotIndex: index, filledCount: grid.confirmedCount))
         // Only a stored photo has anything to delete on the server.
@@ -197,7 +207,13 @@ final class PhotosModel {
     /// the order it reports instead — see there for why that is the safe direction.
     func reorder(from: Int, to: Int) {
         guard from != to else { return }
-        grid.photos = moved(grid.photos, from: from, to: to)
+        // A SWAP, not a shuffle. On a grid of six boxes where any may be empty, "take it out and
+        // push everything along" has nothing to mean — there is nothing to push into an empty box.
+        grid.photos = grid.photos.map { photo in
+            var p = photo
+            if photo.slot == from { p.slot = to } else if photo.slot == to { p.slot = from }
+            return p
+        }.sorted { $0.slot < $1.slot }
         analytics?.report(ProfileAnalytics.photoReordered(from: from, to: to))
         pushOrder()
     }
@@ -214,7 +230,7 @@ final class PhotosModel {
     /// flight": the pending order simply stays pending until the user retries or removes it, and
     /// either of those ends with a complete grid and a push.
     private func pushOrder() {
-        let ids = grid.photos.compactMap(\.remoteId)
+        let ids = grid.photos.sorted { $0.slot < $1.slot }.compactMap(\.remoteId)
         guard ids.count == grid.photos.count else {
             orderPending = true
             return

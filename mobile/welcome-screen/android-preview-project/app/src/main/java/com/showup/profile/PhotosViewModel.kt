@@ -116,9 +116,10 @@ class PhotosViewModel(
         viewModelScope.launch {
             val stored = repo.list() ?: return@launch
             _state.update { current ->
-                val fromServer = stored.sortedBy { it.position }.map { photo ->
+                val fromServer = stored.sortedBy { it.position }.mapIndexed { index, photo ->
                     PickedPhoto(
                         localId = nextLocalId++,
+                        slot = index,
                         // The server's URL. `PhotoFill` decodes a local uri and falls through to
                         // the placeholder for a remote one, which is honest: this build has no
                         // image loader, and a blank tile would claim the photo was not there.
@@ -201,9 +202,14 @@ class PhotosViewModel(
         val slot = _state.value.pendingSlot
         val id = nextLocalId++
         _state.update { current ->
-            val photos = current.grid.photos.toMutableList()
-            val entry = PickedPhoto(localId = id, uri = uri, status = UploadStatus.InFlight)
-            if (slot < photos.size) photos[slot] = entry else photos.add(entry)
+            // THE BOX THE USER TAPPED, and a photo already in it is replaced rather than pushed
+            // aside -- "on a filled slot the chosen photo replaces that one". `Add more` taps the
+            // first free box, so an append is just a tap on an empty one.
+            val entry = PickedPhoto(
+                localId = id, uri = uri, status = UploadStatus.InFlight, slot = slot,
+            )
+            val photos = (current.grid.photos.filterNot { it.slot == slot } + entry)
+                .sortedBy { it.slot }
             current.copy(grid = current.grid.copy(photos = photos), sheetOpen = false)
         }
         startUpload(id, uri, source)
@@ -227,9 +233,15 @@ class PhotosViewModel(
         val photo = _state.value.grid.at(index) ?: return
         uploads.remove(photo.localId)?.cancel()
         _state.update { current ->
-            val photos = current.grid.photos.toMutableList()
-            photos.removeAt(index)
-            current.copy(grid = current.grid.copy(photos = photos))
+            // THE BOX STAYS EMPTY. It used to close up, so deleting the second photo slid the
+            // third and fourth left and the empty box appeared at the END -- which reads as "the
+            // last one was deleted", and left no way to put a new photo back where the old one
+            // was.
+            current.copy(
+                grid = current.grid.copy(
+                    photos = current.grid.photos.filterNot { it.slot == index },
+                ),
+            )
         }
         analytics?.report(
             ProfileAnalytics.photoRemoved(index, _state.value.grid.confirmedCount),
@@ -249,7 +261,9 @@ class PhotosViewModel(
      */
     fun reorder(from: Int, to: Int) {
         if (from == to) return
-        _state.update { it.copy(grid = it.grid.copy(photos = it.grid.photos.movedTo(from, to))) }
+        _state.update {
+            it.copy(grid = it.grid.copy(photos = it.grid.photos.slotsSwapped(from, to)))
+        }
         analytics?.report(ProfileAnalytics.photoReordered(from, to))
         pushOrder()
     }
@@ -269,7 +283,7 @@ class PhotosViewModel(
      */
     private fun pushOrder() {
         val photos = _state.value.grid.photos
-        val ids = photos.mapNotNull { it.remoteId }
+        val ids = photos.sortedBy { it.slot }.mapNotNull { it.remoteId }
         if (ids.size != photos.size) {
             orderPending = true
             return

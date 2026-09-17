@@ -255,9 +255,12 @@ class PhotosUploadStateTest {
         vm.picked("content://pick/1", PhotoSource.Library)
         vm.remove(0)
         advanceUntilIdle()
-        // The second upload survived its neighbour being removed.
+        // The second upload survived its neighbour being removed -- AND STAYED IN ITS OWN BOX.
+        // It used to slide into slot 0, which is what made deleting the second photo look like
+        // deleting the last one.
         assertEquals(1, grid().photos.size)
-        assertEquals(UploadStatus.Confirmed, grid().at(0)?.status)
+        assertNull(grid().at(0))
+        assertEquals(UploadStatus.Confirmed, grid().at(1)?.status)
     }
 
     // ── what the account already holds ──────────────────────────────────────
@@ -327,6 +330,52 @@ class PhotosUploadStateTest {
         assertEquals(1, grid().photos.size)
     }
 
+    // ── a box emptied stays empty ───────────────────────────────────────────
+
+    @Test
+    fun `deleting the second photo leaves the others exactly where they were`() =
+        runTest(dispatcher) {
+            repeat(4) { slot -> pick(slot); advanceUntilIdle() }
+            val ids = (0..3).map { grid().at(it)?.remoteId }
+
+            vm.remove(1)
+            advanceUntilIdle()
+
+            // THE BUG THIS EXISTS FOR, reported from a device: the list used to close up, so
+            // deleting the second photo slid the third and fourth one box left and the empty box
+            // appeared at the END. It read as "the last one was deleted" and there was no way to
+            // put a new photo back where the old one had been.
+            assertEquals(ids[0], grid().at(0)?.remoteId)
+            assertNull(grid().at(1))
+            assertEquals(ids[2], grid().at(2)?.remoteId)
+            assertEquals(ids[3], grid().at(3)?.remoteId)
+            assertEquals(3, grid().confirmedCount)
+        }
+
+    @Test
+    fun `a new photo goes into the box that was emptied`() = runTest(dispatcher) {
+        repeat(4) { slot -> pick(slot); advanceUntilIdle() }
+        vm.remove(1)
+        advanceUntilIdle()
+
+        pick(1)
+        advanceUntilIdle()
+        // Back in the second box, not appended to the end.
+        assertEquals(UploadStatus.Confirmed, grid().at(1)?.status)
+        assertEquals(4, grid().confirmedCount)
+        assertEquals(4, grid().photos.size)
+    }
+
+    @Test
+    fun `the first free box is the one Add more fills`() = runTest(dispatcher) {
+        repeat(4) { slot -> pick(slot); advanceUntilIdle() }
+        assertEquals(4, grid().firstFreeSlot())
+        vm.remove(2)
+        advanceUntilIdle()
+        // The gap, not the end: a hole in the middle is the first place a photo should land.
+        assertEquals(2, grid().firstFreeSlot())
+    }
+
     // ── reordering ──────────────────────────────────────────────────────────
 
     @Test
@@ -349,7 +398,10 @@ class PhotosUploadStateTest {
         // One call, carrying the complete list. Two drags racing as two diffs is exactly what
         // sending the whole order avoids.
         assertEquals(1, repo.orders.size)
-        assertEquals(listOf(ids[2], ids[0], ids[1]), repo.orders.single())
+        // A SWAP, not a shuffle. The grid is six fixed boxes and any of them may be empty, so
+        // "take it out and push everything along" has nothing to mean -- there is nothing to push
+        // into an empty box. Slot 0 and slot 2 trade places and slot 1 does not move.
+        assertEquals(listOf(ids[2], ids[1], ids[0]), repo.orders.single())
     }
 
     @Test
