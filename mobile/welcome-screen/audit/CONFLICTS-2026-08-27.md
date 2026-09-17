@@ -579,3 +579,95 @@ does not belong to.
 
 Implemented as `labelWidth`, null on every other button in the app. Undoing it is deleting one
 argument at two call sites.
+
+---
+
+# SHOWUP-161 · the media step — 17 September 2026
+
+Seven findings from building [Profile 08]. None blocked the build; five are resolved here with the
+reasoning written down, and two need a decision from the product side.
+
+## E11 · The 161 attachment ships an OLDER tracking registry than 158 did. RESOLVED
+
+`Show Up Design System (3).zip` carries `tracking/enums.json` at **registry_version 1.4.1**. The zip
+attached to SHOWUP-158 carries **1.4.2**, and that ticket's own comment says to pin it: *"Check you
+are using the actual registry: enums.json → registry_version: 1.4.2."*
+
+1.4.2 is strictly newer and the difference matters to this ticket specifically. It adds **§23 sheet
+`dismiss_method`** — `close · backdrop · swipe · system_back`, canonical for every bottom sheet in
+the product — and names this screen's event in the migration note: *"`media_prompt_list_dismissed`
+(was cancel|…) are migrated; neither shipped."*
+
+The tracking comment was written against 1.4.1 and therefore cites **§8** for `dismiss_method`.
+**1.4.2 supersedes it and §23 is what shipped.** Not a judgement call: 1.4.2 names the event.
+
+## E12 · The reference file has two stale COMMENTS. RESOLVED — the code and the ticket agree
+
+Both are comments contradicting the code beside them, so nothing is actually in conflict, but both
+would mislead a reader who trusted the prose:
+
+| Comment says | Code says | Ticket says | Shipped |
+|---|---|---|---|
+| `RecordedVideoCard` renders "a 16:9 thumbnail" | `aspectRatio: '16 / 10'` | "16:10 thumbnail" | **16:10** |
+| Continue "pops to the sunset gradient as a small reward" when both slots are filled | `color="orange"` unconditionally | "It stays the **orange** 52px NextButton; the sunset gradient is reserved for the sheet's commit CTA and the review primaries" | **always orange** |
+
+## E13 · `media_deleted` and the `from` key. RESOLVED — the specification table wins
+
+`enums.json` §8 documents `from` as being *"on media_retaken **and media_deleted**"*. The tracking
+comment's payload table carries it on `media_retaken` only.
+
+Shipped without it. Delete is reachable from exactly one surface — a filled card — so `from` would
+be a constant on every row, and a field with one possible value measures nothing. The comment is the
+specification (*"its event-name table IS the specification"*), so it wins; recorded here rather than
+resolved silently.
+
+## E14 · `stop_reason` has no value for an interruption. NEEDS A DECISION
+
+§8 closes the set at two: `user_stop · max_length`. A take ended by a phone call is neither.
+
+The ticket requires an interruption of two seconds or more to land on the review screen, which fires
+`media_review_shown`, which requires `stop_reason`. **Shipped as `user_stop`**, because the one
+measurement the field exists for is *"a cap that stops most takes is a cap that is too short"*, and
+reporting `max_length` would corrupt it. `user_stop` overstates user intent and is the lesser error.
+
+**A third value — `interrupted` — would make the field honest.** For the design side.
+
+## E15 · `preview_source` is one field for two media that rank separately. NEEDS A DECISION
+
+The tracking comment insists, correctly, that *"video and voice rank separately and will not agree
+… never publish one number for both"*. But `media_screen_viewed` carries **one** `preview_source`
+across both previewed prompts.
+
+Shipped reading `ranked` only when BOTH prompts came from the ranking. A view where one card was a
+fallback is not one the ranking can be credited for, and over-reporting `ranked` would corrupt the
+exact comparison §22 exists to make; under-reporting only withholds attribution.
+
+**A per-medium `preview_video_source` / `preview_voice_source` would be strictly better.** For the
+design side.
+
+## E16 · The media step cannot be a resume point. RECORDED
+
+`resumePoint` returns the first *gap* in the flow. This step is optional, skipping it is a valid
+ending, and the account holds no fact that tells a skip apart from a step never reached — so a user
+who force-quits on the media screen and relaunches lands on Home, having never seen it again.
+
+Exactly the reasoning that keeps the embrace bridge out of the resume table: *"there is no fact on
+the account that says whether it was seen."* Closing it needs a server-side "media step decided"
+flag, which is a product decision rather than a client one.
+
+## E17 · "Level metering for the live waveform" is in the inventory and not in the design. RESOLVED
+
+The build inventory asks for *"level metering for the live waveform"*. The reference file draws the
+live waveform from a fixed, index-only formula — `useMemo` with no dependency on anything — and the
+acceptance criteria require the filled card's 48 bars to be **deterministic**.
+
+Shipped as the reference draws it, on both platforms and from the same arithmetic. Amplitude
+reactivity would be inventing design, and it would make the thirty evidence screenshots
+unreproducible. If the design side wants a live level, it needs a frame.
+
+## E18 · The permission row still has no artboard. OPEN, as the ticket itself states
+
+*"Ten states are drawn; the two permission modes are not."* Built to the ticket's own binding
+recommendation — the reserved status region above the card's CTA, the quiet lilac row, the violet
+lock glyph, a 30pt action pill — rather than inventing a third treatment. **Still needs one
+spec-sheet frame.**

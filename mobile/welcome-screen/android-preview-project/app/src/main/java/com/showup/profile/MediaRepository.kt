@@ -93,9 +93,11 @@ open class MediaRepository(
         if (response.isSuccessful && body != null) {
             MediaSnapshot(
                 items = body.items.mapNotNull { dto ->
-                    // An unknown kind is dropped rather than guessed. The enum is closed in the
-                    // contract, so this can only fire if the server grows a third medium before
-                    // this client knows about it -- and drawing it as a video would be worse.
+                    // An unknown kind is dropped rather than guessed. `kind` is the one field on
+                    // this response that IS still a generated enum, and deliberately: video and
+                    // voice are the two slots the screen draws, so the set cannot grow without a
+                    // new screen -- unlike the prompt ids beside it, which are meant to change and
+                    // are therefore plain strings so a new one cannot break the whole decode.
                     MediaKind.fromTrackingValue(dto.kind.value)?.let { kind ->
                         StoredMedia(
                             id = dto.id,
@@ -106,9 +108,9 @@ open class MediaRepository(
                         )
                     }
                 },
-                previewVideoId = body.previewVideo.value,
-                previewVoiceId = body.previewVoice.value,
-                previewSource = MediaPreviewSource.fromServer(body.previewSource.value),
+                previewVideoId = body.previewVideo,
+                previewVoiceId = body.previewVoice,
+                previewSource = MediaPreviewSource.fromServer(body.previewSource),
             )
         } else {
             null

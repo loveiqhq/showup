@@ -586,14 +586,191 @@ for label, text in (("kotlin", prompts_vm_kt), ("swift", prompts_vm_sw)):
 # The ticket asks for swipe twice -- "closing the sheet by X, scrim tap or swipe keeps what was
 # typed", and again in the tracking criteria -- and neither platform had it. The scrim and the X
 # also called one lambda, so the two acts were indistinguishable at the call site.
-for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
+#
+# READ FROM THE SHARED CHROME SINCE 17 SEPTEMBER 2026. These lived as private types inside the two
+# prompt-screen files and were extracted into `designsystem/SheetScaffold.kt` and
+# `ShowUpWelcome/SheetScaffold.swift` when SHOWUP-161's media sheet became their second user --
+# which is the rule about shared primitives, not a refactor of convenience. The behaviour did not
+# change; only where it lives did, so these checks follow it rather than being deleted.
+sheet_kt = read(KT, "designsystem", "SheetScaffold.kt")
+sheet_sw = read(SW, "SheetScaffold.swift")
+
+for label, text in (("kotlin", sheet_kt), ("swift", sheet_sw)):
     check("158 the scrim reports backdrop (%s)" % label, "Backdrop" in text or ".backdrop" in text)
     check("158 the X reports close (%s)" % label, "Close)" in text or ".close)" in text)
     check("158 the sheet can be swiped down (%s)" % label,
           "Swipe" in text or ".swipe" in text)
-check("158 the Android back gesture closes the sheet", "BackHandler" in prompts_kt)
-check("158 swipe has a threshold (kotlin)", "SWIPE_DISMISS_PX" in prompts_kt)
-check("158 swipe has a threshold (swift)", "sheetSwipeDismiss" in prompts_sw)
+check("158 the Android back gesture closes the sheet", "BackHandler" in sheet_kt)
+check("158 swipe has a threshold (kotlin)", "SWIPE_DISMISS_PX" in sheet_kt)
+check("158 swipe has a threshold (swift)", "sheetSwipeDismiss" in sheet_sw)
+
+# THE CHROME IS SHARED, AND THAT IS ITSELF THE CHECK. A second copy of a sheet surface is the
+# `PillButton` mistake, which cost this project four silent drifts over three weeks; both media
+# files must consume the shared one rather than growing their own.
+check("161 the media sheet uses the shared chrome (kotlin)",
+      "SheetScaffold" in read(KT, "profile", "ProfileMediaScreen.kt"))
+check("161 the media sheet uses the shared chrome (swift)",
+      "SheetScaffold" in read(SW, "ProfileMedia.swift"))
+check("161 no second sheet surface (kotlin)",
+      "private fun SheetScaffold" not in read(KT, "profile", "MediaPromptSheet.kt"))
+check("161 no second sheet surface (swift)",
+      "struct SheetScaffold" not in read(SW, "MediaPromptSheet.swift"))
+
+# ════════════════════════════════════════════════════════════════════════════
+# SHOWUP-161 · the media step
+# ════════════════════════════════════════════════════════════════════════════
+#
+# The copy is QUOTED from the ticket's "Copy -- final strings" section, not read back out of the
+# code. A check that compared the code to itself would pass on any string at all, which is the one
+# thing a copy verifier must not do.
+
+media_kt = read(KT, "profile", "MediaCards.kt")
+media_sw = read(SW, "MediaCards.swift")
+prompts161_kt = read(KT, "profile", "MediaPrompts.kt")
+prompts161_sw = read(SW, "MediaPrompts.swift")
+screen161_kt = read(KT, "profile", "ProfileMediaScreen.kt")
+screen161_sw = read(SW, "ProfileMedia.swift")
+capture_kt = read(KT, "profile", "MediaCaptureScreen.kt")
+capture_sw = read(SW, "MediaCaptureView.swift")
+model161_kt = read(KT, "profile", "MediaViewModel.kt")
+model161_sw = read(SW, "MediaModel.swift")
+state161_kt = read(KT, "profile", "MediaModel.kt")
+state161_sw = read(SW, "MediaState.swift")
+access161_kt = read(KT, "profile", "MediaAccess.kt")
+access161_sw = read(SW, "MediaAccess.swift")
+
+# ── copy, verbatim from the ticket ─────────────────────────────────────────
+for label, text in (("kotlin", media_kt), ("swift", media_sw)):
+    for name, literal in (
+        ("optional pill", "Optional \u00b7 you can skip this"),
+        ("headline em", "hear you"),
+        ("footer skip", "Skip for now"),
+        ("video title", "A 10-second video"),
+        ("video hint", "Filmed here in the app. Ten seconds, one prompt."),
+        ("voice title", "A 15-second voice note"),
+        ("voice hint", "Just your voice, answering one prompt."),
+        ("preview eyebrow", "One of 11 prompts"),
+        ("card CTA", "See the prompts"),
+        ("caption eyebrow", "Prompt \u00b7 shown on your profile"),
+        ("video row label", "Your video"),
+        ("saved chip", "Saved"),
+        ("sheet em", "answer"),
+        ("sheet sub video", "Ten seconds is short on purpose."),
+        ("sheet sub voice", "Fifteen seconds, just your voice."),
+        ("own-idea sub", "Say or show whatever you like"),
+        ("commit empty", "Choose a prompt to continue"),
+        ("commit video", "Film 10 seconds"),
+        ("commit voice", "Record 15 seconds"),
+        ("cancel pill", "Cancel"),
+        ("rec chip", "REC"),
+        ("voice hint recording", "Listening \u00b7 keep going"),
+        ("voice hint review", "Hear it back before you keep it"),
+        ("review primary video", "Use this clip"),
+        ("review primary voice", "Use this recording"),
+    ):
+        check("161 copy: %s (%s)" % (name, label), literal in text)
+
+# The headline is built from three parts, so it is checked where it is assembled.
+for label, text in (("kotlin", media_kt), ("swift", media_sw)):
+    check("161 headline lead (%s)" % label, "Show your face. Let them " in text)
+
+# ── the eleven prompts, verbatim ───────────────────────────────────────────
+#
+# "Do not retype them, keep the order." Two of the eleven are quoted here in full -- the one with
+# an apostrophe and the one with a number, which are the two a retype gets wrong -- plus the
+# escape hatch's em dash.
+for label, text in (("kotlin", prompts161_kt), ("swift", prompts161_sw)):
+    check("161 prompt 7 verbatim (%s)" % label,
+          "What I usually look like when I'm relaxed and happy" in text)
+    check("161 prompt 10 verbatim (%s)" % label,
+          "My favorite way to spend an easy 30 minutes outside" in text)
+    check("161 escape hatch verbatim (%s)" % label, "Something else \u2014 my own idea" in text)
+    check("161 the escape hatch id (%s)" % label, "own_idea" in text)
+    check("161 cold start video (%s)" % label, "relaxed_and_happy" in text)
+    check("161 cold start voice (%s)" % label, "relaxing_sound" in text)
+
+# ── the 16 September pass, which is the point of the ticket ────────────────
+for label, text in (("kotlin", code_only(media_kt + screen161_kt)),
+                    ("swift", code_only(media_sw + screen161_sw))):
+    # NO UPLOAD PATH. Media is captured in the app or not at all.
+    check("161 no upload-from-library path (%s)" % label,
+          "PickVisualMedia" not in text and "PHPicker" not in text)
+    # NO CAPTION FIELD. The chosen prompt IS the caption.
+    check("161 no caption field (%s)" % label,
+          "TextField" not in text and "BasicTextField" not in text)
+
+# COMMENTS STRIPPED, and that is not a convenience. Every one of these is a "must NOT appear"
+# check, and each capture file opens with a header explaining exactly why the thing must not
+# appear -- so the better the file is documented, the more of these fail. The same reason
+# `check-analytics-parity.py` strips comments before scanning for event names.
+for label, text in (("kotlin", code_only(capture_kt)), ("swift", code_only(capture_sw))):
+    # CAPTURE RUNS THROUGH OUR OWN SESSION.
+    check("161 no system camera UI (%s)" % label,
+          "UIImagePickerController" not in text and "ACTION_IMAGE_CAPTURE" not in text)
+    # THE CHROME FALLS AWAY.
+    check("161 capture has no header (%s)" % label, "AppHeader" not in text)
+    check("161 capture has no progress bar (%s)" % label, "StepProgress" not in text)
+    check("161 capture has no skip link (%s)" % label, "SkipLink" not in text)
+
+# ── the caps and the thresholds ────────────────────────────────────────────
+for label, text in (("kotlin", state161_kt), ("swift", state161_sw)):
+    check("161 video cap is 10 seconds (%s)" % label, "10_000" in text)
+    check("161 voice cap is 15 seconds (%s)" % label, "15_000" in text)
+    check("161 the interruption threshold is 2 seconds (%s)" % label, "2_000" in text)
+    check("161 48 deterministic bars (%s)" % label, "48" in text)
+
+# ── the rules that are wrong by default ────────────────────────────────────
+for label, text in (("kotlin", model161_kt), ("swift", model161_sw)):
+    # The artefact is created by ACCEPT, never by Stop.
+    check("161 recorded fires on accept (%s)" % label,
+          "mediaPromptRecorded" in text and "acceptTake" in text)
+    # Reaching the cap does what Stop does.
+    check("161 the cap stops the take (%s)" % label, "MaxLength" in text or "maxLength" in text)
+    # Retake on review does NOT reopen the list.
+    check("161 retake from review keeps the prompt (%s)" % label, "retakeFromReview" in text)
+    # Retake on a filled card DOES reopen it, preselected.
+    check("161 retake from a card reopens the list (%s)" % label, "retakeFromCard" in text)
+    # Permissions are asked on the commit CTA.
+    check("161 permissions are asked on commit (%s)" % label, "commitPrompt" in text)
+    # Continue is never gated: no validation event on this screen.
+    check("161 no validation event on continue (%s)" % label,
+          "formValidationFailed" not in code_only(text)
+          and "FORM_VALIDATION_FAILED" not in code_only(text))
+
+# ── the permission matrix ──────────────────────────────────────────────────
+for label, text in (("kotlin", access161_kt), ("swift", access161_sw)):
+    check("161 a blocked mic blocks both cards (%s)" % label, "Microphone" in text)
+    check("161 nothing is drawn before the first refusal (%s)" % label,
+          "NotDetermined" in text or "notDetermined" in text)
+    check("161 can-ask and blocked are two behaviours (%s)" % label,
+          ("CanAsk" in text or "canAsk" in text) and ("Blocked" in text or "blocked" in text))
+    check("161 the platform's own row label (%s)" % label, "platformLabel" in text)
+
+# The blocked copy, quoted from the ticket. The row label itself is substituted at runtime, so the
+# tails are what can be checked.
+for label, text in (("kotlin", media_kt), ("swift", media_sw)):
+    check("161 blocked camera copy (%s)" % label, "in Settings to film." in text)
+    check("161 blocked mic copy (%s)" % label, "in Settings to record." in text)
+    check("161 can-ask camera copy (%s)" % label,
+          "Allow camera access to film your 10 seconds." in text)
+    check("161 can-ask mic copy (%s)" % label, "Allow microphone access to record." in text)
+
+# ── entitlements ───────────────────────────────────────────────────────────
+manifest = read(os.path.join(MOBILE, "android-preview-project", "app", "src", "main",
+                             "AndroidManifest.xml"))
+plist = read(SW, "Info.plist")
+check("161 android declares RECORD_AUDIO", "android.permission.RECORD_AUDIO" in manifest)
+check("161 android declares CAMERA", "android.permission.CAMERA" in manifest)
+check("161 android does not require a microphone",
+      'android:name="android.hardware.microphone" android:required="false"' in manifest)
+check("161 ios declares NSMicrophoneUsageDescription",
+      "NSMicrophoneUsageDescription" in plist)
+check("161 the camera string covers video too", "film your 10-second video" in plist)
+
+# ── the step ids, which are the one thing two platforms get wrong separately ─
+for label, text in (("kotlin", prompts161_kt), ("swift", prompts161_sw)):
+    check("161 step id media_video (%s)" % label, "media_video" in text)
+    check("161 step id media_voice (%s)" % label, "media_voice" in text)
 
 # ── SHOWUP-156 · a picked photo is normalised before it is sent ─────────────
 #

@@ -136,6 +136,19 @@ private struct TutorialFlow: View {
 
     @State private var prompts = PromptsModel(repo: PromptsRepository(api: APIAccess.client))
 
+    /// The media step (SHOWUP-161).
+    ///
+    /// THE CAMERA IS NOT A SECOND `@State` HERE. It belongs to the capture factory, which the model
+    /// holds, and the view reads it back through `media.cameraSession`. Holding it separately meant
+    /// two `CameraSession` instances — SwiftUI's `@State` initialisers cannot reference each other,
+    /// so the model built its own — and a viewfinder previewing one session while the recorder
+    /// wrote from another is a live preview over a black recording.
+    @State private var media = MediaModel(
+        repo: MediaRepository(api: APIAccess.client),
+        access: AVMediaAccess(),
+        capture: AVMediaCaptureFactory()
+    )
+
     /// Read once per launch to decide where a half-finished profile picks up (flow rule 4a).
     private let progressRepo = ProfileProgressRepository(api: APIAccess.client)
     @State private var resumeChecked = false
@@ -188,7 +201,8 @@ private struct TutorialFlow: View {
             // The model decides and records; the host only routes. Continue is never disabled, so
             // the refused press is a real press with a real event behind it rather than a button
             // that did nothing.
-            onContinue: { if prompts.continuePressed() { go(to: .home) } },
+            // Into the media step, which is where "The real you" actually ends.
+            onContinue: { if prompts.continuePressed() { go(to: .profileMedia) } },
             // The SAME call on the refused press, which is what makes the two mutually exclusive:
             // the screen picks a branch, the model re-checks and records whichever one it was.
             onRefused: { _ = prompts.continuePressed() })
@@ -201,6 +215,73 @@ private struct TutorialFlow: View {
                 prompts.arrived(referrer: .photos)
                 prompts.load()
             }
+    }
+
+    /// SHOWUP-161, as its own property, for the same reason the prompts screen is one.
+    @ViewBuilder private var mediaScreen: some View {
+        if let take = media.state.take {
+            MediaCaptureView(
+                take: take,
+                camera: media.cameraSession,
+                onCancel: { Task { await media.cancelTake() } },
+                onStop: { Task { await media.stopPressed() } },
+                onPlay: { media.playPressed() },
+                onRetake: { Task { await media.retakeFromReview() } },
+                onAccept: { media.acceptTake() }
+            )
+            // The camera only runs while a take is on screen. Leaving it running behind the media
+            // screen would hold the hardware, warm the phone and light the OS recording indicator
+            // for a user who is reading a list of prompts.
+            .onAppear { if take.kind == .video { media.cameraSession?.startIfNeeded() } }
+            .onDisappear { media.cameraSession?.stop() }
+        } else {
+            ProfileMediaView(
+                state: media.state,
+                onBack: { go(to: .profilePrompts) },
+                onOpenPrompts: { media.openPrompts($0, entryPoint: $1) },
+                onPickPrompt: { media.pickPrompt($0) },
+                onCommitPrompt: {
+                    // The model records the selection and answers with what still has to be
+                    // requested. Asking happens HERE, on the commit CTA -- not on entry, and not on
+                    // `See the prompts`.
+                    Task {
+                        guard let sheet = media.state.sheet,
+                              let promptId = sheet.selectedId else { return }
+                        let missing = await media.commitPrompt()
+                        if !missing.isEmpty {
+                            await media.requestAndBegin(sheet.kind, promptId: promptId,
+                                                        capabilities: missing)
+                        }
+                    }
+                },
+                onDismissSheet: { media.dismissPrompts($0) },
+                onPlay: { _ in media.playPressed() },
+                onRetake: { media.retakeFromCard($0) },
+                onDelete: { media.delete($0) },
+                onRetryUpload: { media.retryUpload($0) },
+                onPermissionAction: { capability, status in
+                    if status == .canAsk {
+                        // Android only — iOS shows each alert once. Kept so the two platforms share
+                        // one state machine; see MediaAccess.swift.
+                        Task { _ = await AVMediaAccess().request(capability); media.refreshAccess() }
+                    } else {
+                        // Permanently denied. Neither platform deep-links to a single permission
+                        // row, so this opens our app's own page and the copy names the row to look
+                        // for.
+                        openAppSettings()
+                    }
+                },
+                platformLabel: { media.platformLabel($0) },
+                onSkip: { media.skipPressed(); go(to: .home) },
+                onContinue: { media.continuePressed(); go(to: .home) }
+            )
+            .task { await media.arrived() }
+            // RE-READ BOTH STATUSES ON EVERY FOREGROUND. "Returning from Settings with access
+            // granted lands on the working card, never on the blocked row."
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { media.refreshAccess() }
+            }
+        }
     }
 
     /// False in any release build.
@@ -405,6 +486,14 @@ private struct TutorialFlow: View {
                     // SHOWUP-158. Two sheets, one screen, and every transition between them is a
                     // change to the one stored value.
                     promptsScreen
+
+                case .profileMedia:
+                    // SHOWUP-161. One position in the flow, two surfaces: the media screen, and the
+                    // full-bleed viewfinder that replaces it while a take is running. The
+                    // viewfinder is NOT its own FlowScreen — it has no entry point of its own and
+                    // no way back except Cancel, so it is a state of this step rather than a place
+                    // the router can send anyone.
+                    mediaScreen
 
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })

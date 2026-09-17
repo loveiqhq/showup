@@ -598,47 +598,18 @@
             "type": "array"
           },
           "previewSource": {
-            "description": "Section 22. `ranked` came from the completion ranking; `fallback` means the ranking had no publishable answer and the section-20 cold-start prompt was used.",
-            "enum": [
-              "ranked",
-              "fallback"
-            ],
+            "description": "Section 22: `ranked` or `fallback`. `ranked` came from the completion ranking; `fallback` means the ranking had no publishable answer and the section-20 cold-start prompt was used. A string rather than an enum for the same reason as the two above -- anything a client does not recognise is read as `fallback`.",
+            "example": "fallback",
             "type": "string"
           },
           "previewVideo": {
-            "description": "The prompt previewed on an empty video card.",
-            "enum": [
-              "everyday_good_mood",
-              "ideal_sunny_morning",
-              "relaxing_sound",
-              "comfort_snack",
-              "friends_three_words",
-              "best_weather",
-              "song_makes_me_move",
-              "relaxed_and_happy",
-              "simple_pleasure",
-              "made_me_smile",
-              "easy_30_outside",
-              "own_idea"
-            ],
+            "description": "The prompt previewed on an empty video card. A section-20 `media_prompt_id`; clients that do not recognise it fall back to the cold-start prompt.",
+            "example": "relaxed_and_happy",
             "type": "string"
           },
           "previewVoice": {
-            "description": "The prompt previewed on an empty voice card.",
-            "enum": [
-              "everyday_good_mood",
-              "ideal_sunny_morning",
-              "relaxing_sound",
-              "comfort_snack",
-              "friends_three_words",
-              "best_weather",
-              "song_makes_me_move",
-              "relaxed_and_happy",
-              "simple_pleasure",
-              "made_me_smile",
-              "easy_30_outside",
-              "own_idea"
-            ],
+            "description": "The prompt previewed on an empty voice card. A section-20 `media_prompt_id`; clients that do not recognise it fall back to the cold-start prompt.",
+            "example": "relaxing_sound",
             "type": "string"
           }
         },
@@ -4155,28 +4126,11 @@
                     "type": "string"
                   },
                   "kind": {
-                    "enum": [
-                      "video",
-                      "voice"
-                    ],
+                    "description": "video or voice. Validated by UploadMediaDto; a plain string here so the multipart body has one shape in both client generators.",
                     "type": "string"
                   },
                   "mediaPromptId": {
-                    "description": "The section-20 id of the prompt answered.",
-                    "enum": [
-                      "everyday_good_mood",
-                      "ideal_sunny_morning",
-                      "relaxing_sound",
-                      "comfort_snack",
-                      "friends_three_words",
-                      "best_weather",
-                      "song_makes_me_move",
-                      "relaxed_and_happy",
-                      "simple_pleasure",
-                      "made_me_smile",
-                      "easy_30_outside",
-                      "own_idea"
-                    ],
+                    "description": "The section-20 id of the prompt answered. Validated against the registry by UploadMediaDto -- declared as a plain string here because a multipart enum generates a different shape in each client generator and buys no checking in either.",
                     "type": "string"
                   }
                 },

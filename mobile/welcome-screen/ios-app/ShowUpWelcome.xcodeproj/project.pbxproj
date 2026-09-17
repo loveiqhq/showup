@@ -7,214 +7,246 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FEED0000000000000000005B /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* ShowUpWelcomeApp.swift */; };
-		FEED0000000000000000005C /* APIAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* APIAccess.swift */; };
-		FEED0000000000000000005D /* AuthMethodList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* AuthMethodList.swift */; };
-		FEED0000000000000000005E /* BasicsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* BasicsChrome.swift */; };
-		FEED0000000000000000005F /* BasicsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* BasicsModel.swift */; };
-		FEED00000000000000000060 /* BasicsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* BasicsRepository.swift */; };
-		FEED00000000000000000061 /* BasicsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* BasicsStep.swift */; };
-		FEED00000000000000000062 /* CodeSlotRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* CodeSlotRow.swift */; };
-		FEED00000000000000000063 /* ComponentSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* ComponentSizes.swift */; };
-		FEED00000000000000000064 /* ConnectAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* ConnectAccountView.swift */; };
-		FEED00000000000000000065 /* CountryCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* CountryCodes.swift */; };
-		FEED00000000000000000066 /* CountryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* CountryPicker.swift */; };
-		FEED00000000000000000067 /* Crashes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* Crashes.swift */; };
-		FEED00000000000000000068 /* DateOfBirth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000024 /* DateOfBirth.swift */; };
-		FEED00000000000000000069 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000025 /* DesignSystem.swift */; };
-		FEED0000000000000000006A /* DevOfflineAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000026 /* DevOfflineAuth.swift */; };
-		FEED0000000000000000006B /* EmailVerification.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000027 /* EmailVerification.swift */; };
-		FEED0000000000000000006C /* FloatingField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000028 /* FloatingField.swift */; };
-		FEED0000000000000000006D /* FlowScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000029 /* FlowScreen.swift */; };
-		FEED0000000000000000006E /* HomePlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002A /* HomePlaceholderView.swift */; };
-		FEED0000000000000000006F /* IconSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002B /* IconSizes.swift */; };
-		FEED00000000000000000070 /* InputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002C /* InputField.swift */; };
-		FEED00000000000000000071 /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002D /* MatchMeansMeetView.swift */; };
-		FEED00000000000000000072 /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002E /* MatchOnAvailabilityView.swift */; };
-		FEED00000000000000000073 /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002F /* MeetInRealLifeView.swift */; };
-		FEED00000000000000000074 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* Motion.swift */; };
-		FEED00000000000000000075 /* OtpPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* OtpPolicy.swift */; };
-		FEED00000000000000000076 /* PhoneAuthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* PhoneAuthModel.swift */; };
-		FEED00000000000000000077 /* PhoneAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* PhoneAuthRepository.swift */; };
-		FEED00000000000000000078 /* PhoneNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* PhoneNumberField.swift */; };
-		FEED00000000000000000079 /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* PhoneVerificationView.swift */; };
-		FEED0000000000000000007A /* PhotoAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* PhotoAccess.swift */; };
-		FEED0000000000000000007B /* PhotoGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* PhotoGrid.swift */; };
-		FEED0000000000000000007C /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000038 /* PhotoPicker.swift */; };
-		FEED0000000000000000007D /* PhotoUpload.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000039 /* PhotoUpload.swift */; };
-		FEED0000000000000000007E /* PhotosModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003A /* PhotosModel.swift */; };
-		FEED0000000000000000007F /* PhotosRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003B /* PhotosRepository.swift */; };
-		FEED00000000000000000080 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003C /* PrimaryButton.swift */; };
-		FEED00000000000000000081 /* ProfileAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003D /* ProfileAnalytics.swift */; };
-		FEED00000000000000000082 /* ProfileBasics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003E /* ProfileBasics.swift */; };
-		FEED00000000000000000083 /* ProfileDob.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003F /* ProfileDob.swift */; };
-		FEED00000000000000000084 /* ProfileEmbrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000040 /* ProfileEmbrace.swift */; };
-		FEED00000000000000000085 /* ProfilePhotos.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000041 /* ProfilePhotos.swift */; };
-		FEED00000000000000000086 /* ProfileProgressRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000042 /* ProfileProgressRepository.swift */; };
-		FEED00000000000000000087 /* ProfilePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000043 /* ProfilePrompts.swift */; };
-		FEED00000000000000000088 /* ProfileResume.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000044 /* ProfileResume.swift */; };
-		FEED00000000000000000089 /* ProfileVerifyEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000045 /* ProfileVerifyEmail.swift */; };
-		FEED0000000000000000008A /* ProhibitedFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000046 /* ProhibitedFields.swift */; };
-		FEED0000000000000000008B /* PromptTopics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000047 /* PromptTopics.swift */; };
-		FEED0000000000000000008C /* PromptsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000048 /* PromptsModel.swift */; };
-		FEED0000000000000000008D /* PromptsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000049 /* PromptsRepository.swift */; };
-		FEED0000000000000000008E /* Radius.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004A /* Radius.swift */; };
-		FEED0000000000000000008F /* RealYouChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004B /* RealYouChrome.swift */; };
-		FEED00000000000000000090 /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004C /* ShowUpEveryTimeView.swift */; };
-		FEED00000000000000000091 /* SignUpAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004D /* SignUpAnalytics.swift */; };
-		FEED00000000000000000092 /* SignUpFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004E /* SignUpFlow.swift */; };
-		FEED00000000000000000093 /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004F /* Spacing.swift */; };
-		FEED00000000000000000094 /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000050 /* StartupView.swift */; };
-		FEED00000000000000000095 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000051 /* StatusBadge.swift */; };
-		FEED00000000000000000096 /* StepProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000052 /* StepProgress.swift */; };
-		FEED00000000000000000097 /* TapTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000053 /* TapTarget.swift */; };
-		FEED00000000000000000098 /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000054 /* ThirtyMinutesView.swift */; };
-		FEED00000000000000000099 /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000055 /* TutorialAnalytics.swift */; };
-		FEED0000000000000000009A /* TutorialRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000056 /* TutorialRouting.swift */; };
-		FEED0000000000000000009B /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000057 /* TutorialShell.swift */; };
-		FEED0000000000000000009C /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000058 /* WelcomeBackView.swift */; };
-		FEED0000000000000000009D /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000059 /* WelcomeShell.swift */; };
-		FEED0000000000000000009E /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005A /* WelcomeView.swift */; };
+		FEED00000000000000000069 /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* ShowUpWelcomeApp.swift */; };
+		FEED0000000000000000006A /* APIAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* APIAccess.swift */; };
+		FEED0000000000000000006B /* AVMediaCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* AVMediaCapture.swift */; };
+		FEED0000000000000000006C /* AuthMethodList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* AuthMethodList.swift */; };
+		FEED0000000000000000006D /* BasicsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* BasicsChrome.swift */; };
+		FEED0000000000000000006E /* BasicsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* BasicsModel.swift */; };
+		FEED0000000000000000006F /* BasicsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* BasicsRepository.swift */; };
+		FEED00000000000000000070 /* BasicsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* BasicsStep.swift */; };
+		FEED00000000000000000071 /* CodeSlotRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* CodeSlotRow.swift */; };
+		FEED00000000000000000072 /* ComponentSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* ComponentSizes.swift */; };
+		FEED00000000000000000073 /* ConnectAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* ConnectAccountView.swift */; };
+		FEED00000000000000000074 /* ControlPip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* ControlPip.swift */; };
+		FEED00000000000000000075 /* CountryCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* CountryCodes.swift */; };
+		FEED00000000000000000076 /* CountryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000024 /* CountryPicker.swift */; };
+		FEED00000000000000000077 /* Crashes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000025 /* Crashes.swift */; };
+		FEED00000000000000000078 /* DateOfBirth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000026 /* DateOfBirth.swift */; };
+		FEED00000000000000000079 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000027 /* DesignSystem.swift */; };
+		FEED0000000000000000007A /* DevOfflineAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000028 /* DevOfflineAuth.swift */; };
+		FEED0000000000000000007B /* EmailVerification.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000029 /* EmailVerification.swift */; };
+		FEED0000000000000000007C /* FloatingField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002A /* FloatingField.swift */; };
+		FEED0000000000000000007D /* FlowScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002B /* FlowScreen.swift */; };
+		FEED0000000000000000007E /* HomePlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002C /* HomePlaceholderView.swift */; };
+		FEED0000000000000000007F /* IconSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002D /* IconSizes.swift */; };
+		FEED00000000000000000080 /* InputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002E /* InputField.swift */; };
+		FEED00000000000000000081 /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002F /* MatchMeansMeetView.swift */; };
+		FEED00000000000000000082 /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* MatchOnAvailabilityView.swift */; };
+		FEED00000000000000000083 /* MediaAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* MediaAccess.swift */; };
+		FEED00000000000000000084 /* MediaCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* MediaCapture.swift */; };
+		FEED00000000000000000085 /* MediaCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* MediaCaptureView.swift */; };
+		FEED00000000000000000086 /* MediaCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* MediaCards.swift */; };
+		FEED00000000000000000087 /* MediaModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* MediaModel.swift */; };
+		FEED00000000000000000088 /* MediaPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* MediaPromptSheet.swift */; };
+		FEED00000000000000000089 /* MediaPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* MediaPrompts.swift */; };
+		FEED0000000000000000008A /* MediaRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000038 /* MediaRepository.swift */; };
+		FEED0000000000000000008B /* MediaState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000039 /* MediaState.swift */; };
+		FEED0000000000000000008C /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003A /* MeetInRealLifeView.swift */; };
+		FEED0000000000000000008D /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003B /* Motion.swift */; };
+		FEED0000000000000000008E /* OtpPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003C /* OtpPolicy.swift */; };
+		FEED0000000000000000008F /* PhoneAuthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003D /* PhoneAuthModel.swift */; };
+		FEED00000000000000000090 /* PhoneAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003E /* PhoneAuthRepository.swift */; };
+		FEED00000000000000000091 /* PhoneNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003F /* PhoneNumberField.swift */; };
+		FEED00000000000000000092 /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000040 /* PhoneVerificationView.swift */; };
+		FEED00000000000000000093 /* PhotoAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000041 /* PhotoAccess.swift */; };
+		FEED00000000000000000094 /* PhotoGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000042 /* PhotoGrid.swift */; };
+		FEED00000000000000000095 /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000043 /* PhotoPicker.swift */; };
+		FEED00000000000000000096 /* PhotoUpload.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000044 /* PhotoUpload.swift */; };
+		FEED00000000000000000097 /* PhotosModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000045 /* PhotosModel.swift */; };
+		FEED00000000000000000098 /* PhotosRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000046 /* PhotosRepository.swift */; };
+		FEED00000000000000000099 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000047 /* PrimaryButton.swift */; };
+		FEED0000000000000000009A /* ProfileAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000048 /* ProfileAnalytics.swift */; };
+		FEED0000000000000000009B /* ProfileBasics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000049 /* ProfileBasics.swift */; };
+		FEED0000000000000000009C /* ProfileDob.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004A /* ProfileDob.swift */; };
+		FEED0000000000000000009D /* ProfileEmbrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004B /* ProfileEmbrace.swift */; };
+		FEED0000000000000000009E /* ProfileMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004C /* ProfileMedia.swift */; };
+		FEED0000000000000000009F /* ProfilePhotos.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004D /* ProfilePhotos.swift */; };
+		FEED000000000000000000A0 /* ProfileProgressRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004E /* ProfileProgressRepository.swift */; };
+		FEED000000000000000000A1 /* ProfilePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004F /* ProfilePrompts.swift */; };
+		FEED000000000000000000A2 /* ProfileResume.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000050 /* ProfileResume.swift */; };
+		FEED000000000000000000A3 /* ProfileVerifyEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000051 /* ProfileVerifyEmail.swift */; };
+		FEED000000000000000000A4 /* ProhibitedFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000052 /* ProhibitedFields.swift */; };
+		FEED000000000000000000A5 /* PromptTopics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000053 /* PromptTopics.swift */; };
+		FEED000000000000000000A6 /* PromptsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000054 /* PromptsModel.swift */; };
+		FEED000000000000000000A7 /* PromptsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000055 /* PromptsRepository.swift */; };
+		FEED000000000000000000A8 /* Radius.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000056 /* Radius.swift */; };
+		FEED000000000000000000A9 /* RealYouChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000057 /* RealYouChrome.swift */; };
+		FEED000000000000000000AA /* SheetScaffold.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000058 /* SheetScaffold.swift */; };
+		FEED000000000000000000AB /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000059 /* ShowUpEveryTimeView.swift */; };
+		FEED000000000000000000AC /* SignUpAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005A /* SignUpAnalytics.swift */; };
+		FEED000000000000000000AD /* SignUpFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005B /* SignUpFlow.swift */; };
+		FEED000000000000000000AE /* SkipLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005C /* SkipLink.swift */; };
+		FEED000000000000000000AF /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005D /* Spacing.swift */; };
+		FEED000000000000000000B0 /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005E /* StartupView.swift */; };
+		FEED000000000000000000B1 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005F /* StatusBadge.swift */; };
+		FEED000000000000000000B2 /* StepProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000060 /* StepProgress.swift */; };
+		FEED000000000000000000B3 /* TapTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000061 /* TapTarget.swift */; };
+		FEED000000000000000000B4 /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000062 /* ThirtyMinutesView.swift */; };
+		FEED000000000000000000B5 /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000063 /* TutorialAnalytics.swift */; };
+		FEED000000000000000000B6 /* TutorialRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000064 /* TutorialRouting.swift */; };
+		FEED000000000000000000B7 /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000065 /* TutorialShell.swift */; };
+		FEED000000000000000000B8 /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000066 /* WelcomeBackView.swift */; };
+		FEED000000000000000000B9 /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000067 /* WelcomeShell.swift */; };
+		FEED000000000000000000BA /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000068 /* WelcomeView.swift */; };
 		FEED00000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000000A /* Assets.xcassets */; };
-		FEED000000000000000000A8 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009F /* Lora-Bold.ttf */; };
-		FEED000000000000000000A9 /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A0 /* Lora-BoldItalic.ttf */; };
-		FEED000000000000000000AA /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A1 /* Lora-Italic.ttf */; };
-		FEED000000000000000000AB /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A2 /* Lora-MediumItalic.ttf */; };
-		FEED000000000000000000AC /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A3 /* Lora-Regular.ttf */; };
-		FEED000000000000000000AD /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A4 /* Manrope-Bold.ttf */; };
-		FEED000000000000000000AE /* Manrope-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A5 /* Manrope-ExtraBold.ttf */; };
-		FEED000000000000000000AF /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A6 /* Manrope-Medium.ttf */; };
-		FEED000000000000000000B0 /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A7 /* Manrope-SemiBold.ttf */; };
+		FEED000000000000000000C4 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BB /* Lora-Bold.ttf */; };
+		FEED000000000000000000C5 /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BC /* Lora-BoldItalic.ttf */; };
+		FEED000000000000000000C6 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BD /* Lora-Italic.ttf */; };
+		FEED000000000000000000C7 /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BE /* Lora-MediumItalic.ttf */; };
+		FEED000000000000000000C8 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BF /* Lora-Regular.ttf */; };
+		FEED000000000000000000C9 /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C0 /* Manrope-Bold.ttf */; };
+		FEED000000000000000000CA /* Manrope-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C1 /* Manrope-ExtraBold.ttf */; };
+		FEED000000000000000000CB /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C2 /* Manrope-Medium.ttf */; };
+		FEED000000000000000000CC /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C3 /* Manrope-SemiBold.ttf */; };
 		FEED00000000000000000016 /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* Flags */; };
-		FEED000000000000000000E9 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000D9 /* APIAccessTests.swift */; };
-		FEED000000000000000000EA /* BasicsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000DA /* BasicsRepositoryTests.swift */; };
-		FEED000000000000000000EB /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000DB /* CrashesTests.swift */; };
-		FEED000000000000000000EC /* DateOfBirthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000DC /* DateOfBirthTests.swift */; };
-		FEED000000000000000000ED /* FitDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000DD /* FitDevices.swift */; };
-		FEED000000000000000000EE /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000DE /* FlowScreenTests.swift */; };
-		FEED000000000000000000EF /* PhoneAuthRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000DF /* PhoneAuthRepositoryTests.swift */; };
-		FEED000000000000000000F0 /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E0 /* PhoneValidationTests.swift */; };
-		FEED000000000000000000F1 /* PhotoUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E1 /* PhotoUploadTests.swift */; };
-		FEED000000000000000000F2 /* PhotosReorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E2 /* PhotosReorderTests.swift */; };
-		FEED000000000000000000F3 /* ProfileAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E3 /* ProfileAnalyticsTests.swift */; };
-		FEED000000000000000000F4 /* PromptsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E4 /* PromptsTrackingTests.swift */; };
-		FEED000000000000000000F5 /* RealYouTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E5 /* RealYouTests.swift */; };
-		FEED000000000000000000F6 /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E6 /* ScreenFitTests.swift */; };
-		FEED000000000000000000F7 /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E7 /* TapTargetTests.swift */; };
-		FEED000000000000000000F8 /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000E8 /* TutorialRoutingTests.swift */; };
-		FEED000000000000000000BD /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000BC /* PhoneNumberKit */; };
-		FEED000000000000000000C2 /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000C1 /* ShowUpAPI */; };
-		FEED000000000000000000C7 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000C6 /* Sentry */; };
-		FEED000000000000000000CC /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000CB /* OpenAPIRuntime */; };
-		FEED000000000000000000CF /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000CE /* OpenAPIURLSession */; };
-		FEED000000000000000000D2 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000D1 /* HTTPTypes */; };
-		FEED000000000000000000BF /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000BE /* PhoneNumberKit */; };
-		FEED000000000000000000C4 /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000C3 /* ShowUpAPI */; };
-		FEED000000000000000000C9 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000C8 /* Sentry */; };
-		FEED000000000000000000D4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000D3 /* OpenAPIRuntime */; };
-		FEED000000000000000000D6 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000D5 /* OpenAPIURLSession */; };
-		FEED000000000000000000D8 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000D7 /* HTTPTypes */; };
+		FEED00000000000000000107 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000F5 /* APIAccessTests.swift */; };
+		FEED00000000000000000108 /* BasicsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000F6 /* BasicsRepositoryTests.swift */; };
+		FEED00000000000000000109 /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000F7 /* CrashesTests.swift */; };
+		FEED0000000000000000010A /* DateOfBirthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000F8 /* DateOfBirthTests.swift */; };
+		FEED0000000000000000010B /* FitDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000F9 /* FitDevices.swift */; };
+		FEED0000000000000000010C /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000FA /* FlowScreenTests.swift */; };
+		FEED0000000000000000010D /* MediaPromptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000FB /* MediaPromptsTests.swift */; };
+		FEED0000000000000000010E /* MediaRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000FC /* MediaRulesTests.swift */; };
+		FEED0000000000000000010F /* PhoneAuthRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000FD /* PhoneAuthRepositoryTests.swift */; };
+		FEED00000000000000000110 /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000FE /* PhoneValidationTests.swift */; };
+		FEED00000000000000000111 /* PhotoUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000FF /* PhotoUploadTests.swift */; };
+		FEED00000000000000000112 /* PhotosReorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000100 /* PhotosReorderTests.swift */; };
+		FEED00000000000000000113 /* ProfileAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000101 /* ProfileAnalyticsTests.swift */; };
+		FEED00000000000000000114 /* PromptsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000102 /* PromptsTrackingTests.swift */; };
+		FEED00000000000000000115 /* RealYouTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000103 /* RealYouTests.swift */; };
+		FEED00000000000000000116 /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000104 /* ScreenFitTests.swift */; };
+		FEED00000000000000000117 /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000105 /* TapTargetTests.swift */; };
+		FEED00000000000000000118 /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000106 /* TutorialRoutingTests.swift */; };
+		FEED000000000000000000D9 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000D8 /* PhoneNumberKit */; };
+		FEED000000000000000000DE /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000DD /* ShowUpAPI */; };
+		FEED000000000000000000E3 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000E2 /* Sentry */; };
+		FEED000000000000000000E8 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000E7 /* OpenAPIRuntime */; };
+		FEED000000000000000000EB /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000EA /* OpenAPIURLSession */; };
+		FEED000000000000000000EE /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000ED /* HTTPTypes */; };
+		FEED000000000000000000DB /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000DA /* PhoneNumberKit */; };
+		FEED000000000000000000E0 /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000DF /* ShowUpAPI */; };
+		FEED000000000000000000E5 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000E4 /* Sentry */; };
+		FEED000000000000000000F0 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000EF /* OpenAPIRuntime */; };
+		FEED000000000000000000F2 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000F1 /* OpenAPIURLSession */; };
+		FEED000000000000000000F4 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000000F3 /* HTTPTypes */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		FEED00000000000000000008 /* ShowUpWelcome.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowUpWelcome.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FEED00000000000000000017 /* ShowUpWelcomeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpWelcomeApp.swift; sourceTree = "<group>"; };
 		FEED00000000000000000018 /* APIAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccess.swift; sourceTree = "<group>"; };
-		FEED00000000000000000019 /* AuthMethodList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthMethodList.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001A /* BasicsChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsChrome.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001B /* BasicsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsModel.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001C /* BasicsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsRepository.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001D /* BasicsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsStep.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001E /* CodeSlotRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeSlotRow.swift; sourceTree = "<group>"; };
-		FEED0000000000000000001F /* ComponentSizes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentSizes.swift; sourceTree = "<group>"; };
-		FEED00000000000000000020 /* ConnectAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAccountView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000021 /* CountryCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountryCodes.swift; sourceTree = "<group>"; };
-		FEED00000000000000000022 /* CountryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountryPicker.swift; sourceTree = "<group>"; };
-		FEED00000000000000000023 /* Crashes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Crashes.swift; sourceTree = "<group>"; };
-		FEED00000000000000000024 /* DateOfBirth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirth.swift; sourceTree = "<group>"; };
-		FEED00000000000000000025 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
-		FEED00000000000000000026 /* DevOfflineAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevOfflineAuth.swift; sourceTree = "<group>"; };
-		FEED00000000000000000027 /* EmailVerification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailVerification.swift; sourceTree = "<group>"; };
-		FEED00000000000000000028 /* FloatingField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingField.swift; sourceTree = "<group>"; };
-		FEED00000000000000000029 /* FlowScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreen.swift; sourceTree = "<group>"; };
-		FEED0000000000000000002A /* HomePlaceholderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePlaceholderView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000002B /* IconSizes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconSizes.swift; sourceTree = "<group>"; };
-		FEED0000000000000000002C /* InputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputField.swift; sourceTree = "<group>"; };
-		FEED0000000000000000002D /* MatchMeansMeetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchMeansMeetView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000002E /* MatchOnAvailabilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchOnAvailabilityView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000002F /* MeetInRealLifeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetInRealLifeView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000030 /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
-		FEED00000000000000000031 /* OtpPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtpPolicy.swift; sourceTree = "<group>"; };
-		FEED00000000000000000032 /* PhoneAuthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthModel.swift; sourceTree = "<group>"; };
-		FEED00000000000000000033 /* PhoneAuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepository.swift; sourceTree = "<group>"; };
-		FEED00000000000000000034 /* PhoneNumberField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneNumberField.swift; sourceTree = "<group>"; };
-		FEED00000000000000000035 /* PhoneVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerificationView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000036 /* PhotoAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAccess.swift; sourceTree = "<group>"; };
-		FEED00000000000000000037 /* PhotoGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGrid.swift; sourceTree = "<group>"; };
-		FEED00000000000000000038 /* PhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoPicker.swift; sourceTree = "<group>"; };
-		FEED00000000000000000039 /* PhotoUpload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUpload.swift; sourceTree = "<group>"; };
-		FEED0000000000000000003A /* PhotosModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosModel.swift; sourceTree = "<group>"; };
-		FEED0000000000000000003B /* PhotosRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosRepository.swift; sourceTree = "<group>"; };
-		FEED0000000000000000003C /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
-		FEED0000000000000000003D /* ProfileAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalytics.swift; sourceTree = "<group>"; };
-		FEED0000000000000000003E /* ProfileBasics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBasics.swift; sourceTree = "<group>"; };
-		FEED0000000000000000003F /* ProfileDob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDob.swift; sourceTree = "<group>"; };
-		FEED00000000000000000040 /* ProfileEmbrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEmbrace.swift; sourceTree = "<group>"; };
-		FEED00000000000000000041 /* ProfilePhotos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePhotos.swift; sourceTree = "<group>"; };
-		FEED00000000000000000042 /* ProfileProgressRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileProgressRepository.swift; sourceTree = "<group>"; };
-		FEED00000000000000000043 /* ProfilePrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePrompts.swift; sourceTree = "<group>"; };
-		FEED00000000000000000044 /* ProfileResume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileResume.swift; sourceTree = "<group>"; };
-		FEED00000000000000000045 /* ProfileVerifyEmail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileVerifyEmail.swift; sourceTree = "<group>"; };
-		FEED00000000000000000046 /* ProhibitedFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProhibitedFields.swift; sourceTree = "<group>"; };
-		FEED00000000000000000047 /* PromptTopics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptTopics.swift; sourceTree = "<group>"; };
-		FEED00000000000000000048 /* PromptsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsModel.swift; sourceTree = "<group>"; };
-		FEED00000000000000000049 /* PromptsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsRepository.swift; sourceTree = "<group>"; };
-		FEED0000000000000000004A /* Radius.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Radius.swift; sourceTree = "<group>"; };
-		FEED0000000000000000004B /* RealYouChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouChrome.swift; sourceTree = "<group>"; };
-		FEED0000000000000000004C /* ShowUpEveryTimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpEveryTimeView.swift; sourceTree = "<group>"; };
-		FEED0000000000000000004D /* SignUpAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpAnalytics.swift; sourceTree = "<group>"; };
-		FEED0000000000000000004E /* SignUpFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpFlow.swift; sourceTree = "<group>"; };
-		FEED0000000000000000004F /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
-		FEED00000000000000000050 /* StartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000051 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
-		FEED00000000000000000052 /* StepProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepProgress.swift; sourceTree = "<group>"; };
-		FEED00000000000000000053 /* TapTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTarget.swift; sourceTree = "<group>"; };
-		FEED00000000000000000054 /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000055 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
-		FEED00000000000000000056 /* TutorialRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRouting.swift; sourceTree = "<group>"; };
-		FEED00000000000000000057 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
-		FEED00000000000000000058 /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
-		FEED00000000000000000059 /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
-		FEED0000000000000000005A /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000019 /* AVMediaCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVMediaCapture.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001A /* AuthMethodList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthMethodList.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001B /* BasicsChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsChrome.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001C /* BasicsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsModel.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001D /* BasicsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsRepository.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001E /* BasicsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsStep.swift; sourceTree = "<group>"; };
+		FEED0000000000000000001F /* CodeSlotRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeSlotRow.swift; sourceTree = "<group>"; };
+		FEED00000000000000000020 /* ComponentSizes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentSizes.swift; sourceTree = "<group>"; };
+		FEED00000000000000000021 /* ConnectAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAccountView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000022 /* ControlPip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlPip.swift; sourceTree = "<group>"; };
+		FEED00000000000000000023 /* CountryCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountryCodes.swift; sourceTree = "<group>"; };
+		FEED00000000000000000024 /* CountryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountryPicker.swift; sourceTree = "<group>"; };
+		FEED00000000000000000025 /* Crashes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Crashes.swift; sourceTree = "<group>"; };
+		FEED00000000000000000026 /* DateOfBirth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirth.swift; sourceTree = "<group>"; };
+		FEED00000000000000000027 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		FEED00000000000000000028 /* DevOfflineAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevOfflineAuth.swift; sourceTree = "<group>"; };
+		FEED00000000000000000029 /* EmailVerification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailVerification.swift; sourceTree = "<group>"; };
+		FEED0000000000000000002A /* FloatingField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingField.swift; sourceTree = "<group>"; };
+		FEED0000000000000000002B /* FlowScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreen.swift; sourceTree = "<group>"; };
+		FEED0000000000000000002C /* HomePlaceholderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePlaceholderView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000002D /* IconSizes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconSizes.swift; sourceTree = "<group>"; };
+		FEED0000000000000000002E /* InputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputField.swift; sourceTree = "<group>"; };
+		FEED0000000000000000002F /* MatchMeansMeetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchMeansMeetView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000030 /* MatchOnAvailabilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchOnAvailabilityView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000031 /* MediaAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAccess.swift; sourceTree = "<group>"; };
+		FEED00000000000000000032 /* MediaCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCapture.swift; sourceTree = "<group>"; };
+		FEED00000000000000000033 /* MediaCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCaptureView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000034 /* MediaCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCards.swift; sourceTree = "<group>"; };
+		FEED00000000000000000035 /* MediaModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModel.swift; sourceTree = "<group>"; };
+		FEED00000000000000000036 /* MediaPromptSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPromptSheet.swift; sourceTree = "<group>"; };
+		FEED00000000000000000037 /* MediaPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPrompts.swift; sourceTree = "<group>"; };
+		FEED00000000000000000038 /* MediaRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRepository.swift; sourceTree = "<group>"; };
+		FEED00000000000000000039 /* MediaState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaState.swift; sourceTree = "<group>"; };
+		FEED0000000000000000003A /* MeetInRealLifeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetInRealLifeView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000003B /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
+		FEED0000000000000000003C /* OtpPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtpPolicy.swift; sourceTree = "<group>"; };
+		FEED0000000000000000003D /* PhoneAuthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthModel.swift; sourceTree = "<group>"; };
+		FEED0000000000000000003E /* PhoneAuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepository.swift; sourceTree = "<group>"; };
+		FEED0000000000000000003F /* PhoneNumberField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneNumberField.swift; sourceTree = "<group>"; };
+		FEED00000000000000000040 /* PhoneVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerificationView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000041 /* PhotoAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAccess.swift; sourceTree = "<group>"; };
+		FEED00000000000000000042 /* PhotoGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGrid.swift; sourceTree = "<group>"; };
+		FEED00000000000000000043 /* PhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoPicker.swift; sourceTree = "<group>"; };
+		FEED00000000000000000044 /* PhotoUpload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUpload.swift; sourceTree = "<group>"; };
+		FEED00000000000000000045 /* PhotosModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosModel.swift; sourceTree = "<group>"; };
+		FEED00000000000000000046 /* PhotosRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosRepository.swift; sourceTree = "<group>"; };
+		FEED00000000000000000047 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
+		FEED00000000000000000048 /* ProfileAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalytics.swift; sourceTree = "<group>"; };
+		FEED00000000000000000049 /* ProfileBasics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBasics.swift; sourceTree = "<group>"; };
+		FEED0000000000000000004A /* ProfileDob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDob.swift; sourceTree = "<group>"; };
+		FEED0000000000000000004B /* ProfileEmbrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEmbrace.swift; sourceTree = "<group>"; };
+		FEED0000000000000000004C /* ProfileMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMedia.swift; sourceTree = "<group>"; };
+		FEED0000000000000000004D /* ProfilePhotos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePhotos.swift; sourceTree = "<group>"; };
+		FEED0000000000000000004E /* ProfileProgressRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileProgressRepository.swift; sourceTree = "<group>"; };
+		FEED0000000000000000004F /* ProfilePrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePrompts.swift; sourceTree = "<group>"; };
+		FEED00000000000000000050 /* ProfileResume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileResume.swift; sourceTree = "<group>"; };
+		FEED00000000000000000051 /* ProfileVerifyEmail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileVerifyEmail.swift; sourceTree = "<group>"; };
+		FEED00000000000000000052 /* ProhibitedFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProhibitedFields.swift; sourceTree = "<group>"; };
+		FEED00000000000000000053 /* PromptTopics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptTopics.swift; sourceTree = "<group>"; };
+		FEED00000000000000000054 /* PromptsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsModel.swift; sourceTree = "<group>"; };
+		FEED00000000000000000055 /* PromptsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsRepository.swift; sourceTree = "<group>"; };
+		FEED00000000000000000056 /* Radius.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Radius.swift; sourceTree = "<group>"; };
+		FEED00000000000000000057 /* RealYouChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouChrome.swift; sourceTree = "<group>"; };
+		FEED00000000000000000058 /* SheetScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetScaffold.swift; sourceTree = "<group>"; };
+		FEED00000000000000000059 /* ShowUpEveryTimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpEveryTimeView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000005A /* SignUpAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpAnalytics.swift; sourceTree = "<group>"; };
+		FEED0000000000000000005B /* SignUpFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpFlow.swift; sourceTree = "<group>"; };
+		FEED0000000000000000005C /* SkipLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipLink.swift; sourceTree = "<group>"; };
+		FEED0000000000000000005D /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
+		FEED0000000000000000005E /* StartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupView.swift; sourceTree = "<group>"; };
+		FEED0000000000000000005F /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
+		FEED00000000000000000060 /* StepProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepProgress.swift; sourceTree = "<group>"; };
+		FEED00000000000000000061 /* TapTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTarget.swift; sourceTree = "<group>"; };
+		FEED00000000000000000062 /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000063 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
+		FEED00000000000000000064 /* TutorialRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRouting.swift; sourceTree = "<group>"; };
+		FEED00000000000000000065 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
+		FEED00000000000000000066 /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
+		FEED00000000000000000067 /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
+		FEED00000000000000000068 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		FEED00000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FEED0000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FEED00000000000000000015 /* Flags */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Flags; sourceTree = "<group>"; };
-		FEED0000000000000000009F /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A0 /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A1 /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A2 /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A3 /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A4 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A5 /* Manrope-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-ExtraBold.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A6 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000A7 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
-		FEED000000000000000000D9 /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000DA /* BasicsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsRepositoryTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000DB /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000DC /* DateOfBirthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirthTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000DD /* FitDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitDevices.swift; sourceTree = "<group>"; };
-		FEED000000000000000000DE /* FlowScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreenTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000DF /* PhoneAuthRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepositoryTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E0 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E1 /* PhotoUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUploadTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E2 /* PhotosReorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosReorderTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E3 /* ProfileAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalyticsTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E4 /* PromptsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsTrackingTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E5 /* RealYouTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E6 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E7 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000E8 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B2 /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FEED000000000000000000BB /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000BC /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000BD /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000BE /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000BF /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000C0 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000C1 /* Manrope-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-ExtraBold.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000C2 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000C3 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
+		FEED000000000000000000F5 /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000F6 /* BasicsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsRepositoryTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000F7 /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000F8 /* DateOfBirthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirthTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000F9 /* FitDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitDevices.swift; sourceTree = "<group>"; };
+		FEED000000000000000000FA /* FlowScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreenTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000FB /* MediaPromptsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPromptsTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000FC /* MediaRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000FD /* PhoneAuthRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepositoryTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000FE /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000FF /* PhotoUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUploadTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000100 /* PhotosReorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosReorderTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000101 /* ProfileAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalyticsTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000102 /* PromptsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsTrackingTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000103 /* RealYouTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000104 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000105 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000106 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000000CE /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -222,25 +254,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED000000000000000000BD /* PhoneNumberKit in Frameworks */,
-				FEED000000000000000000C2 /* ShowUpAPI in Frameworks */,
-				FEED000000000000000000C7 /* Sentry in Frameworks */,
-				FEED000000000000000000CC /* OpenAPIRuntime in Frameworks */,
-				FEED000000000000000000CF /* OpenAPIURLSession in Frameworks */,
-				FEED000000000000000000D2 /* HTTPTypes in Frameworks */,
+				FEED000000000000000000D9 /* PhoneNumberKit in Frameworks */,
+				FEED000000000000000000DE /* ShowUpAPI in Frameworks */,
+				FEED000000000000000000E3 /* Sentry in Frameworks */,
+				FEED000000000000000000E8 /* OpenAPIRuntime in Frameworks */,
+				FEED000000000000000000EB /* OpenAPIURLSession in Frameworks */,
+				FEED000000000000000000EE /* HTTPTypes in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FEED000000000000000000B4 /* Frameworks */ = {
+		FEED000000000000000000D0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED000000000000000000BF /* PhoneNumberKit in Frameworks */,
-				FEED000000000000000000C4 /* ShowUpAPI in Frameworks */,
-				FEED000000000000000000C9 /* Sentry in Frameworks */,
-				FEED000000000000000000D4 /* OpenAPIRuntime in Frameworks */,
-				FEED000000000000000000D6 /* OpenAPIURLSession in Frameworks */,
-				FEED000000000000000000D8 /* HTTPTypes in Frameworks */,
+				FEED000000000000000000DB /* PhoneNumberKit in Frameworks */,
+				FEED000000000000000000E0 /* ShowUpAPI in Frameworks */,
+				FEED000000000000000000E5 /* Sentry in Frameworks */,
+				FEED000000000000000000F0 /* OpenAPIRuntime in Frameworks */,
+				FEED000000000000000000F2 /* OpenAPIURLSession in Frameworks */,
+				FEED000000000000000000F4 /* HTTPTypes in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,7 +283,7 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000005 /* ShowUpWelcome */,
-				FEED000000000000000000B1 /* ShowUpWelcomeTests */,
+				FEED000000000000000000CD /* ShowUpWelcomeTests */,
 				FEED00000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -261,72 +293,86 @@
 			children = (
 				FEED00000000000000000017 /* ShowUpWelcomeApp.swift */,
 				FEED00000000000000000018 /* APIAccess.swift */,
-				FEED00000000000000000019 /* AuthMethodList.swift */,
-				FEED0000000000000000001A /* BasicsChrome.swift */,
-				FEED0000000000000000001B /* BasicsModel.swift */,
-				FEED0000000000000000001C /* BasicsRepository.swift */,
-				FEED0000000000000000001D /* BasicsStep.swift */,
-				FEED0000000000000000001E /* CodeSlotRow.swift */,
-				FEED0000000000000000001F /* ComponentSizes.swift */,
-				FEED00000000000000000020 /* ConnectAccountView.swift */,
-				FEED00000000000000000021 /* CountryCodes.swift */,
-				FEED00000000000000000022 /* CountryPicker.swift */,
-				FEED00000000000000000023 /* Crashes.swift */,
-				FEED00000000000000000024 /* DateOfBirth.swift */,
-				FEED00000000000000000025 /* DesignSystem.swift */,
-				FEED00000000000000000026 /* DevOfflineAuth.swift */,
-				FEED00000000000000000027 /* EmailVerification.swift */,
-				FEED00000000000000000028 /* FloatingField.swift */,
-				FEED00000000000000000029 /* FlowScreen.swift */,
-				FEED0000000000000000002A /* HomePlaceholderView.swift */,
-				FEED0000000000000000002B /* IconSizes.swift */,
-				FEED0000000000000000002C /* InputField.swift */,
-				FEED0000000000000000002D /* MatchMeansMeetView.swift */,
-				FEED0000000000000000002E /* MatchOnAvailabilityView.swift */,
-				FEED0000000000000000002F /* MeetInRealLifeView.swift */,
-				FEED00000000000000000030 /* Motion.swift */,
-				FEED00000000000000000031 /* OtpPolicy.swift */,
-				FEED00000000000000000032 /* PhoneAuthModel.swift */,
-				FEED00000000000000000033 /* PhoneAuthRepository.swift */,
-				FEED00000000000000000034 /* PhoneNumberField.swift */,
-				FEED00000000000000000035 /* PhoneVerificationView.swift */,
-				FEED00000000000000000036 /* PhotoAccess.swift */,
-				FEED00000000000000000037 /* PhotoGrid.swift */,
-				FEED00000000000000000038 /* PhotoPicker.swift */,
-				FEED00000000000000000039 /* PhotoUpload.swift */,
-				FEED0000000000000000003A /* PhotosModel.swift */,
-				FEED0000000000000000003B /* PhotosRepository.swift */,
-				FEED0000000000000000003C /* PrimaryButton.swift */,
-				FEED0000000000000000003D /* ProfileAnalytics.swift */,
-				FEED0000000000000000003E /* ProfileBasics.swift */,
-				FEED0000000000000000003F /* ProfileDob.swift */,
-				FEED00000000000000000040 /* ProfileEmbrace.swift */,
-				FEED00000000000000000041 /* ProfilePhotos.swift */,
-				FEED00000000000000000042 /* ProfileProgressRepository.swift */,
-				FEED00000000000000000043 /* ProfilePrompts.swift */,
-				FEED00000000000000000044 /* ProfileResume.swift */,
-				FEED00000000000000000045 /* ProfileVerifyEmail.swift */,
-				FEED00000000000000000046 /* ProhibitedFields.swift */,
-				FEED00000000000000000047 /* PromptTopics.swift */,
-				FEED00000000000000000048 /* PromptsModel.swift */,
-				FEED00000000000000000049 /* PromptsRepository.swift */,
-				FEED0000000000000000004A /* Radius.swift */,
-				FEED0000000000000000004B /* RealYouChrome.swift */,
-				FEED0000000000000000004C /* ShowUpEveryTimeView.swift */,
-				FEED0000000000000000004D /* SignUpAnalytics.swift */,
-				FEED0000000000000000004E /* SignUpFlow.swift */,
-				FEED0000000000000000004F /* Spacing.swift */,
-				FEED00000000000000000050 /* StartupView.swift */,
-				FEED00000000000000000051 /* StatusBadge.swift */,
-				FEED00000000000000000052 /* StepProgress.swift */,
-				FEED00000000000000000053 /* TapTarget.swift */,
-				FEED00000000000000000054 /* ThirtyMinutesView.swift */,
-				FEED00000000000000000055 /* TutorialAnalytics.swift */,
-				FEED00000000000000000056 /* TutorialRouting.swift */,
-				FEED00000000000000000057 /* TutorialShell.swift */,
-				FEED00000000000000000058 /* WelcomeBackView.swift */,
-				FEED00000000000000000059 /* WelcomeShell.swift */,
-				FEED0000000000000000005A /* WelcomeView.swift */,
+				FEED00000000000000000019 /* AVMediaCapture.swift */,
+				FEED0000000000000000001A /* AuthMethodList.swift */,
+				FEED0000000000000000001B /* BasicsChrome.swift */,
+				FEED0000000000000000001C /* BasicsModel.swift */,
+				FEED0000000000000000001D /* BasicsRepository.swift */,
+				FEED0000000000000000001E /* BasicsStep.swift */,
+				FEED0000000000000000001F /* CodeSlotRow.swift */,
+				FEED00000000000000000020 /* ComponentSizes.swift */,
+				FEED00000000000000000021 /* ConnectAccountView.swift */,
+				FEED00000000000000000022 /* ControlPip.swift */,
+				FEED00000000000000000023 /* CountryCodes.swift */,
+				FEED00000000000000000024 /* CountryPicker.swift */,
+				FEED00000000000000000025 /* Crashes.swift */,
+				FEED00000000000000000026 /* DateOfBirth.swift */,
+				FEED00000000000000000027 /* DesignSystem.swift */,
+				FEED00000000000000000028 /* DevOfflineAuth.swift */,
+				FEED00000000000000000029 /* EmailVerification.swift */,
+				FEED0000000000000000002A /* FloatingField.swift */,
+				FEED0000000000000000002B /* FlowScreen.swift */,
+				FEED0000000000000000002C /* HomePlaceholderView.swift */,
+				FEED0000000000000000002D /* IconSizes.swift */,
+				FEED0000000000000000002E /* InputField.swift */,
+				FEED0000000000000000002F /* MatchMeansMeetView.swift */,
+				FEED00000000000000000030 /* MatchOnAvailabilityView.swift */,
+				FEED00000000000000000031 /* MediaAccess.swift */,
+				FEED00000000000000000032 /* MediaCapture.swift */,
+				FEED00000000000000000033 /* MediaCaptureView.swift */,
+				FEED00000000000000000034 /* MediaCards.swift */,
+				FEED00000000000000000035 /* MediaModel.swift */,
+				FEED00000000000000000036 /* MediaPromptSheet.swift */,
+				FEED00000000000000000037 /* MediaPrompts.swift */,
+				FEED00000000000000000038 /* MediaRepository.swift */,
+				FEED00000000000000000039 /* MediaState.swift */,
+				FEED0000000000000000003A /* MeetInRealLifeView.swift */,
+				FEED0000000000000000003B /* Motion.swift */,
+				FEED0000000000000000003C /* OtpPolicy.swift */,
+				FEED0000000000000000003D /* PhoneAuthModel.swift */,
+				FEED0000000000000000003E /* PhoneAuthRepository.swift */,
+				FEED0000000000000000003F /* PhoneNumberField.swift */,
+				FEED00000000000000000040 /* PhoneVerificationView.swift */,
+				FEED00000000000000000041 /* PhotoAccess.swift */,
+				FEED00000000000000000042 /* PhotoGrid.swift */,
+				FEED00000000000000000043 /* PhotoPicker.swift */,
+				FEED00000000000000000044 /* PhotoUpload.swift */,
+				FEED00000000000000000045 /* PhotosModel.swift */,
+				FEED00000000000000000046 /* PhotosRepository.swift */,
+				FEED00000000000000000047 /* PrimaryButton.swift */,
+				FEED00000000000000000048 /* ProfileAnalytics.swift */,
+				FEED00000000000000000049 /* ProfileBasics.swift */,
+				FEED0000000000000000004A /* ProfileDob.swift */,
+				FEED0000000000000000004B /* ProfileEmbrace.swift */,
+				FEED0000000000000000004C /* ProfileMedia.swift */,
+				FEED0000000000000000004D /* ProfilePhotos.swift */,
+				FEED0000000000000000004E /* ProfileProgressRepository.swift */,
+				FEED0000000000000000004F /* ProfilePrompts.swift */,
+				FEED00000000000000000050 /* ProfileResume.swift */,
+				FEED00000000000000000051 /* ProfileVerifyEmail.swift */,
+				FEED00000000000000000052 /* ProhibitedFields.swift */,
+				FEED00000000000000000053 /* PromptTopics.swift */,
+				FEED00000000000000000054 /* PromptsModel.swift */,
+				FEED00000000000000000055 /* PromptsRepository.swift */,
+				FEED00000000000000000056 /* Radius.swift */,
+				FEED00000000000000000057 /* RealYouChrome.swift */,
+				FEED00000000000000000058 /* SheetScaffold.swift */,
+				FEED00000000000000000059 /* ShowUpEveryTimeView.swift */,
+				FEED0000000000000000005A /* SignUpAnalytics.swift */,
+				FEED0000000000000000005B /* SignUpFlow.swift */,
+				FEED0000000000000000005C /* SkipLink.swift */,
+				FEED0000000000000000005D /* Spacing.swift */,
+				FEED0000000000000000005E /* StartupView.swift */,
+				FEED0000000000000000005F /* StatusBadge.swift */,
+				FEED00000000000000000060 /* StepProgress.swift */,
+				FEED00000000000000000061 /* TapTarget.swift */,
+				FEED00000000000000000062 /* ThirtyMinutesView.swift */,
+				FEED00000000000000000063 /* TutorialAnalytics.swift */,
+				FEED00000000000000000064 /* TutorialRouting.swift */,
+				FEED00000000000000000065 /* TutorialShell.swift */,
+				FEED00000000000000000066 /* WelcomeBackView.swift */,
+				FEED00000000000000000067 /* WelcomeShell.swift */,
+				FEED00000000000000000068 /* WelcomeView.swift */,
 				FEED0000000000000000000A /* Assets.xcassets */,
 				FEED00000000000000000015 /* Flags */,
 				FEED00000000000000000006 /* Fonts */,
@@ -338,38 +384,40 @@
 		FEED00000000000000000006 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
-				FEED0000000000000000009F /* Lora-Bold.ttf */,
-				FEED000000000000000000A0 /* Lora-BoldItalic.ttf */,
-				FEED000000000000000000A1 /* Lora-Italic.ttf */,
-				FEED000000000000000000A2 /* Lora-MediumItalic.ttf */,
-				FEED000000000000000000A3 /* Lora-Regular.ttf */,
-				FEED000000000000000000A4 /* Manrope-Bold.ttf */,
-				FEED000000000000000000A5 /* Manrope-ExtraBold.ttf */,
-				FEED000000000000000000A6 /* Manrope-Medium.ttf */,
-				FEED000000000000000000A7 /* Manrope-SemiBold.ttf */,
+				FEED000000000000000000BB /* Lora-Bold.ttf */,
+				FEED000000000000000000BC /* Lora-BoldItalic.ttf */,
+				FEED000000000000000000BD /* Lora-Italic.ttf */,
+				FEED000000000000000000BE /* Lora-MediumItalic.ttf */,
+				FEED000000000000000000BF /* Lora-Regular.ttf */,
+				FEED000000000000000000C0 /* Manrope-Bold.ttf */,
+				FEED000000000000000000C1 /* Manrope-ExtraBold.ttf */,
+				FEED000000000000000000C2 /* Manrope-Medium.ttf */,
+				FEED000000000000000000C3 /* Manrope-SemiBold.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
 		};
-		FEED000000000000000000B1 /* ShowUpWelcomeTests */ = {
+		FEED000000000000000000CD /* ShowUpWelcomeTests */ = {
 			isa = PBXGroup;
 			children = (
-				FEED000000000000000000D9 /* APIAccessTests.swift */,
-				FEED000000000000000000DA /* BasicsRepositoryTests.swift */,
-				FEED000000000000000000DB /* CrashesTests.swift */,
-				FEED000000000000000000DC /* DateOfBirthTests.swift */,
-				FEED000000000000000000DD /* FitDevices.swift */,
-				FEED000000000000000000DE /* FlowScreenTests.swift */,
-				FEED000000000000000000DF /* PhoneAuthRepositoryTests.swift */,
-				FEED000000000000000000E0 /* PhoneValidationTests.swift */,
-				FEED000000000000000000E1 /* PhotoUploadTests.swift */,
-				FEED000000000000000000E2 /* PhotosReorderTests.swift */,
-				FEED000000000000000000E3 /* ProfileAnalyticsTests.swift */,
-				FEED000000000000000000E4 /* PromptsTrackingTests.swift */,
-				FEED000000000000000000E5 /* RealYouTests.swift */,
-				FEED000000000000000000E6 /* ScreenFitTests.swift */,
-				FEED000000000000000000E7 /* TapTargetTests.swift */,
-				FEED000000000000000000E8 /* TutorialRoutingTests.swift */,
+				FEED000000000000000000F5 /* APIAccessTests.swift */,
+				FEED000000000000000000F6 /* BasicsRepositoryTests.swift */,
+				FEED000000000000000000F7 /* CrashesTests.swift */,
+				FEED000000000000000000F8 /* DateOfBirthTests.swift */,
+				FEED000000000000000000F9 /* FitDevices.swift */,
+				FEED000000000000000000FA /* FlowScreenTests.swift */,
+				FEED000000000000000000FB /* MediaPromptsTests.swift */,
+				FEED000000000000000000FC /* MediaRulesTests.swift */,
+				FEED000000000000000000FD /* PhoneAuthRepositoryTests.swift */,
+				FEED000000000000000000FE /* PhoneValidationTests.swift */,
+				FEED000000000000000000FF /* PhotoUploadTests.swift */,
+				FEED00000000000000000100 /* PhotosReorderTests.swift */,
+				FEED00000000000000000101 /* ProfileAnalyticsTests.swift */,
+				FEED00000000000000000102 /* PromptsTrackingTests.swift */,
+				FEED00000000000000000103 /* RealYouTests.swift */,
+				FEED00000000000000000104 /* ScreenFitTests.swift */,
+				FEED00000000000000000105 /* TapTargetTests.swift */,
+				FEED00000000000000000106 /* TutorialRoutingTests.swift */,
 			);
 			path = ShowUpWelcomeTests;
 			sourceTree = "<group>";
@@ -378,7 +426,7 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000008 /* ShowUpWelcome.app */,
-				FEED000000000000000000B2 /* ShowUpWelcomeTests.xctest */,
+				FEED000000000000000000CE /* ShowUpWelcomeTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -401,46 +449,46 @@
 			name = ShowUpWelcome;
 			productName = ShowUpWelcome;
 			packageProductDependencies = (
-				FEED000000000000000000BC /* PhoneNumberKit */,
-				FEED000000000000000000C1 /* ShowUpAPI */,
-				FEED000000000000000000C6 /* Sentry */,
-				FEED000000000000000000CB /* OpenAPIRuntime */,
-				FEED000000000000000000CE /* OpenAPIURLSession */,
-				FEED000000000000000000D1 /* HTTPTypes */,
+				FEED000000000000000000D8 /* PhoneNumberKit */,
+				FEED000000000000000000DD /* ShowUpAPI */,
+				FEED000000000000000000E2 /* Sentry */,
+				FEED000000000000000000E7 /* OpenAPIRuntime */,
+				FEED000000000000000000EA /* OpenAPIURLSession */,
+				FEED000000000000000000ED /* HTTPTypes */,
 			);
 			productReference = FEED00000000000000000008 /* ShowUpWelcome.app */;
 			productType = "com.apple.product-type.application";
 		};
 		FEED00000000000000000003 /* ShowUpWelcomeTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = FEED000000000000000000B6 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */;
+			buildConfigurationList = FEED000000000000000000D2 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */;
 			buildPhases = (
-				FEED000000000000000000B3 /* Sources */,
-				FEED000000000000000000B4 /* Frameworks */,
-				FEED000000000000000000B5 /* Resources */,
+				FEED000000000000000000CF /* Sources */,
+				FEED000000000000000000D0 /* Frameworks */,
+				FEED000000000000000000D1 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				FEED000000000000000000BA /* PBXTargetDependency */,
+				FEED000000000000000000D6 /* PBXTargetDependency */,
 			);
 			name = ShowUpWelcomeTests;
 			productName = ShowUpWelcomeTests;
 			packageProductDependencies = (
-				FEED000000000000000000BE /* PhoneNumberKit */,
-				FEED000000000000000000C3 /* ShowUpAPI */,
-				FEED000000000000000000C8 /* Sentry */,
-				FEED000000000000000000D3 /* OpenAPIRuntime */,
-				FEED000000000000000000D5 /* OpenAPIURLSession */,
-				FEED000000000000000000D7 /* HTTPTypes */,
+				FEED000000000000000000DA /* PhoneNumberKit */,
+				FEED000000000000000000DF /* ShowUpAPI */,
+				FEED000000000000000000E4 /* Sentry */,
+				FEED000000000000000000EF /* OpenAPIRuntime */,
+				FEED000000000000000000F1 /* OpenAPIURLSession */,
+				FEED000000000000000000F3 /* HTTPTypes */,
 			);
-			productReference = FEED000000000000000000B2 /* ShowUpWelcomeTests.xctest */;
+			productReference = FEED000000000000000000CE /* ShowUpWelcomeTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXContainerItemProxy section */
-		FEED000000000000000000B9 /* PBXContainerItemProxy */ = {
+		FEED000000000000000000D5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FEED00000000000000000001 /* Project object */;
 			proxyType = 1;
@@ -450,10 +498,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
-		FEED000000000000000000BA /* PBXTargetDependency */ = {
+		FEED000000000000000000D6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FEED00000000000000000002 /* ShowUpWelcome */;
-			targetProxy = FEED000000000000000000B9 /* PBXContainerItemProxy */;
+			targetProxy = FEED000000000000000000D5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -484,12 +532,12 @@
 			);
 			mainGroup = FEED00000000000000000004;
 			packageReferences = (
-				FEED000000000000000000BB /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
-				FEED000000000000000000C0 /* XCLocalSwiftPackageReference "ShowUpAPI" */,
-				FEED000000000000000000C5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
-				FEED000000000000000000CA /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
-				FEED000000000000000000CD /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
-				FEED000000000000000000D0 /* XCRemoteSwiftPackageReference "swift-http-types" */,
+				FEED000000000000000000D7 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
+				FEED000000000000000000DC /* XCLocalSwiftPackageReference "ShowUpAPI" */,
+				FEED000000000000000000E1 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				FEED000000000000000000E6 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
+				FEED000000000000000000E9 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
+				FEED000000000000000000EC /* XCRemoteSwiftPackageReference "swift-http-types" */,
 			);
 			productRefGroup = FEED00000000000000000007 /* Products */;
 			projectDirPath = "";
@@ -508,19 +556,19 @@
 			files = (
 				FEED00000000000000000014 /* Assets.xcassets in Resources */,
 				FEED00000000000000000016 /* Flags in Resources */,
-				FEED000000000000000000A8 /* Lora-Bold.ttf in Resources */,
-				FEED000000000000000000A9 /* Lora-BoldItalic.ttf in Resources */,
-				FEED000000000000000000AA /* Lora-Italic.ttf in Resources */,
-				FEED000000000000000000AB /* Lora-MediumItalic.ttf in Resources */,
-				FEED000000000000000000AC /* Lora-Regular.ttf in Resources */,
-				FEED000000000000000000AD /* Manrope-Bold.ttf in Resources */,
-				FEED000000000000000000AE /* Manrope-ExtraBold.ttf in Resources */,
-				FEED000000000000000000AF /* Manrope-Medium.ttf in Resources */,
-				FEED000000000000000000B0 /* Manrope-SemiBold.ttf in Resources */,
+				FEED000000000000000000C4 /* Lora-Bold.ttf in Resources */,
+				FEED000000000000000000C5 /* Lora-BoldItalic.ttf in Resources */,
+				FEED000000000000000000C6 /* Lora-Italic.ttf in Resources */,
+				FEED000000000000000000C7 /* Lora-MediumItalic.ttf in Resources */,
+				FEED000000000000000000C8 /* Lora-Regular.ttf in Resources */,
+				FEED000000000000000000C9 /* Manrope-Bold.ttf in Resources */,
+				FEED000000000000000000CA /* Manrope-ExtraBold.ttf in Resources */,
+				FEED000000000000000000CB /* Manrope-Medium.ttf in Resources */,
+				FEED000000000000000000CC /* Manrope-SemiBold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FEED000000000000000000B5 /* Resources */ = {
+		FEED000000000000000000D1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -534,97 +582,113 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED0000000000000000005B /* ShowUpWelcomeApp.swift in Sources */,
-				FEED0000000000000000005C /* APIAccess.swift in Sources */,
-				FEED0000000000000000005D /* AuthMethodList.swift in Sources */,
-				FEED0000000000000000005E /* BasicsChrome.swift in Sources */,
-				FEED0000000000000000005F /* BasicsModel.swift in Sources */,
-				FEED00000000000000000060 /* BasicsRepository.swift in Sources */,
-				FEED00000000000000000061 /* BasicsStep.swift in Sources */,
-				FEED00000000000000000062 /* CodeSlotRow.swift in Sources */,
-				FEED00000000000000000063 /* ComponentSizes.swift in Sources */,
-				FEED00000000000000000064 /* ConnectAccountView.swift in Sources */,
-				FEED00000000000000000065 /* CountryCodes.swift in Sources */,
-				FEED00000000000000000066 /* CountryPicker.swift in Sources */,
-				FEED00000000000000000067 /* Crashes.swift in Sources */,
-				FEED00000000000000000068 /* DateOfBirth.swift in Sources */,
-				FEED00000000000000000069 /* DesignSystem.swift in Sources */,
-				FEED0000000000000000006A /* DevOfflineAuth.swift in Sources */,
-				FEED0000000000000000006B /* EmailVerification.swift in Sources */,
-				FEED0000000000000000006C /* FloatingField.swift in Sources */,
-				FEED0000000000000000006D /* FlowScreen.swift in Sources */,
-				FEED0000000000000000006E /* HomePlaceholderView.swift in Sources */,
-				FEED0000000000000000006F /* IconSizes.swift in Sources */,
-				FEED00000000000000000070 /* InputField.swift in Sources */,
-				FEED00000000000000000071 /* MatchMeansMeetView.swift in Sources */,
-				FEED00000000000000000072 /* MatchOnAvailabilityView.swift in Sources */,
-				FEED00000000000000000073 /* MeetInRealLifeView.swift in Sources */,
-				FEED00000000000000000074 /* Motion.swift in Sources */,
-				FEED00000000000000000075 /* OtpPolicy.swift in Sources */,
-				FEED00000000000000000076 /* PhoneAuthModel.swift in Sources */,
-				FEED00000000000000000077 /* PhoneAuthRepository.swift in Sources */,
-				FEED00000000000000000078 /* PhoneNumberField.swift in Sources */,
-				FEED00000000000000000079 /* PhoneVerificationView.swift in Sources */,
-				FEED0000000000000000007A /* PhotoAccess.swift in Sources */,
-				FEED0000000000000000007B /* PhotoGrid.swift in Sources */,
-				FEED0000000000000000007C /* PhotoPicker.swift in Sources */,
-				FEED0000000000000000007D /* PhotoUpload.swift in Sources */,
-				FEED0000000000000000007E /* PhotosModel.swift in Sources */,
-				FEED0000000000000000007F /* PhotosRepository.swift in Sources */,
-				FEED00000000000000000080 /* PrimaryButton.swift in Sources */,
-				FEED00000000000000000081 /* ProfileAnalytics.swift in Sources */,
-				FEED00000000000000000082 /* ProfileBasics.swift in Sources */,
-				FEED00000000000000000083 /* ProfileDob.swift in Sources */,
-				FEED00000000000000000084 /* ProfileEmbrace.swift in Sources */,
-				FEED00000000000000000085 /* ProfilePhotos.swift in Sources */,
-				FEED00000000000000000086 /* ProfileProgressRepository.swift in Sources */,
-				FEED00000000000000000087 /* ProfilePrompts.swift in Sources */,
-				FEED00000000000000000088 /* ProfileResume.swift in Sources */,
-				FEED00000000000000000089 /* ProfileVerifyEmail.swift in Sources */,
-				FEED0000000000000000008A /* ProhibitedFields.swift in Sources */,
-				FEED0000000000000000008B /* PromptTopics.swift in Sources */,
-				FEED0000000000000000008C /* PromptsModel.swift in Sources */,
-				FEED0000000000000000008D /* PromptsRepository.swift in Sources */,
-				FEED0000000000000000008E /* Radius.swift in Sources */,
-				FEED0000000000000000008F /* RealYouChrome.swift in Sources */,
-				FEED00000000000000000090 /* ShowUpEveryTimeView.swift in Sources */,
-				FEED00000000000000000091 /* SignUpAnalytics.swift in Sources */,
-				FEED00000000000000000092 /* SignUpFlow.swift in Sources */,
-				FEED00000000000000000093 /* Spacing.swift in Sources */,
-				FEED00000000000000000094 /* StartupView.swift in Sources */,
-				FEED00000000000000000095 /* StatusBadge.swift in Sources */,
-				FEED00000000000000000096 /* StepProgress.swift in Sources */,
-				FEED00000000000000000097 /* TapTarget.swift in Sources */,
-				FEED00000000000000000098 /* ThirtyMinutesView.swift in Sources */,
-				FEED00000000000000000099 /* TutorialAnalytics.swift in Sources */,
-				FEED0000000000000000009A /* TutorialRouting.swift in Sources */,
-				FEED0000000000000000009B /* TutorialShell.swift in Sources */,
-				FEED0000000000000000009C /* WelcomeBackView.swift in Sources */,
-				FEED0000000000000000009D /* WelcomeShell.swift in Sources */,
-				FEED0000000000000000009E /* WelcomeView.swift in Sources */,
+				FEED00000000000000000069 /* ShowUpWelcomeApp.swift in Sources */,
+				FEED0000000000000000006A /* APIAccess.swift in Sources */,
+				FEED0000000000000000006B /* AVMediaCapture.swift in Sources */,
+				FEED0000000000000000006C /* AuthMethodList.swift in Sources */,
+				FEED0000000000000000006D /* BasicsChrome.swift in Sources */,
+				FEED0000000000000000006E /* BasicsModel.swift in Sources */,
+				FEED0000000000000000006F /* BasicsRepository.swift in Sources */,
+				FEED00000000000000000070 /* BasicsStep.swift in Sources */,
+				FEED00000000000000000071 /* CodeSlotRow.swift in Sources */,
+				FEED00000000000000000072 /* ComponentSizes.swift in Sources */,
+				FEED00000000000000000073 /* ConnectAccountView.swift in Sources */,
+				FEED00000000000000000074 /* ControlPip.swift in Sources */,
+				FEED00000000000000000075 /* CountryCodes.swift in Sources */,
+				FEED00000000000000000076 /* CountryPicker.swift in Sources */,
+				FEED00000000000000000077 /* Crashes.swift in Sources */,
+				FEED00000000000000000078 /* DateOfBirth.swift in Sources */,
+				FEED00000000000000000079 /* DesignSystem.swift in Sources */,
+				FEED0000000000000000007A /* DevOfflineAuth.swift in Sources */,
+				FEED0000000000000000007B /* EmailVerification.swift in Sources */,
+				FEED0000000000000000007C /* FloatingField.swift in Sources */,
+				FEED0000000000000000007D /* FlowScreen.swift in Sources */,
+				FEED0000000000000000007E /* HomePlaceholderView.swift in Sources */,
+				FEED0000000000000000007F /* IconSizes.swift in Sources */,
+				FEED00000000000000000080 /* InputField.swift in Sources */,
+				FEED00000000000000000081 /* MatchMeansMeetView.swift in Sources */,
+				FEED00000000000000000082 /* MatchOnAvailabilityView.swift in Sources */,
+				FEED00000000000000000083 /* MediaAccess.swift in Sources */,
+				FEED00000000000000000084 /* MediaCapture.swift in Sources */,
+				FEED00000000000000000085 /* MediaCaptureView.swift in Sources */,
+				FEED00000000000000000086 /* MediaCards.swift in Sources */,
+				FEED00000000000000000087 /* MediaModel.swift in Sources */,
+				FEED00000000000000000088 /* MediaPromptSheet.swift in Sources */,
+				FEED00000000000000000089 /* MediaPrompts.swift in Sources */,
+				FEED0000000000000000008A /* MediaRepository.swift in Sources */,
+				FEED0000000000000000008B /* MediaState.swift in Sources */,
+				FEED0000000000000000008C /* MeetInRealLifeView.swift in Sources */,
+				FEED0000000000000000008D /* Motion.swift in Sources */,
+				FEED0000000000000000008E /* OtpPolicy.swift in Sources */,
+				FEED0000000000000000008F /* PhoneAuthModel.swift in Sources */,
+				FEED00000000000000000090 /* PhoneAuthRepository.swift in Sources */,
+				FEED00000000000000000091 /* PhoneNumberField.swift in Sources */,
+				FEED00000000000000000092 /* PhoneVerificationView.swift in Sources */,
+				FEED00000000000000000093 /* PhotoAccess.swift in Sources */,
+				FEED00000000000000000094 /* PhotoGrid.swift in Sources */,
+				FEED00000000000000000095 /* PhotoPicker.swift in Sources */,
+				FEED00000000000000000096 /* PhotoUpload.swift in Sources */,
+				FEED00000000000000000097 /* PhotosModel.swift in Sources */,
+				FEED00000000000000000098 /* PhotosRepository.swift in Sources */,
+				FEED00000000000000000099 /* PrimaryButton.swift in Sources */,
+				FEED0000000000000000009A /* ProfileAnalytics.swift in Sources */,
+				FEED0000000000000000009B /* ProfileBasics.swift in Sources */,
+				FEED0000000000000000009C /* ProfileDob.swift in Sources */,
+				FEED0000000000000000009D /* ProfileEmbrace.swift in Sources */,
+				FEED0000000000000000009E /* ProfileMedia.swift in Sources */,
+				FEED0000000000000000009F /* ProfilePhotos.swift in Sources */,
+				FEED000000000000000000A0 /* ProfileProgressRepository.swift in Sources */,
+				FEED000000000000000000A1 /* ProfilePrompts.swift in Sources */,
+				FEED000000000000000000A2 /* ProfileResume.swift in Sources */,
+				FEED000000000000000000A3 /* ProfileVerifyEmail.swift in Sources */,
+				FEED000000000000000000A4 /* ProhibitedFields.swift in Sources */,
+				FEED000000000000000000A5 /* PromptTopics.swift in Sources */,
+				FEED000000000000000000A6 /* PromptsModel.swift in Sources */,
+				FEED000000000000000000A7 /* PromptsRepository.swift in Sources */,
+				FEED000000000000000000A8 /* Radius.swift in Sources */,
+				FEED000000000000000000A9 /* RealYouChrome.swift in Sources */,
+				FEED000000000000000000AA /* SheetScaffold.swift in Sources */,
+				FEED000000000000000000AB /* ShowUpEveryTimeView.swift in Sources */,
+				FEED000000000000000000AC /* SignUpAnalytics.swift in Sources */,
+				FEED000000000000000000AD /* SignUpFlow.swift in Sources */,
+				FEED000000000000000000AE /* SkipLink.swift in Sources */,
+				FEED000000000000000000AF /* Spacing.swift in Sources */,
+				FEED000000000000000000B0 /* StartupView.swift in Sources */,
+				FEED000000000000000000B1 /* StatusBadge.swift in Sources */,
+				FEED000000000000000000B2 /* StepProgress.swift in Sources */,
+				FEED000000000000000000B3 /* TapTarget.swift in Sources */,
+				FEED000000000000000000B4 /* ThirtyMinutesView.swift in Sources */,
+				FEED000000000000000000B5 /* TutorialAnalytics.swift in Sources */,
+				FEED000000000000000000B6 /* TutorialRouting.swift in Sources */,
+				FEED000000000000000000B7 /* TutorialShell.swift in Sources */,
+				FEED000000000000000000B8 /* WelcomeBackView.swift in Sources */,
+				FEED000000000000000000B9 /* WelcomeShell.swift in Sources */,
+				FEED000000000000000000BA /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FEED000000000000000000B3 /* Sources */ = {
+		FEED000000000000000000CF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED000000000000000000E9 /* APIAccessTests.swift in Sources */,
-				FEED000000000000000000EA /* BasicsRepositoryTests.swift in Sources */,
-				FEED000000000000000000EB /* CrashesTests.swift in Sources */,
-				FEED000000000000000000EC /* DateOfBirthTests.swift in Sources */,
-				FEED000000000000000000ED /* FitDevices.swift in Sources */,
-				FEED000000000000000000EE /* FlowScreenTests.swift in Sources */,
-				FEED000000000000000000EF /* PhoneAuthRepositoryTests.swift in Sources */,
-				FEED000000000000000000F0 /* PhoneValidationTests.swift in Sources */,
-				FEED000000000000000000F1 /* PhotoUploadTests.swift in Sources */,
-				FEED000000000000000000F2 /* PhotosReorderTests.swift in Sources */,
-				FEED000000000000000000F3 /* ProfileAnalyticsTests.swift in Sources */,
-				FEED000000000000000000F4 /* PromptsTrackingTests.swift in Sources */,
-				FEED000000000000000000F5 /* RealYouTests.swift in Sources */,
-				FEED000000000000000000F6 /* ScreenFitTests.swift in Sources */,
-				FEED000000000000000000F7 /* TapTargetTests.swift in Sources */,
-				FEED000000000000000000F8 /* TutorialRoutingTests.swift in Sources */,
+				FEED00000000000000000107 /* APIAccessTests.swift in Sources */,
+				FEED00000000000000000108 /* BasicsRepositoryTests.swift in Sources */,
+				FEED00000000000000000109 /* CrashesTests.swift in Sources */,
+				FEED0000000000000000010A /* DateOfBirthTests.swift in Sources */,
+				FEED0000000000000000010B /* FitDevices.swift in Sources */,
+				FEED0000000000000000010C /* FlowScreenTests.swift in Sources */,
+				FEED0000000000000000010D /* MediaPromptsTests.swift in Sources */,
+				FEED0000000000000000010E /* MediaRulesTests.swift in Sources */,
+				FEED0000000000000000010F /* PhoneAuthRepositoryTests.swift in Sources */,
+				FEED00000000000000000110 /* PhoneValidationTests.swift in Sources */,
+				FEED00000000000000000111 /* PhotoUploadTests.swift in Sources */,
+				FEED00000000000000000112 /* PhotosReorderTests.swift in Sources */,
+				FEED00000000000000000113 /* ProfileAnalyticsTests.swift in Sources */,
+				FEED00000000000000000114 /* PromptsTrackingTests.swift in Sources */,
+				FEED00000000000000000115 /* RealYouTests.swift in Sources */,
+				FEED00000000000000000116 /* ScreenFitTests.swift in Sources */,
+				FEED00000000000000000117 /* TapTargetTests.swift in Sources */,
+				FEED00000000000000000118 /* TutorialRoutingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -733,7 +797,7 @@
 			};
 			name = Release;
 		};
-		FEED000000000000000000B7 /* Debug */ = {
+		FEED000000000000000000D3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -751,7 +815,7 @@
 			};
 			name = Debug;
 		};
-		FEED000000000000000000B8 /* Release */ = {
+		FEED000000000000000000D4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -790,11 +854,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		FEED000000000000000000B6 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */ = {
+		FEED000000000000000000D2 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FEED000000000000000000B7 /* Debug */,
-				FEED000000000000000000B8 /* Release */,
+				FEED000000000000000000D3 /* Debug */,
+				FEED000000000000000000D4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -802,7 +866,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FEED000000000000000000BB /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+		FEED000000000000000000D7 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/PhoneNumberKit/PhoneNumberKit.git";
 			requirement = {
@@ -810,7 +874,7 @@
 				minimumVersion = 5.0.8;
 			};
 		};
-		FEED000000000000000000C5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+		FEED000000000000000000E1 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/getsentry/sentry-cocoa.git";
 			requirement = {
@@ -818,7 +882,7 @@
 				minimumVersion = 8.44.0;
 			};
 		};
-		FEED000000000000000000CA /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
+		FEED000000000000000000E6 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-runtime";
 			requirement = {
@@ -826,7 +890,7 @@
 				minimumVersion = 1.5.0;
 			};
 		};
-		FEED000000000000000000CD /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
+		FEED000000000000000000E9 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-urlsession";
 			requirement = {
@@ -834,7 +898,7 @@
 				minimumVersion = 1.0.2;
 			};
 		};
-		FEED000000000000000000D0 /* XCRemoteSwiftPackageReference "swift-http-types" */ = {
+		FEED000000000000000000EC /* XCRemoteSwiftPackageReference "swift-http-types" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-http-types";
 			requirement = {
@@ -845,69 +909,69 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		FEED000000000000000000C0 /* XCLocalSwiftPackageReference "ShowUpAPI" */ = {
+		FEED000000000000000000DC /* XCLocalSwiftPackageReference "ShowUpAPI" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ShowUpAPI;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FEED000000000000000000BC /* PhoneNumberKit */ = {
+		FEED000000000000000000D8 /* PhoneNumberKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000BB /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			package = FEED000000000000000000D7 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
 			productName = PhoneNumberKit;
 		};
-		FEED000000000000000000C1 /* ShowUpAPI */ = {
+		FEED000000000000000000DD /* ShowUpAPI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShowUpAPI;
 		};
-		FEED000000000000000000C6 /* Sentry */ = {
+		FEED000000000000000000E2 /* Sentry */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000C5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			package = FEED000000000000000000E1 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
 		};
-		FEED000000000000000000CB /* OpenAPIRuntime */ = {
+		FEED000000000000000000E7 /* OpenAPIRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000CA /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			package = FEED000000000000000000E6 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
 			productName = OpenAPIRuntime;
 		};
-		FEED000000000000000000CE /* OpenAPIURLSession */ = {
+		FEED000000000000000000EA /* OpenAPIURLSession */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000CD /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			package = FEED000000000000000000E9 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
 			productName = OpenAPIURLSession;
 		};
-		FEED000000000000000000D1 /* HTTPTypes */ = {
+		FEED000000000000000000ED /* HTTPTypes */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000D0 /* XCRemoteSwiftPackageReference "swift-http-types" */;
+			package = FEED000000000000000000EC /* XCRemoteSwiftPackageReference "swift-http-types" */;
 			productName = HTTPTypes;
 		};
-		FEED000000000000000000BE /* PhoneNumberKit */ = {
+		FEED000000000000000000DA /* PhoneNumberKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000BB /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			package = FEED000000000000000000D7 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
 			productName = PhoneNumberKit;
 		};
-		FEED000000000000000000C3 /* ShowUpAPI */ = {
+		FEED000000000000000000DF /* ShowUpAPI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShowUpAPI;
 		};
-		FEED000000000000000000C8 /* Sentry */ = {
+		FEED000000000000000000E4 /* Sentry */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000C5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			package = FEED000000000000000000E1 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
 		};
-		FEED000000000000000000D3 /* OpenAPIRuntime */ = {
+		FEED000000000000000000EF /* OpenAPIRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000CA /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			package = FEED000000000000000000E6 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
 			productName = OpenAPIRuntime;
 		};
-		FEED000000000000000000D5 /* OpenAPIURLSession */ = {
+		FEED000000000000000000F1 /* OpenAPIURLSession */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000CD /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			package = FEED000000000000000000E9 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
 			productName = OpenAPIURLSession;
 		};
-		FEED000000000000000000D7 /* HTTPTypes */ = {
+		FEED000000000000000000F3 /* HTTPTypes */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED000000000000000000D0 /* XCRemoteSwiftPackageReference "swift-http-types" */;
+			package = FEED000000000000000000EC /* XCRemoteSwiftPackageReference "swift-http-types" */;
 			productName = HTTPTypes;
 		};
 /* End XCSwiftPackageProductDependency section */

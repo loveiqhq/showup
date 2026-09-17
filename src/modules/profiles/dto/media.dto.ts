@@ -99,23 +99,41 @@ export class MediaStateDto {
   @ApiProperty({ type: [MediaDto] })
   items: MediaDto[];
 
+  /*
+   * PLAIN STRINGS, NOT ENUMS, AND THAT IS THE POINT.
+   *
+   * An enum in a RESPONSE schema is a trap for any value set that can grow. Both client generators
+   * turn one into a closed type, so the day the ranking job publishes a prompt id an installed app
+   * does not know about, the WHOLE response fails to decode -- not just that field. Every card on
+   * the screen would go blank because one string was new.
+   *
+   * Both clients already resolve an unrecognised id to the section-20 cold start, so a plain string
+   * degrades to a sensible default instead of breaking the read. The allowed values are documented
+   * rather than enforced, which is the correct trade for a field whose whole purpose is to change.
+   */
   @ApiProperty({
-    enum: MEDIA_PROMPT_IDS,
-    description: 'The prompt previewed on an empty video card.',
+    description:
+      'The prompt previewed on an empty video card. A section-20 `media_prompt_id`; clients that ' +
+      'do not recognise it fall back to the cold-start prompt.',
+    example: 'relaxed_and_happy',
   })
   previewVideo: string;
 
   @ApiProperty({
-    enum: MEDIA_PROMPT_IDS,
-    description: 'The prompt previewed on an empty voice card.',
+    description:
+      'The prompt previewed on an empty voice card. A section-20 `media_prompt_id`; clients that ' +
+      'do not recognise it fall back to the cold-start prompt.',
+    example: 'relaxing_sound',
   })
   previewVoice: string;
 
   @ApiProperty({
-    enum: ['ranked', 'fallback'],
     description:
-      'Section 22. `ranked` came from the completion ranking; `fallback` means the ranking had ' +
-      'no publishable answer and the section-20 cold-start prompt was used.',
+      'Section 22: `ranked` or `fallback`. `ranked` came from the completion ranking; `fallback` ' +
+      'means the ranking had no publishable answer and the section-20 cold-start prompt was used. ' +
+      'A string rather than an enum for the same reason as the two above -- anything a client does ' +
+      'not recognise is read as `fallback`.',
+    example: 'fallback',
   })
   previewSource: 'ranked' | 'fallback';
 }

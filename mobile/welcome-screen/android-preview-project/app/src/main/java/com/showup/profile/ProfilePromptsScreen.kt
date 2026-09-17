@@ -209,7 +209,6 @@ internal object PromptsCopy {
     const val SAVE_FAILED_PROPOSED = "We couldn't save that just now. Please try again."
     const val SAVE = "Save"
 
-    const val DISMISS = "Dismiss"
     const val HIDE_EXAMPLE = "Hide example"
     const val EDIT_PROMPT = "Edit prompt"
 }

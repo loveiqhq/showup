@@ -25,7 +25,6 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { MediaDto, MediaStateDto, UploadMediaDto } from './dto/media.dto';
 import { MediaService } from './media.service';
-import { MEDIA_PROMPTS } from './util/media-prompts';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
@@ -62,11 +61,18 @@ export class MediaController {
           description:
             'One recording. MP4/QuickTime for video, M4A/AAC for voice.',
         },
-        kind: { type: 'string', enum: ['video', 'voice'] },
+        kind: {
+          type: 'string',
+          description:
+            'video or voice. Validated by UploadMediaDto; a plain string here so the multipart ' +
+            'body has one shape in both client generators.',
+        },
         mediaPromptId: {
           type: 'string',
-          enum: MEDIA_PROMPTS.map((p) => p.id),
-          description: 'The section-20 id of the prompt answered.',
+          description:
+            'The section-20 id of the prompt answered. Validated against the registry by ' +
+            'UploadMediaDto -- declared as a plain string here because a multipart enum ' +
+            'generates a different shape in each client generator and buys no checking in either.',
         },
         durationMs: {
           type: 'integer',

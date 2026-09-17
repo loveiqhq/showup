@@ -26,6 +26,15 @@ import UIKit
 /// anything on their own, which is why they live here as named recipes rather than as five
 /// properties a call site has to get right.
 enum OrbPlacement {
+    /// The voice capture screen: orange 520 at top -25% / right -30%, violet 520 at BOTTOM -22% /
+    /// left -30%, both a touch more saturated than elsewhere (SHOWUP-161).
+    ///
+    /// A fifth placement rather than the nearest existing one, because this is the only screen in
+    /// the app with no chrome at all — no header, no progress bar, no footer — so the orbs ARE the
+    /// composition rather than atmosphere behind one, and 40pt of orb radius is visible where it
+    /// would not be on a screen with content over it.
+    case voiceCapture
+
     /// Startup and Welcome back: orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%.
     case startup
     /// Phone verification: orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%.
@@ -71,6 +80,11 @@ struct WelcomeBackdrop: View {
                         .position(x: w * 1.25 - 230, y: -0.20 * h + 230)
                     orb(420, .liqPurple, violetAlpha)
                         .position(x: -0.28 * w + 210, y: h * 1.12 - 210)
+                case .voiceCapture:
+                    orb(520, .liqOrange, orangeAlpha)
+                        .position(x: w * 1.30 - 260, y: -0.25 * h + 260)
+                    orb(520, .liqPurple, violetAlpha)
+                        .position(x: -0.30 * w + 260, y: h * 1.22 - 260)
                 case .startup:
                     orb(520, .liqOrange, orangeAlpha)
                         .position(x: w * 1.25 - 260, y: -0.15 * h + 260)
@@ -444,7 +458,9 @@ final class WashLabel: UILabel {
 /// forbids icon fonts, PNGs and unicode glyphs as icons.
 enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, chevronLeft,
                  chevronRight, arrowLeft, arrowRight, pencil, pen, edit, close, check,
-                 shield, heart, eyeOff, plus, image, camera, lock, sliders }
+                 shield, heart, eyeOff, plus, image, camera, lock, sliders,
+                 // The media step (SHOWUP-161).
+                 video, mic, play, refresh, trash }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -627,6 +643,83 @@ struct BrandIconView: View {
                 p = Path { b in
                     b.move(to: .init(x: 20, y: 6)); b.addLine(to: .init(x: 9, y: 17))
                     b.addLine(to: .init(x: 4, y: 12))
+                }
+            // ── the media step (SHOWUP-161) ─────────────────────────────────
+            //
+            // All five copied from `components/shared.jsx` at its exact 24-grid geometry, like the
+            // rest of the set and for the same reason: an icon redrawn from memory is a real icon,
+            // faithfully drawn, and the wrong one -- which no test catches. The Kotlin twin carries
+            // the identical coordinates.
+            case .video:
+                filled = false
+                p = Path { b in
+                    // polygon 23 7 -> 16 12 -> 23 17, the lens flare.
+                    b.move(to: .init(x: 23, y: 7)); b.addLine(to: .init(x: 16, y: 12))
+                    b.addLine(to: .init(x: 23, y: 17)); b.closeSubpath()
+                    b.addRoundedRect(in: .init(x: 1, y: 5, width: 15, height: 14),
+                                     cornerSize: .init(width: 2, height: 2))
+                }
+            case .mic:
+                filled = false
+                p = Path { b in
+                    // The capsule is a 6x12 rect at radius 3 -- a rounded rect whose radius is half
+                    // its width, which is a capsule exactly.
+                    b.addRoundedRect(in: .init(x: 9, y: 2, width: 6, height: 12),
+                                     cornerSize: .init(width: 3, height: 3))
+                    // `M5 11 a7 7 0 0 0 14 0` -- the lower half of a circle centred (12,11) r 7.
+                    b.move(to: .init(x: 5, y: 11))
+                    b.addArc(center: .init(x: 12, y: 11), radius: 7,
+                             startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
+                    b.move(to: .init(x: 12, y: 18)); b.addLine(to: .init(x: 12, y: 22))
+                    b.move(to: .init(x: 8, y: 22)); b.addLine(to: .init(x: 16, y: 22))
+                }
+            // FILLED, not stroked. The design draws it as a solid polygon in every size it appears
+            // at, the same way the provider marks are filled paths in the source.
+            case .play:
+                filled = true
+                p = Path { b in
+                    b.move(to: .init(x: 6, y: 4)); b.addLine(to: .init(x: 20, y: 12))
+                    b.addLine(to: .init(x: 6, y: 20)); b.closeSubpath()
+                }
+            case .refresh:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 23, y: 4)); b.addLine(to: .init(x: 23, y: 10))
+                    b.addLine(to: .init(x: 17, y: 10))
+                    b.move(to: .init(x: 1, y: 20)); b.addLine(to: .init(x: 1, y: 14))
+                    b.addLine(to: .init(x: 7, y: 14))
+                    // Both 9-unit arcs run on the circle centred (12,12) -- solved from the SVG's
+                    // endpoints rather than eyeballed, which is why the sweeps are the same 115.5
+                    // degrees in opposite directions.
+                    b.move(to: .init(x: 3.51, y: 9))
+                    b.addArc(center: .init(x: 12, y: 12), radius: 9,
+                             startAngle: .degrees(-160.5), endAngle: .degrees(-45), clockwise: true)
+                    b.addLine(to: .init(x: 23, y: 10))
+                    b.move(to: .init(x: 1, y: 14))
+                    b.addLine(to: .init(x: 5.64, y: 18.36))
+                    b.addArc(center: .init(x: 12, y: 12), radius: 9,
+                             startAngle: .degrees(135), endAngle: .degrees(19.5), clockwise: false)
+                }
+            case .trash:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 3, y: 6)); b.addLine(to: .init(x: 21, y: 6))
+                    // The can. Its lower corners are 2-unit rounds, drawn as quadratics with the
+                    // control point at the corner the curve replaces -- indistinguishable from the
+                    // SVG arc at every size this is drawn at, and far less arithmetic.
+                    b.move(to: .init(x: 19, y: 6)); b.addLine(to: .init(x: 18, y: 20))
+                    b.addQuadCurve(to: .init(x: 16, y: 22), control: .init(x: 18, y: 22))
+                    b.addLine(to: .init(x: 8, y: 22))
+                    b.addQuadCurve(to: .init(x: 6, y: 20), control: .init(x: 6, y: 22))
+                    b.addLine(to: .init(x: 5, y: 6))
+                    b.move(to: .init(x: 10, y: 11)); b.addLine(to: .init(x: 10, y: 17))
+                    b.move(to: .init(x: 14, y: 11)); b.addLine(to: .init(x: 14, y: 17))
+                    // The lid's handle, 1-unit rounds.
+                    b.move(to: .init(x: 9, y: 6)); b.addLine(to: .init(x: 9, y: 4))
+                    b.addQuadCurve(to: .init(x: 10, y: 3), control: .init(x: 9, y: 3))
+                    b.addLine(to: .init(x: 14, y: 3))
+                    b.addQuadCurve(to: .init(x: 15, y: 4), control: .init(x: 15, y: 3))
+                    b.addLine(to: .init(x: 15, y: 6))
                 }
             // The visibility band's mark (SHOWUP-154 callout 11). Feather's eye-off: the eye's
             // two arcs with the pupil, struck through corner to corner. Same 24 grid as the rest.

@@ -168,8 +168,16 @@ check("press 180ms (swift)", "0.18" in shell_sw)
 check("brand easing (kotlin)", "CubicBezierEasing(0.22f, 1f, 0.36f, 1f)" in motion_kt)
 check("brand easing (swift)", "timingCurve(0.22, 1, 0.36, 1" in btn_sw)
 # sunset midpoint at 38%
+#
+# BOTH PLATFORMS NOW HOLD IT IN THEIR TOKEN FILE. Kotlin always did (`SunsetStops`); Swift had it
+# inline in `PrimaryButton` until 17 September 2026, when the media step's voice-review play pip
+# became its second user and it moved to `DesignSystem.swift` beside the lilac ramp. That is the
+# rule about one definition per value -- the Android `SunsetButton` once carried a TWO-stop copy of
+# this ramp for three weeks while the button beside it had three, which is exactly what an inline
+# second copy produces.
 check("sunset 38% (kotlin)", "0.38f to Color(0xFFD05976)" in tok_kt)
-check("sunset 38% (swift)", "location: 0.38" in btn_sw)
+check("sunset 38% (swift)", "location: 0.38" in tok_sw)
+check("sunset ramp has one definition (swift)", "location: 0.38" not in btn_sw)
 
 # ── wordmark ────────────────────────────────────────────────────────────────
 check("wordmark gradient not flat (kotlin)", "WordmarkStops" in shell_kt)
