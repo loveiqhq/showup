@@ -49,6 +49,13 @@ data class BasicsUiState(
     /** Server-owned. Null until a code has been sent. */
     val expiresAt: OffsetDateTime? = null,
     val resendAvailableAt: OffsetDateTime? = null,
+    /**
+     * The code, when a development server sent it back. See [SendCodeResult.Sent.devCode].
+     *
+     * Held in state rather than read at the call site because a resend replaces it, and a strip
+     * still showing the previous code would be worse than no strip at all.
+     */
+    val devCode: String? = null,
     val cooldownSeconds: Int = 0,
     /** True while a request is in flight. The CTA is inert and says so. */
     val busy: Boolean = false,
@@ -131,6 +138,7 @@ class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
                             lastSubmitRefused = false,
                             expiresAt = result.expiresAt,
                             resendAvailableAt = result.resendAvailableAt,
+                            devCode = result.devCode,
                         )
                     }
                     startTicker()

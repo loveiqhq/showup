@@ -40,6 +40,11 @@ final class BasicsModel {
     /// Server-owned. Nil until a code has been sent.
     private(set) var expiresAt: Date?
     private(set) var resendAvailableAt: Date?
+    /// The code, when a development server sent it back. See `SendCodeResult.sent`.
+    ///
+    /// Held here rather than read at the call site because a resend replaces it, and a strip
+    /// still showing the previous code would be worse than no strip at all.
+    private(set) var devCode: String?
     private(set) var cooldownSeconds = 0
     /// True while a request is in flight. The CTA is inert.
     private(set) var busy = false
@@ -94,12 +99,13 @@ final class BasicsModel {
             let result = await repo.sendCode(email: email)
             busy = false
             switch result {
-            case let .sent(expiresAt, resendAvailableAt):
+            case let .sent(expiresAt, resendAvailableAt, devCode):
                 codeDigits = ""
                 attempts = 0
                 lastSubmitRefused = false
                 self.expiresAt = expiresAt
                 self.resendAvailableAt = resendAvailableAt
+                self.devCode = devCode
                 startTicker()
                 onSent()
             case .tooSoon:
