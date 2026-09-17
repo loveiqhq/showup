@@ -65,12 +65,36 @@ final class BasicsRepositoryTests: XCTestCase {
     func testASentCodeCarriesBothOfTheServersTimestamps() async {
         let rec = StubTransport.Recorder()
         let result = await repo(status: 200, body: challenge, recorder: rec).sendCode(email: "leo@hey.com")
-        guard case let .sent(expiresAt, resendAvailableAt) = result else {
+        guard case let .sent(expiresAt, resendAvailableAt, _) = result else {
             return XCTFail("expected .sent, got \(result)")
         }
         // Both are used: expiresAt decides "expired", resendAvailableAt drives the countdown.
         // This is why the client no longer holds a cooldown constant of its own.
         XCTAssertGreaterThan(expiresAt, resendAvailableAt)
+    }
+
+    func testADevelopmentServersCodeIsCarriedBackToTheScreen() async {
+        // `AUTH_EXPOSE_OTP` defaults to on outside production, so a development backend answers
+        // the challenge with the six digits it just mailed. This used to be dropped, which left
+        // the verification screen unwalkable against a REAL server: the phone flow had a dev strip
+        // and the email flow had none, so the only way to learn the code was the server log.
+        let rec = StubTransport.Recorder()
+        let body = #"{"expiresAt":"2026-09-10T10:20:30Z","resendAvailableAt":"2026-09-10T10:16:00Z","devCode":"123456"}"#
+        let result = await repo(status: 200, body: body, recorder: rec).sendCode(email: "leo@hey.com")
+        guard case let .sent(_, _, devCode) = result else {
+            return XCTFail("expected .sent, got \(result)")
+        }
+        XCTAssertEqual(devCode, "123456")
+    }
+
+    func testAProductionServerSendsNoCodeAndNoneIsInvented() async {
+        // The server omits the property; nothing on this side may substitute for it.
+        let rec = StubTransport.Recorder()
+        let result = await repo(status: 200, body: challenge, recorder: rec).sendCode(email: "leo@hey.com")
+        guard case let .sent(_, _, devCode) = result else {
+            return XCTFail("expected .sent, got \(result)")
+        }
+        XCTAssertNil(devCode)
     }
 
     func testTheRequestCarriesTheAddress() async {

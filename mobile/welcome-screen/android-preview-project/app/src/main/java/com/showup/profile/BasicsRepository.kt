@@ -46,6 +46,22 @@ sealed interface SendCodeResult {
     data class Sent(
         val expiresAt: OffsetDateTime,
         val resendAvailableAt: OffsetDateTime,
+        /**
+         * The code itself, when the server chose to send it back.
+         *
+         * `AUTH_EXPOSE_OTP` defaults to on outside production, so a development backend answers
+         * `/auth/email/start` with the six digits it just mailed. The client used to drop them on
+         * the floor and the screen below said, in a comment, that the challenge "carries no
+         * devCode to show" -- true when it was written, and not true since the route started
+         * returning `OtpChallengeResponseDto`.
+         *
+         * What that cost: against a REAL backend the verification screen was unwalkable unless
+         * somebody read the server log, because the only code on screen came from the offline
+         * stand-in, which by definition is not running when a server answers.
+         *
+         * NULL IN PRODUCTION, always: the server omits it, and nothing here invents one.
+         */
+        val devCode: String? = null,
     ) : SendCodeResult
 
     /** 429. The previous code's cooldown has not elapsed. */
@@ -109,6 +125,7 @@ class BasicsRepository(
                 SendCodeResult.Sent(
                     expiresAt = body.expiresAt,
                     resendAvailableAt = body.resendAvailableAt,
+                    devCode = body.devCode,
                 )
             response.code() == 429 -> SendCodeResult.TooSoon
             // The server's only 400 on this route is the uniqueness check.

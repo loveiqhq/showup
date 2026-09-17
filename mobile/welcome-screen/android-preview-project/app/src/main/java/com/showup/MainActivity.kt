@@ -38,8 +38,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.showup.tutorial.MatchMeansMeetScreen
@@ -49,7 +47,6 @@ import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.createSavedStateHandle
-import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -519,19 +516,28 @@ class MainActivity : ComponentActivity() {
 
             // The email code, on screen, in a debug build only.
             //
-            // The phone flow has had this since the day it stopped faking its code; the email
-            // flow never did, because `/auth/email/start` answers 204 with no body and the
-            // challenge carries no `devCode` to show. With no backend running that left the
-            // verification screen unwalkable: a code was required and nothing anywhere could
-            // tell you what it was.
+            // TWO SOURCES, BECAUSE THERE ARE TWO WAYS TO BE TESTING. The offline stand-in issues
+            // a code when nothing answers; a development server sends the real one back in the
+            // challenge, because `AUTH_EXPOSE_OTP` defaults to on outside production.
+            //
+            // The server's is preferred when both exist: if a server answered, its code is the
+            // one that will verify, and the stand-in's is a leftover from before it came up.
+            //
+            // THIS USED TO SHOW ONLY THE STAND-IN'S, and the comment here asserted that
+            // `/auth/email/start` "answers 204 with no body". That was true when it was written
+            // and stopped being true when the route started returning `OtpChallengeResponseDto`.
+            // The cost was exactly backwards from the intent: the screen was walkable with NO
+            // backend and unwalkable with a REAL one, because the only code on screen came from
+            // the stand-in, which is not running when a server answers.
             //
             // Three conditions, each closing a different way this could leak: BuildConfig.DEBUG
-            // keeps it out of any release build, the null check keeps it absent when the code
-            // came from a real server rather than the offline stand-in, and the screen check
-            // keeps it off every other screen.
+            // keeps it out of any release build, the null check keeps it absent when neither
+            // source produced a code, and the screen check keeps it off every other screen.
+            val serverEmailCode = basicsState.devCode
             val offlineEmailCode = DevOfflineBasics.lastIssued
+            val emailCode = serverEmailCode ?: offlineEmailCode
             if (BuildConfig.DEBUG &&
-                offlineEmailCode != null &&
+                emailCode != null &&
                 screen == FlowScreen.ProfileVerifyEmail
             ) {
                 Row(
@@ -549,7 +555,11 @@ class MainActivity : ComponentActivity() {
                         fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 0.7.sp,
                     )
                     Text(
-                        "OFFLINE · no server · the code is $offlineEmailCode",
+                        if (serverEmailCode != null) {
+                            "the code is $emailCode"
+                        } else {
+                            "OFFLINE · no server · the code is $emailCode"
+                        },
                         color = Color.White, fontFamily = Manrope,
                         fontWeight = FontWeight.Medium, fontSize = 11.sp,
                     )

@@ -22,6 +22,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -71,6 +72,28 @@ class BasicsRepositoryTest {
         // This is why the client no longer holds a cooldown constant of its own.
         assertEquals(2026, result.expiresAt.year)
         assertEquals(16, result.resendAvailableAt.minute)
+    }
+
+    @Test
+    fun `a development server's code is carried back to the screen`() = runTest {
+        // AUTH_EXPOSE_OTP defaults to on outside production, so a development backend answers the
+        // challenge with the six digits it just mailed. This used to be dropped on the floor, and
+        // the screen's own comment asserted the challenge "carries no devCode to show" -- true
+        // when written, untrue since the route started returning OtpChallengeResponseDto. The cost
+        // was backwards from the intent: walkable with NO backend, unwalkable with a REAL one.
+        respond(200, """
+            {"expiresAt":"2026-09-10T10:20:30Z","resendAvailableAt":"2026-09-10T10:16:00Z","devCode":"123456"}
+        """.trimIndent())
+        val result = repo.sendCode("leo@hey.com") as SendCodeResult.Sent
+        assertEquals("123456", result.devCode)
+    }
+
+    @Test
+    fun `a production server sends no code and none is invented`() = runTest {
+        // The server omits the property; nothing on this side may substitute for it.
+        respond(200, challenge)
+        val result = repo.sendCode("leo@hey.com") as SendCodeResult.Sent
+        assertNull(result.devCode)
     }
 
     @Test
