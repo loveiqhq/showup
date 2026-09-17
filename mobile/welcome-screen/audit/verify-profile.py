@@ -595,6 +595,47 @@ check("158 the Android back gesture closes the sheet", "BackHandler" in prompts_
 check("158 swipe has a threshold (kotlin)", "SWIPE_DISMISS_PX" in prompts_kt)
 check("158 swipe has a threshold (swift)", "sheetSwipeDismiss" in prompts_sw)
 
+# ── SHOWUP-156 · a picked photo is normalised before it is sent ─────────────
+#
+# Two real failures, both of which rendered as the same `Upload failed` with a Retry that re-sent
+# identical bytes: Android reported the picker's own MIME type, which is `image/heic` on a modern
+# phone and not in the server's allowed set (415); and neither platform downscaled, so a
+# full-resolution photo ran past the 8 MB cap (413).
+upload_kt = read(KT, "profile", "PhotoUpload.kt")
+upload_sw = read(SW, "PhotoUpload.swift")
+picker_kt = read(KT, "MainActivity.kt")
+picker_sw = read(SW, "PhotoPicker.swift")
+
+for label, text in (("kotlin", upload_kt), ("swift", upload_sw)):
+    # THE SAME NUMBERS ON BOTH PLATFORMS. A photo that looked fine on one and soft on the other
+    # would be a difference nobody chose, and nothing else in the build would notice.
+    check("156 upload cap is 2048 (%s)" % label, "2048" in text)
+    check("156 upload quality (%s)" % label,
+          "UPLOAD_JPEG_QUALITY = 90" in text or "uploadJPEGQuality: CGFloat = 0.9" in text)
+    # Null/nil when the photo is already small enough, so a small photo is never upscaled.
+    check("156 no upscaling (%s)" % label, "maxEdge" in text)
+
+for label, text in (("kotlin", picker_kt), ("swift", picker_sw)):
+    # ALWAYS JPEG, whatever came in -- the one type every path can produce and the server accepts.
+    check("156 uploads are jpeg (%s)" % label, '"image/jpeg"' in text)
+    # The picker's own MIME type must not reach the server again.
+    check("156 the picker's mime is not forwarded (%s)" % label,
+          "resolver.getType" not in text)
+    check("156 the decode is downscaled (%s)" % label, "uploadTargetSize" in text)
+
+# The decode never materialises the full-resolution image: `ImageDecoder` sizes while it reads and
+# `CGImageSourceCreateThumbnailAtIndex` decodes once at the size asked for. A 12 MP photo is about
+# 48 MB of pixels and this screen can have six in flight.
+check("156 android decodes downsampled", "ImageDecoder.decodeBitmap" in picker_kt)
+check("156 android can compress the result", "ALLOCATOR_SOFTWARE" in picker_kt)
+check("156 ios decodes through ImageIO", "CGImageSourceCreateThumbnailAtIndex" in picker_sw)
+# Re-encoding drops the EXIF orientation with the container, so it has to be applied on the way in
+# or every portrait photo uploads on its side.
+check("156 ios applies the exif transform",
+      "kCGImageSourceCreateThumbnailWithTransform" in picker_sw)
+check("156 ios does not return the embedded thumbnail",
+      "kCGImageSourceCreateThumbnailFromImageAlways" in picker_sw)
+
 # ── both screens · Continue is never disabled ───────────────────────────────
 #
 # The group-wide rule, and the reason the specific requirement is ever read: a dead button cannot
