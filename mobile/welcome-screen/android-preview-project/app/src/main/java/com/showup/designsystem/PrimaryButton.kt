@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -75,19 +76,20 @@ fun PrimaryButton(
      */
     labelSize: TextUnit = 16.sp,
     /**
-     * Put [leading] against the start edge instead of centring the whole group.
+     * Give the label a fixed width so a COLUMN of these buttons lines its marks up.
      *
-     * A DELIBERATE DEVIATION FROM THE DESIGN SYSTEM, and the only one in this file. `Button` in
-     * `components/shared.jsx` is `justifyContent: 'center'`, so a button's icon and label centre
-     * together -- which means a COLUMN of buttons whose labels differ in length puts their icons
-     * at different x positions. The spec sheets render it that way too; this is not a port bug.
+     * THE GROUP STAYS CENTRED. `Button` in `components/shared.jsx` is `justifyContent: 'center'`,
+     * and that is kept: what changes is that the icon-plus-label group is the same WIDTH on every
+     * button that shares a width, so centring puts all of their icons at the same x.
      *
-     * The auth method list is the one place that column exists, four deep, and on a device the
-     * ragged icons read as a mistake rather than as centring. Product decision, 17 September 2026:
-     * align them. Everything else in the app keeps the design's centring, which is why this is a
-     * parameter defaulting to false rather than a change to the primitive.
+     * Without it, three buttons reading `Continue with Apple`, `Continue with Google` and
+     * `Continue with Facebook` centre three differently-sized groups, and their marks sit a few
+     * points apart -- close enough to read as sloppy rather than as a choice. The spec sheets show
+     * the same, so this is a deliberate deviation rather than a port bug; see E10.
+     *
+     * Null everywhere else, which is every button in the app that is not one of a set.
      */
-    alignLeadingToStart: Boolean = false,
+    labelWidth: Dp? = null,
     leading: (@Composable () -> Unit)? = null,
     /** Mirrors [leading]. Used once: the tutorial CTA's trailing arrow. */
     trailing: (@Composable () -> Unit)? = null,
@@ -163,16 +165,17 @@ fun PrimaryButton(
                 enabled = enabled, role = Role.Button, onClick = onClick,
             )
             .padding(horizontal = 28.dp),
-        horizontalArrangement = if (alignLeadingToStart) {
-            Arrangement.spacedBy(Spacing.md, Alignment.Start)
-        } else {
-            Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally)
-        },
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leading?.invoke()
         Text(
             label,
+            // A fixed width makes the group the same size on every button in the set, so centring
+            // lands their icons on one line. The text sits at the start of that width rather than
+            // centred inside it, or the labels would be ragged instead of the marks.
+            modifier = if (labelWidth != null) Modifier.width(labelWidth) else Modifier,
+            textAlign = if (labelWidth != null) TextAlign.Start else TextAlign.Center,
             color = when (variant) {
                 PrimaryButtonVariant.Sunset, PrimaryButtonVariant.Violet,
                 PrimaryButtonVariant.Apple, PrimaryButtonVariant.Facebook -> Color.White
@@ -188,7 +191,6 @@ fun PrimaryButton(
             // Two, so a label too wide for a narrow phone wraps instead of being cut. Still
             // bounded: an unbounded label would let a translation grow the control without limit.
             maxLines = 2,
-            textAlign = TextAlign.Center,
         )
         trailing?.invoke()
     }

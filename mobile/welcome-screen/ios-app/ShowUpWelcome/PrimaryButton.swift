@@ -57,18 +57,19 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     /// same sunset button set one step larger. `.plain` overrides it, being 15/600 by definition
     /// rather than by choice. Worth collapsing to one value if the design side agrees.
     var labelSize: CGFloat = 16
-    /// Put `leading` against the start edge instead of centring the whole group.
+    /// Give the label a fixed width so a COLUMN of these buttons lines its marks up.
     ///
-    /// A DELIBERATE DEVIATION FROM THE DESIGN SYSTEM, and the only one in this file. `Button` in
-    /// `components/shared.jsx` is `justifyContent: 'center'`, so a button's icon and label centre
-    /// together — which means a COLUMN of buttons whose labels differ in length puts their icons
-    /// at different x positions. The spec sheets render it that way too; this is not a port bug.
+    /// THE GROUP STAYS CENTRED. `Button` in `components/shared.jsx` is `justifyContent: 'center'`,
+    /// and that is kept: what changes is that the icon-plus-label group is the same WIDTH on every
+    /// button that shares a width, so centring puts all of their marks at the same x.
     ///
-    /// The auth method list is the one place that column exists, four deep, and on a device the
-    /// ragged marks read as a mistake rather than as centring. Product decision, 17 September
-    /// 2026: align them. Everything else keeps the design's centring, which is why this is a
-    /// property defaulting to false rather than a change to the primitive.
-    var alignLeadingToStart: Bool = false
+    /// Without it, three buttons reading `Continue with Apple`, `Continue with Google` and
+    /// `Continue with Facebook` centre three differently-sized groups and their marks sit a few
+    /// points apart — close enough to read as sloppy rather than as a choice. The spec sheets show
+    /// the same, so this is a deliberate deviation rather than a port bug; see E10.
+    ///
+    /// Nil everywhere else, which is every button in the app that is not one of a set.
+    var labelWidth: CGFloat?
     var action: () -> Void
     @ViewBuilder var leading: () -> Leading
     /// Mirrors `leading`. Used once: the tutorial CTA's trailing arrow.
@@ -79,6 +80,11 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
             HStack(spacing: Spacing.md) {
                 leading()
                 Text(label)
+                    // A fixed width makes the group the same size on every button in the set, so
+                    // centring lands their marks on one line. The text sits at the start of that
+                    // width rather than centred inside it, or the labels would be ragged instead
+                    // of the marks.
+                    .frame(width: labelWidth, alignment: labelWidth == nil ? .center : .leading)
                     // The plain secondary is 600/15 — one step down from the 700 every real
                     // button carries, which is what stops the modal reading as two equal choices.
                     .font(variant == .plain ? F.manrope(15, .semibold)
@@ -91,7 +97,7 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
                     .foregroundColor(labelColor)
                 trailing()
             }
-            .frame(maxWidth: .infinity, alignment: alignLeadingToStart ? .leading : .center)
+            .frame(maxWidth: .infinity)
             // A MINIMUM, not a fixed height, since 10 September.
             //
             // On every device where the label fits on one line this is exactly `height` and
@@ -177,10 +183,10 @@ extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
 extension PrimaryButton where Trailing == EmptyView {
     init(label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
          height: CGFloat = 56, labelSize: CGFloat = 16,
-         alignLeadingToStart: Bool = false, action: @escaping () -> Void,
+         labelWidth: CGFloat? = nil, action: @escaping () -> Void,
          @ViewBuilder leading: @escaping () -> Leading) {
         self.init(label: label, variant: variant, enabled: enabled, height: height,
-                  labelSize: labelSize, alignLeadingToStart: alignLeadingToStart,
+                  labelSize: labelSize, labelWidth: labelWidth,
                   action: action, leading: leading, trailing: { EmptyView() })
     }
 }
