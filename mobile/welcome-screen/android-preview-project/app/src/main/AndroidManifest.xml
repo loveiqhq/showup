@@ -24,10 +24,23 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!--
-        required="false" so Play does not filter the app off a device with no camera. Taking a
-        photo is one of two ways to fill a slot and the other one always works.
+        The microphone, for the media step (SHOWUP-161). Video needs camera AND microphone; a voice
+        note needs the microphone alone, which is why a blocked microphone is the only status that
+        blocks that whole step while a blocked camera only blocks one card.
+
+        Asked for on the COMMIT CTA inside the prompt sheet, never on screen entry and never on
+        "See the prompts" — the user has chosen what they are about to say before anything is
+        requested of them.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+        required="false" on both so Play does not filter the app off a device missing either. The
+        camera is one of two ways to fill a photo slot and the other always works; both media slots
+        are optional and the whole step is skippable, so neither is a requirement to use the app.
     -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
         android:name=".ShowUpApplication"

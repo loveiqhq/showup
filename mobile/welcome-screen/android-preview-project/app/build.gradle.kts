@@ -203,6 +203,31 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
+    // ── capture, for the media step (SHOWUP-161) ────────────────────────────────
+    //
+    // CameraX rather than Camera2 or an intent to the camera app. The ticket rules the intent out
+    // in as many words -- "capture runs through our OWN session... UIImagePickerController / an
+    // intent to the OS camera app is NOT an acceptable substitute" -- because handing off loses the
+    // prompt under the lens, the 10-second cap and the review screen, which are three of the four
+    // things this screen is for. Camera2 would do the same job with an order of magnitude more code
+    // and its own device-quirk list.
+    //
+    // `camera-view` carries LifecycleCameraController, which binds preview and video capture to a
+    // lifecycle in one object; `camera-video` is the Recorder. Both are needed and neither is
+    // transitive from the other.
+    implementation("androidx.camera:camera-core:1.4.0")
+    implementation("androidx.camera:camera-camera2:1.4.0")
+    implementation("androidx.camera:camera-lifecycle:1.4.0")
+    implementation("androidx.camera:camera-video:1.4.0")
+    implementation("androidx.camera:camera-view:1.4.0")
+
+    // Audio playback on the review screen and the filled voice card. Media3 rather than the
+    // platform MediaPlayer: MediaPlayer's state machine throws on a call in the wrong state and
+    // gives no way to ask which state it is in, which is exactly the shape of bug that a
+    // play-pause-replay control on a screen the user can leave at any moment produces.
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
+
     // The phone rules are pure JVM logic, so they are tested off-device.
     testImplementation("junit:junit:4.13.2")
 

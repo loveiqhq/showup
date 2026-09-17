@@ -32,5 +32,21 @@ object ComponentSizes {
      * `heightIn(min = 44.dp)` on the log-in link and the back control. Asserted by ScreenFitTest,
      * which found a 23dp target inside a 56dp row on 15 of 18 sizes.
      */
+    /**
+     * The design system's `md` button -- 48 tall, 15sp label (`shared.jsx`, the `sizes` map).
+     *
+     * A SECOND STANDARD HEIGHT, not a one-off. `shared.jsx` defines three: sm 36, md 48, lg 56.
+     * [controlHeight] is `lg` and is what the flow's full-width CTAs use; `md` is what a button
+     * INSIDE a card uses, and the media step's `See the prompts` is the first of those to be
+     * built. The 8dp matters there: SHOWUP-161 requires the whole empty state -- pill, headline,
+     * both cards, both CTAs -- to fit above the fold at 390x844, and two cards' CTAs at `lg`
+     * spend 16 of that budget on nothing.
+     *
+     * Named rather than written as 48 at the call site, because the rule is that a standard
+     * control height has a name; this one now has both its name and the sentence that says which
+     * of the design's three it is.
+     */
+    val controlHeightMedium = 48.dp
+
     val minTapTarget = 44.dp
 }

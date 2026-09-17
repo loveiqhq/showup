@@ -39,7 +39,19 @@ import com.showup.profile.LibraryAccess
 import com.showup.profile.PhotoGridState
 import com.showup.profile.PickedPhoto
 import com.showup.profile.ProfilePhotosScreen
+import com.showup.profile.MediaAccess
+import com.showup.profile.MediaArtefact
+import com.showup.profile.MediaCaptureScreen
+import com.showup.profile.MediaEntryPoint
+import com.showup.profile.MediaKind
+import com.showup.profile.MediaPermission
+import com.showup.profile.MediaSheet
+import com.showup.profile.MediaState
+import com.showup.profile.MediaTake
+import com.showup.profile.MediaUploadStatus
+import com.showup.profile.ProfileMediaScreen
 import com.showup.profile.ProfilePromptsScreen
+import com.showup.profile.RecordingPhase
 import com.showup.profile.PROMPT_SAMPLE_AT_CAP
 import com.showup.profile.PromptSheet
 import com.showup.profile.PromptsState
@@ -454,6 +466,89 @@ class ScreenFitTest {
             )
         }
         sweep("Prompts/toast") { ProfilePromptsScreen(previewToast = true) }
+        assertClean()
+    }
+
+    /**
+     * SHOWUP-161, all ten states.
+     *
+     * A-F are one screen; G-J are the two capture views, which have no chrome at all and are the
+     * only screens in the app whose controls sit against a full-bleed ground. The capture views are
+     * where a fit finding would be worst: `Cancel` is the ONLY way out of them, so a Cancel pushed
+     * off a 320-wide screen is a user who cannot leave.
+     */
+    @Test
+    fun `profile media, all ten states`() {
+        val video = MediaArtefact(
+            kind = MediaKind.Video, promptId = "relaxed_and_happy", durationMs = 9_400,
+            localPath = null, remoteId = "v1", status = MediaUploadStatus.Confirmed,
+        )
+        val voice = MediaArtefact(
+            kind = MediaKind.Voice, promptId = "relaxing_sound", durationMs = 14_100,
+            localPath = null, remoteId = "a1", status = MediaUploadStatus.Confirmed,
+        )
+
+        sweep("Media/A empty") { ProfileMediaScreen() }
+        sweep("Media/B video only") { ProfileMediaScreen(MediaState(video = video)) }
+        sweep("Media/C voice only") { ProfileMediaScreen(MediaState(voice = voice)) }
+        sweep("Media/D both") { ProfileMediaScreen(MediaState(video = video, voice = voice)) }
+        sweep("Media/E prompts video") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        sweep("Media/F prompts voice picked") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Voice, MediaEntryPoint.SeeThePrompts,
+                        selectedId = "relaxing_sound", openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        sweep("Media/G video recording") {
+            MediaCaptureScreen(
+                MediaTake(MediaKind.Video, "relaxed_and_happy", elapsedMs = 6_000),
+            )
+        }
+        sweep("Media/H video review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Video, "relaxed_and_happy",
+                    phase = RecordingPhase.Review, elapsedMs = 9_000,
+                ),
+            )
+        }
+        sweep("Media/I voice recording") {
+            MediaCaptureScreen(MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 4_000))
+        }
+        sweep("Media/J voice review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+            )
+        }
+
+        // The permission row has no artboard, so it has no state letter -- but it is real, it is
+        // the longest copy on the screen, and it is the one thing that pushes a card taller.
+        sweep("Media/blocked microphone") {
+            ProfileMediaScreen(
+                MediaState(access = MediaAccess(microphone = MediaPermission.Blocked)),
+                platformLabel = { "Microphone" },
+            )
+        }
+        sweep("Media/upload failed") {
+            ProfileMediaScreen(
+                MediaState(video = video.copy(status = MediaUploadStatus.Failed)),
+            )
+        }
         assertClean()
     }
 

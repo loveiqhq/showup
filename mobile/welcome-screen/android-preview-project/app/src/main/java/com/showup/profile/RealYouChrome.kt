@@ -156,11 +156,20 @@ enum class RealYouStep {
      * Where the backdrop's two orbs sit on this screen.
      *
      * Photos puts both at the top because its footer carries a gradient mask that a low orb would
-     * muddy; prompts splits them because its footer is a bare CTA row. Per-screen numbers from the
-     * two reference files, named in one place so a screen does not carry its own copy.
+     * muddy; prompts and media split them because their footers are bare CTA rows. Per-screen
+     * numbers from the three reference files, named in one place so a screen does not carry its
+     * own copy.
+     *
+     * MEDIA IS THE SPLIT PAIR TOO, checked against `screen-media-reference.jsx` rather than
+     * assumed from being in the same group as photos: it draws the orange 460 at top -20% /
+     * right -25% and the violet 420 at BOTTOM -12% / left -28%, which is [OrbPlacement.RealYouSplit]
+     * to the number.
      */
     internal val orbPlacement: OrbPlacement
-        get() = if (this == Prompts) OrbPlacement.RealYouSplit else OrbPlacement.RealYouTop
+        get() = when (this) {
+            Photos -> OrbPlacement.RealYouTop
+            Prompts, Media -> OrbPlacement.RealYouSplit
+        }
 
     companion object {
         /**

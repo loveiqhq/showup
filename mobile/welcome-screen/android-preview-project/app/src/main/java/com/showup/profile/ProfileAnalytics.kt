@@ -88,6 +88,27 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
      * tracking sections state twice.
      */
     Prompts("profile_prompts", "ProfilePrompts"),
+
+    /**
+     * "The real you", step 3 (SHOWUP-161). Registered in §11 on 16 September 2026.
+     *
+     * ONE screen_id FOR ALL SIX OF ITS STATES, and §11 says so in its own note: empty, video only,
+     * voice only, both -- and the prompt-list sheet. A sheet is not a screen here; it is a state of
+     * this one, and giving it a second id would split the screen's funnel in half.
+     */
+    Media("profile_media", "ProfileMedia"),
+
+    /**
+     * The full-bleed capture screen (states G and I).
+     *
+     * ONE ROW FOR VIDEO AND VOICE -- "the medium is `type` on the events, not a second id". It
+     * fires its own `screen_viewed` with `referrer_screen_id`, because without it the two most
+     * abandonable views in the flow are invisible.
+     */
+    MediaRecord("profile_media_record", "ProfileMediaRecord"),
+
+    /** The post-Stop review screen (states H and J): play, retake, keep. One row for both media. */
+    MediaReview("profile_media_review", "ProfileMediaReview"),
 }
 
 /**
@@ -290,6 +311,22 @@ object ProfileAnalytics {
     const val PROMPT_EXAMPLE_DISMISSED = "prompt_example_dismissed"
     const val PROMPT_CHAR_LIMIT_REACHED = "prompt_char_limit_reached"
     const val PROMPTS_MINIMUM_MET = "prompts_minimum_met"
+
+    // Family E, media half (SHOWUP-161). Every one of these ships with this ticket -- they are all
+    // `Not built` in events.json. `media_prompt_ranking_published` is deliberately absent: it is
+    // server-side and ships with the ranking job, not with the screen.
+    const val MEDIA_SCREEN_VIEWED = "media_screen_viewed"
+    const val MEDIA_PROMPT_LIST_OPENED = "media_prompt_list_opened"
+    const val MEDIA_PROMPT_SELECTED = "media_prompt_selected"
+    const val MEDIA_PROMPT_LIST_DISMISSED = "media_prompt_list_dismissed"
+    const val VIDEO_RECORDING_STARTED = "video_recording_started"
+    const val VOICE_RECORDING_STARTED = "voice_recording_started"
+    const val MEDIA_REVIEW_SHOWN = "media_review_shown"
+    const val MEDIA_PREVIEW_PLAYED = "media_preview_played"
+    const val VIDEO_PROMPT_RECORDED = "video_prompt_recorded"
+    const val VOICE_PROMPT_RECORDED = "voice_prompt_recorded"
+    const val MEDIA_RETAKEN = "media_retaken"
+    const val MEDIA_DELETED = "media_deleted"
 
     /** T1, class 0. `referrer_screen_id` is B2 and travels as null until Step 3 lands. */
     fun screenViewed(screen: ProfileScreen, referrer: ProfileScreen? = null) =
@@ -668,10 +705,275 @@ object ProfileAnalytics {
     }
 
     /** T2, class 0. **BLOCKED** — the skip path itself is an open question in ticket 02. */
-    fun stepSkipped(step: BasicsStep) = PROFILE_STEP_SKIPPED to buildMap {
-        put("step_id", step.stepId)
+    fun stepSkipped(step: BasicsStep, screen: ProfileScreen) =
+        PROFILE_STEP_SKIPPED to buildMap<String, Any> {
+            put("step_id", step.stepId)
+            // NEWLY REQUIRED AT v1.4 and missing from the build until SHOWUP-161. Without it every
+            // skippable step in the product reports the same shape and the funnel cannot say WHERE
+            // a user opted out -- which is the only question the event is asked.
+            put("screen_id", screen.screenId)
+            putAll(Stamp.of(0))
+        }
+
+    // -- family E, media (SHOWUP-161) -----------------------------------------
+    //
+    // `type` IS REQUIRED ON EVERY EVENT BELOW except the two screen views, and it is not optional
+    // in the way a nullable field is optional: one screen carries two media, so without it "a tap
+    // on the voice card and a tap on the video card are the same row, and nothing about this
+    // screen can be answered". [MediaKind] carries it, so the type system supplies it rather than
+    // a call site remembering to.
+    //
+    // NOTHING HERE EVER CARRIES THE RECORDING. No frame, no transcript, no waveform, no file path.
+    // `duration_s` and the prompt id are the whole payload: media of a user's face and voice is
+    // the most sensitive artefact in profile creation and none of it belongs in analytics.
+
+    /**
+     * T1, class 0. The screen's entry state -- fires on EVERY mount, including the return from an
+     * accepted take.
+     *
+     * NAMES THE PROMPTS IT SHOWED, and that is the whole reason it is separate from `screen_viewed`.
+     * The ranking moves, so a view that does not record which prompts were on the cards cannot be
+     * attributed afterwards, and a drop in recording rate cannot be told apart from a bad prompt.
+     *
+     * No `type`: it describes the screen, not a medium.
+     */
+    fun mediaScreenViewed(state: MediaState) = MEDIA_SCREEN_VIEWED to buildMap<String, Any> {
+        put("screen_id", ProfileScreen.Media.screenId)
+        put("has_video", state.hasVideo)
+        put("has_voice", state.hasVoice)
+        put("preview_video_prompt_id", state.preview(MediaKind.Video).id)
+        put("preview_voice_prompt_id", state.preview(MediaKind.Voice).id)
+        put("preview_source", state.previewSource.trackingValue)
         putAll(Stamp.of(0))
     }
+
+    /**
+     * T2, class 0. One screen carries two steps, so this fires once per medium.
+     *
+     * Section 2 gives `media_video` and `media_voice` the same `step_index` 3 for exactly this
+     * reason. Collapsing them into one event would give the group a step-3 funnel that cannot be
+     * read per medium, which is the thing every other decision on this screen is built to avoid.
+     */
+    fun mediaStepViewed(kind: MediaKind) = PROFILE_STEP_VIEWED to buildMap<String, Any> {
+        put("step_id", kind.stepId)
+        put("step_index", MediaKind.STEP_INDEX)
+        putAll(Stamp.of(0))
+    }
+
+    /** T2, class 0. Continue pressed with this medium recorded. */
+    fun mediaStepCompleted(kind: MediaKind, timeOnStepSeconds: Int) =
+        PROFILE_STEP_COMPLETED to buildMap<String, Any> {
+            put("step_id", kind.stepId)
+            put("time_on_step_s", timeOnStepSeconds)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T1, class 0. This medium was left empty.
+     *
+     * Fires from `Skip for now` AND from a Continue with nothing in the slot: "an empty Continue is
+     * a skip that the user did not call one". Carries the pair so a skip can be read against what
+     * the user did record -- somebody who filmed a video and skipped the voice note is not the same
+     * user as one who skipped both.
+     */
+    fun mediaStepSkipped(kind: MediaKind, state: MediaState) =
+        PROFILE_STEP_SKIPPED to buildMap<String, Any> {
+            put("step_id", kind.stepId)
+            put("screen_id", ProfileScreen.Media.screenId)
+            put("has_video", state.hasVideo)
+            put("has_voice", state.hasVoice)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T1, class 0. `See the prompts`, or `Retake` over something already recorded.
+     *
+     * `entry_point` (section 21) and `has_existing` answer different questions and both ship: one
+     * is intent, one is state. The registry note is explicit that `entry_point` is "never inferred
+     * from whether an artefact exists".
+     */
+    fun mediaPromptListOpened(kind: MediaKind, entryPoint: MediaEntryPoint, hasExisting: Boolean) =
+        MEDIA_PROMPT_LIST_OPENED to buildMap<String, Any> {
+            put("type", kind.trackingValue)
+            put("entry_point", entryPoint.trackingValue)
+            put("has_existing", hasExisting)
+            put("screen_id", ProfileScreen.Media.screenId)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T1, class 0. Fires on the COMMIT CTA, not on every row tap.
+     *
+     * `was_previewed` IS THE FIELD THAT KEEPS THE RANKING HONEST. The previewed prompt is far more
+     * visible than the other ten, so counting its own selections would make it win because it was
+     * shown. The job counts only `was_previewed: false` takes, and this is where that is recorded.
+     *
+     * `selections_before` counts the rows tried and abandoned before committing -- the difference
+     * between a user who knew what they wanted and one who read all eleven.
+     */
+    fun mediaPromptSelected(
+        kind: MediaKind,
+        prompt: MediaPrompt,
+        selectionsBefore: Int,
+        wasPreviewed: Boolean,
+    ) = MEDIA_PROMPT_SELECTED to buildMap<String, Any> {
+        put("type", kind.trackingValue)
+        // The section-20 id, never the display string: an edit to the copy must not orphan clips.
+        put("media_prompt_id", prompt.id)
+        put("position", prompt.position)
+        put("is_own_prompt", prompt.isOwn)
+        put("selections_before", selectionsBefore)
+        put("was_previewed", wasPreviewed)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, class 0. The list was closed without committing.
+     *
+     * The drop-off the eleven prompts are accountable for. `had_selection` splits "read it and
+     * left" from "picked one and lost their nerve", which are two different problems.
+     *
+     * `dismiss_method`, NOT `method` (section 23) -- `method` already carries `phone, apple, google`.
+     */
+    fun mediaPromptListDismissed(
+        kind: MediaKind,
+        method: SheetDismissMethod,
+        hadSelection: Boolean,
+        timeOnSheetSeconds: Int,
+    ) = MEDIA_PROMPT_LIST_DISMISSED to buildMap<String, Any> {
+        put("type", kind.trackingValue)
+        put("dismiss_method", method.trackingValue)
+        put("had_selection", hadSelection)
+        put("time_on_sheet_s", timeOnSheetSeconds)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, class 0. The viewfinder started capturing.
+     *
+     * Two event NAMES rather than one with `type`, because that is what family E registers --
+     * `video_recording_started` and `voice_recording_started`. The name carries the medium here and
+     * the payload carries it everywhere else; both are the registry's choice, not ours.
+     */
+    fun mediaRecordingStarted(
+        kind: MediaKind,
+        prompt: MediaPrompt,
+        attempt: Int,
+        isRetake: Boolean,
+    ) = when (kind) {
+        MediaKind.Video -> VIDEO_RECORDING_STARTED
+        MediaKind.Voice -> VOICE_RECORDING_STARTED
+    } to buildMap<String, Any> {
+        put("type", kind.trackingValue)
+        put("media_prompt_id", prompt.id)
+        put("is_own_prompt", prompt.isOwn)
+        put("attempt", attempt)
+        put("is_retake", isRetake)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, class 0. Stop, or the cap, produced a take and the review screen is up.
+     *
+     * THE DENOMINATOR FOR THE WHOLE REVIEW SCREEN: of the takes that reached it, how many were
+     * played, retaken or kept. `stop_reason: max_length` dominating means the cap is too short --
+     * which is the measurement that decides whether 10 and 15 seconds were the right numbers.
+     */
+    fun mediaReviewShown(
+        kind: MediaKind,
+        prompt: MediaPrompt,
+        durationMs: Int,
+        attempt: Int,
+        stopReason: MediaStopReason,
+    ) = MEDIA_REVIEW_SHOWN to buildMap<String, Any> {
+        put("type", kind.trackingValue)
+        put("media_prompt_id", prompt.id)
+        put("duration_s", durationSeconds(durationMs))
+        put("attempt", attempt)
+        put("stop_reason", stopReason.trackingValue)
+        putAll(Stamp.of(0))
+    }
+
+    /** T1, class 0. One play on review, with a running count. Multiple plays are expected. */
+    fun mediaPreviewPlayed(kind: MediaKind, attempt: Int, playCount: Int) =
+        MEDIA_PREVIEW_PLAYED to buildMap<String, Any> {
+            put("type", kind.trackingValue)
+            put("attempt", attempt)
+            put("play_count", playCount)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T1, class 0. The take was KEPT.
+     *
+     * ON `Use this clip` / `Use this recording`, NEVER ON STOP. Stopping produces a take; only
+     * accepting produces an artefact, and the gap between the two is the review screen's entire
+     * reason to exist. Firing this on Stop would report a completion for every abandoned take and
+     * make the per-prompt completion rate -- the thing the ranking is built on -- meaningless.
+     */
+    fun mediaPromptRecorded(
+        kind: MediaKind,
+        prompt: MediaPrompt,
+        durationMs: Int,
+        retakes: Int,
+        playsBeforeAccept: Int,
+    ) = when (kind) {
+        MediaKind.Video -> VIDEO_PROMPT_RECORDED
+        MediaKind.Voice -> VOICE_PROMPT_RECORDED
+    } to buildMap<String, Any> {
+        put("type", kind.trackingValue)
+        put("media_prompt_id", prompt.id)
+        put("is_own_prompt", prompt.isOwn)
+        put("duration_s", durationSeconds(durationMs))
+        put("retakes", retakes)
+        put("plays_before_accept", playsBeforeAccept)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, class 0. A take was discarded to record again.
+     *
+     * `from` IS REQUIRED (section 8): `review` is a take not yet kept, `media_card` is an artefact
+     * already on the profile. They are different products and one number for both means neither.
+     */
+    fun mediaRetaken(
+        kind: MediaKind,
+        from: MediaActedFrom,
+        prompt: MediaPrompt,
+        attempt: Int,
+        priorDurationMs: Int,
+        state: MediaState,
+    ) = MEDIA_RETAKEN to buildMap<String, Any> {
+        put("type", kind.trackingValue)
+        put("from", from.trackingValue)
+        put("media_prompt_id", prompt.id)
+        put("attempt", attempt)
+        put("prior_duration_s", durationSeconds(priorDurationMs))
+        put("had_video", state.hasVideo)
+        put("had_voice", state.hasVoice)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, class 0. An artefact was removed from the profile. State BEFORE the deletion.
+     *
+     * DELETING IS NOT RETAKING and the two must never be collapsed: a retake has a replacement
+     * coming, a delete does not. That is the difference between a user polishing a first take and
+     * one removing something already on their profile.
+     *
+     * No `from`: section 8 lists this event against that key, but the specification's payload table
+     * does not carry it and delete is only reachable from a filled card -- a field with one
+     * possible value measures nothing. Recorded in the conflicts log rather than resolved silently.
+     */
+    fun mediaDeleted(kind: MediaKind, artefact: MediaArtefact, state: MediaState) =
+        MEDIA_DELETED to buildMap<String, Any> {
+            put("type", kind.trackingValue)
+            put("media_prompt_id", artefact.promptId)
+            put("duration_s", durationSeconds(artefact.durationMs))
+            put("had_video", state.hasVideo)
+            put("had_voice", state.hasVoice)
+            putAll(Stamp.of(0))
+        }
 }
 
 /** Reports a catalogue-built event. Mirrors the welcome flow's helper exactly. */
