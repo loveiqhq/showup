@@ -121,7 +121,7 @@ fun StartupScreen(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(BrandIcon.Calendar, 16.dp, tint = Orange, strokeWidth = 2.dp)
+                Icon(BrandIcon.Calendar, 16.dp, tint = Orange, strokeWidth = 2f)
                 Text(
                     buildAnnotatedString {
                         withStyle(SpanStyle(color = Fg, fontWeight = FontWeight.Bold)) { append("234.000 Dates") }

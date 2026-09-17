@@ -284,7 +284,7 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
             color = if (anyLoading) Fg else Muted,
             fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
         )
-        Icon(BrandIcon.ArrowRight, 17.dp, tint = if (anyLoading) Fg else Muted, strokeWidth = 2.2.dp)
+        Icon(BrandIcon.ArrowRight, 17.dp, tint = if (anyLoading) Fg else Muted, strokeWidth = 2.2f)
     }
 }
 
@@ -343,7 +343,7 @@ fun CancelledNotice(provider: AuthMethod) {
         horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
         Box(Modifier.size(IconSizes.sm).background(Fg.copy(alpha = 0.10f), CircleShape), contentAlignment = Alignment.Center) {
-            Icon(BrandIcon.Close, 12.dp, tint = Fg, strokeWidth = 2.4.dp)
+            Icon(BrandIcon.Close, 12.dp, tint = Fg, strokeWidth = 2.4f)
         }
         Text(
             buildAnnotatedString {

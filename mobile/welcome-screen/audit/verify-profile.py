@@ -636,6 +636,64 @@ check("156 ios applies the exif transform",
 check("156 ios does not return the embedded thumbnail",
       "kCGImageSourceCreateThumbnailFromImageAlways" in picker_sw)
 
+# ── the two platforms test the same photo-grid behaviour ────────────────────
+#
+# The grid's boxes are POSITIONAL: emptying one leaves it empty and the next photo goes back into
+# it. That rule was changed on both platforms at once and the Kotlin suite was updated while the
+# Swift one was not, so CI caught it on a macOS runner ten minutes later -- the second time this
+# session that a behaviour change landed in one test suite and not its mirror.
+#
+# A checker cannot compare assertions. It can insist the mirrored SCENARIO exists on both sides,
+# which is what actually went missing.
+_photo_tests_kt = io.open(os.path.join(
+    MOBILE, "android-preview-project", "app", "src", "test", "java", "com", "showup",
+    "profile", "PhotosUploadStateTest.kt"), encoding="utf-8").read()
+_photo_tests_sw = io.open(os.path.join(
+    MOBILE, "ios-app", "ShowUpWelcomeTests", "PhotosReorderTests.swift"), encoding="utf-8").read()
+for scenario, kt_frag, sw_frag in (
+    ("deleting the second photo leaves the others in place",
+     "leaves the others exactly where they were", "LeavesTheOthersExactlyWhereTheyWere"),
+    ("a new photo goes into the box that was emptied",
+     "goes into the box that was emptied", "GoesIntoTheBoxThatWasEmptied"),
+    ("the first free box is the gap, not the end",
+     "first free box", "FirstFreeBoxIsTheGap"),
+):
+    check("156 %s (kotlin)" % scenario, kt_frag in _photo_tests_kt)
+    check("156 %s (swift)" % scenario, sw_frag in _photo_tests_sw)
+
+# ── the eyebrow labels are UPPERCASE, as the CSS transforms them ────────────
+#
+# The reference marks these `textTransform: 'uppercase'`. CSS applies that at render, so the
+# strings are authored in sentence case and the ticket quotes them that way -- which is why the
+# constants stay sentence case and the transform happens at the render site. Nothing did it, so
+# six labels shipped in sentence case; two more (`MAIN`, `FOR EXAMPLE`) had the capitals typed
+# into the constant by hand, which is exactly how the omission hid: some eyebrows looked right, so
+# none of them looked wrong.
+for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
+    check("158 section label is uppercased (%s)" % label, "eyebrowCase" in text)
+for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
+    check("156 counter row is uppercased (%s)" % label,
+          text.count("eyebrowCase") >= 2)
+
+# ── every drawn icon speaks the 24-grid, not Dp ─────────────────────────────
+#
+# `Icon` scales its paths with `withTransform { scale(s, s) }`. A stroke converted to pixels
+# OUTSIDE that transform is multiplied by the scale a SECOND time inside it, which is the bug this
+# guards: every icon in the app came out `density` times too heavy -- 2.6x on a 2.625x phone, fat
+# enough that the embrace CTA's arrowhead merged into a solid triangle. It looked right at exactly
+# one density, 1.0, so every preview agreed with it.
+#
+# `IconStrokeTest` measures the rendered ink. This keeps the CALL SITES from reintroducing the
+# unit that caused it.
+import glob as _glob
+_kt_sources = _glob.glob(os.path.join(KT, "**", "*.kt"), recursive=True)
+for _f in _kt_sources:
+    _body = io.open(_f, encoding="utf-8").read()
+    for _line in _body.splitlines():
+        if "Icon(" in _line and "strokeWidth" in _line and "CheckGlyph" not in _line:
+            check("icon stroke is grid units, not dp (%s)" % os.path.basename(_f),
+                  ".dp" not in _line.split("strokeWidth")[1])
+
 # ── both screens · Continue is never disabled ───────────────────────────────
 #
 # The group-wide rule, and the reason the specific requirement is ever read: a dead button cannot

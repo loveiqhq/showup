@@ -48,6 +48,19 @@ struct PickedPhoto: Identifiable, Equatable {
     /// 0…1 while in flight. A REAL value: the ring is determinate because an indeterminate spinner
     /// on a large upload says nothing about whether it is moving.
     var progress: Double = 0
+    /// WHICH BOX ON SCREEN THIS PHOTO IS IN, 0 to 5.
+    ///
+    /// The grid is six FIXED boxes, each filled or empty — that is how the reference draws it,
+    /// mapping `SLOTS[i]` positionally with its own hint. This list used to be dense and a box was
+    /// its index in it, which meant removing a photo from the middle slid every later photo one
+    /// box left: delete the second and the fourth appears to vanish, because the empty box moves
+    /// to the end. Then tapping the box you emptied was a REPLACE of the photo that had slid into
+    /// it, so a new photo could never go back where the old one was.
+    ///
+    /// Carried on the photo rather than implied by its position, because the list also has to stay
+    /// ordered for the drag and for the order sent to the server, and one of those two jobs was
+    /// always going to lose if a single index tried to do both.
+    var slot: Int = 0
 
     var id: Int64 { localId }
 
@@ -92,7 +105,12 @@ struct PhotoGridState: Equatable {
 
     /// What occupies a slot, or nil if it is empty.
     func at(_ index: Int) -> PickedPhoto? {
-        index >= 0 && index < photos.count ? photos[index] : nil
+        photos.first { $0.slot == index }
+    }
+
+    /// The lowest box nothing occupies, or nil when all six are taken.
+    func firstFreeSlot() -> Int? {
+        (0..<photosMax).first { at($0) == nil }
     }
 
     /// Whether this upload is the one that crosses the line.

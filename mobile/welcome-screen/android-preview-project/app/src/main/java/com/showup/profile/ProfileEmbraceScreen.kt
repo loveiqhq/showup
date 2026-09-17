@@ -208,7 +208,7 @@ fun ProfileEmbraceScreen(
             onClick = onContinue,
             modifier = Modifier.padding(bottom = 22.dp),
             variant = PrimaryButtonVariant.Sunset,
-            trailing = { Icon(BrandIcon.ArrowRight, 18.dp, tint = Color.White, strokeWidth = 2.dp) },
+            trailing = { Icon(BrandIcon.ArrowRight, 18.dp, tint = Color.White, strokeWidth = 2f) },
         )
     }
 }

@@ -103,13 +103,51 @@ final class PhotosReorderTests: XCTestCase {
         model.reorder(from: 2, to: 0)
         // The tile has already moved, before anything has been sent. A grid that waited for the
         // round trip would read as the drag having failed.
-        XCTAssertEqual(remoteIds(), [ids[2], ids[0], ids[1]])
+        // A SWAP, not a shuffle. The grid is six fixed boxes and any of them may be empty, so
+        // "take it out and push everything along" has nothing to mean — there is nothing to push
+        // into an empty box. Box 0 and box 2 trade places and box 1 does not move.
+        XCTAssertEqual(remoteIds(), [ids[2], ids[1], ids[0]])
 
         await until({ await self.spy.orders.count == 1 }, "the order was sent")
         let sent = await spy.orders
         // One call, carrying the complete list. Two drags racing as two diffs is exactly what
         // sending the whole order avoids.
-        XCTAssertEqual(sent.first, [ids[2], ids[0], ids[1]])
+        XCTAssertEqual(sent.first, [ids[2], ids[1], ids[0]])
+    }
+
+    func testDeletingTheSecondPhotoLeavesTheOthersExactlyWhereTheyWere() async {
+        for slot in 0..<4 { await pick(slot: slot) }
+        let ids = (0..<4).map { model.grid.at($0)?.remoteId }
+
+        model.remove(1)
+
+        // THE BUG THIS EXISTS FOR, reported from a device: the list used to close up, so deleting
+        // the second photo slid the third and fourth one box left and the empty box appeared at
+        // the END. It read as "the last one was deleted" and there was no way to put a new photo
+        // back where the old one had been.
+        XCTAssertEqual(model.grid.at(0)?.remoteId, ids[0])
+        XCTAssertNil(model.grid.at(1))
+        XCTAssertEqual(model.grid.at(2)?.remoteId, ids[2])
+        XCTAssertEqual(model.grid.at(3)?.remoteId, ids[3])
+        XCTAssertEqual(model.grid.confirmedCount, 3)
+    }
+
+    func testANewPhotoGoesIntoTheBoxThatWasEmptied() async {
+        for slot in 0..<4 { await pick(slot: slot) }
+        model.remove(1)
+        await pick(slot: 1)
+        // Back in the second box, not appended to the end.
+        XCTAssertEqual(model.grid.at(1)?.status, .confirmed)
+        XCTAssertEqual(model.grid.confirmedCount, 4)
+        XCTAssertEqual(model.grid.photos.count, 4)
+    }
+
+    func testTheFirstFreeBoxIsTheGapNotTheEnd() async {
+        for slot in 0..<4 { await pick(slot: slot) }
+        XCTAssertEqual(model.grid.firstFreeSlot(), 4)
+        model.remove(2)
+        // A hole in the middle is the first place a photo should land.
+        XCTAssertEqual(model.grid.firstFreeSlot(), 2)
     }
 
     func testADragThatChangesNothingSendsNothing() async {

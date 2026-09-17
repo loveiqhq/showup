@@ -352,7 +352,7 @@ fun BoxScope.RefusalToast(
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, 15.dp, tint = Color.White, strokeWidth = 2.2.dp)
+            Icon(icon, 15.dp, tint = Color.White, strokeWidth = 2.2f)
             Text(
                 message,
                 color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,

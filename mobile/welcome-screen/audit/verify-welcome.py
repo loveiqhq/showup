@@ -197,7 +197,12 @@ check("the arrow is not used for back (kotlin)", "BrandIcon.ArrowLeft" not in ve
 check("the arrow is not used for back (swift)", ".arrowLeft" not in ver_sw)
 check("back chevron is 24 (kotlin)", "BrandIcon.ChevronLeft, 24.dp" in ver_kt)
 check("back chevron is 24 (swift)", "icon: .chevronLeft, size: 24" in ver_sw)
-check("back chevron stroke 2 (kotlin)", "strokeWidth = 2.dp" in ver_kt)
+# GRID UNITS ON BOTH PLATFORMS, not Dp. Swift always passed a bare number; Kotlin typed the
+# parameter as `Dp` and converted it with `toPx()` OUTSIDE the canvas transform that scales the
+# 24-grid, so every stroke was multiplied by the scale twice and came out `density` times too
+# heavy -- 2.6x on a 2.625x phone. `IconStrokeTest` measures the ink; this keeps the call sites
+# speaking the same units the design authors its SVGs in.
+check("back chevron stroke 2 (kotlin)", "strokeWidth = 2f" in ver_kt)
 check("back chevron stroke 2 (swift)", "stroke: 2" in ver_sw)
 # The chevron's hit area comes from the shared floor now, not a hardcoded 44 in this screen.
 # 44 and not the tutorial's 48: that disagreement is recorded in TapTarget.kt and in

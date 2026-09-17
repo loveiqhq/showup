@@ -48,6 +48,15 @@ package com.showup.profile
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import android.graphics.ImageDecoder
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +82,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -110,6 +120,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.ComponentSizes
+import com.showup.designsystem.eyebrowCase
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerFg
@@ -271,23 +282,82 @@ private val SlotHeight = PHOTO_SLOT_HEIGHT.dp
 /**
  * What a picked photo looks like while it is on screen.
  *
- * A neutral lilac block rather than a decoded image, for now. The ticket is explicit that
- * `PortraitPlaceholder` is placeholder art and that "the slots need real photography before any
- * user-facing build" -- and on a device this is where the picked image goes, at
- * [ContentScale.Crop], keyed on the photo's local id.
+ * THE ACTUAL PHOTO, and it used to be a lilac rectangle. The comment that stood here said the
+ * decoded image was where it "goes on a device", which is a note-to-self that shipped: every slot
+ * rendered the same block whatever the user picked, so four photos in a row were
+ * indistinguishable and there was no way to tell a mis-tap from a correct one.
  *
- * Drawn rather than left blank because every state above it -- the dimming, the ring, the remove
- * pip, the MAIN badge -- is a treatment OVER an image, and a white rectangle would not show
- * whether any of them has enough contrast.
+ * The ticket is specific that this matters -- the slot is occupied immediately, in flight, "with
+ * the picked image showing", because the user has to see WHICH photo is uploading, which an empty
+ * slot with a spinner cannot say.
+ *
+ * THE LILAC BLOCK IS STILL THE FALLBACK, and not only for previews: a URI that cannot be decoded
+ * has to render as something, and every treatment above this -- the dimming, the ring, the remove
+ * pip, the MAIN badge -- is drawn OVER an image and needs a surface with enough contrast to be
+ * judged against. A white rectangle would hide exactly the thing a reviewer is looking for.
+ *
+ * DECODED AT SLOT SIZE, NOT FULL SIZE. Six 12-megapixel bitmaps at full resolution is about 280 MB
+ * of pixels for six tiles a couple of hundred points across. `uploadTargetSize` is the upload's
+ * rule; this is the screen's, and it is far smaller.
  */
 @Composable
-private fun PhotoFill(modifier: Modifier = Modifier) {
-    Box(
-        modifier.background(
-            Brush.linearGradient(colorStops = LilacStops.toTypedArray()),
-        ),
-    )
+private fun PhotoFill(uri: String? = null, modifier: Modifier = Modifier) {
+    val bitmap = rememberSlotBitmap(uri)
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            // Null: the photo is decoration for a control the user already labelled by choosing
+            // it, and the slot itself carries the description.
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        Box(
+            modifier.background(
+                Brush.linearGradient(colorStops = LilacStops.toTypedArray()),
+            ),
+        )
+    }
 }
+
+/**
+ * Decodes a picked photo once per uri, at a size that suits a tile.
+ *
+ * `produceState` rather than `LaunchedEffect` plus a `mutableStateOf`: it is the same thing with
+ * the cancellation already written, and the key is the uri, so scrolling or a recomposition does
+ * not decode again.
+ *
+ * NULL ON ANYTHING THAT IS NOT A READABLE IMAGE, which includes the previews' fake `picked://`
+ * uris and the debug stand-in's `offline://photo/3`. Those fall through to the lilac block, which
+ * is why the previews and the fit tests still render exactly what they did before.
+ */
+@Composable
+private fun rememberSlotBitmap(uri: String?): ImageBitmap? {
+    val context = LocalContext.current
+    return produceState<ImageBitmap?>(initialValue = null, uri) {
+        val source = uri ?: return@produceState
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val decoder = ImageDecoder.createSource(context.contentResolver, source.toUri())
+                ImageDecoder.decodeBitmap(decoder) { d, info, _ ->
+                    d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    uploadTargetSize(info.size.width, info.size.height, SLOT_DECODE_MAX_EDGE)
+                        ?.let { (w, h) -> d.setTargetSize(w, h) }
+                }.asImageBitmap()
+            }.getOrNull()
+        }
+    }.value
+}
+
+/**
+ * The longest edge a slot's bitmap is decoded at.
+ *
+ * A tile is about 180dp, so 512 is generous even at 3x and it keeps six of them near 3 MB rather
+ * than near 280. Smaller than [UPLOAD_MAX_EDGE] on purpose: what is SENT and what is SHOWN are
+ * different jobs, and the screen has six of these at once.
+ */
+private const val SLOT_DECODE_MAX_EDGE = 512
 
 /**
  * One tile in the grid. Four renderings, one height.
@@ -310,8 +380,9 @@ private fun PhotoSlot(
 ) {
     when (photo?.status) {
         UploadStatus.Failed -> FailedSlot(modifier, onRetry)
-        UploadStatus.InFlight -> UploadingSlot(modifier, photo.progress)
-        UploadStatus.Confirmed -> FilledSlot(modifier, hint, isMain, onTap, onRemove)
+        UploadStatus.InFlight -> UploadingSlot(modifier, photo.progress, photo.uri)
+        UploadStatus.Confirmed ->
+            FilledSlot(modifier, hint, isMain, onTap, onRemove, photo.uri)
         null -> EmptySlot(modifier, hint, optional, cta, onTap)
     }
 }
@@ -405,13 +476,13 @@ private fun Modifier.dashedOutlineSolid(color: Color): Modifier = drawBehind {
  * it is moving, which an indeterminate spinner cannot say either.
  */
 @Composable
-private fun UploadingSlot(modifier: Modifier, progress: Float) {
+private fun UploadingSlot(modifier: Modifier, progress: Float, uri: String?) {
     Box(
         modifier
             .height(SlotHeight)
             .clip(RoundedCornerShape(SlotRadius)),
     ) {
-        PhotoFill(Modifier.fillMaxSize())
+        PhotoFill(uri, Modifier.fillMaxSize())
         Column(
             Modifier
                 .fillMaxSize()
@@ -453,6 +524,7 @@ private fun FilledSlot(
     isMain: Boolean,
     onTap: () -> Unit,
     onRemove: () -> Unit,
+    uri: String?,
 ) {
     Box(
         modifier
@@ -460,7 +532,7 @@ private fun FilledSlot(
             .clip(RoundedCornerShape(SlotRadius))
             .clickable(role = Role.Button, onClick = onTap),
     ) {
-        PhotoFill(Modifier.fillMaxSize())
+        PhotoFill(uri, Modifier.fillMaxSize())
 
         // REMOVE IS IMMEDIATE AND HAS NO CONFIRMATION. Re-adding is one tap; a dialog here is
         // friction on the screen with the most taps in the flow.
@@ -483,7 +555,7 @@ private fun FilledSlot(
                     .background(Muted),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(BrandIcon.Close, 14.dp, tint = Color.White, strokeWidth = 2.6.dp)
+                Icon(BrandIcon.Close, 14.dp, tint = Color.White, strokeWidth = 2.6f)
             }
         }
 
@@ -574,7 +646,7 @@ private fun EmptySlot(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(BrandIcon.Plus, 20.dp, tint = pipInk, strokeWidth = 2.4.dp)
+            Icon(BrandIcon.Plus, 20.dp, tint = pipInk, strokeWidth = 2.4f)
         }
         Text(
             hint,
@@ -613,7 +685,7 @@ private fun PhotoCount(filled: Int) {
         // "Photos · 4 required, 6 m…" -- which cuts the maximum out of the sentence that states
         // it. nowrap describes the 1x layout; it is not a promise to somebody using large type.
         Text(
-            PhotosCopy.COUNT_LABEL,
+            PhotosCopy.COUNT_LABEL.eyebrowCase(),
             modifier = Modifier.weight(1f, fill = false),
             color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.ExtraBold,
             fontSize = 10.5.sp, letterSpacing = 0.08.em,
@@ -662,7 +734,7 @@ private fun AccessCard(
                 Modifier.size(34.dp).clip(CircleShape).background(Purple),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(BrandIcon.Lock, 17.dp, tint = Color.White, strokeWidth = 2.2.dp)
+                Icon(BrandIcon.Lock, 17.dp, tint = Color.White, strokeWidth = 2.2f)
             }
             Column {
                 Text(
@@ -853,7 +925,7 @@ private fun SheetRow(
             Modifier.size(38.dp).clip(CircleShape).background(pipBg),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, iconSize, tint = pipInk, strokeWidth = 2.2.dp)
+            Icon(icon, iconSize, tint = pipInk, strokeWidth = 2.2f)
         }
         Column(Modifier.weight(1f)) {
             Text(
@@ -884,7 +956,7 @@ private fun SheetRow(
                 )
             }
         } else {
-            Icon(BrandIcon.ChevronRight, 17.dp, tint = Fg, strokeWidth = 2.2.dp)
+            Icon(BrandIcon.ChevronRight, 17.dp, tint = Fg, strokeWidth = 2.2f)
         }
     }
 }
@@ -994,7 +1066,7 @@ fun ProfilePhotosScreen(
                             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                         ) {
                             Text(
-                                PhotosCopy.OPTIONAL_DIVIDER,
+                                PhotosCopy.OPTIONAL_DIVIDER.eyebrowCase(),
                                 color = Subtle, fontFamily = Manrope,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 10.5.sp, letterSpacing = 0.08.em,
@@ -1029,7 +1101,7 @@ fun ProfilePhotosScreen(
                         ) {
                             // 16, between IconSizes.sm (20) and nothing smaller. A glyph inside a pill next to
                             // a 14.5 label, which neither icon token is sized for.
-                            Icon(BrandIcon.Plus, 16.dp, tint = Purple, strokeWidth = 2.6.dp)
+                            Icon(BrandIcon.Plus, 16.dp, tint = Purple, strokeWidth = 2.6f)
                             Text(
                                 PhotosCopy.ADD_MORE,
                                 color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
@@ -1046,7 +1118,7 @@ fun ProfilePhotosScreen(
                         horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(BrandIcon.Sliders, 13.dp, tint = Subtle, strokeWidth = 2.dp)
+                        Icon(BrandIcon.Sliders, 13.dp, tint = Subtle, strokeWidth = 2f)
                         Text(
                             PhotosCopy.REORDER_HINT,
                             color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,

@@ -494,12 +494,30 @@ fun Icon(
     icon: BrandIcon,
     size: Dp,
     tint: Color = Fg,
-    strokeWidth: Dp = 1.7.dp,
+    /**
+     * Stroke weight IN GRID UNITS, exactly as the design's SVGs author it.
+     *
+     * NOT Dp, and that is the whole point. It used to be, and it was converted with `toPx()`
+     * OUTSIDE the `scale(s, s)` below and then drawn INSIDE it -- so every stroke was multiplied
+     * by the scale a second time and came out `density` times too thick. On a 2.625x phone every
+     * icon in the app was 2.6x heavier than drawn, and the arrow on the embrace CTA was fat
+     * enough that its two head strokes merged into a solid triangle.
+     *
+     * It looked correct at exactly one density, 1.0, which is why previews never showed it and
+     * the fit harness could not: that harness measures the space a control occupies, and this is
+     * a bug in the ink inside it.
+     *
+     * A [Float] rather than a [Dp] because the value belongs to the 24-grid the paths are drawn
+     * on, and the scale below is what turns it into pixels. Typing it as Dp is what invited the
+     * conversion that broke it.
+     */
+    strokeWidth: Float = 1.7f,
     opticalCentre: Boolean = false,
 ) {
     Canvas(Modifier.size(size)) {
         val s = this.size.width / 24f                      // all paths are authored on a 24 grid
-        val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        // The width is in grid units and the transform scales it, exactly like the coordinates.
+        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
         val nudge = if (opticalCentre) inkOffset(icon) else Offset.Zero
         withTransform({ scale(s, s, pivot = Offset.Zero); translate(nudge.x, nudge.y) }) {
             when (icon) {
