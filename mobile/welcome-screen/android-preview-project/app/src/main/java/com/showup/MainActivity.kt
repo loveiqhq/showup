@@ -7,8 +7,11 @@ import androidx.compose.runtime.setValue
 import com.showup.designsystem.Motion
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,6 +24,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -34,8 +38,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.showup.tutorial.MatchMeansMeetScreen
@@ -45,7 +47,6 @@ import com.showup.tutorial.ShowUpEveryTimeScreen
 import com.showup.tutorial.ThirtyMinutesScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.createSavedStateHandle
-import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +69,8 @@ import com.showup.profile.ResumePoint
 import com.showup.profile.resumePoint
 import com.showup.profile.ProfileScreen
 import com.showup.profile.PromptsViewModel
+import com.showup.profile.UPLOAD_JPEG_QUALITY
+import com.showup.profile.uploadTargetSize
 import com.showup.welcome.PhoneAuthRepository
 import com.showup.welcome.PhoneAuthViewModel
 import com.showup.profile.BasicsViewModel
@@ -513,19 +516,28 @@ class MainActivity : ComponentActivity() {
 
             // The email code, on screen, in a debug build only.
             //
-            // The phone flow has had this since the day it stopped faking its code; the email
-            // flow never did, because `/auth/email/start` answers 204 with no body and the
-            // challenge carries no `devCode` to show. With no backend running that left the
-            // verification screen unwalkable: a code was required and nothing anywhere could
-            // tell you what it was.
+            // TWO SOURCES, BECAUSE THERE ARE TWO WAYS TO BE TESTING. The offline stand-in issues
+            // a code when nothing answers; a development server sends the real one back in the
+            // challenge, because `AUTH_EXPOSE_OTP` defaults to on outside production.
+            //
+            // The server's is preferred when both exist: if a server answered, its code is the
+            // one that will verify, and the stand-in's is a leftover from before it came up.
+            //
+            // THIS USED TO SHOW ONLY THE STAND-IN'S, and the comment here asserted that
+            // `/auth/email/start` "answers 204 with no body". That was true when it was written
+            // and stopped being true when the route started returning `OtpChallengeResponseDto`.
+            // The cost was exactly backwards from the intent: the screen was walkable with NO
+            // backend and unwalkable with a REAL one, because the only code on screen came from
+            // the stand-in, which is not running when a server answers.
             //
             // Three conditions, each closing a different way this could leak: BuildConfig.DEBUG
-            // keeps it out of any release build, the null check keeps it absent when the code
-            // came from a real server rather than the offline stand-in, and the screen check
-            // keeps it off every other screen.
+            // keeps it out of any release build, the null check keeps it absent when neither
+            // source produced a code, and the screen check keeps it off every other screen.
+            val serverEmailCode = basicsState.devCode
             val offlineEmailCode = DevOfflineBasics.lastIssued
+            val emailCode = serverEmailCode ?: offlineEmailCode
             if (BuildConfig.DEBUG &&
-                offlineEmailCode != null &&
+                emailCode != null &&
                 screen == FlowScreen.ProfileVerifyEmail
             ) {
                 Row(
@@ -543,7 +555,11 @@ class MainActivity : ComponentActivity() {
                         fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 0.7.sp,
                     )
                     Text(
-                        "OFFLINE · no server · the code is $offlineEmailCode",
+                        if (serverEmailCode != null) {
+                            "the code is $emailCode"
+                        } else {
+                            "OFFLINE · no server · the code is $emailCode"
+                        },
                         color = Color.White, fontFamily = Manrope,
                         fontWeight = FontWeight.Medium, fontSize = 11.sp,
                     )
@@ -574,17 +590,62 @@ class MainActivity : ComponentActivity() {
  * Returns null when the URI cannot be read at all: a revoked grant, or a file deleted between
  * picking and reading. The caller shows the failed slot, which is what a user can act on.
  */
+/**
+ * Reads a picked image and normalises it to something the server will actually accept.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * TWO REAL FAILURES THIS FIXES, BOTH OF WHICH LOOKED IDENTICAL TO THE USER
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * This used to send the picked file's bytes untouched, with whatever MIME type the content
+ * resolver reported. On a modern Android phone that is `image/heif` or `image/heic`, and the
+ * server's `ALLOWED_TYPES` carries jpeg, png and webp -- so the upload came back 415. A full
+ * resolution photo also runs past the server's 8 MB cap and came back 413.
+ *
+ * Both surfaced on screen as `Upload failed` with a `Retry` that could never succeed, because
+ * retrying re-sent exactly the same bytes. The slot's one failure state is the right design -- a
+ * user can do nothing different about a 500 than about a dropped connection -- but it is only
+ * honest when the failure is actually transient, and neither of these was.
+ *
+ * DECODED DOWNSAMPLED, NOT DECODED AND THEN SHRUNK. `ImageDecoder` applies the target size while
+ * it reads, so a 12 MP photo never exists in memory at 12 MP. Decoding first and scaling after
+ * would allocate roughly 48 MB for an image we are about to throw away, which on a device already
+ * short of memory is the difference between a slow screen and a dead one.
+ *
+ * It also APPLIES EXIF ORIENTATION for us, which matters because we re-encode: `BitmapFactory`
+ * would have handed back the raw pixels and dropped the rotation tag with them, so every photo
+ * taken in portrait would have uploaded on its side.
+ *
+ * `ALLOCATOR_SOFTWARE` because a hardware bitmap has no pixels in application memory and cannot be
+ * compressed; the default allocator would make `compress` fail on exactly the devices that support
+ * it.
+ */
 private suspend fun readPickedImage(context: Context, uri: String): PickedBytes? =
     withContext(Dispatchers.IO) {
         runCatching {
-            val parsed = Uri.parse(uri)
-            val resolver = context.contentResolver
-            val bytes = resolver.openInputStream(parsed)?.use { it.readBytes() } ?: return@runCatching null
-            val mime = resolver.getType(parsed) ?: "image/jpeg"
-            // A name the server can log and a person can recognise. NEVER the library's own
-            // display name: that is the user's filename and is not ours to send.
-            val extension = mime.substringAfterLast('/', "jpg")
-            PickedBytes(bytes = bytes, mimeType = mime, fileName = "photo.$extension")
+            val source = ImageDecoder.createSource(context.contentResolver, uri.toUri())
+            val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                // The arithmetic is in `uploadTargetSize`, where a JVM test can reach it. Null
+                // means the photo is already small enough and the decoder is left alone.
+                uploadTargetSize(info.size.width, info.size.height)?.let { (w, h) ->
+                    decoder.setTargetSize(w, h)
+                }
+            }
+            val out = ByteArrayOutputStream()
+            // CHECKED, NOT ASSUMED. `compress` returns false when it could not encode -- a
+            // bitmap in a config JPEG cannot represent, or a device that has just run out of
+            // memory, which is exactly the condition this whole function exists to be careful
+            // about. Ignoring it would upload an empty body, and an empty body is a 400 that
+            // reads on screen as the same `Upload failed` as everything else.
+            val encoded = bitmap.compress(Bitmap.CompressFormat.JPEG, UPLOAD_JPEG_QUALITY, out)
+            bitmap.recycle()
+            if (!encoded || out.size() == 0) return@runCatching null
+            // ALWAYS JPEG, whatever came in. The server names three types it accepts and this is
+            // the one every path can produce; the extension matches so a person reading a log sees
+            // the truth. NEVER the library's own display name -- that is the user's filename and
+            // is not ours to send.
+            PickedBytes(bytes = out.toByteArray(), mimeType = "image/jpeg", fileName = "photo.jpg")
         }.getOrNull()
     }
 

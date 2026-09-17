@@ -24,7 +24,16 @@ import ShowUpAPI
 /// The answer to "send this address a code".
 enum SendCodeResult: Equatable {
     /// Both timestamps come from the server, and both are used rather than assumed.
-    case sent(expiresAt: Date, resendAvailableAt: Date)
+    /// The challenge was raised.
+    ///
+    /// `devCode` is the code itself, when the server chose to send it back. `AUTH_EXPOSE_OTP`
+    /// defaults to on outside production, so a development backend answers `/auth/email/start`
+    /// with the six digits it just mailed. The client used to drop them, which left the
+    /// verification screen unwalkable against a REAL backend — the phone flow had a dev strip
+    /// and the email flow had none at all, so the only way to learn the code was the server log.
+    ///
+    /// NIL IN PRODUCTION, always: the server omits it and nothing here invents one.
+    case sent(expiresAt: Date, resendAvailableAt: Date, devCode: String?)
     /// 429. The previous code's cooldown has not elapsed.
     case tooSoon
     /// 400 — the address belongs to another account.
@@ -69,7 +78,9 @@ struct BasicsRepository: Sendable {
             switch response {
             case .ok(let ok):
                 let json = try ok.body.json
-                return .sent(expiresAt: json.expiresAt, resendAvailableAt: json.resendAvailableAt)
+                return .sent(expiresAt: json.expiresAt,
+                             resendAvailableAt: json.resendAvailableAt,
+                             devCode: json.devCode)
             case .badRequest:
                 // The server's only 400 on this route is the uniqueness check.
                 return .emailInUse

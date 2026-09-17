@@ -19,9 +19,11 @@
 //  not choose what they look like.
 //
 
+import ImageIO
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// The system photo picker. NO PERMISSION IS REQUESTED, and none is declared in the Info.plist.
 ///
@@ -53,18 +55,20 @@ struct SystemPhotoPicker: UIViewControllerRepresentable {
         init(onPicked: @escaping (PickedBytes?) -> Void) { self.onPicked = onPicked }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            guard let provider = results.first?.itemProvider,
-                  provider.canLoadObject(ofClass: UIImage.self) else {
+            guard let provider = results.first?.itemProvider else {
                 onPicked(nil)
                 return
             }
-            provider.loadObject(ofClass: UIImage.self) { [onPicked] object, _ in
-                // JPEG at 0.9 rather than the original bytes: a modern iPhone photo is HEIC, which
-                // the backend's own pipeline does not commit to accepting, and re-encoding here is
-                // one line against a conversion step nobody has written. Quality 0.9 is visually
-                // lossless at the sizes a profile card uses.
-                guard let image = object as? UIImage,
-                      let data = image.jpegData(compressionQuality: 0.9) else {
+            // THE ORIGINAL BYTES, NOT A DECODED IMAGE. `loadObject(ofClass: UIImage.self)` hands
+            // back a fully decoded photo — around 48 MB for a 12 megapixel shot — and this screen
+            // can have six in flight. Asking for the data lets `downscaledUploadJPEG` decode once,
+            // already downscaled, and never hold the full-resolution pixels at all.
+            //
+            // JPEG on the way out whatever came in: a modern iPhone photo is HEIC, and the
+            // server's allowed types are jpeg, png and webp.
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) {
+                [onPicked] original, _ in
+                guard let original, let data = downscaledUploadJPEG(from: original) else {
                     Task { @MainActor in onPicked(nil) }
                     return
                 }
@@ -112,8 +116,11 @@ struct SystemCameraPicker: UIViewControllerRepresentable {
             _ picker: UIImagePickerController,
             didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
         ) {
+            // Downscaled for the same reason as the library path: a capture off a modern
+            // camera is comfortably past the server's 8 MB limit at full resolution, and a 413 is
+            // a failed slot whose Retry re-sends exactly the same too-large bytes.
             guard let image = info[.originalImage] as? UIImage,
-                  let data = image.jpegData(compressionQuality: 0.9) else {
+                  let data = downscaledUploadJPEG(from: image) else {
                 onPicked(nil)
                 return
             }
@@ -124,6 +131,61 @@ struct SystemCameraPicker: UIViewControllerRepresentable {
             onPicked(nil)
         }
     }
+}
+
+/// Turns a picked image's original bytes into a downscaled JPEG the server will accept.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// WHY THIS DECODES THROUGH ImageIO RATHER THAN UIImage
+/// ─────────────────────────────────────────────────────────────────────────────
+///
+/// `UIImage(data:)` decodes the whole photo before anything can be done with it: a 12 megapixel
+/// shot is about 48 MB of pixels, held while it is re-encoded, and this screen can have six of
+/// them in flight. `CGImageSourceCreateThumbnailAtIndex` reads the header, decodes ONCE at the
+/// size asked for, and never materialises the full-resolution image at all.
+///
+/// `kCGImageSourceCreateThumbnailWithTransform` applies the EXIF orientation while it does so,
+/// which is not optional here: re-encoding drops the orientation tag along with the container, so
+/// without it every photo taken in portrait would upload on its side.
+///
+/// `...FromImageAlways` because many photos carry an embedded thumbnail of their own, a couple of
+/// hundred pixels wide, and returning that instead of the photo is the one failure mode of this
+/// API that looks like it worked.
+///
+/// A smaller image is returned as it is: `MaxPixelSize` is a ceiling, not a target, and upscaling
+/// a small photo would add bytes and no detail.
+func downscaledUploadJPEG(from data: Data) -> Data? {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+    let options: [CFString: Any] = [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceCreateThumbnailWithTransform: true,
+        kCGImageSourceThumbnailMaxPixelSize: uploadMaxEdge,
+    ]
+    guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    else { return nil }
+    return UIImage(cgImage: cgImage).jpegData(compressionQuality: uploadJPEGQuality)
+}
+
+/// The same, for a `UIImage` that never had a file behind it — a camera capture.
+///
+/// `UIGraphicsImageRenderer` draws into a format that matches the image rather than the screen, so
+/// there is no second copy at device scale. The image arrives already oriented from the camera, so
+/// there is no transform to apply here.
+func downscaledUploadJPEG(from image: UIImage) -> Data? {
+    // The arithmetic is in `uploadTargetSize`, where an XCTest can reach it, and it is the same
+    // function the Kotlin side calls. Nil means the photo is already small enough.
+    guard let size = uploadTargetSize(width: Int(image.size.width.rounded()),
+                                      height: Int(image.size.height.rounded())) else {
+        return image.jpegData(compressionQuality: uploadJPEGQuality)
+    }
+    let target = CGSize(width: size.width, height: size.height)
+    let format = UIGraphicsImageRendererFormat.default()
+    format.scale = 1
+    format.opaque = true
+    let resized = UIGraphicsImageRenderer(size: target, format: format).image { _ in
+        image.draw(in: CGRect(origin: .zero, size: target))
+    }
+    return resized.jpegData(compressionQuality: uploadJPEGQuality)
 }
 
 /// Opens this app's settings page.

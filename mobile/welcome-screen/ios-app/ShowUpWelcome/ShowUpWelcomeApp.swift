@@ -203,8 +203,52 @@ private struct TutorialFlow: View {
             }
     }
 
+    /// False in any release build.
+    ///
+    /// A computed constant rather than an `#if` wrapped around the ViewBuilder branch: a
+    /// conditional-compilation block inside a view body changes what the body RETURNS between
+    /// configurations, which is how a debug-only view ends up altering release layout. This way
+    /// both builds compile the same view and one of them never shows it. The same shape as
+    /// `SignUpFlow.showDevStrip`, for the same reason.
+    private var showDevStrip: Bool {
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    /// The email verification code, on screen, in a debug build only.
+    ///
+    /// THE PHONE FLOW HAS HAD THIS AND THE EMAIL FLOW NEVER DID, which made the verification
+    /// screen unwalkable against a real backend: a code was required and nothing on screen could
+    /// tell you what it was, so the only way through was reading the server log. The challenge
+    /// carries the code whenever `AUTH_EXPOSE_OTP` is on, which it is by default outside
+    /// production.
+    ///
+    /// THREE conditions, each closing a different leak: the nil check keeps it absent when a
+    /// server chooses not to expose it, the screen check keeps it off every other screen, and
+    /// `showDevStrip` is false in any release build.
+    @ViewBuilder private var emailDevStrip: some View {
+        if showDevStrip, let devCode = basics.devCode, screen == .profileVerifyEmail {
+            HStack(spacing: Spacing.sm) {
+                Text("TEST BUILD")
+                    .font(F.manrope(9, .bold))
+                    .tracking(0.7)
+                    .foregroundColor(Color(hex: 0xFFAE8F))
+                Text("the code is \(devCode)")
+                    .font(F.manrope(11, .medium))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color(hex: 0x1D1129).opacity(0.90)))
+            .padding(.top, Spacing.xs)
+        }
+    }
+
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             Group {
                 // Exhaustive on purpose. ShowUpEveryTime used to be the `default:` branch, which
                 // meant any unexpected value rendered card 6; every screen is named now and the
@@ -364,6 +408,8 @@ private struct TutorialFlow: View {
             // transitions.
             .id(screen.rawValue)
             .transition(transition)
+
+            emailDevStrip
         }
         // ── resuming a half-finished profile (flow rule 4a) ─────────────────
         //
