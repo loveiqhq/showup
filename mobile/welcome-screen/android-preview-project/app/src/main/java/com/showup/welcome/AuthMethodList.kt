@@ -45,6 +45,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -179,10 +184,47 @@ fun AuthMethodList(
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             MethodButton(primary, onSelect, loading, errorFor == primary, loading != null, isPrimary = true)
+            // ONE WIDTH FOR THE SECONDARY ROWS, so their marks land on a single line.
+            //
+            // The buttons stay CENTRED, which is what the design system's `Button` specifies. What
+            // changes is that the icon-plus-label group is the same width on each of them, and a
+            // set of equal-width groups centres to the same x.
+            //
+            // The primary is excluded on purpose: it is the full-width sunset CTA and is not one
+            // of the set. Padding it to the same width would push its own mark off centre to line
+            // up with three buttons it does not belong to.
+            val secondaryLabelWidth = rememberSharedLabelWidth(rest.map { methodSpec(it).label })
             rest.forEach { m ->
-                MethodButton(m, onSelect, loading, errorFor == m, loading != null, isPrimary = false)
+                MethodButton(
+                    m, onSelect, loading, errorFor == m, loading != null, isPrimary = false,
+                    labelWidth = secondaryLabelWidth,
+                )
             }
             if (onSkip != null) SkipRow(onSkip, anyLoading = loading != null)
+        }
+    }
+}
+
+/**
+ * The width of the widest of a set of labels, measured in the style the button draws them in.
+ *
+ * MEASURED, NOT GUESSED. A hand-tuned number is right for one language, one font scale and one
+ * device, and this project has shipped exactly that mistake before -- the shared rule is that text
+ * is measured rather than assumed. `rememberTextMeasurer` lays the string out with the real font,
+ * which is the only thing that knows how wide `Continue with Facebook` is in Manrope Bold at
+ * whatever size the user has chosen.
+ *
+ * Keyed on the labels AND the font scale, so turning the system font up re-measures rather than
+ * clipping into a width computed at 1x.
+ */
+@Composable
+private fun rememberSharedLabelWidth(labels: List<String>): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    return remember(labels, density.density, density.fontScale) {
+        with(density) {
+            labels.maxOfOrNull { measurer.measure(it, style).size.width }?.toDp() ?: 0.dp
         }
     }
 }
@@ -195,6 +237,8 @@ private fun MethodButton(
     isErrored: Boolean,
     anyLoading: Boolean,
     isPrimary: Boolean,
+    /** Shared across the secondary rows so their marks line up. Null on the primary. */
+    labelWidth: Dp? = null,
 ) {
     val spec = methodSpec(method)
     val isLoading = loading == method
@@ -231,6 +275,7 @@ private fun MethodButton(
         variant = variant,
         // Disabled is one of the states every provider permits, so it carries the in-flight signal.
         enabled = !anyLoading,
+        labelWidth = labelWidth,
         leading = {
             if (isLoading) Spinner(tint = providerTint(method, isPrimary))
             else Icon(spec.icon, 18.dp, tint = providerTint(method, isPrimary))

@@ -636,6 +636,16 @@ check("156 ios applies the exif transform",
 check("156 ios does not return the embedded thumbnail",
       "kCGImageSourceCreateThumbnailFromImageAlways" in picker_sw)
 
+# ── a pill's outline follows its own height ─────────────────────────────────
+#
+# The browse sheet's topic rows are `borderRadius: 9999` with `minHeight: 50` -- a pill that grows
+# when its question wraps to two lines. Android clipped them with `CircleShape`, whose radius is
+# half the height, but STROKED them at a fixed 25: correct at exactly 50 tall, and on a taller row
+# the parts of the stroke outside the clip were cut away, leaving a purple outline with pieces
+# missing on the longest questions. iOS never had it -- `Capsule()` is a pill by construction.
+check("158 the topic row's outline follows its height (kotlin)", "outlinePill" in prompts_kt)
+check("158 the topic row is a capsule (swift)", "Capsule()" in prompts_sw)
+
 # ── the two platforms test the same photo-grid behaviour ────────────────────
 #
 # The grid's boxes are POSITIONAL: emptying one leaves it empty and the next photo goes back into

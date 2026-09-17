@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -74,6 +75,21 @@ fun PrimaryButton(
      * Worth collapsing to a single value if the design side agrees; then this goes away.
      */
     labelSize: TextUnit = 16.sp,
+    /**
+     * Give the label a fixed width so a COLUMN of these buttons lines its marks up.
+     *
+     * THE GROUP STAYS CENTRED. `Button` in `components/shared.jsx` is `justifyContent: 'center'`,
+     * and that is kept: what changes is that the icon-plus-label group is the same WIDTH on every
+     * button that shares a width, so centring puts all of their icons at the same x.
+     *
+     * Without it, three buttons reading `Continue with Apple`, `Continue with Google` and
+     * `Continue with Facebook` centre three differently-sized groups, and their marks sit a few
+     * points apart -- close enough to read as sloppy rather than as a choice. The spec sheets show
+     * the same, so this is a deliberate deviation rather than a port bug; see E10.
+     *
+     * Null everywhere else, which is every button in the app that is not one of a set.
+     */
+    labelWidth: Dp? = null,
     leading: (@Composable () -> Unit)? = null,
     /** Mirrors [leading]. Used once: the tutorial CTA's trailing arrow. */
     trailing: (@Composable () -> Unit)? = null,
@@ -155,6 +171,11 @@ fun PrimaryButton(
         leading?.invoke()
         Text(
             label,
+            // A fixed width makes the group the same size on every button in the set, so centring
+            // lands their icons on one line. The text sits at the start of that width rather than
+            // centred inside it, or the labels would be ragged instead of the marks.
+            modifier = if (labelWidth != null) Modifier.width(labelWidth) else Modifier,
+            textAlign = if (labelWidth != null) TextAlign.Start else TextAlign.Center,
             color = when (variant) {
                 PrimaryButtonVariant.Sunset, PrimaryButtonVariant.Violet,
                 PrimaryButtonVariant.Apple, PrimaryButtonVariant.Facebook -> Color.White
@@ -170,7 +191,6 @@ fun PrimaryButton(
             // Two, so a label too wide for a narrow phone wraps instead of being cut. Still
             // bounded: an unbounded label would let a translation grow the control without limit.
             maxLines = 2,
-            textAlign = TextAlign.Center,
         )
         trailing?.invoke()
     }

@@ -372,6 +372,29 @@ data class PromptsState(
 private val CardRadius = 18.dp
 
 /** A 1.5 outline at a given radius. */
+/**
+ * `border-radius: 9999` -- a pill whose corners follow its own height.
+ *
+ * NOT A FIXED RADIUS, and that is the whole point. The topic rows clip to [CircleShape], which is
+ * a pill: its corner radius is half the height, whatever the height turns out to be. The stroke
+ * was drawn at a fixed 25, which agrees with that only while a row is exactly 50 tall. A topic
+ * whose text wraps to two lines grows past 50, the clip's corners open out to match, the stroke's
+ * do not -- and the parts of the stroke that now sit outside the clip are cut away. The result is
+ * a purple outline with pieces missing, on exactly the rows with the longest questions.
+ *
+ * iOS never had this: it draws the same row with `Capsule()`, which is a pill by construction.
+ */
+private fun Modifier.outlinePill(color: Color, width: Dp = 1.5.dp): Modifier = drawBehind {
+    val w = width.toPx()
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(w / 2f, w / 2f),
+        size = Size(size.width - w, size.height - w),
+        cornerRadius = CornerRadius((size.height - w) / 2f),
+        style = Stroke(width = w),
+    )
+}
+
 private fun Modifier.outline(color: Color, radius: Dp, width: Dp = 1.5.dp): Modifier = drawBehind {
     val w = width.toPx()
     drawRoundRect(
@@ -457,7 +480,7 @@ private fun BrowseAllButton(onClick: () -> Unit) {
             .fillMaxWidth()
             .height(48.dp)
             .clip(CircleShape)
-            .outline(Border, 24.dp)
+            .outlinePill(Border)
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -737,7 +760,7 @@ private fun TopicPickerSheet(
                             .heightIn(min = 50.dp)
                             .clip(CircleShape)
                             .background(if (isUsed) Fg.copy(alpha = 0.03f) else Elevated)
-                            .outline(if (isUsed) Border else Purple, 25.dp)
+                            .outlinePill(if (isUsed) Border else Purple)
                             .then(
                                 if (isUsed) {
                                     Modifier

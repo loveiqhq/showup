@@ -553,3 +553,29 @@ carries `topic_group`, which the clients did not have at all.
 at the time. It is that a value invented to fill a registry gap has to be recorded as a GAP, not as
 a decision — E7 was filed as "not a conflict, a correction", which read as settled and made the
 guess harder to find later than it should have been.
+
+## E10 · The three SSO marks share a column. DECIDED 17 September 2026
+
+`Button` in `components/shared.jsx` is `justifyContent: 'center'`, so a button centres its icon and
+its label together as one group. The welcome-back and connect screens stack four of those, and the
+labels differ in length — `Continue with Apple` against `Continue with Facebook` — so each group
+centres to a different width and the provider marks sit a few points apart. Measured off the
+design's own render of `02-welcome-back.png`: roughly x127, x118, x97 for the three SSO rows.
+
+**This is not a port bug.** Both platforms matched the primitive exactly and the spec sheets show
+the same.
+
+**Product decision, 17 September 2026: line the three marks up.** A few points of drift reads as
+sloppy rather than as three separately-centred buttons.
+
+**The centring is kept.** What changed is that the three secondary rows give their labels ONE
+shared width — the widest of them, measured in the real font — so three equal-width groups centre
+to the same x. Left-aligning the content was tried first and rejected: it lines the marks up by
+abandoning the centring the design specifies, which is a bigger deviation than the problem.
+
+The primary row is deliberately excluded. It is the full-width sunset CTA and not one of the set;
+padding it to the same width would push its own mark off centre to line up with three buttons it
+does not belong to.
+
+Implemented as `labelWidth`, null on every other button in the app. Undoing it is deleting one
+argument at two call sites.
