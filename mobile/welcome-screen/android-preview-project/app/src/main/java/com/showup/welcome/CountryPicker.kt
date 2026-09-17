@@ -179,7 +179,7 @@ fun CountrySheet(
                             color = if (selected) Purple else Muted, fontFamily = Manrope,
                             fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
                         )
-                        if (selected) Icon(BrandIcon.Check, 16.dp, tint = Purple, strokeWidth = 2.4.dp)
+                        if (selected) Icon(BrandIcon.Check, 16.dp, tint = Purple, strokeWidth = 2.4f)
                         else Spacer(Modifier.width(Spacing.xxl))
                     }
                 }

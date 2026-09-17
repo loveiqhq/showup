@@ -436,7 +436,7 @@ internal fun ProfileVisibilityRow(
                     BrandIcon.EyeOff,
                     size = 14.dp,
                     tint = if (hidden) Purple else Subtle,
-                    strokeWidth = 2.1.dp,
+                    strokeWidth = 2.1f,
                 )
                 Text(
                     DobCopy.VISIBILITY,

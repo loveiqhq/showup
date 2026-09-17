@@ -124,7 +124,7 @@ fun AppHeader(
                         .semantics { contentDescription = backLabel },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(BrandIcon.ChevronLeft, 24.dp, tint = Fg, strokeWidth = 2.dp)
+                    Icon(BrandIcon.ChevronLeft, 24.dp, tint = Fg, strokeWidth = 2f)
                 }
             }
         }

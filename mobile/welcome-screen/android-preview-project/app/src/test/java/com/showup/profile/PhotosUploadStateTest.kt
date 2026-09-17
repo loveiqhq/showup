@@ -255,9 +255,125 @@ class PhotosUploadStateTest {
         vm.picked("content://pick/1", PhotoSource.Library)
         vm.remove(0)
         advanceUntilIdle()
-        // The second upload survived its neighbour being removed.
+        // The second upload survived its neighbour being removed -- AND STAYED IN ITS OWN BOX.
+        // It used to slide into slot 0, which is what made deleting the second photo look like
+        // deleting the last one.
         assertEquals(1, grid().photos.size)
-        assertEquals(UploadStatus.Confirmed, grid().at(0)?.status)
+        assertNull(grid().at(0))
+        assertEquals(UploadStatus.Confirmed, grid().at(1)?.status)
+    }
+
+    // ── what the account already holds ──────────────────────────────────────
+
+    @Test
+    fun `arriving reads the photos the account already has`() = runTest(dispatcher) {
+        repo.listAnswer = listOf(
+            StoredPhoto("a", "https://cdn/a.jpg", 0),
+            StoredPhoto("b", "https://cdn/b.jpg", 1),
+        )
+        vm.load()
+        advanceUntilIdle()
+        // Without this the grid started empty on every launch, and an account already at the
+        // server's six-photo limit answered the next upload with a 400 that the slot could only
+        // render as `Upload failed` -- with a Retry that re-sent the same bytes to the same full
+        // account.
+        assertEquals(listOf("a", "b"), grid().photos.mapNotNull { it.remoteId })
+        assertEquals(2, grid().confirmedCount)
+    }
+
+    @Test
+    fun `a read does not throw away a photo still uploading`() = runTest(dispatcher) {
+        vm.tapSlot(0)
+        vm.picked("content://pick/0", PhotoSource.Library)
+        repo.listAnswer = listOf(StoredPhoto("a", "https://cdn/a.jpg", 0))
+        vm.load()
+        advanceUntilIdle()
+        // The in-flight one exists only here; a read cannot know about it and must not delete it.
+        assertEquals(2, grid().photos.size)
+    }
+
+    @Test
+    fun `photos already on the account are not a fresh crossing of the minimum`() =
+        runTest(dispatcher) {
+            repo.listAnswer = (0 until 4).map { StoredPhoto("id-$it", "u", it) }
+            vm.load()
+            advanceUntilIdle()
+            // `photos_minimum_met` fires when the count FIRST reaches four. An account that
+            // already held four did not reach it just now, and reporting it here would put a
+            // threshold event on every relaunch.
+            assertEquals(0, analytics.count("photos_minimum_met"))
+            assertEquals(4, grid().confirmedCount)
+        }
+
+    @Test
+    fun `six stored photos open the optional block that two of them sit in`() =
+        runTest(dispatcher) {
+            repo.listAnswer = (0 until 6).map { StoredPhoto("id-$it", "u", it) }
+            vm.load()
+            advanceUntilIdle()
+            // Slots 5 and 6 are behind `Add more`; with six stored, two photos would otherwise
+            // have nowhere to be.
+            assertTrue(grid().optionalRevealed)
+            assertEquals(6, grid().photos.size)
+        }
+
+    @Test
+    fun `a read that answers nothing leaves the grid alone`() = runTest(dispatcher) {
+        vm.tapSlot(0)
+        vm.picked("content://pick/0", PhotoSource.Library)
+        advanceUntilIdle()
+        repo.listAnswer = null
+        vm.load()
+        advanceUntilIdle()
+        // An empty list and an unreachable server are different facts; collapsing them would wipe
+        // a grid the user had just filled.
+        assertEquals(1, grid().photos.size)
+    }
+
+    // ── a box emptied stays empty ───────────────────────────────────────────
+
+    @Test
+    fun `deleting the second photo leaves the others exactly where they were`() =
+        runTest(dispatcher) {
+            repeat(4) { slot -> pick(slot); advanceUntilIdle() }
+            val ids = (0..3).map { grid().at(it)?.remoteId }
+
+            vm.remove(1)
+            advanceUntilIdle()
+
+            // THE BUG THIS EXISTS FOR, reported from a device: the list used to close up, so
+            // deleting the second photo slid the third and fourth one box left and the empty box
+            // appeared at the END. It read as "the last one was deleted" and there was no way to
+            // put a new photo back where the old one had been.
+            assertEquals(ids[0], grid().at(0)?.remoteId)
+            assertNull(grid().at(1))
+            assertEquals(ids[2], grid().at(2)?.remoteId)
+            assertEquals(ids[3], grid().at(3)?.remoteId)
+            assertEquals(3, grid().confirmedCount)
+        }
+
+    @Test
+    fun `a new photo goes into the box that was emptied`() = runTest(dispatcher) {
+        repeat(4) { slot -> pick(slot); advanceUntilIdle() }
+        vm.remove(1)
+        advanceUntilIdle()
+
+        pick(1)
+        advanceUntilIdle()
+        // Back in the second box, not appended to the end.
+        assertEquals(UploadStatus.Confirmed, grid().at(1)?.status)
+        assertEquals(4, grid().confirmedCount)
+        assertEquals(4, grid().photos.size)
+    }
+
+    @Test
+    fun `the first free box is the one Add more fills`() = runTest(dispatcher) {
+        repeat(4) { slot -> pick(slot); advanceUntilIdle() }
+        assertEquals(4, grid().firstFreeSlot())
+        vm.remove(2)
+        advanceUntilIdle()
+        // The gap, not the end: a hole in the middle is the first place a photo should land.
+        assertEquals(2, grid().firstFreeSlot())
     }
 
     // ── reordering ──────────────────────────────────────────────────────────
@@ -282,7 +398,10 @@ class PhotosUploadStateTest {
         // One call, carrying the complete list. Two drags racing as two diffs is exactly what
         // sending the whole order avoids.
         assertEquals(1, repo.orders.size)
-        assertEquals(listOf(ids[2], ids[0], ids[1]), repo.orders.single())
+        // A SWAP, not a shuffle. The grid is six fixed boxes and any of them may be empty, so
+        // "take it out and push everything along" has nothing to mean -- there is nothing to push
+        // into an empty box. Slot 0 and slot 2 trade places and slot 1 does not move.
+        assertEquals(listOf(ids[2], ids[1], ids[0]), repo.orders.single())
     }
 
     @Test

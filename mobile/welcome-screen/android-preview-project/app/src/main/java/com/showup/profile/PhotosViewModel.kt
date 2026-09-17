@@ -84,6 +84,75 @@ class PhotosViewModel(
     /** A drag that could not be sent yet because the grid was not all stored. See [pushOrder]. */
     private var orderPending = false
 
+    // ── arriving ────────────────────────────────────────────────────────────
+
+    /**
+     * Reads the photos the account already holds.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * WHY THIS WAS MISSING, AND WHAT IT COST
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * The prompts screen has had a `load` since persistence landed; this one never did, so the
+     * grid started EMPTY on every launch however many photos the account held. Nothing looked
+     * wrong -- an empty grid is what a new user sees -- right up until the seventh upload.
+     *
+     * The server allows six. An account already at six answers every further upload with a 400,
+     * and a slot whose upload is refused renders `Upload failed` with a `Retry` that re-sends the
+     * same bytes to the same full account. So a user who had already added six photos came back
+     * to an empty screen, added one, and was told it failed, forever, with no way to see the six
+     * that were the actual reason.
+     *
+     * That is the third bug of exactly this shape on this screen: a PERMANENT refusal wearing a
+     * transient failure's clothes. The other two -- a HEIC the server would not take, and a photo
+     * past its size cap -- were fixed by sending something acceptable. This one is not fixable at
+     * the upload: the only honest fix is to SHOW the photos, because the grid being wrong is what
+     * made the refusal look arbitrary.
+     *
+     * ANYTHING PICKED IN THIS SESSION SURVIVES. A read that landed while an upload was in flight
+     * would otherwise throw away the slot the user is watching.
+     */
+    fun load() {
+        viewModelScope.launch {
+            val stored = repo.list() ?: return@launch
+            _state.update { current ->
+                val fromServer = stored.sortedBy { it.position }.mapIndexed { index, photo ->
+                    PickedPhoto(
+                        localId = nextLocalId++,
+                        slot = index,
+                        // The server's URL. `PhotoFill` decodes a local uri and falls through to
+                        // the placeholder for a remote one, which is honest: this build has no
+                        // image loader, and a blank tile would claim the photo was not there.
+                        uri = photo.url,
+                        status = UploadStatus.Confirmed,
+                        remoteId = photo.id,
+                        progress = 1f,
+                    )
+                }
+                // ANYTHING THE READ DID NOT MENTION IS KEPT, not just the in-flight ones. A
+                // photo that confirmed between the request going out and this merge running has a
+                // remote id the answer predates, and filtering on "no remote id" would drop the
+                // slot the user just watched land. Same rule, same reason, as `adoptServerOrder`.
+                val listed = stored.map { it.id }.toSet()
+                val unstored = current.grid.photos.filter { it.remoteId !in listed }
+                current.copy(
+                    grid = current.grid.copy(
+                        photos = fromServer + unstored,
+                        // NOT A CROSSING. `photos_minimum_met` fires when the count FIRST reaches
+                        // four, and an account that already held four did not reach it just now --
+                        // reporting it here would put a threshold event on every relaunch.
+                        minimumReported = current.grid.minimumReported ||
+                            fromServer.size >= PHOTOS_REQUIRED,
+                        // Six already stored means slots 5 and 6 are occupied, so the block they
+                        // sit behind has to be open or two of the photos would have nowhere to be.
+                        optionalRevealed = current.grid.optionalRevealed ||
+                            fromServer.size > PHOTOS_REQUIRED,
+                    ),
+                )
+            }
+        }
+    }
+
     // ── access ──────────────────────────────────────────────────────────────
 
     /** Re-reads both permission statuses. Call on every foreground. */
@@ -133,9 +202,14 @@ class PhotosViewModel(
         val slot = _state.value.pendingSlot
         val id = nextLocalId++
         _state.update { current ->
-            val photos = current.grid.photos.toMutableList()
-            val entry = PickedPhoto(localId = id, uri = uri, status = UploadStatus.InFlight)
-            if (slot < photos.size) photos[slot] = entry else photos.add(entry)
+            // THE BOX THE USER TAPPED, and a photo already in it is replaced rather than pushed
+            // aside -- "on a filled slot the chosen photo replaces that one". `Add more` taps the
+            // first free box, so an append is just a tap on an empty one.
+            val entry = PickedPhoto(
+                localId = id, uri = uri, status = UploadStatus.InFlight, slot = slot,
+            )
+            val photos = (current.grid.photos.filterNot { it.slot == slot } + entry)
+                .sortedBy { it.slot }
             current.copy(grid = current.grid.copy(photos = photos), sheetOpen = false)
         }
         startUpload(id, uri, source)
@@ -159,9 +233,15 @@ class PhotosViewModel(
         val photo = _state.value.grid.at(index) ?: return
         uploads.remove(photo.localId)?.cancel()
         _state.update { current ->
-            val photos = current.grid.photos.toMutableList()
-            photos.removeAt(index)
-            current.copy(grid = current.grid.copy(photos = photos))
+            // THE BOX STAYS EMPTY. It used to close up, so deleting the second photo slid the
+            // third and fourth left and the empty box appeared at the END -- which reads as "the
+            // last one was deleted", and left no way to put a new photo back where the old one
+            // was.
+            current.copy(
+                grid = current.grid.copy(
+                    photos = current.grid.photos.filterNot { it.slot == index },
+                ),
+            )
         }
         analytics?.report(
             ProfileAnalytics.photoRemoved(index, _state.value.grid.confirmedCount),
@@ -181,7 +261,9 @@ class PhotosViewModel(
      */
     fun reorder(from: Int, to: Int) {
         if (from == to) return
-        _state.update { it.copy(grid = it.grid.copy(photos = it.grid.photos.movedTo(from, to))) }
+        _state.update {
+            it.copy(grid = it.grid.copy(photos = it.grid.photos.slotsSwapped(from, to)))
+        }
         analytics?.report(ProfileAnalytics.photoReordered(from, to))
         pushOrder()
     }
@@ -201,7 +283,7 @@ class PhotosViewModel(
      */
     private fun pushOrder() {
         val photos = _state.value.grid.photos
-        val ids = photos.mapNotNull { it.remoteId }
+        val ids = photos.sortedBy { it.slot }.mapNotNull { it.remoteId }
         if (ids.size != photos.size) {
             orderPending = true
             return

@@ -461,7 +461,7 @@ private struct TopicPickerSheet: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     ForEach(Array(topicGroups.enumerated()), id: \.element.id) { index, group in
-                        Text(group.label)
+                        Text(group.label.eyebrowCase)
                             .font(F.manrope(10.5, .heavy))
                             .tracking(0.84)
                             .foregroundColor(.liqSubtle)
@@ -504,7 +504,7 @@ private struct TopicPickerSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 if isUsed {
-                    Text(PromptsCopy.topicUsed)
+                    Text(PromptsCopy.topicUsed.eyebrowCase)
                         .font(F.manrope(10.5, .heavy))
                         .tracking(0.63)
                         .foregroundColor(.liqSubtle)
@@ -830,8 +830,8 @@ struct ProfilePromptsView: View {
                 // AT 3 SAVED THE BLOCK IS ABSENT, not disabled. There is nothing left to suggest.
                 if state.count < promptsMax {
                     Text(state.count == 0
-                         ? PromptsCopy.sectionNoneSaved
-                         : PromptsCopy.sectionSomeSaved)
+                         ? PromptsCopy.sectionNoneSaved.eyebrowCase
+                         : PromptsCopy.sectionSomeSaved.eyebrowCase)
                         .font(F.manrope(10.5, .heavy))
                         .tracking(0.84)
                         .foregroundColor(.liqSubtle)

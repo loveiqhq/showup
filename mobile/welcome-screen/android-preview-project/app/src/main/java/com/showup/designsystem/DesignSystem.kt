@@ -120,8 +120,39 @@ val Lora = FontFamily(
     Font(R.font.lora_bold_italic, FontWeight.Bold,   FontStyle.Italic),
 )
 
+/**
+ * Manrope, four weights.
+ *
+ * EXTRABOLD IS NOT DECORATION. The design's eyebrow labels are authored at `fontWeight: 800` and
+ * ten call sites ask for [FontWeight.ExtraBold]; without the file, Compose matched them to the
+ * nearest weight it had -- Bold, 700 -- and every one of them shipped a step light. iOS did the
+ * same thing explicitly, mapping `.heavy` onto `manropeBold`, so the two platforms agreed with
+ * each other and neither agreed with the design.
+ *
+ * Instanced at wght 800 from upstream Manrope 4.505; the three statics beside it are 4.504.
+ * Checked before it was added rather than after: identical unitsPerEm, ascender, descender,
+ * lineGap and cap height, and the same 742 glyphs, so nothing above a line of text moves.
+ */
 val Manrope = FontFamily(
-    Font(R.font.manrope_medium,   FontWeight.Medium),
-    Font(R.font.manrope_semibold, FontWeight.SemiBold),
-    Font(R.font.manrope_bold,     FontWeight.Bold),
+    Font(R.font.manrope_medium,    FontWeight.Medium),
+    Font(R.font.manrope_semibold,  FontWeight.SemiBold),
+    Font(R.font.manrope_bold,      FontWeight.Bold),
+    Font(R.font.manrope_extrabold, FontWeight.ExtraBold),
 )
+
+/**
+ * `text-transform: uppercase`, which Compose has no equivalent of.
+ *
+ * The design's eyebrow labels -- Manrope 800 at 10.5 with 0.08em tracking -- are authored in
+ * sentence case and transformed by CSS. The ticket's copy section quotes them in sentence case
+ * too, which is why the STRINGS stay that way and the transform happens here: the copy a verifier
+ * checks against the ticket and the pixels a person sees are two different things, and baking the
+ * capitals into the constant would make the first one lie.
+ *
+ * Two of these were already written in capitals by hand -- `MAIN` and `FOR EXAMPLE` -- which is
+ * how the omission hid: some of the eyebrows looked right, so none of them looked wrong.
+ *
+ * [Locale.ROOT] rather than the device's: these are English product strings, and a Turkish locale
+ * uppercases "i" to a dotted capital that is not in our font's Latin set.
+ */
+fun String.eyebrowCase(): String = uppercase(java.util.Locale.ROOT)
