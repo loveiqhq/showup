@@ -74,6 +74,20 @@ fun PrimaryButton(
      * Worth collapsing to a single value if the design side agrees; then this goes away.
      */
     labelSize: TextUnit = 16.sp,
+    /**
+     * Put [leading] against the start edge instead of centring the whole group.
+     *
+     * A DELIBERATE DEVIATION FROM THE DESIGN SYSTEM, and the only one in this file. `Button` in
+     * `components/shared.jsx` is `justifyContent: 'center'`, so a button's icon and label centre
+     * together -- which means a COLUMN of buttons whose labels differ in length puts their icons
+     * at different x positions. The spec sheets render it that way too; this is not a port bug.
+     *
+     * The auth method list is the one place that column exists, four deep, and on a device the
+     * ragged icons read as a mistake rather than as centring. Product decision, 17 September 2026:
+     * align them. Everything else in the app keeps the design's centring, which is why this is a
+     * parameter defaulting to false rather than a change to the primitive.
+     */
+    alignLeadingToStart: Boolean = false,
     leading: (@Composable () -> Unit)? = null,
     /** Mirrors [leading]. Used once: the tutorial CTA's trailing arrow. */
     trailing: (@Composable () -> Unit)? = null,
@@ -149,7 +163,11 @@ fun PrimaryButton(
                 enabled = enabled, role = Role.Button, onClick = onClick,
             )
             .padding(horizontal = 28.dp),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
+        horizontalArrangement = if (alignLeadingToStart) {
+            Arrangement.spacedBy(Spacing.md, Alignment.Start)
+        } else {
+            Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally)
+        },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leading?.invoke()

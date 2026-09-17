@@ -553,3 +553,26 @@ carries `topic_group`, which the clients did not have at all.
 at the time. It is that a value invented to fill a registry gap has to be recorded as a GAP, not as
 a decision — E7 was filed as "not a conflict, a correction", which read as settled and made the
 guess harder to find later than it should have been.
+
+## E10 · The auth buttons' marks are aligned, against the design system. DECIDED 17 September 2026
+
+`Button` in `components/shared.jsx` is `justifyContent: 'center'`, so a button centres its icon and
+its label together as one group. The welcome-back and connect screens stack four of those buttons,
+and their labels differ in length — `Continue with Apple` against `Continue with phone number` —
+so the four provider marks land at four different x positions. Measured off the design's own render
+of `02-welcome-back.png`: roughly x60, x127, x118, x97.
+
+**This is not a port bug.** Both platforms matched the primitive exactly, and the spec sheets show
+the same ragged column.
+
+**Product decision, 17 September 2026: align them.** On a phone the four marks read as a mistake
+rather than as four separately-centred buttons, and a column of provider logos is one of the few
+places where the eye expects a shared left edge.
+
+Implemented as an OPT-IN on the primitive — `alignLeadingToStart`, false everywhere else — rather
+than a change to it. Every other button in the app keeps the design's centring, including the
+sunset CTAs and the tutorial's. The one place that column exists is the one place that deviates,
+and the parameter's own doc comment carries this reason so nobody "fixes" it back.
+
+If the design side would rather keep the centring, the change is deleting one argument at two call
+sites.

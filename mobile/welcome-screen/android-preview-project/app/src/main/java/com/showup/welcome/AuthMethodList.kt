@@ -231,6 +231,10 @@ private fun MethodButton(
         variant = variant,
         // Disabled is one of the states every provider permits, so it carries the in-flight signal.
         enabled = !anyLoading,
+        // The four provider marks line up in a column. See the parameter's own note: the design
+        // centres icon and label together, which puts four differently-lengthed labels' icons at
+        // four different x positions. Product decision, 17 September 2026.
+        alignLeadingToStart = true,
         leading = {
             if (isLoading) Spinner(tint = providerTint(method, isPrimary))
             else Icon(spec.icon, 18.dp, tint = providerTint(method, isPrimary))

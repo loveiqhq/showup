@@ -185,6 +185,10 @@ private struct MethodRow: View {
             variant: variant,
             // Disabled is a state every provider permits, so it carries the in-flight signal.
             enabled: !anyLoading,
+            // The four provider marks line up in a column. See the property's own note: the
+            // design centres icon and label together, which puts four differently-lengthed
+            // labels' icons at four different x positions. Product decision, 17 September 2026.
+            alignLeadingToStart: true,
             action: { onSelect(method) },
             leading: {
                 if isLoading {

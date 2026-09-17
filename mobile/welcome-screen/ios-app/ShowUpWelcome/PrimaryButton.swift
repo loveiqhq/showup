@@ -57,6 +57,18 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     /// same sunset button set one step larger. `.plain` overrides it, being 15/600 by definition
     /// rather than by choice. Worth collapsing to one value if the design side agrees.
     var labelSize: CGFloat = 16
+    /// Put `leading` against the start edge instead of centring the whole group.
+    ///
+    /// A DELIBERATE DEVIATION FROM THE DESIGN SYSTEM, and the only one in this file. `Button` in
+    /// `components/shared.jsx` is `justifyContent: 'center'`, so a button's icon and label centre
+    /// together — which means a COLUMN of buttons whose labels differ in length puts their icons
+    /// at different x positions. The spec sheets render it that way too; this is not a port bug.
+    ///
+    /// The auth method list is the one place that column exists, four deep, and on a device the
+    /// ragged marks read as a mistake rather than as centring. Product decision, 17 September
+    /// 2026: align them. Everything else keeps the design's centring, which is why this is a
+    /// property defaulting to false rather than a change to the primitive.
+    var alignLeadingToStart: Bool = false
     var action: () -> Void
     @ViewBuilder var leading: () -> Leading
     /// Mirrors `leading`. Used once: the tutorial CTA's trailing arrow.
@@ -79,7 +91,7 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
                     .foregroundColor(labelColor)
                 trailing()
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: alignLeadingToStart ? .leading : .center)
             // A MINIMUM, not a fixed height, since 10 September.
             //
             // On every device where the label fits on one line this is exactly `height` and
@@ -164,11 +176,12 @@ extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
 
 extension PrimaryButton where Trailing == EmptyView {
     init(label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
-         height: CGFloat = 56, labelSize: CGFloat = 16, action: @escaping () -> Void,
+         height: CGFloat = 56, labelSize: CGFloat = 16,
+         alignLeadingToStart: Bool = false, action: @escaping () -> Void,
          @ViewBuilder leading: @escaping () -> Leading) {
         self.init(label: label, variant: variant, enabled: enabled, height: height,
-                  labelSize: labelSize, action: action,
-                  leading: leading, trailing: { EmptyView() })
+                  labelSize: labelSize, alignLeadingToStart: alignLeadingToStart,
+                  action: action, leading: leading, trailing: { EmptyView() })
     }
 }
 
