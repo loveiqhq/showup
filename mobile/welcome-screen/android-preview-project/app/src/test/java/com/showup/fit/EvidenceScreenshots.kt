@@ -57,7 +57,17 @@ import com.showup.profile.LibraryAccess
 import com.showup.profile.PhotoGridState
 import com.showup.profile.PickedPhoto
 import com.showup.profile.ProfileEmbraceScreen
+import com.showup.profile.MediaArtefact
+import com.showup.profile.MediaCaptureScreen
+import com.showup.profile.MediaEntryPoint
+import com.showup.profile.MediaKind
+import com.showup.profile.MediaSheet
+import com.showup.profile.MediaState
+import com.showup.profile.MediaTake
+import com.showup.profile.MediaUploadStatus
+import com.showup.profile.ProfileMediaScreen
 import com.showup.profile.ProfilePhotosScreen
+import com.showup.profile.RecordingPhase
 import com.showup.profile.ProfilePromptsScreen
 import com.showup.profile.PROMPT_SAMPLE_AT_CAP
 import com.showup.profile.PROMPT_SAMPLE_MID
@@ -243,12 +253,87 @@ class EvidenceScreenshots {
             )
         }
 
+        // ── SHOWUP-161 · the media step, all ten states ─────────────────────
+        //
+        // "Evidence of done: attach screenshots of all ten states at 375 x 667, 390 x 844 and
+        // 430 x 932 -- thirty images." A to F are the media screen and its sheet; G to J are the
+        // two capture sub-screens, which have no chrome at all.
+        //
+        // THE CAPTURE VIEWS RENDER WITHOUT A CAMERA, and that is what these images are for. The
+        // viewfinder is a live preview layer that this harness cannot produce, so G and H show the
+        // composition over the viewfinder's own dark ground -- which is exactly what the ticket
+        // asks these images to prove: "nothing clipped and the primary action fully visible". The
+        // scene behind them is the one thing on this screen that is never ours to draw.
+        val mediaVideo = MediaArtefact(
+            kind = MediaKind.Video, promptId = "relaxed_and_happy", durationMs = 9_400,
+            localPath = null, remoteId = "v1", status = MediaUploadStatus.Confirmed,
+        )
+        val mediaVoice = MediaArtefact(
+            kind = MediaKind.Voice, promptId = "relaxing_sound", durationMs = 14_100,
+            localPath = null, remoteId = "a1", status = MediaUploadStatus.Confirmed,
+        )
+
+        shoot("SHOWUP-161", "A-empty") { ProfileMediaScreen() }
+        shoot("SHOWUP-161", "B-video-only") {
+            ProfileMediaScreen(MediaState(video = mediaVideo))
+        }
+        shoot("SHOWUP-161", "C-voice-only") {
+            ProfileMediaScreen(MediaState(voice = mediaVoice))
+        }
+        shoot("SHOWUP-161", "D-both") {
+            ProfileMediaScreen(MediaState(video = mediaVideo, voice = mediaVoice))
+        }
+        shoot("SHOWUP-161", "E-prompts-video") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        shoot("SHOWUP-161", "F-prompts-voice") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Voice, MediaEntryPoint.SeeThePrompts,
+                        selectedId = "relaxing_sound", openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        shoot("SHOWUP-161", "G-video-recording") {
+            MediaCaptureScreen(MediaTake(MediaKind.Video, "relaxed_and_happy", elapsedMs = 6_000))
+        }
+        shoot("SHOWUP-161", "H-video-review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Video, "relaxed_and_happy",
+                    phase = RecordingPhase.Review, elapsedMs = 9_000,
+                ),
+            )
+        }
+        shoot("SHOWUP-161", "I-voice-recording") {
+            MediaCaptureScreen(MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 4_000))
+        }
+        shoot("SHOWUP-161", "J-voice-review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+            )
+        }
+
         // The counts the tickets ask for, asserted rather than trusted. A state added to the fit
         // sweep and forgotten here shows up as a number that no longer matches its ticket.
         val produced = out.listFiles().orEmpty().map { it.name }
         assertEquals("SHOWUP-155 asks for 3 images", 3, produced.count { it.startsWith("SHOWUP-155") })
         assertEquals("SHOWUP-156 asks for 21 images", 21, produced.count { it.startsWith("SHOWUP-156") })
         assertEquals("SHOWUP-158 asks for 24 images", 24, produced.count { it.startsWith("SHOWUP-158") })
+        // Ten states at three sizes. The eleventh -- the permission row -- is deliberately absent:
+        // "Include one capture per permission mode ONCE THE ROW IS SPECCED", and it has no artboard.
+        assertEquals("SHOWUP-161 asks for 30 images", 30, produced.count { it.startsWith("SHOWUP-161") })
 
         // And an image that is a blank rectangle is not evidence of anything. A real render of one
         // of these screens is tens of kilobytes; an empty one compresses to a few hundred bytes.
