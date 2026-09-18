@@ -227,6 +227,9 @@ fun MediaPromptSheet(
                     PrimaryButtonVariant.Sunset
                 },
                 enabled = picked != null,
+                // Three lines, for this label alone. See PrimaryButton.labelMaxLines: at 2.0x on a
+                // 320 phone `Choose a prompt to continue` does not fit two.
+                labelMaxLines = 3,
                 leading = if (picked == null) {
                     null
                 } else {

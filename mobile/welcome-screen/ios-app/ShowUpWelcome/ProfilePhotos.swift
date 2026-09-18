@@ -525,6 +525,27 @@ private struct PhotoSourceSheet: View {
     }
 }
 
+/// The dashed `Settings` pill, wherever [SheetRow] puts it.
+private struct SettingsPill: View {
+    let label: String
+
+    var body: some View {
+        Text(label)
+            .font(F.manrope(12.5, .bold))
+            .foregroundColor(.liqPurple)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.xs)
+            // minHeight, not height. A fixed 30 is exactly right at the default text size and cuts
+            // 7 points off the bottom of its own label at the largest -- on EVERY device, since it
+            // is the type that overflows and not the screen. The Compose fit sweep could not see it
+            // until the harness started walking the unmerged semantics tree, because a merged tree
+            // folds a pill's label into the row above it.
+            .frame(minHeight: 30)
+            .background(Capsule().fill(Color.liqElevated))
+            .overlay(Capsule().strokeBorder(Color.liqPurple.opacity(0.32), lineWidth: 1.5))
+    }
+}
+
 /// One row of the source sheet. 62 tall, radius 16, pip 38.
 private struct SheetRow: View {
     let icon: BrandIcon
@@ -536,6 +557,40 @@ private struct SheetRow: View {
     var quiet = false
     var trailingPill: String? = nil
     let onTap: () -> Void
+
+    /// The row's own width, read without disturbing the layout. Same trick as the photo grid's
+    /// cell measurement lower down this file.
+    @State private var rowWidth: CGFloat = 0
+
+    /// WHETHER THE PILL SHARES THE LINE IS MEASURED, not assumed.
+    ///
+    /// `Settings` beside a two-line subtitle is comfortable at the default text size. At the
+    /// largest, on a 320 screen, the pill is 150 wide, the pip and the gaps take another 78, and
+    /// the subtitle -- `Camera access is off. Turn on Camera in Settings to use it.` -- is left a
+    /// 110 column that it needs twenty-four lines to fill. Android cut it to twelve; here it would
+    /// simply be a ribbon of text one word wide. Given the full width it reads in seven lines.
+    ///
+    /// Measured rather than thresholded on `dynamicTypeSize`, for the reason the shared rules give:
+    /// a size threshold is right for English and wrong for the first translation. `UIFont` is what
+    /// knows how wide `Settings` is in Manrope Bold at whatever size the user has chosen -- the
+    /// same answer, and the same method, as the three SSO marks that have to share a width.
+    private var stacked: Bool {
+        guard let pill = trailingPill, rowWidth > 0 else { return false }
+        let pillFont = UIFont(name: PS.manropeBold, size: 12.5)
+            ?? UIFont.systemFont(ofSize: 12.5, weight: .bold)
+        let subtitleFont = UIFont(name: PS.manropeMedium, size: 12.5)
+            ?? UIFont.systemFont(ofSize: 12.5, weight: .medium)
+        let pillWidth = (pill as NSString).size(withAttributes: [.font: pillFont]).width
+            + Spacing.xl * 2
+        let longestWord = subtitle
+            .split(separator: " ")
+            .map { (String($0) as NSString).size(withAttributes: [.font: subtitleFont]).width }
+            .max() ?? 0
+        // pip 38, its 13 gap, the row's 14 + 14 padding, and the gap before the pill
+        let chrome: CGFloat = 38 + 13 + 28 + 13
+        // Two of the longest word is the narrowest column the sentence still reads in.
+        return rowWidth - chrome - pillWidth < longestWord * 2
+    }
 
     var body: some View {
         Button(action: onTap) {
@@ -554,17 +609,15 @@ private struct SheetRow: View {
                         .lineSpacing(12.5 * 0.35)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
+                    if stacked, let pill = trailingPill {
+                        // Under the sentence it belongs to and aligned with it, rather than
+                        // squeezing that sentence into a column too narrow to hold a word.
+                        SettingsPill(label: pill).padding(.top, Spacing.sm)
+                    }
                 }
                 Spacer(minLength: Spacing.md)
                 if let pill = trailingPill {
-                    Text(pill)
-                        .font(F.manrope(12.5, .bold))
-                        .foregroundColor(.liqPurple)
-                        .padding(.horizontal, Spacing.xl)
-                        .frame(height: 30)
-                        .background(Capsule().fill(Color.liqElevated))
-                        .overlay(Capsule()
-                            .strokeBorder(Color.liqPurple.opacity(0.32), lineWidth: 1.5))
+                    if !stacked { SettingsPill(label: pill) }
                 } else {
                     BrandIconView(icon: .chevronRight, size: 17, stroke: 2.2, tint: .liqFg)
                 }
@@ -576,6 +629,11 @@ private struct SheetRow: View {
             // narrow phone, and a fixed 62 would clip it.
             .frame(minHeight: 62)
             .frame(maxWidth: .infinity)
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { rowWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, new in rowWidth = new }
+            })
             .background {
                 if quiet {
                     RoundedRectangle(cornerRadius: Radius.card)

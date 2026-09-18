@@ -33,6 +33,7 @@ package com.showup.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +48,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -93,30 +97,7 @@ fun ProfileMediaScreen(
             // the bar is not worth the fixed row. Do not "fix" it into a third fixed region.
             progressFixed = false,
             footer = {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = Spacing.screenGutter,
-                            end = Spacing.screenGutter,
-                            top = Spacing.xl,
-                            bottom = 14.dp,
-                        ),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SkipLink(onClick = onSkip, label = MediaCopy.SKIP)
-                    // ALWAYS ORANGE, in every state. The sunset gradient is reserved for the
-                    // sheet's commit CTA and the two review primaries; the reference's own comment
-                    // says this "pops to sunset when both slots are filled" and its code does not,
-                    // and the ticket settles it: "It stays the orange 52px NextButton."
-                    NextButton(
-                        MediaCopy.CONTINUE,
-                        onClick = onContinue,
-                        arrowSize = 22.dp,
-                        circleSize = 52.dp,
-                    )
-                }
+                MediaFooter(onSkip = onSkip, onContinue = onContinue)
             },
         ) {
             StepProgress(
@@ -234,6 +215,99 @@ private fun MediaSlot(
             onDelete = { onDelete(kind) },
             onRetry = { onRetryUpload(kind) },
         )
+    }
+}
+
+/**
+ * `Skip for now` on the left, the orange Continue on the right -- until they do not fit.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS IS NOT JUST A ROW
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * It was, and at the largest accessibility font on the narrowest phone the result was unreadable:
+ * `Continue` wrapped to `Continu` / `e` and ran straight over the orange circle, which was itself
+ * pushed half off the right edge. Nothing in the fit harness caught it -- the label was not clipped
+ * (it wrapped inside its own line limit) and a circle is not text, so the overlap between the two
+ * was invisible to every check. It was found by looking at the pixels, which is what the last line
+ * of the Definition of Done is for.
+ *
+ * This is the one footer in the flow with TWO controls in it. Photos and prompts carry the Next
+ * button alone and have the whole width for it; adding a skip link is what made the row tight.
+ *
+ * MEASURED, NOT THRESHOLDED. A `fontScale > 1.3` rule would be right for English and wrong for the
+ * first translation, so both labels are laid out with the real font at the real size and the row
+ * decides for itself -- the same rule, and the same `rememberTextMeasurer`, as the review actions
+ * and the three SSO marks.
+ */
+@Composable
+private fun MediaFooter(onSkip: () -> Unit, onContinue: () -> Unit) {
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .padding(
+                start = Spacing.screenGutter,
+                end = Spacing.screenGutter,
+                top = Spacing.xl,
+                bottom = 14.dp,
+            ),
+    ) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val room = maxWidth
+
+        val fits = with(density) {
+            val skip = measurer
+                .measure(
+                    MediaCopy.SKIP,
+                    TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp),
+                ).size.width.toDp()
+            val cta = measurer
+                .measure(
+                    MediaCopy.CONTINUE,
+                    TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 17.sp),
+                ).size.width.toDp()
+            // the 52 circle, the gap the button keeps between label and circle, and a breath
+            // between the two controls
+            skip + cta + 52.dp + Spacing.xl + Spacing.xl <= room
+        }
+
+        // ALWAYS ORANGE, in every state. The sunset gradient is reserved for the sheet's commit CTA
+        // and the two review primaries; the reference's own comment says this "pops to sunset when
+        // both slots are filled" and its code does not, and the ticket settles it: "It stays the
+        // orange 52px NextButton."
+        val cta = @Composable {
+            NextButton(
+                MediaCopy.CONTINUE,
+                onClick = onContinue,
+                arrowSize = 22.dp,
+                circleSize = 52.dp,
+            )
+        }
+
+        if (fits) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SkipLink(onClick = onSkip, label = MediaCopy.SKIP)
+                cta()
+            }
+        } else {
+            // Continue LAST, nearest the thumb, and each on its own line with the full width to
+            // itself. Skip stays the quiet one above it rather than becoming a second button.
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                Box(Modifier.fillMaxWidth()) {
+                    SkipLink(onClick = onSkip, label = MediaCopy.SKIP)
+                }
+                cta()
+            }
+        }
     }
 }
 

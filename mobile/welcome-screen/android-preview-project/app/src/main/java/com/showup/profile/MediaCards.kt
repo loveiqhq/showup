@@ -41,6 +41,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
@@ -71,6 +73,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -387,17 +390,19 @@ fun MediaPermissionRow(
         // Draws 30 and answers at 44, the way everything tappable here does: the outer node
         // fixes the layout slot and the inner `requiredHeight` overflows it. The pill is wider
         // than 44 already, so only height needs it.
-        Box(Modifier.height(30.dp), contentAlignment = Alignment.Center) {
+        // Minimums rather than fixed heights, for the reason in ControlPip: at 2.0x the label is
+        // twice as tall and a 30dp box clips it on every device.
+        Box(Modifier.heightIn(min = 30.dp), contentAlignment = Alignment.Center) {
             Box(
                 Modifier
-                    .requiredHeight(ComponentSizes.minTapTarget)
+                    .requiredHeightIn(min = ComponentSizes.minTapTarget)
                     .clip(RoundedCornerShape(percent = 50))
                     .clickable(role = Role.Button, onClick = onAction),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     Modifier
-                        .height(30.dp)
+                        .heightIn(min = 30.dp)
                         .clip(RoundedCornerShape(percent = 50))
                         .background(Purple)
                         .padding(horizontal = Spacing.xl),
@@ -441,7 +446,7 @@ fun RecordedVideoCard(
                     .clickable(role = Role.Button, onClick = onPlay)
                     .semantics { contentDescription = MediaCopy.PLAY_VIDEO },
             ) {
-                VideoThumbnail(artefact.localPath)
+                VideoFrame(artefact.localPath, Modifier.fillMaxSize())
                 // The scrim, so the play glyph reads on any frame.
                 Box(
                     Modifier
@@ -494,9 +499,18 @@ fun RecordedVideoCard(
     }
 }
 
-/** One frame of the take, or the lilac ground while it is being read. */
+/**
+ * The take's last frame, or nothing while it is being read.
+ *
+ * THE LAST FRAME, NOT THE FIRST, and the build inventory is specific about it: "a frozen LAST frame
+ * for review and for the card thumbnail". One frame, two places -- so what the user approved on the
+ * review screen is exactly what the card then shows, and a card that disagreed with the review it
+ * came from would read as a different recording.
+ *
+ * Shared by the filled card and the review screen for the same reason.
+ */
 @Composable
-private fun VideoThumbnail(path: String?) {
+internal fun VideoFrame(path: String?, modifier: Modifier = Modifier) {
     var frame by remember(path) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(path) {
         frame = path?.let { p ->
@@ -504,9 +518,17 @@ private fun VideoThumbnail(path: String?) {
                 runCatching {
                     MediaMetadataRetriever().use { retriever ->
                         retriever.setDataSource(p)
-                        // The FIRST frame rather than a time in the middle: the user pressed record
-                        // and looked at the lens, so frame zero is the one they expect to see.
-                        retriever.getFrameAtTime(0)?.asImageBitmap()
+                        val durationMs = retriever
+                            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                            ?.toLongOrNull()
+                        // OPTION_CLOSEST rather than the default sync-frame seek: a ten-second clip
+                        // may have one keyframe, at zero, so asking for "the nearest sync frame to
+                        // the end" would hand back the first frame and look like a bug in the seek
+                        // rather than in the option.
+                        val atUs = ((durationMs ?: 0L) * 1000L).coerceAtLeast(0L)
+                        retriever.getFrameAtTime(
+                            atUs, MediaMetadataRetriever.OPTION_CLOSEST,
+                        )?.asImageBitmap()
                     }
                 }.getOrNull()
             }
@@ -516,7 +538,7 @@ private fun VideoThumbnail(path: String?) {
         Image(
             bitmap = it,
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
+            modifier = modifier,
             contentScale = ContentScale.Crop,
         )
     }
@@ -635,10 +657,11 @@ private fun RecordedControls(
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            ControlPip(BrandIcon.Refresh, MediaCopy.RETAKE, onRetake)
-            ControlPip(BrandIcon.Trash, MediaCopy.DELETE, onDelete, tone = ControlPipTone.Danger)
-        }
+        // DIRECT CHILDREN OF THE FLOW ROW, not a nested Row. Nested, the two pips were a single
+        // item and could only move to the next line together -- and at 320 with the largest system
+        // font there is no line they both fit on. As siblings they wrap one at a time.
+        ControlPip(BrandIcon.Refresh, MediaCopy.RETAKE, onRetake)
+        ControlPip(BrandIcon.Trash, MediaCopy.DELETE, onDelete, tone = ControlPipTone.Danger)
     }
 }
 
@@ -773,6 +796,23 @@ fun RecordedVoiceCard(
 }
 
 /**
+ * The tag every waveform carries, so the fit harness can assert it was given room to draw in.
+ *
+ * A canvas that resolved to zero in either axis is invisible to every other check in this project:
+ * nothing is clipped, nothing overflows, the node is present and reports a size. The only way to
+ * catch it is to measure it, which is why this exists and why it is not a debug-only tag.
+ */
+internal const val WAVEFORM_TAG = "media:waveform"
+
+/**
+ * The narrowest a waveform bar may be drawn.
+ *
+ * Below about this the bar lands inside a single device pixel at low densities and reads as nothing
+ * at all. See [Waveform] for what that cost.
+ */
+private val MIN_BAR_WIDTH = 1.5.dp
+
+/**
  * The bar strip, shared by the filled card and the capture screen.
  *
  * Drawn on a Canvas rather than as 48 composables: 48 nodes per waveform, two waveforms on screen,
@@ -790,15 +830,26 @@ internal fun Waveform(
     corner: Dp,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier) {
-        val gap = barGap.toPx()
+    Canvas(modifier.testTag(WAVEFORM_TAG)) {
         val minH = minBarHeight.toPx()
         val radius = corner.toPx()
-        val slot = (size.width + gap) / bars.size
-        val width = (slot - gap).coerceAtLeast(1f)
+        val slot = (size.width + barGap.toPx()) / bars.size
+        // THE GAP YIELDS BEFORE THE BAR DOES.
+        //
+        // 48 bars at a fixed 4dp gap spend 188dp on gaps alone. That is comfortable at the width
+        // the design was drawn at -- 390, where the bars still get about 1.6dp each -- and it is
+        // ruinous on a 320 screen with the review screen's play pip beside it: 194dp of room, 188
+        // of it gap, leaving an eighth of a dp per bar. The waveform did not look thin, it looked
+        // ABSENT, and nothing in the fit harness can see a canvas that drew nothing.
+        //
+        // So the gap is a preference and the bar width is a floor. Where the design's 4dp already
+        // leaves a drawable bar nothing changes; where it does not, the gap gives way.
+        val minWidth = MIN_BAR_WIDTH.toPx()
+        val width = (slot - barGap.toPx()).coerceAtLeast(minWidth).coerceAtMost(slot)
+        val gap = (slot - width).coerceAtLeast(0f)
         bars.forEachIndexed { index, value ->
             val height = (value * size.height).coerceAtLeast(minH)
-            val left = index * slot
+            val left = index * slot + gap / 2f
             val top = (size.height - height) / 2f
             drawRoundRect(
                 color = if (index < bars.size * progress) playedColor else restColor,

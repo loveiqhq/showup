@@ -64,6 +64,21 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 
 /** One thing in the wrong place or the wrong size, named well enough to find it in the source. */
+/**
+ * The tags of every element that PAINTS rather than lays out, and so must be measured.
+ *
+ * Kept as strings rather than importing the constants, so the harness does not depend on the
+ * screen package and a renamed tag fails loudly here rather than silently matching nothing --
+ * `HarnessSelfTest` asserts each one is still reachable.
+ */
+val MEASURED_CANVASES = setOf("media:waveform")
+
+/** Below this a drawing is present but too small to be read as anything. */
+const val MIN_CANVAS_DP = 16f
+
+/** Flattens a paragraph onto one line when it is used to name a link inside it. */
+private val NEWLINE_RE = Regex("[\\s]+")
+
 data class Violation(
     val device: Device,
     val screen: String,
@@ -186,7 +201,18 @@ fun measureFit(
         }
         waitForIdle()
 
-        val boxNode = onNodeWithTag(FIT_ROOT).fetchSemanticsNode()
+        // THE UNMERGED TREE, and this is not a detail.
+        //
+        // The merged tree is what an accessibility service reads: a node that merges its
+        // descendants absorbs their text and the children stop being separate nodes. Every check
+        // below is a MEASUREMENT of an individual element, so on the merged tree it simply never
+        // saw them. Dumping both trees for one screen at 320 x 2.0 found the merged tree missing
+        // the prompt, the hint, the play button and the waveform -- four of the six things on it --
+        // while the harness reported that screen clean on all 17 devices.
+        //
+        // Duplicates are the price and are cheap: a merged parent and its child can both carry the
+        // same text, and `distinctBy` at the end collapses them.
+        val boxNode = onNodeWithTag(FIT_ROOT, useUnmergedTree = true).fetchSemanticsNode()
         val originX = boxNode.positionInRoot.x
         val originY = boxNode.positionInRoot.y
         val wDp = device.width.toFloat()
@@ -195,14 +221,25 @@ fun measureFit(
         // Carried DOWN the tree rather than read off each node: only the scroll container itself
         // advertises VerticalScrollAxisRange, and it is its descendants whose positions the flag
         // has to reinterpret.
-        fun walk(node: SemanticsNode, inScroll: Boolean = false) {
+        // `clipBottom` is the bottom edge, in dp, of the nearest scrolling ancestor -- null while
+        // nothing above has clipped. Carried down for the same reason `inScroll` is: the container
+        // knows its bounds and the descendants are the ones that fall outside them.
+        // `inText` becomes true once the walk has passed a node that owns a text layout. Anything
+        // clickable below that point is a LinkAnnotation inside a paragraph rather than a control,
+        // and the two are judged differently -- see the tap-target rule.
+        fun walk(
+            node: SemanticsNode,
+            inScroll: Boolean = false,
+            clipBottom: Float? = null,
+            inText: String? = null,
+        ) {
             val scrollable = inScroll ||
                 node.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) != null
             val left = (node.positionInRoot.x - originX) / density
             val top = (node.positionInRoot.y - originY) / density
             val right = left + node.size.width / density
             val bottom = top + node.size.height / density
-            val name = label(node)
+            val name = if (inText != null) "link in $inText" else label(node)
 
             // 1. the squashing case: the renderer could not draw all it was given.
             //
@@ -238,6 +275,30 @@ fun measureFit(
                 }
             }
 
+            // 1b. a DRAWING that was given no room to draw in.
+            //
+            // A canvas is the one element in this project that can fail completely while looking
+            // perfectly healthy to every other check here: nothing is clipped, nothing overflows,
+            // the node is present and reports a size, and the draw block runs -- into a box zero
+            // pixels tall. The voice waveform did exactly that, because `Canvas` IS a `Spacer` and
+            // Spacer takes the incoming maximum only on an axis whose constraint is FIXED and zero
+            // on an axis given a range: `heightIn(min, max)` is a range. It was found by looking at
+            // a screenshot, which is not a method that scales to 17 devices and 3 font scales.
+            //
+            // So anything that draws rather than lays out carries a tag, and the tag is measured.
+            val tag = node.config.getOrNull(SemanticsProperties.TestTag)
+            if (tag != null && tag in MEASURED_CANVASES) {
+                val wDpNode = node.size.width / density
+                val hDpNode = node.size.height / density
+                if (node.size.width == 0 || node.size.height == 0) {
+                    found += Violation(device, screen, tag, "CANVAS COLLAPSED",
+                        "%.1f x %.1fdp -- it drew into nothing".format(wDpNode, hDpNode))
+                } else if (wDpNode < MIN_CANVAS_DP || hDpNode < MIN_CANVAS_DP) {
+                    found += Violation(device, screen, tag, "CANVAS TOO SMALL TO READ",
+                        "%.1f x %.1fdp".format(wDpNode, hDpNode))
+                }
+            }
+
             if (node.size.width > 0 && node.size.height > 0) {
                 // 2. positioned outside the safe area
                 if (bottom > hDp + SLACK_DP) {
@@ -266,7 +327,24 @@ fun measureFit(
                 // 4. a tap target squeezed below the stated minimum
                 val clickable = node.config.getOrNull(SemanticsActions.OnClick) != null
                 val heightDp = node.size.height / density
-                if (clickable && heightDp < MIN_TAP_DP - SLACK_DP) {
+                if (clickable && inText != null) {
+                    // AN INLINE LINK IS NOT A CONTROL, and the 44dp floor does not apply to it.
+                    //
+                    // `Terms` inside `By continuing you agree to our Terms` is a LinkAnnotation, and
+                    // Compose gives its semantics node exactly the bounds of the text run -- 17.5dp
+                    // for one line of 14sp, 35 when it wraps onto two. There is no padding to add:
+                    // growing the box would push the words of the sentence apart. Every platform
+                    // handles inline links this way, and the guideline the floor comes from is
+                    // about components.
+                    //
+                    // Reported anyway, as an advisory, because the alternative -- saying nothing --
+                    // is how a link genuinely too small to hit would go unnoticed.
+                    if (heightDp < MIN_TAP_DP - SLACK_DP) {
+                        found += Violation(device, screen, name, "inline link, text-sized tap area",
+                            "%.1fdp -- bounded by its line, not by padding".format(heightDp),
+                            advisory = true)
+                    }
+                } else if (clickable && heightDp < MIN_TAP_DP - SLACK_DP) {
                     found += Violation(device, screen, name, "TAP TARGET TOO SMALL",
                         "%.1fdp, unusable below %.0f".format(heightDp, MIN_TAP_DP))
                 } else if (clickable && heightDp < SPEC_BUTTON_DP - SLACK_DP) {
@@ -279,7 +357,34 @@ fun measureFit(
                 // 3. text collapsed to nothing at all
                 found += Violation(device, screen, name, "TEXT COLLAPSED", "zero height")
             }
-            node.children.forEach { walk(it, scrollable) }
+            // 5. a region that scrolls, and HOW FAR.
+            //
+            // The first version of this reported every child that fell past its scrolling
+            // ancestor, and fired 3,138 times: content below the fold of a list is what a list IS.
+            // A detector that cries wolf is one nobody reads the output of, which is the same
+            // lesson the horizontal-overflow check above was deleted for.
+            //
+            // So the container is the finding, once, with the overflow measured. That distinguishes
+            // the two cases by size rather than by kind: a prompts list 400dp longer than its
+            // viewport is a list working correctly, and a fixed region overflowing by 88dp is a
+            // squeeze -- the same 88dp that put `Hear it back before you keep it` behind the lower
+            // third at 2.0x while the report for that state said "clean on all 17 devices".
+            //
+            // Advisory, because scrolling does reach it. It is here to be READ.
+            val range = node.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange)
+            if (range != null) {
+                val overflowDp = range.maxValue() / density
+                if (overflowDp > SLACK_DP) {
+                    found += Violation(device, screen, name, "SCROLLS",
+                        "%.0fdp of overflow in a %.0fdp region".format(overflowDp, bottom - top),
+                        advisory = true)
+                }
+            }
+
+            // The nearest scrolling ancestor is what bounds everything below it.
+            val childText = inText
+                ?: layout?.let { NEWLINE_RE.replace(it.layoutInput.text.text, " ").take(30) }
+            node.children.forEach { walk(it, scrollable, null, childText) }
         }
         walk(boxNode)
     }

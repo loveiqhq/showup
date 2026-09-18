@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,17 +67,21 @@ fun ControlPip(
     // a row 8dp apart; overflowing 6dp horizontally as well would make their hit areas overlap by
     // 4dp, and a tap near Retake's right edge would delete the recording. The pill is already far
     // wider than 44, so height is the only axis that needs anything.
-    Box(modifier.height(PIP_HEIGHT), contentAlignment = Alignment.Center) {
+    Box(modifier.heightIn(min = PIP_HEIGHT), contentAlignment = Alignment.Center) {
         Box(
             Modifier
-                .requiredHeight(ComponentSizes.minTapTarget)
+                .requiredHeightIn(min = ComponentSizes.minTapTarget)
                 .clip(RoundedCornerShape(percent = 50))
                 .clickable(role = Role.Button, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
             Row(
+                // A MINIMUM, NOT A FIXED HEIGHT. At the largest system font the label is twice as
+                // tall as it is at 1x and a 32dp box clips it -- the fit harness found exactly that
+                // on all seventeen sizes at 2.0x. `height` is for things meant to be a fixed size;
+                // anything containing a string gets a floor and grows.
                 Modifier
-                    .height(PIP_HEIGHT)
+                    .heightIn(min = PIP_HEIGHT)
                     .clip(RoundedCornerShape(percent = 50))
                     .background(Color.White)
                     .border(1.dp, outline, RoundedCornerShape(percent = 50))
@@ -95,9 +101,27 @@ fun ControlPip(
                     // rather break "Delete" over six lines than let the pill overflow, which the
                     // fit harness caught at 320 wide: 146px of text below the cut. The pill keeps
                     // its intrinsic width and the row around it is what yields -- see
-                    // RecordedControls, where the descriptive label is the weighted child.
-                    maxLines = 1,
-                    softWrap = false,
+                    // RecordedControls, where the pips are siblings in a flow row and wrap one at
+                    // a time.
+                    //
+                    // `maxLines` ALONE, WITHOUT `softWrap = false`. The two look interchangeable
+                    // for a one-word label and are not: `softWrap = false` measures the run as a
+                    // single unbounded line and raises `hasVisualOverflow` whenever that exceeds
+                    // the incoming constraint -- even where the parent would have grown to fit it.
+                    // At the largest system font on a 320 phone that reported `Delete` as clipped
+                    // when it was not. `maxLines = 1` gets the same no-wrap behaviour, because a
+                    // single word has nowhere to break, without the false positive.
+                    // TWO, and a one-word label can never use the second. `FlowRow` measures its
+                    // children twice -- once to decide where lines break, once to place them --
+                    // and the first pass offers a tighter width than the final placement. At the
+                    // largest system font that made `didExceedMaxLines` latch on `Delete` while
+                    // the PLACED pill was wide enough: measured at 320x2.0, the label needs 76dp
+                    // and the pill is 120 with 43 of chrome. The pixels were never clipped.
+                    //
+                    // A second line changes nothing for `Retake` or `Delete`, which have nowhere
+                    // to break, and it means a translation that genuinely needs two gets a taller
+                    // pill instead of a cut one -- which is the behaviour worth having anyway.
+                    maxLines = 2,
                 )
             }
         }

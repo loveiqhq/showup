@@ -218,7 +218,22 @@ private struct TutorialFlow: View {
     }
 
     /// SHOWUP-161, as its own property, for the same reason the prompts screen is one.
-    @ViewBuilder private var mediaScreen: some View {
+    private var mediaScreen: some View {
+        // ARRIVAL IS KEYED TO THE STEP, NOT TO THE SURFACE. The `.task` used to sit on the media
+        // view inside the `else`, so it re-ran every time a take ended -- the view disappeared
+        // while the viewfinder was up and reappeared on the way back. That fired a second
+        // `screen_viewed`, a second PAIR of `profile_step_viewed`, and reset the step's start time.
+        // On the Group it belongs to the position in the flow, which is what `arrived` means.
+        Group { mediaSurface }
+            .task { await media.arrived() }
+            // RE-READ BOTH STATUSES ON EVERY FOREGROUND. "Returning from Settings with access
+            // granted lands on the working card, never on the blocked row."
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { media.refreshAccess() }
+            }
+    }
+
+    @ViewBuilder private var mediaSurface: some View {
         if let take = media.state.take {
             MediaCaptureView(
                 take: take,
@@ -275,12 +290,6 @@ private struct TutorialFlow: View {
                 onSkip: { media.skipPressed(); go(to: .home) },
                 onContinue: { media.continuePressed(); go(to: .home) }
             )
-            .task { await media.arrived() }
-            // RE-READ BOTH STATUSES ON EVERY FOREGROUND. "Returning from Settings with access
-            // granted lands on the working card, never on the blocked row."
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { media.refreshAccess() }
-            }
         }
     }
 

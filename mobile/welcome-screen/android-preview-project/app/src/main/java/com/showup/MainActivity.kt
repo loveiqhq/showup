@@ -586,6 +586,20 @@ class MainActivity : ComponentActivity() {
                     // and no way back except Cancel, so it is a state of this step rather than a
                     // place the router can send anyone.
                     FlowScreen.ProfileMedia -> {
+                        // ARRIVAL IS KEYED TO THE STEP, NOT TO THE SURFACE.
+                        //
+                        // This used to sit on the media screen inside the `else` below, which made
+                        // it re-run every time a take ended: the branch was removed while the
+                        // viewfinder was up and composed again on the way back, restarting the
+                        // effect. That fired a second `screen_viewed`, a second PAIR of
+                        // `profile_step_viewed`, and reset the step's start time -- so
+                        // `time_on_step_s` measured from the last take rather than from arrival,
+                        // and the step funnel counted one entry per recording.
+                        //
+                        // Up here the effect belongs to the position in the flow. Returning from a
+                        // take does not re-enter the step, and `acceptTake` already reports the new
+                        // entry state itself.
+                        LaunchedEffect(Unit) { media.arrived() }
                         val take = mediaState.take
                         if (take != null) {
                             MediaCaptureScreen(
@@ -643,9 +657,7 @@ class MainActivity : ComponentActivity() {
                                     media.continuePressed()
                                     screen = FlowScreen.Home
                                 },
-                            ).also {
-                                LaunchedEffect(Unit) { media.arrived() }
-                            }
+                            )
                         }
                     }
 

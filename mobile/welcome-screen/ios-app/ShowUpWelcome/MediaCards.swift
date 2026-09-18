@@ -310,7 +310,7 @@ struct RecordedVideoCard: View {
                          spacing: Spacing.lg) {
             Button(action: onPlay) {
                 ZStack {
-                    VideoThumbnail(path: artefact.localPath)
+                    VideoFrame(path: artefact.localPath)
                     // The scrim, so the play glyph reads on any frame.
                     LinearGradient(colors: [Color.liqFg.opacity(0.10), Color.liqFg.opacity(0.32)],
                                    startPoint: .top, endPoint: .bottom)
@@ -353,8 +353,15 @@ struct RecordedVideoCard: View {
     }
 }
 
-/// One frame of the take, or the lilac ground while it is being read.
-private struct VideoThumbnail: View {
+/// The take's last frame, or nothing while it is being read.
+///
+/// THE LAST FRAME, NOT THE FIRST, and the build inventory is specific about it: "a frozen LAST
+/// frame for review and for the card thumbnail". One frame, two places — so what the user approved
+/// on the review screen is exactly what the card then shows, and a card that disagreed with the
+/// review it came from would read as a different recording.
+///
+/// Shared by the filled card and the review screen for the same reason.
+struct VideoFrame: View {
     let path: String?
     @State private var frame: UIImage?
 
@@ -368,18 +375,26 @@ private struct VideoThumbnail: View {
         }
         .task(id: path) {
             guard let path else { return }
-            frame = await Self.firstFrame(path)
+            frame = await Self.lastFrame(path)
         }
     }
 
-    /// The FIRST frame rather than a time in the middle: the user pressed record and looked at the
-    /// lens, so frame zero is the one they expect to see.
-    private static func firstFrame(_ path: String) async -> UIImage? {
+    private static func lastFrame(_ path: String) async -> UIImage? {
         await Task.detached(priority: .utility) {
             let asset = AVURLAsset(url: URL(fileURLWithPath: path))
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
-            guard let cg = try? generator.copyCGImage(at: .zero, actualTime: nil) else { return nil }
+            // The tolerances matter more than the time. A ten-second clip may carry one keyframe,
+            // at zero; asking for the end with the default (zero) tolerance makes the generator
+            // decode to that exact presentation time or fail, and a generous tolerance lets it
+            // hand back the nearest frame it already has rather than nothing at all.
+            generator.requestedTimeToleranceBefore = CMTime(seconds: 1, preferredTimescale: 600)
+            generator.requestedTimeToleranceAfter = .positiveInfinity
+            let duration = (try? await asset.load(.duration)) ?? .zero
+            let at = duration.seconds.isFinite && duration.seconds > 0
+                ? CMTime(seconds: duration.seconds, preferredTimescale: 600)
+                : .zero
+            guard let cg = try? generator.copyCGImage(at: at, actualTime: nil) else { return nil }
             return UIImage(cgImage: cg)
         }.value
     }
@@ -613,6 +628,10 @@ struct RecordedVoiceCard: View {
 /// redrawing on every playback tick is a lot of layout for a decoration. The arithmetic is
 /// identical either way — each bar is `1/48` of the width minus the gap.
 struct Waveform: View {
+    /// The narrowest a bar may be drawn. Below about this it lands inside a single device pixel
+    /// and reads as nothing at all. See the Canvas below for what that cost.
+    static let minBarWidth: CGFloat = 1.5
+
     let bars: [Double]
     let progress: Double
     let playedColor: Color
@@ -624,10 +643,22 @@ struct Waveform: View {
     var body: some View {
         Canvas { ctx, size in
             let slot = (size.width + barGap) / CGFloat(bars.count)
-            let width = max(1, slot - barGap)
+            // THE GAP YIELDS BEFORE THE BAR DOES.
+            //
+            // 48 bars at a fixed 4pt gap spend 188pt on gaps alone. That is comfortable at the
+            // width the design was drawn at -- 390, where the bars still get about 1.6pt each --
+            // and it is ruinous on a 320 screen with the review screen's play button beside it:
+            // 194pt of room, 188 of it gap, leaving an eighth of a point per bar. The old floor
+            // here was `max(1, ...)`, which drew a 1pt hairline and read as an empty box.
+            //
+            // So the gap is a preference and the bar width is a floor. Where the design's 4 already
+            // leaves a drawable bar nothing changes; where it does not, the gap gives way.
+            let width = min(slot, max(Waveform.minBarWidth, slot - barGap))
+            let gap = max(0, slot - width)
             for (index, value) in bars.enumerated() {
                 let height = max(minBarHeight, CGFloat(value) * size.height)
-                let rect = CGRect(x: CGFloat(index) * slot, y: (size.height - height) / 2,
+                let rect = CGRect(x: CGFloat(index) * slot + gap / 2,
+                                  y: (size.height - height) / 2,
                                   width: width, height: height)
                 let played = Double(index) < Double(bars.count) * progress
                 ctx.fill(Path(roundedRect: rect, cornerRadius: corner),

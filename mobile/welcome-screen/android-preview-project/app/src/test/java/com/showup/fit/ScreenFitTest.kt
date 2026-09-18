@@ -150,6 +150,29 @@ class ScreenFitTest {
                 fresh.forEach { println("       $it") }
             }
         }
+
+        // ADVISORIES ARE PRINTED, and they were not until 18 September 2026.
+        //
+        // They were collected, counted against nothing and discarded -- so `BELOW THE FOLD`, the
+        // 56dp note and everything else non-fatal was invisible in the log as well as in the
+        // assertion. The voice screen's hint was hidden behind its own scroll container on one
+        // device and the report for that state said, in full, "clean on all 17 devices".
+        //
+        // Rolled up per element rather than per device, because the same advisory on 17 phones is
+        // one thing to look at, not seventeen.
+        found.filter { it.advisory }
+            .groupBy { it.element to it.problem }
+            .toList()
+            .sortedByDescending { it.second.size }
+            .forEach { (key, hits) ->
+                val where = if (hits.size == DEVICES.size) {
+                    "all ${DEVICES.size} devices"
+                } else {
+                    hits.joinToString(", ") { it.device.name }.take(70)
+                }
+                println("     note  ${key.first} -- ${key.second}: ${hits.first().detail}" +
+                    "  [$where]")
+            }
     }
 
     private fun assertClean() {
@@ -613,6 +636,63 @@ class ScreenFitTest {
             }
             sweep("Prompts/write @$scale", fontScale = scale) {
                 ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date_usually")))
+            }
+
+            // SHOWUP-161. This screen has MORE fixed heights than either of the two above -- a 36
+            // chip, a 30 permission pill, a 32 control pip, a 52 review button, an 84 shutter --
+            // and a fixed height is exactly what large type overflows. The capture views are the
+            // sharpest case: `Cancel` is the only way out of them, so a Cancel pushed off the edge
+            // at 2.0x is a user who cannot leave the screen.
+            val mediaVideoFit = MediaArtefact(
+                kind = MediaKind.Video, promptId = "relaxed_and_happy", durationMs = 9_400,
+                localPath = null, remoteId = "v1", status = MediaUploadStatus.Confirmed,
+            )
+            val mediaVoiceFit = MediaArtefact(
+                kind = MediaKind.Voice, promptId = "relaxing_sound", durationMs = 14_100,
+                localPath = null, remoteId = "a1", status = MediaUploadStatus.Confirmed,
+            )
+            sweep("Media/empty @$scale", fontScale = scale) { ProfileMediaScreen() }
+            sweep("Media/both @$scale", fontScale = scale) {
+                ProfileMediaScreen(MediaState(video = mediaVideoFit, voice = mediaVoiceFit))
+            }
+            sweep("Media/prompts @$scale", fontScale = scale) {
+                ProfileMediaScreen(
+                    MediaState(
+                        sheet = MediaSheet(
+                            MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                        ),
+                    ),
+                )
+            }
+            sweep("Media/blocked @$scale", fontScale = scale) {
+                ProfileMediaScreen(
+                    MediaState(access = MediaAccess(microphone = MediaPermission.Blocked)),
+                    platformLabel = { "Microphone" },
+                )
+            }
+            sweep("Media/video recording @$scale", fontScale = scale) {
+                MediaCaptureScreen(
+                    MediaTake(MediaKind.Video, "relaxed_and_happy", elapsedMs = 6_000),
+                )
+            }
+            sweep("Media/video review @$scale", fontScale = scale) {
+                MediaCaptureScreen(
+                    MediaTake(
+                        MediaKind.Video, "relaxed_and_happy",
+                        phase = RecordingPhase.Review, elapsedMs = 9_000,
+                    ),
+                )
+            }
+            sweep("Media/voice recording @$scale", fontScale = scale) {
+                MediaCaptureScreen(MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 4_000))
+            }
+            sweep("Media/voice review @$scale", fontScale = scale) {
+                MediaCaptureScreen(
+                    MediaTake(
+                        MediaKind.Voice, "relaxing_sound",
+                        phase = RecordingPhase.Review, elapsedMs = 14_000,
+                    ),
+                )
             }
         }
         assertClean()

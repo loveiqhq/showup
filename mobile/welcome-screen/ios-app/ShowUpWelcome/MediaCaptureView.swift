@@ -100,29 +100,55 @@ private struct CaptureTopRow: View {
     let onCancel: () -> Void
 
     var body: some View {
-        HStack {
-            // Draws 36, answers at 44 -- the rule every tappable thing here is held to, and it
-            // matters more on this screen than anywhere: Cancel is the ONLY way out.
-            Button(action: onCancel) {
-                Text(MediaCopy.cancel)
-                    .font(F.manrope(13.5, .bold))
-                    .foregroundColor(cancelContent)
-                    .padding(.horizontal, 14)
-                    .frame(height: 36)
-                    .background(cancelBackground, in: Capsule())
-                    .minTapTarget(alignment: .leading)
+        // CANCEL AND THE CHIP SHARE A LINE UNTIL THEY CANNOT.
+        //
+        // `0:14 RECORDED` is 13 characters with 0.08em of tracking on top. At the largest Dynamic
+        // Type size on a 320 screen it does not fit beside Cancel, and the fallback is to break the
+        // word: the chip read `RECORD` / `ED`, cut in half with no hyphen, with Cancel squeezed
+        // under it. Stacked, Cancel keeps the line it must always have -- it is the ONLY way out of
+        // this screen -- and the chip, a status rather than a control, drops beneath it.
+        //
+        // `ViewThatFits` is the measurement: it lays out the first child and uses it only if it
+        // fits, which is the same rule the Compose side spells out by hand with a text measurer.
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                cancel
+                Spacer()
+                badge
             }
-            .buttonStyle(PressScale())
-
-            Spacer()
-
-            if take.phase == .review {
-                RecordedChip(elapsedMs: take.elapsedMs,
-                             background: recordedChipBackground,
-                             content: recordedChipContent)
-            } else {
-                RecChip()
+            VStack(alignment: .trailing, spacing: Spacing.sm) {
+                HStack { cancel; Spacer() }
+                badge
             }
+        }
+    }
+
+    // Draws 36, answers at 44 -- the rule every tappable thing here is held to, and it matters
+    // more on this screen than anywhere: Cancel is the ONLY way out.
+    private var cancel: some View {
+        Button(action: onCancel) {
+            Text(MediaCopy.cancel)
+                .font(F.manrope(13.5, .bold))
+                .foregroundColor(cancelContent)
+                .fixedSize()
+                .padding(.horizontal, 14)
+                // minHeight, not height: a fixed frame cuts the label's descenders at the largest
+                // Dynamic Type size, which is what a fixed 30 did to the photo sheet's pill.
+                .frame(minHeight: 36)
+                .background(cancelBackground, in: Capsule())
+                .minTapTarget(alignment: .leading)
+        }
+        .buttonStyle(PressScale())
+    }
+
+    @ViewBuilder
+    private var badge: some View {
+        if take.phase == .review {
+            RecordedChip(elapsedMs: take.elapsedMs,
+                         background: recordedChipBackground,
+                         content: recordedChipContent)
+        } else {
+            RecChip()
         }
     }
 }
@@ -146,10 +172,14 @@ private struct RecChip: View {
                 .font(F.manrope(12, .heavy))
                 .tracking(0.08 * 12)
                 .foregroundColor(.white)
+                // One line, never broken mid-word. The row above decides whether there is space
+                // for this chip beside Cancel; this decides that it is never mangled to fit.
+                .lineLimit(1)
+                .fixedSize()
         }
         .padding(.leading, Spacing.xl)
         .padding(.trailing, 14)
-        .frame(height: 36)
+        .frame(minHeight: 36)
         .background(Color.liqDanger.opacity(0.92), in: Capsule())
         .onAppear { if !reduceMotion { dim = true } }
     }
@@ -168,10 +198,13 @@ private struct RecordedChip: View {
                 .font(F.manrope(12, .heavy))
                 .tracking(0.08 * 12)
                 .foregroundColor(content)
+                // See RecChip: one line, never broken mid-word.
+                .lineLimit(1)
+                .fixedSize()
         }
         .padding(.leading, Spacing.xl)
         .padding(.trailing, 14)
-        .frame(height: 36)
+        .frame(minHeight: 36)
         .background(background, in: Capsule())
     }
 }
@@ -252,29 +285,50 @@ private struct ReviewActions: View {
     let onAccept: () -> Void
 
     var body: some View {
-        HStack(spacing: Spacing.lg) {
-            Button(action: onRetake) {
-                HStack(spacing: 7) {
-                    BrandIconView(icon: .refresh, size: 16, stroke: 2, tint: retakeContent)
-                    Text(MediaCopy.retake)
-                        .font(F.manrope(14.5, .bold))
-                        .foregroundColor(retakeContent)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal, 18)
-                .frame(height: 52)
-                .background(retakeBackground, in: Capsule())
-                .overlay(Capsule().strokeBorder(retakeBorder, lineWidth: 1))
+        // SIDE BY SIDE WHEN THEY FIT, STACKED WHEN THEY DO NOT.
+        //
+        // `Use this recording` beside `Retake` is comfortable at the default text size and does not
+        // fit at the largest: the Compose side's fit sweep found the primary's label clipped on
+        // every device at 2.0x type. Stacked, the primary goes FIRST -- it is the way forward, and
+        // Retake stays the quiet one.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.lg) {
+                retake(fullWidth: false)
+                accept
             }
-            .buttonStyle(PressScale())
-
-            PrimaryButton(
-                label: MediaCopy.usePrimary(kind),
-                variant: .sunset,
-                action: onAccept,
-                trailing: { BrandIconView(icon: .check, size: 17, stroke: 2.4, tint: .white) }
-            )
+            VStack(spacing: Spacing.lg) {
+                accept
+                retake(fullWidth: true)
+            }
         }
+    }
+
+    private func retake(fullWidth: Bool) -> some View {
+        Button(action: onRetake) {
+            HStack(spacing: 7) {
+                BrandIconView(icon: .refresh, size: 16, stroke: 2, tint: retakeContent)
+                Text(MediaCopy.retake)
+                    .font(F.manrope(14.5, .bold))
+                    .foregroundColor(retakeContent)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 18)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
+            // minHeight, not height, for the same reason as the chips above.
+            .frame(minHeight: 52)
+            .background(retakeBackground, in: Capsule())
+            .overlay(Capsule().strokeBorder(retakeBorder, lineWidth: 1))
+        }
+        .buttonStyle(PressScale())
+    }
+
+    private var accept: some View {
+        PrimaryButton(
+            label: MediaCopy.usePrimary(kind),
+            variant: .sunset,
+            action: onAccept,
+            trailing: { BrandIconView(icon: .check, size: 17, stroke: 2.4, tint: .white) }
+        )
     }
 }
 
@@ -294,8 +348,17 @@ private struct VideoCaptureScreen: View {
             background: {
                 ZStack {
                     viewfinderGround
-                    if let camera {
-                        CameraPreview(session: camera.session)
+                    // THE LIVE CAMERA ONLY WHILE FILMING. In review the ticket asks for "the 88px
+                    // glass play button over the FROZEN FRAME" — leaving the preview running would
+                    // show the user their own live face behind the controls for deciding whether
+                    // to keep a recording of a different moment, which is the one thing that makes
+                    // the review screen unreadable.
+                    if take.phase == .recording {
+                        if let camera {
+                            CameraPreview(session: camera.session)
+                        }
+                    } else {
+                        VideoFrame(path: take.path)
                     }
                     // The vignette, so white chrome reads against any scene.
                     RadialGradient(
@@ -392,6 +455,10 @@ private struct VoiceCaptureScreen: View {
                               onCancel: onCancel)
             },
             middle: {
+                // The 28 gap is the first thing to give when the screen is short: the prompt is
+                // the question being answered and the hint is how to answer it, so neither may be
+                // cut, and 36 + 28 + 28 of air is the cheapest 92 points on the screen. See the
+                // Compose side, where the same three-way priority is spelled out by subtraction.
                 VStack(spacing: 28) {
                     // The prompt is the HERO here rather than a lower-third caption: there is
                     // nothing else on screen to look at, and the whole point is that the user is
@@ -422,7 +489,25 @@ private struct VoiceCaptureScreen: View {
                                  progress: review ? 0 : take.progress,
                                  playedColor: .liqOrange, restColor: .liqPurple,
                                  barGap: Spacing.xs, minBarHeight: Spacing.sm, corner: 3)
-                            .frame(height: review ? 120 : 160)
+                            // A FLOOR AND A CEILING, NOT A FIXED HEIGHT.
+                            //
+                            // 160 (120 in review) is what the design draws and what it gets
+                            // whenever there is room. At the largest Dynamic Type size on a short
+                            // screen the prompt above is three times taller and the hint below was
+                            // pushed off the bottom; the waveform is the one thing in this column
+                            // that can give way, being a decoration, where the question the user is
+                            // answering is not.
+                            //
+                            // A range works here and does NOT on the Compose side, which is worth
+                            // knowing rather than copying blindly: SwiftUI proposes a size and the
+                            // child negotiates, so a flexible frame shrinks under pressure. Compose
+                            // hands down constraints, and a Canvas given a height RANGE resolves to
+                            // zero -- so the Kotlin waveform is sized by subtraction instead.
+                            //
+                            // The floor is 64 in review because the play button beside it is 64 and
+                            // does not shrink.
+                            .frame(minHeight: review ? 64 : 56,
+                                   maxHeight: review ? 120 : 160)
                             // The finished take reads quieter than the live one: it is something to
                             // listen back to rather than something happening.
                             .opacity(review ? 0.5 : 0.85)

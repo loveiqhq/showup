@@ -43,8 +43,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -54,6 +57,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.requiredHeightIn
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.safeDrawing
@@ -79,6 +85,11 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -138,7 +149,15 @@ fun MediaCaptureScreen(
 private fun CaptureFrame(
     background: @Composable () -> Unit,
     topRow: @Composable () -> Unit,
-    middle: @Composable ColumnScope.() -> Unit,
+    /**
+     * The flexible middle. Receives the height the region actually has, in dp.
+     *
+     * It is passed rather than discovered because the middle SCROLLS, and inside a scroll a
+     * child's height constraint is unbounded -- `weight` resolves to zero and `BoxWithConstraints`
+     * reports infinity. A decoration meant to give way when the screen is short therefore cannot
+     * work it out for itself; this is the only place that knows.
+     */
+    middle: @Composable ColumnScope.(room: Dp) -> Unit,
     lowerThird: @Composable ColumnScope.() -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
@@ -154,11 +173,23 @@ private fun CaptureFrame(
                     .padding(start = 20.dp, end = 20.dp, top = Spacing.xs),
             ) { topRow() }
 
-            Column(
-                Modifier.weight(1f).fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                content = middle,
-            )
+            // THE MIDDLE SCROLLS, THE LOWER THIRD DOES NOT -- the same division as the media
+            // screen's own scaffold, and for a sharper reason here. At the largest accessibility
+            // font on the narrowest phone there is more content than screen: the prompt alone runs
+            // to three lines. Something has to give, and it cannot be the lower third, because
+            // that is where Stop lives and nobody can be asked to scroll to end a take.
+            //
+            // At every size and scale where it already fitted this changes nothing: a scroll
+            // container whose content is shorter than its viewport does not scroll.
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                val room = maxHeight
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) { middle(room) }
+            }
 
             Column(
                 Modifier
@@ -186,28 +217,104 @@ private fun CaptureTopRow(
     recordedChipBackground: Color,
     recordedChipContent: Color,
 ) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // CANCEL AND THE CHIP SHARE A LINE UNTIL THEY CANNOT, AND THAT IS MEASURED.
+    //
+    // `0:14 RECORDED` is 13 characters with 0.08em of tracking on top. At the largest system font
+    // on a 320 phone it does not fit beside Cancel, and Compose's last resort for a single word too
+    // wide for its line is to break it: the chip read `RECORD` / `ED`, a word cut in half with no
+    // hyphen, while Cancel was pushed under it. Neither is something a person would ship.
+    //
+    // Stacked, Cancel keeps the line it must always have -- it is the ONLY way out of this screen
+    // -- and the chip, which is a status rather than a control, drops beneath it on the right.
+    //
+    // Measured, not thresholded, for the reason this file keeps repeating: `fontScale > 1.3` is
+    // right for English and wrong for the first translation.
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val room = maxWidth
+        val review = take.phase == RecordingPhase.Review
+        val fits = with(density) {
+            val cancel = measurer.measure(
+                MediaCopy.CANCEL,
+                TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp),
+            ).size.width.toDp() + 28.dp
+            val badge = measurer.measure(
+                if (review) {
+                    (formatTakeLength(take.elapsedMs) + MediaCopy.RECORDED_SUFFIX).eyebrowCase()
+                } else {
+                    MediaCopy.REC
+                },
+                TextStyle(
+                    fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp,
+                    letterSpacing = 0.08.em,
+                ),
+            ).size.width.toDp() +
+                // the glyph, its gap, and the chip's own horizontal padding
+                13.dp + 7.dp + Spacing.xl + 14.dp
+            cancel + badge + Spacing.md <= room
+        }
+        if (fits) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TopRowContent(
+                    take, onCancel, cancelBackground, cancelContent,
+                    recordedChipBackground, recordedChipContent, stacked = false,
+                )
+            }
+        } else {
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                TopRowContent(
+                    take, onCancel, cancelBackground, cancelContent,
+                    recordedChipBackground, recordedChipContent, stacked = true,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Cancel and the status badge, in whichever container [CaptureTopRow] chose.
+ *
+ * One definition, so the two arrangements cannot drift apart: the order is the same either way and
+ * only the container differs.
+ */
+@Composable
+private fun TopRowContent(
+    take: MediaTake,
+    onCancel: () -> Unit,
+    cancelBackground: Color,
+    cancelContent: Color,
+    recordedChipBackground: Color,
+    recordedChipContent: Color,
+    stacked: Boolean,
+) {
+    val cancel: @Composable () -> Unit = {
         // Draws 36, answers at 44 -- the rule every tappable thing here is held to, and it matters
         // more on this screen than anywhere: Cancel is the ONLY way out.
-        Box(Modifier.height(36.dp), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.heightIn(min = 36.dp), contentAlignment = Alignment.CenterStart) {
             Box(
                 Modifier
-                    // requiredHeight, NOT height. `height` proposes a size and is clamped by the
+                    // requiredHeightIn, NOT height. `height` proposes a size and is clamped by the
                     // 36 above it, so this measured 36 on all seventeen sizes -- with a comment
-                    // three lines up claiming otherwise. `requiredHeight` ignores the incoming
-                    // constraint, which is the whole point of the overflow trick.
-                    .requiredHeight(ComponentSizes.minTapTarget)
+                    // three lines up claiming otherwise. The `required` form ignores the incoming
+                    // constraint, which is the whole point of the overflow trick; the `In` form
+                    // then lets the label grow past it at the largest system font.
+                    .requiredHeightIn(min = ComponentSizes.minTapTarget)
                     .clip(RoundedCornerShape(percent = 50))
                     .clickable(role = Role.Button, onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     Modifier
-                        .height(36.dp)
+                        .heightIn(min = 36.dp)
                         .clip(RoundedCornerShape(percent = 50))
                         .background(cancelBackground)
                         .padding(horizontal = 14.dp),
@@ -222,36 +329,51 @@ private fun CaptureTopRow(
             }
         }
 
-        if (take.phase == RecordingPhase.Review) {
-            RecordedChip(
-                take.elapsedMs,
-                background = recordedChipBackground,
-                content = recordedChipContent,
-            )
-        } else {
-            RecChip()
-        }
+    }
+    if (stacked) {
+        Box(Modifier.fillMaxWidth()) { cancel() }
+    } else {
+        cancel()
+    }
+
+    if (take.phase == RecordingPhase.Review) {
+        RecordedChip(
+            take.elapsedMs,
+            background = recordedChipBackground,
+            content = recordedChipContent,
+        )
+    } else {
+        RecChip()
     }
 }
 
-/** The live indicator. OURS, not the OS's -- we neither imitate nor compensate for those. */
+/**
+ * The live indicator. OURS, not the OS's -- we neither imitate nor compensate for those.
+ *
+ * THE TRANSITION IS NOT CREATED WHEN MOTION IS OFF, and that is not a detail. The obvious shape --
+ * create the transition, then write `if (motion.enabled) pulse else 1f` -- gates the VALUE and not
+ * the ANIMATION. `rememberInfiniteTransition` goes on asking for a frame every frame for as long
+ * as the composition lives, whatever is done with the number it produces. On a device that means a
+ * screen told "no animations" still wakes the display pipeline sixty times a second; in a test it
+ * means a composition that never goes idle.
+ *
+ * That is not theoretical. The screenshot harness renders this chip, and with the value-gated
+ * version `testDebugUnitTest` went from about three minutes to FOUR AND A HALF HOURS -- and passed,
+ * which is the worst way to fail.
+ *
+ * Three other components have the same shape (`Spinner`, the connect ring, the code caret). None
+ * is in the screenshot harness, so none has bitten yet; they are recorded in
+ * `audit/CONFLICTS-2026-08-27.md` rather than changed inside this ticket.
+ */
 @Composable
 private fun RecChip() {
     val motion = rememberMotion()
-    val transition = rememberInfiniteTransition(label = "rec")
-    val pulse by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.35f,
-        animationSpec = infiniteRepeatable(
-            // `su-rec-pulse`: 1.2s ease-in-out, opacity 1 -> 0.35 -> 1.
-            animation = tween(durationMillis = 600),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "recPulse",
-    )
+    // Calling a composable conditionally is legal, and this condition is stable for the life of
+    // the composition: it comes from a system setting whose change restarts the activity.
+    val pulse = if (motion.enabled) recPulse() else 1f
     Row(
         Modifier
-            .height(36.dp)
+            .heightIn(min = 36.dp)
             .clip(RoundedCornerShape(percent = 50))
             .background(Danger.copy(alpha = 0.92f))
             .padding(start = Spacing.xl, end = 14.dp),
@@ -261,7 +383,7 @@ private fun RecChip() {
         Box(
             Modifier
                 .size(8.dp)
-                .alpha(if (motion.enabled) pulse else 1f)
+                .alpha(pulse)
                 .clip(CircleShape)
                 .background(Color.White),
         )
@@ -273,12 +395,33 @@ private fun RecChip() {
     }
 }
 
+/**
+ * `su-rec-pulse`: 1.2s ease-in-out, opacity 1 -> 0.35 -> 1.
+ *
+ * Its own composable so [RecChip] can decline to call it. See that function for why declining
+ * matters rather than simply ignoring the result.
+ */
+@Composable
+private fun recPulse(): Float {
+    val transition = rememberInfiniteTransition(label = "rec")
+    val pulse by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "recPulse",
+    )
+    return pulse
+}
+
 /** `0:09 recorded` — the take's real length, not the cap. */
 @Composable
 private fun RecordedChip(elapsedMs: Int, background: Color, content: Color) {
     Row(
         Modifier
-            .height(36.dp)
+            .heightIn(min = 36.dp)
             .clip(RoundedCornerShape(percent = 50))
             .background(background)
             .padding(start = Spacing.xl, end = 14.dp),
@@ -387,36 +530,86 @@ private fun ReviewActions(
     retakeBorder: Color,
     retakeContent: Color,
 ) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            Modifier
-                .height(52.dp)
-                .clip(RoundedCornerShape(percent = 50))
-                .background(retakeBackground)
-                .border(1.dp, retakeBorder, RoundedCornerShape(percent = 50))
-                .clickable(role = Role.Button, onClick = onRetake)
-                .padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(BrandIcon.Refresh, 16.dp, tint = retakeContent, strokeWidth = 2f)
-            Text(
-                MediaCopy.RETAKE,
-                color = retakeContent, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                fontSize = 14.5.sp,
+    // SIDE BY SIDE WHEN THEY FIT, STACKED WHEN THEY DO NOT, and which it is is MEASURED.
+    //
+    // `Use this recording` beside `Retake` is comfortable at 1x and does not fit at the largest
+    // system font: the fit harness found the primary's label clipped on every device at 2.0x, and
+    // on the Galaxy Fold at 1.3x. A threshold on `fontScale` would be a guess that is right for
+    // English and wrong for the first translation, so the label is laid out with the real font at
+    // the real size and the row decides for itself. The same rule, and the same `rememberTextMeasurer`,
+    // as the three SSO marks that had to share a width.
+    //
+    // Stacked, the primary goes FIRST: it is the way forward, and Retake stays the quiet one.
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val room = maxWidth
+
+        val fits = with(density) {
+            val retakeStyle = TextStyle(
+                fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.5.sp,
             )
+            // 16 icon + 7 gap + 18 padding either side.
+            val retakeWidth = measurer.measure(MediaCopy.RETAKE, retakeStyle).size.width.toDp() +
+                16.dp + 7.dp + 36.dp
+            // The primary's own label at its own size, plus the check, its gap and its padding.
+            val primaryWidth = measurer
+                .measure(MediaCopy.usePrimary(kind), retakeStyle.copy(fontSize = 16.sp))
+                .size.width.toDp() + 17.dp + Spacing.md + 32.dp
+            retakeWidth + Spacing.lg + primaryWidth <= room
         }
-        Box(Modifier.weight(1f)) {
+
+        val retake = @Composable { fullWidth: Boolean ->
+            Row(
+                (if (fullWidth) Modifier.fillMaxWidth() else Modifier)
+                    .heightIn(min = 52.dp)
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(retakeBackground)
+                    .border(1.dp, retakeBorder, RoundedCornerShape(percent = 50))
+                    .clickable(role = Role.Button, onClick = onRetake)
+                    .padding(horizontal = 18.dp),
+                horizontalArrangement = if (fullWidth) {
+                    Arrangement.Center
+                } else {
+                    Arrangement.spacedBy(7.dp)
+                },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(BrandIcon.Refresh, 16.dp, tint = retakeContent, strokeWidth = 2f)
+                Spacer(Modifier.size(7.dp))
+                Text(
+                    MediaCopy.RETAKE,
+                    color = retakeContent, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+                    fontSize = 14.5.sp,
+                )
+            }
+        }
+        val accept = @Composable {
             PrimaryButton(
                 label = MediaCopy.usePrimary(kind),
                 onClick = onAccept,
                 variant = PrimaryButtonVariant.Sunset,
                 trailing = { Icon(BrandIcon.Check, 17.dp, tint = Color.White, strokeWidth = 2.4f) },
             )
+        }
+
+        if (fits) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                retake(false)
+                Box(Modifier.weight(1f)) { accept() }
+            }
+        } else {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+            ) {
+                accept()
+                retake(true)
+            }
         }
     }
 }
@@ -436,19 +629,28 @@ private fun VideoCapture(
     CaptureFrame(
         background = {
             Box(Modifier.fillMaxSize().background(ViewfinderGround)) {
-                if (cameraController != null) {
-                    AndroidView(
-                        factory = { context ->
-                            PreviewView(context).apply {
-                                // FILL_CENTER, because the viewfinder is full-bleed and a letterbox
-                                // would put grey bars around the user's face. The prompt sits over
-                                // the lower third either way.
-                                scaleType = PreviewView.ScaleType.FILL_CENTER
-                                controller = cameraController
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                // THE LIVE CAMERA ONLY WHILE FILMING. In review the ticket asks for "the 88px
+                // glass play button over the FROZEN FRAME" -- leaving the preview running would
+                // show the user their own live face behind the controls for deciding whether to
+                // keep a recording of a different moment, which is the one thing that makes the
+                // review screen unreadable.
+                if (take.phase == RecordingPhase.Recording) {
+                    if (cameraController != null) {
+                        AndroidView(
+                            factory = { context ->
+                                PreviewView(context).apply {
+                                    // FILL_CENTER, because the viewfinder is full-bleed and a
+                                    // letterbox would put grey bars around the user's face. The
+                                    // prompt sits over the lower third either way.
+                                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                                    controller = cameraController
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                } else {
+                    VideoFrame(take.path, Modifier.fillMaxSize())
                 }
                 // The vignette, so white chrome reads against any scene.
                 Box(
@@ -472,7 +674,7 @@ private fun VideoCapture(
                 recordedChipContent = Color.White,
             )
         },
-        middle = {
+        middle = { _ ->
             // Empty while filming -- the viewfinder IS the middle. The play affordance appears
             // only in review.
             Spacer(Modifier.weight(1f))
@@ -568,13 +770,77 @@ private fun VoiceCapture(
                 recordedChipContent = Color.White,
             )
         },
-        middle = {
+        middle = { room ->
+            // HOW TALL THE WAVEFORM IS, DECIDED BY SUBTRACTION RATHER THAN BY A CONSTANT.
+            //
+            // The column below holds three things and only one of them may shrink. The prompt is
+            // the question being answered and the hint is how to answer it; the waveform is a
+            // decoration. So the two texts are laid out at the real font and the real width, and
+            // the waveform is given what is left.
+            //
+            // Measured rather than thresholded, for the reason this file keeps repeating: a
+            // `fontScale > 1.3` rule is right for English and wrong for the first translation. And
+            // it cannot be a weight, which is the obvious answer and does not work -- inside the
+            // scrolling middle the height constraint is unbounded and a weighted child resolves to
+            // zero. That is why `room` is handed down.
+            //
+            // What it fixes: at 2.0x on a 320 phone this column overflowed its region by 94dp and
+            // the hint -- `Hear it back before you keep it` -- sat behind the lower third, present
+            // in the tree, invisible on the screen.
+            val measurer = rememberTextMeasurer()
+            val density = LocalDensity.current
+            val hintCopy =
+                if (review) MediaCopy.VOICE_HINT_REVIEW else MediaCopy.VOICE_HINT_RECORDING
+            val promptCopy = take.prompt?.display.orEmpty()
+            val (waveHeight, columnGap, columnTop) = with(density) {
+                val textWidth = 300.dp.roundToPx()
+                val promptHeight = measurer.measure(
+                    promptCopy,
+                    TextStyle(
+                        fontFamily = Lora, fontStyle = FontStyle.Italic, fontSize = 22.sp,
+                        lineHeight = (22f * 1.25f).sp, letterSpacing = (-0.015).em,
+                        textAlign = TextAlign.Center,
+                    ),
+                    constraints = Constraints(maxWidth = textWidth),
+                ).size.height.toDp()
+                val hintHeight = measurer.measure(
+                    hintCopy,
+                    TextStyle(
+                        fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                        letterSpacing = 0.02.em,
+                    ),
+                    constraints = Constraints(maxWidth = textWidth),
+                ).size.height.toDp()
+                // WHITESPACE GIVES WAY FIRST, THEN THE WAVEFORM, AND THE TEXT NEVER DOES.
+                //
+                // Three things compete for `room` and they are not equal. The prompt is the
+                // question being answered and the hint is how to answer it, so neither may be cut.
+                // The waveform is a decoration with a floor -- in review the 64 play pip sits in
+                // the same row and does not shrink. That leaves the gaps, and 36 + 28 + 28 of air
+                // is the cheapest 92dp on the screen.
+                //
+                // At 2.0x on a 320 phone this is the difference between the hint being readable
+                // and the hint being behind the lower third.
+                val minWave = if (review) 64.dp else 56.dp
+                val text = promptHeight + hintHeight
+                // Two gaps and a top padding, all from one number so they stay in proportion.
+                val gap = ((room - text - minWave) / 3).coerceIn(Spacing.sm, 28.dp)
+                Triple(
+                    (room - text - gap * 3).coerceIn(minWave, if (review) 120.dp else 160.dp),
+                    gap,
+                    gap,
+                )
+            }
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = 36.dp),
+                    .padding(
+                        start = Spacing.screenGutter,
+                        end = Spacing.screenGutter,
+                        top = columnTop,
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(28.dp),
+                verticalArrangement = Arrangement.spacedBy(columnGap),
             ) {
                 // The prompt is the HERO here rather than a lower-third caption: there is nothing
                 // else on screen to look at, and the whole point is that the user is answering it.
@@ -587,14 +853,23 @@ private fun VoiceCapture(
                     textAlign = TextAlign.Center,
                 )
                 Row(
-                    Modifier.fillMaxWidth(),
+                    // The height comes from `waveHeight` above, not from a weight: the column this
+                    // sits in scrolls, so its height constraint is unbounded and a weighted child
+                    // resolves to zero. Not a theory -- it is what made the waveform vanish
+                    // entirely at 2.0x, leaving a play button on a blank page.
+                    Modifier.fillMaxWidth().height(waveHeight),
                     horizontalArrangement = Arrangement.spacedBy(if (review) 14.dp else Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (review) {
                         Box(
                             Modifier
-                                .size(64.dp)
+                                // requiredSize, so a squeezed column cannot shrink the control.
+                                // The row it sits in is flexible now, and `size` is a PROPOSAL --
+                                // at 2.0x on a short phone the incoming height clamped this to
+                                // 26.5dp, which is a play button smaller than a fingertip. The
+                                // waveform beside it is what gives way; this does not.
+                                .requiredSize(64.dp)
                                 .clip(CircleShape)
                                 .background(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()))
                                 .clickable(role = Role.Button, onClick = onPlay)
@@ -616,7 +891,15 @@ private fun VoiceCapture(
                         corner = 3.dp,
                         modifier = Modifier
                             .weight(1f)
-                            .height(if (review) 120.dp else 160.dp)
+                            // FILL, do not range. A Canvas IS a Spacer --
+                            // `Spacer(modifier.drawBehind {})` -- and Spacer's measure policy takes
+                            // the incoming maximum only on an axis whose constraint is FIXED, and
+                            // ZERO on an axis given a range. `heightIn(min, max)` here produced a
+                            // canvas nothing tall: constraints legal, node present and reporting a
+                            // size, draw block painting into nothing, and not one check in the fit
+                            // harness able to see it, because nothing was clipped. The row above
+                            // owns the height; this fills it.
+                            .fillMaxHeight()
                             // The finished take reads quieter than the live one: it is something
                             // to listen back to rather than something happening.
                             .alpha(if (review) 0.5f else 0.85f),

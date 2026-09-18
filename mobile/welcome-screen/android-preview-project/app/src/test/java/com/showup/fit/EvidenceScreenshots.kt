@@ -39,6 +39,7 @@ package com.showup.fit
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Looper
+import android.provider.Settings
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
@@ -49,15 +50,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import org.robolectric.Robolectric
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
+import java.util.concurrent.TimeUnit
 import com.showup.profile.CameraAccess
 import com.showup.profile.LibraryAccess
 import com.showup.profile.PhotoGridState
 import com.showup.profile.PickedPhoto
 import com.showup.profile.ProfileEmbraceScreen
+import com.showup.profile.MediaAccess
 import com.showup.profile.MediaArtefact
+import com.showup.profile.MediaPermission
 import com.showup.profile.MediaCaptureScreen
 import com.showup.profile.MediaEntryPoint
 import com.showup.profile.MediaKind
@@ -101,6 +107,14 @@ class EvidenceScreenshots {
     private val out = File("build/evidence").apply { mkdirs() }
 
     /**
+     * How much virtual time each render is given.
+     *
+     * Two frames at 60Hz is 33ms; 200 is generous enough that a slow composition is never cut
+     * short and small enough that thirty renders cost no real time at all. See [settle].
+     */
+    private val SETTLE_MS = 200L
+
+    /**
      * Renders one state at each frame and writes the pixels.
      *
      * WHY THE VIEW IS DRAWN INTO A BITMAP RATHER THAN `captureToImage()`.
@@ -115,8 +129,36 @@ class EvidenceScreenshots {
      * is what makes the result real pixels rather than a no-op canvas -- the same annotation the
      * fit harness needs for font metrics, and for the same reason.
      */
-    private fun shoot(ticket: String, state: String, content: @Composable () -> Unit) {
-        frames.forEach { device ->
+    private fun shoot(
+        ticket: String,
+        state: String,
+        /**
+         * The system font size to render at, as a multiplier.
+         *
+         * 1.0 for the ticket frames, which are what the design was drawn at. The tight sweep below
+         * uses 2.0, because that and the narrowest phone together are where every layout bug in
+         * this flow has actually been found.
+         */
+        fontScale: Float = 1f,
+        /** Which frames to render. Defaults to the three the tickets name. */
+        devices: List<Device> = frames,
+        content: @Composable () -> Unit,
+    ) {
+        // ANIMATIONS OFF, FOR THE WHOLE HARNESS.
+        //
+        // Two reasons, and the second cost four and a half hours of CI. A frame captured mid
+        // animation is not reproducible evidence -- a pulsing dot photographed at whatever phase
+        // the clock happened to be in changes between runs. And a composition carrying an
+        // animation that never ends never goes idle, so the render never returns.
+        //
+        // `rememberMotion` reads this setting, which is what a person turning animations off in
+        // Settings changes. Setting it here is that same instruction, not a test-only back door.
+        Settings.Global.putFloat(
+            RuntimeEnvironment.getApplication().contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            0f,
+        )
+        devices.forEach { device ->
             val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
             val view = ComposeView(activity)
             activity.setContentView(view)
@@ -126,12 +168,19 @@ class EvidenceScreenshots {
                 val cfg = android.content.res.Configuration(LocalConfiguration.current).apply {
                     screenWidthDp = device.width
                     screenHeightDp = device.height
+                    this.fontScale = fontScale
                 }
                 // Captured from the composition rather than assumed from the qualifiers, so the
                 // bitmap is the right size whatever density the test host reports.
                 widthPx = with(LocalDensity.current) { device.width.dp.roundToPx() }
                 heightPx = with(LocalDensity.current) { device.safeHeight.dp.roundToPx() }
-                CompositionLocalProvider(LocalConfiguration provides cfg) {
+                // BOTH, not one. The Configuration is what a composable reading
+                // `LocalConfiguration.fontScale` sees; LocalDensity is what actually sizes an `sp`.
+                // Setting only the first scales nothing -- the same trap the fit harness documents.
+                CompositionLocalProvider(
+                    LocalConfiguration provides cfg,
+                    LocalDensity provides Density(LocalDensity.current.density, fontScale),
+                ) {
                     Box(
                         Modifier.requiredSize(device.width.dp, device.safeHeight.dp),
                     ) { content() }
@@ -139,21 +188,51 @@ class EvidenceScreenshots {
             }
             // Compose schedules its first composition on the main looper; nothing is laid out
             // until it has run.
-            shadowOf(Looper.getMainLooper()).idle()
+            settle()
             view.measure(
                 View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
             )
             view.layout(0, 0, widthPx, heightPx)
-            shadowOf(Looper.getMainLooper()).idle()
+            settle()
 
             val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
             view.draw(Canvas(bitmap))
-            val name = "${ticket}_${state}_${device.width}x${device.height}.png"
+            val suffix = if (fontScale == 1f) "" else "_fontScale$fontScale"
+            val name = "${ticket}_${state}_${device.width}x${device.height}$suffix.png"
             File(out, name).outputStream().use {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
             }
         }
+    }
+
+    /**
+     * Runs the main looper for a BOUNDED slice of virtual time.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * WHY THIS IS NOT `idle()`, WHICH IS WHAT IT USED TO BE
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * `idle()` drains the queue until it is EMPTY. A screen carrying an infinite animation never
+     * empties it: `rememberInfiniteTransition` re-posts a frame callback every frame, forever, so
+     * draining to empty is draining to never.
+     *
+     * Nothing here hit that until the media step arrived. Its `REC` chip pulses while recording,
+     * so states G and I are the first screens in this harness with an animation that does not end
+     * -- and the CI run that introduced them spent FOUR AND A HALF HOURS in `testDebugUnitTest`,
+     * against about three minutes before. It passed, which is the worst way to fail.
+     *
+     * `idleFor` advances a VIRTUAL clock by a fixed amount and runs what falls due. Composition and
+     * layout are posted immediately and complete in the first frame or two, so the window below is
+     * generous for them and finite for everything else. It also makes the captured frame
+     * DETERMINISTIC: a pulsing dot photographed at whatever phase the wall clock happened to be in
+     * is not reproducible evidence, and evidence that changes between runs is not evidence.
+     *
+     * This is the harness's bug rather than the chip's. The app is allowed an animation that does
+     * not end; a screenshot is not allowed to wait for one.
+     */
+    private fun settle() {
+        shadowOf(Looper.getMainLooper()).idleFor(SETTLE_MS, TimeUnit.MILLISECONDS)
     }
 
     private fun confirmed(n: Int) = List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed) }
@@ -175,6 +254,93 @@ class EvidenceScreenshots {
             "A proper conversation. An old cinema. The 8pm walk after a long day.",
         ),
     )
+
+    /**
+     * The same screens at the largest system font on the narrowest phone.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * WHY A SECOND SWEEP EXISTS
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * Every layout defect in this flow has been found at 320 x 2.0 and at no other combination,
+     * and several of them were invisible to `ScreenFitTest` at the same size. A canvas that
+     * resolved to zero height drew nothing and clipped nothing. A hint pushed past the end of its
+     * own scrolling region sat inside the viewport, so nothing was off the bottom. A chip broke
+     * `RECORDED` into `RECORD` and `ED`, which is two legal lines of text.
+     *
+     * All three were found by looking at a picture. The harness has since learned to catch each of
+     * them -- see the canvas check and the scroll-overflow check in `FitHarness` -- but the
+     * pictures are what found them, and the Definition of Done ends with somebody looking at the
+     * screen for exactly this reason. These are the frames to look at.
+     */
+    @Test
+    fun `the tight states, at the narrowest phone and the largest system font`() {
+        val tight = listOf(DEVICES.first { it.width == 320 })
+
+        shoot("TIGHT", "media-empty", fontScale = 2f, devices = tight) { ProfileMediaScreen() }
+        shoot("TIGHT", "media-both", fontScale = 2f, devices = tight) {
+            ProfileMediaScreen(
+                MediaState(
+                    video = MediaArtefact(
+                        kind = MediaKind.Video, promptId = "relaxed_and_happy",
+                        durationMs = 9_400, localPath = null, remoteId = "v1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                    voice = MediaArtefact(
+                        kind = MediaKind.Voice, promptId = "relaxing_sound",
+                        durationMs = 14_100, localPath = null, remoteId = "a1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                ),
+            )
+        }
+        shoot("TIGHT", "media-prompt-sheet", fontScale = 2f, devices = tight) {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        shoot("TIGHT", "media-blocked", fontScale = 2f, devices = tight) {
+            ProfileMediaScreen(
+                MediaState(access = MediaAccess(microphone = MediaPermission.Blocked)),
+                platformLabel = { "Microphone" },
+            )
+        }
+        shoot("TIGHT", "voice-review", fontScale = 2f, devices = tight) {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+            )
+        }
+        shoot("TIGHT", "voice-recording", fontScale = 2f, devices = tight) {
+            MediaCaptureScreen(
+                MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 6_000),
+            )
+        }
+        shoot("TIGHT", "video-review", fontScale = 2f, devices = tight) {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Video, "relaxed_and_happy",
+                    phase = RecordingPhase.Review, elapsedMs = 9_000,
+                ),
+            )
+        }
+        // Not a media screen. The photo sheet's blocked camera row is where the `Settings` pill
+        // and the sentence beside it compete for a 320dp line, and it is the other screen the
+        // unmerged-tree harness found a real clipping bug on.
+        shoot("TIGHT", "photos-camera-blocked", fontScale = 2f, devices = tight) {
+            ProfilePhotosScreen(
+                PhotoGridState(photos = confirmed(2)),
+                sheetOpen = true,
+                camera = CameraAccess.Blocked,
+            )
+        }
+    }
 
     @Test
     fun `every state of every ticket, at the three frames the tickets name`() {
