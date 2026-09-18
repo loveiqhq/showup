@@ -16,6 +16,24 @@
 //  playing a clip and playing a clip's audio underneath a still picture.
 //
 //  ───────────────────────────────────────────────────────────────────────────
+//  THE ENDING IS POLLED, NOT OBSERVED
+//  ───────────────────────────────────────────────────────────────────────────
+//
+//  The obvious way to notice a clip ending is `AVPlayerItemDidPlayToEndTime`. It was written that
+//  way first and replaced, for two reasons.
+//
+//  The first is concurrency. That notification hands back a `@Sendable` closure, and the only
+//  useful thing to do inside it is touch this `@MainActor` class -- which means capturing a
+//  non-Sendable value in a Sendable closure. That is a warning under Swift 5 and an error under
+//  Swift 6, and the rule in ios-app/CLAUDE.md is to write as though 6 were already on. The three
+//  escape hatches that would silence it are banned, with a checker that fails the build on them.
+//
+//  The second is that it bought nothing. The model already polls this session for its playhead on
+//  every tick, so it is asking the question at exactly the moment the answer matters; the
+//  notification delivered the same fact down a second path with its own observer lifetime to get
+//  wrong.
+//
+//  ───────────────────────────────────────────────────────────────────────────
 //  NOTHING HERE DECIDES ANYTHING
 //  ───────────────────────────────────────────────────────────────────────────
 //
@@ -36,33 +54,16 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
     /// The one instance, created on first use. The video surfaces attach to it.
     private(set) var surface: AVPlayer?
 
-    /// Bumped by the end-of-item notification.
-    ///
-    /// A COUNT RATHER THAN A FLAG, so a session that was stopped and replaced cannot claim the
-    /// clip that replaced it as its own ending -- which the model would read as "this play ran to
-    /// the end" and use to reset a playhead belonging to something else.
-    fileprivate var endedCount: Int = 0
-    private var observer: NSObjectProtocol?
-
-    /// Releases the player, and the observation with it.
+    /// Releases the player. The host calls this when the media flow goes away.
     func release() {
         surface?.pause()
         surface?.replaceCurrentItem(with: nil)
         surface = nil
-        if let observer { NotificationCenter.default.removeObserver(observer) }
-        observer = nil
     }
 
     fileprivate func player() -> AVPlayer {
         if let surface { return surface }
         let made = AVPlayer()
-        observer = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.endedCount += 1 }
-        }
         surface = made
         return made
     }
@@ -72,21 +73,27 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
     @MainActor
     final class AVSession: MediaPlaying {
         private unowned let owner: AVMediaPlayerMaker
-        /// The end count when this session started. See `endedCount`.
-        private var endedAtStart = 0
+
+        /// The item this session put on the player.
+        ///
+        /// Identity-compared in `hasFinished`, so a session that has been superseded cannot report
+        /// the clip that replaced it as its own ending -- which the model would read as "this play
+        /// ran to the end" and use to reset a playhead belonging to something else.
+        private weak var item: AVPlayerItem?
 
         init(owner: AVMediaPlayerMaker) { self.owner = owner }
 
         func start(path: String) async -> Bool {
             let player = owner.player()
-            endedAtStart = owner.endedCount
             // A local recording is a file path; an uploaded one is an https URL. Both arrive here
             // as a string, and only one of them is a valid URL on its own -- `URL(string:)` will
             // happily build a schemeless URL out of `/var/mobile/...` that then resolves to
             // nothing.
             let url = URL(string: path).flatMap { $0.scheme == nil ? nil : $0 }
                 ?? URL(fileURLWithPath: path)
-            player.replaceCurrentItem(with: AVPlayerItem(url: url))
+            let made = AVPlayerItem(url: url)
+            item = made
+            player.replaceCurrentItem(with: made)
             // `await`, and it is not optional. `seek(to:)` has a synchronous form and an
             // `async -> Bool` one, and inside an async function Swift selects the async overload --
             // so dropping the `await` to "avoid depending on overload resolution" is an error, not
@@ -102,7 +109,24 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
             return seconds.isFinite ? Int(seconds * 1000) : 0
         }
 
-        func hasFinished() -> Bool { owner.endedCount > endedAtStart }
+        func hasFinished() -> Bool {
+            guard let player = owner.surface,
+                  let current = player.currentItem,
+                  current === item
+            else { return false }
+            let length = current.duration.seconds
+            // `indefinite` until the container has been read, and zero on an asset that failed to
+            // load. Neither of those is an ending.
+            guard length.isFinite, length > 0 else { return false }
+            let played = player.currentTime().seconds
+            guard played.isFinite else { return false }
+            // A frame's worth of tolerance: the playhead lands a hair short of the stated duration
+            // on plenty of real files, and waiting for exact equality would be waiting forever.
+            return played >= length - Self.endToleranceSeconds
+        }
+
+        /// How close to the stated duration counts as the end.
+        private static let endToleranceSeconds = 0.05
 
         func stop() async {
             owner.surface?.pause()
