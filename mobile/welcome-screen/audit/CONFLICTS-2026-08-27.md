@@ -671,3 +671,47 @@ unreproducible. If the design side wants a live level, it needs a frame.
 recommendation — the reserved status region above the card's CTA, the quiet lilac row, the violet
 lock glyph, a 30pt action pill — rather than inventing a third treatment. **Still needs one
 spec-sheet frame.**
+
+## E19 · The build inventory has no playback pipeline, and three controls need one. RESOLVED IN CODE, needs a ticket line
+
+The inventory lists both capture pipelines -- *"video capture pipeline"*, *"audio capture pipeline"*
+-- and no playback pipeline. The acceptance criteria assume one exists:
+
+- *"Playback on review is **on demand**, repeatable, and the CTA row does not move between plays"*
+- *"Voice card, filled: lilac waveform strip with the 44px violet play pip … the `0:08 / 0:14`
+  tabular readout"* -- `0:08` is a played position out of a total, which only means anything if the
+  card plays.
+
+**What was actually built before this audit was a flag.** `playPressed` set `isPlaying = true`,
+fired `media_preview_played`, and played nothing. `playbackFinished` was called by nobody on either
+platform, so the flag never came back down. The filled card's play control was wired to that same
+function, which guards on `state.take` -- and there is no take on the media screen -- so on Android
+it was not passed at all and fell through to a default no-op, and on iOS it reached a guard that
+rejected every press. `playedMs` was the literal `0`, so the readout every user saw was
+`0:00 / 0:14`. `media3-exoplayer` had been a declared dependency for weeks with nothing referencing
+it.
+
+**The analytics half is the part for the design and data side to know about.**
+`media_preview_played` was firing on the press rather than on a play, so it reported a preview for
+every tap -- and every tap played nothing. That event feeds the same dataset the ticket nominates
+for deciding whether 10 and 15 seconds are the right caps. It now fires only when a clip actually
+starts.
+
+**Shipped:** a player behind the same seam as the recorders, on both platforms. ExoPlayer and
+AVPlayer, one instance per app; the local file first and the uploaded copy second; a real video
+surface, because a player with nowhere to draw plays a clip's audio underneath a still picture.
+Every press is a play and pressing again restarts -- the design draws one glyph and it is a play
+triangle, and a toggle would halve `play_count`.
+
+**Two decisions were taken here that the ticket does not state, and either could be reversed:**
+
+1. **What the card's play button does.** The ticket draws it and never says. It plays the saved
+   clip, and the `0:08 / 0:14` readout follows the playhead -- which is the only reading of that
+   readout that makes it mean anything.
+2. **What happens when there is nothing playable** -- an artefact uploaded and its local copy
+   cleaned up, with no URL yet. Nothing happens and no event fires. The alternative, hiding the
+   control, would contradict the artboard, which draws it on every filled card.
+
+**For the design side: one line in the build inventory.** The pipeline exists now; the gap is that
+a reader of the ticket would not know it was needed.
+
