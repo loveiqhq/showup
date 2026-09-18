@@ -94,6 +94,28 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
         init(owner: AVMediaPlayerMaker) { self.owner = owner }
 
         func start(path: String) async -> Bool {
+            // THE CATEGORY, BEFORE ANYTHING ELSE.
+            //
+            // A device-only bug, and a silent one in both senses. `AVMediaCapture` sets the shared
+            // session to `.record` -- deliberately, its comment says, because that is the narrower
+            // category and the one that ducks everything else -- and a CATEGORY PERSISTS after the
+            // session is deactivated. So a user who records a voice note and then presses play on
+            // it gets no sound at all, because the session is still configured for input only.
+            //
+            // Nothing here could catch that: the fake plays no audio, the fit harness renders no
+            // sound, and CI has no speaker. It was found by reading the recorder next door.
+            //
+            // `.spokenAudio` matches what was recorded and is what routes a voice note to the
+            // speaker rather than the earpiece.
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .spokenAudio)
+                try session.setActive(true)
+            } catch {
+                // A session we cannot configure is one we cannot play through, and the honest
+                // answer is the same as an unplayable file: nothing happens.
+                return false
+            }
             let player = owner.player()
             // A local recording is a file path; an uploaded one is an https URL. Both arrive here
             // as a string, and only one of them is a valid URL on its own -- `URL(string:)` will
@@ -142,6 +164,10 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
             owner.surface?.pause()
             // See `start`: the async overload wins inside an async function.
             await owner.surface?.seek(to: .zero)
+            // Hands the route back, so music the user had playing resumes rather than staying
+            // ducked behind a screen that is no longer making a sound.
+            try? AVAudioSession.sharedInstance()
+                .setActive(false, options: .notifyOthersOnDeactivation)
         }
     }
 }

@@ -32,6 +32,8 @@ import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -100,10 +102,27 @@ class AndroidMediaPlayer(private val context: Context) : MediaPlayerFactory {
 
         override suspend fun start(path: String): Boolean = withContext(Dispatchers.Main) {
             val player = surface
-                ?: ExoPlayer.Builder(context).build().also {
-                    it.addListener(listener)
-                    surface = it
-                }
+                ?: ExoPlayer.Builder(context)
+                    // AUDIO FOCUS, HANDLED. The recorder next door asks for it explicitly
+                    // (`AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE`) and the player did not ask at all,
+                    // so a voice note played back over someone's music would simply mix with it.
+                    // ExoPlayer manages the request, the ducking and the pause-on-loss itself once
+                    // it is told to; doing it by hand would be a second implementation of
+                    // something the library already gets right.
+                    //
+                    // `SPEECH` rather than `MUSIC` because that is what these clips are, and it is
+                    // what tells the system how to treat them on a call or in a car.
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(C.USAGE_MEDIA)
+                            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                            .build(),
+                        /* handleAudioFocus = */ true,
+                    )
+                    .build().also {
+                        it.addListener(listener)
+                        surface = it
+                    }
             startedAt = System.nanoTime()
             runCatching {
                 player.setMediaItem(MediaItem.fromUri(Uri.parse(path)))
