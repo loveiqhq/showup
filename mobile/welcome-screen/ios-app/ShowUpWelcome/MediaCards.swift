@@ -725,7 +725,9 @@ struct VideoSurface: UIViewRepresentable {
     /// by one layout pass.
     final class PlayerLayerView: UIView {
         override static var layerClass: AnyClass { AVPlayerLayer.self }
-        // swiftlint:disable:next force_cast
-        var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+        var playerLayer: AVPlayerLayer {
+            // Safe by construction: `layerClass` above is what the system instantiates.
+            layer as! AVPlayerLayer
+        }
     }
 }
