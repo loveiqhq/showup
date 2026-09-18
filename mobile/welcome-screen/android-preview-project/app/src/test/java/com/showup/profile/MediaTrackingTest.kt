@@ -38,6 +38,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -98,7 +99,13 @@ class MediaTrackingTest {
         capture: MediaCaptureFactory,
         analytics: AnalyticsTracker?,
         now: () -> Long,
-    ) : MediaViewModel(repo, access, capture, analytics, now, tickMs = 10L) {
+    ) : MediaViewModel(
+        repo, access, capture,
+        // This suite is about what is reported, not about sound: the fake plays instantly and
+        // never finishes on its own, so nothing here has to think about a playhead.
+        FakeMediaPlayer(now = now),
+        analytics, now, tickMs = 10L,
+    ) {
         override fun readTake(path: String?): ByteArray? = ByteArray(8)
         override fun deleteTake(path: String) = Unit
     }
@@ -405,9 +412,16 @@ class MediaTrackingTest {
             vm.pickPrompt(PROMPT)
             vm.commitPrompt()
             advanceUntilIdle()
+            // `runCurrent` after each: the event now fires when the player actually STARTS, not
+            // on the tap. That is the whole point of the change -- it used to fire for a play that
+            // never happened, because there was no player -- and it means a press has to be given
+            // the chance to become a play before it is counted.
             vm.playPressed()
+            runCurrent()
             vm.playPressed()
+            runCurrent()
             vm.playPressed()
+            runCurrent()
 
             assertEquals(3, events.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED))
             assertEquals(1, events.first(ProfileAnalytics.MEDIA_PREVIEW_PLAYED)["play_count"])
@@ -446,8 +460,11 @@ class MediaTrackingTest {
             advanceUntilIdle()
             vm.retakeFromReview()
             advanceUntilIdle()
+            // See above: a press becomes a play asynchronously now.
             vm.playPressed()
+            runCurrent()
             vm.playPressed()
+            runCurrent()
             vm.acceptTake()
             advanceUntilIdle()
 

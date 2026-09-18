@@ -168,10 +168,24 @@ struct MediaState: Equatable, Sendable {
     var access: MediaAccess = MediaAccess()
     var sheet: MediaSheet?
     var take: MediaTake?
+    /// What is playing, if anything. Nil at rest -- playback here is never automatic.
+    var playback: MediaPlayback?
     var loaded: Bool = false
 
     var hasVideo: Bool { video != nil }
     var hasVoice: Bool { voice != nil }
+
+    /// How far into `kind`'s saved clip the user has listened, for the card's `0:08 / 0:14`.
+    func playedMs(_ kind: MediaKind) -> Int {
+        guard let playback, playback.source == .card, playback.kind == kind else { return 0 }
+        return playback.positionMs
+    }
+
+    /// Whether `kind`'s card is the thing currently playing.
+    func isPlaying(_ kind: MediaKind) -> Bool {
+        guard let playback else { return false }
+        return playback.source == .card && playback.kind == kind
+    }
 
     func artefact(_ kind: MediaKind) -> MediaArtefact? {
         switch kind {

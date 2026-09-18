@@ -32,6 +32,7 @@
 //  Reaching the cap does exactly what Stop does — no alert, no truncated save.
 //
 
+import AVFoundation
 import SwiftUI
 
 /// `#0F0518` — darker than `liqFg`, because a viewfinder's ground must not compete with the scene.
@@ -46,6 +47,14 @@ struct MediaCaptureView: View {
     var onPlay: () -> Void = {}
     var onRetake: () -> Void = {}
     var onAccept: () -> Void = {}
+    /// What is playing back, if anything.
+    ///
+    /// Carries the playhead as well as the fact, because the voice review's waveform shows the
+    /// position: a review screen that played with a waveform frozen at zero would be the same
+    /// half-drawn feedback the filled card had with its hardcoded `0:00 / 0:14`.
+    var playback: MediaPlayback?
+    /// The player the video surface draws from, or nil where there is none.
+    var player: AVPlayer?
 
     var body: some View {
         switch take.kind {
@@ -357,6 +366,11 @@ private struct VideoCaptureScreen: View {
                         if let camera {
                             CameraPreview(session: camera.session)
                         }
+                    } else if playback != nil, let player {
+                        // The frozen frame gives way to the clip itself. The ticket asks for the
+                        // glass button "over the frozen frame"; pressing it is the moment that
+                        // frame is meant to come alive, and audio over a still is the opposite.
+                        VideoSurface(player: player)
                     } else {
                         VideoFrame(path: take.path)
                     }
@@ -486,7 +500,11 @@ private struct VoiceCaptureScreen: View {
                             .accessibilityLabel(Text(MediaCopy.playVoice))
                         }
                         Waveform(bars: MediaWaveform.live,
-                                 progress: review ? 0 : take.progress,
+                                 // THREE STATES, NOT TWO. Filming fills to the cap; playing
+                                 // back fills to the playhead; a finished take sitting still is
+                                 // empty. The middle one was missing, so pressing play moved
+                                 // nothing on screen.
+                                 progress: playback?.progress ?? (review ? 0 : take.progress),
                                  playedColor: .liqOrange, restColor: .liqPurple,
                                  barGap: Spacing.xs, minBarHeight: Spacing.sm, corner: 3)
                             // A FLOOR AND A CEILING, NOT A FIXED HEIGHT.

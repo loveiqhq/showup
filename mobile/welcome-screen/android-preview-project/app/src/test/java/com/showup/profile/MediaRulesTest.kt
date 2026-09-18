@@ -25,6 +25,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -99,9 +101,10 @@ class MediaRulesTest {
         repo: MediaRepository,
         access: MediaAccessReader,
         capture: MediaCaptureFactory,
+        player: MediaPlayerFactory,
         analytics: AnalyticsTracker?,
         now: () -> Long,
-    ) : MediaViewModel(repo, access, capture, analytics, now, tickMs = 10L) {
+    ) : MediaViewModel(repo, access, capture, player, analytics, now, tickMs = 10L) {
         val deleted = mutableListOf<String>()
         override fun readTake(path: String?): ByteArray? = ByteArray(8)
         override fun deleteTake(path: String) {
@@ -115,6 +118,7 @@ class MediaRulesTest {
     private lateinit var repo: FakeRepo
     private lateinit var capture: FakeMediaCapture
     private lateinit var analytics: Recorder
+    private lateinit var player: FakeMediaPlayer
 
     @Before
     fun setUp() {
@@ -123,6 +127,8 @@ class MediaRulesTest {
         repo = FakeRepo()
         capture = FakeMediaCapture()
         analytics = Recorder()
+        // 5 seconds, so a test can sit in the middle of a clip as well as at either end.
+        player = FakeMediaPlayer(now = { clock }, durationMs = 5_000)
     }
 
     @After
@@ -132,6 +138,7 @@ class MediaRulesTest {
         repo = repo,
         access = FixedMediaAccess(access),
         capture = capture,
+        player = player,
         analytics = analytics,
         now = { clock },
     ).also {
@@ -142,7 +149,265 @@ class MediaRulesTest {
         it.refreshAccess()
     }
 
+
+    // ── playback ────────────────────────────────────────────────────────────────────────────
+    //
+    // Everything below is about a feature that was drawn and not built. `playPressed` set a flag,
+    // fired `media_preview_played` and played nothing; the card's button reached that same function
+    // and returned early because there is no take on that screen; `playedMs` was a hardcoded zero.
+    // The event is the one worth testing hardest: one that fires for a play that did not happen is
+    // not a missing feature, it is wrong data in the set the ticket says will decide whether 10 and
+    // 15 seconds are the right caps.
+    //
+    // ON THE TIMING IN HERE. These tests use `runCurrent` rather than `advanceUntilIdle` after a
+    // play, deliberately. The playback clock is bounded -- it has to be, or it never goes idle --
+    // so draining it would run every clip to its end before the first assertion. `runCurrent` lets
+    // the play START and leaves the clock where it is; `advanceTimeBy` then moves it on purpose.
+
+    /** A clip that is on the server and nowhere else -- the state after a relaunch. */
+    private fun uploadedOnly(
+        kind: MediaKind = MediaKind.Voice,
+        url: String = "https://cdn.example/a1.m4a",
+    ) {
+        repo.snapshot = MediaSnapshot(
+            items = listOf(StoredMedia("a1", kind, url, "relaxing_sound", 14_100)),
+            previewVideoId = null, previewVoiceId = null,
+            previewSource = MediaPreviewSource.Fallback,
+        )
+    }
+
+    @Test
+    fun `a filled card plays, and says so once`() = runTest(dispatcher) {
+        val vm = build()
+        record(vm, MediaKind.Voice, "relaxing_sound")
+
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+
+        val playback = vm.state.value.playback
+        assertNotNull("the card's play button must actually play", playback)
+        assertEquals(MediaKind.Voice, playback!!.kind)
+        assertEquals(PlaybackSource.Card, playback.source)
+        assertEquals(1, analytics.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED))
+    }
+
+    @Test
+    fun `a card whose clip will not open plays nothing, and reports nothing`() =
+        runTest(dispatcher) {
+            // The real cases are a file deleted under us, an unsupported container, a URL that
+            // will not open. The old code could not tell the difference because it never asked.
+            player = FakeMediaPlayer(now = { clock }, durationMs = 5_000, failFor = ALL_PATHS)
+            val vm = build()
+            record(vm, MediaKind.Voice, "relaxing_sound")
+
+            vm.cardPlayPressed(MediaKind.Voice)
+            runCurrent()
+
+            assertNull(vm.state.value.playback)
+            assertEquals(
+                "an event for a play that did not happen is wrong data, not a missing feature",
+                0, analytics.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED),
+            )
+        }
+
+    @Test
+    fun `the uploaded copy is played when there is no local file`() = runTest(dispatcher) {
+        uploadedOnly()
+        val vm = build()
+        vm.arrived()
+        advanceUntilIdle()
+        assertNull("the fixture must have no local copy", vm.state.value.voice?.localPath)
+
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+
+        assertNotNull(
+            "a clip that only exists on the server is still playable",
+            vm.state.value.playback,
+        )
+    }
+
+    @Test
+    fun `the playhead advances, and the card readout follows it`() = runTest(dispatcher) {
+        val vm = build()
+        record(vm, MediaKind.Voice, "relaxing_sound")
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+
+        // The player's own clock moves; the ticker then samples it.
+        clock += 2_000
+        advanceTimeBy(20)
+        runCurrent()
+
+        assertEquals(2_000, vm.state.value.playback?.positionMs)
+        assertEquals(
+            "this is the `0:08` half of the card's `0:08 / 0:14`, which used to be a literal 0",
+            2_000, vm.state.value.playedMs(MediaKind.Voice),
+        )
+    }
+
+    @Test
+    fun `reaching the end stops it and clears the playhead`() = runTest(dispatcher) {
+        val vm = build()
+        record(vm, MediaKind.Voice, "relaxing_sound")
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+
+        // Past the fake's 5s length, so the session reports its own ending.
+        clock += 6_000
+        advanceTimeBy(20)
+        advanceUntilIdle()
+
+        assertNull("a finished clip leaves nothing playing", vm.state.value.playback)
+        assertEquals(0, vm.state.value.playedMs(MediaKind.Voice))
+    }
+
+    @Test
+    fun `the clock stops itself even if the player never reports an ending`() =
+        runTest(dispatcher) {
+            // The backstop. A player that goes quiet must not leave a poll running forever -- the
+            // unbounded version of this loop is what cost this project four and a half hours of CI
+            // in the screenshot harness, and it PASSED while doing it.
+            val vm = build()
+            record(vm, MediaKind.Voice, "relaxing_sound")
+            vm.cardPlayPressed(MediaKind.Voice)
+            runCurrent()
+            assertNotNull(vm.state.value.playback)
+
+            // The injected clock never moves, so `hasFinished` is never true.
+            advanceUntilIdle()
+
+            assertNull("the bound is what makes this test return at all", vm.state.value.playback)
+        }
+
+    @Test
+    fun `every press is a play, and pressing again restarts it`() = runTest(dispatcher) {
+        // NOT A TOGGLE. The first version of this made the second press a stop, which sounds
+        // reasonable, is not what the design draws -- there is one glyph and it is a play triangle
+        // -- and quietly halves `play_count`, the number the 10 and 15 second caps will be judged
+        // on. The existing tracking suite already encoded the right rule and caught it.
+        val vm = build()
+        record(vm, MediaKind.Voice, "relaxing_sound")
+
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+        assertNotNull(vm.state.value.playback)
+
+        clock += 2_000
+        advanceTimeBy(20)
+        runCurrent()
+        assertEquals(2_000, vm.state.value.playback?.positionMs)
+
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+        assertNotNull("still playing", vm.state.value.playback)
+        assertEquals(
+            "a second press starts it again from the beginning",
+            0, vm.state.value.playback?.positionMs,
+        )
+        assertEquals(2, analytics.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED))
+    }
+
+    @Test
+    fun `playing one card stops the other`() = runTest(dispatcher) {
+        val vm = build()
+        record(vm, MediaKind.Video, "relaxed_and_happy")
+        record(vm, MediaKind.Voice, "relaxing_sound")
+
+        vm.cardPlayPressed(MediaKind.Video)
+        runCurrent()
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+
+        assertEquals(
+            "one thing plays at a time -- which is what makes the single shared player safe",
+            MediaKind.Voice, vm.state.value.playback?.kind,
+        )
+        assertEquals(0, vm.state.value.playedMs(MediaKind.Video))
+    }
+
+    @Test
+    fun `leaving the screen stops the sound`() = runTest(dispatcher) {
+        val vm = build()
+        record(vm, MediaKind.Voice, "relaxing_sound")
+        vm.cardPlayPressed(MediaKind.Voice)
+        runCurrent()
+
+        vm.stopPlayback()
+        runCurrent()
+
+        assertNull(vm.state.value.playback)
+    }
+
+    @Test
+    fun `leaving WHILE it is still opening also stops the sound`() = runTest(dispatcher) {
+        // The race, and it is not theoretical: opening a file suspends -- a disk read locally, a
+        // network reach for an uploaded clip -- so a user who presses play and immediately presses
+        // Continue leaves a coroutine in mid-start. Without a generation check the start finishes
+        // afterwards and writes the playing state straight back over the stop, which is sound
+        // playing on a screen the user has left.
+        val vm = build()
+        record(vm, MediaKind.Voice, "relaxing_sound")
+
+        vm.cardPlayPressed(MediaKind.Voice)
+        // NO `runCurrent` here: the start has not been given a chance to run yet, which is exactly
+        // the window the bug lived in.
+        vm.stopPlayback()
+        advanceUntilIdle()
+
+        assertNull("a start that was superseded must not resurrect itself", vm.state.value.playback)
+    }
+
+    @Test
+    fun `review playback counts the plays, and does nothing while filming`() = runTest(dispatcher) {
+        val vm = build()
+        vm.openPrompts(MediaKind.Voice, MediaEntryPoint.SeeThePrompts)
+        vm.pickPrompt("relaxing_sound")
+        vm.commitPrompt()
+        // `runCurrent`, NOT `advanceUntilIdle`: draining here runs the recording clock all the way
+        // to the 15-second cap, which ends the take and lands on review -- so the premise this
+        // test is about would already be gone. The first assertion states it rather than assuming.
+        runCurrent()
+        assertEquals(
+            "the premise: the take is still being made",
+            RecordingPhase.Recording, vm.state.value.take?.phase,
+        )
+
+        vm.playPressed()
+        runCurrent()
+        assertNull("nothing plays while the take is still being made", vm.state.value.playback)
+
+        kotlinx.coroutines.delay(4_000)
+        vm.stopPressed()
+        advanceUntilIdle()
+        assertEquals(RecordingPhase.Review, vm.state.value.take?.phase)
+
+        vm.playPressed()
+        runCurrent()
+        assertEquals(PlaybackSource.Review, vm.state.value.playback?.source)
+        assertEquals(1, analytics.last(ProfileAnalytics.MEDIA_PREVIEW_PLAYED)["play_count"])
+
+        vm.playPressed()
+        runCurrent()
+        vm.playPressed()
+        runCurrent()
+        assertEquals(
+            "every press is a play, and the count follows every one of them",
+            3, analytics.last(ProfileAnalytics.MEDIA_PREVIEW_PLAYED)["play_count"],
+        )
+    }
+
     private companion object {
+        /**
+         * Every path a take can produce here, so a test can make the player refuse all of them.
+         *
+         * Spelled out rather than matched, because `failFor` is a set and the point of the test is
+         * the branch where `start` returns false -- not how the fake decides to.
+         */
+        val ALL_PATHS = setOf(
+            "/dev/null/video.take", "/dev/null/voice.take", "https://cdn.example/a1.m4a",
+        )
+
         val GRANTED = MediaAccess(MediaPermission.Granted, MediaPermission.Granted)
         const val PROMPT = "comfort_snack"
     }
@@ -288,7 +553,10 @@ class MediaRulesTest {
     @Test
     fun `a recorder that will not start returns to the card rather than to an empty review`() =
         runTest(dispatcher) {
-            val vm = TestViewModel(repo, FixedMediaAccess(GRANTED), FakeMediaCapture(startSucceeds = false), analytics) { clock }
+            val vm = TestViewModel(
+                repo, FixedMediaAccess(GRANTED), FakeMediaCapture(startSucceeds = false),
+                player, analytics,
+            ) { clock }
             vm.openPrompts(MediaKind.Video, MediaEntryPoint.SeeThePrompts)
             vm.pickPrompt(PROMPT)
             vm.commitPrompt()

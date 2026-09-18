@@ -90,6 +90,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.media3.common.Player
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -127,12 +130,25 @@ fun MediaCaptureScreen(
     onRetake: () -> Unit = {},
     onAccept: () -> Unit = {},
     cameraController: LifecycleCameraController? = null,
+    /**
+     * What is playing back, if anything.
+     *
+     * Carries the playhead as well as the fact, because the voice review's waveform shows the
+     * position: a review screen that played with a waveform frozen at zero would be the same
+     * half-drawn feedback the filled card had with its hardcoded `0:00 / 0:14`.
+     */
+    playback: MediaPlayback? = null,
+    /** The player the video surface draws from, or null where there is none. */
+    player: Player? = null,
 ) {
     when (take.kind) {
         MediaKind.Video ->
-            VideoCapture(take, onCancel, onStop, onPlay, onRetake, onAccept, cameraController)
+            VideoCapture(
+                take, playback != null, player, onCancel, onStop, onPlay, onRetake, onAccept,
+                cameraController,
+            )
         MediaKind.Voice ->
-            VoiceCapture(take, onCancel, onStop, onPlay, onRetake, onAccept)
+            VoiceCapture(take, playback, onCancel, onStop, onPlay, onRetake, onAccept)
     }
 }
 
@@ -345,6 +361,30 @@ private fun TopRowContent(
     } else {
         RecChip()
     }
+}
+
+/**
+ * Frames, drawn by the player.
+ *
+ * The same component the filled video card uses, for the same reason: a player with nowhere to
+ * draw plays a clip's audio underneath a still picture, which on a video is worse than not playing
+ * at all. `useController = false` because the transport controls are ours -- an 88px glass circle
+ * here, a 56px button on the card, and ExoPlayer's own bar is neither.
+ */
+@Composable
+private fun VideoSurface(player: Player, modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            PlayerView(context).apply {
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+            }
+        },
+        update = { it.player = player },
+        onRelease = { it.player = null },
+    )
 }
 
 /**
@@ -619,6 +659,10 @@ private fun ReviewActions(
 @Composable
 private fun VideoCapture(
     take: MediaTake,
+    /** Whether the take is playing back right now. */
+    playing: Boolean,
+    /** The player to draw frames from, null in previews and the fit harness. */
+    player: Player?,
     onCancel: () -> Unit,
     onStop: () -> Unit,
     onPlay: () -> Unit,
@@ -649,6 +693,11 @@ private fun VideoCapture(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
+                } else if (playing && player != null) {
+                    // The frozen frame gives way to the clip itself. The ticket asks for the glass
+                    // button "over the frozen frame"; pressing it is the moment that frame is
+                    // meant to come alive, and audio over a still would be the opposite.
+                    VideoSurface(player, Modifier.fillMaxSize())
                 } else {
                     VideoFrame(take.path, Modifier.fillMaxSize())
                 }
@@ -678,6 +727,10 @@ private fun VideoCapture(
             // Empty while filming -- the viewfinder IS the middle. The play affordance appears
             // only in review.
             Spacer(Modifier.weight(1f))
+            // STAYS PUT WHILE IT PLAYS. It is not decoration during playback -- pressing it again
+            // is how the user replays, which the ticket asks for in those words: "multiple plays
+            // are expected and the CTA never moves". Hiding it would make the second play
+            // impossible and move the layout while the first one ran.
             if (take.phase == RecordingPhase.Review) {
                 Box(
                     Modifier
@@ -739,6 +792,8 @@ private val ViewfinderGround = Color(0xFF0F0518)
 @Composable
 private fun VoiceCapture(
     take: MediaTake,
+    /** What is playing back, if anything -- the waveform shows its playhead. */
+    playback: MediaPlayback?,
     onCancel: () -> Unit,
     onStop: () -> Unit,
     onPlay: () -> Unit,
@@ -883,7 +938,14 @@ private fun VoiceCapture(
                     }
                     Waveform(
                         bars = MediaWaveform.live,
-                        progress = if (review) 0f else take.progress,
+                        // THREE STATES, NOT TWO. Filming fills to the cap; playing back fills
+                        // to the playhead; a finished take sitting still is empty. The middle one
+                        // was missing, so pressing play moved nothing on screen.
+                        progress = when {
+                            playback != null -> playback.progress
+                            review -> 0f
+                            else -> take.progress
+                        },
                         playedColor = Orange,
                         restColor = Purple,
                         barGap = Spacing.xs,

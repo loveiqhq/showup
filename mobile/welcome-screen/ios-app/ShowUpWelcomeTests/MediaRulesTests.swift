@@ -105,12 +105,23 @@ final class MediaRulesTests: XCTestCase {
     private static let granted = MediaAccess(camera: .granted, microphone: .granted)
     private static let prompt = "comfort_snack"
 
+    /// Every path a take can produce here, so a test can make the player refuse all of them.
+    ///
+    /// Spelled out rather than matched: the point of the test is the branch where `start` returns
+    /// false, not how the fake decides to.
+    private static let everyPath: Set<String> = [
+        "/dev/null/video.take", "/dev/null/voice.take",
+    ]
+
     override func setUp() async throws {
         repo = FakeMediaRepo()
         capture = FakeMediaCapture()
         events = Recorder()
         clock = 0
     }
+
+    /// Overridden by a test that needs the player to refuse, or to run a known length.
+    private var player: (any MediaPlayerMaking)?
 
     private func build(_ access: MediaAccess = granted) -> MediaModel {
         // `clock` is read through a box so the test can move it after the model is built.
@@ -121,6 +132,7 @@ final class MediaRulesTests: XCTestCase {
             repo: repo,
             access: FixedMediaAccess(access: access),
             capture: capture,
+            player: player ?? FakeMediaPlayerMaker(durationMs: 5_000),
             analytics: events,
             now: { box.value },
             tickMs: 10,
@@ -515,15 +527,129 @@ final class MediaRulesTests: XCTestCase {
         XCTAssertEqual("max_length", e["stop_reason"] as? String)
     }
 
+    // MARK: - playback
+    //
+    // A feature that was drawn and not built. `playPressed` set a flag, fired
+    // `media_preview_played` and played nothing; the card's button reached that same function and
+    // returned early because there is no take on that screen; `playedMs` was a hardcoded zero.
+    //
+    // WHAT THIS FILE CAN AND CANNOT PROVE, in the same spirit as the header. `tickWait` returns
+    // immediately here, so the playback clock runs its whole bounded length the moment it starts
+    // and there is no mid-play frame to observe -- the PLAYHEAD's progression is proved on Android,
+    // where `runTest` provides virtual time, exactly as the interruption threshold is. What these
+    // prove is the part that was actually wrong: whether a press becomes a play at all, and
+    // whether the event tells the truth about it.
+
+    func testAFilledCardPlaysAndSaysSoOnce() async {
+        let model = build()
+        await record(model, .voice)
+
+        model.cardPlayPressed(.voice)
+        await settle()
+
+        XCTAssertEqual(
+            1, events.count(ProfileAnalytics.mediaPreviewPlayedName),
+            "the card's play button must actually play"
+        )
+    }
+
+    func testACardWhoseClipWillNotOpenReportsNothing() async {
+        // The real cases are a file deleted under us, an unsupported container, a URL that will not
+        // open. The old code could not tell the difference because it never asked.
+        player = FakeMediaPlayerMaker(durationMs: 5_000, failFor: Self.everyPath)
+        let model = build()
+        await record(model, .voice)
+
+        model.cardPlayPressed(.voice)
+        await settle()
+
+        XCTAssertNil(model.state.playback)
+        XCTAssertEqual(
+            0, events.count(ProfileAnalytics.mediaPreviewPlayedName),
+            "an event for a play that did not happen is wrong data, not a missing feature"
+        )
+    }
+
+    func testTheCardPlaysWithNoTakeOnScreen() async {
+        // THE ORIGINAL BUG, as a test. The card's control was wired to `playPressed`, which guards
+        // on `state.take` -- and on the media screen there is no take, so the guard rejected every
+        // press. Nothing on the screen said so.
+        let model = build()
+        await record(model, .voice)
+        XCTAssertNil(model.state.take, "the premise: no take is on screen once one is accepted")
+
+        model.cardPlayPressed(.voice)
+        await settle()
+
+        XCTAssertEqual(1, events.count(ProfileAnalytics.mediaPreviewPlayedName))
+    }
+
+    func testNothingPlaysWhileTheTakeIsStillBeingMade() async {
+        let model = build()
+        model.openPrompts(.voice, entryPoint: .seeThePrompts)
+        model.pickPrompt(Self.prompt)
+        await model.commitPrompt()
+        // No `settle` here: settling runs the recording clock to the cap, which ends the take and
+        // lands on review -- so the premise this test is about would already be gone.
+        model.playPressed()
+        await settle()
+
+        XCTAssertEqual(
+            0, events.count(ProfileAnalytics.mediaPreviewPlayedName),
+            "there is nothing to play back until the take has been stopped"
+        )
+    }
+
+    func testPlaybackStopsWhenTheUserLeaves() async {
+        let model = build()
+        await record(model, .voice)
+        model.cardPlayPressed(.voice)
+        await settle()
+
+        model.stopPlayback()
+        await settle()
+
+        XCTAssertNil(model.state.playback, "sound does not follow the user off the screen")
+        XCTAssertEqual(0, model.state.playedMs(.voice))
+    }
+
+    func testLeavingWhileItIsStillOpeningAlsoStopsTheSound() async {
+        // The race, and it is not theoretical: opening an asset is async -- a disk read locally, a
+        // network reach for an uploaded clip -- so a user who presses play and immediately presses
+        // Continue leaves a task in mid-start. Without a generation check the start finishes
+        // afterwards and writes the playing state back over the stop, which is sound playing on a
+        // screen the user has left.
+        let model = build()
+        await record(model, .voice)
+
+        model.cardPlayPressed(.voice)
+        // NO `settle` here: the start has not been given a chance to run, which is exactly the
+        // window the bug lived in.
+        model.stopPlayback()
+        await settle()
+
+        XCTAssertNil(
+            model.state.playback,
+            "a start that was superseded must not resurrect itself"
+        )
+    }
+
     func testPlayingOnReviewCountsUp() async {
         let model = build()
         model.openPrompts(.voice, entryPoint: .seeThePrompts)
         model.pickPrompt(Self.prompt)
         await model.commitPrompt()
         await settle()
+        // `settle` after each: the event now fires when the player actually STARTS, not on the
+        // press. That is the whole point of the change -- it used to fire for a play that never
+        // happened, because there was no player -- and it means a press has to be given the chance
+        // to become a play before it is counted.
         model.playPressed()
+        await settle()
         model.playPressed()
+        await settle()
         model.playPressed()
+        await settle()
 
         XCTAssertEqual(3, events.count(ProfileAnalytics.mediaPreviewPlayedName))
         XCTAssertEqual(1, events.only(ProfileAnalytics.mediaPreviewPlayedName)["play_count"] as? Int)
@@ -538,8 +664,11 @@ final class MediaRulesTests: XCTestCase {
         await settle()
         await model.retakeFromReview()
         await settle()
+        // See above: a press becomes a play asynchronously now.
         model.playPressed()
+        await settle()
         model.playPressed()
+        await settle()
         model.acceptTake()
         await settle()
 

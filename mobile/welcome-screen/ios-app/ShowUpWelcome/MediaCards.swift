@@ -299,6 +299,13 @@ struct MediaPermissionRow: View {
 /// show what was filmed cannot be checked by the person who filmed it.
 struct RecordedVideoCard: View {
     let artefact: MediaArtefact
+    /// Whether this card is the thing currently playing, which decides whether its 16:10 frame is
+    /// a still or a moving picture.
+    var isPlaying: Bool = false
+    /// The player to draw frames from, or nil where there is none -- every preview, every
+    /// screenshot, all 17 fit sizes. Nil renders the still, so the view is still a complete
+    /// picture without a decoder; that is the point.
+    var player: AVPlayer?
     var onPlay: () -> Void = {}
     var onRetake: () -> Void = {}
     var onDelete: () -> Void = {}
@@ -310,8 +317,14 @@ struct RecordedVideoCard: View {
                          spacing: Spacing.lg) {
             Button(action: onPlay) {
                 ZStack {
-                    VideoFrame(path: artefact.localPath)
-                    // The scrim, so the play glyph reads on any frame.
+                    if isPlaying, let player {
+                        VideoSurface(player: player)
+                    } else {
+                        VideoFrame(path: artefact.localPath)
+                    }
+                    // The scrim, so the play glyph reads on any frame -- including a moving one,
+                    // which is why it is not lifted during playback: the glyph is still there to
+                    // be pressed, because pressing it again is how a second play starts.
                     LinearGradient(colors: [Color.liqFg.opacity(0.10), Color.liqFg.opacity(0.32)],
                                    startPoint: .top, endPoint: .bottom)
                     ZStack {
@@ -666,5 +679,53 @@ struct Waveform: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+
+/// Frames, drawn by the player.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// WHY THIS IS A UIViewRepresentable
+/// ─────────────────────────────────────────────────────────────────────────────
+///
+/// The written reason the iOS rules ask for. SwiftUI ships `VideoPlayer`, and it is the wrong
+/// component here for one specific reason: it brings AVKit's own transport controls, and the
+/// controls on this screen are ours -- a 56pt white circle on the card and an 88pt glass circle on
+/// review, both specified in the ticket with their own sizes and both sitting in a ZStack with a
+/// scrim and a duration pill. `VideoPlayer` would draw a second, Apple-styled set of controls over
+/// the top of them, and it offers no way to turn them off.
+///
+/// `AVPlayerLayer` is the layer `VideoPlayer` itself wraps, so this is the same rendering path with
+/// the chrome left out. It is also the smallest possible wrapper: no state crosses the seam, which
+/// is what made the other two UIKit bridges in this project dangerous.
+///
+/// A PLAYER WITH NOWHERE TO DRAW PLAYS THE AUDIO AND NOTHING ELSE, which on a video is worse than
+/// not playing: the user presses play on a picture of themselves and hears their own voice coming
+/// out of a still. This is what makes the video a video.
+struct VideoSurface: UIViewRepresentable {
+    let player: AVPlayer
+
+    func makeUIView(context: Context) -> PlayerLayerView {
+        let view = PlayerLayerView()
+        view.backgroundColor = .clear
+        // Fill, not fit: the frame is a 16:10 window onto a portrait clip, and letterboxing it
+        // would put bars around the user's face inside a card that already has its own edges.
+        view.playerLayer.videoGravity = .resizeAspectFill
+        view.playerLayer.player = player
+        return view
+    }
+
+    func updateUIView(_ view: PlayerLayerView, context: Context) {
+        if view.playerLayer.player !== player { view.playerLayer.player = player }
+    }
+
+    /// A view whose backing layer IS the player layer, so it resizes with the view instead of
+    /// needing a frame kept in step by hand -- the usual source of a video that lags its container
+    /// by one layout pass.
+    final class PlayerLayerView: UIView {
+        override static var layerClass: AnyClass { AVPlayerLayer.self }
+        // swiftlint:disable:next force_cast
+        var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
     }
 }

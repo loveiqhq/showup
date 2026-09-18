@@ -146,7 +146,8 @@ private struct TutorialFlow: View {
     @State private var media = MediaModel(
         repo: MediaRepository(api: APIAccess.client),
         access: AVMediaAccess(),
-        capture: AVMediaCaptureFactory()
+        capture: AVMediaCaptureFactory(),
+        player: sharedMediaPlayer
     )
 
     /// Read once per launch to decide where a half-finished profile picks up (flow rule 4a).
@@ -242,7 +243,9 @@ private struct TutorialFlow: View {
                 onStop: { Task { await media.stopPressed() } },
                 onPlay: { media.playPressed() },
                 onRetake: { Task { await media.retakeFromReview() } },
-                onAccept: { media.acceptTake() }
+                onAccept: { media.acceptTake() },
+                playback: media.state.playback,
+                player: sharedMediaPlayer.surface
             )
             // The camera only runs while a take is on screen. Leaving it running behind the media
             // screen would hold the hardware, warm the phone and light the OS recording indicator
@@ -270,7 +273,10 @@ private struct TutorialFlow: View {
                     }
                 },
                 onDismissSheet: { media.dismissPrompts($0) },
-                onPlay: { _ in media.playPressed() },
+                // WIRED TO THE CARD'S OWN FUNCTION. This was `playPressed`, which guards on
+                // `state.take` and so returned immediately on this screen -- the play control the
+                // design draws on every filled card did nothing at all.
+                onPlay: { media.cardPlayPressed($0) },
                 onRetake: { media.retakeFromCard($0) },
                 onDelete: { media.delete($0) },
                 onRetryUpload: { media.retryUpload($0) },
@@ -287,8 +293,9 @@ private struct TutorialFlow: View {
                     }
                 },
                 platformLabel: { media.platformLabel($0) },
-                onSkip: { media.skipPressed(); go(to: .home) },
-                onContinue: { media.continuePressed(); go(to: .home) }
+                // Sound does not follow the user off the screen.
+                onSkip: { media.stopPlayback(); media.skipPressed(); go(to: .home) },
+                onContinue: { media.stopPlayback(); media.continuePressed(); go(to: .home) }
             )
         }
     }

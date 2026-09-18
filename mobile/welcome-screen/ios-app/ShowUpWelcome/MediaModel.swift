@@ -43,6 +43,7 @@ final class MediaModel {
     private let repo: any MediaRepositoring
     private let access: any MediaAccessReading
     private let capture: any MediaCaptureMaking
+    private let player: any MediaPlayerMaking
     private let analytics: (any AnalyticsTracking)?
 
     /// The clock, injected.
@@ -87,6 +88,21 @@ final class MediaModel {
 
     private var session: (any MediaCaptureSession)?
     private var ticker: Task<Void, Never>?
+
+    /// The playing session, and the clock polling its playhead. Both nil when nothing plays.
+    private var playing: (any MediaPlaying)?
+    private var playTicker: Task<Void, Never>?
+
+    /// Bumped by every start and every stop, so a start still in flight can tell it was superseded.
+    ///
+    /// WITHOUT THIS, STOPPING DURING A START DOES NOT STOP ANYTHING. Opening an asset is async --
+    /// a disk read locally, a network reach for an uploaded clip -- so a user who presses play and
+    /// immediately presses Continue leaves a task in mid-`start`. `stopPlayback` cancels the
+    /// TICKER, which does not exist yet, sets the state to nil and returns; the start then finishes
+    /// and writes the playing state straight back over it, leaving sound on a screen the user has
+    /// left. Cancelling the task is not enough on its own: cancellation lands at the next
+    /// suspension point, and `start` may already have returned.
+    private var playGeneration = 0
     private var uploadTask: Task<Void, Never>?
 
     /// Attempts so far, per medium, within this visit.
@@ -101,6 +117,9 @@ final class MediaModel {
         repo: any MediaRepositoring,
         access: any MediaAccessReading,
         capture: any MediaCaptureMaking,
+        /// Playback, behind the same kind of seam as `capture`. Defaulted to the fake so every
+        /// existing preview and test keeps working: this arrived after the screens did.
+        player: any MediaPlayerMaking = FakeMediaPlayerMaker(),
         analytics: (any AnalyticsTracking)? = nil,
         now: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
         tickMs: Int = 50,
@@ -117,6 +136,7 @@ final class MediaModel {
         self.repo = repo
         self.access = access
         self.capture = capture
+        self.player = player
         self.analytics = analytics
         self.now = now
         self.tickMs = tickMs
@@ -395,21 +415,144 @@ final class MediaModel {
     ///
     /// `play_count` is a running count rather than a flag because "watched it once and kept it" and
     /// "watched it four times and kept it" are different levels of confidence in the same outcome.
+    /// The play control on the review screen -- the 88pt glass button on video, the 64pt sunset
+    /// pip on voice.
+    ///
+    /// EVERY PRESS IS A PLAY, and a press during playback starts it again from the beginning.
+    /// There is one glyph on that button and it is a play triangle; the ticket says "multiple
+    /// plays are expected and the CTA never moves"; and `play_count` is a count of plays that
+    /// travels with the recorded event. A toggle would make every other press count nothing, which
+    /// quietly halves the one number the 10 and 15 second caps will be judged on.
     func playPressed() {
-        guard var take = state.take, take.phase == .review else { return }
-        take.playCount += 1
-        take.isPlaying = true
-        state.take = take
-        analytics?.report(ProfileAnalytics.mediaPreviewPlayed(
-            take.kind, attempt: take.attempt, playCount: take.playCount
-        ))
+        guard let take = state.take, take.phase == .review, let path = take.path else { return }
+        startPlayback(kind: take.kind, source: .review, path: path, durationMs: take.elapsedMs) {
+            [weak self] in
+            guard let self, var take = self.state.take else { return }
+            take.playCount += 1
+            take.isPlaying = true
+            self.state.take = take
+            self.analytics?.report(ProfileAnalytics.mediaPreviewPlayed(
+                take.kind, attempt: take.attempt, playCount: take.playCount
+            ))
+        }
     }
 
-    func playbackFinished() {
-        guard var take = state.take else { return }
-        take.isPlaying = false
-        state.take = take
+    /// The play control on a FILLED CARD -- the 56pt button over the video thumbnail, the 44pt pip
+    /// beside the voice waveform.
+    ///
+    /// This had no implementation at all: the card's button reached `playPressed`, which returned
+    /// early because there is no take on that screen, so the one control the design draws on a
+    /// saved card did nothing, and the `0:08 / 0:14` readout beside it was a hardcoded zero.
+    ///
+    /// THE LOCAL FILE FIRST, THE UPLOADED COPY SECOND. Right after a take both exist and the local
+    /// one is instant; once the local copy has been cleaned up the URL is all there is. When there
+    /// is neither, nothing happens and no event fires -- see `MediaPlaying.start`.
+    func cardPlayPressed(_ kind: MediaKind) {
+        guard let artefact = state.artefact(kind) else { return }
+        guard let path = artefact.localPath ?? artefact.url else { return }
+        startPlayback(kind: kind, source: .card, path: path, durationMs: artefact.durationMs) {
+            [weak self] in
+            self?.analytics?.report(
+                ProfileAnalytics.mediaPreviewPlayed(kind, attempt: 0, playCount: 1)
+            )
+        }
     }
+
+    /// Stops whatever is playing, and puts the playhead back to the start.
+    ///
+    /// NOT A PAUSE. Nothing in this flow draws a resume affordance, and a ten-second clip stopped
+    /// three seconds in has nothing worth returning to; a stranded playhead would also make the
+    /// `0:08` half of the readout a number about a play that is over.
+    func stopPlayback() {
+        playGeneration += 1
+        playTicker?.cancel()
+        playTicker = nil
+        let session = playing
+        playing = nil
+        state.playback = nil
+        if var take = state.take {
+            take.isPlaying = false
+            state.take = take
+        }
+        Task { await session?.stop() }
+    }
+
+    /// Shared by both controls: start, then poll.
+    ///
+    /// `onStarted` runs only if something actually played, which is what keeps the tracking
+    /// honest. `media_preview_played` used to fire on the press itself, so a press that played
+    /// nothing -- every press, since there was no player -- still reported a preview.
+    private func startPlayback(
+        kind: MediaKind,
+        source: PlaybackSource,
+        path: String,
+        durationMs: Int,
+        onStarted: @escaping () -> Void
+    ) {
+        // One thing plays at a time. Starting a second stops the first, which is also what makes
+        // the single shared AVPlayer safe.
+        playTicker?.cancel()
+        let previous = playing
+        playing = nil
+        playGeneration += 1
+        let generation = playGeneration
+        Task { [weak self] in
+            await previous?.stop()
+            guard let self else { return }
+            let session = self.player.makePlayer(kind: kind)
+            let started = await session.start(path: path)
+            // Superseded while the asset was opening -- by another play, or by the user leaving.
+            guard generation == self.playGeneration else {
+                await session.stop()
+                return
+            }
+            guard started else {
+                self.state.playback = nil
+                return
+            }
+            self.playing = session
+            self.state.playback = MediaPlayback(
+                kind: kind, source: source, positionMs: 0, durationMs: durationMs
+            )
+            onStarted()
+            self.runPlayClock(session, durationMs: durationMs)
+        }
+    }
+
+    /// Polls the playhead, and notices the end.
+    ///
+    /// POLLED RATHER THAN PUSHED, for the same reason the recording bar is: one clock, running at
+    /// one rate, whose behaviour is identical in a test, in a preview and on a device.
+    ///
+    /// BOUNDED, like the recording clock above. An unbounded `while true` never lets the runtime
+    /// settle: in production it is a poll that outlives the clip it was following, and in a test
+    /// it never returns. The Android side lost four and a half hours of CI to exactly that shape
+    /// in its screenshot harness -- and passed while doing it. A clip of known length gets a clock
+    /// of known length; the grace is a backstop for a player that never reports an ending.
+    private func runPlayClock(_ session: any MediaPlaying, durationMs: Int) {
+        let step = tickMs
+        playTicker = Task { [weak self] in
+            guard let self else { return }
+            var waited = 0
+            let limit = durationMs + Self.playClockGraceMs
+            while waited < limit {
+                await self.tickWait(step)
+                if Task.isCancelled { return }
+                waited += step
+                guard self.playing === session else { return }
+                if session.hasFinished() {
+                    self.stopPlayback()
+                    return
+                }
+                self.state.playback?.positionMs = session.positionMs()
+            }
+            self.stopPlayback()
+        }
+    }
+
+    /// How long the playback clock keeps polling past a clip's stated length. A backstop, not a
+    /// timing rule: the end is normally reported by the player.
+    private static let playClockGraceMs = 1_000
 
     /// `Retake` on the review screen.
     ///

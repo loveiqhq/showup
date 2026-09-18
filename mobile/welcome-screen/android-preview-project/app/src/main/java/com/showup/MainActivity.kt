@@ -57,6 +57,7 @@ import com.showup.api.EncryptedTokenStore
 import com.showup.api.ShowUpApi
 import com.showup.profile.AndroidMediaAccess
 import com.showup.profile.AndroidMediaCaptureFactory
+import com.showup.profile.AndroidMediaPlayer
 import com.showup.profile.AndroidPhotoAccess
 import com.showup.profile.BasicsRepository
 import com.showup.profile.CameraAccess
@@ -237,6 +238,12 @@ class MainActivity : ComponentActivity() {
                 onDispose { cameraController.unbind() }
             }
 
+            // The player, held here for the same reason the camera controller is: it owns a
+            // hardware resource that outlives a recomposition and has to be released when the flow
+            // leaves, and the video surfaces attach to it.
+            val mediaPlayer = remember(context) { AndroidMediaPlayer(context) }
+            DisposableEffect(mediaPlayer) { onDispose { mediaPlayer.release() } }
+
             val media: MediaViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
@@ -244,6 +251,7 @@ class MainActivity : ComponentActivity() {
                             repo = MediaRepository(api),
                             access = AndroidMediaAccess(context),
                             capture = AndroidMediaCaptureFactory(context) { cameraController },
+                            player = mediaPlayer,
                         )
                     }
                 },
@@ -610,11 +618,16 @@ class MainActivity : ComponentActivity() {
                                 onRetake = media::retakeFromReview,
                                 onAccept = media::acceptTake,
                                 cameraController = cameraController,
+                                playback = mediaState.playback,
+                                player = mediaPlayer.surface,
                             )
                         } else {
                             ProfileMediaScreen(
                                 state = mediaState,
-                                onBack = { screen = FlowScreen.ProfilePrompts },
+                                onBack = {
+                                    media.stopPlayback()
+                                    screen = FlowScreen.ProfilePrompts
+                                },
                                 onOpenPrompts = media::openPrompts,
                                 onPickPrompt = media::pickPrompt,
                                 onCommitPrompt = {
@@ -632,6 +645,10 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onDismissSheet = media::dismissPrompts,
+                                // WIRED. This was not passed at all, so the play control the design
+                                // draws on every filled card fell through to the default no-op.
+                                onPlay = media::cardPlayPressed,
+                                player = mediaPlayer.surface,
                                 onRetake = media::retakeFromCard,
                                 onDelete = media::delete,
                                 onRetryUpload = media::retryUpload,
@@ -650,10 +667,13 @@ class MainActivity : ComponentActivity() {
                                 },
                                 platformLabel = media::platformLabel,
                                 onSkip = {
+                                    // Sound does not follow the user off the screen.
+                                    media.stopPlayback()
                                     media.skipPressed()
                                     screen = FlowScreen.Home
                                 },
                                 onContinue = {
+                                    media.stopPlayback()
                                     media.continuePressed()
                                     screen = FlowScreen.Home
                                 },

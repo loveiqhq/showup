@@ -74,6 +74,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.Player
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -434,6 +438,20 @@ fun RecordedVideoCard(
     onDelete: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Whether this card is the thing currently playing.
+     *
+     * Drives the surface below and hides the play glyph while it runs, so the control the user
+     * just pressed is not still inviting the press.
+     */
+    isPlaying: Boolean = false,
+    /**
+     * The player to draw frames from, or null where there is none -- previews, the fit harness,
+     * every screenshot. Same shape as the viewfinder taking a `LifecycleCameraController`: this is
+     * the one kind of thing a screen in this project is allowed to be handed, because a decoder
+     * cannot be a value.
+     */
+    player: Player? = null,
 ) {
     Column(modifier) {
         MediaCard(padding = PaddingValues(Spacing.xl), gap = Spacing.lg) {
@@ -446,8 +464,13 @@ fun RecordedVideoCard(
                     .clickable(role = Role.Button, onClick = onPlay)
                     .semantics { contentDescription = MediaCopy.PLAY_VIDEO },
             ) {
-                VideoFrame(artefact.localPath, Modifier.fillMaxSize())
-                // The scrim, so the play glyph reads on any frame.
+                if (isPlaying && player != null) {
+                    VideoSurface(player, Modifier.fillMaxSize())
+                } else {
+                    VideoFrame(artefact.localPath, Modifier.fillMaxSize())
+                }
+                // The scrim, so the play glyph reads on any frame -- including a moving one, which
+                // is why it is not lifted during playback: the glyph is still there to be pressed.
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -457,6 +480,7 @@ fun RecordedVideoCard(
                             ),
                         ),
                 )
+                // The glyph stays while it plays: pressing it again is how a second play starts.
                 Box(
                     Modifier
                         .align(Alignment.Center)
@@ -803,6 +827,32 @@ fun RecordedVoiceCard(
  * catch it is to measure it, which is why this exists and why it is not a debug-only tag.
  */
 internal const val WAVEFORM_TAG = "media:waveform"
+
+/**
+ * Frames, drawn by the player rather than decoded into a bitmap.
+ *
+ * A PLAYER WITH NOWHERE TO DRAW PLAYS THE AUDIO AND NOTHING ELSE, which on a video card is worse
+ * than not playing: the user presses play on a picture of themselves and hears their own voice
+ * coming from a still. This is the surface that makes the video a video.
+ *
+ * `useController = false` because the transport controls are ours -- the ticket draws a 56px play
+ * button on the card and an 88px glass one on review, and ExoPlayer's own bar is neither.
+ */
+@Composable
+private fun VideoSurface(player: Player, modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            PlayerView(context).apply {
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+            }
+        },
+        update = { it.player = player },
+        onRelease = { it.player = null },
+    )
+}
 
 /**
  * The narrowest a waveform bar may be drawn.

@@ -173,8 +173,18 @@ data class MediaState(
     val access: MediaAccess = MediaAccess(),
     val sheet: MediaSheet? = null,
     val take: MediaTake? = null,
+    /** What is playing, if anything. Null at rest -- playback here is never automatic. */
+    val playback: MediaPlayback? = null,
     val loaded: Boolean = false,
 ) {
+    /** How far into [kind]'s saved clip the user has listened, for the card's `0:08 / 0:14`. */
+    fun playedMs(kind: MediaKind): Int =
+        playback?.takeIf { it.source == PlaybackSource.Card && it.kind == kind }?.positionMs ?: 0
+
+    /** Whether [kind]'s card is the thing currently playing. */
+    fun isPlaying(kind: MediaKind): Boolean =
+        playback?.let { it.source == PlaybackSource.Card && it.kind == kind } == true
+
     val hasVideo: Boolean get() = video != null
     val hasVoice: Boolean get() = voice != null
 

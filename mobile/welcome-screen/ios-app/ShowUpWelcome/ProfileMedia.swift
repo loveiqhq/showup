@@ -29,6 +29,7 @@
 //  card's CTA needing a scroll.
 //
 
+import AVFoundation
 import SwiftUI
 
 struct ProfileMediaView: View {
@@ -44,6 +45,12 @@ struct ProfileMediaView: View {
     var onRetryUpload: (MediaKind) -> Void = { _ in }
     var onPermissionAction: (MediaCapability, MediaPermission) -> Void = { _, _ in }
     var platformLabel: (MediaCapability) -> String = { _ in "" }
+    /// The player the video surface draws from, or nil where there is none.
+    ///
+    /// Nil in every preview, every screenshot and all 17 fit sizes -- which is the point: the
+    /// screen still renders completely without one, because a decoder is the only kind of thing a
+    /// view in this project may be handed and it may never be required.
+    var player: AVPlayer?
     var onSkip: () -> Void = {}
     var onContinue: () -> Void = {}
 
@@ -119,16 +126,20 @@ struct ProfileMediaView: View {
         if let artefact = state.artefact(kind) {
             if kind == .video {
                 RecordedVideoCard(artefact: artefact,
+                                  isPlaying: state.isPlaying(kind),
+                                  player: player,
                                   onPlay: { onPlay(kind) },
                                   onRetake: { onRetake(kind) },
                                   onDelete: { onDelete(kind) },
                                   onRetry: { onRetryUpload(kind) })
             } else {
                 RecordedVoiceCard(artefact: artefact,
-                                  // Playback position is not modelled on the card: the reference
-                                  // draws a static readout, and a real scrub position would need a
-                                  // player bound to the view. The card plays from the start.
-                                  playedMs: 0,
+                                  // THE PLAYHEAD, not a zero. This was `0` with a comment saying
+                                  // the position was not modelled, so the readout the ticket specs
+                                  // as `0:08 / 0:14` read `0:00 / 0:14` for every user forever. The
+                                  // model polls the player and puts the position in the state, so
+                                  // the view stays a function of values with no player bound to it.
+                                  playedMs: state.playedMs(kind),
                                   onPlay: { onPlay(kind) },
                                   onRetake: { onRetake(kind) },
                                   onDelete: { onDelete(kind) },

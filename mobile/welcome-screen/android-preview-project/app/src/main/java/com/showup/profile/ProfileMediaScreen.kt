@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.media3.common.Player
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -85,6 +86,14 @@ fun ProfileMediaScreen(
     onRetryUpload: (MediaKind) -> Unit = {},
     onPermissionAction: (MediaCapability, MediaPermission) -> Unit = { _, _ -> },
     platformLabel: (MediaCapability) -> String = { "" },
+    /**
+     * The player the video surfaces draw from, or null where there is none.
+     *
+     * Null in every preview, every screenshot and all 17 fit sizes -- which is the point: the
+     * screen still renders completely without one, because a decoder is the only kind of thing a
+     * screen in this project may be handed and it may never be required.
+     */
+    player: Player? = null,
     onSkip: () -> Unit = {},
     onContinue: () -> Unit = {},
 ) {
@@ -129,6 +138,7 @@ fun ProfileMediaScreen(
                 MediaSlot(
                     kind = MediaKind.Video,
                     state = state,
+                    player = player,
                     onOpenPrompts = onOpenPrompts,
                     onPlay = onPlay,
                     onRetake = onRetake,
@@ -140,6 +150,7 @@ fun ProfileMediaScreen(
                 MediaSlot(
                     kind = MediaKind.Voice,
                     state = state,
+                    player = null,
                     onOpenPrompts = onOpenPrompts,
                     onPlay = onPlay,
                     onRetake = onRetake,
@@ -181,6 +192,8 @@ private fun MediaSlot(
     onRetryUpload: (MediaKind) -> Unit,
     onPermissionAction: (MediaCapability, MediaPermission) -> Unit,
     platformLabel: (MediaCapability) -> String,
+    /** Only the video slot draws frames; the voice slot is passed null. */
+    player: Player?,
 ) {
     val artefact = state.artefact(kind)
     when {
@@ -199,6 +212,8 @@ private fun MediaSlot(
         }
         kind == MediaKind.Video -> RecordedVideoCard(
             artefact = artefact,
+            isPlaying = state.isPlaying(kind),
+            player = player,
             onPlay = { onPlay(kind) },
             onRetake = { onRetake(kind) },
             onDelete = { onDelete(kind) },
@@ -206,10 +221,13 @@ private fun MediaSlot(
         )
         else -> RecordedVoiceCard(
             artefact = artefact,
-            // Playback position is not modelled on the card: the reference draws a static
-            // readout, and a real scrub position would need a player bound to the composable.
-            // The filled card plays from the start each time.
-            playedMs = 0,
+            // THE PLAYHEAD, not a zero.
+            //
+            // This was `0` with a comment saying the position was not modelled, so the readout the
+            // ticket specs as `0:08 / 0:14` read `0:00 / 0:14` for every user forever. It is
+            // modelled now: the view model polls the player and puts the position in the state,
+            // and the screen stays a function of values -- no player is bound to the composable.
+            playedMs = state.playedMs(kind),
             onPlay = { onPlay(kind) },
             onRetake = { onRetake(kind) },
             onDelete = { onDelete(kind) },

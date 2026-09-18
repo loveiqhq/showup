@@ -45,6 +45,14 @@ open class MediaViewModel(
     private val repo: MediaRepository,
     private val access: MediaAccessReader,
     private val capture: MediaCaptureFactory,
+    /**
+     * Playback, behind the same kind of seam as [capture].
+     *
+     * Defaulted to the fake so every existing preview and test keeps working: this arrived after
+     * the screens did, and a required parameter would have meant touching thirty call sites to say
+     * "still no player here".
+     */
+    private val player: MediaPlayerFactory = FakeMediaPlayer(),
     private val analytics: AnalyticsTracker? = null,
     /**
      * The clock, injected.
@@ -74,6 +82,24 @@ open class MediaViewModel(
     /** The live session, and the clock driving it. */
     private var session: MediaCaptureSession? = null
     private var ticker: Job? = null
+
+    /** The playing session, and the clock polling its playhead. Both null when nothing plays. */
+    private var playing: MediaPlayerSession? = null
+    private var playTicker: Job? = null
+
+    /**
+     * Bumped by every start and every stop, so a start that is still in flight can tell that it
+     * has been superseded.
+     *
+     * WITHOUT THIS, STOPPING DURING A START DOES NOT STOP ANYTHING. Opening a file is suspending --
+     * on a real player it is a disk read or a network reach -- so a user who presses play and
+     * immediately presses Continue leaves a coroutine in mid-`start`. `stopPlayback` cancels the
+     * TICKER, which does not exist yet, sets the state to null, and returns; the start then
+     * completes and writes the playing state straight back over it, leaving sound playing on a
+     * screen the user has left. Cancelling the job is not enough on its own either, because the
+     * cancellation lands at the next suspension point and `start` may already have returned.
+     */
+    private var playGeneration: Int = 0
 
     /**
      * Attempts so far, per medium, within this visit.
@@ -402,16 +428,176 @@ open class MediaViewModel(
      * and "watched it four times and kept it" are different levels of confidence in the same
      * outcome.
      */
+    /**
+     * The play control on the review screen -- the 88px glass button on video, the 64px sunset pip
+     * on voice.
+     *
+     * EVERY PRESS IS A PLAY, and a press during playback starts it again from the beginning.
+     *
+     * The first version of this made the second press a stop, which is a reasonable-sounding idea
+     * and is not what the design draws or what the ticket describes. There is one glyph on that
+     * button and it is a play triangle; the ticket says "multiple plays are expected and the CTA
+     * never moves"; and `play_count` is specified as a count of plays that travels with the
+     * recorded event. A toggle makes every other press count nothing, which quietly halves the one
+     * number the caps will be judged on.
+     */
     fun playPressed() {
         val take = _state.value.take ?: return
         if (take.phase != RecordingPhase.Review) return
-        val count = take.playCount + 1
-        _state.update { it.copy(take = it.take?.copy(playCount = count, isPlaying = true)) }
-        analytics?.report(ProfileAnalytics.mediaPreviewPlayed(take.kind, take.attempt, count))
+        val path = take.path ?: return
+        startPlayback(
+            kind = take.kind,
+            source = PlaybackSource.Review,
+            path = path,
+            durationMs = take.elapsedMs,
+        ) {
+            val count = take.playCount + 1
+            _state.update { it.copy(take = it.take?.copy(playCount = count, isPlaying = true)) }
+            analytics?.report(ProfileAnalytics.mediaPreviewPlayed(take.kind, take.attempt, count))
+        }
     }
 
-    fun playbackFinished() {
-        _state.update { it.copy(take = it.take?.copy(isPlaying = false)) }
+    /**
+     * The play control on a FILLED CARD -- the 56px button over the video thumbnail, the 44px pip
+     * beside the voice waveform.
+     *
+     * This had no implementation at all: the card's button reached [playPressed], which returned
+     * early because there is no take on that screen, so the one control the design draws on a
+     * saved card did nothing. The `0:08 / 0:14` readout beside it was a hardcoded zero.
+     *
+     * THE LOCAL FILE FIRST, THE UPLOADED COPY SECOND. Right after a take both exist and the local
+     * one is instant; once the local copy has been cleaned up the URL is all there is. When there
+     * is neither, nothing happens and no event fires -- see [MediaPlayerSession.start].
+     *
+     * As on review, every press is a play: pressing again restarts it. See [playPressed].
+     */
+    fun cardPlayPressed(kind: MediaKind) {
+        val artefact = _state.value.artefact(kind) ?: return
+        val path = artefact.localPath ?: artefact.url ?: return
+        startPlayback(kind, PlaybackSource.Card, path, artefact.durationMs) {
+            analytics?.report(
+                ProfileAnalytics.mediaPreviewPlayed(kind, attempt = 0, playCount = 1),
+            )
+        }
+    }
+
+    /**
+     * Stops whatever is playing, and puts the playhead back to the start.
+     *
+     * NOT A PAUSE. Nothing in this flow draws a resume affordance, and a 10-second clip stopped
+     * three seconds in has nothing worth returning to; leaving a stranded playhead on the card
+     * would also make the `0:08` half of the readout a number about a play that is over.
+     */
+    fun stopPlayback() {
+        playGeneration++
+        playTicker?.cancel()
+        playTicker = null
+        val session = playing
+        playing = null
+        _state.update { it.copy(playback = null, take = it.take?.copy(isPlaying = false)) }
+        viewModelScope.launch { session?.stop() }
+    }
+
+    /**
+     * Shared by both controls: start, then poll.
+     *
+     * [onStarted] runs only if something actually played, which is what keeps the tracking honest.
+     * `media_preview_played` used to fire on the tap itself, so a tap that played nothing -- every
+     * tap, since there was no player -- still reported a preview into the dataset the ticket says
+     * will decide whether 10 and 15 seconds are the right caps.
+     */
+    private fun startPlayback(
+        kind: MediaKind,
+        source: PlaybackSource,
+        path: String,
+        durationMs: Int,
+        onStarted: () -> Unit,
+    ) {
+        // One thing plays at a time. Starting a second stops the first, which is also what makes
+        // the single shared ExoPlayer instance safe.
+        playTicker?.cancel()
+        val previous = playing
+        playing = null
+        val generation = ++playGeneration
+        viewModelScope.launch {
+            previous?.stop()
+            val session = player.create(kind)
+            val started = session.start(path)
+            // Superseded while the file was opening -- by another play, or by the user leaving.
+            if (generation != playGeneration) {
+                session.stop()
+                return@launch
+            }
+            if (!started) {
+                _state.update { it.copy(playback = null, take = it.take?.copy(isPlaying = false)) }
+                return@launch
+            }
+            playing = session
+            _state.update {
+                it.copy(
+                    playback = MediaPlayback(
+                        kind = kind,
+                        source = source,
+                        positionMs = 0,
+                        durationMs = durationMs,
+                    ),
+                )
+            }
+            onStarted()
+            runPlayClock(session, durationMs)
+        }
+    }
+
+    /**
+     * Polls the playhead, and notices the end.
+     *
+     * POLLED RATHER THAN PUSHED, for the same reason the recording bar is: one clock, running at
+     * one rate, whose behaviour is identical in a test, in a preview and on a device. A player
+     * callback would put the readout on the device's frame timing and leave the fake with nothing
+     * to drive it.
+     *
+     * The guard on `playing` is what stops a superseded clock writing over a newer one's position.
+     */
+    private fun runPlayClock(session: MediaPlayerSession, durationMs: Int) {
+        playTicker = viewModelScope.launch {
+            // BOUNDED, like the recording clock next door, and for a reason this project has
+            // already paid for once. `while (true) { delay }` never lets the dispatcher go idle:
+            // in production it is a poll that outlives the clip it was following, and in a test it
+            // is `advanceUntilIdle` advancing virtual time forever. The screenshot harness lost
+            // four and a half hours of CI to exactly this shape -- and passed, which is the worst
+            // way to fail. A clip of known length gets a clock of known length.
+            //
+            // The grace is because a decoder can run a little past its nominal duration; the end
+            // is normally noticed by `hasFinished` well before the bound is reached, and the bound
+            // is the backstop for a player that never reports one.
+            var waited = 0L
+            val limit = durationMs + PLAY_CLOCK_GRACE_MS
+            while (waited < limit) {
+                delay(tickMs)
+                waited += tickMs
+                if (playing !== session) return@launch
+                if (session.hasFinished()) {
+                    stopPlayback()
+                    return@launch
+                }
+                val position = session.positionMs()
+                _state.update { state ->
+                    val current = state.playback ?: return@update state
+                    state.copy(playback = current.copy(positionMs = position))
+                }
+            }
+            stopPlayback()
+        }
+    }
+
+    private companion object {
+        /**
+         * How long the playback clock keeps polling past a clip's stated length.
+         *
+         * A backstop, not a timing rule: the end is normally reported by the player. It exists so
+         * a player that never reports one cannot leave a clock running forever.
+         */
+        const val PLAY_CLOCK_GRACE_MS = 1_000L
     }
 
     /**
