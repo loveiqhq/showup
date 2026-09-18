@@ -177,14 +177,11 @@ private struct PromptRow: View {
             .padding(.init(top: 11, leading: 14, bottom: Spacing.xl, trailing: 14))
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(minHeight: ComponentSizes.minTapTarget)
+            // AnyShapeStyle, not a Group. `background(_:in:)` takes a ShapeStyle, and a Group of
+            // two different styles is a View -- which is what the two branches would otherwise
+            // build. Erasing them to one style is the difference between a fill and a subview.
             .background(
-                Group {
-                    if selected {
-                        Gradients.lilac()
-                    } else {
-                        Color.white
-                    }
-                },
+                selected ? AnyShapeStyle(Gradients.lilac()) : AnyShapeStyle(Color.white),
                 in: RoundedRectangle(cornerRadius: 16)
             )
             .overlay(

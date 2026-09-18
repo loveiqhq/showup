@@ -113,7 +113,3 @@ export function isMediaPromptId(id: string): boolean {
 export function isPreviewablePromptId(id: string): boolean {
   return BY_ID.has(id) && id !== OWN_IDEA_PROMPT_ID;
 }
-
-export function mediaPrompt(id: string): MediaPrompt | undefined {
-  return BY_ID.get(id);
-}

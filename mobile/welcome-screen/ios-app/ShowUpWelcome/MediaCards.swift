@@ -217,7 +217,10 @@ struct MediaSlotCard: View {
             // `md`, not the flow's full-width `lg`. See ComponentSizes.controlHeightMedium: this is
             // a button inside a card, and the 8pt it saves twice over is part of what makes the
             // empty state fit above the fold at 390x844.
-            PrimaryButton(label: MediaCopy.seeThePrompts, variant: .sunset,
+            // The UNLABELLED first argument: `init(_ label:)` is the overload for a button with
+            // neither slot. The `label:` forms exist only on the two extensions that take a
+            // leading or a trailing view, and this one has neither.
+            PrimaryButton(MediaCopy.seeThePrompts, variant: .sunset,
                           height: ComponentSizes.controlHeightMedium, labelSize: 15,
                           action: onChoose)
         }
