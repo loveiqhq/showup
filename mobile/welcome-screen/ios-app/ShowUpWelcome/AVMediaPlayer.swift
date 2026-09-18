@@ -44,14 +44,24 @@
 
 import AVFoundation
 import Foundation
+import Observation
 
 /// The one player the app plays everything through.
 ///
 /// `@MainActor` throughout, like `MediaPlaying` itself, so there is no isolation to cross and no
 /// `@unchecked Sendable` anywhere -- an escape hatch this project bans and has a checker for.
 @MainActor
+@Observable
 final class AVMediaPlayerMaker: MediaPlayerMaking {
     /// The one instance, created on first use. The video surfaces attach to it.
+    ///
+    /// OBSERVED, and that is not ceremony. The app reads this while building its body to hand to
+    /// the video surface, and the player does not exist until the first play creates it -- so
+    /// without observation it would go from nil to non-nil with nothing telling SwiftUI to look
+    /// again, and the first video played would show its frozen frame with the sound running
+    /// underneath. It happens to work without it only because `media.state.playback` changes in
+    /// the same breath and redraws for an unrelated reason; that is accidental correctness, and it
+    /// stops being true the moment the ordering changes.
     private(set) var surface: AVPlayer?
 
     /// Releases the player. The host calls this when the media flow goes away.

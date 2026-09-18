@@ -29,6 +29,9 @@ package com.showup.profile
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -48,10 +51,18 @@ class AndroidMediaPlayer(private val context: Context) : MediaPlayerFactory {
     /**
      * The one instance, created on first use.
      *
+     * SNAPSHOT STATE, not a plain field, and that is not ceremony. The screen reads this DURING
+     * COMPOSITION to hand to the video surface, and the player does not exist until the first play
+     * creates it -- so a plain `var` would go from null to non-null with nothing telling Compose to
+     * look again, and the first video played would show its frozen frame with the sound running
+     * underneath. It happens to work today only because `state.playback` changes in the same
+     * breath and recomposes for an unrelated reason. That is accidental correctness, and it stops
+     * being true the moment anything about the ordering changes.
+     *
      * Main thread only, which every caller is: composition and the view model's ticker both run
      * there. Null before anything has played and after [release].
      */
-    var surface: ExoPlayer? = null
+    var surface: ExoPlayer? by mutableStateOf(null)
         private set
 
     /**
