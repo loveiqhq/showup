@@ -60,10 +60,12 @@ struct MediaCaptureView: View {
         switch take.kind {
         case .video:
             VideoCaptureScreen(take: take, camera: camera, onCancel: onCancel, onStop: onStop,
-                               onPlay: onPlay, onRetake: onRetake, onAccept: onAccept)
+                               onPlay: onPlay, onRetake: onRetake, onAccept: onAccept,
+                               playback: playback, player: player)
         case .voice:
             VoiceCaptureScreen(take: take, onCancel: onCancel, onStop: onStop,
-                               onPlay: onPlay, onRetake: onRetake, onAccept: onAccept)
+                               onPlay: onPlay, onRetake: onRetake, onAccept: onAccept,
+                               playback: playback)
         }
     }
 }
@@ -351,6 +353,10 @@ private struct VideoCaptureScreen: View {
     let onPlay: () -> Void
     let onRetake: () -> Void
     let onAccept: () -> Void
+    /// What is playing, if anything. Nil renders the frozen frame.
+    var playback: MediaPlayback?
+    /// The player the surface draws from, or nil where there is none.
+    var player: AVPlayer?
 
     var body: some View {
         CaptureFrame(
@@ -446,6 +452,9 @@ private struct VoiceCaptureScreen: View {
     let onPlay: () -> Void
     let onRetake: () -> Void
     let onAccept: () -> Void
+    /// What is playing, if anything -- the waveform shows its playhead. No `player` here: there
+    /// are no frames to draw for a voice note.
+    var playback: MediaPlayback?
 
     private var review: Bool { take.phase == .review }
 
