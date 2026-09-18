@@ -450,12 +450,18 @@ final class MediaModel {
     func cardPlayPressed(_ kind: MediaKind) {
         guard let artefact = state.artefact(kind) else { return }
         guard let path = artefact.localPath ?? artefact.url else { return }
-        startPlayback(kind: kind, source: .card, path: path, durationMs: artefact.durationMs) {
-            [weak self] in
-            self?.analytics?.report(
-                ProfileAnalytics.mediaPreviewPlayed(kind, attempt: 0, playCount: 1)
-            )
-        }
+        // NO TRACKING EVENT, and that is deliberate.
+        //
+        // `media_preview_played` is specified as "one play ON REVIEW, with a running count", and
+        // `media_review_shown` is "the denominator for the whole review screen: of the takes that
+        // reached it, how many were played". Firing it from here would count plays of a SAVED card
+        // against a denominator of takes that reached review, corrupting the exact ratio the event
+        // exists to measure -- the same class of error as firing it for a play that never
+        // happened, which is what this whole change is about.
+        //
+        // The registry has no event for playing back a finished artefact. That is a gap to raise,
+        // not one to fill by reusing the nearest row: see E19 in audit/CONFLICTS-2026-08-27.md.
+        startPlayback(kind: kind, source: .card, path: path, durationMs: artefact.durationMs) {}
     }
 
     /// Stops whatever is playing, and puts the playhead back to the start.

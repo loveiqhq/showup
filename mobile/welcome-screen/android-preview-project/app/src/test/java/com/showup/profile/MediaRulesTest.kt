@@ -188,7 +188,14 @@ class MediaRulesTest {
         assertNotNull("the card's play button must actually play", playback)
         assertEquals(MediaKind.Voice, playback!!.kind)
         assertEquals(PlaybackSource.Card, playback.source)
-        assertEquals(1, analytics.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED))
+        assertTrue("a player was started", player.sessions.any { it.didStart })
+        assertEquals(
+            "NO REVIEW EVENT FROM A CARD. `media_preview_played` is specified as a play ON " +
+                "REVIEW, and `media_review_shown` is its denominator; counting card plays against " +
+                "it would corrupt the ratio the event exists to measure. The registry has no row " +
+                "for playing a saved artefact -- see E19.",
+            0, analytics.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED),
+        )
     }
 
     @Test
@@ -204,10 +211,7 @@ class MediaRulesTest {
             runCurrent()
 
             assertNull(vm.state.value.playback)
-            assertEquals(
-                "an event for a play that did not happen is wrong data, not a missing feature",
-                0, analytics.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED),
-            )
+            assertTrue("no player ever started", player.sessions.none { it.didStart })
         }
 
     @Test
@@ -305,7 +309,10 @@ class MediaRulesTest {
             "a second press starts it again from the beginning",
             0, vm.state.value.playback?.positionMs,
         )
-        assertEquals(2, analytics.count(ProfileAnalytics.MEDIA_PREVIEW_PLAYED))
+        assertEquals(
+            "two presses, two plays -- two sessions that actually started",
+            2, player.sessions.count { it.didStart },
+        )
     }
 
     @Test

@@ -712,6 +712,17 @@ triangle, and a toggle would halve `play_count`.
    cleaned up, with no URL yet. Nothing happens and no event fires. The alternative, hiding the
    control, would contradict the artboard, which draws it on every filled card.
 
-**For the design side: one line in the build inventory.** The pipeline exists now; the gap is that
-a reader of the ticket would not know it was needed.
+**There is no registry row for playing back a saved artefact, and the card fires nothing.**
+`media_preview_played` is specified as *"one play **on review**, with a running count"*, and
+`media_review_shown` is *"the denominator for the whole review screen: of the takes that reached it,
+how many were played"*. Firing the review event from a filled card would count plays of a finished
+artefact against a denominator of takes that reached review -- corrupting the exact ratio the event
+exists to measure, which is the same class of error as firing it for a play that never happened.
+
+So the card plays and reports nothing, and how often people replay their own saved media is
+currently unmeasured. **A `media_artefact_played` row, with `type` and a play count, would close
+it.** For the design and data side.
+
+**For the design side: one line in the build inventory**, plus the row above. The pipeline exists
+now; the gap is that a reader of the ticket would not know either was needed.
 

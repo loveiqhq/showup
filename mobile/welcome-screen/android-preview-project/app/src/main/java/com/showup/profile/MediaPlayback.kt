@@ -121,8 +121,18 @@ class FakeMediaPlayer(
         /** True between [start] and [stop]. */
         val running: Boolean get() = startedAt != null && !stopped
 
+        /**
+         * True once this session has played, and it stays true after it stops.
+         *
+         * How a test proves a press became a play now that the card fires no tracking event --
+         * see [MediaViewModel.cardPlayPressed] for why it does not.
+         */
+        var didStart = false
+            private set
+
         override suspend fun start(path: String): Boolean {
             if (path in failFor) return false
+            didStart = true
             startedAt = now()
             length = durationMs
             return true

@@ -137,6 +137,12 @@ final class FakeMediaPlayerMaker: MediaPlayerMaking {
         /// True between `start` and `stop`.
         var running: Bool { startedAt != nil }
 
+        /// True once this player has played, and it stays true after it stops.
+        ///
+        /// How a test proves a press became a play now that the card fires no tracking event --
+        /// see `MediaModel.cardPlayPressed` for why it does not.
+        private(set) var didStart = false
+
         init(now: @escaping () -> Int64, durationMs: Int, failFor: Set<String>) {
             self.now = now
             self.durationMs = durationMs
@@ -145,6 +151,7 @@ final class FakeMediaPlayerMaker: MediaPlayerMaking {
 
         func start(path: String) async -> Bool {
             if failFor.contains(path) { return false }
+            didStart = true
             startedAt = now()
             return true
         }

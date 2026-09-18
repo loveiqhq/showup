@@ -122,6 +122,8 @@ final class MediaRulesTests: XCTestCase {
 
     /// Overridden by a test that needs the player to refuse, or to run a known length.
     private var player: (any MediaPlayerMaking)?
+    /// The maker the last `build` used, so a test can ask whether a press became a play.
+    private var madePlayers: FakeMediaPlayerMaker?
 
     private func build(_ access: MediaAccess = granted) -> MediaModel {
         // `clock` is read through a box so the test can move it after the model is built.
@@ -132,7 +134,12 @@ final class MediaRulesTests: XCTestCase {
             repo: repo,
             access: FixedMediaAccess(access: access),
             capture: capture,
-            player: player ?? FakeMediaPlayerMaker(durationMs: 5_000),
+            player: {
+                if let player { return player }
+                let made = FakeMediaPlayerMaker(durationMs: 5_000)
+                madePlayers = made
+                return made
+            }(),
             analytics: events,
             now: { box.value },
             tickMs: 10,
@@ -548,8 +555,17 @@ final class MediaRulesTests: XCTestCase {
         await settle()
 
         XCTAssertEqual(
-            1, events.count(ProfileAnalytics.mediaPreviewPlayedName),
+            true, madePlayers?.players.contains { $0.didStart },
             "the card's play button must actually play"
+        )
+        XCTAssertEqual(
+            0, events.count(ProfileAnalytics.mediaPreviewPlayedName),
+            """
+            NO REVIEW EVENT FROM A CARD. `media_preview_played` is specified as a play ON REVIEW, \
+            and `media_review_shown` is its denominator; counting card plays against it would \
+            corrupt the ratio the event exists to measure. The registry has no row for playing a \
+            saved artefact -- see E19.
+            """
         )
     }
 
@@ -565,8 +581,8 @@ final class MediaRulesTests: XCTestCase {
 
         XCTAssertNil(model.state.playback)
         XCTAssertEqual(
-            0, events.count(ProfileAnalytics.mediaPreviewPlayedName),
-            "an event for a play that did not happen is wrong data, not a missing feature"
+            false, madePlayers?.players.contains { $0.didStart },
+            "nothing opened, so nothing played"
         )
     }
 
@@ -581,7 +597,10 @@ final class MediaRulesTests: XCTestCase {
         model.cardPlayPressed(.voice)
         await settle()
 
-        XCTAssertEqual(1, events.count(ProfileAnalytics.mediaPreviewPlayedName))
+        XCTAssertEqual(
+            true, madePlayers?.players.contains { $0.didStart },
+            "the press has to reach a player, which is what it never did before"
+        )
     }
 
     func testNothingPlaysWhileTheTakeIsStillBeingMade() async {
