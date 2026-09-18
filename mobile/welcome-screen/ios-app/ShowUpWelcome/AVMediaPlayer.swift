@@ -44,11 +44,13 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
     fileprivate var endedCount: Int = 0
     private var observer: NSObjectProtocol?
 
-    /// Releases the player. The host calls this when the media flow goes away.
+    /// Releases the player, and the observation with it.
     func release() {
         surface?.pause()
         surface?.replaceCurrentItem(with: nil)
         surface = nil
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        observer = nil
     }
 
     fileprivate func player() -> AVPlayer {
@@ -85,7 +87,10 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
             let url = URL(string: path).flatMap { $0.scheme == nil ? nil : $0 }
                 ?? URL(fileURLWithPath: path)
             player.replaceCurrentItem(with: AVPlayerItem(url: url))
-            await player.seek(to: .zero)
+            // The synchronous overload, deliberately. `seek(to:)` also has an `async -> Bool` form,
+            // and which one an `await` selects is the kind of detail that changes with a toolchain;
+            // nothing here needs the answer.
+            player.seek(to: .zero)
             player.play()
             return player.currentItem != nil
         }
@@ -100,7 +105,7 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
 
         func stop() async {
             owner.surface?.pause()
-            await owner.surface?.seek(to: .zero)
+            owner.surface?.seek(to: .zero)
         }
     }
 }
