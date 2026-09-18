@@ -452,7 +452,7 @@ open class MediaViewModel(
             durationMs = take.elapsedMs,
         ) {
             val count = take.playCount + 1
-            _state.update { it.copy(take = it.take?.copy(playCount = count, isPlaying = true)) }
+            _state.update { it.copy(take = it.take?.copy(playCount = count)) }
             analytics?.report(ProfileAnalytics.mediaPreviewPlayed(take.kind, take.attempt, count))
         }
     }
@@ -501,7 +501,7 @@ open class MediaViewModel(
         playTicker = null
         val session = playing
         playing = null
-        _state.update { it.copy(playback = null, take = it.take?.copy(isPlaying = false)) }
+        _state.update { it.copy(playback = null) }
         viewModelScope.launch { session?.stop() }
     }
 
@@ -536,7 +536,7 @@ open class MediaViewModel(
                 return@launch
             }
             if (!started) {
-                _state.update { it.copy(playback = null, take = it.take?.copy(isPlaying = false)) }
+                _state.update { it.copy(playback = null) }
                 return@launch
             }
             playing = session

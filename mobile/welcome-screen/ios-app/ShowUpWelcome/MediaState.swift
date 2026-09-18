@@ -128,7 +128,6 @@ struct MediaTake: Equatable, Sendable {
     var stopReason: MediaStopReason?
     /// How many times the user has played it back on review.
     var playCount: Int = 0
-    var isPlaying: Bool = false
 
     var prompt: MediaPrompt? { MediaPrompts.byId(promptId) }
     var maxMs: Int { MediaLimits.maxMs(kind) }

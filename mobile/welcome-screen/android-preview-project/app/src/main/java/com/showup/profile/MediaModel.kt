@@ -131,7 +131,6 @@ data class MediaTake(
     val stopReason: MediaStopReason? = null,
     /** How many times the user has played it back on review. */
     val playCount: Int = 0,
-    val isPlaying: Boolean = false,
 ) {
     val prompt: MediaPrompt? get() = MediaPrompts.byId(promptId)
     val maxMs: Int get() = MediaLimits.maxMs(kind)

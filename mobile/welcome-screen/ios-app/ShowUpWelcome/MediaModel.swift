@@ -429,7 +429,6 @@ final class MediaModel {
             [weak self] in
             guard let self, var take = self.state.take else { return }
             take.playCount += 1
-            take.isPlaying = true
             self.state.take = take
             self.analytics?.report(ProfileAnalytics.mediaPreviewPlayed(
                 take.kind, attempt: take.attempt, playCount: take.playCount
@@ -476,10 +475,6 @@ final class MediaModel {
         let session = playing
         playing = nil
         state.playback = nil
-        if var take = state.take {
-            take.isPlaying = false
-            state.take = take
-        }
         Task { await session?.stop() }
     }
 
