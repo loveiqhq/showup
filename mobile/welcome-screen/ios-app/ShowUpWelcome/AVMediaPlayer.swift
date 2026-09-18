@@ -87,10 +87,11 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
             let url = URL(string: path).flatMap { $0.scheme == nil ? nil : $0 }
                 ?? URL(fileURLWithPath: path)
             player.replaceCurrentItem(with: AVPlayerItem(url: url))
-            // The synchronous overload, deliberately. `seek(to:)` also has an `async -> Bool` form,
-            // and which one an `await` selects is the kind of detail that changes with a toolchain;
-            // nothing here needs the answer.
-            player.seek(to: .zero)
+            // `await`, and it is not optional. `seek(to:)` has a synchronous form and an
+            // `async -> Bool` one, and inside an async function Swift selects the async overload --
+            // so dropping the `await` to "avoid depending on overload resolution" is an error, not
+            // a simplification. It was tried; CI said so.
+            await player.seek(to: .zero)
             player.play()
             return player.currentItem != nil
         }
@@ -105,7 +106,8 @@ final class AVMediaPlayerMaker: MediaPlayerMaking {
 
         func stop() async {
             owner.surface?.pause()
-            owner.surface?.seek(to: .zero)
+            // See `start`: the async overload wins inside an async function.
+            await owner.surface?.seek(to: .zero)
         }
     }
 }
