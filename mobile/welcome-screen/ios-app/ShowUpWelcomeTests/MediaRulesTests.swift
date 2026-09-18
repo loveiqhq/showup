@@ -125,6 +125,17 @@ final class MediaRulesTests: XCTestCase {
     /// The maker the last `build` used, so a test can ask whether a press became a play.
     private var madePlayers: FakeMediaPlayerMaker?
 
+    /// The injected maker, or a fresh fake remembered in `madePlayers`.
+    ///
+    /// A method rather than an inline closure: the two branches return different concrete types,
+    /// and a closure would leave Swift inferring its return type from the first one.
+    private func playerMaker() -> any MediaPlayerMaking {
+        if let player { return player }
+        let made = FakeMediaPlayerMaker(durationMs: 5_000)
+        madePlayers = made
+        return made
+    }
+
     private func build(_ access: MediaAccess = granted) -> MediaModel {
         // `clock` is read through a box so the test can move it after the model is built.
         let box = ClockBox()
@@ -134,12 +145,7 @@ final class MediaRulesTests: XCTestCase {
             repo: repo,
             access: FixedMediaAccess(access: access),
             capture: capture,
-            player: {
-                if let player { return player }
-                let made = FakeMediaPlayerMaker(durationMs: 5_000)
-                madePlayers = made
-                return made
-            }(),
+            player: playerMaker(),
             analytics: events,
             now: { box.value },
             tickMs: 10,
