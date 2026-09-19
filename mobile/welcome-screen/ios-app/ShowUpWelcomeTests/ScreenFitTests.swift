@@ -374,6 +374,26 @@ final class ScreenFitTests: XCTestCase {
                     ProfilePromptsView(state: PromptsState(
                         sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion), nudge: true)),
                     on: device), .violet),
+
+                // SHOWUP-161, the four card states. Their CTA is the ORANGE NextButton, which is
+                // what this probe recognises.
+                //
+                // THE OTHER SIX ARE DELIBERATELY ABSENT, for the reason already recorded above the
+                // photo source sheet. E and F put a SUNSET commit button over the screen's own CTA,
+                // and a sunset ramp runs orange to violet, so a colour probe cannot say which
+                // control it found. G to J have no tinted pill at all: the shutter is a red circle
+                // on a full-bleed ground and the review primary is the same sunset ramp. All six
+                // ARE measured, element by element and at seventeen sizes, by the Android harness,
+                // which does not depend on recognising a colour -- see `ScreenFitTest.kt`, and
+                // `MediaAboveTheFoldTest.kt` for the 390 x 844 fold budget the ticket names.
+                ("Media empty", try render(ProfileMediaView(), on: device), .orange),
+                ("Media video only", try render(
+                    ProfileMediaView(state: MediaState(video: fitMediaVideo)), on: device), .orange),
+                ("Media voice only", try render(
+                    ProfileMediaView(state: MediaState(voice: fitMediaVoice)), on: device), .orange),
+                ("Media both", try render(
+                    ProfileMediaView(state: MediaState(video: fitMediaVideo, voice: fitMediaVoice)),
+                    on: device), .orange),
             ]
             for (label, image, tint) in screens {
                 guard let rows = ctaRows(in: image, tint: tint) else {
@@ -460,7 +480,13 @@ private func fitConfirmedPhotos(_ n: Int) -> [PickedPhoto] {
     (0..<n).map { PickedPhoto(localId: Int64($0), uri: nil, status: .confirmed) }
 }
 
-private let fitOnePrompt = [SavedPrompt(
+private /// One recorded take per medium, for the media sweep above.
+let fitMediaVideo = MediaArtefact(kind: .video, promptId: "relaxed_and_happy", durationMs: 9_400,
+                                  localPath: nil, remoteId: "v1", url: nil, status: .confirmed)
+let fitMediaVoice = MediaArtefact(kind: .voice, promptId: "relaxing_sound", durationMs: 14_100,
+                                  localPath: nil, remoteId: "a1", url: nil, status: .confirmed)
+
+let fitOnePrompt = [SavedPrompt(
     topicId: "first_date_usually",
     answer: "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on "
         + "your mind this week. Bring it. I'll listen."

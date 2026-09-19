@@ -176,18 +176,19 @@ class AndroidPhotoAccess(private val context: Context) : PhotoAccessReader {
  * One boolean, written the first time the prompt is launched.
  */
 object CameraAskLog {
-    private const val PREFS = "showup.permissions"
-    private const val KEY_ASKED_CAMERA = "asked_camera"
-
+    /**
+     * DELEGATES TO [PermissionAskLog], which the media step shares (SHOWUP-161).
+     *
+     * One record, not two. Video recording needs the same camera permission this screen asks for,
+     * so if the user refuses it here the media screen must inherit that fact -- otherwise it reads
+     * "no rationale, never asked" and shows two clean cards to somebody it should be offering a
+     * re-prompt. The key spelling is unchanged, so installs that wrote the old record keep it.
+     */
     fun hasAsked(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean(KEY_ASKED_CAMERA, false)
+        PermissionAskLog.hasAsked(context, Manifest.permission.CAMERA)
 
     fun recordAsked(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_ASKED_CAMERA, true)
-            .apply()
+        PermissionAskLog.recordAsked(context, Manifest.permission.CAMERA)
     }
 }
 

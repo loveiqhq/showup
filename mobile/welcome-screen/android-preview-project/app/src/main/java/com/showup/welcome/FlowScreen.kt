@@ -92,6 +92,21 @@ enum class FlowScreen {
     /** "The real you", step 2 of 3 (SHOWUP-158). */
     ProfilePrompts,
 
+    /**
+     * "The real you", step 3 of 3 and the last screen of the group (SHOWUP-161).
+     *
+     * NOT A RESUME POINT, and that is a consequence rather than an oversight. `resumePoint` returns
+     * the first GAP in the flow, and this step is optional -- skipping it is a valid ending, and
+     * the account holds no fact that tells a skip apart from a step never reached. So a user who
+     * force-quits here and relaunches lands on Home.
+     *
+     * The same reasoning that keeps [ProfileEmbrace] out of the resume table: "there is no fact on
+     * the account that says whether it was seen". Closing it needs a server-side "media step
+     * decided" flag, which is a product decision rather than a client one, and it is raised with
+     * the ticket rather than invented here.
+     */
+    ProfileMedia,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;

@@ -114,6 +114,18 @@ enum class OrbPlacement {
      * a second top orb would sit behind.
      */
     RealYouSplit,
+
+    /**
+     * The voice capture screen: orange 520 at top -25% / right -30%, violet 520 at BOTTOM -22% /
+     * left -30%, both a touch more saturated than elsewhere (SHOWUP-161).
+     *
+     * A fifth placement rather than the nearest existing one, because this is the only screen in
+     * the app with no chrome at all -- no header, no progress bar, no footer -- so the orbs ARE the
+     * composition rather than atmosphere behind one, and 40dp of orb radius is visible where it
+     * would not be on a screen with content over it. `Startup` is the closest and is still 260/300
+     * at different offsets.
+     */
+    VoiceCapture,
 }
 
 @Composable
@@ -140,6 +152,10 @@ fun WelcomeBackdrop(
             OrbPlacement.RealYouSplit -> {
                 radial(Offset(w * 1.25f - 230.dp.toPx(), -0.20f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
                 radial(Offset(-0.28f * w + 210.dp.toPx(), h + 0.12f * h - 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.VoiceCapture -> {
+                radial(Offset(w + 0.30f * w - 260.dp.toPx(), -0.25f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.30f * w + 260.dp.toPx(), h + 0.22f * h - 260.dp.toPx()), 260.dp.toPx(), Purple, violetAlpha)
             }
             OrbPlacement.Startup -> {
                 radial(Offset(w + 0.25f * w - 260.dp.toPx(), -0.15f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
@@ -478,7 +494,9 @@ private fun inkOffset(icon: BrandIcon): Offset {
  */
 enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ChevronLeft,
                        ChevronRight, ArrowLeft, ArrowRight, Pencil, Pen, Edit, Close, Check,
-                       Shield, Heart, EyeOff, Plus, Image, Camera, Lock, Sliders }
+                       Shield, Heart, EyeOff, Plus, Image, Camera, Lock, Sliders,
+                       // ── the media step (SHOWUP-161) ──────────────────────────────
+                       Video, Mic, Play, Refresh, Trash }
 
 @Composable
 /**
@@ -647,6 +665,115 @@ fun Icon(
                     drawLine(tint, Offset(6f, 6f), Offset(18f, 18f), stroke.width, StrokeCap.Round)
                 }
                 BrandIcon.Check -> drawPath(path(listOf(20f to 6f, 9f to 17f, 4f to 12f)), tint, style = stroke)
+                // ── added for the media step (SHOWUP-161) ───────────────────────────
+                //
+                // All five copied from `components/shared.jsx` at its exact 24-grid geometry,
+                // like the set above and for the same reason: an icon redrawn from memory is a
+                // real icon, faithfully drawn, and the wrong one -- which no test catches.
+                //
+                // `video` and `mic` are the two slot pips; `play`, `refresh` and `trash` are the
+                // controls on a filled card and on the review screen.
+                BrandIcon.Video -> {
+                    // polygon 23 7 -> 16 12 -> 23 17. The lens flare, drawn stroked and closed.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(23f, 7f); lineTo(16f, 12f); lineTo(23f, 17f); close()
+                        },
+                        tint, style = stroke,
+                    )
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(1f, 5f), size = Size(15f, 14f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f),
+                        style = stroke,
+                    )
+                }
+                BrandIcon.Mic -> {
+                    // The capsule is a 6x12 rect at radius 3 -- a rounded rectangle whose radius
+                    // is half its width, which is a capsule exactly.
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(9f, 2f), size = Size(6f, 12f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f),
+                        style = stroke,
+                    )
+                    // `M5 11 a7 7 0 0 0 14 0` -- the lower half of a circle centred (12,11) r 7.
+                    // 0 degrees is at 3 o'clock and a positive sweep runs clockwise, which on a
+                    // y-down canvas is downwards: 0 -> 180 is the half that cradles the capsule.
+                    drawArc(
+                        color = tint,
+                        startAngle = 0f, sweepAngle = 180f, useCenter = false,
+                        topLeft = Offset(5f, 4f), size = Size(14f, 14f), style = stroke,
+                    )
+                    drawLine(tint, Offset(12f, 18f), Offset(12f, 22f), stroke.width, StrokeCap.Round)
+                    drawLine(tint, Offset(8f, 22f), Offset(16f, 22f), stroke.width, StrokeCap.Round)
+                }
+                // FILLED, not stroked. The design draws it as a solid polygon in every size it
+                // appears at, the same way the provider marks are filled paths in the source.
+                BrandIcon.Play -> drawPath(
+                    androidx.compose.ui.graphics.Path().apply {
+                        moveTo(6f, 4f); lineTo(20f, 12f); lineTo(6f, 20f); close()
+                    },
+                    tint,
+                )
+                BrandIcon.Refresh -> {
+                    drawPath(path(listOf(23f to 4f, 23f to 10f, 17f to 10f)), tint, style = stroke)
+                    drawPath(path(listOf(1f to 20f, 1f to 14f, 7f to 14f)), tint, style = stroke)
+                    // The two 9-unit arcs both run on the circle centred (12,12) -- solved from
+                    // the SVG's endpoints rather than eyeballed, which is why the rect below is
+                    // (3,3)..(21,21) and the sweeps are the same 115.5 degrees in opposite
+                    // directions. Drawn as one path each so the line joins stay round.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(3f, 3f, 21f, 21f),
+                                -160.5f, 115.5f, true,
+                            )
+                            lineTo(23f, 10f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(1f, 14f)
+                            lineTo(5.64f, 18.36f)
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(3f, 3f, 21f, 21f),
+                                135f, -115.5f, false,
+                            )
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                BrandIcon.Trash -> {
+                    drawLine(tint, Offset(3f, 6f), Offset(21f, 6f), stroke.width, StrokeCap.Round)
+                    // The can. Its two lower corners are 2-unit rounds, drawn as quadratics with
+                    // the control point at the corner the curve replaces -- indistinguishable from
+                    // the SVG arc at every size this is drawn at, and far less arithmetic.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(19f, 6f)
+                            lineTo(18f, 20f)
+                            quadraticBezierTo(18f, 22f, 16f, 22f)
+                            lineTo(8f, 22f)
+                            quadraticBezierTo(6f, 22f, 6f, 20f)
+                            lineTo(5f, 6f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawLine(tint, Offset(10f, 11f), Offset(10f, 17f), stroke.width, StrokeCap.Round)
+                    drawLine(tint, Offset(14f, 11f), Offset(14f, 17f), stroke.width, StrokeCap.Round)
+                    // The lid's handle, 1-unit rounds.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(9f, 6f)
+                            lineTo(9f, 4f)
+                            quadraticBezierTo(9f, 3f, 10f, 3f)
+                            lineTo(14f, 3f)
+                            quadraticBezierTo(15f, 3f, 15f, 4f)
+                            lineTo(15f, 6f)
+                        },
+                        tint, style = stroke,
+                    )
+                }
                 // The visibility band's mark (SHOWUP-154 callout 11). Feather's eye-off: the
                 // eye's two arcs with the pupil, struck through corner to corner. Authored on the
                 // same 24 grid as everything else here.
