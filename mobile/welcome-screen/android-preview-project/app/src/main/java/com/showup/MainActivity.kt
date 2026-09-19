@@ -321,6 +321,19 @@ class MainActivity : ComponentActivity() {
                         photos.refreshAccess()
                         media.refreshAccess()
                     }
+                    // AND STOP PLAYING WHEN THE SCREEN GOES AWAY.
+                    //
+                    // Nothing else does. `onDispose` releases the player when the composable
+                    // leaves, and backgrounding the app does not dispose anything -- the process
+                    // lives, ExoPlayer keeps its renderer thread, and a voice note the user
+                    // started plays on over whatever they switched to. iOS is saved from the same
+                    // bug only by not declaring the background-audio capability.
+                    //
+                    // ON_STOP rather than ON_PAUSE: a permission alert over the activity pauses it
+                    // and is not the user leaving, and this screen can raise one.
+                    if (event == Lifecycle.Event.ON_STOP) {
+                        media.stopPlayback()
+                    }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }

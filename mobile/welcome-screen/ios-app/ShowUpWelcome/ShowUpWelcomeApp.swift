@@ -231,6 +231,14 @@ private struct TutorialFlow: View {
             // granted lands on the working card, never on the blocked row."
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { media.refreshAccess() }
+                // AND STOP PLAYING WHEN THE APP GOES AWAY.
+                //
+                // iOS suspends the audio on its own here, because this app declares no
+                // background-audio capability -- but the MODEL would not know: its ticker would
+                // keep polling a playhead that has stopped moving and the card would show a frozen
+                // `0:03 / 0:14` until the clock ran out. Stopping is the honest state, and it
+                // matches what the Android side has to do for real, where nothing suspends it.
+                if phase != .active { media.stopPlayback() }
             }
     }
 
