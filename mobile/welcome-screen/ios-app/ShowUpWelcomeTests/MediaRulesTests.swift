@@ -578,7 +578,12 @@ final class MediaRulesTests: XCTestCase {
     func testACardWhoseClipWillNotOpenReportsNothing() async {
         // The real cases are a file deleted under us, an unsupported container, a URL that will not
         // open. The old code could not tell the difference because it never asked.
-        player = FakeMediaPlayerMaker(durationMs: 5_000, failFor: Self.everyPath)
+        // Held locally rather than read back through `madePlayers`: that property only records a
+        // maker this fixture CREATED, and this test injects its own, so it stayed nil. The
+        // assertion then compared `false` against nil and failed on CI with a message that sounded
+        // like a product bug -- a test lying about the code is worse than no test.
+        let refusing = FakeMediaPlayerMaker(durationMs: 5_000, failFor: Self.everyPath)
+        player = refusing
         let model = build()
         await record(model, .voice)
 
@@ -586,8 +591,8 @@ final class MediaRulesTests: XCTestCase {
         await settle()
 
         XCTAssertNil(model.state.playback)
-        XCTAssertEqual(
-            false, madePlayers?.players.contains { $0.didStart },
+        XCTAssertFalse(
+            refusing.players.contains { $0.didStart },
             "nothing opened, so nothing played"
         )
     }
