@@ -389,6 +389,30 @@ private fun MediaC390() = ProfileMediaScreen(MediaState(voice = VOICE))
 @Composable
 private fun MediaD430() = ProfileMediaScreen(MediaState(video = VIDEO, voice = VOICE))
 
+/**
+ * The voice card MID-PLAY, which is the only way to see the readout working without a device.
+ *
+ * `0:08 / 0:14` is what the ticket specs and what shipped as a hardcoded `0:00` until the playback
+ * work; the waveform's played portion and the left-hand figure both come from the playhead. A
+ * preview passes no player -- there is no decoder in a preview -- so this shows what the VOICE card
+ * does, which needs none. The video card mid-play cannot be previewed at all: without a player it
+ * renders its still, and that is state B.
+ */
+@Preview(name = "D · voice playing · 390", widthDp = 390, heightDp = 844)
+@Composable
+private fun MediaVoicePlaying390() = ProfileMediaScreen(
+    MediaState(
+        video = VIDEO,
+        voice = VOICE,
+        playback = MediaPlayback(
+            kind = MediaKind.Voice,
+            source = PlaybackSource.Card,
+            positionMs = 8_000,
+            durationMs = VOICE.durationMs,
+        ),
+    ),
+)
+
 @Preview(name = "E · prompts video · 390", widthDp = 390, heightDp = 844)
 @Composable
 private fun MediaE390() = ProfileMediaScreen(

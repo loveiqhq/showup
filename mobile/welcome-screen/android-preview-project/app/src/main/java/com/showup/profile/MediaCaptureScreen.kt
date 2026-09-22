@@ -144,7 +144,7 @@ fun MediaCaptureScreen(
     when (take.kind) {
         MediaKind.Video ->
             VideoCapture(
-                take, playback != null, player, onCancel, onStop, onPlay, onRetake, onAccept,
+                take, playback, player, onCancel, onStop, onPlay, onRetake, onAccept,
                 cameraController,
             )
         MediaKind.Voice ->
@@ -490,6 +490,21 @@ private fun CaptureTimeBar(
     take: MediaTake,
     trackColor: Color,
     labelColor: Color,
+    /**
+     * What is playing, if anything.
+     *
+     * THE BAR FOLLOWS THE PLAYHEAD DURING PLAYBACK, and that is a reading of the ticket rather
+     * than an invention. The ticket says of review that "the fill resets and the right-hand label
+     * becomes the take's length rather than the cap" -- which describes review AT REST, post-Stop,
+     * because mid-play was never drawn. It also specs the filled voice card as `0:08 / 0:14`: a
+     * played position beside a total. This row is the same two figures in the same order, so it
+     * reads the same way.
+     *
+     * What it replaced was visibly wrong: the waveform above filled to the playhead while the bar
+     * underneath sat at `0:00` with an empty track, through the whole clip. Noticed by looking at
+     * the rendered frame, not by any check.
+     */
+    playback: MediaPlayback? = null,
 ) {
     val review = take.phase == RecordingPhase.Review
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -502,7 +517,13 @@ private fun CaptureTimeBar(
         ) {
             Box(
                 Modifier
-                    .fillMaxWidth(if (review) 0f else take.progress)
+                    .fillMaxWidth(
+                        when {
+                            playback != null -> playback.progress
+                            review -> 0f
+                            else -> take.progress
+                        },
+                    )
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(percent = 50))
                     .background(Orange),
@@ -510,7 +531,11 @@ private fun CaptureTimeBar(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                if (review) "0:00" else formatTakeLength(take.elapsedMs),
+                when {
+                    playback != null -> formatTakeLength(playback.positionMs)
+                    review -> "0:00"
+                    else -> formatTakeLength(take.elapsedMs)
+                },
                 color = labelColor, fontFamily = Manrope, fontWeight = FontWeight.Bold,
                 fontSize = 12.sp, letterSpacing = 0.04.em,
             )
@@ -659,8 +684,8 @@ private fun ReviewActions(
 @Composable
 private fun VideoCapture(
     take: MediaTake,
-    /** Whether the take is playing back right now. */
-    playing: Boolean,
+    /** What is playing, if anything -- the same shape [VoiceCapture] takes, so the two agree. */
+    playback: MediaPlayback?,
     /** The player to draw frames from, null in previews and the fit harness. */
     player: Player?,
     onCancel: () -> Unit,
@@ -693,7 +718,7 @@ private fun VideoCapture(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                } else if (playing && player != null) {
+                } else if (playback != null && player != null) {
                     // The frozen frame gives way to the clip itself. The ticket asks for the glass
                     // button "over the frozen frame"; pressing it is the moment that frame is
                     // meant to come alive, and audio over a still would be the opposite.
@@ -763,6 +788,9 @@ private fun VideoCapture(
                 take = take,
                 trackColor = Color.White.copy(alpha = 0.20f),
                 labelColor = Color.White.copy(alpha = 0.85f),
+                // The video bar follows the playhead too. The two media differ in what they draw
+                // in the middle, never in how the lower third behaves.
+                playback = playback,
             )
             if (take.phase == RecordingPhase.Review) {
                 ReviewActions(
@@ -979,6 +1007,7 @@ private fun VoiceCapture(
                 take = take,
                 trackColor = Fg.copy(alpha = 0.10f),
                 labelColor = Subtle,
+                playback = playback,
             )
             if (review) {
                 ReviewActions(
@@ -1028,6 +1057,26 @@ private fun CaptureJ390() = MediaCaptureScreen(
 @Preview(name = "G · video recording · 320", widthDp = 320, heightDp = 686)
 @Composable
 private fun CaptureG320() = MediaCaptureScreen(VIDEO_TAKE)
+
+/**
+ * Voice review MID-PLAY: the waveform fills to the playhead rather than sitting empty.
+ *
+ * Three states share that waveform -- filming fills to the cap, playing fills to the playhead, a
+ * finished take sitting still is empty -- and the middle one did not exist before the playback
+ * work, so pressing play moved nothing on screen. This is that state, and it is previewable because
+ * a voice screen needs no decoder to draw.
+ */
+@Preview(name = "J · voice review, playing · 390", widthDp = 390, heightDp = 844)
+@Composable
+private fun CaptureJPlaying() = MediaCaptureScreen(
+    VOICE_TAKE.copy(phase = RecordingPhase.Review, elapsedMs = 14_000),
+    playback = MediaPlayback(
+        kind = MediaKind.Voice,
+        source = PlaybackSource.Review,
+        positionMs = 9_000,
+        durationMs = 14_000,
+    ),
+)
 
 @Preview(name = "J · voice review · 430", widthDp = 430, heightDp = 932)
 @Composable

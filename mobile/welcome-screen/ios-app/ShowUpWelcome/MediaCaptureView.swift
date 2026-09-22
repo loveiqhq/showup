@@ -230,6 +230,17 @@ private struct CaptureTimeBar: View {
     let take: MediaTake
     let trackColor: Color
     let labelColor: Color
+    /// What is playing, if anything.
+    ///
+    /// THE BAR FOLLOWS THE PLAYHEAD DURING PLAYBACK, which is a reading of the ticket rather than
+    /// an invention. Its line about review -- "the fill resets and the right-hand label becomes the
+    /// take's length rather than the cap" -- describes review AT REST, post-Stop, because mid-play
+    /// was never drawn. It also specs the filled voice card as `0:08 / 0:14`: a played position
+    /// beside a total. This row is the same two figures in the same order, so it reads the same way.
+    ///
+    /// What it replaced was visibly wrong: the waveform above filled to the playhead while the bar
+    /// underneath sat at `0:00` with an empty track, for the whole clip.
+    var playback: MediaPlayback?
 
     private var review: Bool { take.phase == .review }
 
@@ -240,13 +251,19 @@ private struct CaptureTimeBar: View {
                     Capsule().fill(trackColor)
                     Capsule()
                         .fill(Color.liqOrange)
-                        .frame(width: geo.size.width * (review ? 0 : take.progress))
+                        .frame(
+                            width: geo.size.width
+                                * (playback?.progress ?? (review ? 0 : take.progress))
+                        )
                 }
             }
             .frame(height: 6)
 
             HStack {
-                Text(review ? "0:00" : formatTakeLength(take.elapsedMs))
+                Text(
+                    playback.map { formatTakeLength($0.positionMs) }
+                        ?? (review ? "0:00" : formatTakeLength(take.elapsedMs))
+                )
                 Spacer()
                 Text(formatTakeLength(review ? take.elapsedMs : take.maxMs))
             }
@@ -426,7 +443,8 @@ private struct VideoCaptureScreen: View {
 
                 CaptureTimeBar(take: take,
                                trackColor: Color.white.opacity(0.20),
-                               labelColor: Color.white.opacity(0.85))
+                               labelColor: Color.white.opacity(0.85),
+                               playback: playback)
 
                 if take.phase == .review {
                     ReviewActions(kind: .video,
@@ -551,7 +569,7 @@ private struct VoiceCaptureScreen: View {
             },
             lowerThird: {
                 CaptureTimeBar(take: take, trackColor: Color.liqFg.opacity(0.10),
-                               labelColor: .liqSubtle)
+                               labelColor: .liqSubtle, playback: playback)
 
                 if review {
                     ReviewActions(kind: .voice, retakeBackground: .white,

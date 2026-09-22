@@ -67,6 +67,8 @@ import com.showup.profile.MediaPermission
 import com.showup.profile.MediaCaptureScreen
 import com.showup.profile.MediaEntryPoint
 import com.showup.profile.MediaKind
+import com.showup.profile.MediaPlayback
+import com.showup.profile.PlaybackSource
 import com.showup.profile.MediaSheet
 import com.showup.profile.MediaState
 import com.showup.profile.MediaTake
@@ -105,6 +107,16 @@ class EvidenceScreenshots {
     private val frames = DEVICES.filter { it.inAcceptanceCriteria }
 
     private val out = File("build/evidence").apply { mkdirs() }
+
+    /**
+     * Every file this RUN wrote, so the counts below measure the run rather than the directory.
+     *
+     * They used to count what was on disk, and the directory is never cleared -- so a state renamed
+     * between runs left its old file behind and the count failed with a number nobody could place.
+     * That happened the first time the two playing states were added, and the failure said the
+     * ticket wanted 30 images and found 36 when the run had produced exactly 30.
+     */
+    private val written = mutableListOf<String>()
 
     /**
      * How much virtual time each render is given.
@@ -200,6 +212,7 @@ class EvidenceScreenshots {
             view.draw(Canvas(bitmap))
             val suffix = if (fontScale == 1f) "" else "_fontScale$fontScale"
             val name = "${ticket}_${state}_${device.width}x${device.height}$suffix.png"
+            written += name
             File(out, name).outputStream().use {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
             }
@@ -491,9 +504,60 @@ class EvidenceScreenshots {
             )
         }
 
+        // ── the two PLAYING states ───────────────────────────────────────────────────────────
+        //
+        // UNDER THEIR OWN PREFIX, so the count below stays exactly 30. That assertion is the
+        // ticket's attachment deliverable -- "all ten states at 375, 390 and 430, thirty images" --
+        // and padding it with states the ticket does not list would quietly change what is being
+        // handed over. It caught this on the first run, which is what it is for.
+        //
+        // Not in the ticket's ten, because the ticket does not draw them -- it specs a
+        // `0:08 / 0:14` readout on the filled voice card and a review screen that "plays back on
+        // demand", and draws neither mid-play. They are here because until the playback work they
+        // did not exist: the readout was a hardcoded `0:00` and the review waveform sat empty
+        // through every play.
+        //
+        // VOICE ONLY, and that is a real limit rather than an omission. A video mid-play needs a
+        // decoder drawing into a surface, and there is none in this harness -- the video card and
+        // the video review both fall back to their still frame, which is states B and H. Video
+        // playback is confirmable on a device and nowhere else.
+        shoot("PLAYING", "voice-card") {
+            ProfileMediaScreen(
+                MediaState(
+                    video = MediaArtefact(
+                        kind = MediaKind.Video, promptId = "relaxed_and_happy",
+                        durationMs = 9_400, localPath = null, remoteId = "v1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                    voice = MediaArtefact(
+                        kind = MediaKind.Voice, promptId = "relaxing_sound",
+                        durationMs = 14_100, localPath = null, remoteId = "a1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                    playback = MediaPlayback(
+                        kind = MediaKind.Voice, source = PlaybackSource.Card,
+                        positionMs = 8_000, durationMs = 14_100,
+                    ),
+                ),
+            )
+        }
+
+        shoot("PLAYING", "voice-review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+                playback = MediaPlayback(
+                    kind = MediaKind.Voice, source = PlaybackSource.Review,
+                    positionMs = 9_000, durationMs = 14_000,
+                ),
+            )
+        }
+
         // The counts the tickets ask for, asserted rather than trusted. A state added to the fit
         // sweep and forgotten here shows up as a number that no longer matches its ticket.
-        val produced = out.listFiles().orEmpty().map { it.name }
+        val produced = written
         assertEquals("SHOWUP-155 asks for 3 images", 3, produced.count { it.startsWith("SHOWUP-155") })
         assertEquals("SHOWUP-156 asks for 21 images", 21, produced.count { it.startsWith("SHOWUP-156") })
         assertEquals("SHOWUP-158 asks for 24 images", 24, produced.count { it.startsWith("SHOWUP-158") })
