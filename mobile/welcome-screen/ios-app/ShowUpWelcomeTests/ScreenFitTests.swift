@@ -300,6 +300,14 @@ final class ScreenFitTests: XCTestCase {
                 // screens above them. The long name is swept because the headline is the only
                 // thing on this screen that can reflow, and every point it grows comes out of
                 // the single spacer above the CTA.
+                // SHOWUP-162. Probed at the sunset ramp's VIOLET end, like the bridge above and
+                // for the same reason: the orange end of that gradient cannot be told from the
+                // routine orange CTA the other profile screens use.
+                //
+                // THIS IS THE TIGHTEST NON-SCROLLING CONTENT IN THE FLOW -- a 32 headline, a lead
+                // paragraph and five two-line rows -- so "is the CTA on screen at all" is exactly
+                // the question worth asking here.
+                ("Notifications", try render(ProfileNotificationsView(), on: device), .violet),
                 ("Embrace named", try render(
                     ProfileEmbraceView(firstName: "Leo"), on: device), .violet),
                 ("Embrace no name", try render(

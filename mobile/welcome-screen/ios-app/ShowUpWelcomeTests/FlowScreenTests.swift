@@ -88,8 +88,11 @@ final class FlowScreenTests: XCTestCase {
         // a state of this position rather than a place the router can send anyone.
         //
         // Mirrors FlowRestorationTest on Android.
-        XCTAssertEqual(FlowScreen.allCases.count, 16)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 16)
+        // profileNotifications is the seventeenth, added with SHOWUP-162. Like the bridge and the
+        // media step it is not a resume point: it holds nothing on the account, so there is no
+        // fact that says whether it was seen.
+        XCTAssertEqual(FlowScreen.allCases.count, 17)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 17)
     }
 
     // MARK: - the routing vocabulary a scene stores

@@ -83,6 +83,16 @@ enum ProfileScreen: String {
     /// The post-Stop review screen (states H and J): play, retake, keep. One row for both media.
     case mediaReview = "profile_media_review"
 
+    /// The notification permission ask (SHOWUP-162).
+    ///
+    /// A SCREEN BUT NOT A STEP. §11's note for this row says it "sits OUTSIDE both progress bars
+    /// and is not a step": §2 holds a `notifications` step_id whose index is a dash, and that
+    /// exists so a future SKIP has a stable value — it is explicitly not a licence to fire
+    /// `profile_step_viewed`. This screen has no skip CTA, so it fires no step event at all.
+    ///
+    /// Registry row added by the design side on 21 September 2026, before the ticket was written.
+    case notifications = "profile_notifications"
+
     var screenId: String { rawValue }
 
     var screenName: String {
@@ -97,6 +107,7 @@ enum ProfileScreen: String {
         case .media: return "ProfileMedia"
         case .mediaRecord: return "ProfileMediaRecord"
         case .mediaReview: return "ProfileMediaReview"
+        case .notifications: return "ProfileNotifications"
         }
     }
 }
@@ -294,6 +305,26 @@ enum ProfileAnalytics {
     static let videoPromptRecordedName = "video_prompt_recorded"
     static let voicePromptRecordedName = "voice_prompt_recorded"
     static let mediaRetakenName = "media_retaken"
+
+    // ── family G, permissions and consent (SHOWUP-162) ──────────────────────
+    //
+    // ALL FOUR ARE NEW. Every one is `implemented: false` in events.json and the first three are
+    // `backend_status: "Client only"` — the notification ask is the first surface in the product
+    // that needs them.
+    static let permissionPromptedName = "permission_prompted"
+    static let permissionOsSheetShownName = "permission_os_sheet_shown"
+    static let permissionResultName = "permission_result"
+    static let permissionStatusChangedName = "permission_status_changed"
+
+    /// The closed set on `permission_prompted.type`, from `enums.json` §8.
+    ///
+    /// `permission_os_sheet_shown.type` and `permission_result.type` are typed `str` in the
+    /// registry and take the SAME value — the registry is loose there and the ticket is not.
+    static let permissionNotifications = "notifications"
+
+    /// Where a status change was noticed. The closed pair on `permission_status_changed`.
+    static let detectedOnLaunch = "launch"
+    static let detectedOnForeground = "foreground"
     static let mediaDeletedName = "media_deleted"
 
     /// T1, class 0. `referrer_screen_id` is B2 and travels empty until Step 3 lands.
@@ -761,6 +792,61 @@ enum ProfileAnalytics {
         (mediaPreviewPlayedName, [
             "type": kind.trackingValue, "attempt": attempt, "play_count": playCount,
         ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 1. OUR OWN pre-permission surface was shown, before any OS sheet.
+    ///
+    /// Fired on view, and NOT fired when the screen is skipped — events.json says so in as many
+    /// words. The users who never see the ask are deliberately unmeasured; there is no
+    /// `ask skipped` event and one must not be invented at a call site.
+    static func permissionPrompted(
+        type: String = permissionNotifications
+    ) -> (String, [String: any Sendable]) {
+        (permissionPromptedName, ["type": type].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. The platform's own dialog was raised — on the tap, never on arrival.
+    static func permissionOsSheetShown(
+        type: String = permissionNotifications
+    ) -> (String, [String: any Sendable]) {
+        (permissionOsSheetShownName, ["type": type].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. The user answered the sheet.
+    ///
+    /// `result` is typed `granted | denied | limited` for the whole family and **`limited` cannot
+    /// occur for notifications** — it is a photo-library state. The signature takes a Bool so
+    /// there is no third value to pass by mistake.
+    static func permissionResult(
+        granted: Bool,
+        type: String = permissionNotifications
+    ) -> (String, [String: any Sendable]) {
+        (permissionResultName, [
+            "type": type, "result": granted ? "granted" : "denied",
+        ].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. The status changed OUTSIDE our app and the reconciler noticed.
+    ///
+    /// NOT THE ANSWER TO OUR OWN SHEET. That is `permissionResult`, and the two must never both
+    /// fire for one act — this one is for Settings, an OS update, a Focus mode, a restore.
+    ///
+    /// `from` IS WHAT THE SERVER WAS LAST TOLD, not what the screen last saw: a change the client
+    /// never synced is exactly the case the event exists for.
+    static func permissionStatusChanged(
+        from: NotificationPermission,
+        to: NotificationPermission,
+        detectedOn: String,
+        inFlow: Bool,
+        type: String = permissionNotifications
+    ) -> (String, [String: any Sendable]) {
+        (permissionStatusChangedName, [
+            "type": type,
+            "from": from.trackingValue,
+            "to": to.trackingValue,
+            "detected_on": detectedOn,
+            "in_flow": inFlow,
+        ].merging(Stamp.of(1)) { a, _ in a })
     }
 
     /// T1, class 0. The take was KEPT.

@@ -143,6 +143,12 @@ private struct TutorialFlow: View {
     /// two `CameraSession` instances — SwiftUI's `@State` initialisers cannot reference each other,
     /// so the model built its own — and a viewfinder previewing one session while the recorder
     /// wrote from another is a live preview over a black recording.
+    /// Reads the OS status. Separate from the model because the host needs it BEFORE the model
+    /// exists — the skip is decided on the way out of media.
+    private let notificationAccess = UNNotificationAccess()
+
+    @State private var notifications = NotificationsModel()
+
     @State private var media = MediaModel(
         repo: MediaRepository(api: APIAccess.client),
         access: AVMediaAccess(),
@@ -242,6 +248,42 @@ private struct TutorialFlow: View {
             }
     }
 
+    /// Where media's Continue and Skip both land.
+    ///
+    /// THE STATUS IS READ BEFORE THE SCREEN IS PUSHED, NEVER AFTER IT MOUNTS. The skip case is
+    /// decided here, so the user never sees the ask mount and navigate away — no toast, no
+    /// confirmation, no flash.
+    ///
+    /// STAY REACHABLE (10) DOES NOT EXIST YET, so both the ask and the skip end at home for now.
+    /// When 10 is built this is the single place that changes.
+    private func afterMedia() async -> FlowScreen {
+        await shouldShowAsk(notificationAccess.read()) ? .profileNotifications : .home
+    }
+
+    @ViewBuilder private var notificationsScreen: some View {
+        ProfileNotificationsView(
+            onEnable: {
+                Task {
+                    // Raises the sheet, reports the result, registers on a grant. BOTH OUTCOMES
+                    // ADVANCE — the user never lands back here.
+                    await notifications.enablePressed()
+                    go(to: .home)
+                }
+            },
+            busy: notifications.sheetUp
+        )
+        // `permission_prompted` is OUR pre-permission surface and fires on view — but only when
+        // the screen is really shown, which the skip above guarantees.
+        .onAppear { notifications.arrived() }
+        // THE SCREEN IS NEVER A TERMINAL STATE. If the status becomes determined while it is
+        // mounted — the user backgrounds the sheet, turns notifications on in Settings by hand,
+        // and comes back — it advances by itself rather than leaving a dead button.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { if await notifications.statusIsNowDetermined() { go(to: .home) } }
+        }
+    }
+
     @ViewBuilder private var mediaSurface: some View {
         if let take = media.state.take {
             MediaCaptureView(
@@ -302,8 +344,14 @@ private struct TutorialFlow: View {
                 },
                 platformLabel: { media.platformLabel($0) },
                 // Sound does not follow the user off the screen.
-                onSkip: { media.stopPlayback(); media.skipPressed(); go(to: .home) },
-                onContinue: { media.stopPlayback(); media.continuePressed(); go(to: .home) }
+                onSkip: {
+                    media.stopPlayback(); media.skipPressed()
+                    Task { go(to: await afterMedia()) }
+                },
+                onContinue: {
+                    media.stopPlayback(); media.continuePressed()
+                    Task { go(to: await afterMedia()) }
+                }
             )
         }
     }
@@ -510,6 +558,9 @@ private struct TutorialFlow: View {
                     // SHOWUP-158. Two sheets, one screen, and every transition between them is a
                     // change to the one stored value.
                     promptsScreen
+
+                case .profileNotifications:
+                    notificationsScreen
 
                 case .profileMedia:
                     // SHOWUP-161. One position in the flow, two surfaces: the media screen, and the
