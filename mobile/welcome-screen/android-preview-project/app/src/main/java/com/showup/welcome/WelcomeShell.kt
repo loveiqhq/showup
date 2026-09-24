@@ -57,6 +57,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -326,6 +329,24 @@ fun WashHeadline(
     trailingSize: Dp = 30.dp,
     trailingTint: Color = Orange,
     trailingGap: Dp = 12.dp,
+    /**
+     * `text-wrap: balance`, which CSS has and Compose does not.
+     *
+     * The references set it on these headlines and the acceptance criteria name it, so it is not
+     * decoration. A greedy wrap fills each line to the edge and leaves whatever is left on the
+     * last one; balance evens them. On the notifications ask at 390 the two disagree and the
+     * artboard shows the balanced form -- `Never miss a date` over `with Notifications!` rather
+     * than `Never miss a date with` over `Notifications!`.
+     *
+     * HOW. Balance is "the narrowest width that still fits in the same number of lines". Lay the
+     * text out once at the full width to learn that number, then binary-search downward for the
+     * narrowest width that still produces it. Eight measurements rather than a scan's three
+     * hundred, because a headline re-measures on every recomposition.
+     *
+     * OFF BY DEFAULT: it moves where existing headlines break, so the two screens that ask for it
+     * say so at the call site.
+     */
+    balance: Boolean = false,
 ) {
     // `white-space: nowrap` on the emphasis span — the token file sets it on `.su-underlined em`
     // and the ticket restates it: "an emphasis phrase never breaks across lines". A plain space is
@@ -381,10 +402,13 @@ fun WashHeadline(
         cursor += t.length
     }
 
+    val density = LocalDensity.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    val headline: @Composable (Modifier) -> Unit = { outer ->
     Text(
         text = textWithIcon,
-        modifier = modifier.drawBehind {
+        modifier = outer.drawBehind {
             val lr = layout ?: return@drawBehind
             if (start < 0 || end <= start) return@drawBehind
             val bounds = lr.getPathForRange(start, end).getBounds()
@@ -437,6 +461,45 @@ fun WashHeadline(
         lineHeight = lineHeight,
         letterSpacing = letterSpacing,
     )
+    }
+
+    if (!balance) {
+        headline(modifier)
+        return
+    }
+
+    // BoxWithConstraints rather than reading the previous frame's layout: the width has to be
+    // known on the FIRST pass, or the headline visibly re-wraps once after it appears. The
+    // caller's modifier goes on the box, which is where a padding or a weight belongs anyway.
+    val measurer = rememberTextMeasurer()
+    val style = TextStyle(
+        fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = fontSize,
+        lineHeight = lineHeight, letterSpacing = letterSpacing,
+    )
+    BoxWithConstraints(modifier) {
+        val available = maxWidth
+        val narrowest = remember(textWithIcon, available, fontSize, lineHeight, letterSpacing) {
+            with(density) {
+                val full = available.roundToPx()
+                if (full <= 0) return@with available
+                fun linesAt(px: Int) = measurer.measure(
+                    textWithIcon, style,
+                    constraints = Constraints(maxWidth = px.coerceAtLeast(1)),
+                ).lineCount
+                val target = linesAt(full)
+                // A single line has nothing to balance, and narrowing it would only make two.
+                if (target <= 1) return@with available
+                var low = 1
+                var high = full
+                while (low < high) {
+                    val mid = (low + high) / 2
+                    if (linesAt(mid) <= target) high = mid else low = mid + 1
+                }
+                low.toDp()
+            }
+        }
+        headline(Modifier.width(narrowest))
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -496,7 +559,26 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
                        ChevronRight, ArrowLeft, ArrowRight, Pencil, Pen, Edit, Close, Check,
                        Shield, Heart, EyeOff, Plus, Image, Camera, Lock, Sliders,
                        // ── the media step (SHOWUP-161) ──────────────────────────────
-                       Video, Mic, Play, Refresh, Trash }
+                       Video, Mic, Play, Refresh, Trash,
+    // ── added for the notifications ask (SHOWUP-162) ─────────────────────────
+    //
+    // The five benefit rows name `heart · sparkles · message-circle · clock · x`. Three did not
+    // exist; `x` is [Close], already drawn at the kit's exact geometry; and `heart` needed
+    // splitting -- see [HeartFilled].
+    Sparkles, MessageCircle, Clock,
+    /**
+     * The kit's `heart-filled`, which is what Connect's button has always drawn.
+     *
+     * THE KIT HAS TWO HEARTS AND THIS PROJECT HAD ONE. `components/shared.jsx` carries `heart`
+     * (stroked outline) and `heart-filled` (the same path with `fill="currentColor"`), and the
+     * single [Heart] here was the filled one -- drawn from memory rather than from the kit, so it
+     * matched neither path. The notifications ask needs the OUTLINE at size 20 / stroke 1.8 inside
+     * a lilac pip, so keeping one glyph under one name was not an option.
+     *
+     * Both are now the kit's own paths under the kit's own names. Connect moves to this one, which
+     * is the variant it always meant; nothing else used the old glyph.
+     */
+    HeartFilled }
 
 @Composable
 /**
@@ -665,6 +747,52 @@ fun Icon(
                     drawLine(tint, Offset(6f, 6f), Offset(18f, 18f), stroke.width, StrokeCap.Round)
                 }
                 BrandIcon.Check -> drawPath(path(listOf(20f to 6f, 9f to 17f, 4f to 12f)), tint, style = stroke)
+                // ── added for the notifications ask (SHOWUP-162) ────────────────────
+                //
+                // All three from `components/shared.jsx` at its 24-grid geometry, for the reason
+                // the media set states: an icon redrawn from memory is a real icon, faithfully
+                // drawn, and the wrong one -- which no test catches.
+                //
+                // `sparkles` IS NOT A LUCIDE SPARKLE. The kit draws an eight-ray starburst --
+                // four axis rays and four diagonals radiating from the centre -- not the familiar
+                // four-point twinkle. Copied as drawn.
+                BrandIcon.Sparkles -> {
+                    // M12 3v3 · M12 18v3 · M3 12h3 · M18 12h3
+                    listOf(
+                        Offset(12f, 3f) to Offset(12f, 6f),
+                        Offset(12f, 18f) to Offset(12f, 21f),
+                        Offset(3f, 12f) to Offset(6f, 12f),
+                        Offset(18f, 12f) to Offset(21f, 12f),
+                        // M5.6 5.6l2 2 · M16.4 16.4l2 2 · M5.6 18.4l2-2 · M16.4 7.6l2-2
+                        Offset(5.6f, 5.6f) to Offset(7.6f, 7.6f),
+                        Offset(16.4f, 16.4f) to Offset(18.4f, 18.4f),
+                        Offset(5.6f, 18.4f) to Offset(7.6f, 16.4f),
+                        Offset(16.4f, 7.6f) to Offset(18.4f, 5.6f),
+                    ).forEach { (a, b) -> drawLine(tint, a, b, stroke.width, StrokeCap.Round) }
+                }
+                // The speech bubble with its tail. The source is one path of five arcs; the shape
+                // is a circle of radius ~8.5 centred (12.5, 11.5) with a tail dropping to (3, 21)
+                // and the 1.9/5.7 kink that makes it read as a bubble rather than a balloon.
+                BrandIcon.MessageCircle -> drawPath(
+                    androidx.compose.ui.graphics.Path().apply {
+                        moveTo(21f, 11.5f)
+                        cubicTo(21f, 12.84f, 20.69f, 14.15f, 20.1f, 15.3f)
+                        cubicTo(18.66f, 18.18f, 15.72f, 20f, 12.5f, 20f)
+                        cubicTo(11.18f, 20f, 9.88f, 19.69f, 8.7f, 19.1f)
+                        lineTo(3f, 21f)
+                        lineTo(4.9f, 15.3f)
+                        cubicTo(4.31f, 14.12f, 4f, 12.82f, 4f, 11.5f)
+                        cubicTo(4f, 8.28f, 5.82f, 5.34f, 8.7f, 3.9f)
+                        cubicTo(9.85f, 3.31f, 11.16f, 3f, 12.5f, 3f)
+                        lineTo(13f, 3f)
+                        cubicTo(17.4f, 3.25f, 20.75f, 6.6f, 21f, 11f)
+                        close()
+                    }, tint, style = stroke)
+                // circle r9 at (12,12) plus the hands: polyline 12 7 -> 12 12 -> 15 14.
+                BrandIcon.Clock -> {
+                    drawCircle(tint, radius = 9f, center = Offset(12f, 12f), style = stroke)
+                    drawPath(path(listOf(12f to 7f, 12f to 12f, 15f to 14f)), tint, style = stroke)
+                }
                 // ── added for the media step (SHOWUP-161) ───────────────────────────
                 //
                 // All five copied from `components/shared.jsx` at its exact 24-grid geometry,
@@ -809,15 +937,15 @@ fun Icon(
                         cubicTo(4f, 18f, 12f, 22f, 12f, 22f)
                         close()
                     }, tint, style = stroke)
-                BrandIcon.Heart -> drawPath(
-                    androidx.compose.ui.graphics.Path().apply {
-                        moveTo(12f, 21f)
-                        cubicTo(12f, 21f, 3.5f, 15.4f, 3.5f, 10f)
-                        cubicTo(3.5f, 6.5f, 8.5f, 4.7f, 12f, 7.2f)
-                        cubicTo(15.5f, 4.7f, 20.5f, 6.5f, 20.5f, 10f)
-                        cubicTo(20.5f, 15.4f, 12f, 21f, 12f, 21f)
-                        close()
-                    }, tint)
+                // ── the kit's two hearts (SHOWUP-162) ────────────────────────────────
+                //
+                // One path, drawn twice: `heart` stroked and `heart-filled` filled. Both are
+                // `M20.84 4.61 a5.5 5.5 0 0 0-7.78 0 L12 5.67 l-1.06-1.06 a5.5 5.5 0 0 0-7.78
+                // 7.78 l1.06 1.06 L12 21.23 l7.78-7.78 1.06-1.06 a5.5 5.5 0 0 0 0-7.78z` from
+                // `components/shared.jsx`, which is the standard two-lobe heart: two half-circles of
+                // radius 5.5 meeting at the top notch (12, 5.67) and running down to the point.
+                BrandIcon.Heart -> drawPath(heartPath(), tint, style = stroke)
+                BrandIcon.HeartFilled -> drawPath(heartPath(), tint)
                 
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
@@ -845,6 +973,49 @@ private fun path(points: List<Pair<Float, Float>>, close: Boolean = false) =
         points.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(x, y) else lineTo(x, y) }
         if (close) close()
     }
+
+/**
+ * `heart` / `heart-filled` from `components/shared.jsx`: one path, drawn two ways.
+ *
+ * `M20.84 4.61 a5.5 5.5 0 0 0-7.78 0 L12 5.67 l-1.06-1.06 a5.5 5.5 0 0 0-7.78 7.78 l1.06 1.06
+ * L12 21.23 l7.78-7.78 1.06-1.06 a5.5 5.5 0 0 0 0-7.78z`
+ *
+ * THE THREE ARCS ARE NOT THE SAME ARC, which is what the first attempt at this got wrong -- it
+ * rendered a crown. A chord of length c across radius r subtends 2 asin(c/2r):
+ *
+ *   arc 1  (20.84, 4.61) to (13.06, 4.61)   chord 7.78 = 5.5 root 2   ->  90 degrees
+ *   arc 2  (10.94, 4.61) to (3.16, 12.39)   chord 11.0 = 2r           -> 180 degrees, a semicircle
+ *   arc 3  (20.84, 12.39) to (20.84, 4.61)  chord 7.78                ->  90 degrees
+ *
+ * Arcs 1 and 3 are two pieces of ONE circle -- the right lobe, centred (16.95, 8.50) -- separated
+ * in the path by the notch and the point. Arc 2 is the left lobe, centred on its own chord's
+ * midpoint (7.05, 8.50) because a semicircle's centre is exactly that. Both radii are 5.5, so the
+ * bounding boxes are (11.45, 3, 22.45, 14) and (1.55, 3, 12.55, 14).
+ *
+ * Every sweep is negative: SVG's sweep-flag 0 is anticlockwise, and Compose measures clockwise
+ * from 3 o'clock on a y-down canvas.
+ *
+ * Verified by rendering it at 80dp and looking -- see `IconSheet162`. A heart is the one glyph
+ * where being slightly wrong is unmistakable and being subtly wrong is invisible.
+ */
+private fun heartPath() = androidx.compose.ui.graphics.Path().apply {
+    // Right lobe: circle centre (16.95, 8.50), r 5.5. From -45 degrees anticlockwise over the top.
+    moveTo(20.84f, 4.61f)
+    arcTo(Rect(11.45f, 3.0f, 22.45f, 14.0f), -45f, -90f, false)
+    // The notch between the lobes.
+    lineTo(12f, 5.67f)
+    lineTo(10.94f, 4.61f)
+    // Left lobe: circle centre (7.05, 8.50), r 5.5. A true semicircle -- see the doc above.
+    arcTo(Rect(1.55f, 3.0f, 12.55f, 14.0f), -45f, -180f, false)
+    lineTo(4.22f, 13.45f)
+    // The point.
+    lineTo(12f, 21.23f)
+    lineTo(19.78f, 13.45f)
+    lineTo(20.84f, 12.39f)
+    // The right lobe's outer side, closing back to the start.
+    arcTo(Rect(11.45f, 3.0f, 22.45f, 14.0f), 45f, -90f, false)
+    close()
+}
 
 private fun phonePath() = androidx.compose.ui.graphics.Path().apply {
     moveTo(22f, 16.92f); lineTo(22f, 19.92f)

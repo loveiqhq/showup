@@ -74,6 +74,7 @@ import com.showup.profile.MediaState
 import com.showup.profile.MediaTake
 import com.showup.profile.MediaUploadStatus
 import com.showup.profile.ProfileMediaScreen
+import com.showup.profile.ProfileNotificationsScreen
 import com.showup.profile.ProfilePhotosScreen
 import com.showup.profile.RecordingPhase
 import com.showup.profile.ProfilePromptsScreen
@@ -504,6 +505,11 @@ class EvidenceScreenshots {
             )
         }
 
+        // SHOWUP-162 -- one state, three frames. The ticket asks for exactly three images, each
+        // showing all five rows, the lead, the headline and the CTA with nothing clipped and no
+        // scroll.
+        shoot("SHOWUP-162", "notifications") { ProfileNotificationsScreen() }
+
         // ── the two PLAYING states ───────────────────────────────────────────────────────────
         //
         // UNDER THEIR OWN PREFIX, so the count below stays exactly 30. That assertion is the
@@ -564,6 +570,8 @@ class EvidenceScreenshots {
         // Ten states at three sizes. The eleventh -- the permission row -- is deliberately absent:
         // "Include one capture per permission mode ONCE THE ROW IS SPECCED", and it has no artboard.
         assertEquals("SHOWUP-161 asks for 30 images", 30, produced.count { it.startsWith("SHOWUP-161") })
+        // One state at the three frames. SHOWUP-162's evidence line asks for exactly three.
+        assertEquals("SHOWUP-162 asks for 3 images", 3, produced.count { it.startsWith("SHOWUP-162") })
 
         // And an image that is a blank rectangle is not evidence of anything. A real render of one
         // of these screens is tens of kilobytes; an empty one compresses to a few hundred bytes.

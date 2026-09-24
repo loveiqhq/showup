@@ -246,7 +246,10 @@ private fun MethodListLayout(
             WashHeadline(
                 parts = listOf("Welcome to " to false, "Show Up" to true),
                 fontSize = if (compact) 34.sp else 40.sp,
-                trailing = BrandIcon.Heart,
+                // HeartFilled, which is the glyph this button has always drawn -- the kit calls
+                // it `heart-filled` and the notifications ask (SHOWUP-162) needed the outline
+                // `heart` under that name. Same pixels as before, now from the kit's own path.
+                trailing = BrandIcon.HeartFilled,
             )
             Text(
                 // A hard break, not a wrap: the ticket specifies two lines and names the break.

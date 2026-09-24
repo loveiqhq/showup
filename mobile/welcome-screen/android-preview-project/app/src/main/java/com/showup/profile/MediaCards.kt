@@ -91,6 +91,7 @@ import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.LilacStops
+import com.showup.designsystem.LilacWash
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Neutral
@@ -164,10 +165,6 @@ object MediaCopy {
     fun commit(kind: MediaKind) = if (kind == MediaKind.Video) COMMIT_VIDEO else COMMIT_VOICE
     fun usePrimary(kind: MediaKind) = if (kind == MediaKind.Video) USE_CLIP else USE_RECORDING
 }
-
-/** The lilac wash both the preview block and the voice strip sit on. `--su-grad-lilac`. */
-internal val LilacWash: Brush
-    get() = Brush.linearGradient(colorStops = LilacStops.toTypedArray())
 
 private val CardShape = RoundedCornerShape(20.dp)
 private val InnerShape = RoundedCornerShape(14.dp)
