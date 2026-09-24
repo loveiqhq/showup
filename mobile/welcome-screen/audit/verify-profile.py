@@ -1044,6 +1044,19 @@ check("162 pip radius 12 (kotlin)", "RoundedCornerShape(12.dp)" in notify_kt)
 check("162 pip radius 12 (swift)", "cornerRadius: 12" in notify_sw)
 check("162 pip is the lilac wash (kotlin)", "background(LilacWash)" in notify_kt)
 check("162 pip is the lilac wash (swift)", "Gradients.lilac()" in notify_sw)
+
+# `--su-grad-lilac` IS 180 DEGREES, and Compose's default linear gradient is the 135 diagonal --
+# which is right for sunset and wrong for this, and was wrong on most Android surfaces until E25.
+# One definition, vertical, and no call site allowed to re-spell the brush.
+_ds_kt = code_only(read(KT, "designsystem", "DesignSystem.kt"))
+check("162 the lilac wash is VERTICAL, per the 180deg token (kotlin)",
+      "Brush.verticalGradient(colorStops = LilacStops.toTypedArray())" in _ds_kt)
+check("162 the lilac wash is VERTICAL, per the 180deg token (swift)",
+      "startPoint: .top, endPoint: .bottom" in code_only(read(SW, "DesignSystem.swift")))
+for _screen in ["ProfilePhotosScreen.kt", "ProfileDobScreen.kt", "ProfilePromptsScreen.kt",
+                "MediaCards.kt", "MediaPromptSheet.kt", "ProfileNotificationsScreen.kt"]:
+    check("162 no second spelling of the lilac brush in %s" % _screen,
+          "LilacStops" not in code_only(read(KT, "profile", _screen)))
 check("162 icon 20 at stroke 1.8 in primary-500 (kotlin)",
       "20.dp, tint = Purple, strokeWidth = 1.8f" in notify_kt)
 check("162 icon 20 at stroke 1.8 in primary-500 (swift)",

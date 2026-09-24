@@ -861,6 +861,38 @@ Building the real thing means `FlowRow` (still `ExperimentalLayoutApi`) on Compo
 accessibility sizes. Recorded rather than built. If the tag is ever used on a longer title, or a
 second row gains one, this stops being a detail.
 
+## E25 · Android drew `--su-grad-lilac` at 135° where the token is 180°, on most of its surfaces. FIXED
+
+    --su-grad-lilac: linear-gradient(180deg, #F1E6FF 0%, #E8DCF5 100%);
+
+`Brush.linearGradient(colorStops)` defaults to `Offset.Zero -> Offset.Infinite`, which resolves to
+the drawing area's **top-left to bottom-right**: a 135° diagonal. The token is 180°, which in
+Compose is `verticalGradient`. iOS had it right on every surface — `startPoint: .top, endPoint:
+.bottom` — so the two platforms have been painting the same token at different angles.
+
+**What made it easy to get wrong:** `--su-grad-sunset` IS 135°, and the default spelling is
+correct for it. Every sunset surface in the app reads right with `Brush.linearGradient(colorStops)`,
+so carrying the same line over to lilac looks like consistency and is a defect.
+
+**Android had spelled one token three ways**, which is how it ended up at two angles at once:
+
+| Spelling | Angle | Where |
+| --- | --- | --- |
+| `LilacWash` (the shared brush) | 135°, wrong | media cards ×5, the prompt sheet, the notifications pip |
+| `Brush.linearGradient(colorStops = LilacStops...)` | 135°, wrong | photos, ×2 |
+| `Brush.verticalGradient(LilacStops...)` | 180°, right | date of birth, prompts |
+
+So the age-confirmation card and a prompt card were correct, and the pip beside them was not —
+inside the same flow, from the same token.
+
+**Fixed as one definition rather than five call-site edits:** `LilacWash` is vertical now, and all
+four inline copies are gone. The design-system rule that says a token has one definition is exactly
+the rule that would have prevented this, and a duplicated *brush* is as much a duplicate as a
+duplicated hex.
+
+Touches SHOWUP-154, 156, 158 and 161 surfaces as well as 162's pip. Paint only — no geometry
+changes, no fit findings, and the screenshots for those tickets are regenerated from the build.
+
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 
 `components/shared.jsx` and the profile references carry both spellings:

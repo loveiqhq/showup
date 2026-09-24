@@ -90,7 +90,6 @@ import com.showup.designsystem.ControlPipTone
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
-import com.showup.designsystem.LilacStops
 import com.showup.designsystem.LilacWash
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope

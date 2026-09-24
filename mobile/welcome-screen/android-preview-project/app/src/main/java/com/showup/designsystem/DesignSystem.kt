@@ -104,7 +104,12 @@ val LilacStops = listOf(0.00f to Color(0xFFF1E6FF), 1.00f to Color(0xFFE8DCF5))
  * which is the moment it moves.
  */
 val LilacWash: Brush
-    get() = Brush.linearGradient(colorStops = LilacStops.toTypedArray())
+    // VERTICAL, and that is the whole of the token: `linear-gradient(180deg, ...)`. The obvious
+    // spelling is wrong -- `Brush.linearGradient(colorStops)` defaults to Offset.Zero ->
+    // Offset.Infinite, which resolves to the drawing area's top-left -> bottom-right and is a 135
+    // diagonal. Sunset IS 135 and reads correctly that way, which is what made this easy to carry
+    // over; lilac is 180 and did not. iOS had it right on every surface.
+    get() = Brush.verticalGradient(colorStops = LilacStops.toTypedArray())
 
 // ── Type ─────────────────────────────────────────────────────────────────
 //
