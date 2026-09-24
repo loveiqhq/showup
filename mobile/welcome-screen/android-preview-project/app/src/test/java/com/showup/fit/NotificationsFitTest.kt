@@ -186,6 +186,13 @@ class NotificationsFitTest {
         // These are ARTBOARD frames, mocks and all. The same phone with its real insets is a
         // different number and is measured separately below: a 375 x 667 handset is an iPhone SE,
         // whose 20 status bar and home BUTTON leave 647, not the 585 a notched phone would.
+        // AND THE SAME PHONES WITH THEIR REAL INSETS, because that is what the images are
+        // rendered at and what the "state what the spacer collapsed to" line has to quote. The
+        // artboard's 375 x 667 includes a 54 status-bar mock and a 28 home-indicator mock; a real
+        // iPhone SE has a 20 status bar and a home BUTTON, so it is 647.
+        DEVICES.filter { it.inAcceptanceCriteria }.forEach { d ->
+            println("DIAG shipped ${d.width}x${d.safeHeight} -> spacer ${spacerAt(d.width, d.safeHeight)}")
+        }
         EVIDENCE_FRAMES.forEach { (w, h) ->
             val gap = spacerAt(w, h)
             println("DIAG evidence ${w}x$h -> spacer $gap")
