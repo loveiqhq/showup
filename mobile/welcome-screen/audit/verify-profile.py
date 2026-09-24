@@ -1069,6 +1069,17 @@ check("162 title and tag align on the BASELINE (swift)",
 check("162 title-to-tag gap 8 (kotlin)", "spacedBy(8.dp)" in notify_kt)
 check("162 title-to-tag gap 8 (swift)", "spacing: 8" in notify_sw)
 
+# THE PILL IS MEASURED BEFORE THE TITLE, and this is a bug no fit sweep can see. The spec sheet
+# has the row at `flex-wrap: wrap` and neither platform wraps -- they share the width, and an
+# unweighted Text is measured first at the full width. At 2.0x type on a 320 frame that left the
+# pill 25dp of the 123 it needed, with PREMIUM ellipsised inside a stub capsule and nothing
+# overflowing. `NotificationsFitTest.the premium pill is never squeezed` measures it; these two
+# hold the spelling that makes it true.
+check("162 the title yields to the pill, not the reverse (kotlin)",
+      "weight(1f, fill = false)" in notify_kt)
+check("162 the pill keeps its own width (swift)",
+      "fixedSize(horizontal: true, vertical: false)" in notify_sw)
+
 # The line: Manrope 500 / 13.5 / 1.4, 3 below the title.
 check("162 row line is Manrope 500 at 13.5 (kotlin)", "fontSize = 13.5.sp" in notify_kt)
 check("162 row line is Manrope 500 at 13.5 (swift)", "F.manrope(13.5, .medium)" in notify_sw)

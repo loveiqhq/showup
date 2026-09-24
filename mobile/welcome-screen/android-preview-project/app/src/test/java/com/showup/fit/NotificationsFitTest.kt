@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.showup.profile.CTA_TAG
 import com.showup.profile.LIST_TAG
+import com.showup.profile.TAG_TAG
 import com.showup.profile.ProfileNotificationsScreen
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -346,6 +347,82 @@ class NotificationsFitTest {
                 offscreen.joinToString(" | "),
             offscreen.isEmpty(),
         )
+    }
+
+    /**
+     * THE PREMIUM PILL IS NEVER SQUEEZED.
+     *
+     * The spec sheet has the title row at `flex-wrap: wrap` -- "the tag rides here" -- and neither
+     * Compose's Row nor SwiftUI's HStack wraps. What they do instead is share the width, and the
+     * order they measure in decides who loses: an unweighted Text is measured FIRST at the full
+     * width, so a title that wraps can leave the pill with almost nothing and the word PREMIUM
+     * ellipsised inside a stub of a capsule. Nothing overflows, so no fit sweep would see it.
+     *
+     * This asserts the pill keeps its natural width on every device at every font scale. If it
+     * ever does not, the fix is to measure the pill first -- `weight(1f, fill = false)` on the
+     * title -- and not to shrink the pill.
+     */
+    @Test
+    fun `the premium pill is never squeezed`() {
+        val squeezed = mutableListOf<String>()
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            // Its natural width, measured with room to spare, scaled the way the text will scale.
+            val natural = tagWidth(440, 860, scale)
+            DEVICES.forEach { d ->
+                val w = tagWidth(d.width, d.safeHeight, scale)
+                if (w < natural - 0.5f) {
+                    squeezed += "%s %dx%d @%.1fx -> %.1f of %.1f"
+                        .format(d.name, d.width, d.safeHeight, scale, w, natural)
+                }
+            }
+        }
+        assertTrue(
+            "the Premium pill is compressed below its natural width, which ellipsises the word " +
+                "inside it and no fit sweep can see: " + squeezed.joinToString(" | "),
+            squeezed.isEmpty(),
+        )
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    private fun tagWidth(widthDp: Int, heightDp: Int, fontScale: Float): Float {
+        var width = 0f
+        runComposeUiTest {
+            var density = 1f
+            setContent {
+                density = LocalDensity.current.density
+                val cfg = android.content.res.Configuration(LocalConfiguration.current).apply {
+                    screenWidthDp = widthDp
+                    screenHeightDp = heightDp
+                    this.fontScale = fontScale
+                }
+                CompositionLocalProvider(
+                    LocalConfiguration provides cfg,
+                    LocalDensity provides Density(LocalDensity.current.density, fontScale),
+                ) {
+                    Box(
+                        Modifier.testTag(FIT_ROOT).requiredSize(widthDp.dp, heightDp.dp),
+                    ) { ProfileNotificationsScreen() }
+                }
+            }
+            waitForIdle()
+            val root = onNodeWithTag(FIT_ROOT, useUnmergedTree = true).fetchSemanticsNode()
+            fun walk(n: SemanticsNode) {
+                if (n.config.getOrNull(SemanticsProperties.TestTag) == TAG_TAG) {
+                    width = n.size.width / density
+                }
+                n.children.forEach { walk(it) }
+            }
+            walk(root)
+        }
+        return width
+    }
+
+    @Test
+    fun `print the premium pill width on every device`() {
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            val widths = DEVICES.map { tagWidth(it.width, it.safeHeight, scale) }
+            println("DIAG pill @%.1fx -> %s".format(scale, widths.distinct().sorted()))
+        }
     }
 
     @Test

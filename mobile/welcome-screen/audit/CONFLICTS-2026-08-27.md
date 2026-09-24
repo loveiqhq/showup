@@ -738,13 +738,13 @@ the end of the list. Zero means it fits.
 
 | Frame | 1.0x | 1.3x | 2.0x |
 | --- | --- | --- | --- |
-| Galaxy Fold cover screen 320 x 638 | **169** | 412 | 1190 |
-| small Android (HD) 360 x 592 | **98** | 327 | 1014 |
-| iPhone SE (3rd gen) 375 x 647 | **5** | 272 | 860 |
-| Galaxy A / common Android 360 x 692 | 0 | 227 | 914 |
-| iPhone 12 / 13 / 14 390 x 763 | 0 | 156 | 652 |
+| Galaxy Fold cover screen 320 x 638 | **169** | 417 | 1094 |
+| small Android (HD) 360 x 592 | **98** | 327 | 992 |
+| iPhone SE (3rd gen) 375 x 647 | **5** | 272 | 865 |
+| Galaxy A / common Android 360 x 692 | 0 | 227 | 892 |
+| iPhone 12 / 13 / 14 390 x 763 | 0 | 156 | 657 |
 | iPhone 15/16 Pro Max 430 x 839 | 0 | 0 | 357 |
-| the other eleven | 0 | 0–185 | 336–910 |
+| the other eleven | 0 | 0–185 | 336–888 |
 
 So at the **default font three of seventeen frames scroll**; at 1.3x, thirteen; at 2.0x, all of
 them. The heights are safe-area heights, which is why 375 x 667 appears as 647 — an iPhone SE has
@@ -836,6 +836,30 @@ recovery for it either way.
 Recorded rather than silently skipped because an acceptance criterion quotes rule 1 verbatim, and a
 reviewer walking that list needs to find the reason here instead of concluding it was missed.
 
+
+## E24 · The title row is `flex-wrap: wrap` and neither platform wraps. RECORDED
+
+Spec sheet key ⑨: *title row: flex · align-items baseline · gap 8 · **flex-wrap wrap** (the tag
+rides here)*. A Compose `Row` does not wrap and a SwiftUI `HStack` does not wrap; both share the
+width instead.
+
+**The dangerous half of that is fixed.** Sharing the width means the measure order decides who
+loses, and an unweighted `Text` is measured first at the full width — so at 2.0x type on a 320
+frame the title took everything and the `Premium` pill was left **25dp of the 123 it needed**, with
+the word ellipsised inside a stub of a capsule. Nothing overflowed, so no fit sweep could see it;
+`ScreenFitTest` reported the screen clean on all seventeen at 2.0x while that was true.
+
+The title is weighted now and the pill keeps its natural width on every frame at every scale, which
+`NotificationsFitTest.the premium pill is never squeezed` asserts.
+
+**What still differs from the reference:** where CSS would drop the pill onto its own line, both
+platforms keep it beside a title that wraps to two lines. Row 2 is the only row with a tag, and it
+only reaches that width at 1.3x type and above. Nothing is clipped and nothing is unreachable.
+
+Building the real thing means `FlowRow` (still `ExperimentalLayoutApi`) on Compose and a custom
+`Layout` on SwiftUI — a shared wrapping primitive, on two platforms, for one tag on one row at
+accessibility sizes. Recorded rather than built. If the tag is ever used on a longer title, or a
+second row gains one, this stops being a detail.
 
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 

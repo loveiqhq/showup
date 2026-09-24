@@ -162,7 +162,15 @@ private struct BenefitRow: View {
                         .lineSpacing(16 * 0.2)
                         .tracking(-0.005 * 16)
                         .foregroundColor(.liqFg)
-                    if benefit.tag != nil { PremiumTag() }
+                    // THE PILL KEEPS ITS OWN WIDTH. The spec sheet has this row at
+                    // `flex-wrap: wrap` and an HStack does not wrap; it shares the width. On the
+                    // Compose side the unweighted title took everything and left the pill 25pt of
+                    // the 123 it needed at 2.0x type, with PREMIUM ellipsised inside it, and
+                    // nothing overflowed so no fit sweep could see it. Stated rather than left to
+                    // SwiftUI's flexibility arithmetic, which cannot be measured on this machine.
+                    if benefit.tag != nil {
+                        PremiumTag().fixedSize(horizontal: true, vertical: false)
+                    }
                 }
                 Text(benefit.line)
                     .font(F.manrope(13.5, .medium))

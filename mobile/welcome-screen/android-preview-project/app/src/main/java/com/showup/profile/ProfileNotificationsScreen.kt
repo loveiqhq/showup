@@ -140,6 +140,9 @@ internal const val CTA_TAG = "notifications-cta"
  */
 internal const val LIST_TAG = "notifications-benefits"
 
+/** Row 2's Premium pill, for the fit harness. */
+internal const val TAG_TAG = "notifications-premium"
+
 /**
  * Every string on the screen, verbatim from the ticket.
  *
@@ -268,15 +271,27 @@ private fun BenefitRow(benefit: NotifyBenefit) {
             // difference is visible: a 10 uppercase pill centred against a 16 serif sits low,
             // which is exactly what its -1 nudge is correcting for. Compose expresses baseline
             // alignment per child rather than on the Row.
+            //
+            // THE TITLE IS THE WEIGHTED ONE, AND THAT IS THE WHOLE BUG IT FIXES. The spec sheet
+            // has this row at `flex-wrap: wrap` -- "the tag rides here" -- and a Compose Row does
+            // not wrap; it shares the width, and the order it measures in decides who loses. An
+            // unweighted Text is measured FIRST at the full width, so at 2.0x type on a 320 frame
+            // the title took everything and the pill was left 25dp of the 123 it needed, with
+            // PREMIUM ellipsised inside a stub of a capsule. Nothing overflowed, so no fit sweep
+            // could see it. Weighted, the pill is measured at its own size first and the title
+            // wraps into what is left -- which is what the wrap would have done anyway.
+            //
+            // `fill = false` so a short title does not stretch to the full width and drag the
+            // pill out to the margin.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     benefit.title,
-                    modifier = Modifier.alignByBaseline(),
+                    modifier = Modifier.weight(1f, fill = false).alignByBaseline(),
                     color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
                     fontSize = 16.sp, lineHeight = (16f * 1.2f).sp,
                     letterSpacing = (-0.005).em,
                 )
-                if (benefit.tag != null) PremiumTag(Modifier.alignByBaseline())
+                if (benefit.tag != null) PremiumTag(Modifier.alignByBaseline().testTag(TAG_TAG))
             }
             Text(
                 benefit.line,
