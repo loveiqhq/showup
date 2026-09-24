@@ -387,6 +387,11 @@ fun ProfileNotificationsScreen(
 
         // The body block's own 20 top padding. The headline block has no bottom padding, so this
         // single value is the whole gap between them.
+        //
+        // NO `text-wrap: pretty`, which the reference sets here and on every row line. Compose has
+        // no equivalent and, unlike `balance` on the headline, the ticket states no outcome for it
+        // -- it is a hint that avoids a one-word last line, and none of these blocks produces one
+        // at any of the seventeen frames. E26 has the argument and the trigger for revisiting it.
         Text(
             NotificationsCopy.LEAD,
             modifier = Modifier.padding(top = 20.dp),

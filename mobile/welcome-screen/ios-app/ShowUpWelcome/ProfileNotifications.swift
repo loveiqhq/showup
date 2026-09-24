@@ -247,6 +247,10 @@ struct ProfileNotificationsView: View {
 
             // The body block's own 20 top padding. The headline block has no bottom padding, so
             // this single value is the whole gap between them.
+            //
+            // NO `text-wrap: pretty`, which the reference sets here and on every row line. SwiftUI
+            // has no equivalent and, unlike `balance` on the headline, the ticket states no
+            // outcome for it. See E26.
             Text(NotificationsCopy.lead)
                 .font(F.manrope(15, .medium))
                 .lineSpacing(15 * 0.55)

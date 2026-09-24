@@ -893,6 +893,30 @@ duplicated hex.
 Touches SHOWUP-154, 156, 158 and 161 surfaces as well as 162's pip. Paint only — no geometry
 changes, no fit findings, and the screenshots for those tickets are regenerated from the build.
 
+## E26 · `text-wrap: pretty` is in three acceptance criteria and is implemented on neither platform. RECORDED
+
+SHOWUP-162 asks for it on the lead paragraph and on every row line, and the reference sets
+`textWrap: 'pretty'` on both. Neither Compose nor SwiftUI has it, and unlike `text-wrap: balance`
+— which this project DID build, as a binary search for the narrowest width that preserves the line
+count — nothing here implements it.
+
+**The two are not the same size of problem.** `balance` was built because the ticket states the
+outcome it wants: at 390 a greedy wrap gives `Never miss a date with` / `Notifications!` and the
+artboard shows `Never miss a date` / `with Notifications!`. There is a right answer and greedy
+wrapping gets it wrong, visibly, on the screen's largest type.
+
+`pretty` states no outcome. It is a browser-defined hint that mostly avoids a one-word last line
+and slightly reduces raggedness, on body copy of two to four lines. Building it means a second
+bespoke wrap algorithm on two platforms, carrying its own copy of each block's width and style —
+the kind of duplicate that drifts from the screen it is supposed to describe.
+
+**And no orphan has been observed.** The lead and all five row lines were looked at in the rendered
+evidence at 375 x 647, 390 x 763 and 430 x 839, and in the 320 x 2.0 tight frame. Every one breaks
+on a phrase; none ends in a single word.
+
+**What would change this:** an orphan at any frame, or a second screen wanting the same hint. Then
+it is worth building once, in the shared type layer, rather than twice here.
+
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 
 `components/shared.jsx` and the profile references carry both spellings:
