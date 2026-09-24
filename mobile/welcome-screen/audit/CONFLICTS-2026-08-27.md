@@ -726,3 +726,60 @@ it.** For the design and data side.
 **For the design side: one line in the build inventory**, plus the row above. The pipeline exists
 now; the gap is that a reader of the ticket would not know either was needed.
 
+## E20 · The notifications ask does not fit every phone, and the agreed ladder does not close it. NEEDS A DECISION
+
+SHOWUP-162 says `It does not scroll`, twice, and names the order of sacrifice if it ever does not
+fit: *spacer, then list `gap` 16 to 14, then the row line 13.5 to 13, then cut a row. Never shrink
+the headline and never let it scroll.*
+
+**Measured across the seventeen frames this project ships to, at the DEFAULT font:**
+
+| Frame | Content column | Spacer |
+| --- | --- | --- |
+| Galaxy Fold cover screen 320 | 638 | **-21, overflows** |
+| small Android (HD) 360 x 640 | 592 | **-17, overflows** |
+| iPhone SE (3rd gen) 375 x 667 | 647 | 9, under the 12 floor |
+| iPhone 12/13/14 390 x 844 | 763 | 125 |
+| everything larger | | comfortable |
+
+At 1.3x type it misses on most frames and at 2.0x on all of them.
+
+**The ladder is worth about 14dp before its last step** -- the gap change saves 8 and the line
+change about 6 -- against a 33dp deficit on the Fold. Cutting a row is a content decision the
+ticket reserves, and the same ticket says row 1 is why the user is in the flow and row 5 is the one
+that protects their time.
+
+**Shipped with the approved values intact and the scaffold's existing scroll fallback carrying the
+frames the design was not drawn for.** `WelcomeScaffold(scrollWhenTight = true)` floors the inner
+column at the viewport height, so on the fifteen frames where the content fits there is nothing to
+scroll and the layout is byte-for-byte what it was; on the two that are short it scrolls rather
+than drawing the CTA over the last row, which is what it did before.
+
+That is a direct contradiction of *never let it scroll*, taken because the alternative was a
+clipped CTA and because the shared rules require every screen to stay usable at the largest system
+font. **The real choice is this scroll or a fourth row**, and it is the design side's.
+
+Note that 375 x 667 is an iPhone SE, which has a 20pt status bar and a home BUTTON -- its content
+column is 647, not the 585 a notched phone would leave. The ticket's "check 375 x 667 first" is
+right, but the number to check against is 647.
+
+## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
+
+`components/shared.jsx` and the profile references carry both spellings:
+
+- bare numbers -- `letterSpacing: 0.08` (9 times), `0.02` (6), `0.01` (6), `0.06`, `0.04`, `0.07`
+- em strings -- `'-0.015em'` (7), `'-0.018em'` (6), `'0.08em'` (3), `'-0.005em'` (2)
+
+**`0.08` and `'0.08em'` are both present for the same value.** In React a bare number becomes
+**px**, so `letterSpacing: 0.06` on a 10px uppercase label is 0.06 of a pixel -- which is to say
+nothing at all. Every negative value is written as em; the positive ones are split.
+
+A designer writing `0.01` cannot mean one hundredth of a pixel, so the bare positives are em that
+lost their unit. **This project has read them as em since SHOWUP-161**, where the `REC` and
+`0:14 RECORDED` chips ship the reference's bare `0.08` as `0.08em`, and 162's `Premium` tag follows
+with `0.06em`.
+
+The consequence worth knowing: **the artboards under-track every uppercase label**, because the
+browser renders them literally. A pill measured off the PNG will be a few pixels narrower than the
+app's. Nothing is broken; the kit should pick one spelling.
+
