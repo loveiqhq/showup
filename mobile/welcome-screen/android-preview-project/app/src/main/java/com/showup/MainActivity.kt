@@ -271,12 +271,15 @@ class MainActivity : ComponentActivity() {
              * at Home for now. When 10 is built this is the single place that changes -- which is
              * why it is a function rather than two copies of the same conditional.
              */
-            fun afterMedia(): FlowScreen =
-                if (shouldShowAsk(notifications.read())) {
-                    FlowScreen.ProfileNotifications
-                } else {
-                    FlowScreen.Home
-                }
+            fun afterMedia(): FlowScreen {
+                val status = notifications.read()
+                if (shouldShowAsk(status)) return FlowScreen.ProfileNotifications
+                // THE SKIPPED USER STILL NEEDS A TOKEN. Below API 33 notifications are on with
+                // nothing to ask for, and the only thing that registered for push was a callback
+                // on the screen those users never see. See NotificationsViewModel.skipped.
+                notifyModel.skipped(status)
+                return FlowScreen.Home
+            }
 
             // The OS sheet's answer. `permission_result` fires here and nowhere else, and the
             // flow advances on BOTH outcomes -- the user never lands back on the ask.

@@ -257,7 +257,14 @@ private struct TutorialFlow: View {
     /// STAY REACHABLE (10) DOES NOT EXIST YET, so both the ask and the skip end at home for now.
     /// When 10 is built this is the single place that changes.
     private func afterMedia() async -> FlowScreen {
-        await shouldShowAsk(notificationAccess.read()) ? .profileNotifications : .home
+        let status = await notificationAccess.read()
+        guard shouldShowAsk(status) else {
+            // THE SKIPPED USER STILL NEEDS A TOKEN — a restored backup arrives already granted
+            // and with no APNs token. See NotificationsModel.skipped.
+            notifications.skipped(status)
+            return .home
+        }
+        return .profileNotifications
     }
 
     @ViewBuilder private var notificationsScreen: some View {

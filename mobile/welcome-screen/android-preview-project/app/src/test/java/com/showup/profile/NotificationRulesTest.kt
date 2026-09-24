@@ -255,6 +255,55 @@ class NotificationRulesTest {
         )
     }
 
+    // ── the user who never sees the screen ──────────────────────────────────
+
+    @Test
+    fun `a skipped user whose permission is already on still registers for push`() = runTest(dispatcher) {
+        // THE ANDROID <= 12 PATH. The ticket's build inventory: "Notifications treated as on below
+        // API 33 -- the Android <= 12 path never sees this screen and must still register for push
+        // and receive all five categories." minSdk here is 30, so this is API 30 to 32.
+        //
+        // It is the ticket's own named silent failure arriving through a door the warning did not
+        // close: registration lived in the grant callback of a screen these users never reach.
+        val vm = build(NotificationPermission.Granted)
+        vm.skipped(NotificationPermission.Granted)
+        advanceUntilIdle()
+        assertEquals(1, push.calls)
+    }
+
+    @Test
+    fun `a skipped user registers once, however many times the host asks`() = runTest(dispatcher) {
+        // `afterMedia` runs on Continue AND on Skip, and a recomposition can run it again.
+        val vm = build(NotificationPermission.Granted)
+        vm.skipped(NotificationPermission.Granted)
+        vm.skipped(NotificationPermission.Granted)
+        advanceUntilIdle()
+        assertEquals(1, push.calls)
+    }
+
+    @Test
+    fun `a skipped user with no permission registers nothing`() = runTest(dispatcher) {
+        // The guard case can arrive DENIED -- restored from a backup where the user refused, or
+        // parental controls. There is no token to get and nothing to send.
+        for (status in listOf(NotificationPermission.Denied, NotificationPermission.Restricted)) {
+            val vm = build(status)
+            vm.skipped(status)
+            advanceUntilIdle()
+        }
+        assertEquals(0, push.calls)
+    }
+
+    @Test
+    fun `skipping reports nothing at all`() = runTest(dispatcher) {
+        // events.json: `permission_prompted` "does not fire when the screen is skipped". There is
+        // no `ask skipped` event either, and the ticket forbids inventing one at a call site --
+        // the users who never see the ask are deliberately unmeasured.
+        val vm = build(NotificationPermission.Granted)
+        vm.skipped(NotificationPermission.Granted)
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), events.names())
+    }
+
     // ── the foreground re-read ──────────────────────────────────────────────
 
     @Test

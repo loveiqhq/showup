@@ -59,6 +59,9 @@ open class NotificationsViewModel(
     /** Guards `permission_prompted` against a recomposition firing it twice. */
     private var announced = false
 
+    /** Guards the skip path's registration against being launched twice. */
+    private var registeredOnSkip = false
+
     /**
      * The screen was really shown.
      *
@@ -103,6 +106,37 @@ open class NotificationsViewModel(
     fun answered(granted: Boolean) {
         analytics?.report(ProfileAnalytics.permissionResult(granted))
         if (granted) viewModelScope.launch { push.register() }
+    }
+
+    /**
+     * The screen was SKIPPED, and the skipped user still needs a token.
+     *
+     * The ticket's build inventory is explicit about the case that made this necessary:
+     * "Notifications treated as on below API 33 -- the Android <= 12 path never sees this screen
+     * and must still register for push and receive all five categories." `minSdk` here is 30, so
+     * that is API 30 to 32 -- a real slice of the install base, every one of them a device the
+     * backend would have no token for.
+     *
+     * It arrives through the door the ticket's own warning did not close. "Granting the permission
+     * and never registering the device is a silent failure that looks exactly like success"
+     * describes the grant path; this is the path where there is nothing to grant, the permission
+     * is simply on, and the only place that registered was a callback on a screen these users
+     * never see.
+     *
+     * The guard case reaches here too -- a status already determined, from a restored backup or an
+     * app killed mid-sheet. If that status is GRANTED the device still needs a token, because a
+     * token does not survive a restore; if it is denied or restricted there is nothing to register.
+     *
+     * FIRES NOTHING. `permission_prompted` is our pre-permission surface and events.json says it
+     * does not fire when the screen is skipped; there is no "ask skipped" event and the ticket
+     * forbids inventing one at a call site. The users who never see the ask stay unmeasured on
+     * purpose.
+     */
+    fun skipped(status: NotificationPermission) {
+        if (status != NotificationPermission.Granted) return
+        if (registeredOnSkip) return
+        registeredOnSkip = true
+        viewModelScope.launch { push.register() }
     }
 
     /**

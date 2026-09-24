@@ -42,6 +42,9 @@ final class NotificationsModel {
     /// Guards `permission_prompted` against a redraw firing it twice.
     private var announced = false
 
+    /// Guards the skip path's registration against running twice.
+    private var registeredOnSkip = false
+
     init(
         access: any NotificationAccessReading = UNNotificationAccess(),
         ask: any NotificationAsking = UNNotificationAsk(),
@@ -85,6 +88,22 @@ final class NotificationsModel {
             // on this screen. Fire and forget: it must not hold the user here.
             Task { _ = await push.register() }
         }
+    }
+
+    /// The screen was SKIPPED, and the skipped user still needs a token.
+    ///
+    /// The Swift half of the Android <= 12 case. There is no API-level skip on iOS, so what
+    /// reaches here is the guard case only — a status already determined, from a restored backup
+    /// or an app killed mid-sheet. An APNs token does not survive a restore, so a user who comes
+    /// back already granted still needs to register, and the only thing that registered was a
+    /// callback on a screen they are about to be skipped past.
+    ///
+    /// FIRES NOTHING. `permission_prompted` is our own surface and does not fire on a skip; there
+    /// is no "ask skipped" event and the ticket forbids inventing one at a call site.
+    func skipped(_ status: NotificationPermission) {
+        guard status == .granted, !registeredOnSkip else { return }
+        registeredOnSkip = true
+        Task { _ = await push.register() }
     }
 
     /// Read on every foreground while the screen is mounted.

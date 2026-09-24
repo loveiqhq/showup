@@ -221,6 +221,57 @@ final class NotificationRulesTests: XCTestCase {
         }
     }
 
+    // MARK: - the user who never sees the screen
+
+    func testASkippedUserWhosePermissionIsAlreadyOnStillRegisters() async {
+        // The Swift half of the Android <= 12 case. There is no API-level skip on iOS, so what
+        // reaches here is the guard case: a status already determined, from a restored backup or
+        // an app killed mid-sheet. An APNs token does not survive a restore, so a user who comes
+        // back already granted still needs one — and the only thing that registered was a callback
+        // on the screen they are about to be skipped past.
+        let push = FakePush()
+        let model = build(.granted, events: Recorder(), push: push)
+        model.skipped(.granted)
+        for _ in 0..<16 { await Task.yield() }
+
+        let calls = await push.calls
+        XCTAssertEqual(calls, 1)
+    }
+
+    func testASkippedUserRegistersOnceHoweverManyTimesTheHostAsks() async {
+        let push = FakePush()
+        let model = build(.granted, events: Recorder(), push: push)
+        model.skipped(.granted)
+        model.skipped(.granted)
+        for _ in 0..<16 { await Task.yield() }
+
+        let calls = await push.calls
+        XCTAssertEqual(calls, 1)
+    }
+
+    func testASkippedUserWithNoPermissionRegistersNothing() async {
+        let push = FakePush()
+        for status in [NotificationPermission.denied, .restricted, .notDetermined] {
+            let model = build(status, events: Recorder(), push: push)
+            model.skipped(status)
+        }
+        for _ in 0..<16 { await Task.yield() }
+
+        let calls = await push.calls
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testSkippingReportsNothingAtAll() async {
+        // `permission_prompted` does not fire on a skip, and there is no `ask skipped` event to
+        // invent at a call site. The users who never see the ask are deliberately unmeasured.
+        let events = Recorder()
+        let model = build(.granted, events: events, push: FakePush())
+        model.skipped(.granted)
+        for _ in 0..<16 { await Task.yield() }
+
+        XCTAssertTrue(events.names.isEmpty, "a skip reports nothing: \(events.names)")
+    }
+
     // MARK: - the foreground re-read
 
     func testAStatusThatBecameDeterminedAdvancesTheScreen() async {

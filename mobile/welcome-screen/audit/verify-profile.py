@@ -1080,6 +1080,22 @@ check("162 the title yields to the pill, not the reverse (kotlin)",
 check("162 the pill keeps its own width (swift)",
       "fixedSize(horizontal: true, vertical: false)" in notify_sw)
 
+# THE SKIPPED USER STILL NEEDS A TOKEN. The spec sheet's Android <= 12 row says so outright --
+# "These users still need push registration and all five categories" -- and `register()` had
+# exactly one call site: the grant callback on a screen those users never see. minSdk is 30, so
+# API 30-32 would every one of them have been a device the backend has no token for.
+_model_kt = code_only(read(KT, "profile", "NotificationsViewModel.kt"))
+_model_sw = code_only(read(SW, "NotificationsModel.swift"))
+check("162 a skipped user registers for push (kotlin)", "fun skipped(" in _model_kt)
+check("162 a skipped user registers for push (swift)", "func skipped(" in _model_sw)
+check("162 only a GRANTED skip registers (kotlin)",
+      "status != NotificationPermission.Granted" in _model_kt)
+check("162 only a GRANTED skip registers (swift)", "status == .granted" in _model_sw)
+check("162 the skip path is wired from the host (kotlin)",
+      "notifyModel.skipped(status)" in code_only(read(KT, "MainActivity.kt")))
+check("162 the skip path is wired from the host (swift)",
+      "notifications.skipped(status)" in code_only(read(SW, "ShowUpWelcomeApp.swift")))
+
 # The line: Manrope 500 / 13.5 / 1.4, 3 below the title.
 check("162 row line is Manrope 500 at 13.5 (kotlin)", "fontSize = 13.5.sp" in notify_kt)
 check("162 row line is Manrope 500 at 13.5 (swift)", "F.manrope(13.5, .medium)" in notify_sw)
