@@ -785,6 +785,26 @@ so it cannot quietly grow.
 This build is (1), because (2) is theirs to make and (3) pre-spends the ladder without finishing
 the job.
 
+## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
+
+`components/shared.jsx` and the profile references carry both spellings:
+
+- bare numbers -- `letterSpacing: 0.08` (9 times), `0.02` (6), `0.01` (6), `0.06`, `0.04`, `0.07`
+- em strings -- `'-0.015em'` (7), `'-0.018em'` (6), `'0.08em'` (3), `'-0.005em'` (2)
+
+**`0.08` and `'0.08em'` are both present for the same value.** In React a bare number becomes
+**px**, so `letterSpacing: 0.06` on a 10px uppercase label is 0.06 of a pixel -- which is to say
+nothing at all. Every negative value is written as em; the positive ones are split.
+
+A designer writing `0.01` cannot mean one hundredth of a pixel, so the bare positives are em that
+lost their unit. **This project has read them as em since SHOWUP-161**, where the `REC` and
+`0:14 RECORDED` chips ship the reference's bare `0.08` as `0.08em`, and 162's `Premium` tag follows
+with `0.06em`.
+
+The consequence worth knowing: **the artboards under-track every uppercase label**, because the
+browser renders them literally. A pill measured off the PNG will be a few pixels narrower than the
+app's. Nothing is broken; the kit should pick one spelling.
+
 ## E22 · Push registration cannot be verified in this build, and the criterion says "verified, not assumed". RECORDED
 
 SHOWUP-162's build inventory names it as the one failure that looks exactly like success:
@@ -938,24 +958,4 @@ files is "search for an existing implementation before creating one". Someone gr
 for and this ticket is a notifications screen. Recorded so it is a decision someone takes rather
 than a divergence that widens every time the shell changes. Either it is a handoff snapshot and
 wants a README saying so and a date, or it is dead and wants deleting.
-
-## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
-
-`components/shared.jsx` and the profile references carry both spellings:
-
-- bare numbers -- `letterSpacing: 0.08` (9 times), `0.02` (6), `0.01` (6), `0.06`, `0.04`, `0.07`
-- em strings -- `'-0.015em'` (7), `'-0.018em'` (6), `'0.08em'` (3), `'-0.005em'` (2)
-
-**`0.08` and `'0.08em'` are both present for the same value.** In React a bare number becomes
-**px**, so `letterSpacing: 0.06` on a 10px uppercase label is 0.06 of a pixel -- which is to say
-nothing at all. Every negative value is written as em; the positive ones are split.
-
-A designer writing `0.01` cannot mean one hundredth of a pixel, so the bare positives are em that
-lost their unit. **This project has read them as em since SHOWUP-161**, where the `REC` and
-`0:14 RECORDED` chips ship the reference's bare `0.08` as `0.08em`, and 162's `Premium` tag follows
-with `0.06em`.
-
-The consequence worth knowing: **the artboards under-track every uppercase label**, because the
-browser renders them literally. A pill measured off the PNG will be a few pixels narrower than the
-app's. Nothing is broken; the kit should pick one spelling.
 
