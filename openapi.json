@@ -544,6 +544,83 @@
         ],
         "type": "object"
       },
+      "MediaDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "video",
+              "voice"
+            ],
+            "type": "string"
+          },
+          "mediaPromptId": {
+            "type": "string"
+          },
+          "moderationStatus": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "mediaPromptId",
+          "durationMs",
+          "moderationStatus",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "MediaStateDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MediaDto"
+            },
+            "type": "array"
+          },
+          "previewSource": {
+            "description": "Section 22: `ranked` or `fallback`. `ranked` came from the completion ranking; `fallback` means the ranking had no publishable answer and the section-20 cold-start prompt was used. A string rather than an enum for the same reason as the two above -- anything a client does not recognise is read as `fallback`.",
+            "example": "fallback",
+            "type": "string"
+          },
+          "previewVideo": {
+            "description": "The prompt previewed on an empty video card. A section-20 `media_prompt_id`; clients that do not recognise it fall back to the cold-start prompt.",
+            "example": "relaxed_and_happy",
+            "type": "string"
+          },
+          "previewVoice": {
+            "description": "The prompt previewed on an empty voice card. A section-20 `media_prompt_id`; clients that do not recognise it fall back to the cold-start prompt.",
+            "example": "relaxing_sound",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "previewVideo",
+          "previewVoice",
+          "previewSource"
+        ],
+        "type": "object"
+      },
       "NotificationPreferencesDto": {
         "properties": {
           "engagement": {
@@ -3982,6 +4059,202 @@
         "summary": "",
         "tags": [
           "matching"
+        ]
+      }
+    },
+    "/me/media": {
+      "get": {
+        "operationId": "getMedia",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaStateDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
+        ]
+      },
+      "post": {
+        "operationId": "uploadMedia",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "durationMs": {
+                    "description": "The take’s real length in milliseconds.",
+                    "type": "integer"
+                  },
+                  "file": {
+                    "description": "One recording. MP4/QuickTime for video, M4A/AAC for voice.",
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "description": "video or voice. Validated by UploadMediaDto; a plain string here so the multipart body has one shape in both client generators.",
+                    "type": "string"
+                  },
+                  "mediaPromptId": {
+                    "description": "The section-20 id of the prompt answered. Validated against the registry by UploadMediaDto -- declared as a plain string here because a multipart enum generates a different shape in each client generator and buys no checking in either.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "kind",
+                  "mediaPromptId",
+                  "durationMs"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/me/media/{id}": {
+      "delete": {
+        "operationId": "deleteMedia",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "profiles"
         ]
       }
     },

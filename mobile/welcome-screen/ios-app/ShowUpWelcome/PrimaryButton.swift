@@ -138,14 +138,9 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     @ViewBuilder private var background: some View {
         switch variant {
         case .sunset:
-            // 135°, midpoint at 38% — not an even three-stop ramp
-            LinearGradient(
-                stops: [
-                    .init(color: .liqOrange, location: 0.00),
-                    .init(color: Color(hex: 0xD05976), location: 0.38),
-                    .init(color: .liqPurple, location: 1.00),
-                ],
-                startPoint: .topLeading, endPoint: .bottomTrailing)
+            // 135°, midpoint at 38% — not an even three-stop ramp. Defined once in DesignSystem
+            // since the media step became its second user.
+            Gradients.sunset()
         // Flat violet, not a gradient.
         case .violet:
             Color.liqPurple

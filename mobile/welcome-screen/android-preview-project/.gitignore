@@ -4,3 +4,7 @@ local.properties
 .idea/
 *.iml
 captures/
+
+# Kotlin compiler daemon session files. Transient, per-machine, and committed here by
+# accident on 2026-09-17 -- they churn on every build and belong to nobody.
+.kotlin/

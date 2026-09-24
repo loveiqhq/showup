@@ -53,8 +53,13 @@ enum RealYouStep: String, CaseIterable {
     /// Where the backdrop's two orbs sit on this screen.
     ///
     /// Photos puts both at the top because its footer carries a gradient mask a low orb would
-    /// muddy; prompts splits them because its footer is a bare CTA row.
-    var orbPlacement: OrbPlacement { self == .prompts ? .realYouSplit : .realYouTop }
+    /// muddy; prompts and media split them because their footers are bare CTA rows.
+    ///
+    /// MEDIA IS THE SPLIT PAIR TOO, checked against `screen-media-reference.jsx` rather than
+    /// assumed from being in the same group as photos: it draws the orange 460 at top -20% /
+    /// right -25% and the violet 420 at BOTTOM -12% / left -28%, which is `.realYouSplit` to the
+    /// number.
+    var orbPlacement: OrbPlacement { self == .photos ? .realYouTop : .realYouSplit }
 
     /// How many segments the group's bar has.
     ///

@@ -27,6 +27,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.junit.Assert.assertTrue
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.runComposeUiTest
+import com.showup.profile.WAVEFORM_TAG
+import com.showup.profile.Waveform
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -170,5 +183,94 @@ class HarnessSelfTest {
         }
         assertTrue("a compliant 56dp button was wrongly reported: $v",
             v.none { it.problem.contains("TAP TARGET") || it.problem.contains("56dp spec") })
+    }
+
+    // ── a drawing given no room to draw in ──────────────────────────────────────────────────
+    //
+    // The three below exist because the voice waveform shipped invisible for an afternoon and every
+    // check in this file said the screen was clean. They reproduce the exact shape of that bug.
+
+    @Test
+    fun `a canvas given a height RANGE collapses, and is caught`() {
+        // The bug, in four lines. `Canvas` is `Spacer(modifier.drawBehind {})`, and Spacer takes the
+        // incoming maximum only on an axis whose constraint is FIXED -- zero on an axis given a
+        // range. `heightIn(min, max)` is a range, so this canvas is 0dp tall and paints nothing.
+        val v = measureFit(PHONE, "collapsed canvas") {
+            Column {
+                Canvas(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp, max = 120.dp)
+                        .testTag(WAVEFORM_TAG),
+                ) { drawRect(Color.Red) }
+            }
+        }
+        val hit = v.firstOrNull { it.problem == "CANVAS COLLAPSED" }
+        assertTrue("a zero-height canvas must be caught: $v", hit != null)
+        assertTrue("and must not be an advisory", !hit!!.advisory)
+    }
+
+    @Test
+    fun `the same canvas with a FIXED height is not reported`() {
+        val v = measureFit(PHONE, "healthy canvas") {
+            Column {
+                Canvas(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp, max = 120.dp)
+                        .fillMaxHeight()
+                        .testTag(WAVEFORM_TAG),
+                ) { drawRect(Color.Red) }
+            }
+        }
+        assertTrue("the fix must read as clean: $v", v.none { it.problem.startsWith("CANVAS") })
+    }
+
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    @Test
+    fun `every tag the harness measures is one a real component actually carries`() {
+        // Keeps MEASURED_CANVASES honest. The set is spelled as strings so the harness does not
+        // depend on the screen package; the cost of that is a tag rename silently matching nothing,
+        // and this is what pays it. Every entry must be reachable by rendering a real component.
+        val rendered = mutableSetOf<String>()
+        measureFit(PHONE, "tag reachability") {
+            Waveform(
+                bars = List(24) { 0.5f },
+                progress = 0.5f,
+                playedColor = Color.Red,
+                restColor = Color.Blue,
+                barGap = 2.dp,
+                minBarHeight = 3.dp,
+                corner = 2.dp,
+                modifier = Modifier.fillMaxWidth().height(36.dp),
+            )
+        }
+        // measureFit reports only problems, so ask the tree directly.
+        runComposeUiTest {
+            setContent {
+                Box(Modifier.testTag("root")) {
+                    Waveform(
+                        bars = List(24) { 0.5f },
+                        progress = 0.5f,
+                        playedColor = Color.Red,
+                        restColor = Color.Blue,
+                        barGap = 2.dp,
+                        minBarHeight = 3.dp,
+                        corner = 2.dp,
+                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                    )
+                }
+            }
+            fun walk(n: SemanticsNode) {
+                n.config.getOrNull(SemanticsProperties.TestTag)?.let { rendered += it }
+                n.children.forEach { walk(it) }
+            }
+            walk(onNodeWithTag("root").fetchSemanticsNode())
+        }
+        val missing = MEASURED_CANVASES - rendered
+        assertTrue(
+            "these tags are measured by the harness but no component carries them: $missing",
+            missing.isEmpty(),
+        )
     }
 }

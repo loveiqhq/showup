@@ -181,12 +181,16 @@ class FlowRestorationTest {
      */
     @Test
     fun everyScreenIsDistinctAndNamed() {
-        // 15: the eight originals, the four steps of "The basics", ProfileEmbrace (the bridge
+        // 16: the eight originals, the four steps of "The basics", ProfileEmbrace (the bridge
         // that follows them, a POSITION and not a step, which is why it is counted here and
-        // deliberately absent from BasicsStep), and the two built steps of "The real you" --
-        // ProfilePhotos and ProfilePrompts. Media is the third segment of that group's bar and
-        // has no screen yet, so it is in RealYouStep and not here.
-        assertEquals(15, FlowScreen.entries.size)
+        // deliberately absent from BasicsStep), and the three steps of "The real you" --
+        // ProfilePhotos, ProfilePrompts and ProfileMedia.
+        //
+        // ProfileMedia was the sixteenth, added with SHOWUP-161. The capture views it opens are
+        // NOT entries here and must not become them: they have no entry point of their own, no way
+        // back except Cancel, and no meaning outside a take that is already running -- so they are
+        // a state of this position rather than a place the router can send anyone.
+        assertEquals(16, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

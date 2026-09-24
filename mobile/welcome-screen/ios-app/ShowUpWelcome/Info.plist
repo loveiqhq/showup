@@ -59,7 +59,21 @@
 	     to say what the camera is for rather than that the app would like to use it. A denied
 	     camera blocks nothing: the library path still works and the step is still completable. -->
 	<key>NSCameraUsageDescription</key>
-	<string>Take a photo for your profile without leaving Show Up.</string>
+	<string>Take a photo and film your 10-second video without leaving Show Up.</string>
+	<!-- THE MICROPHONE, for the media step (SHOWUP-161).
+
+	     Two things need it and the string has to cover both: the 15-second voice note, and the
+	     sound on the 10-second video. Video needs camera AND microphone; a voice note needs the
+	     microphone alone, which is why a blocked microphone is the only status that blocks that
+	     whole step while a blocked camera only blocks one card. See MediaAccess.swift.
+
+	     iOS shows this ONCE. There is no second prompt after a refusal, which is why
+	     MediaPermission.canAsk is an Android-only state and this platform goes straight from
+	     notDetermined to blocked. Asked on the COMMIT CTA inside the prompt sheet, never on
+	     screen entry and never on "See the prompts", so the user has already chosen what they
+	     are about to say before anything is requested of them. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record your 15-second voice note, and the sound on your video.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

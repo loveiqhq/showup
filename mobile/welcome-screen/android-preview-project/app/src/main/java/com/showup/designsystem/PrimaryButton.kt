@@ -90,6 +90,19 @@ fun PrimaryButton(
      * Null everywhere else, which is every button in the app that is not one of a set.
      */
     labelWidth: Dp? = null,
+    /**
+     * How many lines the label may take before it is cut.
+     *
+     * TWO EVERYWHERE, and three in one place. The default is the bound the comment below argues
+     * for: a label too wide for a narrow phone wraps instead of being ellipsised, and an unbounded
+     * count would let a translation grow the control without end.
+     *
+     * The media sheet's `Choose a prompt to continue` is the one label that needs a third, and
+     * only at the largest accessibility font on the narrowest phone: 27 characters at 32sp
+     * effective do not fit two lines of a 240dp button. Raising the default would change the
+     * measured layout of every other screen in the app to fix one of them.
+     */
+    labelMaxLines: Int = 2,
     leading: (@Composable () -> Unit)? = null,
     /** Mirrors [leading]. Used once: the tutorial CTA's trailing arrow. */
     trailing: (@Composable () -> Unit)? = null,
@@ -190,7 +203,7 @@ fun PrimaryButton(
             fontSize = if (variant == PrimaryButtonVariant.Plain) 15.sp else labelSize,
             // Two, so a label too wide for a narrow phone wraps instead of being cut. Still
             // bounded: an unbounded label would let a translation grow the control without limit.
-            maxLines = 2,
+            maxLines = labelMaxLines,
         )
         trailing?.invoke()
     }

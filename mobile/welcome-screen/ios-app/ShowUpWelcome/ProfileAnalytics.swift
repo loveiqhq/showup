@@ -66,6 +66,23 @@ enum ProfileScreen: String {
     /// single place to correct. Recorded rather than silently invented.
     case prompts = "profile_prompts"
 
+    /// "The real you", step 3 (SHOWUP-161). Registered in §11 on 16 September 2026.
+    ///
+    /// ONE screen_id FOR ALL SIX OF ITS STATES, and §11 says so in its own note: empty, video
+    /// only, voice only, both — and the prompt-list sheet. A sheet is not a screen here; it is a
+    /// state of this one, and giving it a second id would split the screen's funnel in half.
+    case media = "profile_media"
+
+    /// The full-bleed capture screen (states G and I).
+    ///
+    /// ONE ROW FOR VIDEO AND VOICE — "the medium is `type` on the events, not a second id". It
+    /// fires its own `screen_viewed` with `referrer_screen_id`, because without it the two most
+    /// abandonable views in the flow are invisible.
+    case mediaRecord = "profile_media_record"
+
+    /// The post-Stop review screen (states H and J): play, retake, keep. One row for both media.
+    case mediaReview = "profile_media_review"
+
     var screenId: String { rawValue }
 
     var screenName: String {
@@ -77,6 +94,9 @@ enum ProfileScreen: String {
         case .embraceBuild: return "ProfileEmbraceBuild"
         case .photos: return "ProfilePhotos"
         case .prompts: return "ProfilePrompts"
+        case .media: return "ProfileMedia"
+        case .mediaRecord: return "ProfileMediaRecord"
+        case .mediaReview: return "ProfileMediaReview"
         }
     }
 }
@@ -259,6 +279,22 @@ enum ProfileAnalytics {
     static let promptExampleDismissedName = "prompt_example_dismissed"
     static let promptCharLimitReachedName = "prompt_char_limit_reached"
     static let promptsMinimumMetName = "prompts_minimum_met"
+
+    // Family E, media half (SHOWUP-161). Every one of these ships with this ticket — they are all
+    // `Not built` in events.json. `media_prompt_ranking_published` is deliberately absent: it is
+    // server-side and ships with the ranking job, not with the screen.
+    static let mediaScreenViewedName = "media_screen_viewed"
+    static let mediaPromptListOpenedName = "media_prompt_list_opened"
+    static let mediaPromptSelectedName = "media_prompt_selected"
+    static let mediaPromptListDismissedName = "media_prompt_list_dismissed"
+    static let videoRecordingStartedName = "video_recording_started"
+    static let voiceRecordingStartedName = "voice_recording_started"
+    static let mediaReviewShownName = "media_review_shown"
+    static let mediaPreviewPlayedName = "media_preview_played"
+    static let videoPromptRecordedName = "video_prompt_recorded"
+    static let voicePromptRecordedName = "voice_prompt_recorded"
+    static let mediaRetakenName = "media_retaken"
+    static let mediaDeletedName = "media_deleted"
 
     /// T1, class 0. `referrer_screen_id` is B2 and travels empty until Step 3 lands.
     static func screenViewed(_ screen: ProfileScreen,
@@ -545,8 +581,252 @@ enum ProfileAnalytics {
     }
 
     /// T2, class 0. **BLOCKED** — the skip path itself is an open question in ticket 02.
-    static func stepSkipped(_ step: BasicsStep) -> (String, [String: any Sendable]) {
-        (profileStepSkipped, ["step_id": step.stepId].merging(Stamp.of(0)) { a, _ in a })
+    ///
+    /// `screen_id` is NEWLY REQUIRED AT v1.4 and was missing from the build until SHOWUP-161.
+    /// Without it every skippable step in the product reports the same shape and the funnel cannot
+    /// say WHERE a user opted out, which is the only question the event is asked.
+    static func stepSkipped(_ step: BasicsStep,
+                            screen: ProfileScreen) -> (String, [String: any Sendable]) {
+        (profileStepSkipped, [
+            "step_id": step.stepId, "screen_id": screen.screenId,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    // MARK: family E · media (SHOWUP-161)
+    //
+    // `type` IS REQUIRED ON EVERY EVENT BELOW except the two screen views, and it is not optional
+    // in the way a nilable field is optional: one screen carries two media, so without it "a tap
+    // on the voice card and a tap on the video card are the same row, and nothing about this
+    // screen can be answered". `MediaKind` carries it, so the type system supplies it rather than
+    // a call site remembering to.
+    //
+    // NOTHING HERE EVER CARRIES THE RECORDING. No frame, no transcript, no waveform, no file path.
+    // `duration_s` and the prompt id are the whole payload: media of a user's face and voice is
+    // the most sensitive artefact in profile creation and none of it belongs in analytics.
+
+    /// T1, class 0. The screen's entry state — fires on EVERY mount, including the return from an
+    /// accepted take.
+    ///
+    /// NAMES THE PROMPTS IT SHOWED, which is why it is separate from `screenViewed`. The ranking
+    /// moves, so a view that does not record which prompts were on the cards cannot be attributed
+    /// afterwards, and a drop in recording rate cannot be told apart from a bad prompt.
+    ///
+    /// No `type`: it describes the screen, not a medium.
+    static func mediaScreenViewed(_ state: MediaState) -> (String, [String: any Sendable]) {
+        (mediaScreenViewedName, [
+            "screen_id": ProfileScreen.media.screenId,
+            "has_video": state.hasVideo,
+            "has_voice": state.hasVoice,
+            "preview_video_prompt_id": state.preview(.video).id,
+            "preview_voice_prompt_id": state.preview(.voice).id,
+            "preview_source": state.previewSource.trackingValue,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. One screen carries two steps, so this fires once per medium.
+    ///
+    /// §2 gives `media_video` and `media_voice` the same `step_index` 3 for exactly this reason.
+    /// Collapsing them into one event would give the group a step-3 funnel that cannot be read per
+    /// medium, which is the thing every other decision on this screen is built to avoid.
+    static func mediaStepViewed(_ kind: MediaKind) -> (String, [String: any Sendable]) {
+        (profileStepViewed, [
+            "step_id": kind.stepId, "step_index": MediaKind.stepIndex,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Continue pressed with this medium recorded.
+    static func mediaStepCompleted(_ kind: MediaKind,
+                                   timeOnStepSeconds: Int) -> (String, [String: any Sendable]) {
+        (profileStepCompleted, [
+            "step_id": kind.stepId, "time_on_step_s": timeOnStepSeconds,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. This medium was left empty.
+    ///
+    /// Fires from `Skip for now` AND from a Continue with nothing in the slot: "an empty Continue
+    /// is a skip that the user did not call one". Carries the pair so a skip can be read against
+    /// what the user did record.
+    static func mediaStepSkipped(_ kind: MediaKind,
+                                 state: MediaState) -> (String, [String: any Sendable]) {
+        (profileStepSkipped, [
+            "step_id": kind.stepId,
+            "screen_id": ProfileScreen.media.screenId,
+            "has_video": state.hasVideo,
+            "has_voice": state.hasVoice,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. `See the prompts`, or `Retake` over something already recorded.
+    ///
+    /// `entry_point` (§21) and `has_existing` answer different questions and both ship: one is
+    /// intent, one is state. The registry note is explicit that `entry_point` is "never inferred
+    /// from whether an artefact exists".
+    static func mediaPromptListOpened(
+        _ kind: MediaKind,
+        entryPoint: MediaEntryPoint,
+        hasExisting: Bool
+    ) -> (String, [String: any Sendable]) {
+        (mediaPromptListOpenedName, [
+            "type": kind.trackingValue,
+            "entry_point": entryPoint.trackingValue,
+            "has_existing": hasExisting,
+            "screen_id": ProfileScreen.media.screenId,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. Fires on the COMMIT CTA, not on every row tap.
+    ///
+    /// `was_previewed` IS THE FIELD THAT KEEPS THE RANKING HONEST. The previewed prompt is far
+    /// more visible than the other ten, so counting its own selections would make it win because
+    /// it was shown. The job counts only `was_previewed: false` takes.
+    static func mediaPromptSelected(
+        _ kind: MediaKind,
+        prompt: MediaPrompt,
+        selectionsBefore: Int,
+        wasPreviewed: Bool
+    ) -> (String, [String: any Sendable]) {
+        (mediaPromptSelectedName, [
+            "type": kind.trackingValue,
+            // The §20 id, never the display string: an edit to the copy must not orphan clips.
+            "media_prompt_id": prompt.id,
+            "position": prompt.position,
+            "is_own_prompt": prompt.isOwn,
+            "selections_before": selectionsBefore,
+            "was_previewed": wasPreviewed,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. The list was closed without committing.
+    ///
+    /// `dismiss_method`, NOT `method` (§23) — `method` already carries `phone · apple · google`.
+    static func mediaPromptListDismissed(
+        _ kind: MediaKind,
+        method: SheetDismissMethod,
+        hadSelection: Bool,
+        timeOnSheetSeconds: Int
+    ) -> (String, [String: any Sendable]) {
+        (mediaPromptListDismissedName, [
+            "type": kind.trackingValue,
+            "dismiss_method": method.rawValue,
+            "had_selection": hadSelection,
+            "time_on_sheet_s": timeOnSheetSeconds,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. The viewfinder started capturing.
+    ///
+    /// Two event NAMES rather than one with `type`, because that is what family E registers. The
+    /// name carries the medium here and the payload carries it everywhere else; both are the
+    /// registry's choice, not ours.
+    static func mediaRecordingStarted(
+        _ kind: MediaKind,
+        prompt: MediaPrompt,
+        attempt: Int,
+        isRetake: Bool
+    ) -> (String, [String: any Sendable]) {
+        let name = kind == .video ? videoRecordingStartedName : voiceRecordingStartedName
+        return (name, [
+            "type": kind.trackingValue,
+            "media_prompt_id": prompt.id,
+            "is_own_prompt": prompt.isOwn,
+            "attempt": attempt,
+            "is_retake": isRetake,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. Stop, or the cap, produced a take and the review screen is up.
+    ///
+    /// THE DENOMINATOR FOR THE WHOLE REVIEW SCREEN. `stop_reason: max_length` dominating means the
+    /// cap is too short — the measurement that decides whether 10 and 15 were the right numbers.
+    static func mediaReviewShown(
+        _ kind: MediaKind,
+        prompt: MediaPrompt,
+        durationMs: Int,
+        attempt: Int,
+        stopReason: MediaStopReason
+    ) -> (String, [String: any Sendable]) {
+        (mediaReviewShownName, [
+            "type": kind.trackingValue,
+            "media_prompt_id": prompt.id,
+            "duration_s": durationSeconds(durationMs),
+            "attempt": attempt,
+            "stop_reason": stopReason.trackingValue,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. One play on review, with a running count. Multiple plays are expected.
+    static func mediaPreviewPlayed(_ kind: MediaKind, attempt: Int,
+                                   playCount: Int) -> (String, [String: any Sendable]) {
+        (mediaPreviewPlayedName, [
+            "type": kind.trackingValue, "attempt": attempt, "play_count": playCount,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. The take was KEPT.
+    ///
+    /// ON `Use this clip` / `Use this recording`, NEVER ON STOP. Stopping produces a take; only
+    /// accepting produces an artefact, and the gap between the two is the review screen's entire
+    /// reason to exist. Firing this on Stop would report a completion for every abandoned take and
+    /// make the per-prompt completion rate — what the ranking is built on — meaningless.
+    static func mediaPromptRecorded(
+        _ kind: MediaKind,
+        prompt: MediaPrompt,
+        durationMs: Int,
+        retakes: Int,
+        playsBeforeAccept: Int
+    ) -> (String, [String: any Sendable]) {
+        let name = kind == .video ? videoPromptRecordedName : voicePromptRecordedName
+        return (name, [
+            "type": kind.trackingValue,
+            "media_prompt_id": prompt.id,
+            "is_own_prompt": prompt.isOwn,
+            "duration_s": durationSeconds(durationMs),
+            "retakes": retakes,
+            "plays_before_accept": playsBeforeAccept,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. A take was discarded to record again.
+    ///
+    /// `from` IS REQUIRED (§8): `review` is a take not yet kept, `media_card` is an artefact
+    /// already on the profile. They are different products and one number for both means neither.
+    static func mediaRetaken(
+        _ kind: MediaKind,
+        from: MediaActedFrom,
+        prompt: MediaPrompt,
+        attempt: Int,
+        priorDurationMs: Int,
+        state: MediaState
+    ) -> (String, [String: any Sendable]) {
+        (mediaRetakenName, [
+            "type": kind.trackingValue,
+            "from": from.trackingValue,
+            "media_prompt_id": prompt.id,
+            "attempt": attempt,
+            "prior_duration_s": durationSeconds(priorDurationMs),
+            "had_video": state.hasVideo,
+            "had_voice": state.hasVoice,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. An artefact was removed from the profile. State BEFORE the deletion.
+    ///
+    /// DELETING IS NOT RETAKING and the two must never be collapsed: a retake has a replacement
+    /// coming, a delete does not.
+    ///
+    /// No `from`: §8 lists this event against that key, but the specification's payload table does
+    /// not carry it and delete is only reachable from a filled card — a field with one possible
+    /// value measures nothing. Recorded in the conflicts log rather than resolved silently.
+    static func mediaDeleted(_ kind: MediaKind, artefact: MediaArtefact,
+                             state: MediaState) -> (String, [String: any Sendable]) {
+        (mediaDeletedName, [
+            "type": kind.trackingValue,
+            "media_prompt_id": artefact.promptId,
+            "duration_s": durationSeconds(artefact.durationMs),
+            "had_video": state.hasVideo,
+            "had_voice": state.hasVoice,
+        ].merging(Stamp.of(0)) { a, _ in a })
     }
 }
 

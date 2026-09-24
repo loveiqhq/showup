@@ -63,6 +63,11 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -419,12 +424,29 @@ fun IllustrationPlaceholder(scale: Float = 1f) {
                     ),
                 )
             }
-            Text(
-                "ILLUSTRATION\n248 × 210",
-                color = Purple.copy(alpha = 0.75f), fontFamily = Manrope,
-                fontWeight = FontWeight.Bold, fontSize = 11.sp, lineHeight = 16.sp,
-                letterSpacing = 0.07.em,
-            )
+            // THE LABEL IS DRAWN ONLY WHERE IT FITS, and the dashed box alone where it does not.
+            //
+            // This placeholder stands in for an illustration that does not exist yet, and its box
+            // is `fillMaxHeight().aspectRatio(...)` -- so on a short phone it shrinks to a sliver
+            // and the two words inside wrapped to twenty lines, nineteen of them cut off. A caption
+            // for a missing asset is not worth a clipping finding on two devices, and drawing
+            // nothing is the honest rendering of a box too small to say anything in.
+            BoxWithConstraints(contentAlignment = Alignment.Center) {
+                val measurer = rememberTextMeasurer()
+                val density = LocalDensity.current
+                val style = TextStyle(
+                    color = Purple.copy(alpha = 0.75f), fontFamily = Manrope,
+                    fontWeight = FontWeight.Bold, fontSize = 11.sp, lineHeight = 16.sp,
+                    letterSpacing = 0.07.em, textAlign = TextAlign.Center,
+                )
+                val label = "ILLUSTRATION\n248 × 210"
+                val measured = measurer.measure(label, style)
+                val fits = with(density) {
+                    measured.size.width.toDp() <= maxWidth &&
+                        measured.size.height.toDp() <= maxHeight
+                }
+                if (fits) Text(label, style = style)
+            }
         }
     }
 }

@@ -115,6 +115,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -895,6 +898,54 @@ private fun SheetRow(
     quiet: Boolean = false,
     trailingPill: String? = null,
 ) {
+    // WHETHER THE PILL SHARES THE LINE IS MEASURED, not assumed.
+    //
+    // `Settings` beside a two-line subtitle is comfortable at 1x. At the largest system font on a
+    // 320 phone the pill is 150dp wide, the pip and the gaps take another 78, and the subtitle --
+    // `Camera access is off. Turn on Camera in Settings to use it.` -- is left a 110dp column it
+    // needs twenty-four lines to fill. It was cut to twelve. Stacked, the same sentence has the
+    // full width and reads in seven.
+    //
+    // Same rule as the capture screen's review actions and top row: lay the text out at the real
+    // font and the real size and let the row decide, rather than thresholding on `fontScale`,
+    // which is right for English and wrong for the first translation.
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val room = maxWidth
+        val stack = trailingPill != null && with(density) {
+            val pill = measurer.measure(
+                trailingPill,
+                TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.5.sp),
+            ).size.width.toDp() + Spacing.xl * 2
+            val subtitleWord = measurer.measure(
+                // the longest single word decides whether the column can hold a line at all
+                subtitle.split(" ").maxByOrNull { it.length }.orEmpty(),
+                TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 12.5.sp),
+            ).size.width.toDp()
+            // pip 38, its 13 gap, the row's 14 + 14 padding, and the gap before the pill
+            val chrome = 38.dp + 13.dp + 28.dp + 13.dp
+            room - chrome - pill < subtitleWord * 2
+        }
+        SheetRowContent(
+            icon, iconSize, pipBg, pipInk, title, subtitle, onClick, quiet, trailingPill, stack,
+        )
+    }
+}
+
+@Composable
+private fun SheetRowContent(
+    icon: BrandIcon,
+    iconSize: Dp,
+    pipBg: Color,
+    pipInk: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    quiet: Boolean,
+    trailingPill: String?,
+    stack: Boolean,
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -938,26 +989,43 @@ private fun SheetRow(
                 color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.Medium,
                 fontSize = 12.5.sp, lineHeight = (12.5f * 1.35f).sp,
             )
-        }
-        if (trailingPill != null) {
-            Box(
-                Modifier
-                    .height(30.dp)
-                    .clip(CircleShape)
-                    .background(Elevated)
-                    .dashedOutlineSolid(Purple.copy(alpha = 0.32f))
-                    .padding(horizontal = Spacing.xl),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    trailingPill,
-                    color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                    fontSize = 12.5.sp,
-                )
+            if (stack && trailingPill != null) {
+                // Under the sentence it belongs to, aligned with it, rather than squeezing the
+                // sentence into a column too narrow to hold a word.
+                Spacer(Modifier.height(Spacing.sm))
+                SettingsPill(trailingPill)
             }
-        } else {
+        }
+        if (trailingPill != null && !stack) {
+            SettingsPill(trailingPill)
+        } else if (trailingPill == null) {
             Icon(BrandIcon.ChevronRight, 17.dp, tint = Fg, strokeWidth = 2.2f)
         }
+    }
+}
+
+/** The dashed `Settings` pill, in whichever place [SheetRowContent] put it. */
+@Composable
+private fun SettingsPill(label: String) {
+    Box(
+        Modifier
+            // heightIn, not height. A fixed 30 is exactly right at 1x and cuts 7px off the bottom
+            // of its own label at the largest system font -- on all seventeen devices, since it is
+            // the type that overflows and not the screen. The fit sweep could not see it until the
+            // harness started walking the unmerged tree, because the merged tree folds a pill's
+            // label into the row above it.
+            .heightIn(min = 30.dp)
+            .clip(CircleShape)
+            .background(Elevated)
+            .dashedOutlineSolid(Purple.copy(alpha = 0.32f))
+            .padding(horizontal = Spacing.xl, vertical = Spacing.xs),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+            fontSize = 12.5.sp,
+        )
     }
 }
 

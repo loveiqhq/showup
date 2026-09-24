@@ -66,6 +66,20 @@ extension Color {
     /// and shape — the same shape the Kotlin side's `LilacStops` has.
     static let suGradLilac: [Color] = [Color(hex: 0xF1E6FF), Color(hex: 0xE8DCF5)]
 
+    /// `--su-grad-sunset`, 135 degrees with its midpoint at 38% — not an even three-stop ramp.
+    ///
+    /// EXTRACTED 17 SEPTEMBER 2026, when the media step's voice-review play pip became its second
+    /// user. It was inline in `PrimaryButton`, where it was correct and invisible; a second inline
+    /// copy is how the Android `SunsetButton` ended up with a TWO-stop ramp for three weeks while
+    /// the button beside it had three.
+    static let suGradSunsetStops: [Gradient.Stop] = [
+        .init(color: Color(hex: 0xFE6839), location: 0.00),
+        .init(color: Color(hex: 0xD05976), location: 0.38),
+        .init(color: Color(hex: 0x812AEC), location: 1.00),
+    ]
+
+
+
     init(hex: UInt) {
         self.init(.sRGB,
                   red:   Double((hex >> 16) & 0xFF) / 255,
@@ -220,4 +234,24 @@ extension String {
     /// The invariant locale rather than the device's: these are English product strings, and a
     /// Turkish locale uppercases "i" to a dotted capital that is not in our font's Latin set.
     var eyebrowCase: String { uppercased(with: Locale(identifier: "en_US_POSIX")) }
+}
+
+/// The two brand ramps, built where they are used.
+///
+/// FUNCTIONS, NOT PROPERTIES, and that is the concurrency rule rather than a style choice. A
+/// computed `static var` has no storage and cannot be mutated, but `check-swift-concurrency.py` is
+/// textual and cannot tell one from a stored one — and that is the point of the rule it enforces:
+/// "trust me, this one is computed" is not something a build can verify. The stops themselves are
+/// `let` arrays of `Gradient.Stop`, which is where the single definition actually lives.
+enum Gradients {
+    /// `--su-grad-lilac`, top to bottom. The fill of every "this is ours, and it is a question" card.
+    static func lilac() -> LinearGradient {
+        LinearGradient(colors: Color.suGradLilac, startPoint: .top, endPoint: .bottom)
+    }
+
+    /// `--su-grad-sunset`, 135 degrees with its midpoint at 38% — not an even three-stop ramp.
+    static func sunset() -> LinearGradient {
+        LinearGradient(stops: Color.suGradSunsetStops,
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 }
