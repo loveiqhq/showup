@@ -99,6 +99,19 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     Media("profile_media", "ProfileMedia"),
 
     /**
+     * The notification permission ask (SHOWUP-162).
+     *
+     * A SCREEN BUT NOT A STEP, like the embrace bridge. §11's own note for this row says so: it
+     * "sits OUTSIDE both progress bars and is not a step", and §2 holds a `notifications` step_id
+     * whose `step_index` is a dash -- which exists so a future SKIP has a stable value and is
+     * explicitly "not a licence to fire profile_step_viewed". This screen has no skip CTA, so it
+     * fires no step event of any kind.
+     *
+     * Registry row added by the design side on 21 September 2026, before the ticket was written.
+     */
+    Notifications("profile_notifications", "ProfileNotifications"),
+
+    /**
      * The full-bleed capture screen (states G and I).
      *
      * ONE ROW FOR VIDEO AND VOICE -- "the medium is `type` on the events, not a second id". It
@@ -327,6 +340,88 @@ object ProfileAnalytics {
     const val VOICE_PROMPT_RECORDED = "voice_prompt_recorded"
     const val MEDIA_RETAKEN = "media_retaken"
     const val MEDIA_DELETED = "media_deleted"
+
+    // ── family G, permissions and consent (SHOWUP-162) ──────────────────────
+    //
+    // ALL FOUR ARE NEW. Every one is `implemented: false` in events.json and the first three are
+    // `backend_status: "Client only"` -- the notification ask is the first surface in the product
+    // that needs them, so they are part of this ticket rather than a follow-up.
+    const val PERMISSION_PROMPTED = "permission_prompted"
+    const val PERMISSION_OS_SHEET_SHOWN = "permission_os_sheet_shown"
+    const val PERMISSION_RESULT = "permission_result"
+    const val PERMISSION_STATUS_CHANGED = "permission_status_changed"
+
+    /**
+     * The closed set on `permission_prompted.type`, from `enums.json` §8.
+     *
+     * `permission_os_sheet_shown.type` and `permission_result.type` are typed `str` in the
+     * registry and take the SAME value -- the registry is loose there and the ticket is not.
+     */
+    const val PERMISSION_NOTIFICATIONS = "notifications"
+
+    /**
+     * T2, class 1. OUR OWN pre-permission surface was shown, before any OS sheet.
+     *
+     * Fired on view, and NOT fired when the screen is skipped -- events.json says so in as many
+     * words: "it does not fire when the screen is skipped because the OS status is already
+     * determined". The users who never see the ask are deliberately unmeasured; there is no
+     * `ask skipped` event and one must not be invented at a call site.
+     */
+    fun permissionPrompted(type: String = PERMISSION_NOTIFICATIONS) =
+        PERMISSION_PROMPTED to buildMap<String, Any> {
+            put("type", type)
+            putAll(Stamp.of(1))
+        }
+
+    /** T2, class 1. The platform's own dialog was raised -- on the tap, never on arrival. */
+    fun permissionOsSheetShown(type: String = PERMISSION_NOTIFICATIONS) =
+        PERMISSION_OS_SHEET_SHOWN to buildMap<String, Any> {
+            put("type", type)
+            putAll(Stamp.of(1))
+        }
+
+    /**
+     * T2, class 1. The user answered the sheet.
+     *
+     * `result` is typed `granted | denied | limited` for the whole family and **`limited` cannot
+     * occur for notifications** -- it is a photo-library state. The signature takes a Boolean
+     * rather than a string so there is no third value to pass by mistake.
+     */
+    fun permissionResult(granted: Boolean, type: String = PERMISSION_NOTIFICATIONS) =
+        PERMISSION_RESULT to buildMap<String, Any> {
+            put("type", type)
+            put("result", if (granted) "granted" else "denied")
+            putAll(Stamp.of(1))
+        }
+
+    /**
+     * T2, class 1. The status changed OUTSIDE our app and the reconciler noticed.
+     *
+     * NOT THE ANSWER TO OUR OWN SHEET. That is [permissionResult], and the two must never both
+     * fire for one act -- this one is for Settings, an OS update, a Focus mode, a restore.
+     *
+     * `from` IS WHAT THE SERVER WAS LAST TOLD, not what the screen last saw. events.json is
+     * explicit, and the reason is that a change the client never synced is exactly the case the
+     * event exists for.
+     */
+    fun permissionStatusChanged(
+        from: NotificationPermission,
+        to: NotificationPermission,
+        detectedOn: String,
+        inFlow: Boolean,
+        type: String = PERMISSION_NOTIFICATIONS,
+    ) = PERMISSION_STATUS_CHANGED to buildMap<String, Any> {
+        put("type", type)
+        put("from", from.trackingValue)
+        put("to", to.trackingValue)
+        put("detected_on", detectedOn)
+        put("in_flow", inFlow)
+        putAll(Stamp.of(1))
+    }
+
+    /** Where a status change was noticed. The closed pair on `permission_status_changed`. */
+    const val DETECTED_ON_LAUNCH = "launch"
+    const val DETECTED_ON_FOREGROUND = "foreground"
 
     /** T1, class 0. `referrer_screen_id` is B2 and travels as null until Step 3 lands. */
     fun screenViewed(screen: ProfileScreen, referrer: ProfileScreen? = null) =

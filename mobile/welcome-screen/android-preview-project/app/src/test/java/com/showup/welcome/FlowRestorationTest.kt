@@ -190,7 +190,10 @@ class FlowRestorationTest {
         // NOT entries here and must not become them: they have no entry point of their own, no way
         // back except Cancel, and no meaning outside a take that is already running -- so they are
         // a state of this position rather than a place the router can send anyone.
-        assertEquals(16, FlowScreen.entries.size)
+        // ProfileNotifications is the seventeenth, added with SHOWUP-162. Like the bridge and the
+        // media step it is not a resume point: it holds nothing on the account, so there is no
+        // fact that says whether it was seen.
+        assertEquals(17, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

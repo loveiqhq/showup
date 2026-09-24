@@ -5,6 +5,7 @@ import com.showup.api.generated.api.AccountApi
 import com.showup.api.generated.api.AuthApi
 import com.showup.api.generated.api.CheckInsApi
 import com.showup.api.generated.api.MatchingApi
+import com.showup.api.generated.api.NotificationsApi
 import com.showup.api.generated.api.ProfilesApi
 import com.showup.api.generated.api.SafetyApi
 import com.showup.api.generated.infrastructure.ApiClient
@@ -85,6 +86,14 @@ class ShowUpApi(
     val checkIns: CheckInsApi by lazy { client.createService(CheckInsApi::class.java) }
     val matching: MatchingApi by lazy { client.createService(MatchingApi::class.java) }
     val safety: SafetyApi by lazy { client.createService(SafetyApi::class.java) }
+
+    /**
+     * Push-token registration and notification preferences (SHOWUP-162).
+     *
+     * Added for the notification ask: granting the permission and never registering the device is
+     * a silent failure that looks exactly like success. See [com.showup.profile.PushRegistration].
+     */
+    val notifications: NotificationsApi by lazy { client.createService(NotificationsApi::class.java) }
 
     /**
      * Signs the user out: revokes the session server-side, then forgets the tokens locally.

@@ -50,6 +50,7 @@ import com.showup.profile.MediaState
 import com.showup.profile.MediaTake
 import com.showup.profile.MediaUploadStatus
 import com.showup.profile.ProfileMediaScreen
+import com.showup.profile.ProfileNotificationsScreen
 import com.showup.profile.ProfilePromptsScreen
 import com.showup.profile.RecordingPhase
 import com.showup.profile.PROMPT_SAMPLE_AT_CAP
@@ -500,6 +501,17 @@ class ScreenFitTest {
      * where a fit finding would be worst: `Cancel` is the ONLY way out of them, so a Cancel pushed
      * off a 320-wide screen is a user who cannot leave.
      */
+    @Test
+    fun `profile notifications, the one state`() {
+        // ONE STATE, and the tightest non-scrolling content in the flow: a 32 headline, a lead
+        // paragraph and five two-line rows with no scroll allowed. Swept at every size and every
+        // font scale, because "it fits at 390" is the claim this screen is most likely to fail.
+        sweep("Notifications") { ProfileNotificationsScreen() }
+        sweep("Notifications @1.3", fontScale = 1.3f) { ProfileNotificationsScreen() }
+        sweep("Notifications @2.0", fontScale = 2.0f) { ProfileNotificationsScreen() }
+        assertClean()
+    }
+
     @Test
     fun `profile media, all ten states`() {
         val video = MediaArtefact(

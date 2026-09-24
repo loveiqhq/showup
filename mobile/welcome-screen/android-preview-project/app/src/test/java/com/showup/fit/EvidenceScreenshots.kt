@@ -74,6 +74,7 @@ import com.showup.profile.MediaState
 import com.showup.profile.MediaTake
 import com.showup.profile.MediaUploadStatus
 import com.showup.profile.ProfileMediaScreen
+import com.showup.profile.ProfileNotificationsScreen
 import com.showup.profile.ProfilePhotosScreen
 import com.showup.profile.RecordingPhase
 import com.showup.profile.ProfilePromptsScreen
@@ -343,6 +344,15 @@ class EvidenceScreenshots {
                 ),
             )
         }
+        // SHOWUP-162. THE COMBINATION THAT HID A REAL BUG for a whole review round: at 320 x 2.0
+        // the Premium pill was squeezed to 25dp of the 123 it needed, with the word ellipsised
+        // inside a stub of a capsule. Nothing overflowed, so the fit sweep called the screen clean
+        // on all seventeen devices at 2.0x -- and it was clean, by every measurement it takes.
+        // A picture is what shows it, which is this test's whole argument.
+        shoot("TIGHT", "notifications", fontScale = 2f, devices = tight) {
+            ProfileNotificationsScreen()
+        }
+
         // Not a media screen. The photo sheet's blocked camera row is where the `Settings` pill
         // and the sentence beside it compete for a 320dp line, and it is the other screen the
         // unmerged-tree harness found a real clipping bug on.
@@ -504,6 +514,11 @@ class EvidenceScreenshots {
             )
         }
 
+        // SHOWUP-162 -- one state, three frames. The ticket asks for exactly three images, each
+        // showing all five rows, the lead, the headline and the CTA with nothing clipped and no
+        // scroll.
+        shoot("SHOWUP-162", "notifications") { ProfileNotificationsScreen() }
+
         // ── the two PLAYING states ───────────────────────────────────────────────────────────
         //
         // UNDER THEIR OWN PREFIX, so the count below stays exactly 30. That assertion is the
@@ -564,6 +579,8 @@ class EvidenceScreenshots {
         // Ten states at three sizes. The eleventh -- the permission row -- is deliberately absent:
         // "Include one capture per permission mode ONCE THE ROW IS SPECCED", and it has no artboard.
         assertEquals("SHOWUP-161 asks for 30 images", 30, produced.count { it.startsWith("SHOWUP-161") })
+        // One state at the three frames. SHOWUP-162's evidence line asks for exactly three.
+        assertEquals("SHOWUP-162 asks for 3 images", 3, produced.count { it.startsWith("SHOWUP-162") })
 
         // And an image that is a blank rectangle is not evidence of anything. A real render of one
         // of these screens is tens of kilobytes; an empty one compresses to a few hundred bytes.

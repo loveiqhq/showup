@@ -138,7 +138,7 @@ import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.LavenderWash
-import com.showup.designsystem.LilacStops
+import com.showup.designsystem.LilacWash
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Motion
@@ -504,7 +504,7 @@ private fun FilledPromptCard(prompt: SavedPrompt, onEdit: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(CardRadius))
-            .background(Brush.verticalGradient(colorStops = LilacStops.toTypedArray()))
+            .background(LilacWash)
             .outline(Purple.copy(alpha = 0.10f), CardRadius, width = 1.dp),
     ) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = Spacing.xxl)) {

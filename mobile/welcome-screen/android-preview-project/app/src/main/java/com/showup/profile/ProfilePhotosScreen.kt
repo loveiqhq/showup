@@ -130,7 +130,7 @@ import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lavender
-import com.showup.designsystem.LilacStops
+import com.showup.designsystem.LilacWash
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Muted
@@ -317,9 +317,7 @@ private fun PhotoFill(uri: String? = null, modifier: Modifier = Modifier) {
         )
     } else {
         Box(
-            modifier.background(
-                Brush.linearGradient(colorStops = LilacStops.toTypedArray()),
-            ),
+            modifier.background(LilacWash),
         )
     }
 }
@@ -624,7 +622,7 @@ private fun EmptySlot(
             .clip(RoundedCornerShape(SlotRadius))
             .then(
                 if (cta) {
-                    Modifier.background(Brush.linearGradient(colorStops = LilacStops.toTypedArray()))
+                    Modifier.background(LilacWash)
                 } else {
                     Modifier.background(Raised)
                 },

@@ -124,7 +124,7 @@ struct WelcomeBackdrop: View {
 
 /// The launch-screen scaffold. Insets apply to the content only, so the backdrop runs full-bleed
 /// behind the status bar and home indicator with no seam — an acceptance criterion on 140 and 142.
-struct WelcomeScaffold<Content: View>: View {
+struct WelcomeScaffold<Content: View, Footer: View>: View {
     var peachWash: Bool = true
     var placement: OrbPlacement = .startup
     var orangeAlpha: Double = 0.32
@@ -148,7 +148,35 @@ struct WelcomeScaffold<Content: View>: View {
     ///
     /// The inner stack is floored at the viewport height, so when everything fits there is nothing
     /// to scroll and the bottom spacer still does its job — the layout is unchanged.
+    ///
+    /// SCROLLING ALONE IS NOT ENOUGH FOR A SCREEN WHOSE CONTENT REALLY OVERFLOWS — it makes the CTA
+    /// reachable, not visible, and on the notifications ask (SHOWUP-162) that meant a Galaxy Fold
+    /// opening on a permission screen with no button drawn on it at all. Pass `footer` as well.
     var scrollWhenTight: Bool = false
+    /// A fixed band below the scrolling region — the CTA, and nothing else so far.
+    ///
+    /// `EmptyView` on every screen but one, through the convenience init below, and that path is
+    /// the old layout unchanged: one stack, the content filling it, nothing pinned.
+    ///
+    /// The notifications ask passes it because its content does not fit three of the seventeen
+    /// frames at the default font and none of them at 2.0× type, and "the primary action is
+    /// reachable" is the one guarantee that has to hold on all of them. With the CTA in here the
+    /// scroll viewport is the screen minus this band, so the list scrolls and the button does not.
+    ///
+    /// On the frames where the content fits this changes nothing: the content's own
+    /// `Spacer` still takes the slack and the button still lands at the bottom of the screen,
+    /// because that is where the band already is.
+    ///
+    /// It takes the same `gutter` as the content — it is the bottom of the same column, not a
+    /// separate surface — and it clears the home indicator, because the whole stack respects the
+    /// safe area. A screen that wants a gradient mask over scrolling content wants
+    /// `RealYouScaffold` instead: that footer is a band drawn OVER the content, this is its end.
+    ///
+    /// DECLARED BEFORE `content` ON PURPOSE. Two `@ViewBuilder` properties means the unlabelled
+    /// trailing closure binds to the LAST one, so with the order reversed every existing call site
+    /// would silently hand its whole screen to the footer and render an empty body. Content last,
+    /// footer always labelled — the same rule the iOS notes give for `PrimaryButton`'s slots.
+    @ViewBuilder let footer: () -> Footer
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -158,30 +186,62 @@ struct WelcomeScaffold<Content: View>: View {
                             orangeAlpha: orangeAlpha, violetAlpha: violetAlpha)
                 .ignoresSafeArea()
 
-            if scrollWhenTight {
-                GeometryReader { geo in
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 0) { content() }
-                            .padding(.horizontal, gutter)
-                            .padding(.top, topPadding)
-                            .frame(minHeight: geo.size.height, alignment: .top)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 0) {
+                if scrollWhenTight {
+                    GeometryReader { geo in
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 0) { content() }
+                                .padding(.horizontal, gutter)
+                                .padding(.top, topPadding)
+                                .frame(minHeight: geo.size.height, alignment: .top)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        // Bounce off means a screen that fits does not rubber-band, so it reads
+                        // as a fixed layout rather than a scroll view that happens to be full.
+                        .modifier(NoBounceWhenItFits())
                     }
-                    // Bounce off means a screen that fits does not rubber-band, so it reads as a
-                    // fixed layout rather than a scroll view that happens to be full.
-                    //
-                    // iOS 16.4+. The deployment target is 16.0, so this is gated rather than
-                    // dropped: it is a refinement, and on 16.0-16.3 the only difference is that a
-                    // screen which already fits can still be dragged a few points.
-                    .modifier(NoBounceWhenItFits())
+                } else {
+                    VStack(alignment: .leading, spacing: 0) { content() }
+                        .padding(.horizontal, gutter)
+                        .padding(.top, topPadding)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-            } else {
-                VStack(alignment: .leading, spacing: 0) { content() }
+
+                // Nothing at all on the screens that pass no footer: an `EmptyView` in a
+                // zero-spacing stack occupies no height, and the region above it still fills the
+                // frame — `GeometryReader` and a `maxHeight: .infinity` frame are both greedy.
+                footer()
                     .padding(.horizontal, gutter)
-                    .padding(.top, topPadding)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    // Explicit rather than inherited: the stack above centres its children, and a
+                    // footer whose control did not expand on its own would sit centred at its
+                    // intrinsic width instead of spanning the gutters like the content does.
+                    .frame(maxWidth: .infinity)
             }
         }
+    }
+}
+
+extension WelcomeScaffold where Footer == EmptyView {
+    /// The screens with no pinned band, and the shape this scaffold had before there was one.
+    ///
+    /// An init rather than a default value because a generic closure property cannot carry one,
+    /// and `AnyView` to dodge that would erase the footer's type for every caller, including the
+    /// four screens where there is nothing in it.
+    init(
+        peachWash: Bool = true,
+        placement: OrbPlacement = .startup,
+        orangeAlpha: Double = 0.32,
+        violetAlpha: Double = 0.28,
+        topPadding: CGFloat = 20,
+        gutter: CGFloat = Spacing.screenGutter,
+        scrollWhenTight: Bool = false,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            peachWash: peachWash, placement: placement, orangeAlpha: orangeAlpha,
+            violetAlpha: violetAlpha, topPadding: topPadding, gutter: gutter,
+            scrollWhenTight: scrollWhenTight, footer: { EmptyView() }, content: content
+        )
     }
 }
 
@@ -278,6 +338,19 @@ struct WashHeadline: UIViewRepresentable {
     /// way it lands there whichever line the text happens to end on. It also removes a whole class
     /// of bug: a sibling in an HStack reserves its width against every line, so the headline had
     /// less room than it appeared to, wrapped badly, and pushed the icon past the edge.
+    /// `text-wrap: balance`, which CSS has and SwiftUI does not.
+    ///
+    /// The references set it on these headlines and the criteria name it. A greedy wrap fills each
+    /// line to the edge and leaves whatever is left on the last one; balance evens them. On the
+    /// notifications ask at 390 the two disagree and the artboard shows the balanced form.
+    ///
+    /// HOW. Balance is "the narrowest width that still fits in the same number of lines". The
+    /// UILabel this wraps already reports its height at a given width, so the search is over that:
+    /// measure at the full width to learn the line count, then binary-search downward for the
+    /// narrowest width whose height is unchanged. Eight measurements, not three hundred.
+    ///
+    /// OFF BY DEFAULT: it moves where existing headlines break.
+    var balance: Bool = false
     var trailing: BrandIcon? = nil
     var trailingSize: CGFloat = 30
     var trailingTint: Color = .liqOrange
@@ -300,7 +373,8 @@ struct WashHeadline: UIViewRepresentable {
     private func rasterisedIcon(_ icon: BrandIcon) -> UIImage? {
         let path: Path
         switch icon {
-        case .heart: path = BrandIconView.heartPath
+        // The rasterised trailing mark is Connect's, and Connect draws the FILLED heart.
+        case .heartFilled: path = BrandIconView.heartPath
         default: return nil
         }
         return BrandIconView.filledImage(path, size: trailingSize, tint: UIColor(trailingTint))
@@ -319,9 +393,31 @@ struct WashHeadline: UIViewRepresentable {
             // honest answer is one line. SwiftUI then offers a real width and asks again.
             return nil
         }
-        v.preferredMaxLayoutWidth = width
-        let fit = v.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        let used = balance ? balancedWidth(for: v, within: width) : width
+        v.preferredMaxLayoutWidth = used
+        let fit = v.sizeThatFits(CGSize(width: used, height: .greatestFiniteMagnitude))
         return CGSize(width: min(fit.width, width), height: fit.height)
+    }
+
+    /// The narrowest width that still fits in the same number of lines. See `balance`.
+    ///
+    /// Searched over HEIGHT rather than line count, because the label reports height and height is
+    /// a faithful proxy: one more line is one more line's worth of points, and nothing else here
+    /// changes it. Binary search over whole points, so eight probes settle a 400-point range.
+    private func balancedWidth(for v: WashLabel, within full: CGFloat) -> CGFloat {
+        let tallest = v.sizeThatFits(
+            CGSize(width: full, height: .greatestFiniteMagnitude)
+        ).height
+        var low: CGFloat = 1
+        var high = full
+        while high - low > 1 {
+            let mid = ((low + high) / 2).rounded()
+            let h = v.sizeThatFits(
+                CGSize(width: mid, height: .greatestFiniteMagnitude)
+            ).height
+            if h <= tallest { high = mid } else { low = mid }
+        }
+        return high
     }
 
     func updateUIView(_ v: WashLabel, context: Context) {
@@ -460,7 +556,10 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  chevronRight, arrowLeft, arrowRight, pencil, pen, edit, close, check,
                  shield, heart, eyeOff, plus, image, camera, lock, sliders,
                  // The media step (SHOWUP-161).
-                 video, mic, play, refresh, trash }
+                 video, mic, play, refresh, trash,
+                 // The notifications ask (SHOWUP-162). `x` is `close`, already at the kit's
+                 // geometry. `heartFilled` is the kit's own second heart -- see heartPath.
+                 sparkles, messageCircle, clock, heartFilled }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -761,7 +860,61 @@ struct BrandIconView: View {
                     b.closeSubpath()
                 }
             case .heart:
+                filled = false; p = Self.heartPath
+            case .heartFilled:
                 filled = true; p = Self.heartPath
+            // ── the notifications ask (SHOWUP-162) ───────────────────────────────
+            //
+            // From `components/shared.jsx` at its 24-grid geometry. `sparkles` IS NOT A LUCIDE
+            // SPARKLE: the kit draws an eight-ray starburst, four axis rays and four diagonals,
+            // not the familiar four-point twinkle. Copied as drawn.
+            case .sparkles:
+                filled = false
+                p = Path { b in
+                    for (from, to) in [
+                        (CGPoint(x: 12, y: 3), CGPoint(x: 12, y: 6)),
+                        (CGPoint(x: 12, y: 18), CGPoint(x: 12, y: 21)),
+                        (CGPoint(x: 3, y: 12), CGPoint(x: 6, y: 12)),
+                        (CGPoint(x: 18, y: 12), CGPoint(x: 21, y: 12)),
+                        (CGPoint(x: 5.6, y: 5.6), CGPoint(x: 7.6, y: 7.6)),
+                        (CGPoint(x: 16.4, y: 16.4), CGPoint(x: 18.4, y: 18.4)),
+                        (CGPoint(x: 5.6, y: 18.4), CGPoint(x: 7.6, y: 16.4)),
+                        (CGPoint(x: 16.4, y: 7.6), CGPoint(x: 18.4, y: 5.6)),
+                    ] {
+                        b.move(to: from); b.addLine(to: to)
+                    }
+                }
+            case .messageCircle:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 21, y: 11.5))
+                    b.addCurve(to: .init(x: 20.1, y: 15.3),
+                               control1: .init(x: 21, y: 12.84), control2: .init(x: 20.69, y: 14.15))
+                    b.addCurve(to: .init(x: 12.5, y: 20),
+                               control1: .init(x: 18.66, y: 18.18), control2: .init(x: 15.72, y: 20))
+                    b.addCurve(to: .init(x: 8.7, y: 19.1),
+                               control1: .init(x: 11.18, y: 20), control2: .init(x: 9.88, y: 19.69))
+                    b.addLine(to: .init(x: 3, y: 21))
+                    b.addLine(to: .init(x: 4.9, y: 15.3))
+                    b.addCurve(to: .init(x: 4, y: 11.5),
+                               control1: .init(x: 4.31, y: 14.12), control2: .init(x: 4, y: 12.82))
+                    b.addCurve(to: .init(x: 8.7, y: 3.9),
+                               control1: .init(x: 4, y: 8.28), control2: .init(x: 5.82, y: 5.34))
+                    b.addCurve(to: .init(x: 12.5, y: 3),
+                               control1: .init(x: 9.85, y: 3.31), control2: .init(x: 11.16, y: 3))
+                    b.addLine(to: .init(x: 13, y: 3))
+                    b.addCurve(to: .init(x: 21, y: 11),
+                               control1: .init(x: 17.4, y: 3.25), control2: .init(x: 20.75, y: 6.6))
+                    b.closeSubpath()
+                }
+            case .clock:
+                filled = false
+                p = Path { b in
+                    b.addEllipse(in: .init(x: 3, y: 3, width: 18, height: 18))
+                    b.move(to: .init(x: 12, y: 7))
+                    b.addLine(to: .init(x: 12, y: 12))
+                    b.addLine(to: .init(x: 15, y: 14))
+                }
             case .pencil:
                 filled = false
                 p = Path { b in
@@ -824,12 +977,42 @@ struct BrandIconView: View {
         return CGPoint(x: 12 - box.midX, y: 12 - box.midY)
     }
 
+    /// `heart` / `heart-filled` from `components/shared.jsx`: one path, drawn two ways.
+    ///
+    /// `M20.84 4.61 a5.5 5.5 0 0 0-7.78 0 L12 5.67 l-1.06-1.06 a5.5 5.5 0 0 0-7.78 7.78 l1.06 1.06
+    /// L12 21.23 l7.78-7.78 1.06-1.06 a5.5 5.5 0 0 0 0-7.78z`
+    ///
+    /// THE THREE ARCS ARE NOT THE SAME ARC. A chord of length c across radius r subtends
+    /// 2 asin(c/2r):
+    ///
+    ///   arc 1  (20.84, 4.61) to (13.06, 4.61)   chord 7.78 = 5.5 root 2   ->  90 degrees
+    ///   arc 2  (10.94, 4.61) to (3.16, 12.39)   chord 11.0 = 2r           -> 180, a semicircle
+    ///   arc 3  (20.84, 12.39) to (20.84, 4.61)  chord 7.78                ->  90 degrees
+    ///
+    /// Arcs 1 and 3 are two pieces of ONE circle, the right lobe centred (16.95, 8.50), separated
+    /// in the path by the notch and the point; arc 2 is the left lobe, centred on its own chord's
+    /// midpoint (7.05, 8.50) because that is where a semicircle's centre is. Both radii are 5.5.
+    ///
+    /// REPLACED A HAND-DRAWN ONE. The previous path was neither of the kit's two hearts -- it was
+    /// filled, which is `heart-filled`, but drawn from memory. The notifications ask needs the
+    /// stroked outline, so both are now the kit's own path under the kit's own names.
     static let heartPath = Path { b in
-        b.move(to: .init(x: 12, y: 21))
-        b.addCurve(to: .init(x: 3.5, y: 10), control1: .init(x: 12, y: 21), control2: .init(x: 3.5, y: 15.4))
-        b.addCurve(to: .init(x: 12, y: 7.2), control1: .init(x: 3.5, y: 6.5), control2: .init(x: 8.5, y: 4.7))
-        b.addCurve(to: .init(x: 20.5, y: 10), control1: .init(x: 15.5, y: 4.7), control2: .init(x: 20.5, y: 6.5))
-        b.addCurve(to: .init(x: 12, y: 21), control1: .init(x: 20.5, y: 15.4), control2: .init(x: 12, y: 21))
+        b.move(to: .init(x: 20.84, y: 4.61))
+        // Right lobe, over the top: anticlockwise from -45 to -135 degrees.
+        b.addArc(center: .init(x: 16.95, y: 8.50), radius: 5.5,
+                 startAngle: .degrees(-45), endAngle: .degrees(-135), clockwise: true)
+        b.addLine(to: .init(x: 12, y: 5.67))
+        b.addLine(to: .init(x: 10.94, y: 4.61))
+        // Left lobe: a true semicircle, -45 to 135 the long way round the top.
+        b.addArc(center: .init(x: 7.05, y: 8.50), radius: 5.5,
+                 startAngle: .degrees(-45), endAngle: .degrees(135), clockwise: true)
+        b.addLine(to: .init(x: 4.22, y: 13.45))
+        b.addLine(to: .init(x: 12, y: 21.23))
+        b.addLine(to: .init(x: 19.78, y: 13.45))
+        b.addLine(to: .init(x: 20.84, y: 12.39))
+        // The right lobe's outer side, closing back to the start.
+        b.addArc(center: .init(x: 16.95, y: 8.50), radius: 5.5,
+                 startAngle: .degrees(45), endAngle: .degrees(-45), clockwise: true)
         b.closeSubpath()
     }
 

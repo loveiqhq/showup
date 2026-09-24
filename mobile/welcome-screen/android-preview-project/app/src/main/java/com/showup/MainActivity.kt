@@ -12,6 +12,7 @@ import android.graphics.ImageDecoder
 import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
+import android.Manifest
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -74,6 +75,11 @@ import com.showup.profile.PickedBytes
 import com.showup.profile.PhotoSource
 import com.showup.profile.PhotosRepository
 import com.showup.profile.PhotosViewModel
+import com.showup.profile.AndroidNotificationAccess
+import com.showup.profile.ProfileNotificationsScreen
+import com.showup.profile.PushRegistration
+import com.showup.profile.shouldShowAsk
+import com.showup.profile.NotificationsViewModel
 import com.showup.profile.ProfileMediaScreen
 import com.showup.profile.ProfilePhotosScreen
 import com.showup.profile.ProfilePromptsScreen
@@ -236,6 +242,72 @@ class MainActivity : ComponentActivity() {
                 cameraController.cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
                 cameraController.bindToLifecycle(captureLifecycle)
                 onDispose { cameraController.unbind() }
+            }
+
+            // ── the notification ask (SHOWUP-162) ────────────────────────────────────
+            //
+            // THE STATUS IS READ BEFORE THE SCREEN IS PUSHED, NEVER AFTER IT MOUNTS. Both skip
+            // cases -- Android 12 and below, and a status that is somehow already determined --
+            // are decided here, so the user never sees the screen mount and navigate away. No
+            // toast, no confirmation, no flash: `shouldShowAsk` is a pure function and the
+            // navigation either goes through the ask or does not.
+            val notifications = remember(context) { AndroidNotificationAccess(context) }
+
+            val notifyModel: NotificationsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        NotificationsViewModel(
+                            access = notifications,
+                            push = PushRegistration(api),
+                        )
+                    }
+                },
+            )
+
+            /**
+             * Where media's Continue and Skip both land.
+             *
+             * STAY REACHABLE (10) DOES NOT EXIST YET, so both the ask and the two skip cases end
+             * at Home for now. When 10 is built this is the single place that changes -- which is
+             * why it is a function rather than two copies of the same conditional.
+             */
+            fun afterMedia(): FlowScreen {
+                val status = notifications.read()
+                if (shouldShowAsk(status)) return FlowScreen.ProfileNotifications
+                // THE SKIPPED USER STILL NEEDS A TOKEN. Below API 33 notifications are on with
+                // nothing to ask for, and the only thing that registered for push was a callback
+                // on the screen those users never see. See NotificationsViewModel.skipped.
+                notifyModel.skipped(status)
+                return FlowScreen.Home
+            }
+
+            // The OS sheet's answer. `permission_result` fires here and nowhere else, and the
+            // flow advances on BOTH outcomes -- the user never lands back on the ask.
+            val askNotifications = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { granted ->
+                // RECORDED HERE, NOT BEFORE THE LAUNCH, and the difference is a user the ticket
+                // names by name.
+                //
+                // Android cannot tell "never asked" from "refused" -- both read as not-granted --
+                // so `PermissionAskLog` is the proxy, and recording it before the dialog is
+                // ANSWERED makes a liar of it. A user who raises the sheet and then backgrounds
+                // the app without answering would come back recorded as denied, while the OS
+                // status is still not determined. The ticket describes exactly that person: they
+                // "land on Stay reachable never having been asked", and 10's row must raise the
+                // same sheet for them. A false denial would send them to Settings instead, for a
+                // dialog they never saw.
+                //
+                // This callback fires when the platform has an answer, which is the only moment
+                // the ask is a fact. Killed mid-dialog, it never fires and nothing is recorded --
+                // which is correct, because nothing was answered.
+                PermissionAskLog.recordAsked(context, Manifest.permission.POST_NOTIFICATIONS)
+
+                // Reports the result and, on a grant, registers for push -- GRANTING AND NOT
+                // REGISTERING IS A SILENT FAILURE that looks exactly like success on this screen.
+                notifyModel.answered(granted)
+                // BOTH OUTCOMES ADVANCE. Stay reachable (10) is not built, so Home stands in.
+                screen = FlowScreen.Home
             }
 
             // The player, held here for the same reason the camera controller is: it owns a
@@ -683,15 +755,60 @@ class MainActivity : ComponentActivity() {
                                     // Sound does not follow the user off the screen.
                                     media.stopPlayback()
                                     media.skipPressed()
-                                    screen = FlowScreen.Home
+                                    screen = afterMedia()
                                 },
                                 onContinue = {
                                     media.stopPlayback()
                                     media.continuePressed()
-                                    screen = FlowScreen.Home
+                                    screen = afterMedia()
                                 },
                             )
                         }
+                    }
+
+                    FlowScreen.ProfileNotifications -> {
+                        // `permission_prompted` is OUR pre-permission surface being shown, and it
+                        // fires on view -- but only when the screen is really shown. The skip
+                        // cases never reach here, which is exactly what events.json requires:
+                        // "it does not fire when the screen is skipped".
+                        LaunchedEffect(Unit) { notifyModel.arrived() }
+
+                        // THE SCREEN IS NEVER A TERMINAL STATE. If the status becomes determined
+                        // while it is mounted -- the user backgrounds the sheet, turns
+                        // notifications on in Settings by hand, and comes back -- it advances by
+                        // itself rather than leaving a button that can no longer raise anything.
+                        //
+                        // The reconciler's own `permission_status_changed` is not fired here: that
+                        // event is the shared reconciler's and it must never double up with
+                        // `permission_result` for one act. This is the navigation half only.
+                        val notifyLifecycle = LocalLifecycleOwner.current
+                        DisposableEffect(notifyLifecycle) {
+                            val observer = LifecycleEventObserver { _, event ->
+                                if (event == Lifecycle.Event.ON_RESUME &&
+                                    notifyModel.statusIsNowDetermined()
+                                ) {
+                                    screen = FlowScreen.Home
+                                }
+                            }
+                            notifyLifecycle.lifecycle.addObserver(observer)
+                            onDispose { notifyLifecycle.lifecycle.removeObserver(observer) }
+                        }
+
+                        val sheetUp by notifyModel.sheetUp.collectAsStateWithLifecycle()
+
+                        ProfileNotificationsScreen(
+                            busy = sheetUp,
+                            onEnable = {
+                                // False on a second press, and nothing is reported for it.
+                                if (notifyModel.enablePressed()) {
+                                    // Below 33 there is no runtime permission and `shouldShowAsk`
+                                    // would already have skipped the screen, so reaching here
+                                    // means the request is real. The ask is recorded in the RESULT
+                                    // callback, not here -- see the comment there.
+                                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            },
+                        )
                     }
 
                     FlowScreen.Home ->

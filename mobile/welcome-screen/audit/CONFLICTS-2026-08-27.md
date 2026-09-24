@@ -726,3 +726,236 @@ it.** For the design and data side.
 **For the design side: one line in the build inventory**, plus the row above. The pipeline exists
 now; the gap is that a reader of the ticket would not know either was needed.
 
+## E20 · The notifications ask does not fit every phone, and the agreed ladder does not close it. NEEDS A DECISION
+
+SHOWUP-162 says `It does not scroll`, twice, and names the order of sacrifice if it ever does not
+fit: *spacer → list `gap` 16 → 14 → row line to 13 → **then** come back and cut a row. Never shrink
+the headline and never let it scroll.*
+
+**Measured, not estimated.** `NotificationsFitTest.print what every device has` renders the screen
+at all seventeen frames at three font scales and reports the distance the user must drag to reach
+the end of the list. Zero means it fits.
+
+| Frame | 1.0x | 1.3x | 2.0x |
+| --- | --- | --- | --- |
+| Galaxy Fold cover screen 320 x 638 | **169** | 417 | 1094 |
+| small Android (HD) 360 x 592 | **98** | 327 | 992 |
+| iPhone SE (3rd gen) 375 x 647 | **5** | 272 | 865 |
+| Galaxy A / common Android 360 x 692 | 0 | 227 | 892 |
+| iPhone 12 / 13 / 14 390 x 763 | 0 | 156 | 657 |
+| iPhone 15/16 Pro Max 430 x 839 | 0 | 0 | 357 |
+| the other eleven | 0 | 0–185 | 336–888 |
+
+So at the **default font three of seventeen frames scroll**; at 1.3x, thirteen; at 2.0x, all of
+them. The heights are safe-area heights, which is why 375 x 667 appears as 647 — an iPhone SE has
+a 20pt status bar and a home BUTTON, not the 585 a notched phone would leave. The ticket's "check
+375 x 667 first" is right, and 647 is the number to check against.
+
+**The ladder is worth about 15dp before its last rung** — 8 from the four list gaps at 16 → 14, and
+7 from the ten row lines at 13.5 → 13. That closes the iPhone SE's 5 and nothing else. Against 169
+on the Fold it is not close, and the last rung is a content decision this ticket keeps for itself:
+*then **come back** and cut a row*, with row 1 the reason the user is in the flow and row 5 the one
+that protects their time.
+
+**Shipped with the approved values intact, and the CTA pinned below the scroll.** That second half
+is the fix for the thing that actually broke. `WelcomeScaffold(scrollWhenTight = true)` on its own
+makes the button *reachable*; it does not make it *visible*, and on the Fold this screen opened
+with the whole CTA below the fold and nothing on screen saying so. On a **permission ask**, whose
+only control is that button, that reads as a broken app.
+
+`WelcomeScaffold(footer =)` puts the button in a fixed band at the bottom of the same column — same
+gutter, same 18 above the gesture bar — so the scroll viewport is the screen minus that band. On
+the fourteen frames where the content fits, the layout is byte-for-byte what it was. On the three
+that are short, the list scrolls under a button that never leaves.
+
+Worth recording how it was caught: **the iOS sweep failed and the Android sweep passed.**
+`ScreenFitTest`'s `BELOW THE FOLD` is only an advisory once a screen scrolls, so Android reported
+the screen clean while the CTA was off the bottom of it. `NotificationsFitTest` now asserts the CTA
+is inside the frame on all seventeen at all three font scales, and locks the overflow table above
+so it cannot quietly grow.
+
+**What is still the design side's.** The scroll on those three frames is a direct contradiction of
+*never let it scroll*, and no rung short of cutting a row closes it. The real choice is:
+
+1. accept that 320-class frames and every accessibility type size scroll the list, or
+2. cut a row — four rows fit the Fold with room — or
+3. spend rungs 2 and 3 of the ladder globally, which buys the SE and the 360 x 592 and changes the
+   390 artboard by 8dp of list height for frames that never needed it.
+
+This build is (1), because (2) is theirs to make and (3) pre-spends the ladder without finishing
+the job.
+
+## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
+
+`components/shared.jsx` and the profile references carry both spellings:
+
+- bare numbers -- `letterSpacing: 0.08` (9 times), `0.02` (6), `0.01` (6), `0.06`, `0.04`, `0.07`
+- em strings -- `'-0.015em'` (7), `'-0.018em'` (6), `'0.08em'` (3), `'-0.005em'` (2)
+
+**`0.08` and `'0.08em'` are both present for the same value.** In React a bare number becomes
+**px**, so `letterSpacing: 0.06` on a 10px uppercase label is 0.06 of a pixel -- which is to say
+nothing at all. Every negative value is written as em; the positive ones are split.
+
+A designer writing `0.01` cannot mean one hundredth of a pixel, so the bare positives are em that
+lost their unit. **This project has read them as em since SHOWUP-161**, where the `REC` and
+`0:14 RECORDED` chips ship the reference's bare `0.08` as `0.08em`, and 162's `Premium` tag follows
+with `0.06em`.
+
+The consequence worth knowing: **the artboards under-track every uppercase label**, because the
+browser renders them literally. A pill measured off the PNG will be a few pixels narrower than the
+app's. Nothing is broken; the kit should pick one spelling.
+
+## E22 · Push registration cannot be verified in this build, and the criterion says "verified, not assumed". RECORDED
+
+SHOWUP-162's build inventory names it as the one failure that looks exactly like success:
+
+> **Push registration on grant** — APNs / FCM token acquisition and upload. Granting the permission
+> and never registering the device is a silent failure that looks exactly like success on this
+> screen.
+
+and the acceptance criterion is *on grant, the device registers for push (APNs / FCM) and the token
+reaches the backend — **verified, not assumed***.
+
+**The upload is built; the token source is not, deliberately.** `PushRegistration` on both platforms
+takes a `PushTokenSource` / `PushRegistering` seam, calls the generated
+`NotificationsApi.registerPushToken`, handles the failure cases and never blocks the flow. What
+ships today is `NoPushToken`, which returns nil.
+
+The reason is a standing instruction on this project rather than an oversight: **third-party
+providers stay off until they are explicitly turned on.** An FCM token needs `firebase-messaging`
+and a `google-services.json`, which means a Firebase project; an APNs token needs the Push
+Notifications capability and a paid developer account with a key. The backend already models the
+same arrangement — `FcmPushSender` is selected only when service-account credentials are
+configured, and `LogPushSender` stands in otherwise. This is the client half of it.
+
+**So the criterion cannot be met by this build, and saying otherwise would be the exact silent
+failure the ticket is warning about.** When the services are enabled it is one implementation of
+one interface per platform and no other change. Until then the honest status is: upload path built
+and tested against a fake source, real source absent, and nothing about the screen reveals the
+difference — which is why it is written down here rather than left to a code comment.
+
+## E23 · Rule 1 of the anti-stuck trio assumes a saved position this flow does not have. RECORDED
+
+SHOWUP-162 names one hard stuck state and three lines that prevent it. Rules 2 and 3 are built —
+the status guard before the screen is pushed, and the foreground re-read that advances a mounted
+screen whose status became determined. Rule 1 is not, and cannot be:
+
+> **Advance the saved flow position when the sheet is raised, not when it returns.**
+
+**There is no per-screen saved flow position in this codebase.** Resume is derived from server
+profile facts — what the account holds decides where the user lands — and this screen holds nothing
+on the account, exactly like the two bridges and the media step. So there is no position to advance
+early and no position that can point at screen 09 after the sheet has been answered.
+
+**The stuck state the rule exists to prevent is therefore unreachable by construction.** A kill
+mid-sheet relaunches to wherever the profile facts point, which is never this screen; the ticket's
+own cost of rule 1 — "a user killed mid-sheet without answering lands on Stay reachable never
+having been asked" — is what happens here too, and Stay reachable's notifications row is the
+recovery for it either way.
+
+Recorded rather than silently skipped because an acceptance criterion quotes rule 1 verbatim, and a
+reviewer walking that list needs to find the reason here instead of concluding it was missed.
+
+
+## E24 · The title row is `flex-wrap: wrap` and neither platform wraps. RECORDED
+
+Spec sheet key ⑨: *title row: flex · align-items baseline · gap 8 · **flex-wrap wrap** (the tag
+rides here)*. A Compose `Row` does not wrap and a SwiftUI `HStack` does not wrap; both share the
+width instead.
+
+**The dangerous half of that is fixed.** Sharing the width means the measure order decides who
+loses, and an unweighted `Text` is measured first at the full width — so at 2.0x type on a 320
+frame the title took everything and the `Premium` pill was left **25dp of the 123 it needed**, with
+the word ellipsised inside a stub of a capsule. Nothing overflowed, so no fit sweep could see it;
+`ScreenFitTest` reported the screen clean on all seventeen at 2.0x while that was true.
+
+The title is weighted now and the pill keeps its natural width on every frame at every scale, which
+`NotificationsFitTest.the premium pill is never squeezed` asserts.
+
+**What still differs from the reference:** where CSS would drop the pill onto its own line, both
+platforms keep it beside a title that wraps to two lines. Row 2 is the only row with a tag, and it
+only reaches that width at 1.3x type and above. Nothing is clipped and nothing is unreachable.
+
+Building the real thing means `FlowRow` (still `ExperimentalLayoutApi`) on Compose and a custom
+`Layout` on SwiftUI — a shared wrapping primitive, on two platforms, for one tag on one row at
+accessibility sizes. Recorded rather than built. If the tag is ever used on a longer title, or a
+second row gains one, this stops being a detail.
+
+## E25 · Android drew `--su-grad-lilac` at 135° where the token is 180°, on most of its surfaces. FIXED
+
+    --su-grad-lilac: linear-gradient(180deg, #F1E6FF 0%, #E8DCF5 100%);
+
+`Brush.linearGradient(colorStops)` defaults to `Offset.Zero -> Offset.Infinite`, which resolves to
+the drawing area's **top-left to bottom-right**: a 135° diagonal. The token is 180°, which in
+Compose is `verticalGradient`. iOS had it right on every surface — `startPoint: .top, endPoint:
+.bottom` — so the two platforms have been painting the same token at different angles.
+
+**What made it easy to get wrong:** `--su-grad-sunset` IS 135°, and the default spelling is
+correct for it. Every sunset surface in the app reads right with `Brush.linearGradient(colorStops)`,
+so carrying the same line over to lilac looks like consistency and is a defect.
+
+**Android had spelled one token three ways**, which is how it ended up at two angles at once:
+
+| Spelling | Angle | Where |
+| --- | --- | --- |
+| `LilacWash` (the shared brush) | 135°, wrong | media cards ×5, the prompt sheet, the notifications pip |
+| `Brush.linearGradient(colorStops = LilacStops...)` | 135°, wrong | photos, ×2 |
+| `Brush.verticalGradient(LilacStops...)` | 180°, right | date of birth, prompts |
+
+So the age-confirmation card and a prompt card were correct, and the pip beside them was not —
+inside the same flow, from the same token.
+
+**Fixed as one definition rather than five call-site edits:** `LilacWash` is vertical now, and all
+four inline copies are gone. The design-system rule that says a token has one definition is exactly
+the rule that would have prevented this, and a duplicated *brush* is as much a duplicate as a
+duplicated hex.
+
+Touches SHOWUP-154, 156, 158 and 161 surfaces as well as 162's pip. Paint only — no geometry
+changes, no fit findings, and the screenshots for those tickets are regenerated from the build.
+
+## E26 · `text-wrap: pretty` is in three acceptance criteria and is implemented on neither platform. RECORDED
+
+SHOWUP-162 asks for it on the lead paragraph and on every row line, and the reference sets
+`textWrap: 'pretty'` on both. Neither Compose nor SwiftUI has it, and unlike `text-wrap: balance`
+— which this project DID build, as a binary search for the narrowest width that preserves the line
+count — nothing here implements it.
+
+**The two are not the same size of problem.** `balance` was built because the ticket states the
+outcome it wants: at 390 a greedy wrap gives `Never miss a date with` / `Notifications!` and the
+artboard shows `Never miss a date` / `with Notifications!`. There is a right answer and greedy
+wrapping gets it wrong, visibly, on the screen's largest type.
+
+`pretty` states no outcome. It is a browser-defined hint that mostly avoids a one-word last line
+and slightly reduces raggedness, on body copy of two to four lines. Building it means a second
+bespoke wrap algorithm on two platforms, carrying its own copy of each block's width and style —
+the kind of duplicate that drifts from the screen it is supposed to describe.
+
+**And no orphan has been observed.** The lead and all five row lines were looked at in the rendered
+evidence at 375 x 647, 390 x 763 and 430 x 839, and in the 320 x 2.0 tight frame. Every one breaks
+on a phrase; none ends in a single word.
+
+**What would change this:** an orphan at any frame, or a second screen wanting the same hint. Then
+it is worth building once, in the shared type layer, rather than twice here.
+
+## E27 · `mobile/welcome-screen/shared/` is a dead snapshot of live files, and it just diverged further. NEEDS A DECISION
+
+Fifteen files under `shared/android/` and `shared/ios/`, last touched **2 September 2026** by a
+SHOWUP-140 commit. Neither build references the directory — Gradle's source sets do not include
+it and `gen_pbxproj.py` discovers from `ios-app/ShowUpWelcome` — so nothing in it ships, nothing
+in it compiles, and nothing in it is tested. There is no README saying what it is for.
+
+**It contains second copies of files that are still being changed.** `shared/ios/WelcomeShell.swift`
+still declares `struct WelcomeScaffold<Content: View>`; the live one is
+`WelcomeScaffold<Content: View, Footer: View>` as of this branch. `shared/android/WelcomeShell.kt`
+has the scaffold without the `footer` slot. `PhoneVerificationScreen` is there twice as well.
+
+**This is the exact shape of the failure this project has been bitten by three times** —
+`PillButton`, `SunsetButton`, `StatusBadge` — and the reason the first rule in both CLAUDE.md
+files is "search for an existing implementation before creating one". Someone grepping for
+`WelcomeScaffold` today finds two definitions and one of them is three weeks stale.
+
+**Not deleted here**, because removing fifteen files is a decision about what that directory was
+for and this ticket is a notifications screen. Recorded so it is a decision someone takes rather
+than a divergence that widens every time the shell changes. Either it is a handoff snapshot and
+wants a README saying so and a date, or it is dead and wants deleting.
+

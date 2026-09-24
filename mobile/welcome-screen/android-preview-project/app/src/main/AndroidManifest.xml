@@ -9,6 +9,20 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
+        THE NOTIFICATION ASK (SHOWUP-162).
+
+        A RUNTIME PERMISSION ONLY FROM API 33. Below that there is none: notifications are on by
+        default, POST_NOTIFICATIONS does not exist, and the ask screen is skipped entirely.
+        maxSdkVersion is deliberately NOT set. Declaring it on older versions is harmless, and
+        omitting the declaration on 33 and above makes the request a silent no-op, which is the
+        failure that looks exactly like a user declining.
+
+        Those older users still receive all five notification categories and still register for
+        push. Being skipped by the ask is not being skipped by the feature.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
         THE ONE PERMISSION THE PHOTO STEP ACTUALLY ASKS FOR (SHOWUP-156).
 
         The library is reached through the SYSTEM PICKER, which runs out of process and needs no

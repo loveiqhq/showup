@@ -11,6 +11,7 @@
  */
 package com.showup.designsystem
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -92,6 +93,23 @@ val WordmarkStops = listOf(0.00f to Color(0xFF812AEC), 0.55f to Color(0xFFD05976
  * its gradient a little deeper. Nothing moves, and no other screen used this.
  */
 val LilacStops = listOf(0.00f to Color(0xFFF1E6FF), 1.00f to Color(0xFFE8DCF5))
+
+/**
+ * `--su-grad-lilac` as a brush: the wash under every lilac pip and preview block.
+ *
+ * IT LIVED IN `MediaCards.kt` UNTIL A SECOND SCREEN NEEDED IT. The rule is that a shared primitive
+ * never lives in a screen file, and the reason is on the record: `PillButton` sat in
+ * `WelcomeShell.kt`, so whoever wrote the tutorial's CTA had no reason to open the sign-up flow
+ * and wrote their own. The notifications ask (SHOWUP-162) is the second screen to want this wash,
+ * which is the moment it moves.
+ */
+val LilacWash: Brush
+    // VERTICAL, and that is the whole of the token: `linear-gradient(180deg, ...)`. The obvious
+    // spelling is wrong -- `Brush.linearGradient(colorStops)` defaults to Offset.Zero ->
+    // Offset.Infinite, which resolves to the drawing area's top-left -> bottom-right and is a 135
+    // diagonal. Sunset IS 135 and reads correctly that way, which is what made this easy to carry
+    // over; lilac is 180 and did not. iOS had it right on every surface.
+    get() = Brush.verticalGradient(colorStops = LilacStops.toTypedArray())
 
 // ── Type ─────────────────────────────────────────────────────────────────
 //

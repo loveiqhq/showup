@@ -107,6 +107,21 @@ enum class FlowScreen {
      */
     ProfileMedia,
 
+    /**
+     * The notification permission ask (SHOWUP-162), between media and Stay reachable.
+     *
+     * NOT A STEP and not a resume point. It holds nothing on the account, so like the embrace
+     * bridge and the media step there is no fact that says whether it was seen -- `resumePoint`
+     * cannot name it and a relaunch never lands here.
+     *
+     * That is also why this codebase cannot get into the stuck state the ticket guards against.
+     * Its first anti-stuck rule -- "advance the saved flow position when the sheet is raised" --
+     * assumes a per-screen saved position; resume here is derived from server profile facts, so a
+     * kill mid-sheet relaunches to wherever those facts point, never onto a dead button. The other
+     * two rules, the status guard before the push and the foreground re-read, are both built.
+     */
+    ProfileNotifications,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;

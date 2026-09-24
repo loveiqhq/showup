@@ -77,7 +77,7 @@ import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.FloatingField
 import com.showup.designsystem.InlineErrorCard
-import com.showup.designsystem.LilacStops
+import com.showup.designsystem.LilacWash
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Motion
@@ -349,7 +349,7 @@ private fun AgeCard(age: Int, onEdit: () -> Unit) {
             .fillMaxWidth()
             .alpha(enter)
             .clip(RoundedCornerShape(16.dp))
-            .background(Brush.verticalGradient(LilacStops.map { it.second }))
+            .background(LilacWash)
             .border(1.dp, Purple.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .semantics { contentDescription = DobCopy.ageQuestion(age) },

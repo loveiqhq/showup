@@ -171,7 +171,10 @@ private struct MethodListLayout: View {
                     WashHeadline(
                         parts: [("Welcome to ", false), ("Show Up", true)],
                         fontSize: compact ? 34 : 40,
-                        trailing: .heart
+                        // heartFilled: the kit calls it `heart-filled` and that is the variant
+                        // this button has always drawn. `heart` is now the stroked outline that
+                        // the notifications ask needs (SHOWUP-162).
+                        trailing: .heartFilled
                     )
 
                     // A hard break, not a wrap: the ticket specifies two lines and names the break.
