@@ -93,6 +93,27 @@ interface NotificationAccessReader {
  */
 fun shouldShowAsk(status: NotificationPermission): Boolean = !status.isDetermined
 
+/**
+ * The status, from the three facts Android can report. A pure function, so the branch that
+ * actually fires in production is testable with no Context and no device.
+ *
+ * `hasAsked` is the only way to tell a permission never requested from one refused: Android
+ * reports both as not-granted, which is why [PermissionAskLog] exists and is shared with the photo
+ * and media steps rather than re-invented here.
+ */
+fun notificationPermissionFor(
+    sdkInt: Int,
+    granted: Boolean,
+    hasAsked: Boolean,
+): NotificationPermission = when {
+    // Below 33 there is no runtime permission at all. Granted, per §24 -- and the branch the
+    // ticket calls "the one that actually fires in production".
+    sdkInt < Build.VERSION_CODES.TIRAMISU -> NotificationPermission.Granted
+    granted -> NotificationPermission.Granted
+    hasAsked -> NotificationPermission.Denied
+    else -> NotificationPermission.NotDetermined
+}
+
 /** The real reader. */
 class AndroidNotificationAccess(
     private val context: Context,
@@ -101,24 +122,19 @@ class AndroidNotificationAccess(
 ) : NotificationAccessReader {
 
     override fun read(): NotificationPermission {
-        // Below 33 there is no runtime permission at all. Granted, per §24 -- and the branch the
-        // ticket calls "the one that actually fires in production".
-        if (sdkInt < Build.VERSION_CODES.TIRAMISU) return NotificationPermission.Granted
-
-        val granted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.POST_NOTIFICATIONS,
-        ) == PackageManager.PERMISSION_GRANTED
-        if (granted) return NotificationPermission.Granted
-
-        // NOT GRANTED IS TWO DIFFERENT THINGS ON ANDROID and the platform will not tell you which
-        // directly: a permission never asked for and one refused both read as denied. The only
-        // signal is whether we have asked before, which is why [PermissionAskLog] exists and is
-        // shared with the photo and media steps rather than re-invented here.
-        return if (PermissionAskLog.hasAsked(context, Manifest.permission.POST_NOTIFICATIONS)) {
-            NotificationPermission.Denied
-        } else {
-            NotificationPermission.NotDetermined
+        // The context is not touched below 33, where the answer does not depend on it.
+        if (sdkInt < Build.VERSION_CODES.TIRAMISU) {
+            return notificationPermissionFor(sdkInt, granted = false, hasAsked = false)
         }
+        return notificationPermissionFor(
+            sdkInt = sdkInt,
+            granted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED,
+            hasAsked = PermissionAskLog.hasAsked(
+                context, Manifest.permission.POST_NOTIFICATIONS,
+            ),
+        )
     }
 }
 
