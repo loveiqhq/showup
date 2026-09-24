@@ -1027,6 +1027,91 @@ check("162 permission_result cannot be limited (kotlin)",
 check("162 permission_result cannot be limited (swift)",
       "granted: Bool" in analytics_sw and '"limited"' not in code_only(analytics_sw))
 
+
+# ── SHOWUP-162 · the row, against the reference file rather than the ticket ──
+#
+# "Order of authority: reference file wins on numbers." Reading it found three defects the ticket
+# prose could not have: `alignItems: 'baseline'` on the title row, which Android had as centre; the
+# tag's `transform: translateY(-1px)`, which Android had as a bottom padding and is not the same
+# thing; and the title's `lineHeight: 1.2`, which iOS did not set at all. Each was correct on
+# exactly one platform, which is the shape a parity check exists to catch.
+
+# The pip. THE MEDIA CARD'S RECIPE at this screen's own numbers -- 40 at radius 12 against the
+# card's 42 at 13 -- because "same recipe" is about the vocabulary and the reference wins on size.
+check("162 pip is 40 (kotlin)", "size(40.dp)" in notify_kt)
+check("162 pip is 40 (swift)", "frame(width: 40, height: 40)" in notify_sw)
+check("162 pip radius 12 (kotlin)", "RoundedCornerShape(12.dp)" in notify_kt)
+check("162 pip radius 12 (swift)", "cornerRadius: 12" in notify_sw)
+check("162 pip is the lilac wash (kotlin)", "background(LilacWash)" in notify_kt)
+check("162 pip is the lilac wash (swift)", "Gradients.lilac()" in notify_sw)
+check("162 icon 20 at stroke 1.8 in primary-500 (kotlin)",
+      "20.dp, tint = Purple, strokeWidth = 1.8f" in notify_kt)
+check("162 icon 20 at stroke 1.8 in primary-500 (swift)",
+      "size: 20, stroke: 1.8, tint: .liqPurple" in notify_sw)
+
+# The row itself: gap 14, items top-aligned.
+check("162 row gap 14 (kotlin)", "spacedBy(14.dp)" in notify_kt)
+check("162 row gap 14 (swift)", "spacing: 14" in notify_sw)
+check("162 row aligns to the top (kotlin)", "verticalAlignment = Alignment.Top" in notify_kt)
+check("162 row aligns to the top (swift)", "alignment: .top" in notify_sw)
+
+# The title: Lora 700 / 16 / 1.2 / -0.005em, and BASELINE-aligned with the tag beside it.
+check("162 title is Lora 700 at 16 (kotlin)",
+      "fontFamily = Lora, fontWeight = FontWeight.Bold" in notify_kt and "fontSize = 16.sp" in notify_kt)
+check("162 title is Lora 700 at 16 (swift)", "F.lora(16, bold: true)" in notify_sw)
+check("162 title line height 1.2 (kotlin)", "lineHeight = (16f * 1.2f).sp" in notify_kt)
+check("162 title line height 1.2 (swift)", "lineSpacing(16 * 0.2)" in notify_sw)
+check("162 title tracking -0.005em (kotlin)", "letterSpacing = (-0.005).em" in notify_kt)
+check("162 title tracking -0.005em (swift)", "tracking(-0.005 * 16)" in notify_sw)
+check("162 title and tag align on the BASELINE (kotlin)", "alignByBaseline()" in notify_kt)
+check("162 title and tag align on the BASELINE (swift)",
+      "alignment: .firstTextBaseline" in notify_sw)
+check("162 title-to-tag gap 8 (kotlin)", "spacedBy(8.dp)" in notify_kt)
+check("162 title-to-tag gap 8 (swift)", "spacing: 8" in notify_sw)
+
+# The line: Manrope 500 / 13.5 / 1.4, 3 below the title.
+check("162 row line is Manrope 500 at 13.5 (kotlin)", "fontSize = 13.5.sp" in notify_kt)
+check("162 row line is Manrope 500 at 13.5 (swift)", "F.manrope(13.5, .medium)" in notify_sw)
+check("162 row line height 1.4 (kotlin)", "lineHeight = (13.5f * 1.4f).sp" in notify_kt)
+check("162 row line height 1.4 (swift)", "lineSpacing(13.5 * 0.4)" in notify_sw)
+check("162 row line sits 3 below the title (kotlin)", "padding(top = 3.dp)" in notify_kt)
+check("162 row line sits 3 below the title (swift)", "padding(.top, 3)" in notify_sw)
+
+# The Premium pill: 3 x 10, capsule, sunset, white Manrope 800 / 10 uppercase at 0.06em, nudged up
+# 1 by a TRANSFORM. A padding moves it half as far and makes the row taller; the reference's
+# `translateY` takes part in no layout at all.
+check("162 tag padding 3 x 10 (kotlin)", "padding(horizontal = 10.dp, vertical = 3.dp)" in notify_kt)
+check("162 tag padding 3 x 10 (swift)",
+      "padding(.horizontal, 10)" in notify_sw and "padding(.vertical, 3)" in notify_sw)
+check("162 tag is a capsule (kotlin)", "RoundedCornerShape(percent = 50)" in notify_kt)
+check("162 tag is a capsule (swift)", "in: Capsule()" in notify_sw)
+check("162 tag is sunset (kotlin)", "SunsetStops" in notify_kt)
+check("162 tag is sunset (swift)", "Gradients.sunset()" in notify_sw)
+check("162 tag is white Manrope 800 at 10 (kotlin)",
+      "FontWeight.ExtraBold" in notify_kt and "fontSize = 10.sp" in notify_kt)
+check("162 tag is white Manrope 800 at 10 (swift)", "F.manrope(10, .heavy)" in notify_sw)
+check("162 tag is uppercase (kotlin)", ".uppercase()" in notify_kt)
+check("162 tag is uppercase (swift)", ".uppercased()" in notify_sw)
+check("162 tag tracking 0.06em (kotlin)", "letterSpacing = 0.06.em" in notify_kt)
+check("162 tag tracking 0.06em (swift)", "tracking(0.06 * 10)" in notify_sw)
+check("162 tag is nudged by a TRANSFORM, not a padding (kotlin)",
+      "offset(y = (-1).dp)" in notify_kt)
+check("162 tag is nudged by a TRANSFORM, not a padding (swift)", "offset(y: -1)" in notify_sw)
+
+# The headline and the lead.
+check("162 headline is 32 (kotlin)", "fontSize = 32.sp" in notify_kt)
+check("162 headline is 32 (swift)", "fontSize: 32" in notify_sw)
+check("162 headline line height 1.1 (kotlin)", "(32f * 1.1f).sp" in notify_kt)
+check("162 headline line height 1.1 (swift)", "lineHeightMultiple: 1.1" in notify_sw)
+check("162 headline tracking -0.015em (kotlin)", "letterSpacing = (-0.015).em" in notify_kt)
+check("162 headline tracking -0.015em (swift)", "trackingEm: -0.015" in notify_sw)
+check("162 headline is balanced (kotlin)", "balance = true" in notify_kt)
+check("162 headline is balanced (swift)", "balance: true" in notify_sw)
+check("162 lead is Manrope 500 at 15 (kotlin)", "fontSize = 15.sp" in notify_kt)
+check("162 lead is Manrope 500 at 15 (swift)", "F.manrope(15, .medium)" in notify_sw)
+check("162 lead line height 1.55 (kotlin)", "(15f * 1.55f).sp" in notify_kt)
+check("162 lead line height 1.55 (swift)", "lineSpacing(15 * 0.55)" in notify_sw)
+
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
 if failures:

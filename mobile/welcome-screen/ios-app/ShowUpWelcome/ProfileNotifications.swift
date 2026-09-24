@@ -40,7 +40,7 @@
 //  ───────────────────────────────────────────────────────────────────────────
 //
 //  Measured on the Compose side across seventeen frames. At the DEFAULT font three come up short
-//  — the Galaxy Fold cover screen by 167, a 360x640 Android by 96, the iPhone SE by 3. At 1.3x
+//  — the Galaxy Fold cover screen by 169, a 360x640 Android by 98, the iPhone SE by 5. At 1.3x
 //  type thirteen of the seventeen miss; at 2.0x all of them do.
 //
 //  The ticket's agreed order of sacrifice is worth about 15pt before its last rung, which closes
@@ -156,6 +156,10 @@ private struct BenefitRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(benefit.title)
                         .font(F.lora(16, bold: true))
+                        // `lineHeight: 1.2`, in the same size x (multiple - 1) spelling the lead
+                        // and the row line use. Invisible on one line and not on two, and at 2.0x
+                        // type every title is two lines.
+                        .lineSpacing(16 * 0.2)
                         .tracking(-0.005 * 16)
                         .foregroundColor(.liqFg)
                     if benefit.tag != nil { PremiumTag() }

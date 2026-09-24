@@ -54,7 +54,7 @@
  *
  * IT DOES NOT FIT EVERYWHERE, and that is measured rather than feared. Across the seventeen frames
  * this project ships to, at the DEFAULT font three of them come up short -- the Galaxy Fold cover
- * screen by 167, a 360 x 640 Android by 96, and the iPhone SE by 3. At 1.3x type thirteen of the
+ * screen by 169, a 360 x 640 Android by 98, and the iPhone SE by 5. At 1.3x type thirteen of the
  * seventeen miss; at 2.0x all of them do.
  *
  * The ticket's agreed order of sacrifice -- spacer, list gap 16 to 14, row line 13.5 to 13, then
@@ -83,6 +83,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.requiredHeightIn
@@ -212,12 +213,14 @@ internal val NOTIFY_BENEFITS = listOf(
  * above merges its semantics rather than this drawing its own.
  */
 @Composable
-private fun PremiumTag() {
+private fun PremiumTag(modifier: Modifier = Modifier) {
     Box(
-        Modifier
-            // translateY(-1px) in the reference: the pill sits on the title's baseline row and a
-            // capsule reads a hair low against a serif cap-height without it.
-            .padding(bottom = 1.dp)
+        modifier
+            // `transform: translateY(-1px)` in the reference, which is an OFFSET and not a
+            // padding: it moves the pill and takes part in no layout. Spelling it as a bottom
+            // padding made the tag's box 1 taller and moved the pill half as far, which is the
+            // kind of difference that is invisible until a row wraps.
+            .offset(y = (-1).dp)
             .clip(RoundedCornerShape(percent = 50))
             .background(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()))
             .padding(horizontal = 10.dp, vertical = 3.dp),
@@ -261,17 +264,19 @@ private fun BenefitRow(benefit: NotifyBenefit) {
         // paddingTop 1 in the reference: the serif title's cap-height sits a fraction below the
         // pip's optical centre without it.
         Column(Modifier.padding(top = 1.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            // BASELINE, NOT CENTRE. The reference sets `alignItems: 'baseline'`, and the
+            // difference is visible: a 10 uppercase pill centred against a 16 serif sits low,
+            // which is exactly what its -1 nudge is correcting for. Compose expresses baseline
+            // alignment per child rather than on the Row.
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     benefit.title,
+                    modifier = Modifier.alignByBaseline(),
                     color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
                     fontSize = 16.sp, lineHeight = (16f * 1.2f).sp,
                     letterSpacing = (-0.005).em,
                 )
-                if (benefit.tag != null) PremiumTag()
+                if (benefit.tag != null) PremiumTag(Modifier.alignByBaseline())
             }
             Text(
                 benefit.line,
@@ -312,7 +317,7 @@ fun ProfileNotificationsScreen(
     // This is the most content on any non-scrolling screen in the flow -- a 32 headline, a lead
     // paragraph and five two-line rows -- and measured across the seventeen frames this project
     // ships to, three of them come up short at the DEFAULT font: the Galaxy Fold cover screen by
-    // 167, a 360 x 640 Android by 96, and the iPhone SE by 3. At 1.3x type thirteen of the
+    // 169, a 360 x 640 Android by 98, and the iPhone SE by 5. At 1.3x type thirteen of the
     // seventeen miss, and at 2.0x all of them do.
     //
     // The ticket's agreed order of sacrifice -- spacer, then list gap 16 to 14, then the row line

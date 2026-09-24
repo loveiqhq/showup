@@ -738,13 +738,13 @@ the end of the list. Zero means it fits.
 
 | Frame | 1.0x | 1.3x | 2.0x |
 | --- | --- | --- | --- |
-| Galaxy Fold cover screen 320 x 638 | **167** | 409 | 1186 |
-| small Android (HD) 360 x 592 | **96** | 325 | 1010 |
-| iPhone SE (3rd gen) 375 x 647 | **3** | 270 | 856 |
-| Galaxy A / common Android 360 x 692 | 0 | 225 | 910 |
-| iPhone 12 / 13 / 14 390 x 763 | 0 | 154 | 648 |
-| iPhone 15/16 Pro Max 430 x 839 | 0 | 0 | 355 |
-| the other eleven | 0 | 0–183 | 334–906 |
+| Galaxy Fold cover screen 320 x 638 | **169** | 412 | 1190 |
+| small Android (HD) 360 x 592 | **98** | 327 | 1014 |
+| iPhone SE (3rd gen) 375 x 647 | **5** | 272 | 860 |
+| Galaxy A / common Android 360 x 692 | 0 | 227 | 914 |
+| iPhone 12 / 13 / 14 390 x 763 | 0 | 156 | 652 |
+| iPhone 15/16 Pro Max 430 x 839 | 0 | 0 | 357 |
+| the other eleven | 0 | 0–185 | 336–910 |
 
 So at the **default font three of seventeen frames scroll**; at 1.3x, thirteen; at 2.0x, all of
 them. The heights are safe-area heights, which is why 375 x 667 appears as 647 — an iPhone SE has
@@ -752,7 +752,7 @@ a 20pt status bar and a home BUTTON, not the 585 a notched phone would leave. Th
 375 x 667 first" is right, and 647 is the number to check against.
 
 **The ladder is worth about 15dp before its last rung** — 8 from the four list gaps at 16 → 14, and
-7 from the ten row lines at 13.5 → 13. That closes the iPhone SE's 3 and nothing else. Against 167
+7 from the ten row lines at 13.5 → 13. That closes the iPhone SE's 5 and nothing else. Against 169
 on the Fold it is not close, and the last rung is a content decision this ticket keeps for itself:
 *then **come back** and cut a row*, with row 1 the reason the user is in the flow and row 5 the one
 that protects their time.

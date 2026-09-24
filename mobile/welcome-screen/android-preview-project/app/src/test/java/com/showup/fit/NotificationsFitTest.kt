@@ -216,9 +216,9 @@ class NotificationsFitTest {
     fun `the frames that scroll are the three measured, by the amount measured`() {
         // dp the user must drag to reach the end of the list. Everything absent fits.
         val recorded = mapOf(
-            "Galaxy Fold cover screen" to 167f,
-            "small Android (HD)" to 96f,
-            "iPhone SE (3rd gen)" to 3f,
+            "Galaxy Fold cover screen" to 169f,
+            "small Android (HD)" to 98f,
+            "iPhone SE (3rd gen)" to 5f,
         )
         val wrong = mutableListOf<String>()
         DEVICES.forEach { d ->
