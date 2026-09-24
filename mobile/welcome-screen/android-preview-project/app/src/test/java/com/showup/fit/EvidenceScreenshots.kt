@@ -344,6 +344,15 @@ class EvidenceScreenshots {
                 ),
             )
         }
+        // SHOWUP-162. THE COMBINATION THAT HID A REAL BUG for a whole review round: at 320 x 2.0
+        // the Premium pill was squeezed to 25dp of the 123 it needed, with the word ellipsised
+        // inside a stub of a capsule. Nothing overflowed, so the fit sweep called the screen clean
+        // on all seventeen devices at 2.0x -- and it was clean, by every measurement it takes.
+        // A picture is what shows it, which is this test's whole argument.
+        shoot("TIGHT", "notifications", fontScale = 2f, devices = tight) {
+            ProfileNotificationsScreen()
+        }
+
         // Not a media screen. The photo sheet's blocked camera row is where the `Settings` pill
         // and the sentence beside it compete for a 320dp line, and it is the other screen the
         // unmerged-tree harness found a real clipping bug on.
