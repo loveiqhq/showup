@@ -898,6 +898,135 @@ for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
 for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
     check("158 CTA circle 52 (%s)" % label, "circleSize" in text and "52" in text)
 
+
+# ── SHOWUP-162 · the notifications permission ask ─────────────────────────
+#
+# THE ABSENCES ARE THE DESIGN, and the ticket makes four of them acceptance criteria: no
+# AppHeader, no StepProgress, no way backwards, no `Open Settings`. Each is the kind of thing a
+# later consistency pass adds without malice, and a "not in" assertion is the only way to hold a
+# decision that is expressed by something not being there.
+notify_kt = code_only(read(KT, "profile", "ProfileNotificationsScreen.kt"))
+notify_sw = code_only(read(SW, "ProfileNotifications.swift"))
+analytics_kt = read(KT, "profile", "ProfileAnalytics.kt")
+analytics_sw = read(SW, "ProfileAnalytics.swift")
+
+check("162 no AppHeader (kotlin)", "AppHeader" not in notify_kt)
+check("162 no AppHeader (swift)", "AppHeader" not in notify_sw)
+check("162 no StepProgress (kotlin)", "StepProgress" not in notify_kt)
+check("162 no StepProgress (swift)", "StepProgress" not in notify_sw)
+check("162 no SkipLink (kotlin)", "SkipLink" not in notify_kt)
+check("162 no SkipLink (swift)", "SkipLink" not in notify_sw)
+
+# BACKWARDS IS BLOCKED, and on each platform that is one specific line. Android needs an enabled
+# BackHandler or the gesture pops the screen; iOS needs the nav bar's own back hidden.
+check("162 back is blocked (kotlin)", "BackHandler(enabled = true)" in notify_kt)
+check("162 back is blocked (swift)", "navigationBarBackButtonHidden(true)" in notify_sw)
+
+# NOT A STEP. §2 holds a `notifications` step_id whose index is a dash, and the note added on
+# 21 September 2026 says that is not a licence to fire `profile_step_viewed` -- the id exists so a
+# future skip has a stable value, and this screen has no skip CTA.
+check("162 fires no step event (kotlin)", "stepViewed" not in notify_kt)
+check("162 fires no step event (swift)", "stepViewed" not in notify_sw)
+
+# NO RECOVERY HERE. A denial is recovered on Stay reachable (10), which owns the notifications row
+# and is where a Settings deep link belongs. The same recovery in two places, one of which cannot
+# re-prompt, is the failure the ticket names.
+check("162 no Settings path (kotlin)", "Settings" not in notify_kt)
+check("162 no Settings path (swift)", "Settings" not in notify_sw)
+
+# Rule 5's named exception -- the ambient backdrop, from the shared component rather than three
+# pasted gradients, which the ticket asks for by name in its dependencies.
+check("162 uses the shared backdrop scaffold (kotlin)", "WelcomeScaffold" in notify_kt)
+check("162 uses the shared backdrop scaffold (swift)", "WelcomeScaffold" in notify_sw)
+check("162 headline block top padding 40 (kotlin)", "topPadding = 40.dp" in notify_kt)
+check("162 headline block top padding 40 (swift)", "topPadding: 40" in notify_sw)
+check("162 gutter 28, not the group's 24 (kotlin)", "gutter = 28.dp" in notify_kt)
+check("162 gutter 28, not the group's 24 (swift)", "gutter: 28" in notify_sw)
+check("162 body block top padding 20 (kotlin)", "padding(top = 20.dp)" in notify_kt)
+check("162 body block top padding 20 (swift)", "padding(.top, 20)" in notify_sw)
+check("162 list gap 16 (kotlin)", "spacedBy(16.dp)" in notify_kt)
+check("162 list gap 16 (swift)", "spacing: 16" in notify_sw)
+check("162 list margin-top 22 (kotlin)", "padding(top = 22.dp)" in notify_kt)
+check("162 list margin-top 22 (swift)", "padding(.top, 22)" in notify_sw)
+
+# Rule 7's named exception, and the ONE difference from the bridge: no trailing arrow. 05's button
+# ends in an 18 arrow-right and this one does not -- the label is the whole button.
+check("162 CTA is sunset (kotlin)", "PrimaryButtonVariant.Sunset" in notify_kt)
+check("162 CTA is sunset (swift)", "variant: .sunset" in notify_sw)
+check("162 CTA has NO trailing slot (kotlin)", "trailing" not in notify_kt)
+check("162 CTA has NO trailing slot (swift)", "trailing:" not in notify_sw)
+check("162 CTA wrapper margin-bottom 18 (kotlin)", "padding(bottom = 18.dp)" in notify_kt)
+check("162 CTA wrapper margin-bottom 18 (swift)", "padding(.bottom, 18)" in notify_sw)
+
+# ONE flex spacer with a 12 floor, and it is `required` on Android. `weight` hands down a FIXED
+# height, so an ordinary `heightIn(min =)` after it is clamped to whatever is left -- measured on
+# an iPhone SE, where the 12 became 9.
+check("162 one spacer, floor 12 (kotlin)", notify_kt.count("requiredHeightIn(min = 12.dp)") == 1)
+check("162 one spacer, floor 12 (swift)", notify_sw.count("Spacer(minLength: 12)") == 1)
+
+# THE CTA IS PINNED BELOW THE SCROLL. Scrolling alone left it below the fold on the Galaxy Fold
+# cover screen, which the iOS sweep caught as a CTA that was simply not drawn. See E20.
+check("162 the CTA is pinned, not scrolled (kotlin)", "footer = {" in notify_kt)
+check("162 the CTA is pinned, not scrolled (swift)", "footer: {" in notify_sw)
+
+# FIVE ROWS, NOT SIX, and the order is content rather than layout: row 1 is why the user is in the
+# flow at all and row 5 is the one that protects their time.
+for _n, _title in enumerate(
+    ["Match alert", "Like received", "Meeting details change", "Date reminder", "Date cancelled"], 1
+):
+    check("162 row %d title (kotlin)" % _n, '"%s"' % _title in notify_kt)
+    check("162 row %d title (swift)" % _n, '"%s"' % _title in notify_sw)
+
+# THE COPY, QUOTED BACK FROM THE TICKET. Spaced em dashes, never hyphens, and `e.g.` lower case
+# with both points -- the ticket says so outright, so the assertion carries the characters.
+for _label, _txt in [
+    ("headline lead", u"Never miss "),
+    ("headline em", u"a date"),
+    ("headline tail", u" with Notifications!"),
+    ("lead", u"No spam! Every notification is about your dates and helps you to never miss one."),
+    ("cta", u"Enable notifications"),
+    ("row 1", u"Get instant notifications when you receive a match and never miss out on a date."),
+    ("row 2", u"Don't miss your chance to meet — we surface it the second it arrives."),
+    ("row 3", u"Get notified if your date asks — e.g. meet time change, running late."),
+    ("row 4", u"A heads-up an hour out — never arrive late."),
+    ("row 5", u"Never waste time waiting — get notified, look for someone else instead."),
+    ("premium tag", u"Premium"),
+]:
+    check("162 copy: %s (kotlin)" % _label, _txt in notify_kt)
+    check("162 copy: %s (swift)" % _label, _txt in notify_sw)
+
+# The Premium tag is a LABEL. Not tappable, opens nothing, no paywall behind it -- and it reads as
+# part of row 2's title rather than as a control of its own.
+_tag_kt = notify_kt.split("fun PremiumTag")[1].split("\n}")[0]
+_tag_sw = notify_sw.split("struct PremiumTag")[1].split("\n}")[0]
+check("162 Premium tag is not a control (kotlin)",
+      "clickable" not in _tag_kt and "onClick" not in _tag_kt)
+check("162 Premium tag is not a control (swift)",
+      "Button" not in _tag_sw and "onTapGesture" not in _tag_sw)
+
+# The registry row, from §11 and never typed at a call site.
+check("162 the screen row is registry-backed (kotlin)",
+      'Notifications("profile_notifications", "ProfileNotifications")' in analytics_kt)
+check("162 the screen row is registry-backed (swift)",
+      'case notifications = "profile_notifications"' in analytics_sw)
+
+# The four family G events, all four new, and the three that must NOT fire here.
+for _ev in ["permission_prompted", "permission_os_sheet_shown", "permission_result",
+            "permission_status_changed"]:
+    check("162 %s exists (kotlin)" % _ev, '"%s"' % _ev in analytics_kt)
+    check("162 %s exists (swift)" % _ev, '"%s"' % _ev in analytics_sw)
+
+for _ev in ["permission_denied_recovery_shown", "permission_settings_opened", "consent_changed"]:
+    check("162 %s must not fire here (kotlin)" % _ev, _ev not in notify_kt)
+    check("162 %s must not fire here (swift)" % _ev, _ev not in notify_sw)
+
+# `limited` is a photo-library state and cannot occur for notifications. Both builders take a
+# Boolean, so there is no third value to pass by mistake.
+check("162 permission_result cannot be limited (kotlin)",
+      "granted: Boolean" in analytics_kt and '"limited"' not in code_only(analytics_kt))
+check("162 permission_result cannot be limited (swift)",
+      "granted: Bool" in analytics_sw and '"limited"' not in code_only(analytics_sw))
+
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
 if failures:

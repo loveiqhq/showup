@@ -99,6 +99,8 @@ enum FlowScreen: String, CaseIterable, Comparable {
     /// a per-screen saved position; resume here is derived from server profile facts, so a kill
     /// mid-sheet relaunches to wherever those facts point and never onto a dead button. The other
     /// two rules, the status guard before the push and the foreground re-read, are both built.
+    /// Recorded as E23 in `audit/CONFLICTS-2026-08-27.md`, because an acceptance criterion
+    /// quotes rule 1 verbatim and a reviewer walking that list needs to find the reason.
     case profileNotifications
 
     /// Where the flow ends, for both the tutorial and a returning member.

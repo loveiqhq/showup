@@ -31,7 +31,7 @@
  * push and the token reaches the backend, verified not assumed" -- CANNOT be met by this build,
  * and pretending otherwise is the silent failure the ticket is warning about. The upload path, the
  * endpoint and the error handling are all built and tested against a fake source; the real source
- * is one class and a dependency away. Recorded in `audit/CONFLICTS-2026-08-27.md`.
+ * is one class and a dependency away. Recorded as E22 in `audit/CONFLICTS-2026-08-27.md`.
  */
 package com.showup.profile
 

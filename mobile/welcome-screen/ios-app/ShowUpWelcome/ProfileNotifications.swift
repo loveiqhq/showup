@@ -39,11 +39,15 @@
 //  IT DOES NOT FIT EVERYWHERE
 //  ───────────────────────────────────────────────────────────────────────────
 //
-//  Measured on the Compose side across seventeen frames: at the default font it is 21 short on a
-//  320-wide screen and 17 short on a 360x640, and misses on most at 1.3x type. The ticket's agreed
-//  order of sacrifice is worth about 14pt against a 33pt deficit, so the approved values are kept
-//  and the scaffold's scroll fallback carries the frames the design was not drawn for. Nothing
-//  scrolls where it fits. See E20 in `audit/CONFLICTS-2026-08-27.md`.
+//  Measured on the Compose side across seventeen frames. At the DEFAULT font three come up short
+//  — the Galaxy Fold cover screen by 167, a 360x640 Android by 96, the iPhone SE by 3. At 1.3x
+//  type thirteen of the seventeen miss; at 2.0x all of them do.
+//
+//  The ticket's agreed order of sacrifice is worth about 15pt before its last rung, which closes
+//  the SE and nothing else, and that last rung — cut a row — is a content decision the ticket
+//  reserves. So the approved values are kept, THE CTA IS PINNED BELOW THE SCROLL, and only the
+//  list moves. Nothing scrolls on the fourteen frames where it fits. See E20 in
+//  `audit/CONFLICTS-2026-08-27.md`.
 //
 
 import SwiftUI
@@ -187,7 +191,35 @@ struct ProfileNotificationsView: View {
         //
         // scrollWhenTight, and the ticket says "never let it scroll" — see the file header. It
         // changes nothing where the screen fits and stops it clipping where it does not.
-        WelcomeScaffold(topPadding: 40, gutter: 28, scrollWhenTight: true) {
+        //
+        // THE CTA IS IN `footer`, NOT IN THE SCROLL, and that is the half that matters. Scrolling
+        // alone makes the button reachable and leaves it invisible: on the Galaxy Fold cover
+        // screen this opened with the whole button below the fold and nothing on screen saying
+        // so, which on a PERMISSION ASK reads as a broken screen rather than a scrollable one.
+        // `testTheCTAIsOnScreenOnEveryDevice` caught it and was right to.
+        //
+        // Pinned, the band is the bottom of the same column — same gutter, same 18 above the home
+        // indicator — so on the fourteen frames that fit it is exactly where it already was, and
+        // on the three that do not the list scrolls beneath a button that never leaves.
+        WelcomeScaffold(
+            topPadding: 40,
+            gutter: 28,
+            scrollWhenTight: true,
+            footer: {
+                // Sunset and full width, rule 7's named exception. NO TRAILING ICON.
+                // UNLABELLED FIRST ARGUMENT. `PrimaryButton` has two inits: the slotted one takes
+                // `label:` and a `trailing:` closure, and the no-slots one takes the label
+                // positionally. This button has NO trailing icon -- the one thing that differs
+                // from the bridge's CTA -- so it is the second, and `label:` there is a compile
+                // error.
+                PrimaryButton(
+                    NotificationsCopy.cta,
+                    variant: .sunset,
+                    action: { if !busy { onEnable() } }
+                )
+                .padding(.bottom, 18)
+            }
+        ) {
             WashHeadline(
                 parts: [
                     (NotificationsCopy.headlineLead, false),
@@ -217,19 +249,11 @@ struct ProfileNotificationsView: View {
 
             // THE ONLY FLEXIBLE ELEMENT, with a 12 floor. Every device difference lands here and
             // nothing else moves. One spacer, never two.
+            //
+            // IT STAYS IN THE CONTENT even though the CTA no longer is: with slack it is the thing
+            // that holds the button at the bottom of the screen, and with none it is the 12 points
+            // of air between the last row and the pinned band once the user has scrolled down.
             Spacer(minLength: 12)
-
-            // Sunset and full width, rule 7's named exception. NO TRAILING ICON.
-            // UNLABELLED FIRST ARGUMENT. `PrimaryButton` has two inits: the slotted one takes
-            // `label:` and a `trailing:` closure, and the no-slots one takes the label
-            // positionally. This button has NO trailing icon -- the one thing that differs from
-            // the bridge's CTA -- so it is the second, and `label:` there is a compile error.
-            PrimaryButton(
-                NotificationsCopy.cta,
-                variant: .sunset,
-                action: { if !busy { onEnable() } }
-            )
-            .padding(.bottom, 18)
         }
         // No chevron, no swipe-back. Profile creation is mandatory once entered.
         .navigationBarBackButtonHidden(true)

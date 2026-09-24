@@ -729,39 +729,113 @@ now; the gap is that a reader of the ticket would not know either was needed.
 ## E20 · The notifications ask does not fit every phone, and the agreed ladder does not close it. NEEDS A DECISION
 
 SHOWUP-162 says `It does not scroll`, twice, and names the order of sacrifice if it ever does not
-fit: *spacer, then list `gap` 16 to 14, then the row line 13.5 to 13, then cut a row. Never shrink
+fit: *spacer → list `gap` 16 → 14 → row line to 13 → **then** come back and cut a row. Never shrink
 the headline and never let it scroll.*
 
-**Measured across the seventeen frames this project ships to, at the DEFAULT font:**
+**Measured, not estimated.** `NotificationsFitTest.print what every device has` renders the screen
+at all seventeen frames at three font scales and reports the distance the user must drag to reach
+the end of the list. Zero means it fits.
 
-| Frame | Content column | Spacer |
-| --- | --- | --- |
-| Galaxy Fold cover screen 320 | 638 | **-21, overflows** |
-| small Android (HD) 360 x 640 | 592 | **-17, overflows** |
-| iPhone SE (3rd gen) 375 x 667 | 647 | 9, under the 12 floor |
-| iPhone 12/13/14 390 x 844 | 763 | 125 |
-| everything larger | | comfortable |
+| Frame | 1.0x | 1.3x | 2.0x |
+| --- | --- | --- | --- |
+| Galaxy Fold cover screen 320 x 638 | **167** | 409 | 1186 |
+| small Android (HD) 360 x 592 | **96** | 325 | 1010 |
+| iPhone SE (3rd gen) 375 x 647 | **3** | 270 | 856 |
+| Galaxy A / common Android 360 x 692 | 0 | 225 | 910 |
+| iPhone 12 / 13 / 14 390 x 763 | 0 | 154 | 648 |
+| iPhone 15/16 Pro Max 430 x 839 | 0 | 0 | 355 |
+| the other eleven | 0 | 0–183 | 334–906 |
 
-At 1.3x type it misses on most frames and at 2.0x on all of them.
+So at the **default font three of seventeen frames scroll**; at 1.3x, thirteen; at 2.0x, all of
+them. The heights are safe-area heights, which is why 375 x 667 appears as 647 — an iPhone SE has
+a 20pt status bar and a home BUTTON, not the 585 a notched phone would leave. The ticket's "check
+375 x 667 first" is right, and 647 is the number to check against.
 
-**The ladder is worth about 14dp before its last step** -- the gap change saves 8 and the line
-change about 6 -- against a 33dp deficit on the Fold. Cutting a row is a content decision the
-ticket reserves, and the same ticket says row 1 is why the user is in the flow and row 5 is the one
+**The ladder is worth about 15dp before its last rung** — 8 from the four list gaps at 16 → 14, and
+7 from the ten row lines at 13.5 → 13. That closes the iPhone SE's 3 and nothing else. Against 167
+on the Fold it is not close, and the last rung is a content decision this ticket keeps for itself:
+*then **come back** and cut a row*, with row 1 the reason the user is in the flow and row 5 the one
 that protects their time.
 
-**Shipped with the approved values intact and the scaffold's existing scroll fallback carrying the
-frames the design was not drawn for.** `WelcomeScaffold(scrollWhenTight = true)` floors the inner
-column at the viewport height, so on the fifteen frames where the content fits there is nothing to
-scroll and the layout is byte-for-byte what it was; on the two that are short it scrolls rather
-than drawing the CTA over the last row, which is what it did before.
+**Shipped with the approved values intact, and the CTA pinned below the scroll.** That second half
+is the fix for the thing that actually broke. `WelcomeScaffold(scrollWhenTight = true)` on its own
+makes the button *reachable*; it does not make it *visible*, and on the Fold this screen opened
+with the whole CTA below the fold and nothing on screen saying so. On a **permission ask**, whose
+only control is that button, that reads as a broken app.
 
-That is a direct contradiction of *never let it scroll*, taken because the alternative was a
-clipped CTA and because the shared rules require every screen to stay usable at the largest system
-font. **The real choice is this scroll or a fourth row**, and it is the design side's.
+`WelcomeScaffold(footer =)` puts the button in a fixed band at the bottom of the same column — same
+gutter, same 18 above the gesture bar — so the scroll viewport is the screen minus that band. On
+the fourteen frames where the content fits, the layout is byte-for-byte what it was. On the three
+that are short, the list scrolls under a button that never leaves.
 
-Note that 375 x 667 is an iPhone SE, which has a 20pt status bar and a home BUTTON -- its content
-column is 647, not the 585 a notched phone would leave. The ticket's "check 375 x 667 first" is
-right, but the number to check against is 647.
+Worth recording how it was caught: **the iOS sweep failed and the Android sweep passed.**
+`ScreenFitTest`'s `BELOW THE FOLD` is only an advisory once a screen scrolls, so Android reported
+the screen clean while the CTA was off the bottom of it. `NotificationsFitTest` now asserts the CTA
+is inside the frame on all seventeen at all three font scales, and locks the overflow table above
+so it cannot quietly grow.
+
+**What is still the design side's.** The scroll on those three frames is a direct contradiction of
+*never let it scroll*, and no rung short of cutting a row closes it. The real choice is:
+
+1. accept that 320-class frames and every accessibility type size scroll the list, or
+2. cut a row — four rows fit the Fold with room — or
+3. spend rungs 2 and 3 of the ladder globally, which buys the SE and the 360 x 592 and changes the
+   390 artboard by 8dp of list height for frames that never needed it.
+
+This build is (1), because (2) is theirs to make and (3) pre-spends the ladder without finishing
+the job.
+
+## E22 · Push registration cannot be verified in this build, and the criterion says "verified, not assumed". RECORDED
+
+SHOWUP-162's build inventory names it as the one failure that looks exactly like success:
+
+> **Push registration on grant** — APNs / FCM token acquisition and upload. Granting the permission
+> and never registering the device is a silent failure that looks exactly like success on this
+> screen.
+
+and the acceptance criterion is *on grant, the device registers for push (APNs / FCM) and the token
+reaches the backend — **verified, not assumed***.
+
+**The upload is built; the token source is not, deliberately.** `PushRegistration` on both platforms
+takes a `PushTokenSource` / `PushRegistering` seam, calls the generated
+`NotificationsApi.registerPushToken`, handles the failure cases and never blocks the flow. What
+ships today is `NoPushToken`, which returns nil.
+
+The reason is a standing instruction on this project rather than an oversight: **third-party
+providers stay off until they are explicitly turned on.** An FCM token needs `firebase-messaging`
+and a `google-services.json`, which means a Firebase project; an APNs token needs the Push
+Notifications capability and a paid developer account with a key. The backend already models the
+same arrangement — `FcmPushSender` is selected only when service-account credentials are
+configured, and `LogPushSender` stands in otherwise. This is the client half of it.
+
+**So the criterion cannot be met by this build, and saying otherwise would be the exact silent
+failure the ticket is warning about.** When the services are enabled it is one implementation of
+one interface per platform and no other change. Until then the honest status is: upload path built
+and tested against a fake source, real source absent, and nothing about the screen reveals the
+difference — which is why it is written down here rather than left to a code comment.
+
+## E23 · Rule 1 of the anti-stuck trio assumes a saved position this flow does not have. RECORDED
+
+SHOWUP-162 names one hard stuck state and three lines that prevent it. Rules 2 and 3 are built —
+the status guard before the screen is pushed, and the foreground re-read that advances a mounted
+screen whose status became determined. Rule 1 is not, and cannot be:
+
+> **Advance the saved flow position when the sheet is raised, not when it returns.**
+
+**There is no per-screen saved flow position in this codebase.** Resume is derived from server
+profile facts — what the account holds decides where the user lands — and this screen holds nothing
+on the account, exactly like the two bridges and the media step. So there is no position to advance
+early and no position that can point at screen 09 after the sheet has been answered.
+
+**The stuck state the rule exists to prevent is therefore unreachable by construction.** A kill
+mid-sheet relaunches to wherever the profile facts point, which is never this screen; the ticket's
+own cost of rule 1 — "a user killed mid-sheet without answering lands on Stay reachable never
+having been asked" — is what happens here too, and Stay reachable's notifications row is the
+recovery for it either way.
+
+Recorded rather than silently skipped because an acceptance criterion quotes rule 1 verbatim, and a
+reviewer walking that list needs to find the reason here instead of concluding it was missed.
+
 
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 

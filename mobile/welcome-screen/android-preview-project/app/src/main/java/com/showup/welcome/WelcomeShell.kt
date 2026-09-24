@@ -1176,8 +1176,36 @@ fun WelcomeScaffold(
      * The inner column is floored at the viewport height, so when everything fits there is nothing
      * to scroll and the weighted spacer still pushes the bottom row down — the layout is byte-for-
      * byte what it was. It only engages when the alternative is an unreachable button.
+     *
+     * SCROLLING ALONE IS NOT ENOUGH FOR A SCREEN WHOSE CONTENT REALLY OVERFLOWS -- it makes the CTA
+     * reachable, not visible, and on the notifications ask (SHOWUP-162) that meant a Galaxy Fold
+     * opening on a permission screen with no button drawn on it at all. Pass [footer] as well.
      */
     scrollWhenTight: Boolean = false,
+    /**
+     * A fixed band below the scrolling region -- the CTA, and nothing else so far.
+     *
+     * NULL ON EVERY SCREEN BUT ONE, and the null path is the old layout unchanged: one column, the
+     * content filling it, nothing pinned.
+     *
+     * The notifications ask passes it because its content does not fit three of the seventeen
+     * frames at the default font and none of them at 2.0x type, and "the primary action is
+     * reachable" is the one guarantee that has to hold on all of them. [scrollWhenTight] alone
+     * made it reachable
+     * and left it invisible until the user dragged -- which the iOS fit sweep caught as a CTA that
+     * was simply not drawn, and the Android sweep did not, because BELOW THE FOLD is only an
+     * advisory on a scrolling screen.
+     *
+     * On the frames where the content fits this changes nothing: the content's own weighted
+     * spacer still takes the slack and the button still lands at the bottom of the screen, because
+     * that is where the band already is.
+     *
+     * It takes the same [gutter] as the content -- it is the bottom of the same column, not a
+     * separate surface -- and it clears the gesture bar, because the insets are on that column. A
+     * screen that wants a gradient mask over scrolling content wants `RealYouScaffold` instead:
+     * that footer is a band drawn OVER the content, and this one is the end of it.
+     */
+    footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Box(modifier.fillMaxSize().background(Cream)) {
@@ -1192,15 +1220,25 @@ fun WelcomeScaffold(
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(start = gutter, end = gutter, top = topPadding)
 
-        if (scrollWhenTight) {
-            BoxWithConstraints(insets) {
-                val viewport = maxHeight
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Column(Modifier.heightIn(min = viewport), content = content)
+        Column(insets) {
+            // `weight(1f)` hands the region a FIXED height, which is what both branches need: the
+            // scrolling one measures its viewport from it, and the content's own weighted spacer
+            // resolves against it. With no footer the region is the whole column, so this is the
+            // layout that was here before, spelled with one more box.
+            val region = Modifier.fillMaxWidth().weight(1f)
+
+            if (scrollWhenTight) {
+                BoxWithConstraints(region) {
+                    val viewport = maxHeight
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        Column(Modifier.heightIn(min = viewport), content = content)
+                    }
                 }
+            } else {
+                Column(region, content = content)
             }
-        } else {
-            Column(insets, content = content)
+
+            footer?.invoke()
         }
     }
 }

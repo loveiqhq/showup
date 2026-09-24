@@ -124,7 +124,7 @@ struct WelcomeBackdrop: View {
 
 /// The launch-screen scaffold. Insets apply to the content only, so the backdrop runs full-bleed
 /// behind the status bar and home indicator with no seam — an acceptance criterion on 140 and 142.
-struct WelcomeScaffold<Content: View>: View {
+struct WelcomeScaffold<Content: View, Footer: View>: View {
     var peachWash: Bool = true
     var placement: OrbPlacement = .startup
     var orangeAlpha: Double = 0.32
@@ -148,7 +148,35 @@ struct WelcomeScaffold<Content: View>: View {
     ///
     /// The inner stack is floored at the viewport height, so when everything fits there is nothing
     /// to scroll and the bottom spacer still does its job — the layout is unchanged.
+    ///
+    /// SCROLLING ALONE IS NOT ENOUGH FOR A SCREEN WHOSE CONTENT REALLY OVERFLOWS — it makes the CTA
+    /// reachable, not visible, and on the notifications ask (SHOWUP-162) that meant a Galaxy Fold
+    /// opening on a permission screen with no button drawn on it at all. Pass `footer` as well.
     var scrollWhenTight: Bool = false
+    /// A fixed band below the scrolling region — the CTA, and nothing else so far.
+    ///
+    /// `EmptyView` on every screen but one, through the convenience init below, and that path is
+    /// the old layout unchanged: one stack, the content filling it, nothing pinned.
+    ///
+    /// The notifications ask passes it because its content does not fit three of the seventeen
+    /// frames at the default font and none of them at 2.0× type, and "the primary action is
+    /// reachable" is the one guarantee that has to hold on all of them. With the CTA in here the
+    /// scroll viewport is the screen minus this band, so the list scrolls and the button does not.
+    ///
+    /// On the frames where the content fits this changes nothing: the content's own
+    /// `Spacer` still takes the slack and the button still lands at the bottom of the screen,
+    /// because that is where the band already is.
+    ///
+    /// It takes the same `gutter` as the content — it is the bottom of the same column, not a
+    /// separate surface — and it clears the home indicator, because the whole stack respects the
+    /// safe area. A screen that wants a gradient mask over scrolling content wants
+    /// `RealYouScaffold` instead: that footer is a band drawn OVER the content, this is its end.
+    ///
+    /// DECLARED BEFORE `content` ON PURPOSE. Two `@ViewBuilder` properties means the unlabelled
+    /// trailing closure binds to the LAST one, so with the order reversed every existing call site
+    /// would silently hand its whole screen to the footer and render an empty body. Content last,
+    /// footer always labelled — the same rule the iOS notes give for `PrimaryButton`'s slots.
+    @ViewBuilder let footer: () -> Footer
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -158,30 +186,62 @@ struct WelcomeScaffold<Content: View>: View {
                             orangeAlpha: orangeAlpha, violetAlpha: violetAlpha)
                 .ignoresSafeArea()
 
-            if scrollWhenTight {
-                GeometryReader { geo in
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 0) { content() }
-                            .padding(.horizontal, gutter)
-                            .padding(.top, topPadding)
-                            .frame(minHeight: geo.size.height, alignment: .top)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 0) {
+                if scrollWhenTight {
+                    GeometryReader { geo in
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 0) { content() }
+                                .padding(.horizontal, gutter)
+                                .padding(.top, topPadding)
+                                .frame(minHeight: geo.size.height, alignment: .top)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        // Bounce off means a screen that fits does not rubber-band, so it reads
+                        // as a fixed layout rather than a scroll view that happens to be full.
+                        .modifier(NoBounceWhenItFits())
                     }
-                    // Bounce off means a screen that fits does not rubber-band, so it reads as a
-                    // fixed layout rather than a scroll view that happens to be full.
-                    //
-                    // iOS 16.4+. The deployment target is 16.0, so this is gated rather than
-                    // dropped: it is a refinement, and on 16.0-16.3 the only difference is that a
-                    // screen which already fits can still be dragged a few points.
-                    .modifier(NoBounceWhenItFits())
+                } else {
+                    VStack(alignment: .leading, spacing: 0) { content() }
+                        .padding(.horizontal, gutter)
+                        .padding(.top, topPadding)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-            } else {
-                VStack(alignment: .leading, spacing: 0) { content() }
+
+                // Nothing at all on the screens that pass no footer: an `EmptyView` in a
+                // zero-spacing stack occupies no height, and the region above it still fills the
+                // frame — `GeometryReader` and a `maxHeight: .infinity` frame are both greedy.
+                footer()
                     .padding(.horizontal, gutter)
-                    .padding(.top, topPadding)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    // Explicit rather than inherited: the stack above centres its children, and a
+                    // footer whose control did not expand on its own would sit centred at its
+                    // intrinsic width instead of spanning the gutters like the content does.
+                    .frame(maxWidth: .infinity)
             }
         }
+    }
+}
+
+extension WelcomeScaffold where Footer == EmptyView {
+    /// The screens with no pinned band, and the shape this scaffold had before there was one.
+    ///
+    /// An init rather than a default value because a generic closure property cannot carry one,
+    /// and `AnyView` to dodge that would erase the footer's type for every caller, including the
+    /// four screens where there is nothing in it.
+    init(
+        peachWash: Bool = true,
+        placement: OrbPlacement = .startup,
+        orangeAlpha: Double = 0.32,
+        violetAlpha: Double = 0.28,
+        topPadding: CGFloat = 20,
+        gutter: CGFloat = Spacing.screenGutter,
+        scrollWhenTight: Bool = false,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            peachWash: peachWash, placement: placement, orangeAlpha: orangeAlpha,
+            violetAlpha: violetAlpha, topPadding: topPadding, gutter: gutter,
+            scrollWhenTight: scrollWhenTight, footer: { EmptyView() }, content: content
+        )
     }
 }
 

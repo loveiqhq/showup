@@ -29,7 +29,7 @@
 //  the token reaches the backend, verified not assumed" — CANNOT be met by this build, and
 //  pretending otherwise is the silent failure it is warning about. The upload path, the endpoint
 //  and the error handling are built and tested against a fake source; the real source is one type
-//  and an entitlement away. Recorded in `audit/CONFLICTS-2026-08-27.md`.
+//  and an entitlement away. Recorded as E22 in `audit/CONFLICTS-2026-08-27.md`.
 //
 
 import Foundation

@@ -53,16 +53,25 @@
  * spacer below the list -- and every device difference lands in it.
  *
  * IT DOES NOT FIT EVERYWHERE, and that is measured rather than feared. Across the seventeen frames
- * this project ships to, at the default font it is 21 short on the Galaxy Fold cover screen and 17
- * short on a 360 x 640 Android, before the 12 spacer floor; at 1.3x type it misses on most and at
- * 2.0x on all. The ticket's agreed order of sacrifice -- spacer, list gap 16 to 14, row line 13.5
- * to 13, then cut a row -- is worth about 14dp before that last step, which does not close a 33dp
- * deficit.
+ * this project ships to, at the DEFAULT font three of them come up short -- the Galaxy Fold cover
+ * screen by 167, a 360 x 640 Android by 96, and the iPhone SE by 3. At 1.3x type thirteen of the
+ * seventeen miss; at 2.0x all of them do.
  *
- * So the approved values are kept and the scaffold's scroll fallback carries the frames the design
- * was not drawn for. On the fifteen where it fits, nothing scrolls and the layout is unchanged.
- * See the note at the scaffold call for the whole argument, and E20 in
- * `audit/CONFLICTS-2026-08-27.md` for the decision it leaves with the design side.
+ * The ticket's agreed order of sacrifice -- spacer, list gap 16 to 14, row line 13.5 to 13, then
+ * cut a row -- is worth about 15dp before that last step: 8 from the gaps and 7 from the lines.
+ * That closes the SE and nothing else, and cutting a row is a content decision the ticket reserves
+ * in as many words ("then come back and cut a row").
+ *
+ * So the approved values are kept, THE CTA IS PINNED BELOW THE SCROLL, and only the list moves.
+ * On the fourteen frames where it fits, nothing scrolls and the layout is unchanged. See the note
+ * at the scaffold call for the whole argument, and E20 in `audit/CONFLICTS-2026-08-27.md` for the
+ * decision it leaves with the design side.
+ *
+ * Scrolling the CTA with the content was the first attempt and it was wrong: it made the button
+ * REACHABLE rather than VISIBLE, and a Galaxy Fold opened this screen with no button drawn on it.
+ * The iOS fit sweep caught that as a hard failure and the Android one did not, because BELOW THE
+ * FOLD is only an advisory once a screen scrolls -- so `NotificationsFitTest` now asserts the CTA
+ * is inside the viewport on every device, at every font scale, with no advisory to hide behind.
  *
  * `NotificationsFitTest` measures the spacer on every device, and the screen is in the 17-size
  * sweep at three font scales.
@@ -88,6 +97,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -108,6 +118,26 @@ import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline
 import com.showup.welcome.WelcomeScaffold
+
+/**
+ * The CTA, for the fit harness.
+ *
+ * A tag rather than a text match: the harness measures the BUTTON's bounds, and the label inside
+ * it is a child with its own smaller box. Asking for the text would measure the wrong rectangle
+ * and pass while the button itself hung off the bottom of the frame.
+ */
+internal const val CTA_TAG = "notifications-cta"
+
+/**
+ * The benefit list, for the fit harness.
+ *
+ * The spacer is the one number the spec sheet states and it is not a node anything can query, so
+ * it is measured as the gap between this box's bottom and [CTA_TAG]'s top. Anchoring on the last
+ * row's TEXT instead reads 3 low -- the row is a 40 pip beside a text column and the last line box
+ * does not end where the row does -- which is exactly enough to make the 12 floor look broken when
+ * it is not.
+ */
+internal const val LIST_TAG = "notifications-benefits"
 
 /**
  * Every string on the screen, verbatim from the ticket.
@@ -281,26 +311,45 @@ fun ProfileNotificationsScreen(
     //
     // This is the most content on any non-scrolling screen in the flow -- a 32 headline, a lead
     // paragraph and five two-line rows -- and measured across the seventeen frames this project
-    // ships to, it does not fit on two of them at the DEFAULT font: the Galaxy Fold cover screen
-    // is 21 short and a 360 x 640 Android is 17 short, before the 12 spacer floor. At 1.3x type it
-    // misses on most of them and at 2.0x on all.
+    // ships to, three of them come up short at the DEFAULT font: the Galaxy Fold cover screen by
+    // 167, a 360 x 640 Android by 96, and the iPhone SE by 3. At 1.3x type thirteen of the
+    // seventeen miss, and at 2.0x all of them do.
     //
     // The ticket's agreed order of sacrifice -- spacer, then list gap 16 to 14, then the row line
-    // 13.5 to 13, then cut a row -- is worth about 14dp before the last step. That does not close
-    // a 33dp deficit, and cutting a row is a content decision this ticket explicitly reserves.
+    // 13.5 to 13, then cut a row -- is worth about 15dp before the last step: 8 from the four
+    // gaps and 7 from the ten lines. That closes the SE and nothing else, and cutting a row is a
+    // content decision this ticket explicitly reserves -- "then come back and cut a row".
     //
-    // So: the approved values are kept everywhere, and the scaffold's existing fallback carries
-    // the sizes the design was not drawn for. It changes NOTHING where the screen fits -- the
+    // So: the approved values are kept everywhere, and the scaffold carries the sizes the design
+    // was not drawn for in the two ways it has. It changes NOTHING where the screen fits -- the
     // inner column is floored at the viewport height, so with slack there is nothing to scroll and
-    // the layout is byte-for-byte the same -- and on the two frames that are short it scrolls
-    // rather than drawing the CTA on top of the last row, which is what it did before. Between a
-    // CTA the user cannot reach and a few pixels of scroll, the project already decided the scroll
-    // is the right failure (WelcomeScaffold.scrollWhenTight), and the shared rules require the
-    // screen to stay usable at the largest system font.
+    // the layout is byte-for-byte the same.
+    //
+    // THE CTA IS IN `footer`, NOT IN THE SCROLL, and that is the half that matters. Scrolling
+    // alone makes the button reachable and leaves it invisible: on the Fold this opened with the
+    // whole button below the fold and nothing on screen saying so, which on a PERMISSION ASK
+    // reads as a broken screen rather than a scrollable one. Pinned, the band is the bottom of
+    // the same column -- same gutter, same 18 above the gesture bar -- so on the frames that fit
+    // it is exactly where it already was, and on the three that do not the list scrolls beneath a
+    // button that never leaves.
     //
     // Recorded for the design side rather than settled here: at 320 and at accessibility type
     // sizes, five two-line rows cannot fit, and the real choice is this scroll or a fourth row.
-    WelcomeScaffold(topPadding = 40.dp, gutter = 28.dp, scrollWhenTight = true) {
+    WelcomeScaffold(
+        topPadding = 40.dp,
+        gutter = 28.dp,
+        scrollWhenTight = true,
+        // Sunset and full width, rule 7's named exception. NO TRAILING ICON: screen 05's button
+        // ends in an arrow and this one does not.
+        footer = {
+            PrimaryButton(
+                label = NotificationsCopy.CTA,
+                onClick = { if (!busy) onEnable() },
+                modifier = Modifier.padding(bottom = 18.dp).testTag(CTA_TAG),
+                variant = PrimaryButtonVariant.Sunset,
+            )
+        },
+    ) {
         WashHeadline(
             parts = listOf(
                 NotificationsCopy.HEADLINE_LEAD to false,
@@ -326,7 +375,7 @@ fun ProfileNotificationsScreen(
         )
 
         Column(
-            Modifier.padding(top = 22.dp),
+            Modifier.padding(top = 22.dp).testTag(LIST_TAG),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             NOTIFY_BENEFITS.forEach { BenefitRow(it) }
@@ -342,16 +391,11 @@ fun ProfileNotificationsScreen(
         // the 12 minimum down to 9. Measured on an iPhone SE, where it produced exactly that.
         // `requiredHeightIn` ignores the incoming constraint, which is what the CSS means -- the
         // column overflows instead, and the scroll above catches it.
+        //
+        // IT STAYS IN THE CONTENT even though the CTA no longer is: with slack it is the thing
+        // that holds the button at the bottom of the screen, and with none it is the 12 of air
+        // between the last row and the pinned band once the user has scrolled to the end.
         Spacer(Modifier.weight(1f).requiredHeightIn(min = 12.dp))
-
-        // Sunset and full width, rule 7's named exception. NO TRAILING ICON: screen 05's button
-        // ends in an arrow and this one does not.
-        PrimaryButton(
-            label = NotificationsCopy.CTA,
-            onClick = { if (!busy) onEnable() },
-            modifier = Modifier.padding(bottom = 18.dp),
-            variant = PrimaryButtonVariant.Sunset,
-        )
     }
 }
 
