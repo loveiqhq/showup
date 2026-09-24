@@ -917,6 +917,28 @@ on a phrase; none ends in a single word.
 **What would change this:** an orphan at any frame, or a second screen wanting the same hint. Then
 it is worth building once, in the shared type layer, rather than twice here.
 
+## E27 · `mobile/welcome-screen/shared/` is a dead snapshot of live files, and it just diverged further. NEEDS A DECISION
+
+Fifteen files under `shared/android/` and `shared/ios/`, last touched **2 September 2026** by a
+SHOWUP-140 commit. Neither build references the directory — Gradle's source sets do not include
+it and `gen_pbxproj.py` discovers from `ios-app/ShowUpWelcome` — so nothing in it ships, nothing
+in it compiles, and nothing in it is tested. There is no README saying what it is for.
+
+**It contains second copies of files that are still being changed.** `shared/ios/WelcomeShell.swift`
+still declares `struct WelcomeScaffold<Content: View>`; the live one is
+`WelcomeScaffold<Content: View, Footer: View>` as of this branch. `shared/android/WelcomeShell.kt`
+has the scaffold without the `footer` slot. `PhoneVerificationScreen` is there twice as well.
+
+**This is the exact shape of the failure this project has been bitten by three times** —
+`PillButton`, `SunsetButton`, `StatusBadge` — and the reason the first rule in both CLAUDE.md
+files is "search for an existing implementation before creating one". Someone grepping for
+`WelcomeScaffold` today finds two definitions and one of them is three weeks stale.
+
+**Not deleted here**, because removing fifteen files is a decision about what that directory was
+for and this ticket is a notifications screen. Recorded so it is a decision someone takes rather
+than a divergence that widens every time the shell changes. Either it is a handoff snapshot and
+wants a README saying so and a date, or it is dead and wants deleting.
+
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 
 `components/shared.jsx` and the profile references carry both spellings:
