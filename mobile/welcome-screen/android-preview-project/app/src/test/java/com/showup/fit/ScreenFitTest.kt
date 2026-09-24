@@ -39,7 +39,20 @@ import com.showup.profile.LibraryAccess
 import com.showup.profile.PhotoGridState
 import com.showup.profile.PickedPhoto
 import com.showup.profile.ProfilePhotosScreen
+import com.showup.profile.MediaAccess
+import com.showup.profile.MediaArtefact
+import com.showup.profile.MediaCaptureScreen
+import com.showup.profile.MediaEntryPoint
+import com.showup.profile.MediaKind
+import com.showup.profile.MediaPermission
+import com.showup.profile.MediaSheet
+import com.showup.profile.MediaState
+import com.showup.profile.MediaTake
+import com.showup.profile.MediaUploadStatus
+import com.showup.profile.ProfileMediaScreen
+import com.showup.profile.ProfileNotificationsScreen
 import com.showup.profile.ProfilePromptsScreen
+import com.showup.profile.RecordingPhase
 import com.showup.profile.PROMPT_SAMPLE_AT_CAP
 import com.showup.profile.PromptSheet
 import com.showup.profile.PromptsState
@@ -138,6 +151,29 @@ class ScreenFitTest {
                 fresh.forEach { println("       $it") }
             }
         }
+
+        // ADVISORIES ARE PRINTED, and they were not until 18 September 2026.
+        //
+        // They were collected, counted against nothing and discarded -- so `BELOW THE FOLD`, the
+        // 56dp note and everything else non-fatal was invisible in the log as well as in the
+        // assertion. The voice screen's hint was hidden behind its own scroll container on one
+        // device and the report for that state said, in full, "clean on all 17 devices".
+        //
+        // Rolled up per element rather than per device, because the same advisory on 17 phones is
+        // one thing to look at, not seventeen.
+        found.filter { it.advisory }
+            .groupBy { it.element to it.problem }
+            .toList()
+            .sortedByDescending { it.second.size }
+            .forEach { (key, hits) ->
+                val where = if (hits.size == DEVICES.size) {
+                    "all ${DEVICES.size} devices"
+                } else {
+                    hits.joinToString(", ") { it.device.name }.take(70)
+                }
+                println("     note  ${key.first} -- ${key.second}: ${hits.first().detail}" +
+                    "  [$where]")
+            }
     }
 
     private fun assertClean() {
@@ -457,6 +493,100 @@ class ScreenFitTest {
         assertClean()
     }
 
+    /**
+     * SHOWUP-161, all ten states.
+     *
+     * A-F are one screen; G-J are the two capture views, which have no chrome at all and are the
+     * only screens in the app whose controls sit against a full-bleed ground. The capture views are
+     * where a fit finding would be worst: `Cancel` is the ONLY way out of them, so a Cancel pushed
+     * off a 320-wide screen is a user who cannot leave.
+     */
+    @Test
+    fun `profile notifications, the one state`() {
+        // ONE STATE, and the tightest non-scrolling content in the flow: a 32 headline, a lead
+        // paragraph and five two-line rows with no scroll allowed. Swept at every size and every
+        // font scale, because "it fits at 390" is the claim this screen is most likely to fail.
+        sweep("Notifications") { ProfileNotificationsScreen() }
+        sweep("Notifications @1.3", fontScale = 1.3f) { ProfileNotificationsScreen() }
+        sweep("Notifications @2.0", fontScale = 2.0f) { ProfileNotificationsScreen() }
+        assertClean()
+    }
+
+    @Test
+    fun `profile media, all ten states`() {
+        val video = MediaArtefact(
+            kind = MediaKind.Video, promptId = "relaxed_and_happy", durationMs = 9_400,
+            localPath = null, remoteId = "v1", status = MediaUploadStatus.Confirmed,
+        )
+        val voice = MediaArtefact(
+            kind = MediaKind.Voice, promptId = "relaxing_sound", durationMs = 14_100,
+            localPath = null, remoteId = "a1", status = MediaUploadStatus.Confirmed,
+        )
+
+        sweep("Media/A empty") { ProfileMediaScreen() }
+        sweep("Media/B video only") { ProfileMediaScreen(MediaState(video = video)) }
+        sweep("Media/C voice only") { ProfileMediaScreen(MediaState(voice = voice)) }
+        sweep("Media/D both") { ProfileMediaScreen(MediaState(video = video, voice = voice)) }
+        sweep("Media/E prompts video") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        sweep("Media/F prompts voice picked") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Voice, MediaEntryPoint.SeeThePrompts,
+                        selectedId = "relaxing_sound", openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        sweep("Media/G video recording") {
+            MediaCaptureScreen(
+                MediaTake(MediaKind.Video, "relaxed_and_happy", elapsedMs = 6_000),
+            )
+        }
+        sweep("Media/H video review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Video, "relaxed_and_happy",
+                    phase = RecordingPhase.Review, elapsedMs = 9_000,
+                ),
+            )
+        }
+        sweep("Media/I voice recording") {
+            MediaCaptureScreen(MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 4_000))
+        }
+        sweep("Media/J voice review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+            )
+        }
+
+        // The permission row has no artboard, so it has no state letter -- but it is real, it is
+        // the longest copy on the screen, and it is the one thing that pushes a card taller.
+        sweep("Media/blocked microphone") {
+            ProfileMediaScreen(
+                MediaState(access = MediaAccess(microphone = MediaPermission.Blocked)),
+                platformLabel = { "Microphone" },
+            )
+        }
+        sweep("Media/upload failed") {
+            ProfileMediaScreen(
+                MediaState(video = video.copy(status = MediaUploadStatus.Failed)),
+            )
+        }
+        assertClean()
+    }
+
     // ── "The real you" at the largest system font, and with the keyboard up ─
 
     /**
@@ -518,6 +648,63 @@ class ScreenFitTest {
             }
             sweep("Prompts/write @$scale", fontScale = scale) {
                 ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date_usually")))
+            }
+
+            // SHOWUP-161. This screen has MORE fixed heights than either of the two above -- a 36
+            // chip, a 30 permission pill, a 32 control pip, a 52 review button, an 84 shutter --
+            // and a fixed height is exactly what large type overflows. The capture views are the
+            // sharpest case: `Cancel` is the only way out of them, so a Cancel pushed off the edge
+            // at 2.0x is a user who cannot leave the screen.
+            val mediaVideoFit = MediaArtefact(
+                kind = MediaKind.Video, promptId = "relaxed_and_happy", durationMs = 9_400,
+                localPath = null, remoteId = "v1", status = MediaUploadStatus.Confirmed,
+            )
+            val mediaVoiceFit = MediaArtefact(
+                kind = MediaKind.Voice, promptId = "relaxing_sound", durationMs = 14_100,
+                localPath = null, remoteId = "a1", status = MediaUploadStatus.Confirmed,
+            )
+            sweep("Media/empty @$scale", fontScale = scale) { ProfileMediaScreen() }
+            sweep("Media/both @$scale", fontScale = scale) {
+                ProfileMediaScreen(MediaState(video = mediaVideoFit, voice = mediaVoiceFit))
+            }
+            sweep("Media/prompts @$scale", fontScale = scale) {
+                ProfileMediaScreen(
+                    MediaState(
+                        sheet = MediaSheet(
+                            MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                        ),
+                    ),
+                )
+            }
+            sweep("Media/blocked @$scale", fontScale = scale) {
+                ProfileMediaScreen(
+                    MediaState(access = MediaAccess(microphone = MediaPermission.Blocked)),
+                    platformLabel = { "Microphone" },
+                )
+            }
+            sweep("Media/video recording @$scale", fontScale = scale) {
+                MediaCaptureScreen(
+                    MediaTake(MediaKind.Video, "relaxed_and_happy", elapsedMs = 6_000),
+                )
+            }
+            sweep("Media/video review @$scale", fontScale = scale) {
+                MediaCaptureScreen(
+                    MediaTake(
+                        MediaKind.Video, "relaxed_and_happy",
+                        phase = RecordingPhase.Review, elapsedMs = 9_000,
+                    ),
+                )
+            }
+            sweep("Media/voice recording @$scale", fontScale = scale) {
+                MediaCaptureScreen(MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 4_000))
+            }
+            sweep("Media/voice review @$scale", fontScale = scale) {
+                MediaCaptureScreen(
+                    MediaTake(
+                        MediaKind.Voice, "relaxing_sound",
+                        phase = RecordingPhase.Review, elapsedMs = 14_000,
+                    ),
+                )
             }
         }
         assertClean()

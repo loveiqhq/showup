@@ -12,9 +12,12 @@ import android.graphics.ImageDecoder
 import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
+import android.Manifest
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.camera.core.CameraSelector
+import androidx.camera.view.LifecycleCameraController
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.DisposableEffect
@@ -53,14 +56,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import com.showup.api.EncryptedTokenStore
 import com.showup.api.ShowUpApi
+import com.showup.profile.AndroidMediaAccess
+import com.showup.profile.AndroidMediaCaptureFactory
+import com.showup.profile.AndroidMediaPlayer
 import com.showup.profile.AndroidPhotoAccess
 import com.showup.profile.BasicsRepository
 import com.showup.profile.CameraAccess
 import com.showup.profile.CameraAskLog
+import com.showup.profile.MediaCapability
+import com.showup.profile.MediaCaptureScreen
+import com.showup.profile.MediaEntryPoint
+import com.showup.profile.MediaKind
+import com.showup.profile.MediaPermission
+import com.showup.profile.MediaRepository
+import com.showup.profile.MediaViewModel
+import com.showup.profile.PermissionAskLog
 import com.showup.profile.PickedBytes
 import com.showup.profile.PhotoSource
 import com.showup.profile.PhotosRepository
 import com.showup.profile.PhotosViewModel
+import com.showup.profile.AndroidNotificationAccess
+import com.showup.profile.ProfileNotificationsScreen
+import com.showup.profile.PushRegistration
+import com.showup.profile.shouldShowAsk
+import com.showup.profile.NotificationsViewModel
+import com.showup.profile.ProfileMediaScreen
 import com.showup.profile.ProfilePhotosScreen
 import com.showup.profile.ProfilePromptsScreen
 import com.showup.profile.ProfileProgressRepository
@@ -209,6 +229,119 @@ class MainActivity : ComponentActivity() {
             )
             val promptsState by prompts.state.collectAsStateWithLifecycle()
 
+            // ── the media step (SHOWUP-161) ─────────────────────────────────
+            //
+            // CameraX binds to a LIFECYCLE, so the controller is created here rather than inside
+            // the capture screen: a controller rebuilt on every recomposition would tear the
+            // camera session down and put it back up mid-take. It is bound once and handed to the
+            // viewfinder, and `AndroidMediaCaptureFactory` reads it through a lambda so a session
+            // created before the first bind still finds it.
+            val cameraController = remember(context) { LifecycleCameraController(context) }
+            val captureLifecycle = LocalLifecycleOwner.current
+            DisposableEffect(captureLifecycle) {
+                cameraController.cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                cameraController.bindToLifecycle(captureLifecycle)
+                onDispose { cameraController.unbind() }
+            }
+
+            // ── the notification ask (SHOWUP-162) ────────────────────────────────────
+            //
+            // THE STATUS IS READ BEFORE THE SCREEN IS PUSHED, NEVER AFTER IT MOUNTS. Both skip
+            // cases -- Android 12 and below, and a status that is somehow already determined --
+            // are decided here, so the user never sees the screen mount and navigate away. No
+            // toast, no confirmation, no flash: `shouldShowAsk` is a pure function and the
+            // navigation either goes through the ask or does not.
+            val notifications = remember(context) { AndroidNotificationAccess(context) }
+
+            val notifyModel: NotificationsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        NotificationsViewModel(
+                            access = notifications,
+                            push = PushRegistration(api),
+                        )
+                    }
+                },
+            )
+
+            /**
+             * Where media's Continue and Skip both land.
+             *
+             * STAY REACHABLE (10) DOES NOT EXIST YET, so both the ask and the two skip cases end
+             * at Home for now. When 10 is built this is the single place that changes -- which is
+             * why it is a function rather than two copies of the same conditional.
+             */
+            fun afterMedia(): FlowScreen {
+                val status = notifications.read()
+                if (shouldShowAsk(status)) return FlowScreen.ProfileNotifications
+                // THE SKIPPED USER STILL NEEDS A TOKEN. Below API 33 notifications are on with
+                // nothing to ask for, and the only thing that registered for push was a callback
+                // on the screen those users never see. See NotificationsViewModel.skipped.
+                notifyModel.skipped(status)
+                return FlowScreen.Home
+            }
+
+            // The OS sheet's answer. `permission_result` fires here and nowhere else, and the
+            // flow advances on BOTH outcomes -- the user never lands back on the ask.
+            val askNotifications = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { granted ->
+                // RECORDED HERE, NOT BEFORE THE LAUNCH, and the difference is a user the ticket
+                // names by name.
+                //
+                // Android cannot tell "never asked" from "refused" -- both read as not-granted --
+                // so `PermissionAskLog` is the proxy, and recording it before the dialog is
+                // ANSWERED makes a liar of it. A user who raises the sheet and then backgrounds
+                // the app without answering would come back recorded as denied, while the OS
+                // status is still not determined. The ticket describes exactly that person: they
+                // "land on Stay reachable never having been asked", and 10's row must raise the
+                // same sheet for them. A false denial would send them to Settings instead, for a
+                // dialog they never saw.
+                //
+                // This callback fires when the platform has an answer, which is the only moment
+                // the ask is a fact. Killed mid-dialog, it never fires and nothing is recorded --
+                // which is correct, because nothing was answered.
+                PermissionAskLog.recordAsked(context, Manifest.permission.POST_NOTIFICATIONS)
+
+                // Reports the result and, on a grant, registers for push -- GRANTING AND NOT
+                // REGISTERING IS A SILENT FAILURE that looks exactly like success on this screen.
+                notifyModel.answered(granted)
+                // BOTH OUTCOMES ADVANCE. Stay reachable (10) is not built, so Home stands in.
+                screen = FlowScreen.Home
+            }
+
+            // The player, held here for the same reason the camera controller is: it owns a
+            // hardware resource that outlives a recomposition and has to be released when the flow
+            // leaves, and the video surfaces attach to it.
+            val mediaPlayer = remember(context) { AndroidMediaPlayer(context) }
+            DisposableEffect(mediaPlayer) { onDispose { mediaPlayer.release() } }
+
+            val media: MediaViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        MediaViewModel(
+                            repo = MediaRepository(api),
+                            access = AndroidMediaAccess(context),
+                            capture = AndroidMediaCaptureFactory(context) { cameraController },
+                            player = mediaPlayer,
+                        )
+                    }
+                },
+            )
+            val mediaState by media.state.collectAsStateWithLifecycle()
+
+            // Which prompt the user committed to, held across the permission round trip: the OS
+            // alert takes the app out of the foreground, and the answer comes back with no memory
+            // of what it was asked for.
+            var pendingTake by remember { mutableStateOf<Pair<MediaKind, String>?>(null) }
+            val askCapture = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { _ ->
+                val pending = pendingTake
+                pendingTake = null
+                if (pending != null) media.permissionResult(pending.first, pending.second)
+            }
+
             // ── resuming a half-finished profile (flow rule 4a) ─────────────
             //
             // "On launch, an account with an incomplete profile routes straight to its last
@@ -248,10 +381,31 @@ class MainActivity : ComponentActivity() {
             // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug on the photo
             // screen is a user who granted access in Settings returning to the blocked card, and
             // ON_RESUME is the only moment that can be noticed.
+            //
+            // BOTH SCREENS, one observer. SHOWUP-161 requires the same of camera and microphone --
+            // "returning from Settings with access granted lands on the working card, never on the
+            // blocked row" -- and a second observer for the second screen would be a second place
+            // to forget. Neither call touches the network and both are cheap.
             val lifecycleOwner = LocalLifecycleOwner.current
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_RESUME) photos.refreshAccess()
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        photos.refreshAccess()
+                        media.refreshAccess()
+                    }
+                    // AND STOP PLAYING WHEN THE SCREEN GOES AWAY.
+                    //
+                    // Nothing else does. `onDispose` releases the player when the composable
+                    // leaves, and backgrounding the app does not dispose anything -- the process
+                    // lives, ExoPlayer keeps its renderer thread, and a voice note the user
+                    // started plays on over whatever they switched to. iOS is saved from the same
+                    // bug only by not declaring the background-audio capability.
+                    //
+                    // ON_STOP rather than ON_PAUSE: a permission alert over the activity pauses it
+                    // and is not the user leaving, and this screen can raise one.
+                    if (event == Lifecycle.Event.ON_STOP) {
+                        media.stopPlayback()
+                    }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -499,7 +653,10 @@ class MainActivity : ComponentActivity() {
                         // The ViewModel decides and records; the host only routes. Continue is
                         // never disabled, so the refused press is a real press with a real event
                         // behind it rather than a button that did nothing.
-                        onContinue = { if (prompts.continuePressed()) screen = FlowScreen.Home },
+                        // Into the media step, which is where "The real you" actually ends.
+                        onContinue = {
+                            if (prompts.continuePressed()) screen = FlowScreen.ProfileMedia
+                        },
                         // The SAME call on the refused press, which is what makes the two
                         // mutually exclusive: the screen picks a branch, the ViewModel re-checks
                         // and records whichever one it was. Wiring only the accepted branch would
@@ -514,6 +671,144 @@ class MainActivity : ComponentActivity() {
                             prompts.arrived(referrer = ProfileScreen.Photos)
                             prompts.load()
                         }
+                    }
+
+                    // SHOWUP-161. One position in the flow, two surfaces: the media screen,
+                    // and the full-bleed viewfinder that replaces it while a take is running.
+                    // The viewfinder is NOT its own FlowScreen -- it has no entry point of its own
+                    // and no way back except Cancel, so it is a state of this step rather than a
+                    // place the router can send anyone.
+                    FlowScreen.ProfileMedia -> {
+                        // ARRIVAL IS KEYED TO THE STEP, NOT TO THE SURFACE.
+                        //
+                        // This used to sit on the media screen inside the `else` below, which made
+                        // it re-run every time a take ended: the branch was removed while the
+                        // viewfinder was up and composed again on the way back, restarting the
+                        // effect. That fired a second `screen_viewed`, a second PAIR of
+                        // `profile_step_viewed`, and reset the step's start time -- so
+                        // `time_on_step_s` measured from the last take rather than from arrival,
+                        // and the step funnel counted one entry per recording.
+                        //
+                        // Up here the effect belongs to the position in the flow. Returning from a
+                        // take does not re-enter the step, and `acceptTake` already reports the new
+                        // entry state itself.
+                        LaunchedEffect(Unit) { media.arrived() }
+                        val take = mediaState.take
+                        if (take != null) {
+                            MediaCaptureScreen(
+                                take = take,
+                                onCancel = media::cancelTake,
+                                onStop = media::stopPressed,
+                                onPlay = media::playPressed,
+                                onRetake = media::retakeFromReview,
+                                onAccept = media::acceptTake,
+                                cameraController = cameraController,
+                                playback = mediaState.playback,
+                                player = mediaPlayer.surface,
+                            )
+                        } else {
+                            ProfileMediaScreen(
+                                state = mediaState,
+                                onBack = {
+                                    media.stopPlayback()
+                                    screen = FlowScreen.ProfilePrompts
+                                },
+                                onOpenPrompts = media::openPrompts,
+                                onPickPrompt = media::pickPrompt,
+                                onCommitPrompt = {
+                                    // The view model records the selection and answers with what
+                                    // still has to be requested. Asking happens HERE, on the commit
+                                    // CTA -- not on entry, and not on `See the prompts`.
+                                    val sheet = mediaState.sheet
+                                    val missing = media.commitPrompt()
+                                    if (missing.isNotEmpty() && sheet?.selectedId != null) {
+                                        pendingTake = sheet.kind to sheet.selectedId!!
+                                        missing.forEach {
+                                            PermissionAskLog.recordAsked(context, it.permission)
+                                        }
+                                        askCapture.launch(missing.map { it.permission }.toTypedArray())
+                                    }
+                                },
+                                onDismissSheet = media::dismissPrompts,
+                                // WIRED. This was not passed at all, so the play control the design
+                                // draws on every filled card fell through to the default no-op.
+                                onPlay = media::cardPlayPressed,
+                                player = mediaPlayer.surface,
+                                onRetake = media::retakeFromCard,
+                                onDelete = media::delete,
+                                onRetryUpload = media::retryUpload,
+                                onPermissionAction = { capability, status ->
+                                    if (status == MediaPermission.CanAsk) {
+                                        // Re-prompts IN APP and names no toggle: the user never
+                                        // has to go and find one.
+                                        PermissionAskLog.recordAsked(context, capability.permission)
+                                        askCapture.launch(arrayOf(capability.permission))
+                                    } else {
+                                        // Permanently denied. Neither platform deep-links to a
+                                        // single permission row, so this opens our app's own page
+                                        // and the copy names the row to look for.
+                                        openAppSettings(context)
+                                    }
+                                },
+                                platformLabel = media::platformLabel,
+                                onSkip = {
+                                    // Sound does not follow the user off the screen.
+                                    media.stopPlayback()
+                                    media.skipPressed()
+                                    screen = afterMedia()
+                                },
+                                onContinue = {
+                                    media.stopPlayback()
+                                    media.continuePressed()
+                                    screen = afterMedia()
+                                },
+                            )
+                        }
+                    }
+
+                    FlowScreen.ProfileNotifications -> {
+                        // `permission_prompted` is OUR pre-permission surface being shown, and it
+                        // fires on view -- but only when the screen is really shown. The skip
+                        // cases never reach here, which is exactly what events.json requires:
+                        // "it does not fire when the screen is skipped".
+                        LaunchedEffect(Unit) { notifyModel.arrived() }
+
+                        // THE SCREEN IS NEVER A TERMINAL STATE. If the status becomes determined
+                        // while it is mounted -- the user backgrounds the sheet, turns
+                        // notifications on in Settings by hand, and comes back -- it advances by
+                        // itself rather than leaving a button that can no longer raise anything.
+                        //
+                        // The reconciler's own `permission_status_changed` is not fired here: that
+                        // event is the shared reconciler's and it must never double up with
+                        // `permission_result` for one act. This is the navigation half only.
+                        val notifyLifecycle = LocalLifecycleOwner.current
+                        DisposableEffect(notifyLifecycle) {
+                            val observer = LifecycleEventObserver { _, event ->
+                                if (event == Lifecycle.Event.ON_RESUME &&
+                                    notifyModel.statusIsNowDetermined()
+                                ) {
+                                    screen = FlowScreen.Home
+                                }
+                            }
+                            notifyLifecycle.lifecycle.addObserver(observer)
+                            onDispose { notifyLifecycle.lifecycle.removeObserver(observer) }
+                        }
+
+                        val sheetUp by notifyModel.sheetUp.collectAsStateWithLifecycle()
+
+                        ProfileNotificationsScreen(
+                            busy = sheetUp,
+                            onEnable = {
+                                // False on a second press, and nothing is reported for it.
+                                if (notifyModel.enablePressed()) {
+                                    // Below 33 there is no runtime permission and `shouldShowAsk`
+                                    // would already have skipped the screen, so reaching here
+                                    // means the request is real. The ask is recorded in the RESULT
+                                    // callback, not here -- see the comment there.
+                                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            },
+                        )
                     }
 
                     FlowScreen.Home ->

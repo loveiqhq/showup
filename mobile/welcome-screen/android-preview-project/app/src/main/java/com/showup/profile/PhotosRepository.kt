@@ -43,8 +43,6 @@ import com.showup.api.ShowUpApi
 import com.showup.api.generated.model.ReorderPhotosDto
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import okio.BufferedSink
 
 /** One photo as the server holds it. */
 data class StoredPhoto(
@@ -193,48 +191,4 @@ open class PhotosRepository(
 
     private fun errorOf(code: Int, body: String?): ApiError? =
         body?.let { ApiError.parse(code, it) }
-}
-
-/**
- * A request body that reports how much of itself has been written.
- *
- * OkHttp writes a body by handing it a sink and asking it to fill it, and it never asks how far
- * along that got. Counting here is the only place the number exists.
- *
- * WRITTEN IN CHUNKS RATHER THAN IN ONE CALL, which is the whole point: `sink.write(bytes)` would
- * report 0 and then 1 with nothing in between, so the ring would jump rather than fill. 16 KiB is
- * OkHttp's own segment size, so the chunking costs nothing beyond the loop.
- *
- * `contentLength` is exact, which matters twice: the server gets a `Content-Length` rather than a
- * chunked upload, and the fraction below has a real denominator.
- */
-private class ProgressBody(
-    private val bytes: ByteArray,
-    private val mimeType: String,
-    private val onProgress: (Float) -> Unit,
-) : RequestBody() {
-
-    override fun contentType() = mimeType.toMediaType()
-
-    override fun contentLength(): Long = bytes.size.toLong()
-
-    override fun writeTo(sink: BufferedSink) {
-        val total = bytes.size
-        if (total == 0) {
-            onProgress(1f)
-            return
-        }
-        var written = 0
-        while (written < total) {
-            val chunk = minOf(CHUNK, total - written)
-            sink.write(bytes, written, chunk)
-            written += chunk
-            onProgress(written.toFloat() / total)
-        }
-    }
-
-    private companion object {
-        /** OkHttp's segment size. Smaller would mean more callbacks for no more information. */
-        const val CHUNK = 16 * 1024
-    }
 }

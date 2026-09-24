@@ -138,7 +138,7 @@ import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.LavenderWash
-import com.showup.designsystem.LilacStops
+import com.showup.designsystem.LilacWash
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Motion
@@ -148,6 +148,9 @@ import com.showup.designsystem.PrimaryButton
 import com.showup.designsystem.PrimaryButtonVariant
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Spacing
+import com.showup.designsystem.SheetCloseButton
+import com.showup.designsystem.SheetGrabber
+import com.showup.designsystem.SheetScaffold
 import com.showup.designsystem.ShowUpEasing
 import com.showup.designsystem.StepProgress
 import com.showup.designsystem.Subtle
@@ -206,7 +209,6 @@ internal object PromptsCopy {
     const val SAVE_FAILED_PROPOSED = "We couldn't save that just now. Please try again."
     const val SAVE = "Save"
 
-    const val DISMISS = "Dismiss"
     const val HIDE_EXAMPLE = "Hide example"
     const val EDIT_PROMPT = "Edit prompt"
 }
@@ -219,7 +221,6 @@ internal object PromptsCopy {
  * feel like it is being resisted. Local rather than a token -- it is this gesture's threshold and
  * nothing else's, and `Spacing` holds no value that means "a deliberate drag".
  */
-private const val SWIPE_DISMISS_PX = 120f
 
 /** Which sheet is up, if any. */
 @Serializable
@@ -372,6 +373,29 @@ data class PromptsState(
 private val CardRadius = 18.dp
 
 /** A 1.5 outline at a given radius. */
+/**
+ * `border-radius: 9999` -- a pill whose corners follow its own height.
+ *
+ * NOT A FIXED RADIUS, and that is the whole point. The topic rows clip to [CircleShape], which is
+ * a pill: its corner radius is half the height, whatever the height turns out to be. The stroke
+ * was drawn at a fixed 25, which agrees with that only while a row is exactly 50 tall. A topic
+ * whose text wraps to two lines grows past 50, the clip's corners open out to match, the stroke's
+ * do not -- and the parts of the stroke that now sit outside the clip are cut away. The result is
+ * a purple outline with pieces missing, on exactly the rows with the longest questions.
+ *
+ * iOS never had this: it draws the same row with `Capsule()`, which is a pill by construction.
+ */
+private fun Modifier.outlinePill(color: Color, width: Dp = 1.5.dp): Modifier = drawBehind {
+    val w = width.toPx()
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(w / 2f, w / 2f),
+        size = Size(size.width - w, size.height - w),
+        cornerRadius = CornerRadius((size.height - w) / 2f),
+        style = Stroke(width = w),
+    )
+}
+
 private fun Modifier.outline(color: Color, radius: Dp, width: Dp = 1.5.dp): Modifier = drawBehind {
     val w = width.toPx()
     drawRoundRect(
@@ -457,7 +481,7 @@ private fun BrowseAllButton(onClick: () -> Unit) {
             .fillMaxWidth()
             .height(48.dp)
             .clip(CircleShape)
-            .outline(Border, 24.dp)
+            .outlinePill(Border)
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -480,7 +504,7 @@ private fun FilledPromptCard(prompt: SavedPrompt, onEdit: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(CardRadius))
-            .background(Brush.verticalGradient(colorStops = LilacStops.toTypedArray()))
+            .background(LilacWash)
             .outline(Purple.copy(alpha = 0.10f), CardRadius, width = 1.dp),
     ) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = Spacing.xxl)) {
@@ -518,141 +542,6 @@ private fun FilledPromptCard(prompt: SavedPrompt, onEdit: () -> Unit) {
             ) {
                 Icon(BrandIcon.Pen, 14.dp, tint = Purple, strokeWidth = 1.8f)
             }
-        }
-    }
-}
-
-/** The drag grabber. Decorative: a sheet is dismissed by the X or the scrim, not by this. */
-@Composable
-private fun SheetGrabber() {
-    Box(
-        Modifier
-            .size(width = 40.dp, height = 4.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(Fg.copy(alpha = 0.18f))
-            .clearAndSetSemantics {},
-    )
-}
-
-/**
- * The close X. Placed by the caller, because the two sheets pad differently.
- *
- * DRAWS 36 AND ANSWERS AT 44. The reference specifies a 36 control and the fit harness flagged it
- * at all seventeen sizes the first time it was built that way -- "36.0dp, unusable below 44" --
- * which is the rule every tappable thing in this app is held to. `requiredSize` ignores the 36
- * layout slot and overflows it symmetrically, so the hit area grows and nothing visible moves.
- * Same trick, same reason, as the back chevron in AppHeader and the photo grid's remove pip.
- */
-@Composable
-private fun SheetCloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
-    Box(modifier.size(36.dp), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .requiredSize(ComponentSizes.minTapTarget)
-                .clip(CircleShape)
-                .clickable(role = Role.Button, onClick = onClose)
-                .semantics { contentDescription = PromptsCopy.DISMISS },
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                Modifier.size(36.dp).clip(CircleShape).background(Fg.copy(alpha = 0.04f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(BrandIcon.Close, 20.dp, tint = Fg, strokeWidth = 1.8f)
-            }
-        }
-    }
-}
-
-/**
- * The scrim and the rising surface both sheets sit in.
- *
- * `sheet-rise` is 28 up and 0.85 -> 1 opacity over [Motion.SHEET] — a shared keyframe, not a
- * per-sheet animation, and skipped entirely when the device asks for no motion.
- */
-@Composable
-private fun SheetScaffold(
-    onDismiss: (SheetDismissMethod) -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val motion = rememberMotion()
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val rise by animateFloatAsState(
-        targetValue = if (shown) 0f else 28f,
-        animationSpec = tween(
-            durationMillis = if (motion.enabled) Motion.SHEET else 0,
-            easing = ShowUpEasing,
-        ),
-        label = "sheetRise",
-    )
-    val fade by animateFloatAsState(
-        targetValue = if (shown) 1f else 0.85f,
-        animationSpec = tween(durationMillis = if (motion.enabled) Motion.SHEET else 0),
-        label = "sheetFade",
-    )
-
-    // THE ANDROID BACK GESTURE CLOSES THE SHEET, and reports itself as what it is.
-    //
-    // Without this the gesture fell through to the host and left the step entirely, which is a
-    // different act with a different outcome, and the sheet the user was trying to close was
-    // still open when they got back. `system_back` is Android-only and the registry is explicit
-    // that it is NOT the same as the X.
-    BackHandler { onDismiss(SheetDismissMethod.SystemBack) }
-
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Fg.copy(alpha = 0.42f))
-                // THE SCRIM IS `backdrop`, NOT `close`. Four values, four different acts:
-                // the registry unified them on 16 September 2026 precisely because three
-                // spellings of the same four acts had drifted apart, and folding two of them
-                // together here would put the drift back inside one screen.
-                .clickable(role = Role.Button) { onDismiss(SheetDismissMethod.Backdrop) }
-                .semantics { contentDescription = PromptsCopy.DISMISS },
-        )
-        // SWIPE-DOWN, which the ticket asks for twice -- "closing the sheet by X, scrim tap or
-        // swipe keeps what was typed", and again in the tracking criteria -- and which nothing
-        // here implemented. A bottom sheet that cannot be pushed down is wrong on a phone
-        // regardless of the ticket; the drag is tracked so the finger stays on the sheet, and it
-        // only counts as a dismissal past a threshold, so a small nudge springs back.
-        var drag by remember { mutableFloatStateOf(0f) }
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .graphicsLayer {
-                    translationY = rise * density + drag
-                    alpha = fade
-                }
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onDragEnd = {
-                            if (drag > SWIPE_DISMISS_PX) {
-                                onDismiss(SheetDismissMethod.Swipe)
-                            }
-                            drag = 0f
-                        },
-                        onDragCancel = { drag = 0f },
-                    ) { _, delta ->
-                        // Downwards only. Dragging a bottom sheet UP would detach it from the
-                        // edge it is docked to, and the ticket forbids positioning either sheet
-                        // by a top offset.
-                        drag = (drag + delta).coerceAtLeast(0f)
-                    }
-                }
-                // The keyboard is not ours and its height is not knowable, and neither is the
-                // gesture bar's. `safeDrawing` bottom is BOTH -- it reports the keyboard when one
-                // is up and the navigation inset when one is not, taking whichever is larger, so
-                // Save clears the keys while typing and the gesture bar while not.
-                //
-                // `imePadding()` alone was wrong here: with the keyboard down it reserves nothing,
-                // and this sheet's own bottom padding is 16, which on a gesture-navigation device
-                // puts Save underneath the bar.
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
-        ) {
-            content()
         }
     }
 }
@@ -737,7 +626,7 @@ private fun TopicPickerSheet(
                             .heightIn(min = 50.dp)
                             .clip(CircleShape)
                             .background(if (isUsed) Fg.copy(alpha = 0.03f) else Elevated)
-                            .outline(if (isUsed) Border else Purple, 25.dp)
+                            .outlinePill(if (isUsed) Border else Purple)
                             .then(
                                 if (isUsed) {
                                     Modifier

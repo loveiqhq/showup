@@ -31,6 +31,18 @@ KOTLIN = os.path.join(
     MOBILE, "android-preview-project/app/src/main/java/com/showup/analytics/SignUpAnalytics.kt")
 SWIFT = os.path.join(MOBILE, "ios-app/ShowUpWelcome/SignUpAnalytics.swift")
 
+# THE PROFILE CATALOGUE, added 17 September 2026 with SHOWUP-161.
+#
+# This script compared the SIGN-UP catalogues and stopped there, which meant the whole of profile
+# creation -- families D and E, forty-odd events across the basics, photos, prompts and media --
+# was implemented twice with nothing checking the two agreed. The media step alone added twelve
+# events to each platform, and the failure mode is the quiet one this file exists to prevent: an
+# event added on one platform and forgotten on the other reports half its traffic with nothing
+# anywhere failing.
+PROFILE_KOTLIN = os.path.join(
+    MOBILE, "android-preview-project/app/src/main/java/com/showup/profile/ProfileAnalytics.kt")
+PROFILE_SWIFT = os.path.join(MOBILE, "ios-app/ShowUpWelcome/ProfileAnalytics.swift")
+
 fails = []
 checks = 0
 
@@ -137,6 +149,68 @@ if not fails:
           % len(kotlin_events))
 
 print("  %d events, %d screen names, %d checks" % (len(kotlin_events), len(kotlin_screens), checks))
+
+if fails:
+    print("")
+    print("FAILED %d:" % len(fails))
+    for f in fails:
+        print("  x %s" % f)
+    sys.exit(1)
+
+# ── the profile catalogue ────────────────────────────────────────────────────
+#
+# The same comparison, over the second pair. Kept as its own block rather than folded into the
+# first because the two catalogues are genuinely separate vocabularies -- the sign-up one carries
+# the `Legal` link values, this one carries screen ids and step ids -- and a union would make a
+# failure message name a file it did not come from.
+for label, path in (("Kotlin", PROFILE_KOTLIN), ("Swift", PROFILE_SWIFT)):
+    check("%s profile catalogue exists" % label, os.path.exists(path), path)
+
+profile_kt = event_names(read(PROFILE_KOTLIN))
+profile_sw = event_names(read(PROFILE_SWIFT))
+
+check("Kotlin profile catalogue parsed", len(profile_kt) > 25, "found %d" % len(profile_kt))
+check("Swift profile catalogue parsed", len(profile_sw) > 25, "found %d" % len(profile_sw))
+
+if not fails:
+    only_kt = sorted(profile_kt - profile_sw)
+    only_sw = sorted(profile_sw - profile_kt)
+    check("the two profile catalogues are identical",
+          not only_kt and not only_sw,
+          "Android only: %s | iOS only: %s"
+          % (", ".join(only_kt) or "none", ", ".join(only_sw) or "none"))
+
+    bad = sorted(n for n in profile_kt | profile_sw if not convention.match(n))
+    check("every profile event name is snake_case", not bad, ", ".join(bad))
+
+    # SHOWUP-161 ships twelve, and every one of them must exist on BOTH platforms. Named rather
+    # than counted, because a count says "something moved" and a list says what.
+    media_events = [
+        "media_screen_viewed", "media_prompt_list_opened", "media_prompt_selected",
+        "media_prompt_list_dismissed", "video_recording_started", "voice_recording_started",
+        "media_review_shown", "media_preview_played", "video_prompt_recorded",
+        "voice_prompt_recorded", "media_retaken", "media_deleted",
+    ]
+    missing_kt = [e for e in media_events if e not in profile_kt]
+    missing_sw = [e for e in media_events if e not in profile_sw]
+    check("SHOWUP-161's twelve media events exist on both platforms",
+          not missing_kt and not missing_sw,
+          "Android missing: %s | iOS missing: %s"
+          % (", ".join(missing_kt) or "none", ", ".join(missing_sw) or "none"))
+
+    # REGISTERED BUT UNREACHABLE. `caption_added` and `caption_skipped` stay in the registry so the
+    # profile-editing flow cannot invent a second name for the same act; caption authoring was
+    # removed from THIS flow on 16 September 2026 and nothing here may declare them.
+    captions = sorted(n for n in profile_kt | profile_sw if n.startswith("caption_"))
+    check("no caption event is declared in the profile catalogue", not captions,
+          ", ".join(captions))
+
+    # SERVER-SIDE. `media_prompt_ranking_published` ships with the ranking job, not with the
+    # screen, and a client that declared it would be claiming to emit something it cannot know.
+    check("the ranking event is not declared on either client",
+          "media_prompt_ranking_published" not in (profile_kt | profile_sw))
+
+print("  %d profile events" % len(profile_kt))
 
 if fails:
     print("")

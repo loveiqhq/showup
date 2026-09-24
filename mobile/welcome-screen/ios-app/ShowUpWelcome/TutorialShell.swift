@@ -310,17 +310,43 @@ struct IllustrationPlaceholder: View {
                         style: StrokeStyle(lineWidth: 1.5, dash: [7, 6])
                     )
                     .overlay(
-                        VStack(spacing: 3) {
-                            Image(systemName: "photo")
-                                .font(.system(size: 24, weight: .light))
-                                .foregroundColor(.liqPurple.opacity(0.5))
-                            Text("ILLUSTRATION")
-                                .font(F.manrope(11, .bold))
-                                .tracking(0.07 * 11)
-                                .foregroundColor(.liqPurple.opacity(0.75))
-                            Text("248 × 210")
-                                .font(F.manrope(10.5, .semibold))
-                                .foregroundColor(.liqSubtle)
+                        // AS MUCH OF THE LABEL AS THERE IS ROOM FOR, AND NOTHING WHERE THERE
+                        // IS NONE.
+                        //
+                        // This placeholder stands in for an illustration that does not exist
+                        // yet, and its box is sized from the card -- so on a short phone it
+                        // shrinks to a sliver. On the Compose side the two words inside
+                        // wrapped to twenty lines, nineteen of them cut off. A caption for a
+                        // missing asset is not worth that, and drawing nothing is the honest
+                        // rendering of a box too small to say anything in.
+                        ViewThatFits(in: .vertical) {
+                            VStack(spacing: 3) {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 24, weight: .light))
+                                    .foregroundColor(.liqPurple.opacity(0.5))
+                                Text("ILLUSTRATION")
+                                    .font(F.manrope(11, .bold))
+                                    .tracking(0.07 * 11)
+                                    .foregroundColor(.liqPurple.opacity(0.75))
+                                Text("248 × 210")
+                                    .font(F.manrope(10.5, .semibold))
+                                    .foregroundColor(.liqSubtle)
+                            }
+                            VStack(spacing: 3) {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 24, weight: .light))
+                                    .foregroundColor(.liqPurple.opacity(0.5))
+                                Text("ILLUSTRATION")
+                                    .font(F.manrope(11, .bold))
+                                    .tracking(0.07 * 11)
+                                    .foregroundColor(.liqPurple.opacity(0.75))
+                            }
+                            VStack {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 24, weight: .light))
+                                    .foregroundColor(.liqPurple.opacity(0.5))
+                            }
+                            Color.clear
                         }
                     )
                     .frame(width: side * (248.0 / 210.0), height: side)

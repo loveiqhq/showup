@@ -93,6 +93,13 @@ const PROTECTED: Route[] = [
   // push-tokens.controller.ts
   { method: 'post', path: '/me/push-tokens' },
   { method: 'delete', path: '/me/push-tokens' },
+  // media.controller.ts (SHOWUP-161) -- the 10-second video and the 15-second voice note.
+  //
+  // Authenticated like every other /me route, and more obviously than most: these carry a
+  // recording of the account holder's face and voice.
+  { method: 'post', path: '/me/media' },
+  { method: 'get', path: '/me/media' },
+  { method: 'delete', path: `/me/media/${ID}` },
   // photos.controller.ts
   { method: 'post', path: '/me/photos' },
   { method: 'get', path: '/me/photos' },

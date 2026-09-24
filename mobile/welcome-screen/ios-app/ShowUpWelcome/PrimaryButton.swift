@@ -57,6 +57,19 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     /// same sunset button set one step larger. `.plain` overrides it, being 15/600 by definition
     /// rather than by choice. Worth collapsing to one value if the design side agrees.
     var labelSize: CGFloat = 16
+    /// Give the label a fixed width so a COLUMN of these buttons lines its marks up.
+    ///
+    /// THE GROUP STAYS CENTRED. `Button` in `components/shared.jsx` is `justifyContent: 'center'`,
+    /// and that is kept: what changes is that the icon-plus-label group is the same WIDTH on every
+    /// button that shares a width, so centring puts all of their marks at the same x.
+    ///
+    /// Without it, three buttons reading `Continue with Apple`, `Continue with Google` and
+    /// `Continue with Facebook` centre three differently-sized groups and their marks sit a few
+    /// points apart — close enough to read as sloppy rather than as a choice. The spec sheets show
+    /// the same, so this is a deliberate deviation rather than a port bug; see E10.
+    ///
+    /// Nil everywhere else, which is every button in the app that is not one of a set.
+    var labelWidth: CGFloat?
     var action: () -> Void
     @ViewBuilder var leading: () -> Leading
     /// Mirrors `leading`. Used once: the tutorial CTA's trailing arrow.
@@ -67,6 +80,11 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
             HStack(spacing: Spacing.md) {
                 leading()
                 Text(label)
+                    // A fixed width makes the group the same size on every button in the set, so
+                    // centring lands their marks on one line. The text sits at the start of that
+                    // width rather than centred inside it, or the labels would be ragged instead
+                    // of the marks.
+                    .frame(width: labelWidth, alignment: labelWidth == nil ? .center : .leading)
                     // The plain secondary is 600/15 — one step down from the 700 every real
                     // button carries, which is what stops the modal reading as two equal choices.
                     .font(variant == .plain ? F.manrope(15, .semibold)
@@ -120,14 +138,9 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     @ViewBuilder private var background: some View {
         switch variant {
         case .sunset:
-            // 135°, midpoint at 38% — not an even three-stop ramp
-            LinearGradient(
-                stops: [
-                    .init(color: .liqOrange, location: 0.00),
-                    .init(color: Color(hex: 0xD05976), location: 0.38),
-                    .init(color: .liqPurple, location: 1.00),
-                ],
-                startPoint: .topLeading, endPoint: .bottomTrailing)
+            // 135°, midpoint at 38% — not an even three-stop ramp. Defined once in DesignSystem
+            // since the media step became its second user.
+            Gradients.sunset()
         // Flat violet, not a gradient.
         case .violet:
             Color.liqPurple
@@ -164,11 +177,12 @@ extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
 
 extension PrimaryButton where Trailing == EmptyView {
     init(label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
-         height: CGFloat = 56, labelSize: CGFloat = 16, action: @escaping () -> Void,
+         height: CGFloat = 56, labelSize: CGFloat = 16,
+         labelWidth: CGFloat? = nil, action: @escaping () -> Void,
          @ViewBuilder leading: @escaping () -> Leading) {
         self.init(label: label, variant: variant, enabled: enabled, height: height,
-                  labelSize: labelSize, action: action,
-                  leading: leading, trailing: { EmptyView() })
+                  labelSize: labelSize, labelWidth: labelWidth,
+                  action: action, leading: leading, trailing: { EmptyView() })
     }
 }
 

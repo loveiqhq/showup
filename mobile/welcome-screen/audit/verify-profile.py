@@ -586,14 +586,191 @@ for label, text in (("kotlin", prompts_vm_kt), ("swift", prompts_vm_sw)):
 # The ticket asks for swipe twice -- "closing the sheet by X, scrim tap or swipe keeps what was
 # typed", and again in the tracking criteria -- and neither platform had it. The scrim and the X
 # also called one lambda, so the two acts were indistinguishable at the call site.
-for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
+#
+# READ FROM THE SHARED CHROME SINCE 17 SEPTEMBER 2026. These lived as private types inside the two
+# prompt-screen files and were extracted into `designsystem/SheetScaffold.kt` and
+# `ShowUpWelcome/SheetScaffold.swift` when SHOWUP-161's media sheet became their second user --
+# which is the rule about shared primitives, not a refactor of convenience. The behaviour did not
+# change; only where it lives did, so these checks follow it rather than being deleted.
+sheet_kt = read(KT, "designsystem", "SheetScaffold.kt")
+sheet_sw = read(SW, "SheetScaffold.swift")
+
+for label, text in (("kotlin", sheet_kt), ("swift", sheet_sw)):
     check("158 the scrim reports backdrop (%s)" % label, "Backdrop" in text or ".backdrop" in text)
     check("158 the X reports close (%s)" % label, "Close)" in text or ".close)" in text)
     check("158 the sheet can be swiped down (%s)" % label,
           "Swipe" in text or ".swipe" in text)
-check("158 the Android back gesture closes the sheet", "BackHandler" in prompts_kt)
-check("158 swipe has a threshold (kotlin)", "SWIPE_DISMISS_PX" in prompts_kt)
-check("158 swipe has a threshold (swift)", "sheetSwipeDismiss" in prompts_sw)
+check("158 the Android back gesture closes the sheet", "BackHandler" in sheet_kt)
+check("158 swipe has a threshold (kotlin)", "SWIPE_DISMISS_PX" in sheet_kt)
+check("158 swipe has a threshold (swift)", "sheetSwipeDismiss" in sheet_sw)
+
+# THE CHROME IS SHARED, AND THAT IS ITSELF THE CHECK. A second copy of a sheet surface is the
+# `PillButton` mistake, which cost this project four silent drifts over three weeks; both media
+# files must consume the shared one rather than growing their own.
+check("161 the media sheet uses the shared chrome (kotlin)",
+      "SheetScaffold" in read(KT, "profile", "ProfileMediaScreen.kt"))
+check("161 the media sheet uses the shared chrome (swift)",
+      "SheetScaffold" in read(SW, "ProfileMedia.swift"))
+check("161 no second sheet surface (kotlin)",
+      "private fun SheetScaffold" not in read(KT, "profile", "MediaPromptSheet.kt"))
+check("161 no second sheet surface (swift)",
+      "struct SheetScaffold" not in read(SW, "MediaPromptSheet.swift"))
+
+# ════════════════════════════════════════════════════════════════════════════
+# SHOWUP-161 · the media step
+# ════════════════════════════════════════════════════════════════════════════
+#
+# The copy is QUOTED from the ticket's "Copy -- final strings" section, not read back out of the
+# code. A check that compared the code to itself would pass on any string at all, which is the one
+# thing a copy verifier must not do.
+
+media_kt = read(KT, "profile", "MediaCards.kt")
+media_sw = read(SW, "MediaCards.swift")
+prompts161_kt = read(KT, "profile", "MediaPrompts.kt")
+prompts161_sw = read(SW, "MediaPrompts.swift")
+screen161_kt = read(KT, "profile", "ProfileMediaScreen.kt")
+screen161_sw = read(SW, "ProfileMedia.swift")
+capture_kt = read(KT, "profile", "MediaCaptureScreen.kt")
+capture_sw = read(SW, "MediaCaptureView.swift")
+model161_kt = read(KT, "profile", "MediaViewModel.kt")
+model161_sw = read(SW, "MediaModel.swift")
+state161_kt = read(KT, "profile", "MediaModel.kt")
+state161_sw = read(SW, "MediaState.swift")
+access161_kt = read(KT, "profile", "MediaAccess.kt")
+access161_sw = read(SW, "MediaAccess.swift")
+
+# ── copy, verbatim from the ticket ─────────────────────────────────────────
+for label, text in (("kotlin", media_kt), ("swift", media_sw)):
+    for name, literal in (
+        ("optional pill", "Optional \u00b7 you can skip this"),
+        ("headline em", "hear you"),
+        ("footer skip", "Skip for now"),
+        ("video title", "A 10-second video"),
+        ("video hint", "Filmed here in the app. Ten seconds, one prompt."),
+        ("voice title", "A 15-second voice note"),
+        ("voice hint", "Just your voice, answering one prompt."),
+        ("preview eyebrow", "One of 11 prompts"),
+        ("card CTA", "See the prompts"),
+        ("caption eyebrow", "Prompt \u00b7 shown on your profile"),
+        ("video row label", "Your video"),
+        ("saved chip", "Saved"),
+        ("sheet em", "answer"),
+        ("sheet sub video", "Ten seconds is short on purpose."),
+        ("sheet sub voice", "Fifteen seconds, just your voice."),
+        ("own-idea sub", "Say or show whatever you like"),
+        ("commit empty", "Choose a prompt to continue"),
+        ("commit video", "Film 10 seconds"),
+        ("commit voice", "Record 15 seconds"),
+        ("cancel pill", "Cancel"),
+        ("rec chip", "REC"),
+        ("voice hint recording", "Listening \u00b7 keep going"),
+        ("voice hint review", "Hear it back before you keep it"),
+        ("review primary video", "Use this clip"),
+        ("review primary voice", "Use this recording"),
+    ):
+        check("161 copy: %s (%s)" % (name, label), literal in text)
+
+# The headline is built from three parts, so it is checked where it is assembled.
+for label, text in (("kotlin", media_kt), ("swift", media_sw)):
+    check("161 headline lead (%s)" % label, "Show your face. Let them " in text)
+
+# ── the eleven prompts, verbatim ───────────────────────────────────────────
+#
+# "Do not retype them, keep the order." Two of the eleven are quoted here in full -- the one with
+# an apostrophe and the one with a number, which are the two a retype gets wrong -- plus the
+# escape hatch's em dash.
+for label, text in (("kotlin", prompts161_kt), ("swift", prompts161_sw)):
+    check("161 prompt 7 verbatim (%s)" % label,
+          "What I usually look like when I'm relaxed and happy" in text)
+    check("161 prompt 10 verbatim (%s)" % label,
+          "My favorite way to spend an easy 30 minutes outside" in text)
+    check("161 escape hatch verbatim (%s)" % label, "Something else \u2014 my own idea" in text)
+    check("161 the escape hatch id (%s)" % label, "own_idea" in text)
+    check("161 cold start video (%s)" % label, "relaxed_and_happy" in text)
+    check("161 cold start voice (%s)" % label, "relaxing_sound" in text)
+
+# ── the 16 September pass, which is the point of the ticket ────────────────
+for label, text in (("kotlin", code_only(media_kt + screen161_kt)),
+                    ("swift", code_only(media_sw + screen161_sw))):
+    # NO UPLOAD PATH. Media is captured in the app or not at all.
+    check("161 no upload-from-library path (%s)" % label,
+          "PickVisualMedia" not in text and "PHPicker" not in text)
+    # NO CAPTION FIELD. The chosen prompt IS the caption.
+    check("161 no caption field (%s)" % label,
+          "TextField" not in text and "BasicTextField" not in text)
+
+# COMMENTS STRIPPED, and that is not a convenience. Every one of these is a "must NOT appear"
+# check, and each capture file opens with a header explaining exactly why the thing must not
+# appear -- so the better the file is documented, the more of these fail. The same reason
+# `check-analytics-parity.py` strips comments before scanning for event names.
+for label, text in (("kotlin", code_only(capture_kt)), ("swift", code_only(capture_sw))):
+    # CAPTURE RUNS THROUGH OUR OWN SESSION.
+    check("161 no system camera UI (%s)" % label,
+          "UIImagePickerController" not in text and "ACTION_IMAGE_CAPTURE" not in text)
+    # THE CHROME FALLS AWAY.
+    check("161 capture has no header (%s)" % label, "AppHeader" not in text)
+    check("161 capture has no progress bar (%s)" % label, "StepProgress" not in text)
+    check("161 capture has no skip link (%s)" % label, "SkipLink" not in text)
+
+# ── the caps and the thresholds ────────────────────────────────────────────
+for label, text in (("kotlin", state161_kt), ("swift", state161_sw)):
+    check("161 video cap is 10 seconds (%s)" % label, "10_000" in text)
+    check("161 voice cap is 15 seconds (%s)" % label, "15_000" in text)
+    check("161 the interruption threshold is 2 seconds (%s)" % label, "2_000" in text)
+    check("161 48 deterministic bars (%s)" % label, "48" in text)
+
+# ── the rules that are wrong by default ────────────────────────────────────
+for label, text in (("kotlin", model161_kt), ("swift", model161_sw)):
+    # The artefact is created by ACCEPT, never by Stop.
+    check("161 recorded fires on accept (%s)" % label,
+          "mediaPromptRecorded" in text and "acceptTake" in text)
+    # Reaching the cap does what Stop does.
+    check("161 the cap stops the take (%s)" % label, "MaxLength" in text or "maxLength" in text)
+    # Retake on review does NOT reopen the list.
+    check("161 retake from review keeps the prompt (%s)" % label, "retakeFromReview" in text)
+    # Retake on a filled card DOES reopen it, preselected.
+    check("161 retake from a card reopens the list (%s)" % label, "retakeFromCard" in text)
+    # Permissions are asked on the commit CTA.
+    check("161 permissions are asked on commit (%s)" % label, "commitPrompt" in text)
+    # Continue is never gated: no validation event on this screen.
+    check("161 no validation event on continue (%s)" % label,
+          "formValidationFailed" not in code_only(text)
+          and "FORM_VALIDATION_FAILED" not in code_only(text))
+
+# ── the permission matrix ──────────────────────────────────────────────────
+for label, text in (("kotlin", access161_kt), ("swift", access161_sw)):
+    check("161 a blocked mic blocks both cards (%s)" % label, "Microphone" in text)
+    check("161 nothing is drawn before the first refusal (%s)" % label,
+          "NotDetermined" in text or "notDetermined" in text)
+    check("161 can-ask and blocked are two behaviours (%s)" % label,
+          ("CanAsk" in text or "canAsk" in text) and ("Blocked" in text or "blocked" in text))
+    check("161 the platform's own row label (%s)" % label, "platformLabel" in text)
+
+# The blocked copy, quoted from the ticket. The row label itself is substituted at runtime, so the
+# tails are what can be checked.
+for label, text in (("kotlin", media_kt), ("swift", media_sw)):
+    check("161 blocked camera copy (%s)" % label, "in Settings to film." in text)
+    check("161 blocked mic copy (%s)" % label, "in Settings to record." in text)
+    check("161 can-ask camera copy (%s)" % label,
+          "Allow camera access to film your 10 seconds." in text)
+    check("161 can-ask mic copy (%s)" % label, "Allow microphone access to record." in text)
+
+# ── entitlements ───────────────────────────────────────────────────────────
+manifest = read(os.path.join(MOBILE, "android-preview-project", "app", "src", "main",
+                             "AndroidManifest.xml"))
+plist = read(SW, "Info.plist")
+check("161 android declares RECORD_AUDIO", "android.permission.RECORD_AUDIO" in manifest)
+check("161 android declares CAMERA", "android.permission.CAMERA" in manifest)
+check("161 android does not require a microphone",
+      'android:name="android.hardware.microphone" android:required="false"' in manifest)
+check("161 ios declares NSMicrophoneUsageDescription",
+      "NSMicrophoneUsageDescription" in plist)
+check("161 the camera string covers video too", "film your 10-second video" in plist)
+
+# ── the step ids, which are the one thing two platforms get wrong separately ─
+for label, text in (("kotlin", prompts161_kt), ("swift", prompts161_sw)):
+    check("161 step id media_video (%s)" % label, "media_video" in text)
+    check("161 step id media_voice (%s)" % label, "media_voice" in text)
 
 # ── SHOWUP-156 · a picked photo is normalised before it is sent ─────────────
 #
@@ -635,6 +812,16 @@ check("156 ios applies the exif transform",
       "kCGImageSourceCreateThumbnailWithTransform" in picker_sw)
 check("156 ios does not return the embedded thumbnail",
       "kCGImageSourceCreateThumbnailFromImageAlways" in picker_sw)
+
+# ── a pill's outline follows its own height ─────────────────────────────────
+#
+# The browse sheet's topic rows are `borderRadius: 9999` with `minHeight: 50` -- a pill that grows
+# when its question wraps to two lines. Android clipped them with `CircleShape`, whose radius is
+# half the height, but STROKED them at a fixed 25: correct at exactly 50 tall, and on a taller row
+# the parts of the stroke outside the clip were cut away, leaving a purple outline with pieces
+# missing on the longest questions. iOS never had it -- `Capsule()` is a pill by construction.
+check("158 the topic row's outline follows its height (kotlin)", "outlinePill" in prompts_kt)
+check("158 the topic row is a capsule (swift)", "Capsule()" in prompts_sw)
 
 # ── the two platforms test the same photo-grid behaviour ────────────────────
 #
@@ -710,6 +897,260 @@ for label, text in (("kotlin", photos_kt), ("swift", photos_sw)):
     check("156 CTA circle 52 (%s)" % label, "circleSize" in text and "52" in text)
 for label, text in (("kotlin", prompts_kt), ("swift", prompts_sw)):
     check("158 CTA circle 52 (%s)" % label, "circleSize" in text and "52" in text)
+
+
+# ── SHOWUP-162 · the notifications permission ask ─────────────────────────
+#
+# THE ABSENCES ARE THE DESIGN, and the ticket makes four of them acceptance criteria: no
+# AppHeader, no StepProgress, no way backwards, no `Open Settings`. Each is the kind of thing a
+# later consistency pass adds without malice, and a "not in" assertion is the only way to hold a
+# decision that is expressed by something not being there.
+notify_kt = code_only(read(KT, "profile", "ProfileNotificationsScreen.kt"))
+notify_sw = code_only(read(SW, "ProfileNotifications.swift"))
+analytics_kt = read(KT, "profile", "ProfileAnalytics.kt")
+analytics_sw = read(SW, "ProfileAnalytics.swift")
+
+check("162 no AppHeader (kotlin)", "AppHeader" not in notify_kt)
+check("162 no AppHeader (swift)", "AppHeader" not in notify_sw)
+check("162 no StepProgress (kotlin)", "StepProgress" not in notify_kt)
+check("162 no StepProgress (swift)", "StepProgress" not in notify_sw)
+check("162 no SkipLink (kotlin)", "SkipLink" not in notify_kt)
+check("162 no SkipLink (swift)", "SkipLink" not in notify_sw)
+
+# BACKWARDS IS BLOCKED, and on each platform that is one specific line. Android needs an enabled
+# BackHandler or the gesture pops the screen; iOS needs the nav bar's own back hidden.
+check("162 back is blocked (kotlin)", "BackHandler(enabled = true)" in notify_kt)
+check("162 back is blocked (swift)", "navigationBarBackButtonHidden(true)" in notify_sw)
+
+# NOT A STEP. §2 holds a `notifications` step_id whose index is a dash, and the note added on
+# 21 September 2026 says that is not a licence to fire `profile_step_viewed` -- the id exists so a
+# future skip has a stable value, and this screen has no skip CTA.
+check("162 fires no step event (kotlin)", "stepViewed" not in notify_kt)
+check("162 fires no step event (swift)", "stepViewed" not in notify_sw)
+
+# NO RECOVERY HERE. A denial is recovered on Stay reachable (10), which owns the notifications row
+# and is where a Settings deep link belongs. The same recovery in two places, one of which cannot
+# re-prompt, is the failure the ticket names.
+check("162 no Settings path (kotlin)", "Settings" not in notify_kt)
+check("162 no Settings path (swift)", "Settings" not in notify_sw)
+
+# Rule 5's named exception -- the ambient backdrop, from the shared component rather than three
+# pasted gradients, which the ticket asks for by name in its dependencies.
+check("162 uses the shared backdrop scaffold (kotlin)", "WelcomeScaffold" in notify_kt)
+check("162 uses the shared backdrop scaffold (swift)", "WelcomeScaffold" in notify_sw)
+check("162 headline block top padding 40 (kotlin)", "topPadding = 40.dp" in notify_kt)
+check("162 headline block top padding 40 (swift)", "topPadding: 40" in notify_sw)
+check("162 gutter 28, not the group's 24 (kotlin)", "gutter = 28.dp" in notify_kt)
+check("162 gutter 28, not the group's 24 (swift)", "gutter: 28" in notify_sw)
+check("162 body block top padding 20 (kotlin)", "padding(top = 20.dp)" in notify_kt)
+check("162 body block top padding 20 (swift)", "padding(.top, 20)" in notify_sw)
+check("162 list gap 16 (kotlin)", "spacedBy(16.dp)" in notify_kt)
+check("162 list gap 16 (swift)", "spacing: 16" in notify_sw)
+check("162 list margin-top 22 (kotlin)", "padding(top = 22.dp)" in notify_kt)
+check("162 list margin-top 22 (swift)", "padding(.top, 22)" in notify_sw)
+
+# Rule 7's named exception, and the ONE difference from the bridge: no trailing arrow. 05's button
+# ends in an 18 arrow-right and this one does not -- the label is the whole button.
+check("162 CTA is sunset (kotlin)", "PrimaryButtonVariant.Sunset" in notify_kt)
+check("162 CTA is sunset (swift)", "variant: .sunset" in notify_sw)
+check("162 CTA has NO trailing slot (kotlin)", "trailing" not in notify_kt)
+check("162 CTA has NO trailing slot (swift)", "trailing:" not in notify_sw)
+check("162 CTA wrapper margin-bottom 18 (kotlin)", "padding(bottom = 18.dp)" in notify_kt)
+check("162 CTA wrapper margin-bottom 18 (swift)", "padding(.bottom, 18)" in notify_sw)
+
+# ONE flex spacer with a 12 floor, and it is `required` on Android. `weight` hands down a FIXED
+# height, so an ordinary `heightIn(min =)` after it is clamped to whatever is left -- measured on
+# an iPhone SE, where the 12 became 9.
+check("162 one spacer, floor 12 (kotlin)", notify_kt.count("requiredHeightIn(min = 12.dp)") == 1)
+check("162 one spacer, floor 12 (swift)", notify_sw.count("Spacer(minLength: 12)") == 1)
+
+# THE CTA IS PINNED BELOW THE SCROLL. Scrolling alone left it below the fold on the Galaxy Fold
+# cover screen, which the iOS sweep caught as a CTA that was simply not drawn. See E20.
+check("162 the CTA is pinned, not scrolled (kotlin)", "footer = {" in notify_kt)
+check("162 the CTA is pinned, not scrolled (swift)", "footer: {" in notify_sw)
+
+# FIVE ROWS, NOT SIX, and the order is content rather than layout: row 1 is why the user is in the
+# flow at all and row 5 is the one that protects their time.
+for _n, _title in enumerate(
+    ["Match alert", "Like received", "Meeting details change", "Date reminder", "Date cancelled"], 1
+):
+    check("162 row %d title (kotlin)" % _n, '"%s"' % _title in notify_kt)
+    check("162 row %d title (swift)" % _n, '"%s"' % _title in notify_sw)
+
+# THE COPY, QUOTED BACK FROM THE TICKET. Spaced em dashes, never hyphens, and `e.g.` lower case
+# with both points -- the ticket says so outright, so the assertion carries the characters.
+for _label, _txt in [
+    ("headline lead", u"Never miss "),
+    ("headline em", u"a date"),
+    ("headline tail", u" with Notifications!"),
+    ("lead", u"No spam! Every notification is about your dates and helps you to never miss one."),
+    ("cta", u"Enable notifications"),
+    ("row 1", u"Get instant notifications when you receive a match and never miss out on a date."),
+    ("row 2", u"Don't miss your chance to meet — we surface it the second it arrives."),
+    ("row 3", u"Get notified if your date asks — e.g. meet time change, running late."),
+    ("row 4", u"A heads-up an hour out — never arrive late."),
+    ("row 5", u"Never waste time waiting — get notified, look for someone else instead."),
+    ("premium tag", u"Premium"),
+]:
+    check("162 copy: %s (kotlin)" % _label, _txt in notify_kt)
+    check("162 copy: %s (swift)" % _label, _txt in notify_sw)
+
+# The Premium tag is a LABEL. Not tappable, opens nothing, no paywall behind it -- and it reads as
+# part of row 2's title rather than as a control of its own.
+_tag_kt = notify_kt.split("fun PremiumTag")[1].split("\n}")[0]
+_tag_sw = notify_sw.split("struct PremiumTag")[1].split("\n}")[0]
+check("162 Premium tag is not a control (kotlin)",
+      "clickable" not in _tag_kt and "onClick" not in _tag_kt)
+check("162 Premium tag is not a control (swift)",
+      "Button" not in _tag_sw and "onTapGesture" not in _tag_sw)
+
+# The registry row, from §11 and never typed at a call site.
+check("162 the screen row is registry-backed (kotlin)",
+      'Notifications("profile_notifications", "ProfileNotifications")' in analytics_kt)
+check("162 the screen row is registry-backed (swift)",
+      'case notifications = "profile_notifications"' in analytics_sw)
+
+# The four family G events, all four new, and the three that must NOT fire here.
+for _ev in ["permission_prompted", "permission_os_sheet_shown", "permission_result",
+            "permission_status_changed"]:
+    check("162 %s exists (kotlin)" % _ev, '"%s"' % _ev in analytics_kt)
+    check("162 %s exists (swift)" % _ev, '"%s"' % _ev in analytics_sw)
+
+for _ev in ["permission_denied_recovery_shown", "permission_settings_opened", "consent_changed"]:
+    check("162 %s must not fire here (kotlin)" % _ev, _ev not in notify_kt)
+    check("162 %s must not fire here (swift)" % _ev, _ev not in notify_sw)
+
+# `limited` is a photo-library state and cannot occur for notifications. Both builders take a
+# Boolean, so there is no third value to pass by mistake.
+check("162 permission_result cannot be limited (kotlin)",
+      "granted: Boolean" in analytics_kt and '"limited"' not in code_only(analytics_kt))
+check("162 permission_result cannot be limited (swift)",
+      "granted: Bool" in analytics_sw and '"limited"' not in code_only(analytics_sw))
+
+
+# ── SHOWUP-162 · the row, against the reference file rather than the ticket ──
+#
+# "Order of authority: reference file wins on numbers." Reading it found three defects the ticket
+# prose could not have: `alignItems: 'baseline'` on the title row, which Android had as centre; the
+# tag's `transform: translateY(-1px)`, which Android had as a bottom padding and is not the same
+# thing; and the title's `lineHeight: 1.2`, which iOS did not set at all. Each was correct on
+# exactly one platform, which is the shape a parity check exists to catch.
+
+# The pip. THE MEDIA CARD'S RECIPE at this screen's own numbers -- 40 at radius 12 against the
+# card's 42 at 13 -- because "same recipe" is about the vocabulary and the reference wins on size.
+check("162 pip is 40 (kotlin)", "size(40.dp)" in notify_kt)
+check("162 pip is 40 (swift)", "frame(width: 40, height: 40)" in notify_sw)
+check("162 pip radius 12 (kotlin)", "RoundedCornerShape(12.dp)" in notify_kt)
+check("162 pip radius 12 (swift)", "cornerRadius: 12" in notify_sw)
+check("162 pip is the lilac wash (kotlin)", "background(LilacWash)" in notify_kt)
+check("162 pip is the lilac wash (swift)", "Gradients.lilac()" in notify_sw)
+
+# `--su-grad-lilac` IS 180 DEGREES, and Compose's default linear gradient is the 135 diagonal --
+# which is right for sunset and wrong for this, and was wrong on most Android surfaces until E25.
+# One definition, vertical, and no call site allowed to re-spell the brush.
+_ds_kt = code_only(read(KT, "designsystem", "DesignSystem.kt"))
+check("162 the lilac wash is VERTICAL, per the 180deg token (kotlin)",
+      "Brush.verticalGradient(colorStops = LilacStops.toTypedArray())" in _ds_kt)
+check("162 the lilac wash is VERTICAL, per the 180deg token (swift)",
+      "startPoint: .top, endPoint: .bottom" in code_only(read(SW, "DesignSystem.swift")))
+for _screen in ["ProfilePhotosScreen.kt", "ProfileDobScreen.kt", "ProfilePromptsScreen.kt",
+                "MediaCards.kt", "MediaPromptSheet.kt", "ProfileNotificationsScreen.kt"]:
+    check("162 no second spelling of the lilac brush in %s" % _screen,
+          "LilacStops" not in code_only(read(KT, "profile", _screen)))
+check("162 icon 20 at stroke 1.8 in primary-500 (kotlin)",
+      "20.dp, tint = Purple, strokeWidth = 1.8f" in notify_kt)
+check("162 icon 20 at stroke 1.8 in primary-500 (swift)",
+      "size: 20, stroke: 1.8, tint: .liqPurple" in notify_sw)
+
+# The row itself: gap 14, items top-aligned.
+check("162 row gap 14 (kotlin)", "spacedBy(14.dp)" in notify_kt)
+check("162 row gap 14 (swift)", "spacing: 14" in notify_sw)
+check("162 row aligns to the top (kotlin)", "verticalAlignment = Alignment.Top" in notify_kt)
+check("162 row aligns to the top (swift)", "alignment: .top" in notify_sw)
+
+# The title: Lora 700 / 16 / 1.2 / -0.005em, and BASELINE-aligned with the tag beside it.
+check("162 title is Lora 700 at 16 (kotlin)",
+      "fontFamily = Lora, fontWeight = FontWeight.Bold" in notify_kt and "fontSize = 16.sp" in notify_kt)
+check("162 title is Lora 700 at 16 (swift)", "F.lora(16, bold: true)" in notify_sw)
+check("162 title line height 1.2 (kotlin)", "lineHeight = (16f * 1.2f).sp" in notify_kt)
+check("162 title line height 1.2 (swift)", "lineSpacing(16 * 0.2)" in notify_sw)
+check("162 title tracking -0.005em (kotlin)", "letterSpacing = (-0.005).em" in notify_kt)
+check("162 title tracking -0.005em (swift)", "tracking(-0.005 * 16)" in notify_sw)
+check("162 title and tag align on the BASELINE (kotlin)", "alignByBaseline()" in notify_kt)
+check("162 title and tag align on the BASELINE (swift)",
+      "alignment: .firstTextBaseline" in notify_sw)
+check("162 title-to-tag gap 8 (kotlin)", "spacedBy(8.dp)" in notify_kt)
+check("162 title-to-tag gap 8 (swift)", "spacing: 8" in notify_sw)
+
+# THE PILL IS MEASURED BEFORE THE TITLE, and this is a bug no fit sweep can see. The spec sheet
+# has the row at `flex-wrap: wrap` and neither platform wraps -- they share the width, and an
+# unweighted Text is measured first at the full width. At 2.0x type on a 320 frame that left the
+# pill 25dp of the 123 it needed, with PREMIUM ellipsised inside a stub capsule and nothing
+# overflowing. `NotificationsFitTest.the premium pill is never squeezed` measures it; these two
+# hold the spelling that makes it true.
+check("162 the title yields to the pill, not the reverse (kotlin)",
+      "weight(1f, fill = false)" in notify_kt)
+check("162 the pill keeps its own width (swift)",
+      "fixedSize(horizontal: true, vertical: false)" in notify_sw)
+
+# THE SKIPPED USER STILL NEEDS A TOKEN. The spec sheet's Android <= 12 row says so outright --
+# "These users still need push registration and all five categories" -- and `register()` had
+# exactly one call site: the grant callback on a screen those users never see. minSdk is 30, so
+# API 30-32 would every one of them have been a device the backend has no token for.
+_model_kt = code_only(read(KT, "profile", "NotificationsViewModel.kt"))
+_model_sw = code_only(read(SW, "NotificationsModel.swift"))
+check("162 a skipped user registers for push (kotlin)", "fun skipped(" in _model_kt)
+check("162 a skipped user registers for push (swift)", "func skipped(" in _model_sw)
+check("162 only a GRANTED skip registers (kotlin)",
+      "status != NotificationPermission.Granted" in _model_kt)
+check("162 only a GRANTED skip registers (swift)", "status == .granted" in _model_sw)
+check("162 the skip path is wired from the host (kotlin)",
+      "notifyModel.skipped(status)" in code_only(read(KT, "MainActivity.kt")))
+check("162 the skip path is wired from the host (swift)",
+      "notifications.skipped(status)" in code_only(read(SW, "ShowUpWelcomeApp.swift")))
+
+# The line: Manrope 500 / 13.5 / 1.4, 3 below the title.
+check("162 row line is Manrope 500 at 13.5 (kotlin)", "fontSize = 13.5.sp" in notify_kt)
+check("162 row line is Manrope 500 at 13.5 (swift)", "F.manrope(13.5, .medium)" in notify_sw)
+check("162 row line height 1.4 (kotlin)", "lineHeight = (13.5f * 1.4f).sp" in notify_kt)
+check("162 row line height 1.4 (swift)", "lineSpacing(13.5 * 0.4)" in notify_sw)
+check("162 row line sits 3 below the title (kotlin)", "padding(top = 3.dp)" in notify_kt)
+check("162 row line sits 3 below the title (swift)", "padding(.top, 3)" in notify_sw)
+
+# The Premium pill: 3 x 10, capsule, sunset, white Manrope 800 / 10 uppercase at 0.06em, nudged up
+# 1 by a TRANSFORM. A padding moves it half as far and makes the row taller; the reference's
+# `translateY` takes part in no layout at all.
+check("162 tag padding 3 x 10 (kotlin)", "padding(horizontal = 10.dp, vertical = 3.dp)" in notify_kt)
+check("162 tag padding 3 x 10 (swift)",
+      "padding(.horizontal, 10)" in notify_sw and "padding(.vertical, 3)" in notify_sw)
+check("162 tag is a capsule (kotlin)", "RoundedCornerShape(percent = 50)" in notify_kt)
+check("162 tag is a capsule (swift)", "in: Capsule()" in notify_sw)
+check("162 tag is sunset (kotlin)", "SunsetStops" in notify_kt)
+check("162 tag is sunset (swift)", "Gradients.sunset()" in notify_sw)
+check("162 tag is white Manrope 800 at 10 (kotlin)",
+      "FontWeight.ExtraBold" in notify_kt and "fontSize = 10.sp" in notify_kt)
+check("162 tag is white Manrope 800 at 10 (swift)", "F.manrope(10, .heavy)" in notify_sw)
+check("162 tag is uppercase (kotlin)", ".uppercase()" in notify_kt)
+check("162 tag is uppercase (swift)", ".uppercased()" in notify_sw)
+check("162 tag tracking 0.06em (kotlin)", "letterSpacing = 0.06.em" in notify_kt)
+check("162 tag tracking 0.06em (swift)", "tracking(0.06 * 10)" in notify_sw)
+check("162 tag is nudged by a TRANSFORM, not a padding (kotlin)",
+      "offset(y = (-1).dp)" in notify_kt)
+check("162 tag is nudged by a TRANSFORM, not a padding (swift)", "offset(y: -1)" in notify_sw)
+
+# The headline and the lead.
+check("162 headline is 32 (kotlin)", "fontSize = 32.sp" in notify_kt)
+check("162 headline is 32 (swift)", "fontSize: 32" in notify_sw)
+check("162 headline line height 1.1 (kotlin)", "(32f * 1.1f).sp" in notify_kt)
+check("162 headline line height 1.1 (swift)", "lineHeightMultiple: 1.1" in notify_sw)
+check("162 headline tracking -0.015em (kotlin)", "letterSpacing = (-0.015).em" in notify_kt)
+check("162 headline tracking -0.015em (swift)", "trackingEm: -0.015" in notify_sw)
+check("162 headline is balanced (kotlin)", "balance = true" in notify_kt)
+check("162 headline is balanced (swift)", "balance: true" in notify_sw)
+check("162 lead is Manrope 500 at 15 (kotlin)", "fontSize = 15.sp" in notify_kt)
+check("162 lead is Manrope 500 at 15 (swift)", "F.manrope(15, .medium)" in notify_sw)
+check("162 lead line height 1.55 (kotlin)", "(15f * 1.55f).sp" in notify_kt)
+check("162 lead line height 1.55 (swift)", "lineSpacing(15 * 0.55)" in notify_sw)
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
