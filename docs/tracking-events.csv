@@ -1,0 +1,40 @@
+source,event_name,ticket,screen_name,fires_when,properties,android,ios
+client,screen_viewed,SHOWUP-140,Signup - CreateAccount,screen becomes visible,screen_name,yes,yes
+client,screen_viewed,SHOWUP-142,Signup - welcomeback,screen becomes visible,screen_name; last_used,yes,yes
+client,screen_viewed,SHOWUP-143,Signup - Phonenumber,screen becomes visible,screen_name,yes,yes
+client,screen_viewed,SHOWUP-143,Signup - Codeentry,screen becomes visible,screen_name,yes,yes
+client,screen_viewed,SHOWUP-144,ConnectSSO,screen becomes visible,screen_name; state,yes,yes
+client,signup_create_account_tapped,SHOWUP-140,Signup - CreateAccount,Create free account,,yes,yes
+client,signup_log_in_tapped,SHOWUP-140,Signup - CreateAccount,Already have an account? Log in,,yes,yes
+client,legal_link_tapped,SHOWUP-140/142/144,CreateAccount; welcomeback; ConnectSSO,any legal link (7 links across 3 screens),link; screen_name,yes,yes
+client,signup_auth_method_tapped,SHOWUP-142,Signup - welcomeback,any of the 4 method buttons,method; is_last_used,yes,yes
+client,signup_get_help_tapped,SHOWUP-142,Signup - welcomeback,Get help,,yes,yes
+client,signup_use_different_account_tapped,SHOWUP-142,Signup - welcomeback,Use a different account,,yes,yes
+client,signup_phone_submitted,SHOWUP-143,Signup - Phonenumber,Send me the code,,yes,yes
+client,signup_phone_validation_failed,SHOWUP-143,Signup - Phonenumber,submitted number rejected,reason; country,yes,yes
+client,signup_code_submitted,SHOWUP-143,Signup - Codeentry,Verify code,,yes,yes
+client,signup_code_verify_failed,SHOWUP-143,Signup - Codeentry,wrong code,attempt,yes,yes
+client,signup_resend_requested,SHOWUP-143,Signup - Codeentry,Resend,seconds_waited; after_mismatch,yes,yes
+client,signup_edit_phone_tapped,SHOWUP-143,Signup - Codeentry,Edit phone number,,yes,yes
+client,connect_provider_tapped,SHOWUP-144,ConnectSSO,a provider button,provider,yes,yes
+client,connect_skip_tapped,SHOWUP-144,ConnectSSO,Skip and continue to profile,,yes,yes
+client,connect_sheet_dismissed,SHOWUP-144,ConnectSSO,provider sheet closed before finishing,provider,yes,yes
+client,connect_link_succeeded,SHOWUP-144,ConnectSSO,link completed,provider,yes,yes
+client,connect_link_failed,SHOWUP-144,ConnectSSO,link failed,provider; kind,yes,yes
+client,connect_linking_timeout,SHOWUP-144,ConnectSSO,8-second cap hit,provider,yes,yes
+client,connect_conflict_raised,SHOWUP-144,ConnectSSO,account already exists,provider,yes,yes
+client,connect_conflict_resolve_tapped,SHOWUP-144,ConnectSSO,Continue with <owner>,provider,yes,yes
+client,connect_conflict_different_account_tapped,SHOWUP-144,ConnectSSO,Use a different account,,yes,yes
+client,connect_conflict_repeated,SHOWUP-144,ConnectSSO,2nd or later conflict in one session,count; provider,yes,yes
+client,tutorial_card_viewed,SHOWUP-117/135/136/137/138/139,Tutorial cards 1-6,card becomes visible,card; card_name,yes,yes
+client,tutorial_cta_tapped,SHOWUP-117/135/136/137/138,Tutorial cards 1-5,forward CTA,card; card_name,yes,yes
+client,tutorial_back_tapped,SHOWUP-136/137/138/139,Tutorial cards 3-6,Back,card; card_name,yes,yes
+client,tutorial_completed,SHOWUP-139,Tutorial card 6,final CTA (instead of cta_tapped),card; card_name,yes,yes
+server,account_created,,n/a,"new phone user, or new social user",auth_method,n/a,n/a
+server,like_sent,,n/a,a like is sent,has_message,n/a,n/a
+server,match_created,,n/a,a match is created,match_id,n/a,n/a
+server,check_in_created,,n/a,a check-in is created,has_location,n/a,n/a
+server,date_confirmed,,n/a,a date is confirmed,date_id; venue_attached,n/a,n/a
+server,date_completed,,n/a,a date is completed,date_id,n/a,n/a
+server,date_cancelled,,n/a,a date is cancelled,date_id; had_reason,n/a,n/a
+server,notification_sent,,n/a,a push or email notification is dispatched,channel; notification_type,n/a,n/a
