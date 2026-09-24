@@ -170,8 +170,10 @@ final class NotificationRulesTests: XCTestCase {
         XCTAssertEqual(
             events.only(ProfileAnalytics.permissionResultName)["result"] as? String, "granted"
         )
+        // Hoisted: XCTAssertEqual takes autoclosures, and `await` cannot live inside one.
+        let calls = await push.calls
         XCTAssertEqual(
-            await push.calls, 1,
+            calls, 1,
             "granting and never registering is the silent failure this ticket names"
         )
     }
@@ -187,7 +189,8 @@ final class NotificationRulesTests: XCTestCase {
         XCTAssertEqual(
             events.only(ProfileAnalytics.permissionResultName)["result"] as? String, "denied"
         )
-        XCTAssertEqual(await push.calls, 0)
+        let calls = await push.calls
+        XCTAssertEqual(calls, 0)
     }
 
     func testASecondPressDoesNothingAndReportsNothing() async {

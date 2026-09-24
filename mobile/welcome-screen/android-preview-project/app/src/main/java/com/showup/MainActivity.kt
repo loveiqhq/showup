@@ -283,6 +283,23 @@ class MainActivity : ComponentActivity() {
             val askNotifications = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { granted ->
+                // RECORDED HERE, NOT BEFORE THE LAUNCH, and the difference is a user the ticket
+                // names by name.
+                //
+                // Android cannot tell "never asked" from "refused" -- both read as not-granted --
+                // so `PermissionAskLog` is the proxy, and recording it before the dialog is
+                // ANSWERED makes a liar of it. A user who raises the sheet and then backgrounds
+                // the app without answering would come back recorded as denied, while the OS
+                // status is still not determined. The ticket describes exactly that person: they
+                // "land on Stay reachable never having been asked", and 10's row must raise the
+                // same sheet for them. A false denial would send them to Settings instead, for a
+                // dialog they never saw.
+                //
+                // This callback fires when the platform has an answer, which is the only moment
+                // the ask is a fact. Killed mid-dialog, it never fires and nothing is recorded --
+                // which is correct, because nothing was answered.
+                PermissionAskLog.recordAsked(context, Manifest.permission.POST_NOTIFICATIONS)
+
                 // Reports the result and, on a grant, registers for push -- GRANTING AND NOT
                 // REGISTERING IS A SILENT FAILURE that looks exactly like success on this screen.
                 notifyModel.answered(granted)
@@ -783,11 +800,8 @@ class MainActivity : ComponentActivity() {
                                 if (notifyModel.enablePressed()) {
                                     // Below 33 there is no runtime permission and `shouldShowAsk`
                                     // would already have skipped the screen, so reaching here
-                                    // means the request is real. The ask log is what lets the
-                                    // reader tell "never asked" from "refused" next time.
-                                    PermissionAskLog.recordAsked(
-                                        context, Manifest.permission.POST_NOTIFICATIONS,
-                                    )
+                                    // means the request is real. The ask is recorded in the RESULT
+                                    // callback, not here -- see the comment there.
                                     askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 }
                             },

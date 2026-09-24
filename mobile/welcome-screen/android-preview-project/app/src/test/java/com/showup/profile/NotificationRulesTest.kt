@@ -232,6 +232,29 @@ class NotificationRulesTest {
         }
     }
 
+    @Test
+    fun `an ask that was never answered must not read as a denial`() {
+        // THE BUG THIS GUARDS. Android cannot tell "never asked" from "refused" -- both read as
+        // not-granted -- so the ask log is the proxy. Recording the ask BEFORE the dialog is
+        // answered makes a liar of it: a user who raises the sheet and backgrounds the app without
+        // answering comes back recorded as denied while the OS status is still not determined.
+        //
+        // The ticket names that person: they "land on Stay reachable never having been asked", and
+        // 10's row must raise the same sheet for them. A false denial sends them to Settings for a
+        // dialog they never saw. So the record happens in the RESULT callback, and this is what
+        // the reader must say until then.
+        assertEquals(
+            "sheet raised, not yet answered",
+            NotificationPermission.NotDetermined,
+            notificationPermissionFor(33, granted = false, hasAsked = false),
+        )
+        assertEquals(
+            "answered and refused",
+            NotificationPermission.Denied,
+            notificationPermissionFor(33, granted = false, hasAsked = true),
+        )
+    }
+
     // ── the foreground re-read ──────────────────────────────────────────────
 
     @Test
