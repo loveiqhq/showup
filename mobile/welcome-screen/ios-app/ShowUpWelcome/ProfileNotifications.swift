@@ -220,8 +220,12 @@ struct ProfileNotificationsView: View {
             Spacer(minLength: 12)
 
             // Sunset and full width, rule 7's named exception. NO TRAILING ICON.
+            // UNLABELLED FIRST ARGUMENT. `PrimaryButton` has two inits: the slotted one takes
+            // `label:` and a `trailing:` closure, and the no-slots one takes the label
+            // positionally. This button has NO trailing icon -- the one thing that differs from
+            // the bridge's CTA -- so it is the second, and `label:` there is a compile error.
             PrimaryButton(
-                label: NotificationsCopy.cta,
+                NotificationsCopy.cta,
                 variant: .sunset,
                 action: { if !busy { onEnable() } }
             )
