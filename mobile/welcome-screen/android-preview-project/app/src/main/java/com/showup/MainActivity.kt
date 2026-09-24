@@ -17,6 +17,7 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.camera.core.CameraSelector
+import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -239,6 +240,21 @@ class MainActivity : ComponentActivity() {
             val cameraController = remember(context) { LifecycleCameraController(context) }
             val captureLifecycle = LocalLifecycleOwner.current
             DisposableEffect(captureLifecycle) {
+                // VIDEO_CAPTURE IS ENABLED HERE, AT BIND TIME, AND NOWHERE ELSE.
+                //
+                // `CameraController`'s default is IMAGE_CAPTURE | IMAGE_ANALYSIS -- video is NOT
+                // in it. Enabling it inside `startRecording`'s caller, which is what this used to
+                // do, asks CameraX to REBIND the camera session and then starts a recording on
+                // the use case that rebind is still creating. The recording attaches to nothing,
+                // the encoder never writes, and `finish` finds a zero-byte file and returns null.
+                //
+                // From the user's side that is: record a video, press stop, land back on the card
+                // with no take and no review screen -- which is exactly what a real device did.
+                // Voice was unaffected because `MediaRecorder` has nothing to do with CameraX.
+                //
+                // Enabled before `bindToLifecycle`, the use case is part of the first bind and
+                // there is no second one to race.
+                cameraController.setEnabledUseCases(CameraController.VIDEO_CAPTURE)
                 cameraController.cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
                 cameraController.bindToLifecycle(captureLifecycle)
                 onDispose { cameraController.unbind() }

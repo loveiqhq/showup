@@ -141,6 +141,9 @@ final class MediaRulesTests: XCTestCase {
         let box = ClockBox()
         box.value = clock
         clocks.append(box)
+        // The recording clock is its own box: `tickWait` advances it, so virtual time passes
+        // exactly as fast as the ticks and the suite measures what it always did.
+        let ticks = TickClock()
         let model = MediaModel(
             repo: repo,
             access: FixedMediaAccess(access: access),
@@ -150,7 +153,12 @@ final class MediaRulesTests: XCTestCase {
             now: { box.value },
             tickMs: 10,
             // Returns immediately: a ten-second cap costs a thousand loop iterations and no time.
-            tickWait: { _ in },
+            // IT ALSO ADVANCES THE MONOTONIC CLOCK, because the model reads elapsed time from a
+            // clock now rather than counting its own ticks — counting is what made a ten-second
+            // recording take fourteen on a device. A `tickWait` that returns without time passing
+            // would leave the clock frozen and the cap unreachable, so here the sleep IS the time.
+            tickWait: { ms in ticks.advance(ms) },
+            monotonicMs: { ticks.now() },
             readFile: { _ in Data(count: 8) },
             removeFile: { _ in }
         )
@@ -168,6 +176,18 @@ final class MediaRulesTests: XCTestCase {
     /// Sendable` would be the lazy way to say the same thing and is banned in this project.
     private final class ClockBox {
         var value: Int64 = 0
+    }
+
+    /// The recording clock, advanced by `tickWait`.
+    ///
+    /// `@MainActor` with nonisolated accessors, the same shape as this suite's `Recorder` and for
+    /// the same reason: `tickWait` is `@Sendable`, so whatever it captures has to be, and the
+    /// three escape hatches are banned here. A main-actor class is Sendable without one.
+    @MainActor
+    private final class TickClock {
+        private var value = 0
+        nonisolated func advance(_ ms: Int) { MainActor.assumeIsolated { value += ms } }
+        nonisolated func now() -> Int { MainActor.assumeIsolated { value } }
     }
     private var clocks: [ClockBox] = []
 
