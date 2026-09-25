@@ -873,6 +873,35 @@ acceptance criteria. The criteria win and the build follows them: the pencil fir
 `prompt_editor_opened{is_edit: true}` and no entry point. Worth a copy edit before somebody
 implements question 6.
 
+## E30 · The backend and the apps now stamp different `field_registry_version`. LOW, but it is one number
+
+Committing the handoff put both registries in the repo for the first time, side by side:
+
+| | File | `registry_version` | Stamps |
+| --- | --- | --- | --- |
+| backend | `src/modules/analytics/registry/enums.json` | **1.1.0** | `FIELD_REGISTRY_VERSION = '1.1.0'` |
+| design | `design_handoff_showup/tracking/enums.json` | **1.4.5** | mobile stamps `"1.4.5"` |
+
+**The vocabularies agree.** §1 `field_id` holds the same nine ids on both sides, so nothing is
+misclassified and the backend's fail-closed-to-class-2 default is not being hit by a field it has
+never heard of. That is the part that would have mattered and it is fine.
+
+**What differs is the claim.** `field_registry_version` exists so a row carries the vocabulary it
+was collected under, and the same product is now emitting two different answers to that question
+depending on which half of it fired the event. The two files are also different SHAPES — the
+backend's is a flat map keyed by field with a `sensitivity_class`, the design one is a `sets` list
+— so they are not two copies of one artefact and a sync is not a file copy.
+
+Arguable that 1.1.0 is right for the backend: §1 has not changed since, and every bump from 1.3.0
+to 1.4.5 moved sections the backend does not stamp against. But the registry versions the document,
+not the section — its own note says "this versions the vocabulary, not the taxonomy document" — so
+two live values is a thing somebody will have to reconcile when the two event streams are joined.
+
+**Not fixed here.** The backend copy is drift-guarded by `sensitivity.spec.ts` and belongs to
+Epic 11; changing its stamp is a backend ticket with a test to satisfy, not a line in a mobile PR.
+Recorded because it became visible today and will be invisible again the moment nobody is looking
+at both files at once.
+
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 
 `components/shared.jsx` and the profile references carry both spellings:
