@@ -33,6 +33,7 @@
 //  `tickWait` returns immediately, so a ten-second cap is reached in no time at all.
 //
 
+import os
 import XCTest
 @testable import ShowUpWelcome
 
@@ -143,7 +144,7 @@ final class MediaRulesTests: XCTestCase {
         clocks.append(box)
         // The recording clock is its own box: `tickWait` advances it, so virtual time passes
         // exactly as fast as the ticks and the suite measures what it always did.
-        let ticks = TickClock()
+        let ticks = TickClock(initialState: 0)
         let model = MediaModel(
             repo: repo,
             access: FixedMediaAccess(access: access),
@@ -157,8 +158,8 @@ final class MediaRulesTests: XCTestCase {
             // clock now rather than counting its own ticks — counting is what made a ten-second
             // recording take fourteen on a device. A `tickWait` that returns without time passing
             // would leave the clock frozen and the cap unreachable, so here the sleep IS the time.
-            tickWait: { ms in ticks.advance(ms) },
-            monotonicMs: { ticks.now() },
+            tickWait: { ms in ticks.withLock { $0 += ms } },
+            monotonicMs: { ticks.withLock { $0 } },
             readFile: { _ in Data(count: 8) },
             removeFile: { _ in }
         )
@@ -180,15 +181,15 @@ final class MediaRulesTests: XCTestCase {
 
     /// The recording clock, advanced by `tickWait`.
     ///
-    /// `@MainActor` with nonisolated accessors, the same shape as this suite's `Recorder` and for
-    /// the same reason: `tickWait` is `@Sendable`, so whatever it captures has to be, and the
-    /// three escape hatches are banned here. A main-actor class is Sendable without one.
-    @MainActor
-    private final class TickClock {
-        private var value = 0
-        nonisolated func advance(_ ms: Int) { MainActor.assumeIsolated { value += ms } }
-        nonisolated func now() -> Int { MainActor.assumeIsolated { value } }
-    }
+    /// A LOCK, NOT `MainActor.assumeIsolated`. The first attempt used the main-actor shape this
+    /// suite's `Recorder` uses and CRASHED the whole test binary: `tickWait` is a non-isolated
+    /// `@Sendable` closure, so awaiting it from the model's `@MainActor` Task hops OFF the main
+    /// actor, and `assumeIsolated` is a fatal error when the assumption is false. `Recorder` gets
+    /// away with it because the model calls it synchronously and never leaves the actor.
+    ///
+    /// `OSAllocatedUnfairLock` is Sendable on its own and readable synchronously, which is what a
+    /// clock has to be. The three escape hatches stay banned.
+    private typealias TickClock = OSAllocatedUnfairLock<Int>
     private var clocks: [ClockBox] = []
 
     private func advanceClock(by ms: Int64) {

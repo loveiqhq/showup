@@ -344,7 +344,17 @@ open class MediaViewModel(
         ticker = viewModelScope.launch {
             val max = MediaLimits.maxMs(kind)
             val startedAt = elapsedRealtimeMs()
-            while (true) {
+            // BOUNDED, and not as a formality. Reading the clock means the loop's exit depends on
+            // the clock MOVING, and a frozen one -- an injected stub, a platform quirk -- would
+            // spin here forever. This project has already lost four and a half hours of CI to an
+            // unbounded ticker; a take that ends early because the clock stopped is a bad take,
+            // and one that never ends is a hung app.
+            //
+            // Ten times the passes the cap should need, so it cannot fire on a device merely
+            // being slow -- which is the very thing the clock is here to tolerate.
+            val maxPasses = (max / tickMs).toInt() * 10 + 100
+            var passes = 0
+            while (passes++ < maxPasses) {
                 delay(tickMs)
                 val take = _state.value.take ?: return@launch
                 if (take.phase != RecordingPhase.Recording) return@launch

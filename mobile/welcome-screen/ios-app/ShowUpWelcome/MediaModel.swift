@@ -352,7 +352,17 @@ final class MediaModel {
             guard let self else { return }
             let maxMs = MediaLimits.maxMs(kind)
             let startedAt = self.monotonicMs()
-            while true {
+            // BOUNDED, and not as a formality. Reading the clock means the loop's exit depends on
+            // the clock MOVING, and a frozen one would spin here forever — which on this side is
+            // a HOT spin, because `tickWait` is injectable and a test's returns immediately. That
+            // is exactly how the first attempt at this fix took the whole test binary down.
+            //
+            // Ten times the passes the cap should need, so it cannot fire on a device merely
+            // being slow — the very thing the clock is here to tolerate.
+            let maxPasses = (maxMs / step) * 10 + 100
+            var passes = 0
+            while passes < maxPasses {
+                passes += 1
                 await self.tickWait(step)
                 if Task.isCancelled { return }
                 guard var take = self.state.take, take.phase == .recording else { return }
