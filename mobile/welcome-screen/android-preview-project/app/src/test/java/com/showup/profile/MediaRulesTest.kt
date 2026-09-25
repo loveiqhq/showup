@@ -104,7 +104,19 @@ class MediaRulesTest {
         player: MediaPlayerFactory,
         analytics: AnalyticsTracker?,
         now: () -> Long,
-    ) : MediaViewModel(repo, access, capture, player, analytics, now, tickMs = 10L) {
+        /**
+         * VIRTUAL TIME, so the recording clock measures the same thing here as on a device.
+         *
+         * The view model reads elapsed time from a monotonic clock rather than counting its own
+         * ticks -- counting is what made a ten-second video take fourteen on a real phone. Under
+         * `runTest` a `delay` advances the scheduler by exactly its argument, so this is a clock
+         * that moves in step with the ticks and the suite measures what it always did.
+         */
+        elapsedRealtimeMs: () -> Long,
+    ) : MediaViewModel(
+        repo, access, capture, player, analytics, now,
+        tickMs = 10L, elapsedRealtimeMs = elapsedRealtimeMs,
+    ) {
         val deleted = mutableListOf<String>()
         override fun readTake(path: String?): ByteArray? = ByteArray(8)
         override fun deleteTake(path: String) {
@@ -141,6 +153,7 @@ class MediaRulesTest {
         player = player,
         analytics = analytics,
         now = { clock },
+        elapsedRealtimeMs = { dispatcher.scheduler.currentTime },
     ).also {
         // The view model starts at NotDetermined for both and only learns otherwise by asking, so
         // a fixture that skipped this would have every test blocked at the permission gate -- which
@@ -562,14 +575,66 @@ class MediaRulesTest {
         runTest(dispatcher) {
             val vm = TestViewModel(
                 repo, FixedMediaAccess(GRANTED), FakeMediaCapture(startSucceeds = false),
-                player, analytics,
-            ) { clock }
+                player, analytics, { clock },
+            ) { dispatcher.scheduler.currentTime }
             vm.openPrompts(MediaKind.Video, MediaEntryPoint.SeeThePrompts)
             vm.pickPrompt(PROMPT)
             vm.commitPrompt()
             advanceUntilIdle()
             assertNull(vm.state.value.take)
         }
+
+    /**
+     * THE BAR MEASURES TIME, IT DOES NOT COUNT TICKS.
+     *
+     * This is the regression test for a bug a real device found and no test could: the clock
+     * added `tickMs` per pass of a `delay(tickMs)` loop. A delay guarantees AT LEAST its argument
+     * and never exactly, and each pass also wrote state that recomposed the capture screen and
+     * redrew a live waveform -- so on a phone the loop ran around 70ms per 50ms tick. A ten-second
+     * video took about fourteen seconds, and the recorder wrote fourteen seconds of footage while
+     * the bar said ten. Reported as "these seconds last much longer than real life seconds".
+     *
+     * Here the clock runs at THREE TIMES the tick, which is the same failure exaggerated: a build
+     * that counts ticks reaches the cap after `max / tick` passes, and one that reads the clock
+     * reaches it after a third of them. Asserting the cap is honoured against a clock the ticks
+     * disagree with is the only way to tell the two apart.
+     */
+    @Test
+    fun `the cap follows the clock, not the number of ticks`() = runTest(dispatcher) {
+        var fast = 0L
+        val vm = TestViewModel(
+            repo, FixedMediaAccess(GRANTED), capture, player, analytics, { clock },
+        ) { fast }
+        vm.refreshAccess()
+        vm.openPrompts(MediaKind.Video, MediaEntryPoint.SeeThePrompts)
+        vm.pickPrompt(PROMPT)
+        vm.commitPrompt()
+
+        // Three ticks' worth of real time per tick, and DELIBERATELY TOO FEW TICKS to reach the
+        // cap by counting: 400 passes is 12,000ms on the clock and only 4,000 of tick. A build
+        // that counts is still recording, four tenths of the way along; one that measures hit the
+        // cap at pass 334 and is on the review screen. Give it enough ticks for both and the test
+        // passes either way, which is the trap this is written around.
+        repeat(400) {
+            fast += 30
+            advanceTimeBy(10)
+        }
+        // NOT `advanceUntilIdle`, which is what made the first draft of this test pass against
+        // the bug it was written for: the ticker reschedules itself every tick, so draining the
+        // scheduler runs the whole recording to its cap however the cap is computed. A bounded
+        // nudge lets the stop that has already been decided finish, and adds ten ticks -- which
+        // a counting build spends getting from 4,000 to 4,100.
+        advanceTimeBy(100)
+        runCurrent()
+
+        val take = vm.state.value.take
+        assertEquals(RecordingPhase.Review, take?.phase)
+        assertEquals(
+            "the take must stop at the cap the clock reports, not at the tick count",
+            MediaLimits.VIDEO_MS,
+            take?.elapsedMs,
+        )
+    }
 
     // ── the retake loop ──────────────────────────────────────────────────────
 

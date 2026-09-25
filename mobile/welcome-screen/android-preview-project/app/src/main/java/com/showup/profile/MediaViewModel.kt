@@ -29,6 +29,7 @@
  */
 package com.showup.profile
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
@@ -63,6 +64,31 @@ open class MediaViewModel(
     private val now: () -> Long = System::currentTimeMillis,
     /** How often the recording clock advances. Injected so a test can drive it instantly. */
     private val tickMs: Long = 50L,
+    /**
+     * MONOTONIC ELAPSED TIME, and a different thing from [now].
+     *
+     * [now] is a wall clock answering "when did this happen" for `time_on_step_s`. This one
+     * answers "how long has this take been running", which is a duration, and durations are not
+     * measured by counting how many times you slept.
+     *
+     * That is what this used to do: `delay(tickMs)` in a loop, adding `tickMs` per pass. `delay`
+     * guarantees AT LEAST that long, never exactly -- and each pass also updated state, which
+     * recomposed the capture screen and redrew a live waveform. On a real device the loop ran
+     * around 70ms per 50ms tick, so a "ten second" video took about fourteen seconds of the
+     * user's life and the recorder wrote fourteen seconds of footage while the bar said ten.
+     * Reported from a device as "these seconds last much longer than real life seconds", which is
+     * exactly what it was.
+     *
+     * `elapsedRealtime` rather than `currentTimeMillis`: it cannot jump backwards when the
+     * network corrects the wall clock mid-take, and it keeps counting in deep sleep.
+     *
+     * THE iOS HALF IS NOT DONE. `MediaModel` still counts, because the same change turned most of
+     * `MediaRulesTests` red -- its injected `tickWait` returns immediately, so the ticker is a hot
+     * loop and the extra work per pass starved the executor the rest of the suite runs on. E28 has
+     * both attempts and what it actually needs. The platforms are supposed to move together and
+     * here they do not; that is recorded rather than quietly true.
+     */
+    private val elapsedRealtimeMs: () -> Long = { SystemClock.elapsedRealtime() },
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MediaState())
@@ -323,13 +349,27 @@ open class MediaViewModel(
         ticker?.cancel()
         ticker = viewModelScope.launch {
             val max = MediaLimits.maxMs(kind)
-            var elapsed = 0
-            while (elapsed < max) {
+            val startedAt = elapsedRealtimeMs()
+            // BOUNDED, and not as a formality. Reading the clock means the loop's exit depends on
+            // the clock MOVING, and a frozen one -- an injected stub, a platform quirk -- would
+            // spin here forever. This project has already lost four and a half hours of CI to an
+            // unbounded ticker; a take that ends early because the clock stopped is a bad take,
+            // and one that never ends is a hung app.
+            //
+            // Ten times the passes the cap should need, so it cannot fire on a device merely
+            // being slow -- which is the very thing the clock is here to tolerate.
+            val maxPasses = (max / tickMs).toInt() * 10 + 100
+            var passes = 0
+            while (passes++ < maxPasses) {
                 delay(tickMs)
-                elapsed = (elapsed + tickMs).toInt().coerceAtMost(max)
                 val take = _state.value.take ?: return@launch
                 if (take.phase != RecordingPhase.Recording) return@launch
+                // MEASURED, NOT COUNTED. The tick decides how often the bar is redrawn and
+                // nothing else; how far it has got is read from the clock, so a slow frame
+                // costs smoothness rather than making the recording longer.
+                val elapsed = (elapsedRealtimeMs() - startedAt).toInt().coerceIn(0, max)
                 _state.update { it.copy(take = it.take?.copy(elapsedMs = elapsed)) }
+                if (elapsed >= max) break
             }
             stopTake(MediaStopReason.MaxLength)
         }
