@@ -32,7 +32,6 @@
 //  built on — measure nothing.
 //
 
-import Dispatch
 import Foundation
 
 @MainActor
@@ -60,7 +59,6 @@ final class MediaModel {
 
     /// How often the recording clock advances, in milliseconds.
     private let tickMs: Int
-    private let monotonicMs: @Sendable () -> Int
 
     /// What one tick waits on.
     ///
@@ -128,23 +126,6 @@ final class MediaModel {
         tickWait: @escaping @Sendable (Int) async -> Void = { ms in
             try? await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
         },
-        /// MONOTONIC ELAPSED TIME, and a different thing from `now`.
-        ///
-        /// `now` is a wall clock answering "when did this happen". This one answers "how long has
-        /// this take been running", which is a duration — and a duration is not measured by
-        /// counting how many times you slept.
-        ///
-        /// That is what this used to do: await `tickWait(tickMs)` and add `tickMs` per pass. A
-        /// sleep guarantees at least that long, never exactly, and each pass also wrote state
-        /// that redrew the capture screen and its live waveform. Measured on an Android device
-        /// running the same shape of loop, a "ten second" recording took about fourteen seconds
-        /// and the recorder wrote fourteen seconds of footage while the bar said ten.
-        ///
-        /// `uptimeNanoseconds` rather than a `Date`: it cannot jump when the network corrects the
-        /// wall clock mid-take.
-        monotonicMs: @escaping @Sendable () -> Int = {
-            Int(DispatchTime.now().uptimeNanoseconds / 1_000_000)
-        },
         readFile: @escaping @Sendable (String) -> Data? = {
             try? Data(contentsOf: URL(fileURLWithPath: $0))
         },
@@ -160,7 +141,6 @@ final class MediaModel {
         self.now = now
         self.tickMs = tickMs
         self.tickWait = tickWait
-        self.monotonicMs = monotonicMs
         self.readFile = readFile
         self.removeFile = removeFile
     }
@@ -351,28 +331,14 @@ final class MediaModel {
         ticker = Task { [weak self] in
             guard let self else { return }
             let maxMs = MediaLimits.maxMs(kind)
-            let startedAt = self.monotonicMs()
-            // BOUNDED, and not as a formality. Reading the clock means the loop's exit depends on
-            // the clock MOVING, and a frozen one would spin here forever — which on this side is
-            // a HOT spin, because `tickWait` is injectable and a test's returns immediately. That
-            // is exactly how the first attempt at this fix took the whole test binary down.
-            //
-            // Ten times the passes the cap should need, so it cannot fire on a device merely
-            // being slow — the very thing the clock is here to tolerate.
-            let maxPasses = (maxMs / step) * 10 + 100
-            var passes = 0
-            while passes < maxPasses {
-                passes += 1
+            var elapsed = 0
+            while elapsed < maxMs {
                 await self.tickWait(step)
                 if Task.isCancelled { return }
+                elapsed = min(maxMs, elapsed + step)
                 guard var take = self.state.take, take.phase == .recording else { return }
-                // MEASURED, NOT COUNTED. The tick decides how often the bar is redrawn and
-                // nothing else; how far it has got is read from the clock, so a slow frame costs
-                // smoothness rather than making the recording longer.
-                let elapsed = min(maxMs, max(0, self.monotonicMs() - startedAt))
                 take.elapsedMs = elapsed
                 self.state.take = take
-                if elapsed >= maxMs { break }
             }
             await self.stopTake(reason: .maxLength)
         }

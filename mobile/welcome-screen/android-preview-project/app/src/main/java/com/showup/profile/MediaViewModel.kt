@@ -81,6 +81,12 @@ open class MediaViewModel(
      *
      * `elapsedRealtime` rather than `currentTimeMillis`: it cannot jump backwards when the
      * network corrects the wall clock mid-take, and it keeps counting in deep sleep.
+     *
+     * THE iOS HALF IS NOT DONE. `MediaModel` still counts, because the same change turned most of
+     * `MediaRulesTests` red -- its injected `tickWait` returns immediately, so the ticker is a hot
+     * loop and the extra work per pass starved the executor the rest of the suite runs on. E28 has
+     * both attempts and what it actually needs. The platforms are supposed to move together and
+     * here they do not; that is recorded rather than quietly true.
      */
     private val elapsedRealtimeMs: () -> Long = { SystemClock.elapsedRealtime() },
 ) : ViewModel() {
