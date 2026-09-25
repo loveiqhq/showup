@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Embrace · add profile details</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none; background: none; padding: 0;
+    cursor: pointer; color: inherit;
+  }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.ok   { background: #00AB55; box-shadow: 0 0 0 3px rgba(0,171,85,0.18); }
+  .frame-label .pip.alt  { background: var(--liq-primary-500); box-shadow: 0 0 0 3px rgba(129,42,236,0.18); }
+
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app {
+    border-radius: 38px;
+    overflow: hidden;
+  }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 24px;
+    max-width: 720px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Shared primitives -->
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+<!-- The new embrace screen -->
+<script type="text/babel" src="ui_kits/show-up/screens-profile-embrace2.jsx"></script>
+
+<script type="text/babel">
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          03 · Profile creation · Embrace 2
+        </span>
+        <h1>You are doing <em style={{ fontWeight: 500 }}>great</em>, Leo.</h1>
+        <p>
+          A second one-beat embrace screen — sits after the user has finished
+          the core profile (photos, prompts, media) and before the optional
+          background-details flow. Reuses the warm-paper backdrop and sunset
+          CTA from the first embrace so the moment feels of-a-piece.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="01 Embrace 2 · add profile details">
+          <div className="frame-label">
+            <span className="pip ok"></span>
+            Embrace · add profile details
+          </div>
+          <div className="frame-shell">
+            <ScreenProfileEmbrace2 name="Leo"/>
+          </div>
+          <div className="caption">
+            <strong>Bridge from "done" into "more".</strong> Celebrates the
+            profile they just built, then re-frames the next step as a
+            mutual exchange — the reciprocity copy ("you'll see what you've
+            added on others' profiles") is what carries the ask.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="02 Embrace 2 · no name fallback">
+          <div className="frame-label">
+            <span className="pip alt"></span>
+            Fallback · no name
+          </div>
+          <div className="frame-shell">
+            <ScreenProfileEmbrace2 name=""/>
+          </div>
+          <div className="caption">
+            <strong>Generic fallback.</strong> If we somehow don't have the
+            user's first name, the headline drops the name token cleanly
+            ("You are doing great.") rather than rendering "great ,"
+            or a placeholder.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>How this fits the system</h3>
+        <ul>
+          <li>
+            <strong>Same template as the first embrace.</strong> Warm-paper
+            canvas, orange orb top-right, violet orb bottom, peach wash
+            across the top — so the user reads this as "the same beat
+            again" rather than a new visual context.
+          </li>
+          <li>
+            <strong>Violet orb pulled centre-bottom.</strong> The reference
+            screenshot places the lavender glow under the centre of the
+            empty middle, not in the corner. The orb is widened and
+            centered to match — the bottom third of the screen has a soft
+            lavender halo that lifts the CTA off the canvas.
+          </li>
+          <li>
+            <strong>No italic-flourish on the headline.</strong> Unlike the
+            first embrace ("show the person <em>behind</em> your profile"),
+            the reference copy "You are doing great Leo." has no emphasis
+            word — it reads as a complete, calm sentence rather than a
+            manifesto fragment. We respect that and skip the orange-wash
+            underline this time.
+          </li>
+          <li>
+            <strong>No bullets.</strong> The first embrace earns a two-item
+            list because it's previewing two distinct future steps
+            (photos, voice/video). This screen has one ask — "fill in
+            optional details" — so the body is a single lead paragraph and
+            the middle stays open.
+          </li>
+          <li>
+            <strong>Sunset CTA, full-width.</strong> Same vocabulary as
+            "Create my profile". Sunset (not flat orange) because opting
+            into a longer-than-required step is a commitment beat. Trailing
+            arrow matches the reference. CTA label updated to <strong>Add
+            profile details →</strong> per the brief.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

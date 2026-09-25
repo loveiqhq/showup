@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Profile prompts</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none; background: none; padding: 0;
+    cursor: pointer; color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .section-head {
+    width: 100%; max-width: 1280px;
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 0 4px;
+  }
+  .section-head .num {
+    font-family: var(--liq-font-serif); font-weight: 700; font-style: italic;
+    font-size: 36px; color: var(--liq-primary-500);
+    line-height: 1; letter-spacing: -0.02em;
+  }
+  .section-head h2 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 22px;
+    color: var(--liq-fg); margin: 0; letter-spacing: -0.01em;
+  }
+  .section-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 14px;
+    color: var(--liq-fg-muted); margin: 0;
+  }
+
+  .row {
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.ok   { background: #00AB55; box-shadow: 0 0 0 3px rgba(0,171,85,0.18); }
+  .frame-label .pip.note { background: var(--liq-orange-500); box-shadow: 0 0 0 3px rgba(254,104,57,0.18); }
+  .frame-label .pip.alt  { background: var(--liq-primary-500); box-shadow: 0 0 0 3px rgba(129,42,236,0.18); }
+  .frame-label .pip.danger { background: var(--liq-danger); box-shadow: 0 0 0 3px rgba(251,50,59,0.18); }
+
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app { border-radius: 38px; overflow: hidden; }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 24px;
+    max-width: 760px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+  .notes em { font-style: italic; }
+
+  @keyframes sheet-rise {
+    from { transform: translateY(28px); opacity: 0.85; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Shared primitives (StatusBar, AppHeader, Icon, Button, NextButton, StepProgress, Eyebrow, HomeIndicator) -->
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+// ─────────────────────────────────────────────────────────────
+// PROMPT TOPICS — Show Up voice
+//
+// Period-driven. "You / your". Faintly confrontational where it
+// earns its keep — these aren't "Two truths and a lie" filler.
+// Sentence-starters end in "…" so the user knows to complete them;
+// declarative ones end in "." and are answered with a paragraph.
+// ─────────────────────────────────────────────────────────────
+const PROMPT_TOPICS = [
+  "On a first date, I want to…",
+  "Match me if you…",
+  "Don't bother matching if you…",
+  "What I'm actually looking for.",
+  "Three things I won't compromise on.",
+  "My idea of commitment.",
+  "I'll talk for hours about…",
+  "I'd cross town for…",
+  "What 30 minutes with me feels like.",
+  "Why I'm here. Not on another app.",
+  "The fastest way to my attention.",
+  "I'm proud of…",
+];
+
+// ─────────────────────────────────────────────────────────────
+// ChoosePromptButton — outlined pill, full width
+//
+// The empty-slot affordance on the main screen. Violet stroke
+// (1.5px) + a plus glyph inside a soft lilac pip on the right.
+// Reuses the same dashed-violet vocabulary as the PhotoSlot empty
+// state but lands on a full-pill row instead of a dashed card —
+// because there's only ever one row per slot here, the rhythm
+// reads as a list of buttons rather than a grid.
+// ─────────────────────────────────────────────────────────────
+function ChoosePromptButton({ label, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      width: '100%', height: 56,
+      borderRadius: 9999,
+      background: '#fff',
+      border: '1.5px solid var(--liq-primary-500)',
+      padding: '0 22px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      transition: 'transform 180ms cubic-bezier(.22,1,.36,1), background 180ms',
+    }}
+      onMouseDown={e => e.currentTarget.style.transform = 'scale(0.985)'}
+      onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+    >
+      <span style={{
+        fontFamily: 'var(--liq-font-sans)', fontWeight: 600, fontSize: 15.5,
+        color: 'var(--liq-fg)', letterSpacing: 0.01,
+      }}>{label}</span>
+      <span style={{
+        width: 28, height: 28, borderRadius: '50%',
+        background: 'var(--liq-lavender-50)',
+        border: '1px solid rgba(129,42,236,0.20)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--liq-primary-500)',
+      }}>
+        <Icon name="plus" size={16} stroke={2.4}/>
+      </span>
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// FilledPromptCard — lilac wash card with topic + answer
+//
+// The "filled" state once a user has chosen a topic and written an
+// answer. Topic shown in Lora bold (the editorial voice carries
+// the question itself), answer in Manrope below. A tiny edit pencil
+// pip floats top-right so the user knows they can revise without
+// having to start over.
+// ─────────────────────────────────────────────────────────────
+function FilledPromptCard({ topic, answer, onEdit }) {
+  return (
+    <div style={{
+      position: 'relative',
+      padding: '16px 18px',
+      borderRadius: 18,
+      background: 'var(--su-grad-lilac)',
+      border: '1px solid rgba(129,42,236,0.10)',
+    }}>
+      <button
+        onClick={onEdit}
+        aria-label="Edit prompt"
+        style={{
+          position: 'absolute', top: 12, right: 12,
+          width: 30, height: 30, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--liq-primary-500)',
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="1.8"
+          strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+          <path d="M15 5l4 4"/>
+        </svg>
+      </button>
+
+      <div style={{
+        fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 16,
+        lineHeight: 1.25, color: 'var(--liq-fg)',
+        letterSpacing: '-0.005em',
+        paddingRight: 32, /* clear the edit pip */
+      }}>
+        {topic}
+      </div>
+      <div style={{
+        marginTop: 6,
+        fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 13.5,
+        lineHeight: 1.5, color: 'var(--liq-fg)',
+        textWrap: 'pretty',
+      }}>
+        {answer}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sample saved prompts — wired into the main-screen states
+// ─────────────────────────────────────────────────────────────
+const SAMPLE_PROMPTS = [
+  {
+    topic: "On a first date, I want to…",
+    answer: "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on your mind this week. Bring it. I'll listen.",
+  },
+  {
+    topic: "Don't bother matching if you…",
+    answer: "Cancel last minute. Ghost mid-thread. Treat 30 minutes like it's optional.",
+  },
+  {
+    topic: "I'd cross town for…",
+    answer: "A proper conversation. An old cinema. The 8pm walk after a long day.",
+  },
+];
+
+// ─────────────────────────────────────────────────────────────
+// ScreenRealYou — the underlying "prompt" screen
+//
+// Anatomy:
+//   - StatusBar
+//   - AppHeader "The real you", back button
+//   - 3-segment StepProgress (segment fills as prompts get saved —
+//     0 saved = 1/3, 1 = 2/3, 2-3 = 3/3 — so the bar reads as a
+//     "fullness" gauge, not a step counter; matches the reference).
+//   - Editorial headline with italic-underline ("personal")
+//   - Sub-line stating the rule ("Write at least 1 prompt…")
+//   - Stack of: filled cards (one per saved prompt) +
+//     one trailing "Choose your Nth prompt +" button if < 3 saved
+//   - Footer: "Continue" round arrow CTA, bottom-right (orange
+//     routine — same as ScreenProfileName). Always active; short of
+//     one saved prompt it answers with a toast.
+//
+// Props:
+//   prompts   array of {topic, answer}; empty = clean entry
+//   sheet     "topic" | "write" | undefined — when set, scrim is
+//             shown and underlying screen dims so we can layer the
+//             corresponding bottom sheet on top.
+// ─────────────────────────────────────────────────────────────
+function ScreenRealYou({ prompts = [], sheet, sheetVariant }) {
+  const count = prompts.length;
+  const canContinue = count >= 1;
+  // Continue stays live. Tapping it with no prompt answers with a toast
+  // instead of a dead control — same pattern as the Photos screen.
+  const [toast, setToast] = React.useState(false);
+  const toastTimer = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(toastTimer.current), []);
+  const onContinue = () => {
+    if (canContinue) return;
+    setToast(true);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(false), 2600);
+  };
+
+  // Step bar progression — match what the reference screenshots
+  // imply: 0 → 1/3, 1 → 2/3, 2-3 → 3/3.
+  const stepCurrent = count === 0 ? 1 : count === 1 ? 2 : 3;
+
+  const slotLabel = count === 0
+    ? "Choose your 1st prompt"
+    : count === 1
+      ? "Choose your 2nd prompt"
+      : "Choose your 3rd prompt";
+
+  return (
+    <div className="su-app" style={{
+      width: 390, height: 844, position: 'relative', overflow: 'hidden',
+      background: 'var(--liq-bg)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Ambient atmosphere — hero tier (this is an expressive identity moment) */}
+      <Atmosphere variant="hero"/>
+
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <StatusBar time="4:20"/>
+        <AppHeader title="The real you" leading="back"/>
+      </div>
+
+      <div className="su-noscroll" style={{
+        flex: 1, position: 'relative', zIndex: 1, overflow: 'auto',
+        padding: '4px 24px 0',
+      }}>
+        <StepProgress steps={3} current={stepCurrent} style={{ marginBottom: 22 }}/>
+
+        <h1 className="su-underlined" style={{
+          fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 32,
+          letterSpacing: '-0.018em', lineHeight: 1.08, color: 'var(--liq-fg)',
+          margin: '0 0 8px', textWrap: 'balance',
+        }}>
+          Your space to share something <em>personal</em>.
+        </h1>
+
+        <p style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 14.5,
+          lineHeight: 1.45, color: 'var(--liq-neutral-200)', margin: 0,
+          textWrap: 'pretty', maxWidth: 320,
+        }}>
+          Write at least 1 prompt. Add up to 3.
+        </p>
+
+        {/* Prompt stack — filled cards + (if room) one empty button.
+            Order is "saved first, then add". Reads top-to-bottom as
+            "here's what you've written" → "here's where to add more". */}
+        <div style={{
+          marginTop: 22, display: 'flex', flexDirection: 'column', gap: 12,
+        }}>
+          {prompts.map((p, i) => (
+            <FilledPromptCard key={i} topic={p.topic} answer={p.answer}/>
+          ))}
+          {count < 3 && (
+            <ChoosePromptButton label={slotLabel}/>
+          )}
+        </div>
+
+        {/* Counter line under the stack — calm, factual. Mirrors the
+            "{filledCount}/4 photos" line on the photos screen so the
+            two profile-creation steps feel like siblings. */}
+        <div style={{
+          marginTop: 14, display: 'flex', justifyContent: 'flex-start',
+          padding: '0 2px',
+        }}>
+          <span style={{
+            fontFamily: 'var(--liq-font-sans)', fontSize: 13, fontWeight: 600,
+            color: 'var(--liq-fg-subtle)',
+          }}>
+            {count}/3 prompts
+          </span>
+        </div>
+
+        <div style={{ height: 16 }}/>
+      </div>
+
+      {/* Footer — "Continue" round arrow CTA, bottom-right. Always
+          active; short of 1 saved prompt a toast states the rule on
+          press, so the control is never dead. */}
+      <div style={{
+        position: 'relative', zIndex: 2, flex: 'none',
+        padding: '12px 24px 14px',
+        display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+        gap: 14,
+      }}>
+        <div style={{
+          position: 'absolute', left: 24, right: 24, bottom: '100%',
+          display: 'flex', justifyContent: 'center',
+          pointerEvents: 'none',
+          visibility: toast ? 'visible' : 'hidden',
+          opacity: toast ? 1 : 0,
+          transform: toast ? 'translateY(0)' : 'translateY(6px)',
+          transition: 'opacity 200ms, transform 200ms',
+        }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '10px 14px', borderRadius: 14,
+            background: 'var(--liq-fg)', color: '#fff',
+            fontFamily: 'var(--liq-font-sans)', fontWeight: 600, fontSize: 13,
+            lineHeight: 1.2, boxShadow: '0 8px 22px rgba(46,1,71,0.22)',
+            maxWidth: 300, textWrap: 'pretty',
+          }}>
+            <Icon name="edit" size={15} stroke={2.2}/>
+            Add at least 1 prompt to continue
+          </div>
+        </div>
+
+        <div onClick={onContinue}>
+          <NextButton label="Continue" color="orange" size={52}/>
+        </div>
+      </div>
+
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <HomeIndicator/>
+      </div>
+
+      {/* Sheet overlay (rendered when sheet prop is set) */}
+      {sheet && (
+        <>
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 4,
+            background: 'rgba(29,17,41,0.42)',
+            backdropFilter: 'blur(1.5px)',
+          }}/>
+          <div style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0,
+            zIndex: 5,
+          }}>
+            {sheet === 'topic'
+              ? <TopicPickerSheet/>
+              : <WritePromptSheet variant={sheetVariant}/>
+            }
+            <div style={{ background: 'var(--liq-bg)' }}>
+              <HomeIndicator/>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SheetChrome — drag handle + close X
+//
+// Shared top-strip for both bottom sheets. The drag handle hints
+// "swipe to dismiss" (native iOS sheet vocabulary), and the X gives
+// an explicit tap target for users who don't think to swipe.
+// ─────────────────────────────────────────────────────────────
+function SheetChrome({ onClose }) {
+  return (
+    <>
+      <div style={{
+        margin: '0 auto', width: 40, height: 4, borderRadius: 4,
+        background: 'rgba(29,17,41,0.18)',
+      }}/>
+      <button
+        onClick={onClose}
+        aria-label="Dismiss"
+        style={{
+          position: 'absolute', top: 16, right: 16,
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(29,17,41,0.04)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--liq-fg)',
+        }}
+      >
+        <Icon name="x" size={20} stroke={1.8}/>
+      </button>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// TopicPickerSheet — choose a topic
+//
+// Tall bottom sheet (≈68% of phone height) that contains:
+//   - drag handle + close X
+//   - editorial headline "Choose a topic."
+//   - sub-line in voice
+//   - vertical scroll list of topic pills (full-width outlined
+//     buttons matching ChoosePromptButton, but with a chevron-right
+//     on the right instead of a plus, signalling "drills into")
+//
+// The list scrolls inside the sheet so the sheet itself doesn't grow
+// to the status bar. The fade-mask at the bottom telegraphs that
+// there's more below the fold.
+// ─────────────────────────────────────────────────────────────
+function TopicPickerSheet() {
+  return (
+    <div style={{
+      width: '100%',
+      background: 'var(--liq-bg)',
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      padding: '8px 0 0',
+      boxShadow: '0 -20px 60px rgba(46,1,71,0.18), 0 -4px 12px rgba(46,1,71,0.08)',
+      animation: 'sheet-rise 360ms cubic-bezier(.22,1,.36,1) both',
+      position: 'relative',
+      maxHeight: 600,
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <SheetChrome/>
+
+      <div style={{ padding: '14px 24px 14px' }}>
+        <h2 className="su-underlined" style={{
+          fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 26,
+          letterSpacing: '-0.018em', lineHeight: 1.1, color: 'var(--liq-fg)',
+          margin: '6px 0 6px', textWrap: 'balance',
+        }}>
+          Choose a <em>topic</em>.
+        </h2>
+        <p style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 14,
+          lineHeight: 1.45, color: 'var(--liq-neutral-200)', margin: 0,
+          textWrap: 'pretty',
+        }}>
+          Pick something you'd want a match to actually know.
+        </p>
+      </div>
+
+      <div className="su-noscroll" style={{
+        flex: 1, overflow: 'auto',
+        padding: '0 24px 4px',
+        display: 'flex', flexDirection: 'column', gap: 10,
+        maskImage: 'linear-gradient(180deg, #000 0%, #000 88%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(180deg, #000 0%, #000 88%, transparent 100%)',
+      }}>
+        {PROMPT_TOPICS.map((t, i) => (
+          <button key={i} style={{
+            width: '100%', minHeight: 52,
+            borderRadius: 9999,
+            background: '#fff',
+            border: '1.5px solid var(--liq-primary-500)',
+            padding: '10px 22px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 12,
+            transition: 'background 180ms, transform 180ms',
+          }}
+            onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.985)'; e.currentTarget.style.background = 'var(--liq-lavender-50)'; }}
+            onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = '#fff'; }}
+          >
+            <span style={{
+              fontFamily: 'var(--liq-font-sans)', fontWeight: 600, fontSize: 14.5,
+              color: 'var(--liq-fg)', textAlign: 'left',
+              lineHeight: 1.3,
+            }}>{t}</span>
+            <span style={{ flex: 'none', color: 'var(--liq-primary-500)' }}>
+              <Icon name="plus" size={16} stroke={2.4}/>
+            </span>
+          </button>
+        ))}
+        <div style={{ height: 18 }}/>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// WritePromptSheet — write your answer
+//
+// Variants:
+//   'empty'  → topic at top, empty textarea, 0/160 counter, save
+//              CTA disabled (greyed). Calm helper line under the
+//              counter ("Say it like you'd tell it to a friend.")
+//              now renders as the placeholder in the textarea
+//              itself, the way the reference shows it.
+//   'mid'    → ≈75 char draft mid-flow. Save active.
+//   'error'  → text at exactly 160/160. Counter red, inline danger
+//              callout under the field ("Character limit reached
+//              160/160."), Save disabled until trimmed. Matches our
+//              ScreenProfileEmail / ScreenVerifyEmail error pattern.
+//
+// Save is the sunset CTA, full-width, sitting immediately under
+// the textarea — per the brief, "matches reference". The user is
+// done writing when they hit Save; the dock-to-bottom pattern from
+// the photos screen isn't right here because the focused task is
+// vertically short and the sheet would feel unbalanced.
+// ─────────────────────────────────────────────────────────────
+const MID_DRAFT = "Talk about anything real. Not jobs, not pets, not the weather.";
+// Crafted to land exactly at 160 chars so the counter reads 160/160.
+const FULL_DRAFT = "Talk about anything real. Not jobs, not pets, not the weather. The thing actually on your mind this week. Bring it. I will listen for the entire thirty minutes!";
+
+function WritePromptSheet({ variant = 'empty', topic = "On a first date, I want to…" }) {
+  // Seed value per variant. Truncate FULL_DRAFT defensively so the
+  // counter always shows 160/160 in error state even if someone
+  // edits the constant.
+  const initial = variant === 'error'
+    ? FULL_DRAFT.slice(0, 160)
+    : variant === 'mid'
+      ? MID_DRAFT
+      : '';
+  const [value, setValue] = useState(initial);
+  const len = value.length;
+  const atLimit = len >= 160;
+  const isError = variant === 'error' || atLimit;
+  const isEmpty = len === 0;
+
+  return (
+    <div style={{
+      width: '100%',
+      background: 'var(--liq-bg)',
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      padding: '8px 24px 16px',
+      boxShadow: '0 -20px 60px rgba(46,1,71,0.18), 0 -4px 12px rgba(46,1,71,0.08)',
+      animation: 'sheet-rise 360ms cubic-bezier(.22,1,.36,1) both',
+      position: 'relative',
+      minHeight: 540,
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <SheetChrome/>
+
+      {/* Topic — Lora serif with italic underline on the final
+          word. Renders the question as a headline because the
+          editorial voice IS the question; once the user starts
+          typing, the topic is the only context they need to keep
+          in their peripheral vision. */}
+      <h2 className="su-underlined" style={{
+        fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 24,
+        letterSpacing: '-0.018em', lineHeight: 1.18, color: 'var(--liq-fg)',
+        margin: '16px 0 14px', paddingRight: 40,
+        textWrap: 'balance',
+      }}>
+        {topic}
+      </h2>
+
+      {/* Textarea — borderless, blends with sheet canvas. The
+          textarea-as-paper treatment keeps the writing surface
+          calm; chrome lives only at the edges. */}
+      <div style={{
+        position: 'relative',
+        background: '#fff',
+        border: `1.5px solid ${isError ? 'var(--liq-danger)' : isEmpty ? 'var(--liq-border)' : 'var(--liq-primary-500)'}`,
+        boxShadow: isError
+          ? '0 0 0 4px rgba(251,50,59,0.10)'
+          : isEmpty
+            ? 'none'
+            : '0 0 0 4px rgba(129,42,236,0.10)',
+        borderRadius: 16,
+        padding: '14px 16px 36px',
+        transition: 'border-color 180ms, box-shadow 180ms',
+      }}>
+        <textarea
+          value={value}
+          onChange={e => setValue(e.target.value.slice(0, 160))}
+          placeholder="Say it like you'd tell it to a friend…"
+          rows={4}
+          style={{
+            width: '100%', minHeight: 92, border: 'none', outline: 'none',
+            background: 'transparent', resize: 'none',
+            fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 15.5,
+            lineHeight: 1.5, color: 'var(--liq-fg)',
+          }}
+        />
+        {/* Char counter — sits inside the field, bottom-right.
+            Tabular-nums so the count doesn't dance as digits shift.
+            Color steps:
+              ≤ 140  →  --liq-fg-subtle (calm)
+              141-159 → --liq-orange-500 (warning)
+              160    → --liq-danger (locked)
+            */}
+        <div style={{
+          position: 'absolute', right: 14, bottom: 10,
+          fontFamily: 'var(--liq-font-sans)', fontVariantNumeric: 'tabular-nums',
+          fontWeight: 700, fontSize: 12, letterSpacing: 0.02,
+          color: atLimit
+            ? 'var(--liq-danger-fg)'
+            : len > 140
+              ? 'var(--liq-orange-500)'
+              : 'var(--liq-fg-subtle)',
+        }}>
+          {len}/160
+        </div>
+      </div>
+
+      {/* Inline error callout — mirrors ScreenProfileEmail / Verify.
+          Shown only at the limit. aria-live="polite" so screen
+          readers announce without yanking focus. */}
+      <div aria-live="polite" style={{ minHeight: 8, marginTop: 10 }}>
+        {isError && (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '10px 14px',
+            borderRadius: 12,
+            background: 'rgba(251,50,59,0.07)',
+            border: '1px solid rgba(251,50,59,0.18)',
+          }}>
+            <span style={{
+              flex: 'none', width: 18, height: 18, borderRadius: '50%',
+              background: 'var(--liq-danger)', color: '#fff',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 12,
+              lineHeight: 1, marginTop: 1,
+            }}>!</span>
+            <div style={{
+              fontFamily: 'var(--liq-font-sans)', fontSize: 13.5, lineHeight: 1.4,
+              color: 'var(--liq-danger-fg)', fontWeight: 500,
+            }}>
+              Character limit reached. Trim it down — short and specific lands harder.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Save — sunset CTA, full-width, right under the field
+          per the brief. Disabled when empty or at-limit. */}
+      <div style={{
+        marginTop: 14,
+        opacity: (isEmpty || isError) ? 0.42 : 1,
+        filter: (isEmpty || isError) ? 'saturate(0.4)' : 'none',
+        pointerEvents: (isEmpty || isError) ? 'none' : 'auto',
+        transition: 'opacity 180ms, filter 180ms',
+      }}>
+        <Button variant="sunset" size="lg" fullWidth>Save</Button>
+      </div>
+
+      <div style={{ flex: 1 }}/>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page — section-by-section laydown of every state.
+//
+// Section 1: main screen — empty, 1-of-3, 3-of-3 filled
+// Section 2: topic picker — bottom sheet over empty main
+// Section 3: write prompt — empty, mid-typing, error 160/160
+// ─────────────────────────────────────────────────────────────
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          02 · Profile creation · Prompts
+        </span>
+        <h1>Your space to share something <em style={{ fontWeight: 500 }}>personal</em>.</h1>
+        <p>
+          The prompts step in "The real you" sub-flow. One main screen, one
+          bottom-sheet topic picker, one bottom-sheet writing surface.
+          Sheets, not full takeovers — same pattern as Verify profile, so
+          the user keeps their footing on the underlying screen.
+        </p>
+      </div>
+
+      {/* ────────────────────────────────────────────────────
+          Section 1 — Main screen, three states
+      ──────────────────────────────────────────────────── */}
+      <div className="section-head">
+        <span className="num">01</span>
+        <div>
+          <h2>Main screen — three fill states</h2>
+          <p>Empty → 1 of 3 saved → all 3 saved (Continue is always live; a toast states the rule below 1).</p>
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="01 Real you · empty">
+          <div className="frame-label">
+            <span className="pip note"></span>
+            01 · Empty · 0 of 3
+          </div>
+          <div className="frame-shell">
+            <ScreenRealYou prompts={[]}/>
+          </div>
+          <div className="caption">
+            Default arrival. <strong>Continue stays active</strong> — pressing
+            it with nothing saved surfaces a toast ("Add at least 1 prompt to
+            continue") rather than doing nothing.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="02 Real you · 1 of 3">
+          <div className="frame-label">
+            <span className="pip alt"></span>
+            02 · One saved · 1 of 3
+          </div>
+          <div className="frame-shell">
+            <ScreenRealYou prompts={[SAMPLE_PROMPTS[0]]}/>
+          </div>
+          <div className="caption">
+            One lilac wash card, plus "Choose your 2nd prompt".
+            <strong> Continue is live</strong> — the minimum has been met,
+            the rest are optional depth.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="03 Real you · 3 of 3">
+          <div className="frame-label">
+            <span className="pip ok"></span>
+            03 · All saved · 3 of 3
+          </div>
+          <div className="frame-shell">
+            <ScreenRealYou prompts={SAMPLE_PROMPTS}/>
+          </div>
+          <div className="caption">
+            Three cards, no "Choose" button — the slot row simply
+            disappears when the cap is reached.
+            <strong> Continue is the only path forward.</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* ────────────────────────────────────────────────────
+          Section 2 — Topic picker sheet
+      ──────────────────────────────────────────────────── */}
+      <div className="section-head" style={{ marginTop: 24 }}>
+        <span className="num">02</span>
+        <div>
+          <h2>Topic picker — bottom sheet</h2>
+          <p>Invoked by "Choose your Nth prompt +". List of 12 topics in Show Up voice.</p>
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="04 Topic picker sheet">
+          <div className="frame-label">
+            <span className="pip alt"></span>
+            04 · Pick a topic
+          </div>
+          <div className="frame-shell">
+            <ScreenRealYou prompts={[]} sheet="topic"/>
+          </div>
+          <div className="caption">
+            <strong>Bottom sheet, not full-screen.</strong> The underlying
+            "Real you" headline stays peeking over the top so the user
+            knows the picker belongs to this step, not a new flow.
+          </div>
+        </div>
+      </div>
+
+      {/* ────────────────────────────────────────────────────
+          Section 3 — Write prompt sheet, three states
+      ──────────────────────────────────────────────────── */}
+      <div className="section-head" style={{ marginTop: 24 }}>
+        <span className="num">03</span>
+        <div>
+          <h2>Write prompt — bottom sheet, three states</h2>
+          <p>Empty → mid-typing → at the 160 character limit.</p>
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="05 Write · empty">
+          <div className="frame-label">
+            <span className="pip note"></span>
+            05 · Empty · 0/160
+          </div>
+          <div className="frame-shell">
+            <ScreenRealYou prompts={[]} sheet="write" sheetVariant="empty"/>
+          </div>
+          <div className="caption">
+            Topic stays as a Lora headline at the top so the user keeps
+            the question in peripheral vision. Placeholder is the
+            instruction. <strong>Save is disabled</strong> until they type.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="06 Write · mid-typing">
+          <div className="frame-label">
+            <span className="pip alt"></span>
+            06 · Mid-typing · 63/160
+          </div>
+          <div className="frame-shell">
+            <ScreenRealYou prompts={[]} sheet="write" sheetVariant="mid"/>
+          </div>
+          <div className="caption">
+            Active violet border + soft halo (matches Floating Field /
+            Code Slot focus). Counter stays calm under 140.
+            <strong> Save is live.</strong>
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="07 Write · error 160/160">
+          <div className="frame-label">
+            <span className="pip danger"></span>
+            07 · At limit · 160/160
+          </div>
+          <div className="frame-shell">
+            <ScreenRealYou prompts={[]} sheet="write" sheetVariant="error"/>
+          </div>
+          <div className="caption">
+            <strong>Inline danger callout</strong> under the field (same
+            shape as ScreenProfileEmail / VerifyEmail errors). Counter
+            turns red. Save disabled until the user trims it.
+          </div>
+        </div>
+      </div>
+
+      {/* ────────────────────────────────────────────────────
+          Design notes
+      ──────────────────────────────────────────────────── */}
+      <div className="notes">
+        <h3>How this differs from the reference screenshots</h3>
+        <ul>
+          <li>
+            <strong>Bottom sheets, not full-screen takeovers.</strong>
+            Matches our Verify profile pattern: a scrim + sheet that
+            keeps the underlying "Real you" screen visible at the top.
+            The user can see what flow they're in instead of being
+            yanked into a new context.
+          </li>
+          <li>
+            <strong>Warm-paper canvas, not pink stripe.</strong> The
+            reference's pink/violet diagonal at the top isn't a
+            Show Up vocabulary — we use the warm orange + violet orbs
+            instead. Same atmosphere as photos / verify / embrace.
+          </li>
+          <li>
+            <strong>Editorial headline, not generic instructional copy.</strong>
+            "Your space to share something <em>personal</em>." earns the
+            italic-underline flourish that runs through every screen.
+            "The real you" stays in the app header as the section name.
+          </li>
+          <li>
+            <strong>Show Up voice on every topic.</strong>
+            "Match me if you…", "Don't bother matching if you…",
+            "What 30 minutes with me feels like." — period-driven,
+            you/your, commitment-oriented. The reference's "What makes
+            a good relationship" is replaced with "My idea of
+            commitment." — same intent, sharper.
+          </li>
+          <li>
+            <strong>Outlined violet pill buttons, not white-and-purple
+            rounded rectangles.</strong> Show Up's interactive controls
+            are always pills (9999px radius); the brand rule applies to
+            both the "Choose your Nth prompt" button on the main screen
+            and every topic row in the picker.
+          </li>
+          <li>
+            <strong>Filled prompts are lilac wash cards</strong> with
+            the topic in Lora serif bold and the answer in Manrope
+            below. A small edit pencil pip lives top-right — the
+            reference has no edit affordance; we add one so the user
+            isn't forced to delete-and-rewrite to fix a typo.
+          </li>
+          <li>
+            <strong>Step progress fills with prompts saved</strong>
+            (0 → 1/3, 1 → 2/3, 2-3 → 3/3) — the gauge reads as
+            "fullness", same as the reference, while staying
+            structurally a 3-step bar.
+          </li>
+          <li>
+            <strong>Continue is bottom-right.</strong> "label + round
+            orange arrow" is the system's NextButton pattern, used on
+            every other profile-creation step. The reference's CTA is
+            also bottom-right and we're keeping that — but the visual
+            language is ours (orange round button, not violet).
+          </li>
+          <li>
+            <strong>Save sits right under the textarea</strong> (sunset
+            gradient, full-width) — matches what was briefed. Save is
+            the commitment beat of the write sheet, so it earns the
+            sunset variant.
+          </li>
+          <li>
+            <strong>Error is an inline callout</strong> — same
+            vocabulary as our email and verify-code errors: soft danger
+            wash, 1px danger border, danger circle "!" glyph,
+            danger-fg copy. The counter shifts color in three steps
+            (calm → orange warn → red lock) so the limit doesn't
+            arrive without warning.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

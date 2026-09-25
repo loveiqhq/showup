@@ -1,0 +1,5925 @@
+{
+  "taxonomy_version": "1.4.4",
+  "reconciled_against": "loveiqhq/showup main @ c195089",
+  "generated": "2026-09-25",
+  "event_count": 296,
+  "changed_in_1_4_4": [
+    "Prompt entry_point REMOVED from prompt_topic_selected, prompt_editor_opened, prompt_saved, prompt_editor_dismissed and prompts_minimum_met; position removed from prompt_topic_selected. Product decision 25 Sep 2026: we measure WHICH topics are chosen (topic_id), not whether the tap came from a suggestion card or the browse sheet. enums §18 retired.",
+    "prompt_editor_dismissed gains is_edit: bool — the one job entry_point: \"edit\" did that nothing else carried (backing out of an edit vs. abandoning a new prompt).",
+    "The app-open entry_point on app_opened (cold|push|sms|whatsapp|email|deeplink) is unaffected."
+  ],
+  "changed_in_1_4_3": [
+    "permission_status_changed — NEW, family G. The OS permission changed OUTSIDE our app and the reconciler noticed on a foreground read. permission_result only ever covered the answer to OUR dialog, so a user switching notifications off in Settings six weeks later was invisible and the server kept a stale grant. Carries type (§8), from/to (§24 permission_status), detected_on and in_flow. 21 Sep 2026, with the Profile 09 ticket.",
+    "Stated with it: the OS permission is READ, never remembered — one shared reconciler on every foreground, not a per-screen check — and it is not our consent record. consent_changed stays the consent event; this one is the device's answer changing under us."
+  ],
+  "changed_in_1_4_2": [
+    "permission_prompted — trigger clarified only, no payload change: the pre-permission surface may be a full screen, not just a modal. Profile 09 (ProfileNotifications) is a full-screen pre-permission ask and fires it on view with type: \"notifications\". No new event was added for it — family G already covers prompted / os_sheet_shown / result / settings_opened, and the Profile 09 questions were answered from the registry. 21 Sep 2026.",
+    "No step event fires on the four out-of-bar profile screens (notifications, reachability, phonebook, location): profile_step_viewed requires an int step_index and enums §2 gives them none. See enums.json §2 note, 1.4.3."
+  ],
+  "changed_in_1_4_1": [
+    "FAMILY F PROMPT COLLISION RESOLVED. Family F carried a second, v1.0 vocabulary for the written prompts — prompt_topic_picker_opened, prompt_topic_selected, prompt_answered, prompt_edited, prompt_removed — and prompt_topic_selected existed TWICE in this file with two different payloads. Family E wins: it is the vocabulary the Profile 07 ticket cites and the one with §17/§18/§19 behind it. The duplicate prompt_topic_selected row in F is DELETED (a name cannot mean two things); the other four are kept, emptied, and marked SUPERSEDED — DO NOT FIRE, each naming its family E replacement. Written prompts are instrumented in family E only.",
+    "prompt_topic_list_dismissed — NEW. The topic sheet closed without a topic being picked. The prompts screen had an abandonment event for the write sheet and none for the browse sheet; a cancel there was invisible. Added 16 Sep 2026, answering the Prompts implementation questions.",
+    "prompt_topic_selected — selection_index added, and the event is now scoped to suggestion and browse ONLY. Reopening a saved prompt no longer fires it: an edit is not a fresh choice of topic, and counting it double-counted topic demand. selection_index: 1 is the topic the user reached for first.",
+    "profile_step_completed — prompt_count added, optional and screen-scoped (profile_prompts). How many prompts the user held when Continue was pressed. The Profile 07 ticket specified it as count; the registry name is prompt_count and the ticket was corrected.",
+    "form_validation_failed — rule gains prompts_below_minimum, the prompts sibling of photos_below_minimum: Continue pressed with zero prompts saved.",
+    "dismiss_method — one canonical value set across every sheet (enums §23): close · backdrop · swipe · system_back. prompt_editor_dismissed had scrim / back and media_prompt_list_dismissed had cancel; both are migrated. Neither shipped, so nothing in the warehouse changes."
+  ],
+  "families": [
+    {
+      "id": "A",
+      "name": "Session & Nav",
+      "events": [
+        {
+          "name": "app_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "entry_point",
+              "type": "\"cold\"|\"push\"|\"sms\"|\"whatsapp\"|\"email\"|\"deeplink\""
+            },
+            {
+              "name": "cold_start",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Application executes foreground boot",
+          "implemented": false
+        },
+        {
+          "name": "app_backgrounded",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "session_duration_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Application transitions to background state",
+          "implemented": false
+        },
+        {
+          "name": "session_started",
+          "code_anchor": "auth/entities/refresh-token.entity.ts",
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "referrer_app",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Session initialization logic resolves",
+          "implemented": false
+        },
+        {
+          "name": "session_ended",
+          "code_anchor": "auth/token.service.ts",
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "\"logout\"|\"timeout\"|\"crash\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Session termination or token invalidation",
+          "implemented": false
+        },
+        {
+          "name": "screen_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "screen_id",
+              "type": "str — canonical snake_case key from enums.json §11. Stable forever; never re-used, never edited."
+            },
+            {
+              "name": "screen_name",
+              "type": "str — the human label from enums.json §11, verbatim. What you search for in the analytics tool. May be edited when the screen is renamed."
+            },
+            {
+              "name": "referrer_screen_id",
+              "type": "str"
+            },
+            {
+              "name": "last_used",
+              "type": "str — OPTIONAL, SCREEN-SCOPED. Which auth method the user last signed in with. Only meaningful on a screen that offers a method list (signup_welcome_back, signup_create_account, connect_sso). OMIT everywhere else — it has no value on a profile step, and an empty string is worse than an absent property (decision 29).",
+              "required": false,
+              "applies_to": [
+                "signup_welcome_back",
+                "signup_create_account",
+                "connect_sso"
+              ]
+            },
+            {
+              "name": "state",
+              "type": "str — OPTIONAL, SCREEN-SCOPED. For a screen whose registry row covers many states (§11 rule: one row per screen, not per state), this says which one. Only connect_sso uses it, and it is KNOWN BROKEN there — always \"idle\", because screen_viewed fires once on mount and the state changes afterwards. OMIT on every other screen. It cannot describe the DoB or verify-email states, which are carried by their own events (decision 29).",
+              "required": false,
+              "applies_to": [
+                "connect_sso"
+              ]
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "required_payload": "screen_id, screen_name, referrer_screen_id — these three, on every screen, always. last_used and state are optional and screen-scoped; see each one. A flat payload list is not a statement that every property applies everywhere (decision 29).",
+          "trigger": "Screen view controller finishes rendering. Every screen in the registry fires this event; the screen is a property rather than part of the event name, which is what lets one funnel span screens.",
+          "implemented": true,
+          "code_delta": "Keep screen_name exactly as it ships — no rename (decision 27). ADD screen_id alongside it, taken from the enums.json §11 registry, and referrer_screen_id. Both come from the registry row, not from a literal at the call site."
+        },
+        {
+          "name": "back_navigated",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "from_screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User triggers hardware or software back button",
+          "implemented": false
+        },
+        {
+          "name": "tab_switched",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "tab",
+              "type": "\"meet\"|\"instant\"|\"score\"|\"profile\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User selects primary navigation tab bar item",
+          "implemented": false
+        },
+        {
+          "name": "sheet_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "sheet_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Modal sheet completes presentation animation",
+          "implemented": false
+        },
+        {
+          "name": "sheet_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "sheet_id",
+              "type": "str"
+            },
+            {
+              "name": "method",
+              "type": "\"cta\"|\"swipe\"|\"backdrop\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Modal sheet is closed or dismissed",
+          "implemented": false
+        },
+        {
+          "name": "deep_link_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "target",
+              "type": "str"
+            },
+            {
+              "name": "source",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "External deeplink URI parsed by router",
+          "implemented": false
+        },
+        {
+          "name": "push_token_registered",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "token_type",
+              "type": "\"apns\"|\"fcm\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "APNs or FCM token updated on backend",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Auth",
+      "events": [
+        {
+          "name": "signup_create_account_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "entry_point",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Create free account\" on Signup - CreateAccount",
+          "implemented": true,
+          "code_delta": "Add entry_point."
+        },
+        {
+          "name": "signup_log_in_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Already have an account? Log in\" on Signup - CreateAccount",
+          "implemented": true
+        },
+        {
+          "name": "signup_auth_method_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "method",
+              "type": "\"phone\"|\"apple\"|\"google\"|\"facebook\""
+            },
+            {
+              "name": "is_last_used",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps one of the four auth method buttons",
+          "implemented": true,
+          "code_delta": "facebook added to the enum — the screen shows four methods and the spec listed three."
+        },
+        {
+          "name": "signup_get_help_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Get help\" on Signup - welcomeback",
+          "implemented": true
+        },
+        {
+          "name": "signup_use_different_account_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Use a different account\" on Signup - welcomeback",
+          "implemented": true
+        },
+        {
+          "name": "signup_phone_submitted",
+          "code_anchor": "auth/otp.service.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "country_code",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User submits phone number form",
+          "implemented": true,
+          "code_delta": "Add country_code."
+        },
+        {
+          "name": "signup_phone_validation_failed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "\"empty\"|\"notANumber\"|\"tooShort\"|\"tooLong\"|\"invalidLength\"|\"unrecognised\"|\"notMobile\""
+            },
+            {
+              "name": "country",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "libphonenumber rejects the submitted number. The seven outcomes are the validator’s own, adopted from the code and registered in enums.json §12",
+          "implemented": true
+        },
+        {
+          "name": "sms_code_sent",
+          "code_anchor": "auth/sms/log-sms-sender.ts",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            },
+            {
+              "name": "latency_ms",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Backend dispatches SMS OTP payload",
+          "implemented": false,
+          "code_delta": "Not implemented. Server-side; SMS delivery latency is unmeasured until it is."
+        },
+        {
+          "name": "signup_resend_requested",
+          "code_anchor": "auth/otp.service.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "attempt_no",
+              "type": "int"
+            },
+            {
+              "name": "seconds_waited",
+              "type": "int"
+            },
+            {
+              "name": "after_mismatch",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User taps \"Resend SMS Code\"",
+          "implemented": true
+        },
+        {
+          "name": "signup_edit_phone_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Edit phone number\" on Signup - Codeentry",
+          "implemented": true
+        },
+        {
+          "name": "signup_code_submitted",
+          "code_anchor": "auth/otp.service.ts · POST /auth/phone/verify",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "attempt_no",
+              "type": "int"
+            },
+            {
+              "name": "result",
+              "type": "\"pass\"|\"fail\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User submits 6-digit verification code",
+          "implemented": true
+        },
+        {
+          "name": "signup_code_verify_failed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "attempt",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Submitted code is wrong; attempt is the 1-based try count within the session",
+          "implemented": true
+        },
+        {
+          "name": "connect_provider_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "\"apple\"|\"google\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Social sign-in button pressed",
+          "implemented": true
+        },
+        {
+          "name": "social_auth_os_sheet_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "\"apple\"|\"google\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Native OS Auth sheet renders",
+          "implemented": false,
+          "code_delta": "Not implemented."
+        },
+        {
+          "name": "social_auth_linking",
+          "code_anchor": "auth/auth.service.ts (resolveSocialUser)",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Backend resolves social identity mapping",
+          "implemented": false,
+          "code_delta": "Not implemented (server)."
+        },
+        {
+          "name": "connect_link_succeeded",
+          "code_anchor": "auth/social/apple-verifier.ts, google-verifier.ts",
+          "source": "client+server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "\"apple\"|\"google\""
+            },
+            {
+              "name": "is_new_user",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Valid identity token generated",
+          "implemented": true,
+          "code_delta": "Ships client-side with provider only. Add the server emission (count that row) and is_new_user."
+        },
+        {
+          "name": "connect_sheet_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            },
+            {
+              "name": "stage",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User dismisses native social auth UI",
+          "implemented": true,
+          "code_delta": "Add stage — cancel-rate per stage is what tells us whether the offer is worth making."
+        },
+        {
+          "name": "connect_link_failed",
+          "code_anchor": "auth/auth.service.ts",
+          "source": "client+server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            },
+            {
+              "name": "kind",
+              "type": "\"network\"|\"declined\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "OAuth callback returns failure state",
+          "implemented": true,
+          "code_delta": "Ships client-side. Add the server emission and count that row. kind is the code’s name for what the spec called reason; kind wins, and ticket welcome/04 needs the same rename."
+        },
+        {
+          "name": "connect_conflict_raised",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            },
+            {
+              "name": "attempted",
+              "type": "str"
+            },
+            {
+              "name": "existing",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Account exists under different provider UI",
+          "implemented": true,
+          "code_delta": "Ships provider only. Add attempted and existing — the mismatch pairs are the reason this event exists."
+        },
+        {
+          "name": "connect_conflict_resolve_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            },
+            {
+              "name": "existing",
+              "type": "str"
+            },
+            {
+              "name": "result",
+              "type": "\"succeeded\"|\"cancelled\"|\"failed\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Conflict modal resolve CTA tapped — one event per attempt, result set when the owning provider's handoff returns. Cancelled means the user backed out of that provider's sheet.",
+          "implemented": true,
+          "code_delta": "Ships provider only. Add existing and result, one event per attempt."
+        },
+        {
+          "name": "connect_conflict_different_account_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "existing",
+              "type": "str"
+            },
+            {
+              "name": "next_action",
+              "type": "\"provider\"|\"skip\"|\"abandoned\""
+            },
+            {
+              "name": "next_provider",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Conflict modal \"Use a different account\" tapped. next_action / next_provider are filled from what the user does after returning to the method list — null until then.",
+          "implemented": true,
+          "code_delta": "Ships no payload. All three properties missing; next_action is filled from what the user does after returning to the method list."
+        },
+        {
+          "name": "connect_conflict_repeated",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "count",
+              "type": "int"
+            },
+            {
+              "name": "provider",
+              "type": "str"
+            },
+            {
+              "name": "providers_attempted",
+              "type": "str[]"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Second or later conflict modal within one session — the guess-wrong loop. Diagnostic only: it triggers no UI, because skip is already the escape hatch and the user is phone-verified. A high rate means the owning provider is not prominent enough in the modal.",
+          "implemented": true,
+          "code_delta": "Add providers_attempted. Diagnostic only — it triggers no UI."
+        },
+        {
+          "name": "connect_linking_timeout",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            },
+            {
+              "name": "elapsed_ms",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Linking state (E) exceeds the timeout and falls back to the error banner. Distinct from social_auth_failed, which is a provider response.",
+          "implemented": true,
+          "code_delta": "Add elapsed_ms. The 8s cap is a guess; this is what measures it."
+        },
+        {
+          "name": "connect_skip_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "from_state",
+              "type": "str"
+            },
+            {
+              "name": "provider",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Skip tapped on connect account. from_state is required — skip-from-idle and skip-after-error are different signals. provider is the last tapped provider, null from idle.",
+          "implemented": true,
+          "code_delta": "Ships no payload. from_state is required — skip-from-idle and skip-after-error are different signals."
+        },
+        {
+          "name": "returning_user_recognised",
+          "code_anchor": "auth/token.service.ts",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "last_active_days_ago",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Known token detected on application boot",
+          "implemented": false,
+          "code_delta": "Not implemented. Partly inferable from screen_viewed{last_used}, which is not the same signal."
+        },
+        {
+          "name": "login_succeeded",
+          "code_anchor": "auth/token.service.ts",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "auth_method",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Auth tokens successfully issued",
+          "implemented": false,
+          "code_delta": "Not implemented. Log-in success is currently unmeasurable end to end."
+        },
+        {
+          "name": "signup_abandoned",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "last_step",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User exits app mid-registration flow",
+          "implemented": false,
+          "code_delta": "Not implemented."
+        },
+        {
+          "name": "account_created",
+          "code_anchor": "users/entities/user.entity.ts",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "auth_method",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User record persisted in backend DB",
+          "implemented": true
+        },
+        {
+          "name": "step_up_auth_required",
+          "code_anchor": "auth/guards/fresh-auth.guard.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "action",
+              "type": "\"account_deletion\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "API returns step-up required for a sensitive action v1.1",
+          "implemented": false
+        },
+        {
+          "name": "step_up_auth_result",
+          "code_anchor": "auth/decorators/fresh-auth.decorator.ts",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "action",
+              "type": "str; result: \"pass\"|\"fail\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Re-authentication resolves before the sensitive action v1.1",
+          "implemented": false
+        },
+        {
+          "name": "session_security_cutoff",
+          "code_anchor": "auth/token.service.ts",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "sessions_revoked",
+              "type": "int; cause: \"refresh_reuse\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Retired refresh token replayed; all sessions terminated v1.1",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Onboarding & Tutorial",
+      "events": [
+        {
+          "name": "tutorial_card_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "card",
+              "type": "int 1-6"
+            },
+            {
+              "name": "card_name",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Card becomes visible. The Welcome screen is card 1 and the five-segment tour is cards 2–6 — one higher than the Jira card numbers, by decision",
+          "implemented": true
+        },
+        {
+          "name": "tutorial_cta_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "card",
+              "type": "int 1-5"
+            },
+            {
+              "name": "card_name",
+              "type": "str"
+            },
+            {
+              "name": "dwell_ms",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Forward CTA on cards 1–5. Card 6 fires tutorial_completed instead, so a funnel across this event sees five, not six",
+          "implemented": true,
+          "code_delta": "Add dwell_ms — per-card attention is what this event exists for."
+        },
+        {
+          "name": "tutorial_back_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "card",
+              "type": "int 3-6"
+            },
+            {
+              "name": "card_name",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Back on cards 3–6. Cards 1–2 have no active Back. back_navigated stays the global event for every other flow",
+          "implemented": true
+        },
+        {
+          "name": "tutorial_completed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "card",
+              "type": "int"
+            },
+            {
+              "name": "card_name",
+              "type": "str"
+            },
+            {
+              "name": "duration_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User finishes value declaration deck",
+          "implemented": true,
+          "code_delta": "Add duration_s."
+        },
+        {
+          "name": "tutorial_abandoned",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "last_card",
+              "type": "int"
+            },
+            {
+              "name": "last_card_name",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "App closed or back button hit in onboarding",
+          "implemented": false,
+          "code_delta": "Not implemented. Drop-off point inside the tour is unknown without it."
+        },
+        {
+          "name": "manifesto_accepted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "dwell_total_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"I Agree\" on ShowUp manifesto",
+          "implemented": false,
+          "code_delta": "Not implemented. Card 6 is effectively a terms acceptance (see ticket 05) and fires only tutorial_completed today — Legal to confirm whether the acceptance needs its own record."
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Profile Identity",
+      "events": [
+        {
+          "name": "profile_build_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "entry_point",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User starts basic details intake",
+          "implemented": false
+        },
+        {
+          "name": "name_submitted",
+          "code_anchor": "profiles/dto/upsert-profile.dto.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "char_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "First name form submitted",
+          "implemented": false
+        },
+        {
+          "name": "email_submitted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "domain",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Email address form submitted",
+          "implemented": false
+        },
+        {
+          "name": "email_validation_failed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "rule",
+              "type": "\"format\"|\"disposable\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Client/API rejects email string",
+          "implemented": false
+        },
+        {
+          "name": "email_code_sent",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "provider",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Verification code dispatched",
+          "implemented": false
+        },
+        {
+          "name": "email_code_resent",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "attempt_no",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User requests secondary email code",
+          "implemented": false
+        },
+        {
+          "name": "email_code_submitted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "attempt_no",
+              "type": "int"
+            },
+            {
+              "name": "result",
+              "type": "\"pass\"|\"fail\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Email verification code entered",
+          "implemented": false
+        },
+        {
+          "name": "dob_submitted",
+          "code_anchor": "profiles/entities/profile.entity.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "age",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Date of birth submitted — the conversion signal for the step. A refused Continue (no date entered) fires form_validation_failed rule:\"required_missing\"; the inline age-confirm card itself is no longer tracked v1.1 had age_confirm_shown / age_confirm_accepted",
+          "implemented": false
+        },
+        {
+          "name": "dob_validation_failed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "rule",
+              "type": "\"format\"|\"impossible\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Invalid date entered in DOB screen",
+          "implemented": false
+        },
+        {
+          "name": "age_gate_failed",
+          "code_anchor": "profiles/dto/upsert-profile.dto.ts (18+)",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "age",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "System calculates age < 18",
+          "implemented": false
+        },
+        {
+          "name": "embrace_bridge_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "variant",
+              "type": "\"build_profile\"|\"add_details\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Bridge view displayed",
+          "implemented": false
+        },
+        {
+          "name": "profile_step_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "step_id",
+              "type": "str"
+            },
+            {
+              "name": "step_index",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Specific profile step screen rendered",
+          "implemented": false
+        },
+        {
+          "name": "profile_step_completed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "step_id",
+              "type": "str"
+            },
+            {
+              "name": "time_on_step_s",
+              "type": "int"
+            },
+            {
+              "name": "prompt_count",
+              "type": "int 1-3 — OPTIONAL, SCREEN-SCOPED. How many prompts the user held when Continue was accepted. Added v1.4.1: one is enough to continue and three are allowed, so the step completing says nothing about how much was written without it. OMIT on every other step.",
+              "required": false,
+              "applies_to": [
+                "prompts"
+              ]
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "required_payload": "step_id and time_on_step_s, always. prompt_count only on step_id: \"prompts\" — and required there (v1.4.1).",
+          "trigger": "Step form validated and submitted",
+          "implemented": false
+        },
+        {
+          "name": "profile_step_skipped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "step_id",
+              "type": "str — enums.json §2; the Media screen has two: media_video and media_voice"
+            },
+            {
+              "name": "screen_id",
+              "type": "str — enums.json §11"
+            },
+            {
+              "name": "has_video",
+              "type": "bool — OPTIONAL, SCREEN-SCOPED. Media screen only: what the profile already held when the step was skipped.",
+              "required": false,
+              "applies_to": [
+                "profile_media"
+              ]
+            },
+            {
+              "name": "has_voice",
+              "type": "bool — OPTIONAL, SCREEN-SCOPED. Media screen only.",
+              "required": false,
+              "applies_to": [
+                "profile_media"
+              ]
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Optional step bypassed via the \"Skip\" CTA. On the Media screen, Skip sits beside an always-enabled Continue and the step carries two ids (media_video, media_voice) for one screen, so step_id says which card the skip is recorded against and screen_id says where it happened.",
+          "implemented": false,
+          "required_payload": "step_id and screen_id, always. \"Skip\" exists on several optional steps and a skip with no screen reference cannot be funnelled — added in v1.4. has_video / has_voice only on profile_media."
+        },
+        {
+          "name": "profile_published",
+          "code_anchor": "profiles/entities/profile.entity.ts (visibility)",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "completeness_pct",
+              "type": "int"
+            },
+            {
+              "name": "duration_total_min",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "Profile flag set to active/searchable",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Profile Photos/Media",
+      "events": [
+        {
+          "name": "photo_slot_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "slot_index",
+              "type": "int"
+            },
+            {
+              "name": "is_optional",
+              "type": "bool"
+            },
+            {
+              "name": "action",
+              "type": "\"add\"|\"replace\"|\"reveal_optional\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Photo slot tapped, or the “Add more” control revealing optional slots 5–6 (action: \"reveal_optional\")",
+          "implemented": false
+        },
+        {
+          "name": "photo_added",
+          "code_anchor": "profiles/photos.service.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "slot_index",
+              "type": "int"
+            },
+            {
+              "name": "source",
+              "type": "\"camera\"|\"library\""
+            },
+            {
+              "name": "filled_count",
+              "type": "int"
+            },
+            {
+              "name": "max_slots",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Image selected and set in slot",
+          "implemented": false
+        },
+        {
+          "name": "photo_removed",
+          "code_anchor": "profiles/photos.service.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "slot_index",
+              "type": "int"
+            },
+            {
+              "name": "filled_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Image deleted from slot",
+          "implemented": false
+        },
+        {
+          "name": "photo_reordered",
+          "code_anchor": "profiles/entities/profile-photo.entity.ts (position)",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "from",
+              "type": "int"
+            },
+            {
+              "name": "to",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Photo drag-and-drop position changed",
+          "implemented": false
+        },
+        {
+          "name": "photos_minimum_met",
+          "code_anchor": "profiles/util/completion.ts (MIN_PHOTOS = 4)",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "count",
+              "type": "int"
+            },
+            {
+              "name": "max_slots",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "Minimum required photos (4 of 6) uploaded — fires once, on the first crossing",
+          "implemented": false
+        },
+        {
+          "name": "prompt_topic_list_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "used_count",
+              "type": "int"
+            },
+            {
+              "name": "screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The “Browse all 15 topics” control tapped, opening the topic sheet. Read against screen views of the step, this is how often the three suggestions were not enough.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_topic_list_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "dismiss_method",
+              "type": "\"close\"|\"backdrop\"|\"swipe\"|\"system_back\" — enums.json §23"
+            },
+            {
+              "name": "used_count",
+              "type": "int"
+            },
+            {
+              "name": "time_on_sheet_s",
+              "type": "int"
+            },
+            {
+              "name": "screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The topic sheet closed WITHOUT a topic being picked — the X, the scrim, a swipe-down or the system back gesture. Picking a topic replaces the sheet with the write sheet and fires prompt_topic_selected instead, so this event and that one are mutually exclusive and together they close the browse sheet's funnel: opened (prompt_topic_list_opened) → picked or cancelled. Added 16 Sep 2026: the write sheet had an abandonment event and the browse sheet did not, so a user who opened all fifteen topics and closed the sheet was invisible. Read against prompt_topic_list_opened, a high rate means the fifteen are not the problem the suggestion cards were solving.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_topic_selected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic_id",
+              "type": "str"
+            },
+            {
+              "name": "topic_group",
+              "type": "\"dating_me\"|\"real_life\"|\"opinions\""
+            },
+            {
+              "name": "selection_index",
+              "type": "int — 1-based count of topic selections in this visit to the step. 1 is the topic the user reached for FIRST, which is not the same question as which topic they saved."
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "A topic chosen — a suggestion card on the screen or a row in the browse sheet. The two are deliberately NOT distinguished: entry_point and position were removed on 25 Sep 2026 (taxonomy 1.4.4), because the question is which topics are chosen, not where. DOES NOT FIRE ON EDIT from v1.4.1: reopening a saved prompt is not a fresh choice of topic; prompt_editor_opened{is_edit:true} covers that. THE event that answers which topics people choose, and with selection_index, which one they tried first. topic_id from enums §17.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_editor_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic_id",
+              "type": "str"
+            },
+            {
+              "name": "is_edit",
+              "type": "bool"
+            },
+            {
+              "name": "prompt_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The write sheet mounted — on a suggestion card, on a row of the browse sheet, or on the pencil pip of a saved prompt. THIS IS THE EDIT EVENT: is_edit: true is the pencil being tapped, and from v1.4.1 it is the only event an edit fires at open (prompt_topic_selected no longer does). Paired with prompt_saved / prompt_editor_dismissed, this is the per-topic completion rate: how many people open a topic and how many finish it.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_example_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The worked example hidden with its X. Low volume by design; if it is high, the example is in the way rather than helping.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_char_limit_reached",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The answer first reached 160 characters in this editor session. Fires once per session, not per keystroke. Says whether the cap is the right number — it is currently unvalidated.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_saved",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic_id",
+              "type": "str"
+            },
+            {
+              "name": "topic_group",
+              "type": "\"dating_me\"|\"real_life\"|\"opinions\""
+            },
+            {
+              "name": "is_edit",
+              "type": "bool"
+            },
+            {
+              "name": "length_bucket",
+              "type": "\"1_40\"|\"41_80\"|\"81_120\"|\"121_160\""
+            },
+            {
+              "name": "prompt_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Save pressed with a non-empty answer. NEVER send the answer text — length_bucket only (enums §19). prompt_count is the number of prompts the user holds after this save.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_editor_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic_id",
+              "type": "str"
+            },
+            {
+              "name": "is_edit",
+              "type": "bool"
+            },
+            {
+              "name": "had_draft",
+              "type": "bool"
+            },
+            {
+              "name": "draft_length_bucket",
+              "type": "\"0\"|\"1_40\"|\"41_80\"|\"81_120\"|\"121_160\""
+            },
+            {
+              "name": "dismiss_method",
+              "type": "\"close\"|\"backdrop\"|\"swipe\"|\"system_back\" — enums.json §23. Was close|scrim|swipe|back until v1.4.1; migrated to the one canonical sheet vocabulary."
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The write sheet closed without saving. THE abandonment event this screen is designed against: a user who opened a topic, typed something and left is the drop-off that was previously invisible. had_draft is what separates “changed their mind” from “could not finish”. is_edit (added 25 Sep 2026, replacing entry_point: \"edit\") separates backing out of an edit from abandoning a new prompt.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_deleted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic_id",
+              "type": "str"
+            },
+            {
+              "name": "prompt_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "A saved prompt removed. Not reachable from the profile-creation screen (there is no delete there) — it exists for profile editing, and is registered here so that flow cannot invent a second name.",
+          "implemented": false
+        },
+        {
+          "name": "prompts_minimum_met",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "count",
+              "type": "int"
+            },
+            {
+              "name": "topic_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The first prompt was saved, so the step can be completed — fires once, on the first crossing. The prompts sibling of photos_minimum_met, and the single number that says whether this screen works.",
+          "implemented": false
+        },
+        {
+          "name": "photo_verification_prompt_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "trigger",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Client only",
+          "trigger": "Pose verification screen presented",
+          "implemented": false
+        },
+        {
+          "name": "photo_verification_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "pose_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Client only",
+          "trigger": "Camera permission acquired/view live",
+          "implemented": false
+        },
+        {
+          "name": "photo_verification_submitted",
+          "code_anchor": "safety/verification.service.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "retakes",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Partial",
+          "trigger": "Biometric pose selfie captured",
+          "implemented": false
+        },
+        {
+          "name": "photo_verification_result",
+          "code_anchor": "safety/util/safety.ts (evaluateVerification)",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "result",
+              "type": "\"pass\"|\"fail\""
+            },
+            {
+              "name": "reason",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Partial",
+          "trigger": "ML/Human verification complete",
+          "implemented": false
+        },
+        {
+          "name": "media_screen_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "screen_id",
+              "type": "str — \"profile_media\", from enums.json §11"
+            },
+            {
+              "name": "has_video",
+              "type": "bool"
+            },
+            {
+              "name": "has_voice",
+              "type": "bool"
+            },
+            {
+              "name": "preview_video_prompt_id",
+              "type": "str — enums.json §20; the prompt previewed on the empty video card at this view"
+            },
+            {
+              "name": "preview_voice_prompt_id",
+              "type": "str — enums.json §20"
+            },
+            {
+              "name": "preview_source",
+              "type": "\"ranked\"|\"fallback\" — enums.json §22"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The Media screen (\"Show your face\") finishes rendering. has_video / has_voice carry the entry state of BOTH slots, which is what makes every later retake or delete on this screen attributable to a user who already had an artefact — the question the two booleans exist to answer. Fires on every mount, including the return from an accepted recording, so the state change is visible as two consecutive views. Was type: \"voice\"|\"video\" until v1.4: one screen carries both cards, so the screen view is not per medium — the medium belongs on the acts below. The two preview ids record which prompt each empty card displayed, because from v1.4 that is server-ranked rather than fixed (decision 33) — without them the ranking cannot be evaluated against the behaviour it produced.",
+          "implemented": false,
+          "required_payload": "screen_id, has_video, has_voice, and both preview_*_prompt_id + preview_source — every mount. WHAT WAS SHOWN IS NOT DERIVABLE AFTER THE FACT: the ranking changes, so a view that does not record the two prompts it displayed cannot be attributed later."
+        },
+        {
+          "name": "media_prompt_list_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"video\"|\"voice\""
+            },
+            {
+              "name": "entry_point",
+              "type": "\"see_the_prompts\"|\"retake\" — enums.json §21"
+            },
+            {
+              "name": "has_existing",
+              "type": "bool"
+            },
+            {
+              "name": "screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "\"See the prompts\" tapped, opening the prompt list for one medium. Replaces media_inspiration_opened (v1.4): the \"Show me what works\" inspiration sheet was removed from the kit on 16 Sep 2026 and the eleven-prompt list took its place, so topic_id no longer applies — the chosen prompt is carried by media_prompt_selected instead. has_existing separates opening the list with an empty card from reopening it over something already recorded.",
+          "implemented": false,
+          "required_payload": "type is REQUIRED. One screen carries the video card and the voice card, and an event without type cannot be attributed to either."
+        },
+        {
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "implemented": false,
+          "name": "media_prompt_selected",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"video\"|\"voice\""
+            },
+            {
+              "name": "media_prompt_id",
+              "type": "str — enums.json §20"
+            },
+            {
+              "name": "position",
+              "type": "int"
+            },
+            {
+              "name": "is_own_prompt",
+              "type": "bool"
+            },
+            {
+              "name": "selections_before",
+              "type": "int"
+            },
+            {
+              "name": "was_previewed",
+              "type": "bool — true if this prompt was the one shown on the empty card at the time the list was opened"
+            }
+          ],
+          "trigger": "The commit CTA (\"Film 10 seconds\" / \"Record 15 seconds\") tapped with a row selected — the prompt the user actually took into the camera, not every row they tried on the way. STORE AND SEND THE ID, NEVER THE DISPLAY STRING (§20): the prompts are copy and will be edited. type scopes it, because the same eleven are offered for both media and \"which prompt gets chosen\" is a different answer for video than for voice. selections_before counts the rows tapped and abandoned first — a list that takes four taps to settle is a list that is too long. was_previewed is the feedback-loop guard: the previewed prompt is more visible than the other ten, so the ranking that feeds the preview is computed with those selections EXCLUDED (decision 33). An event without it makes the ranking self-reinforcing and unmeasurable."
+        },
+        {
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "implemented": false,
+          "name": "media_prompt_list_dismissed",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"video\"|\"voice\""
+            },
+            {
+              "name": "dismiss_method",
+              "type": "\"close\"|\"backdrop\"|\"swipe\"|\"system_back\" — enums.json §23. cancel was renamed close in v1.4.1 so every sheet in the product shares one value set."
+            },
+            {
+              "name": "had_selection",
+              "type": "bool"
+            },
+            {
+              "name": "time_on_sheet_s",
+              "type": "int"
+            }
+          ],
+          "trigger": "The prompt list closed without going to the camera — the X, the backdrop, a swipe-down, or the system back gesture. had_selection: true is a user who picked a prompt and then backed out, which is a different signal from one who read the list and left; both are the drop-off the list is accountable for. Uses dismiss_method, not method — see §8 on the two vocabularies that collided under method."
+        },
+        {
+          "name": "video_recording_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "media_prompt_id",
+              "type": "str — enums.json §20"
+            },
+            {
+              "name": "is_own_prompt",
+              "type": "bool"
+            },
+            {
+              "name": "attempt",
+              "type": "int"
+            },
+            {
+              "name": "is_retake",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Video capture actually begins on the recording screen — permission already granted, timer running. Was prompt_id: str until v1.4; renamed media_prompt_id because prompt_id is already the written-prompt key (§6, §17) and the two registries are unrelated. attempt counts takes of the same prompt, starting at 1, so a retake loop is readable without diffing timestamps.",
+          "implemented": false
+        },
+        {
+          "name": "video_prompt_recorded",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "media_prompt_id",
+              "type": "str — enums.json §20"
+            },
+            {
+              "name": "is_own_prompt",
+              "type": "bool"
+            },
+            {
+              "name": "duration_s",
+              "type": "int"
+            },
+            {
+              "name": "retakes",
+              "type": "int"
+            },
+            {
+              "name": "plays_before_accept",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "\"Use this clip\" accepted on the review screen — NOT on Stop. Stopping produces a take; accepting produces the artefact, and only this event means the profile gained something. A take that is stopped and then retaken never fires it. The user returns to the Media screen, where the next media_screen_viewed carries has_video: true.",
+          "implemented": false
+        },
+        {
+          "name": "voice_recording_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "media_prompt_id",
+              "type": "str — enums.json §20"
+            },
+            {
+              "name": "is_own_prompt",
+              "type": "bool"
+            },
+            {
+              "name": "attempt",
+              "type": "int"
+            },
+            {
+              "name": "is_retake",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Voice capture actually begins on the recording screen — permission already granted, timer running. Was prompt_id: str until v1.4; renamed media_prompt_id because prompt_id is already the written-prompt key (§6, §17) and the two registries are unrelated. attempt counts takes of the same prompt, starting at 1, so a retake loop is readable without diffing timestamps.",
+          "implemented": false
+        },
+        {
+          "name": "voice_prompt_recorded",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "media_prompt_id",
+              "type": "str — enums.json §20"
+            },
+            {
+              "name": "is_own_prompt",
+              "type": "bool"
+            },
+            {
+              "name": "duration_s",
+              "type": "int"
+            },
+            {
+              "name": "retakes",
+              "type": "int"
+            },
+            {
+              "name": "plays_before_accept",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "\"Use this recording\" accepted on the review screen — NOT on Stop. Stopping produces a take; accepting produces the artefact, and only this event means the profile gained something. A take that is stopped and then retaken never fires it. The user returns to the Media screen, where the next media_screen_viewed carries has_voice: true.",
+          "implemented": false
+        },
+        {
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "implemented": false,
+          "name": "media_review_shown",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"video\"|\"voice\""
+            },
+            {
+              "name": "media_prompt_id",
+              "type": "str"
+            },
+            {
+              "name": "duration_s",
+              "type": "int"
+            },
+            {
+              "name": "attempt",
+              "type": "int"
+            },
+            {
+              "name": "stop_reason",
+              "type": "\"user_stop\"|\"max_length\" — enums.json §8"
+            }
+          ],
+          "trigger": "Stop tapped, or the length cap reached, and the review screen mounts — play / retake / keep. The denominator for everything that follows a take: media_preview_played, media_retaken{from:\"review\"} and video_prompt_recorded / voice_prompt_recorded are all choices made on this screen, and none of them is interpretable without knowing how many takes reached it. stop_reason separates a user who finished early from one who ran out of seconds."
+        },
+        {
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "implemented": false,
+          "name": "media_preview_played",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"video\"|\"voice\""
+            },
+            {
+              "name": "attempt",
+              "type": "int"
+            },
+            {
+              "name": "play_count",
+              "type": "int"
+            }
+          ],
+          "trigger": "Play tapped on the review screen. Fires per play with a running count, starting at 1 — whether people watch or listen back before keeping a take is the question the review screen exists to answer, and a single event with no count cannot tell a confident keep from a nervous one."
+        },
+        {
+          "name": "media_prompt_ranking_published",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"video\"|\"voice\""
+            },
+            {
+              "name": "media_prompt_id",
+              "type": "str — enums.json §20; the prompt now previewed for this medium"
+            },
+            {
+              "name": "previous_media_prompt_id",
+              "type": "str"
+            },
+            {
+              "name": "completions",
+              "type": "int"
+            },
+            {
+              "name": "sample_size",
+              "type": "int"
+            },
+            {
+              "name": "window_days",
+              "type": "int"
+            },
+            {
+              "name": "preview_source",
+              "type": "\"ranked\"|\"fallback\" — enums.json §22"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The ranking job publishes the preview prompt for one medium — once per medium per refresh, and ONLY when the published value changes. The audit trail for decision 33: a preview that moved has to be attributable to a sample and a window, or a drop in recording rate cannot be told apart from a bad prompt. Server-side; the client never ranks and never computes a preview locally.",
+          "implemented": false
+        },
+        {
+          "name": "media_retaken",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"photo\"|\"voice\"|\"video\""
+            },
+            {
+              "name": "from",
+              "type": "\"review\"|\"media_card\" — enums.json §8"
+            },
+            {
+              "name": "media_prompt_id",
+              "type": "str"
+            },
+            {
+              "name": "attempt",
+              "type": "int"
+            },
+            {
+              "name": "prior_duration_s",
+              "type": "int"
+            },
+            {
+              "name": "had_video",
+              "type": "bool"
+            },
+            {
+              "name": "had_voice",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Retake tapped — either on the review screen, discarding the take just made, or on a filled card on the Media screen, replacing something already saved to the profile. had_video / had_voice carry what the profile held at that moment, so a retake by a user who already has both media is distinguishable from a first-time loop.",
+          "implemented": false,
+          "required_payload": "type and from are both REQUIRED. from is what separates a discarded draft from a replaced artefact; without it the two collapse into one number that means neither."
+        },
+        {
+          "name": "media_deleted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"photo\"|\"voice\"|\"video\""
+            },
+            {
+              "name": "media_prompt_id",
+              "type": "str"
+            },
+            {
+              "name": "duration_s",
+              "type": "int"
+            },
+            {
+              "name": "had_video",
+              "type": "bool"
+            },
+            {
+              "name": "had_voice",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Delete tapped on a filled card on the Media screen — the artefact is removed from the profile and the card returns to empty. Deleting is not retaking: there is no replacement take, and collapsing the two would read a user giving up as a user trying again. had_video / had_voice are the state BEFORE the deletion.",
+          "implemented": false
+        },
+        {
+          "name": "caption_added",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"photo\"|\"video\""
+            },
+            {
+              "name": "char_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Text caption attached to media",
+          "implemented": false
+        },
+        {
+          "name": "caption_skipped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"photo\"|\"video\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Caption screen bypassed",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Profile Attributes",
+      "events": [
+        {
+          "name": "detail_answered",
+          "code_anchor": "profiles/dto/upsert-profile.dto.ts",
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "field_id",
+              "type": "str"
+            },
+            {
+              "name": "value_bucketed",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Partial",
+          "trigger": "Detail dropdown selected (Values bucketed)",
+          "implemented": false
+        },
+        {
+          "name": "detail_skipped",
+          "code_anchor": "profiles/dto/upsert-profile.dto.ts",
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "field_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Partial",
+          "trigger": "Attribute field explicitly skipped",
+          "implemented": false
+        },
+        {
+          "name": "field_display_opted_out",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "field_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "“Don't show on my profile” switched on was: opt-out checkbox ticked — opt-out only, no event on untick. Absence for a field_id = displayed, so this answers which fields people hide but never how many hide it right now — that reads off the hidden_fields user property (Properties §P3). Nine controls: the seven Share some details screens, plus habits (one switch, fires once for the whole screen) and age on the DoB step v1.2",
+          "implemented": false
+        },
+        {
+          "name": "interest_selected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "tag_id",
+              "type": "str"
+            },
+            {
+              "name": "total_selected",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Interest pill selected",
+          "implemented": false
+        },
+        {
+          "name": "interest_deselected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "tag_id",
+              "type": "str"
+            },
+            {
+              "name": "total_selected",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Interest pill deselected",
+          "implemented": false
+        },
+        {
+          "name": "show_more_expanded",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "screen_id",
+              "type": "str"
+            },
+            {
+              "name": "section_id",
+              "type": "str"
+            },
+            {
+              "name": "revealed_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Any “Show more” control expanded in place. section_id from the tag_id section slugs on Interests; screen_id is what tells you where it happened. Photos keeps photo_slot_tapped action:\"reveal_optional\" rather than duplicating this",
+          "implemented": false
+        },
+        {
+          "name": "interest_cap_reached",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "cap",
+              "type": "10"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User attempts selecting 11th interest",
+          "implemented": false
+        },
+        {
+          "name": "life_question_answered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "question_id",
+              "type": "str"
+            },
+            {
+              "name": "answers_complete",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Lifestyle questionnaire item answered",
+          "implemented": false
+        },
+        {
+          "name": "future_question_answered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "question_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Looking-for questionnaire item set",
+          "implemented": false
+        },
+        {
+          "name": "habit_answered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "habit_id",
+              "type": "str"
+            },
+            {
+              "name": "frequency",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Habit frequency item selected",
+          "implemented": false
+        },
+        {
+          "name": "prompt_topic_picker_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "SUPERSEDED 16 Sep 2026 — DO NOT FIRE. This is the v1.0 name for opening the topic sheet; the live event is prompt_topic_list_opened in family E, with the payload the Profile 07 ticket specifies. The row is kept, emptied of its payload, so that the name resolves to this notice instead of being re-implemented from a stale spec. Written prompts are instrumented in family E only, against enums §17 / §19.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_answered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "SUPERSEDED 16 Sep 2026 — DO NOT FIRE. This is the v1.0 name for saving a written answer; the live event is prompt_saved in family E, with the payload the Profile 07 ticket specifies. The row is kept, emptied of its payload, so that the name resolves to this notice instead of being re-implemented from a stale spec. Written prompts are instrumented in family E only, against enums §17 / §19.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_edited",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "SUPERSEDED 16 Sep 2026 — DO NOT FIRE. This is the v1.0 name for editing an existing prompt; the live event is prompt_editor_opened{is_edit:true} → prompt_saved{is_edit:true} in family E, with the payload the Profile 07 ticket specifies. The row is kept, emptied of its payload, so that the name resolves to this notice instead of being re-implemented from a stale spec. Written prompts are instrumented in family E only, against enums §17 / §19.",
+          "implemented": false
+        },
+        {
+          "name": "prompt_removed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "SUPERSEDED 16 Sep 2026 — DO NOT FIRE. This is the v1.0 name for removing a saved prompt; the live event is prompt_deleted in family E, with the payload the Profile 07 ticket specifies. The row is kept, emptied of its payload, so that the name resolves to this notice instead of being re-implemented from a stale spec. Written prompts are instrumented in family E only, against enums §17 / §19.",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "G",
+      "name": "Permissions & Consent",
+      "events": [
+        {
+          "name": "permission_prompted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"notifications\"|\"location\"|\"contacts\"|\"camera\"|\"microphone\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Client only",
+          "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. Profile 09 (ProfileNotifications) is the full-screen case and fires this on view with type: \"notifications\"; it does not fire when the screen is skipped because the OS status is already determined.",
+          "implemented": false
+        },
+        {
+          "name": "permission_os_sheet_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Client only",
+          "trigger": "System permission dialog triggers",
+          "implemented": false
+        },
+        {
+          "name": "permission_result",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            },
+            {
+              "name": "result",
+              "type": "\"granted\"|\"denied\"|\"limited\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Client only",
+          "trigger": "User responds to OS permission dialog",
+          "implemented": false
+        },
+        {
+          "name": "permission_denied_recovery_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Client only",
+          "trigger": "Recovery banner shown after denial",
+          "implemented": false
+        },
+        {
+          "name": "permission_settings_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Client only",
+          "trigger": "Deep-link to OS App Settings tapped",
+          "implemented": false
+        },
+        {
+          "name": "permission_status_changed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"notifications\"|\"location\"|\"contacts\"|\"camera\"|\"microphone\" — enums.json §8"
+            },
+            {
+              "name": "from",
+              "type": "str — enums.json §24 permission_status; the last value the client synced"
+            },
+            {
+              "name": "to",
+              "type": "str — enums.json §24 permission_status; the value just read"
+            },
+            {
+              "name": "detected_on",
+              "type": "\"launch\"|\"foreground\""
+            },
+            {
+              "name": "in_flow",
+              "type": "bool — true when the change is detected while the user is still inside profile creation"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "required_payload": "type, from, to and detected_on always. from is what the SERVER was last told, not what the screen last saw — a change the client never synced is exactly the case this event exists for.",
+          "trigger": "The OS permission status read on launch or foreground differs from the last value the client synced: the user changed it outside our app (Settings, an OS update, a Focus mode, Android's per-channel switches) or a restore carried a different one in. NOT the answer to our own dialog — that is permission_result, and the two must never both fire for one act. Emitted by the shared permission reconciler, not by a screen.",
+          "implemented": false
+        },
+        {
+          "name": "consent_changed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "\"call\"|\"calendar\"|\"push\"|\"whatsapp\"|\"sms\"|\"email\"|\"marketing_email\""
+            },
+            {
+              "name": "on",
+              "type": "bool"
+            },
+            {
+              "name": "surface",
+              "type": "\"profile_creation\"|\"settings\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "A consent toggle changed, in either direction — on:false is the opt-out, on:true the opt-in. TWO PLACES FIRE THIS. (1) The marketing checkbox on the profile Email screen: channel:\"marketing_email\", surface:\"profile_creation\". The address itself is not a consent — it is used for password resets and support replies regardless; the checkbox governs marketing mail alone, so an unchecked box means no marketing, not no email (decision 28). (2) The six Stay reachable toggles: channel is one of the other six values. surface is required on both — a consent record that cannot be traced to where it was given cannot be honoured.",
+          "implemented": false
+        },
+        {
+          "name": "reachability_saved",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channels_on",
+              "type": "[str]"
+            },
+            {
+              "name": "count",
+              "type": "int"
+            },
+            {
+              "name": "has_phone",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "“Save preferences” tapped — the state the user actually leaves the screen in, which per-toggle events cannot reconstruct. A skip fires profile_step_skipped step_id:\"reachability\"",
+          "implemented": false
+        },
+        {
+          "name": "consent_deactivation_confirm_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Confirmation modal shown for opt-out",
+          "implemented": false
+        },
+        {
+          "name": "consent_deactivation_confirmed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Opt-out confirmed in dialog",
+          "implemented": false
+        },
+        {
+          "name": "consent_deactivation_abandoned",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Opt-out canceled in dialog",
+          "implemented": false
+        },
+        {
+          "name": "concierge_contact_prompt_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "surface",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Save Concierge Number card shown",
+          "implemented": false
+        },
+        {
+          "name": "concierge_contact_os_sheet_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "source",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Native save contact interface triggers",
+          "implemented": false
+        },
+        {
+          "name": "concierge_contact_saved",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "source",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Concierge vCard saved to device",
+          "implemented": false
+        },
+        {
+          "name": "concierge_contact_skipped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "source",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Concierge vCard prompt bypassed",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "H",
+      "name": "48hr Check-In",
+      "events": [
+        {
+          "name": "checkin_prompted",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "trigger",
+              "type": "\"push\"|\"sms\"|\"in_app\""
+            },
+            {
+              "name": "hours_before_window",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Check-in notification payload dispatched",
+          "implemented": false
+        },
+        {
+          "name": "checkin_intro_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "window_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "First screen of check-in flow rendered",
+          "implemented": false
+        },
+        {
+          "name": "checkin_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "window_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User taps \"Start Check-in\" CTA",
+          "implemented": false
+        },
+        {
+          "name": "checkin_step_answered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "step_id",
+              "type": "\"today\"|\"tomorrow\"|\"prep\"|\"motivation\"|\"vibe\"|\"filters\""
+            },
+            {
+              "name": "answer_value",
+              "type": "str"
+            },
+            {
+              "name": "time_to_answer_ms",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Live",
+          "trigger": "Individual check-in question answered",
+          "implemented": false
+        },
+        {
+          "name": "availability_slots_set",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "slot_count",
+              "type": "int"
+            },
+            {
+              "name": "total_hours",
+              "type": "float"
+            },
+            {
+              "name": "weekend_share",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Calendar availability grid set",
+          "implemented": false
+        },
+        {
+          "name": "prep_time_set",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "minutes",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Buffer time selected (e.g. 30/60m)",
+          "implemented": false
+        },
+        {
+          "name": "motivation_selected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "value",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Live",
+          "trigger": "Dating motivation tag set",
+          "implemented": false
+        },
+        {
+          "name": "vibe_selected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "value",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Live",
+          "trigger": "Vibe tag selected for upcoming window",
+          "implemented": false
+        },
+        {
+          "name": "checkin_filters_changed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "filter_id",
+              "type": "str"
+            },
+            {
+              "name": "value",
+              "type": "str"
+            },
+            {
+              "name": "is_premium_filter",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Search criteria modified during checkin",
+          "implemented": false
+        },
+        {
+          "name": "uplift_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "streak_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Check-in streak/uplift card rendered",
+          "implemented": false
+        },
+        {
+          "name": "checkin_completed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "duration_s",
+              "type": "int"
+            },
+            {
+              "name": "steps_skipped",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Valid checkin record committed in DB",
+          "implemented": false
+        },
+        {
+          "name": "check_in_created",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "has_location",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Check-in record created in DB",
+          "implemented": true,
+          "code_delta": "PREFIX CONFLICT: this ships as check_in_created while the ten unbuilt events in this family are checkin_*. When the Check-In flow is built, standardise the family on check_in_ and rename these ten."
+        },
+        {
+          "name": "checkin_abandoned",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "last_step_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "App backgrounded/closed in checkin",
+          "implemented": false
+        },
+        {
+          "name": "checkin_missed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "window_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Check-in window closes without submission",
+          "implemented": false
+        },
+        {
+          "name": "checkin_edited_after_submit",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "field",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User updates availability post-submission",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "I",
+      "name": "Search & Liking",
+      "events": [
+        {
+          "name": "search_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "layout",
+              "type": "\"one_up\"|\"grid\""
+            },
+            {
+              "name": "results_count",
+              "type": "int"
+            },
+            {
+              "name": "filters_active",
+              "type": "str[]"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Main discovery view mounted",
+          "implemented": false
+        },
+        {
+          "name": "profile_card_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "position",
+              "type": "int"
+            },
+            {
+              "name": "dwell_ms",
+              "type": "int"
+            },
+            {
+              "name": "photos_swiped",
+              "type": "int"
+            },
+            {
+              "name": "sections_scrolled",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Profile card enters viewport focus",
+          "implemented": false
+        },
+        {
+          "name": "profile_section_expanded",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "section",
+              "type": "\"prompts\"|\"interests\"|\"habits\"|\"essentials\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Collapsible profile accordion opened",
+          "implemented": false
+        },
+        {
+          "name": "voice_prompt_played",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "position",
+              "type": "int"
+            },
+            {
+              "name": "played_pct",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Voice prompt play button pressed",
+          "implemented": false
+        },
+        {
+          "name": "video_prompt_played",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "position",
+              "type": "int"
+            },
+            {
+              "name": "played_pct",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Video prompt starts playback",
+          "implemented": false
+        },
+        {
+          "name": "like_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "position",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Primary Like CTA button tapped",
+          "implemented": false
+        },
+        {
+          "name": "like_confirm_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "target_showup_band",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Modal confirming date obligation renders",
+          "implemented": false
+        },
+        {
+          "name": "like_confirm_abandoned",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "target_showup_band",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User cancels out of like confirmation",
+          "implemented": false
+        },
+        {
+          "name": "like_sent",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "position",
+              "type": "int"
+            },
+            {
+              "name": "showup_band_of_target",
+              "type": "str"
+            },
+            {
+              "name": "has_message",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Like record successfully saved in DB",
+          "implemented": true,
+          "code_delta": "Add position and showup_band_of_target. has_message ships already; like_message_attached keeps char_count."
+        },
+        {
+          "name": "like_message_attached",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "char_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Note attached to outbound like",
+          "implemented": false
+        },
+        {
+          "name": "pass_sent",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "position",
+              "type": "int"
+            },
+            {
+              "name": "reason_if_given",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User swipes pass or taps Next",
+          "implemented": false
+        },
+        {
+          "name": "likes_received_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "count",
+              "type": "int"
+            },
+            {
+              "name": "is_locked",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "Inbound likes grid view rendered",
+          "implemented": false
+        },
+        {
+          "name": "location_gate_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "\"undetermined\"|\"denied\"|\"device_off\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Client only",
+          "trigger": "Location required blocker displayed",
+          "implemented": false
+        },
+        {
+          "name": "search_empty_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "\"no_results\"|\"no_one_live\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Zero results returned in search feed",
+          "implemented": false
+        },
+        {
+          "name": "radius_widened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "from_km",
+              "type": "int"
+            },
+            {
+              "name": "to_km",
+              "type": "int"
+            },
+            {
+              "name": "one_tap",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Search radius expanded",
+          "implemented": false
+        },
+        {
+          "name": "filters_relaxed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "filter_id",
+              "type": "str"
+            },
+            {
+              "name": "one_tap",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Search filters broadened",
+          "implemented": false
+        },
+        {
+          "name": "search_lockout_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "cause",
+              "type": "\"no_show\""
+            },
+            {
+              "name": "remaining_h",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User blocked from search due to penalties",
+          "implemented": false
+        },
+        {
+          "name": "search_lockout_expired",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "lockout_duration_h",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "System reinstates discovery access",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "J",
+      "name": "Match & Notifications",
+      "events": [
+        {
+          "name": "match_created",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "match_id",
+              "type": "str"
+            },
+            {
+              "name": "mutual_latency_h",
+              "type": "float"
+            },
+            {
+              "name": "both_showup_bands",
+              "type": "str[]"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Mutual like logic creates match record",
+          "implemented": true,
+          "code_delta": "Add mutual_latency_h and both_showup_bands. match_id ships already."
+        },
+        {
+          "name": "date_auto_scheduled",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "slot_start_offset_h",
+              "type": "int"
+            },
+            {
+              "name": "venue_type",
+              "type": "str"
+            },
+            {
+              "name": "midpoint_fairness_delta",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "System algorithm selects date venue/time",
+          "implemented": false
+        },
+        {
+          "name": "notification_sent",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str"
+            },
+            {
+              "name": "template_id",
+              "type": "str"
+            },
+            {
+              "name": "event_type",
+              "type": "str"
+            },
+            {
+              "name": "lead_time",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "Outbound notification sent to provider",
+          "implemented": true,
+          "code_delta": "Rename notification_type → event_type; add template_id and lead_time. channel ships already."
+        },
+        {
+          "name": "notification_delivered",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str"
+            },
+            {
+              "name": "latency_s",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "Push service acknowledges receipt",
+          "implemented": false
+        },
+        {
+          "name": "notification_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str"
+            },
+            {
+              "name": "template_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps push notification banner",
+          "implemented": false
+        },
+        {
+          "name": "notification_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User swipes away push banner",
+          "implemented": false
+        },
+        {
+          "name": "channel_fallback_triggered",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "from",
+              "type": "str"
+            },
+            {
+              "name": "to",
+              "type": "str"
+            },
+            {
+              "name": "reason",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Unopened Push triggers SMS/Call fallback",
+          "implemented": false
+        },
+        {
+          "name": "concierge_call_placed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "event_type",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Twilio/Automated call initiated",
+          "implemented": false
+        },
+        {
+          "name": "concierge_call_answered",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "ring_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Recipient picks up automated call",
+          "implemented": false
+        },
+        {
+          "name": "concierge_call_declined",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "ring_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Recipient rejects automated call",
+          "implemented": false
+        },
+        {
+          "name": "concierge_call_voicemail",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "detection_latency_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Call hits answering machine",
+          "implemented": false
+        },
+        {
+          "name": "concierge_call_ended",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "duration_s",
+              "type": "int"
+            },
+            {
+              "name": "outcome",
+              "type": "\"confirmed\"|\"deferred\"|\"hung_up\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Automated call leg terminates",
+          "implemented": false
+        },
+        {
+          "name": "concierge_call_script_branch",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "branch_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "User presses DTMF key during call",
+          "implemented": false
+        },
+        {
+          "name": "match_interrupt_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "over_screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "High-priority match takeover renders",
+          "implemented": false
+        },
+        {
+          "name": "match_interrupt_accepted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "match_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"View Match Details\"",
+          "implemented": false
+        },
+        {
+          "name": "match_interrupt_deferred",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "match_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Later\" on match overlay",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "K",
+      "name": "Date Coordination",
+      "events": [
+        {
+          "name": "date_screen_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "state",
+              "type": "\"locked\"|\"available\""
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Date coordination screen rendered",
+          "implemented": false
+        },
+        {
+          "name": "date_confirm_submitted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "time_to_confirm_min",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "User taps \"Confirm Date\" CTA in app",
+          "implemented": false
+        },
+        {
+          "name": "date_confirmed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "time_to_confirm_min",
+              "type": "int"
+            },
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "venue_attached",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "Both parties confirm date state in DB",
+          "implemented": true,
+          "code_delta": "Add time_to_confirm_min. date_id and venue_attached ship already."
+        },
+        {
+          "name": "date_completed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "Date status marked completed in DB",
+          "implemented": true,
+          "code_delta": "Net-new from the code, absorbed here. Confirm the payload Show-up Rate needs before it is counted on."
+        },
+        {
+          "name": "coordinate_unlocked",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "minutes_before_start",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "System unlocks exact venue location",
+          "implemented": false
+        },
+        {
+          "name": "coordinate_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User views unlocked venue details",
+          "implemented": false
+        },
+        {
+          "name": "navigation_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "maps_app",
+              "type": "\"apple\"|\"google\"|\"waze\""
+            },
+            {
+              "name": "travel_min_estimate",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Get Directions\" button",
+          "implemented": false
+        },
+        {
+          "name": "calendar_added",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "calendar_type",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User exports date to OS calendar",
+          "implemented": false
+        },
+        {
+          "name": "match_mate_tab_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "tab",
+              "type": "\"topics\"|\"icebreakers\"|\"games\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "MatchMate assistance tab opened",
+          "implemented": false
+        },
+        {
+          "name": "match_mate_item_used",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "tab",
+              "type": "str"
+            },
+            {
+              "name": "item_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User selects icebreaker prompt",
+          "implemented": false
+        },
+        {
+          "name": "date_reminder_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "lead_time",
+              "type": "\"24h\"|\"2h\"|\"1h\"|\"15m\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Reminder push/view opened",
+          "implemented": false
+        },
+        {
+          "name": "cancel_link_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Cancel Date link tapped",
+          "implemented": false
+        },
+        {
+          "name": "cancel_guard_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "penalty_points",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Penalty score modal rendered",
+          "implemented": false
+        },
+        {
+          "name": "cancel_abandoned_at_guard",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "penalty_points",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User backs out of cancellation UI",
+          "implemented": false
+        },
+        {
+          "name": "date_cancelled",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "hours_notice",
+              "type": "float"
+            },
+            {
+              "name": "initiator",
+              "type": "\"self\"|\"partner\""
+            },
+            {
+              "name": "penalty_points",
+              "type": "int"
+            },
+            {
+              "name": "reason",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "Date status marked cancelled in DB",
+          "implemented": true,
+          "code_delta": "Replace had_reason with the four spec properties. Show-up Rate cannot be computed without hours_notice and penalty_points — this is a requirement, not a preference."
+        },
+        {
+          "name": "partner_cancellation_received",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "hours_notice",
+              "type": "float"
+            },
+            {
+              "name": "rate_impact",
+              "type": "\"none\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Partial",
+          "trigger": "In-app alert shown for partner cancel",
+          "implemented": false
+        },
+        {
+          "name": "rematch_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "previous_date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User enters re-matching pool post-cancel",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "L",
+      "name": "Chat Metadata",
+      "events": [
+        {
+          "name": "chat_tutorial_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "variant",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Ephemeral chat rules overlay mounted",
+          "implemented": false
+        },
+        {
+          "name": "chat_tutorial_acknowledged",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "read_time_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User dismisses chat rules overlay",
+          "implemented": false
+        },
+        {
+          "name": "chat_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "trigger",
+              "type": "\"chip\"|\"banner\"|\"unread\""
+            },
+            {
+              "name": "layout",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Chat message thread mounted",
+          "implemented": false
+        },
+        {
+          "name": "action_chip_used",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "chip_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Structured action button pressed in chat",
+          "implemented": false
+        },
+        {
+          "name": "message_sent",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "char_count",
+              "type": "int"
+            },
+            {
+              "name": "chip_seeded",
+              "type": "bool"
+            },
+            {
+              "name": "minutes_before_date",
+              "type": "int"
+            },
+            {
+              "name": "is_first",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Send button tapped (Metadata only - NO CHAT TEXT)",
+          "implemented": false
+        },
+        {
+          "name": "message_received",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "char_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Inbound message payload rendered",
+          "implemented": false
+        },
+        {
+          "name": "unread_reminder_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "unread_count",
+              "type": "int"
+            },
+            {
+              "name": "hours_waiting",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "In-app unread prompt rendered",
+          "implemented": false
+        },
+        {
+          "name": "response_latency_recorded",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "minutes",
+              "type": "float"
+            },
+            {
+              "name": "responder",
+              "type": "\"self\"|\"partner\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Time delta between back-and-forth msgs",
+          "implemented": false
+        },
+        {
+          "name": "chat_closed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "messages_sent",
+              "type": "int"
+            },
+            {
+              "name": "duration_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User navigates away from chat screen",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "M",
+      "name": "Live Status & Arrival",
+      "events": [
+        {
+          "name": "status_sheet_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "\"on_my_way\"|\"running_late\"|\"cant_find\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Live coordination sheet opened",
+          "implemented": false
+        },
+        {
+          "name": "date_status_sent",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            },
+            {
+              "name": "minutes_late",
+              "type": "int"
+            },
+            {
+              "name": "over_10_min",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Status update dispatched to partner",
+          "implemented": false
+        },
+        {
+          "name": "date_status_undone",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            },
+            {
+              "name": "seconds_to_undo",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User taps \"Undo\" on status broadcast",
+          "implemented": false
+        },
+        {
+          "name": "status_banner_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            },
+            {
+              "name": "surface",
+              "type": "\"push\"|\"in_app\""
+            },
+            {
+              "name": "role",
+              "type": "\"receiver\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Received status update renders on screen",
+          "implemented": false
+        },
+        {
+          "name": "status_banner_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "type",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Received status banner tapped",
+          "implemented": false
+        },
+        {
+          "name": "location_hint_requested",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User requests venue help clue",
+          "implemented": false
+        },
+        {
+          "name": "location_hint_sent",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "char_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Venue clue dispatched to partner",
+          "implemented": false
+        },
+        {
+          "name": "eta_change_proposed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "new_offset_min",
+              "type": "int"
+            },
+            {
+              "name": "initiator",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Delay adjustment proposal submitted",
+          "implemented": false
+        },
+        {
+          "name": "eta_change_agreed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "new_offset_min",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Partner accepts updated ETA",
+          "implemented": false
+        },
+        {
+          "name": "eta_change_declined",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "initiator",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Partner rejects updated ETA",
+          "implemented": false
+        },
+        {
+          "name": "arrival_confirm_submitted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "minutes_vs_start",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User taps \"I Have Arrived\" button",
+          "implemented": false
+        },
+        {
+          "name": "arrival_confirmed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "minutes_vs_start",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Server verifies arrival via geofence/code",
+          "implemented": false
+        },
+        {
+          "name": "late_decision_prompted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "minutes_elapsed",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Partner absent 10m post-start modal",
+          "implemented": false
+        },
+        {
+          "name": "late_decision_answered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "decision",
+              "type": "\"wait\"|\"leave\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User selects to wait or abandon date",
+          "implemented": false
+        },
+        {
+          "name": "partner_waiting_notified",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Push sent to late user warning partner is present",
+          "implemented": false
+        },
+        {
+          "name": "partner_left_notified",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "minutes_waited",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "System notifies late user that partner left",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "N",
+      "name": "Wrap-up & Safety",
+      "events": [
+        {
+          "name": "wrapup_prompted",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "trigger",
+              "type": "\"timer\"|\"manual\""
+            },
+            {
+              "name": "minutes_elapsed",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "30-min status push dispatched",
+          "implemented": false
+        },
+        {
+          "name": "wrapup_outcome_selected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "met",
+              "type": "bool"
+            },
+            {
+              "name": "left_early",
+              "type": "bool"
+            },
+            {
+              "name": "partner_no_show",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User selects initial 30-min outcome pill",
+          "implemented": false
+        },
+        {
+          "name": "wrapup_confirmed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "outcome",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Outcome logic saved in database",
+          "implemented": false
+        },
+        {
+          "name": "grace_period_started",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "minutes",
+              "type": "10"
+            },
+            {
+              "name": "context",
+              "type": "\"no_show\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "10-minute buffer window initialized",
+          "implemented": false
+        },
+        {
+          "name": "grace_period_expired",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Buffer expires without confirmation",
+          "implemented": false
+        },
+        {
+          "name": "no_penalty_exit_granted",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "\"waited_out_window\"|\"unsafe\""
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Penalty shield applied to user record",
+          "implemented": false
+        },
+        {
+          "name": "problem_report_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Client only",
+          "trigger": "Report Problem modal opened",
+          "implemented": false
+        },
+        {
+          "name": "problem_category_selected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "category",
+              "type": "\"unsafe\"|\"uncomfortable\"|\"waited\""
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Client only",
+          "trigger": "Incident category selected",
+          "implemented": false
+        },
+        {
+          "name": "safety_call_triggered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "latency_s",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Emergency helpline link executed",
+          "implemented": false
+        },
+        {
+          "name": "safety_call_connected",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "duration_s",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Voice trunk connects to safety center",
+          "implemented": false
+        },
+        {
+          "name": "user_reported",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "category",
+              "type": "str"
+            },
+            {
+              "name": "has_free_text",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Formal report recorded in support system",
+          "implemented": false
+        },
+        {
+          "name": "user_blocked",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "target_user_id_hashed",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Block relationship saved in backend",
+          "implemented": false
+        },
+        {
+          "name": "self_no_show_detected",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "had_chat",
+              "type": "bool"
+            },
+            {
+              "name": "gave_heads_up",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "System auto-flags user as missing date",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "O",
+      "name": "Review & Rating",
+      "events": [
+        {
+          "name": "rating_prompted",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "hours_after_date",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Post-date review notification sent",
+          "implemented": false
+        },
+        {
+          "name": "review_variant_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "variant",
+              "type": "\"both_met\"|\"partner_late\"|\"partner_no_show\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Conditional review screen rendered",
+          "implemented": false
+        },
+        {
+          "name": "review_field_locked_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "field",
+              "type": "\"would_meet_again\""
+            },
+            {
+              "name": "reason",
+              "type": "\"self_no_show\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Locked review prompt explanation",
+          "implemented": false
+        },
+        {
+          "name": "rating_submitted",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "stars",
+              "type": "int"
+            },
+            {
+              "name": "showed_up",
+              "type": "\"yes\"|\"no\"|\"late\""
+            },
+            {
+              "name": "would_meet_again",
+              "type": "bool"
+            },
+            {
+              "name": "tags",
+              "type": "str[]"
+            },
+            {
+              "name": "has_free_text",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Not built",
+          "trigger": "Review payload stored in backend DB",
+          "implemented": false
+        },
+        {
+          "name": "rating_skipped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User skips optional rating steps",
+          "implemented": false
+        },
+        {
+          "name": "rating_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "times_deferred",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Review prompt dismissed via close button",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "P",
+      "name": "Show-up Score",
+      "events": [
+        {
+          "name": "score_screen_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "value",
+              "type": "float"
+            },
+            {
+              "name": "band",
+              "type": "\"trusted\"|\"steady\"|\"at_risk\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Show-up Score dashboard opened",
+          "implemented": false
+        },
+        {
+          "name": "score_trend_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "months",
+              "type": "6"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Historical score chart rendered",
+          "implemented": false
+        },
+        {
+          "name": "score_explainer_expanded",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "section",
+              "type": "\"how_it_works\"|\"moves\"|\"tiers\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Educational accordion expanded",
+          "implemented": false
+        },
+        {
+          "name": "shaped_event_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "event_type",
+              "type": "\"attended\"|\"late\"|\"no_show\"|\"cancelled\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Individual score-affecting item tapped",
+          "implemented": false
+        },
+        {
+          "name": "showup_rate_changed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "from",
+              "type": "float"
+            },
+            {
+              "name": "to",
+              "type": "float"
+            },
+            {
+              "name": "delta",
+              "type": "float"
+            },
+            {
+              "name": "cause",
+              "type": "\"attended\"|\"no_show\"|\"late_cancel\"|\"decay\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Score algorithm recalculates user score",
+          "implemented": false
+        },
+        {
+          "name": "tier_band_changed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "from",
+              "type": "str"
+            },
+            {
+              "name": "to",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User transitions between trust bands",
+          "implemented": false
+        },
+        {
+          "name": "recovery_offered",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "first_time",
+              "type": "bool"
+            },
+            {
+              "name": "penalty_waived",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Account recovery program triggered",
+          "implemented": false
+        },
+        {
+          "name": "recovery_flow_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "step",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User begins penalty restoration flow",
+          "implemented": false
+        },
+        {
+          "name": "recovery_flow_completed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "steps_completed",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User finishes penalty restoration flow",
+          "implemented": false
+        },
+        {
+          "name": "penalty_applied",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "points",
+              "type": "float"
+            },
+            {
+              "name": "reason",
+              "type": "str"
+            },
+            {
+              "name": "appealable",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Deduction committed to score DB",
+          "implemented": false
+        },
+        {
+          "name": "matching_suspended",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "threshold",
+              "type": "float"
+            },
+            {
+              "name": "lockout_h",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User score drops below lockout threshold",
+          "implemented": false
+        },
+        {
+          "name": "matching_reinstated",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "after_h",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Suspension period completes",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "Q",
+      "name": "Instant Mode",
+      "events": [
+        {
+          "name": "instant_intro_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "surface",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Instant mode onboarding modal rendered",
+          "implemented": false
+        },
+        {
+          "name": "instant_go_live_started",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "current_vibe",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Go Live Now CTA pressed",
+          "implemented": false
+        },
+        {
+          "name": "quick_checkin_completed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "duration_s",
+              "type": "int"
+            },
+            {
+              "name": "target_s",
+              "type": "15"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Express 15-second checkin finished",
+          "implemented": false
+        },
+        {
+          "name": "instant_go_live_activated",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "window_h",
+              "type": "2"
+            },
+            {
+              "name": "radius_km",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User flagged live in instant spatial index",
+          "implemented": false
+        },
+        {
+          "name": "instant_feed_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "live_count",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Instant mode radar feed rendered",
+          "implemented": false
+        },
+        {
+          "name": "instant_like_confirm_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "binding_now",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Are you ready now? guard modal shown",
+          "implemented": false
+        },
+        {
+          "name": "instant_match_created",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "latency_min",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Real-time match generated",
+          "implemented": false
+        },
+        {
+          "name": "instant_window_expired",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "matches_gained",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "2-hour instant availability window ends",
+          "implemented": false
+        },
+        {
+          "name": "instant_mode_deactivated",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "manual",
+              "type": "bool"
+            },
+            {
+              "name": "remaining_min",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User toggles off instant mode",
+          "implemented": false
+        },
+        {
+          "name": "instant_radius_widened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "from_km",
+              "type": "int"
+            },
+            {
+              "name": "to_km",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Distance slider adjusted in instant mode",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "R",
+      "name": "Billing & Subscriptions",
+      "events": [
+        {
+          "name": "premium_explainer_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "source_screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Premium features overview screen rendered",
+          "implemented": false
+        },
+        {
+          "name": "locked_placement_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "placement",
+              "type": "\"likes_received\"|\"live_grid\"|\"advanced_filters\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Premium lock icon/teaser UI displayed",
+          "implemented": false
+        },
+        {
+          "name": "locked_placement_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "placement",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Locked feature item tapped",
+          "implemented": false
+        },
+        {
+          "name": "paywall_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "placement",
+              "type": "str"
+            },
+            {
+              "name": "variant",
+              "type": "\"A_cards\"|\"B_hero\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Billing paywall screen presented",
+          "implemented": false
+        },
+        {
+          "name": "plan_period_toggled",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "to",
+              "type": "\"month\"|\"quarter\"|\"year\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Billing cadence switch toggled",
+          "implemented": false
+        },
+        {
+          "name": "plan_selected",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "sku",
+              "type": "str"
+            },
+            {
+              "name": "price",
+              "type": "float"
+            },
+            {
+              "name": "currency",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Subscription tier card selected",
+          "implemented": false
+        },
+        {
+          "name": "plan_compare_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "rows_scrolled",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Feature matrix scroll executed",
+          "implemented": false
+        },
+        {
+          "name": "checkout_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "sku",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "StoreKit/Google Play billing sheet opens",
+          "implemented": false
+        },
+        {
+          "name": "purchase_completed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "sku",
+              "type": "str"
+            },
+            {
+              "name": "price",
+              "type": "float"
+            },
+            {
+              "name": "currency",
+              "type": "str"
+            },
+            {
+              "name": "is_trial",
+              "type": "bool"
+            },
+            {
+              "name": "period",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Receipt verified & entitlements granted",
+          "implemented": false
+        },
+        {
+          "name": "purchase_failed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "sku",
+              "type": "str"
+            },
+            {
+              "name": "reason",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "StoreKit/Google Play transaction error",
+          "implemented": false
+        },
+        {
+          "name": "purchase_cancelled",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "stage",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "User dismisses OS payment sheet",
+          "implemented": false
+        },
+        {
+          "name": "purchase_success_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "sku",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Purchase confirmation screen displayed",
+          "implemented": false
+        },
+        {
+          "name": "boost_store_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "balance",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Profile boost purchasing view mounted",
+          "implemented": false
+        },
+        {
+          "name": "boost_purchased",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "boost_id",
+              "type": "str"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "unit_price",
+              "type": "float"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Single-use boost transaction cleared",
+          "implemented": false
+        },
+        {
+          "name": "boost_activated",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "boost_id",
+              "type": "str"
+            },
+            {
+              "name": "duration_min",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Profile multiplier applied to matching",
+          "implemented": false
+        },
+        {
+          "name": "boost_expired",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "impressions",
+              "type": "int"
+            },
+            {
+              "name": "likes_gained",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Boost multiplier window completes",
+          "implemented": false
+        },
+        {
+          "name": "subscription_screen_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "plan_tier",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Account subscription manager opened",
+          "implemented": false
+        },
+        {
+          "name": "subscription_managed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "action",
+              "type": "\"change_plan\"|\"pause\"|\"cancel\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Management action item selected",
+          "implemented": false
+        },
+        {
+          "name": "subscription_cancelled",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "str"
+            },
+            {
+              "name": "days_held",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Subscription non-renew status committed",
+          "implemented": false
+        },
+        {
+          "name": "subscription_renewed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "period_no",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Automatic renewal payment cleared",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "S",
+      "name": "Settings & Lifecycle",
+      "events": [
+        {
+          "name": "settings_viewed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "section",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Main settings screen rendered",
+          "implemented": false
+        },
+        {
+          "name": "setting_changed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "key",
+              "type": "str"
+            },
+            {
+              "name": "old_value",
+              "type": "str"
+            },
+            {
+              "name": "new_value",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "System or app preference updated",
+          "implemented": false
+        },
+        {
+          "name": "profile_edited",
+          "code_anchor": "profiles/profiles.service.ts",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "field_id",
+              "type": "str"
+            },
+            {
+              "name": "from",
+              "type": "\"settings\""
+            }
+          ],
+          "sensitivity_class": null,
+          "backend_status": "Partial",
+          "trigger": "Profile attribute saved via settings",
+          "implemented": false
+        },
+        {
+          "name": "account_paused",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "str"
+            },
+            {
+              "name": "duration",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Account status set to paused",
+          "implemented": false
+        },
+        {
+          "name": "account_reactivated",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "days_dormant",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Paused account unpaused",
+          "implemented": false
+        },
+        {
+          "name": "account_deletion_started",
+          "code_anchor": "auth/account.service.ts (requestDeletion)",
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "days_active",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Live",
+          "trigger": "User taps \"Delete Account\"",
+          "implemented": false
+        },
+        {
+          "name": "account_deleted",
+          "code_anchor": "users/users.service.ts (anonymize)",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "str"
+            },
+            {
+              "name": "days_active",
+              "type": "int"
+            },
+            {
+              "name": "dates_attended",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Live",
+          "trigger": "Account data scrubbed/anonymized",
+          "implemented": false
+        },
+        {
+          "name": "data_export_requested",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "user_id_hashed",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "GDPR/CCPA data dump requested",
+          "implemented": false
+        },
+        {
+          "name": "support_contacted",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "topic",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "In-app support view executed",
+          "implemented": false
+        },
+        {
+          "name": "legal_link_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "link",
+              "type": "\"terms\"|\"privacy\"|\"legal_notice\""
+            },
+            {
+              "name": "screen_id",
+              "type": "str — canonical key; the label is looked up from screen_viewed, not repeated here"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps a legal link. One event across all seven links on three screens, carrying which document and which screen — the three-event shape in the tickets was rejected",
+          "implemented": true,
+          "code_delta": "Rename screen_name → screen_id here (this event carries the key only; screen_viewed is where the label lives)."
+        },
+        {
+          "name": "account_deletion_cancelled",
+          "code_anchor": "auth/account.service.ts (cancelDeletion)",
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "days_pending",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "Deletion request withdrawn; account returns to active v1.1",
+          "implemented": false
+        }
+      ]
+    },
+    {
+      "id": "T",
+      "name": "Errors & Diagnostics",
+      "events": [
+        {
+          "name": "form_validation_failed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "field_id",
+              "type": "str"
+            },
+            {
+              "name": "rule",
+              "type": "\"required_missing\"|\"photos_below_minimum\"|\"prompts_below_minimum\"|\"nothing_selected\"|\"at_char_limit\"|\"format\"|\"impossible\""
+            },
+            {
+              "name": "screen_id",
+              "type": "str"
+            },
+            {
+              "name": "step_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Fires on the refused action, not on render: the primary CTA was pressed while the screen’s requirement was unmet — Continue under four photos, Continue with no prompt written (field_id: \"prompts\", rule: \"prompts_below_minimum\", v1.4.1), an empty DoB, nothing selected. This is the intent-to-proceed signal for every gated step in profile creation v1.2, and on screens whose CTA is never disabled it is the ONLY record that the user tried.",
+          "implemented": false
+        },
+        {
+          "name": "error_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "code",
+              "type": "str"
+            },
+            {
+              "name": "screen_id",
+              "type": "str"
+            },
+            {
+              "name": "severity",
+              "type": "str"
+            },
+            {
+              "name": "retryable",
+              "type": "bool"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Error alert/toast component displayed",
+          "implemented": false
+        },
+        {
+          "name": "error_retried",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "code",
+              "type": "str"
+            },
+            {
+              "name": "attempt_no",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "User taps \"Try Again\" on error state",
+          "implemented": false
+        },
+        {
+          "name": "empty_state_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "state_id",
+              "type": "str"
+            },
+            {
+              "name": "screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Zero-content view container rendered",
+          "implemented": false
+        },
+        {
+          "name": "api_request_failed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "endpoint",
+              "type": "str"
+            },
+            {
+              "name": "status",
+              "type": "int"
+            },
+            {
+              "name": "latency_ms",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "API response returns 4xx/5xx/Timeout",
+          "implemented": false
+        },
+        {
+          "name": "offline_state_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Network drop bar displayed",
+          "implemented": false
+        },
+        {
+          "name": "crash_recovered",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "last_screen_id",
+              "type": "str"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "App boots after unexpected crash",
+          "implemented": false
+        },
+        {
+          "name": "slow_screen_render",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "screen_id",
+              "type": "str"
+            },
+            {
+              "name": "ms",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Screen frame render exceeds threshold",
+          "implemented": false
+        }
+      ]
+    }
+  ],
+  "reconciled_with_code": "ShowUp app + server tracking catalogue, 7 September 2026 (35 events). Names for the built flows follow the code; unbuilt events keep their spec names.",
+  "implemented_count": 35,
+  "code_delta_count": 31,
+  "screen_identity_note": "Two properties, on purpose. screen_id is the stable machine key and never changes. screen_name is the human label and is what a person searches for in the analytics tool. Only screen_viewed carries both; every other event carries screen_id alone and joins to it. Both values come from the enums.json §11 registry — never typed at a call site."
+}

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Profile · Living status</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none; background: none; padding: 0;
+    cursor: pointer; color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 28px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; background: #812AEC; box-shadow: 0 0 0 3px rgba(129,42,236,0.18); }
+
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app { border-radius: 38px; overflow: hidden; }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 8px;
+    max-width: 760px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+  .notes li code {
+    font-family: var(--liq-font-mono); font-size: 12.5px;
+    background: rgba(129,42,236,0.08); color: var(--liq-primary-500);
+    padding: 1px 5px; border-radius: 4px;
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile-details.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile-life.jsx"></script>
+
+<script type="text/babel">
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          03 · Profile creation · Living status
+        </span>
+        <h1>One canvas, <em style={{ fontWeight: 500 }}>three</em> categories.</h1>
+        <p>
+          Step 8 of <strong>Share some details</strong>. Three lightweight
+          categorical questions (Partnership, Family, Living) collapsed onto
+          a single canvas because each one is short and the answers are
+          mutually exclusive — a chip per option, one selection per
+          category. Icons mark each category, scaled to read as a marker
+          rather than decoration.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="08 Living status — empty">
+          <div className="frame-label"><span className="pip"></span>Empty state</div>
+          <div className="frame-shell">
+            <ScreenProfileLife initialValues={{}}/>
+          </div>
+          <div className="caption">
+            <strong>Empty state.</strong> Continue button is disabled
+            (orange dims to 42% + desaturates). Skip-for-now is the
+            primary affordance until any answer lands.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="08 Living status — partial">
+          <div className="frame-label"><span className="pip"></span>One answered</div>
+          <div className="frame-shell">
+            <ScreenProfileLife initialValues={{ partnership: 'Single' }}/>
+          </div>
+          <div className="caption">
+            <strong>Single category answered.</strong> Continue lights
+            up as soon as <em>any</em> category has a selection — we
+            don't gate progress on a tri-fecta because every category
+            is genuinely optional.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="08 Living status — all">
+          <div className="frame-label"><span className="pip"></span>All answered</div>
+          <div className="frame-shell">
+            <ScreenProfileLife initialValues={{
+              partnership: 'Partnered',
+              family: '1 child',
+              living: 'Living with children',
+            }}/>
+          </div>
+          <div className="caption">
+            <strong>All three answered.</strong> Selected pills fill
+            with primary violet + bold weight, mirroring the OptionRow
+            selected state on neighbouring SQPS screens.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>Design choices worth flagging</h3>
+        <ul>
+          <li>
+            <strong>Three categories, one canvas.</strong> Unlike the
+            single-question SQPS steps (height, gender, orientation,
+            religion…) this collapses three short categoricals onto
+            one screen because each has only 4–6 options and the
+            answers are unrelated. The progress bar advances by one
+            segment, not three.
+          </li>
+          <li>
+            <strong>Category icons live in a soft lavender medallion.</strong>
+            <code>heart</code> for Partnership, <code>users</code> for
+            Family, <code>home</code> for Living — all from the kit's
+            existing <code>ICONS</code> map at 1.7 stroke weight. The
+            28px circle uses <code>rgba(167,139,250,0.16)</code> wash
+            so the marker reads as a category indicator without
+            competing with the selected pill's solid primary violet.
+          </li>
+          <li>
+            <strong>Pills follow the kit's Chip primitive.</strong>
+            White-on-warm-ink-border idle, primary-violet fill on
+            select, fully-rounded — the brand's standard chip
+            geometry. Tightened to 34px tall + 13.5px text so three
+            categories of chips clear the 844-tall canvas without
+            scroll.
+          </li>
+          <li>
+            <strong>Sentence-case all options.</strong> "Ethically
+            non-monogamous", "1 child", "Co-parenting", "Empty
+            nester" — matches the brand voice rule (sentence case in
+            headings and labels, proper nouns capitalised).
+          </li>
+          <li>
+            <strong>Tap-again-to-clear.</strong> Re-tapping the
+            selected option in a category clears the answer. Matches
+            the radio behaviour on the gender / orientation screens.
+          </li>
+          <li>
+            <strong>Footer pattern: Skip + Continue.</strong> Same as
+            the language / education / religion / politics steps —
+            this is an optional-by-default screen, so Skip-for-now
+            is always available.
+          </li>
+          <li>
+            <strong>Italic flourish on <em>life</em>.</strong> One
+            italicised word per headline; the soft orange wash from
+            <code>.su-underlined em</code> carries through unchanged.
+          </li>
+          <li>
+            <strong>Next up.</strong> You mentioned a sister screen
+            that allows multiple selections per category — drop the
+            radio constraint, switch <code>LifePill</code> to a
+            check-style state indicator (or keep visual identical and
+            just store a Set), and reuse the same scaffold. Happy to
+            build that next when you paste the reference.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

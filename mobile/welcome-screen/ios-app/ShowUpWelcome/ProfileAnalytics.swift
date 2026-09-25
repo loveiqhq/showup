@@ -137,44 +137,20 @@ enum ProfileField {
 
 /// `entry_point` from the registry's 18, in full.
 ///
-/// HOW THE USER ARRIVED AT A TOPIC, and the measurement the whole conversion pass exists to
-/// produce: `suggestion` is one of the three cards on the screen, `browse` is the fifteen-topic
-/// sheet, `edit` is reopening a prompt already written. A closed set, never a free string, and
-/// NEVER INFERRED FROM WHETHER A SHEET WAS OPEN - it is passed through from the control that was
-/// tapped, because the sheet is open in two of the three cases and that tells you nothing.
-enum PromptEntryPoint: String, Sendable, Codable {
-    // THE WIRE VALUE IS WRITTEN OUT, not inferred from the case name. Swift would derive the same
-    // three strings today, and a rename in a later refactor would silently change what the
-    // warehouse receives -- which is the drift 1.4.2 was published to end, arriving by a different
-    // route. Spelling them makes the value a decision rather than a side effect.
-    case suggestion = "suggestion"
-    case browse = "browse"
-    case edit = "edit"
-
-    var trackingValue: String { rawValue }
-}
-
-/// The two values a TOPIC CHOICE can carry.
-///
-/// A separate type with no `edit` case, so `prompt_topic_selected` cannot report one even by
-/// mistake. That rule arrived as prose in registry 1.4.2 - "prompt_topic_selected is scoped to
-/// suggestion and browse... an edit is not a fresh choice of topic, and firing it there inflated
-/// topic demand with re-edits of prompts already written" - and prose is not enforcement. The
-/// compiler is.
-enum TopicEntryPoint: String, Sendable {
-    case suggestion = "suggestion"
-    case browse = "browse"
-
-    var trackingValue: String { rawValue }
-
-    /// The same value in the wider set, for the events that also accept an edit.
-    var entryPoint: PromptEntryPoint {
-        switch self {
-        case .suggestion: return .suggestion
-        case .browse: return .browse
-        }
-    }
-}
+// §18 prompt `entry_point` IS RETIRED, and the two enums that expressed it are gone with it.
+//
+// `PromptEntryPoint` (suggestion | browse | edit) and `TopicEntryPoint` (the same minus edit, a
+// separate type so `prompt_topic_selected` could not report an edit even by mistake) both lived
+// here. Registry 1.4.5, 25 September 2026: "which topics are chosen matters, where they were
+// chosen from does not." The section is kept and emptied so numbering and citations stay stable;
+// the types are deleted, because an enum nothing sends is a trap for the next person.
+//
+// `is_edit` survives them. It was the one fact `edit` carried that nothing else did, and it now
+// rides on `prompt_editor_opened`, `prompt_saved` and - new in 1.4.5 - `prompt_editor_dismissed`.
+//
+// NOT AFFECTED, and easy to conflate: §21 `MediaEntryPoint` (see_the_prompts | retake) on the
+// media prompt list, and the app-open `entry_point` on `profile_build_started`. Different
+// sections, different questions, both still sent.
 
 /// `dismiss_method` from 23. THE CANONICAL SHEET-CLOSE VOCABULARY, and the only one.
 ///
@@ -244,15 +220,18 @@ enum ConsentSurface {
 /// implementation: a version constant and a hard-coded class per event, which is exactly what the
 /// brief says not to do long-term.
 enum Stamp {
-    /// enums.json → registry_version at the time of writing.
     /// enums.json -> registry_version at the time of writing.
     ///
-    /// 1.4.2 (16 September 2026) is the version that unified `dismiss_method` across every bottom
-    /// sheet (23), added the `prompts_below_minimum` rule (8), scoped `prompt_topic_selected` to
-    /// suggestion and browse, and re-verified `prompts` at `step_index` 2. READ IT FROM HERE AND
-    /// NOWHERE ELSE - a payload stamped with a version the values did not come from is worse than
-    /// an unstamped one, because it looks checked.
-    static let fieldRegistryVersion = "1.4.2"
+    /// 1.4.5 (25 September 2026) is the version that RETIRED §18 prompt `entry_point` - "which
+    /// topics are chosen matters, where they were chosen from does not" - taking `position` off
+    /// every prompt event with it and moving `is_edit` onto `prompt_editor_dismissed`. It sits on
+    /// 1.4.4 (§24 permission_status, for the notifications ask) and 1.4.2 (§23 dismiss_method
+    /// unified across every bottom sheet, `prompts_below_minimum`, `prompts` re-verified at
+    /// step_index 2).
+    ///
+    /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
+    /// come from is worse than an unstamped one, because it looks checked.
+    static let fieldRegistryVersion = "1.4.5"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
@@ -443,26 +422,32 @@ enum ProfileAnalytics {
 
     /// T2, class 0. A topic was chosen from a suggestion card or from a row of the browse sheet.
     ///
-    /// NEVER ON AN EDIT, and that is enforced by the TYPE: `TopicEntryPoint` has two cases and no
-    /// `edit`. This is the registry change of 16 September 2026 - reopening a saved prompt is not
-    /// a fresh choice of topic, and firing this there inflated topic demand with re-edits of
+    /// NEVER ON AN EDIT. The registry change of 16 September 2026 - reopening a saved prompt is
+    /// not a fresh choice of topic, and firing this there inflated topic demand with re-edits of
     /// prompts already written. An edit fires `promptEditorOpened` alone.
+    ///
+    /// WHERE THE TAP CAME FROM IS DELIBERATELY NOT RECORDED, from registry 1.4.5 (25 September
+    /// 2026): "which topics are chosen matters, where they were chosen from does not". §18 is
+    /// retired and `position` went with it, so a suggestion card and a row of the browse sheet
+    /// produce the same event and the type that used to tell them apart is gone.
     ///
     /// `topic_group` is looked up rather than passed, so a caller cannot file a topic under a
     /// group it is not in.
-    static func promptTopicSelected(topicId: String, entryPoint: TopicEntryPoint, position: Int,
+    static func promptTopicSelected(topicId: String,
                                     selectionIndex: Int) -> (String, [String: any Sendable]) {
         (promptTopicSelectedName,
          ["topic_id": topicId, "topic_group": topicGroupFor(topicId),
-          "entry_point": entryPoint.trackingValue, "position": position,
           "selection_index": selectionIndex].merging(Stamp.of(0)) { a, _ in a })
     }
 
     /// T2, class 0. The write sheet mounted - on a card, on a browse row, or on the pencil.
-    static func promptEditorOpened(topicId: String, entryPoint: PromptEntryPoint, isEdit: Bool,
+    ///
+    /// `isEdit` is the whole of what §18 used to carry here: the pencil is a different act from a
+    /// first write, and it is the one distinction 1.4.5 kept when it retired the rest.
+    static func promptEditorOpened(topicId: String, isEdit: Bool,
                                    promptCount: Int) -> (String, [String: any Sendable]) {
         (promptEditorOpenedName,
-         ["topic_id": topicId, "entry_point": entryPoint.trackingValue, "is_edit": isEdit,
+         ["topic_id": topicId, "is_edit": isEdit,
           "prompt_count": promptCount].merging(Stamp.of(0)) { a, _ in a })
     }
 
@@ -471,11 +456,16 @@ enum ProfileAnalytics {
     /// THE ABANDONMENT EVENT THIS SCREEN IS DESIGNED AGAINST. `had_draft` separates "changed their
     /// mind" from "could not finish"; `draftLength` is bucketed on the way in and the draft itself
     /// never leaves the device.
-    static func promptEditorDismissed(topicId: String, entryPoint: PromptEntryPoint,
+    ///
+    /// `isEdit` ARRIVED WITH 1.4.5 and is the reason retiring §18 lost nothing here. The old
+    /// `entry_point: "edit"` was carrying one fact this event actually needed - abandoning a
+    /// rewrite of something already written is not the same as abandoning a blank one - so the
+    /// fact stayed and the enum went.
+    static func promptEditorDismissed(topicId: String, isEdit: Bool,
                                       draftLength: Int, method: SheetDismissMethod)
     -> (String, [String: any Sendable]) {
         (promptEditorDismissedName,
-         ["topic_id": topicId, "entry_point": entryPoint.trackingValue,
+         ["topic_id": topicId, "is_edit": isEdit,
           "had_draft": draftLength > 0,
           "draft_length_bucket": promptLengthBucket(draftLength),
           "dismiss_method": method.trackingValue].merging(Stamp.of(0)) { a, _ in a })
@@ -485,12 +475,12 @@ enum ProfileAnalytics {
     ///
     /// `answerLength` rather than the answer: there is no signature here that can carry the text.
     /// `promptCount` is the number the user holds AFTER this save, and an edit does not raise it.
-    static func promptSaved(topicId: String, entryPoint: PromptEntryPoint, isEdit: Bool,
+    static func promptSaved(topicId: String, isEdit: Bool,
                             answerLength: Int, promptCount: Int)
     -> (String, [String: any Sendable]) {
         (promptSavedName,
          ["topic_id": topicId, "topic_group": topicGroupFor(topicId),
-          "entry_point": entryPoint.trackingValue, "is_edit": isEdit,
+          "is_edit": isEdit,
           "length_bucket": promptLengthBucket(answerLength),
           "prompt_count": promptCount].merging(Stamp.of(0)) { a, _ in a })
     }
@@ -507,13 +497,15 @@ enum ProfileAnalytics {
 
     /// T2, class 0. The first prompt was saved, so the step can be completed.
     ///
-    /// ONCE, on the first crossing, carrying the topic and entry point that got the user there -
-    /// the registry calls that pairing "the single most useful row on the screen".
-    static func promptsMinimumMet(count: Int, topicId: String, entryPoint: PromptEntryPoint)
+    /// ONCE, on the first crossing, carrying the topic that got the user there.
+    ///
+    /// It used to carry the entry point with it, and the registry called that pairing "the single
+    /// most useful row on the screen". 1.4.5 decided otherwise and retired §18; the topic is what
+    /// is left, and it is the half the ranking actually reads.
+    static func promptsMinimumMet(count: Int, topicId: String)
     -> (String, [String: any Sendable]) {
         (promptsMinimumMetName,
-         ["count": count, "topic_id": topicId,
-          "entry_point": entryPoint.trackingValue].merging(Stamp.of(0)) { a, _ in a })
+         ["count": count, "topic_id": topicId].merging(Stamp.of(0)) { a, _ in a })
     }
 
     /// T2, class 0. A step of "The real you" was reached.

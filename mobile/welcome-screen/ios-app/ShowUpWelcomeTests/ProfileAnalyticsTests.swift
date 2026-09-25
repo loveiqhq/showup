@@ -43,7 +43,7 @@ final class ProfileAnalyticsTests: XCTestCase {
         // browse, and re-verified `prompts` at step_index 2. Stamping the old string would claim a
         // vocabulary these payloads are not using — and this test is the thing that noticed, which
         // is exactly what it is for.
-        XCTAssertEqual(Stamp.fieldRegistryVersion, "1.4.2")
+        XCTAssertEqual(Stamp.fieldRegistryVersion, "1.4.5")
     }
 
     // MARK: - consent_changed, unblocked by registry 1.3.0
@@ -77,7 +77,7 @@ final class ProfileAnalyticsTests: XCTestCase {
     func testConsentIsAClassOneAttributeEvent() {
         let (_, payload) = ProfileAnalytics.consentChanged(on: true)
         XCTAssertEqual(payload["sensitivity_class"] as? Int, 1)
-        XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.2")
+        XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.5")
     }
 
     // MARK: - the rule the ticket calls a bug to break

@@ -659,8 +659,11 @@ class MainActivity : ComponentActivity() {
                         state = promptsState,
                         onBack = { screen = FlowScreen.ProfilePhotos },
                         onOpenTopics = prompts::openTopics,
-                        onWriteTopic = prompts::writeSuggestion,
-                        onPickTopic = prompts::pickTopic,
+                        // THE SAME FUNCTION TWICE, and that is the point: a suggestion card
+                        // and a row of the browse sheet are the same act now. Registry 1.4.5
+                        // retired the property that told them apart.
+                        onWriteTopic = prompts::chooseTopic,
+                        onPickTopic = prompts::chooseTopic,
                         onEditPrompt = prompts::editPrompt,
                         onDraftChange = prompts::draftChanged,
                         onHideExample = prompts::hideExample,
