@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Verify profile · overlay</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none; background: none; padding: 0;
+    cursor: pointer; color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.ok   { background: #00AB55; box-shadow: 0 0 0 3px rgba(0,171,85,0.18); }
+  .frame-label .pip.alt  { background: var(--liq-primary-500); box-shadow: 0 0 0 3px rgba(129,42,236,0.18); }
+
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app {
+    border-radius: 38px;
+    overflow: hidden;
+  }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 24px;
+    max-width: 720px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+
+  /* Sheet entrance — subtle slide-in so the page reads "alive" without bouncing. */
+  @keyframes sheet-rise {
+    from { transform: translateY(28px); opacity: 0.85; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Shared primitives -->
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+<!-- Profile photos screen — the screen this overlay sits ON TOP of -->
+<script type="text/babel" src="ui_kits/show-up/screens-extras.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+// ─────────────────────────────────────────────────────────────
+// Shield medallion — Variation A's hero.
+// 96px circle, sunset-gradient fill, white shield-check icon.
+// Sits inside a 132px lilac orb that doubles as a soft halo.
+// ─────────────────────────────────────────────────────────────
+function ShieldMedallion() {
+  return (
+    <div style={{
+      width: 132, height: 132, borderRadius: '50%',
+      position: 'relative',
+      background: 'radial-gradient(circle, rgba(167,139,250,0.28) 0%, rgba(167,139,250,0) 70%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        width: 96, height: 96, borderRadius: '50%',
+        background: 'var(--su-grad-sunset)',
+        boxShadow: '0 14px 30px rgba(129,42,236,0.32), 0 4px 12px rgba(254,104,57,0.28)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff',
+      }}>
+        <Icon name="shield-check" size={46} stroke={1.8}/>
+      </div>
+      {/* Tiny orange pip top-right — the same dot under "Up." in the wordmark */}
+      <div style={{
+        position: 'absolute', top: 18, right: 18,
+        width: 10, height: 10, borderRadius: '50%',
+        background: 'var(--liq-orange-500)',
+        boxShadow: '0 0 0 4px var(--liq-bg-elevated)',
+      }}/>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Face frame — Variation B's hero.
+// Striped placeholder portrait inside a softly-rounded card with
+// corner brackets (selfie-capture viewfinder vocabulary) + a
+// floating shield-check badge in the bottom-right. Communicates
+// the action that's about to happen.
+// ─────────────────────────────────────────────────────────────
+function FaceFrame() {
+  return (
+    <div style={{
+      position: 'relative', width: 132, height: 152,
+    }}>
+      {/* portrait placeholder — warm-gradient striped fill, same vibe
+          as PortraitPlaceholder. No hand-drawn face. */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        borderRadius: 22,
+        background: `
+          repeating-linear-gradient(135deg,
+            rgba(255,255,255,0.32) 0px, rgba(255,255,255,0.32) 1px,
+            transparent 1px, transparent 8px),
+          linear-gradient(160deg, #F5D9EA 0%, #E0D9FF 60%, #FDE7DC 100%)
+        `,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--liq-font-mono)', fontSize: 10,
+          color: 'rgba(29,17,41,0.42)', letterSpacing: 0.12, textTransform: 'uppercase',
+        }}>selfie</div>
+      </div>
+      {/* viewfinder corner brackets — a small selfie-capture cue */}
+      {[
+        { top: 6, left: 6,   borders: 'top-left' },
+        { top: 6, right: 6,  borders: 'top-right' },
+        { bottom: 6, left: 6, borders: 'bottom-left' },
+        { bottom: 6, right: 6, borders: 'bottom-right' },
+      ].map((c, i) => {
+        const horiz = c.left !== undefined ? 'borderLeft' : 'borderRight';
+        const vert  = c.top !== undefined ? 'borderTop'  : 'borderBottom';
+        return (
+          <div key={i} style={{
+            position: 'absolute',
+            top: c.top, right: c.right, bottom: c.bottom, left: c.left,
+            width: 14, height: 14,
+            [horiz]: '2px solid var(--liq-primary-500)',
+            [vert]:  '2px solid var(--liq-primary-500)',
+            borderTopLeftRadius:     c.borders === 'top-left'     ? 6 : 0,
+            borderTopRightRadius:    c.borders === 'top-right'    ? 6 : 0,
+            borderBottomLeftRadius:  c.borders === 'bottom-left'  ? 6 : 0,
+            borderBottomRightRadius: c.borders === 'bottom-right' ? 6 : 0,
+          }}/>
+        );
+      })}
+      {/* floating shield badge — bottom-right */}
+      <div style={{
+        position: 'absolute', bottom: -8, right: -8,
+        width: 44, height: 44, borderRadius: '50%',
+        background: 'var(--su-grad-sunset)',
+        boxShadow: '0 6px 16px rgba(129,42,236,0.32), 0 0 0 4px var(--liq-bg-elevated)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff',
+      }}>
+        <Icon name="shield-check" size={22} stroke={2.2}/>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// BenefitRow — icon chip + bold lead + muted explanation.
+// 3 rows total: what we do, what shows on your profile, what
+// you get out of it. The icon chip uses lilac wash on white so
+// it stays calm under the sunset hero and orange CTA.
+// ─────────────────────────────────────────────────────────────
+function BenefitRow({ icon, title, body }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 14,
+      padding: '2px 0',
+    }}>
+      <div style={{
+        flex: 'none', width: 40, height: 40, borderRadius: 12,
+        background: 'var(--liq-lavender-50)',
+        border: '1px solid rgba(129,42,236,0.10)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--liq-primary-500)',
+      }}>
+        <Icon name={icon} size={20} stroke={1.8}/>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 700, fontSize: 15,
+          color: 'var(--liq-fg)', lineHeight: 1.3,
+        }}>{title}</div>
+        <div style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 13.5,
+          color: 'var(--liq-fg-muted)', lineHeight: 1.4, marginTop: 2,
+          textWrap: 'pretty',
+        }}>{body}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// VerifySheet — the overlay itself.
+//
+// Bottom-sheet pattern (native iOS), not a center-modal: keeps
+// the user anchored to the bottom of the screen where their
+// thumb is, and lets the underlying photos screen stay visible
+// at the top so the context isn't ripped away.
+//
+// Anatomy:
+//   - 4px drag handle at the top (affordance + drag-to-dismiss
+//     mental model)
+//   - close X in the corner (matches the reference)
+//   - hero (variation A: medallion; variation B: face frame)
+//   - editorial headline w/ italic emphasis + orange wash
+//   - one-line lead
+//   - 3 benefit rows (the substantive lift over the reference)
+//   - sunset gradient CTA, full-width
+//   - text-secondary "Maybe later"
+// ─────────────────────────────────────────────────────────────
+function VerifySheet({ variant = 'medallion' }) {
+  const headline = variant === 'medallion'
+    ? <>Prove you're <em>actually</em> you.</>
+    : <>One quick selfie. One <em>verified</em> profile.</>;
+
+  const lead = variant === 'medallion'
+    ? <>Only takes about a minute. Verified profiles get up to <strong>3× more matches</strong>.</>
+    : <>We hold the camera. You smile once. Your profile gets a public shield.</>;
+
+  return (
+    <div style={{
+      width: '100%',
+      background: 'var(--liq-bg)',
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      padding: '8px 24px 16px',
+      boxShadow: '0 -20px 60px rgba(46,1,71,0.18), 0 -4px 12px rgba(46,1,71,0.08)',
+      animation: 'sheet-rise 360ms cubic-bezier(.22,1,.36,1) both',
+      position: 'relative',
+    }}>
+      {/* Drag handle */}
+      <div style={{
+        margin: '0 auto', width: 40, height: 4, borderRadius: 4,
+        background: 'rgba(29,17,41,0.18)',
+      }}/>
+
+      {/* Close X — top-right of the sheet (echoes the reference) */}
+      <button aria-label="Dismiss" style={{
+        position: 'absolute', top: 16, right: 16,
+        width: 36, height: 36, borderRadius: '50%',
+        background: 'rgba(29,17,41,0.04)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--liq-fg)',
+      }}>
+        <Icon name="x" size={20} stroke={1.8}/>
+      </button>
+
+      {/* Hero */}
+      <div style={{
+        display: 'flex', justifyContent: 'center',
+        margin: '14px 0 18px',
+      }}>
+        {variant === 'medallion' ? <ShieldMedallion/> : <FaceFrame/>}
+      </div>
+
+      <Eyebrow color="lavender">Profile verification</Eyebrow>
+
+      <h2 className="su-underlined" style={{
+        fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 30,
+        letterSpacing: '-0.018em', lineHeight: 1.08, color: 'var(--liq-fg)',
+        margin: '10px 0 8px', textWrap: 'balance',
+      }}>
+        {headline}
+      </h2>
+
+      <p style={{
+        fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 14.5,
+        lineHeight: 1.45, color: 'var(--liq-neutral-200)', margin: 0,
+        textWrap: 'pretty',
+      }}>
+        {lead}
+      </p>
+
+      {/* Benefits — 3 rows. Tight, period-driven. */}
+      <div style={{
+        marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14,
+      }}>
+        <BenefitRow
+          icon="camera"
+          title="One live selfie."
+          body="Capture in-app, matched against your profile photos. Never stored."
+        />
+        <BenefitRow
+          icon="shield-check"
+          title="A verified badge."
+          body="A badge on your profile, creating trust to date you."
+        />
+        <BenefitRow
+          icon="sparkles"
+          title="More matches."
+          body="Verified profiles get up to 3× more matches."
+        />
+      </div>
+
+      {/* CTAs */}
+      <div style={{ marginTop: 22 }}>
+        <Button variant="sunset" size="lg" fullWidth>Verify now</Button>
+      </div>
+
+      <button style={{
+        display: 'block', width: '100%', marginTop: 10,
+        padding: '12px 0',
+        fontFamily: 'var(--liq-font-sans)', fontSize: 14, fontWeight: 600,
+        color: 'var(--liq-fg-muted)',
+        textAlign: 'center',
+      }}>
+        Maybe later
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Frame — Profile photos screen as the underlay, dimmed, with
+// the verify sheet docked to the bottom.
+//
+// We render the existing ScreenProfilePhotos behind a dimming
+// scrim so designers can see what context this overlay sits in.
+// The sheet doesn't cover the photos grid — by design, the user
+// can still see their photos while reading the upsell.
+// ─────────────────────────────────────────────────────────────
+function VerifyOverlayFrame({ variant }) {
+  return (
+    <div className="su-app" style={{
+      width: 390, height: 844, position: 'relative', overflow: 'hidden',
+      background: 'var(--liq-bg)',
+    }}>
+      {/* Underlay — the Profile photos screen, dimmed */}
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <ScreenProfilePhotos state="partial"/>
+      </div>
+
+      {/* Scrim — warm ink wash, not pure black. Tints the
+          photos screen toward the brand's violet ink, never gray. */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'rgba(29,17,41,0.42)',
+        backdropFilter: 'blur(1.5px)',
+        zIndex: 1,
+      }}/>
+
+      {/* Sheet — docked bottom, above the home indicator */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        zIndex: 2,
+        paddingBottom: 0,
+      }}>
+        <VerifySheet variant={variant}/>
+        {/* Home indicator on top of the sheet, inside its rounded edge */}
+        <div style={{ background: 'var(--liq-bg)' }}>
+          <HomeIndicator/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          02 · Profile creation · Verify upsell
+        </span>
+        <h1>Prove you're <em style={{ fontWeight: 500 }}>actually</em> you.</h1>
+        <p>
+          The overlay invoked when the user taps <strong>Verify</strong> on the
+          Profile Photos screen. A bottom sheet — the photos stay visible at
+          the top so the user keeps their footing. Two visual treatments of the
+          hero so we can compare a brand-icon medallion against a selfie-
+          viewfinder illustration.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="01 Verify overlay · medallion">
+          <div className="frame-label">
+            <span className="pip ok"></span>
+            01 · Sunset shield medallion
+          </div>
+          <div className="frame-shell">
+            <VerifyOverlayFrame variant="medallion"/>
+          </div>
+          <div className="caption">
+            <strong>Brand-forward hero.</strong> Sunset gradient + shield-check —
+            reuses the system's signature gradient and the same icon that
+            appears on every verified profile pill.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="02 Verify overlay · face frame">
+          <div className="frame-label">
+            <span className="pip alt"></span>
+            02 · Selfie viewfinder
+          </div>
+          <div className="frame-shell">
+            <VerifyOverlayFrame variant="face"/>
+          </div>
+          <div className="caption">
+            <strong>Action-forward hero.</strong> Striped portrait placeholder
+            with viewfinder corners + a shield badge — telegraphs the
+            selfie-capture step the user is about to take.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>How this differs from the wireframe</h3>
+        <ul>
+          <li>
+            <strong>Sheet, not full screen.</strong> The reference is a full
+            takeover that hides the photos the user just uploaded. Bottom
+            sheet keeps the context visible so the user reads "this is about
+            <em> my </em>profile", not "I've been pulled into a new flow".
+          </li>
+          <li>
+            <strong>Hero with weight.</strong> The reference's small purple
+            square with a camera icon reads as a list item, not a feature
+            announcement. A sunset medallion (or face frame) gives the sheet
+            a focal point and uses the brand's signature gradient.
+          </li>
+          <li>
+            <strong>3 substantive benefits, not 1.</strong> "Selfie
+            verification — We will check whether a selfie matches your
+            profile photos" is technically what happens, but it answers <em>
+            how</em>, not <em>why</em>. The three rows cover <em>how </em>
+            (live selfie), <em>what shows </em>(public shield), and <em>
+            what you get </em>(more dates). Each row is period-driven, no
+            filler.
+          </li>
+          <li>
+            <strong>Editorial headline with italic emphasis.</strong>
+            "Verify your profile in just a minute" is generic app copy.
+            "Prove you're <em>actually</em> you." reaches for the brand's
+            "actually" motif ("the dating app for people who <em>actually
+            </em> show up") and gets the orange-wash underline treatment
+            that runs through the whole product.
+          </li>
+          <li>
+            <strong>Sunset-gradient CTA, not flat violet.</strong> The
+            reference uses a solid purple button; the system reserves solid
+            purple for selected chips and tags. Primary CTAs across the
+            product use either solid orange or the sunset gradient — this
+            sits in the gradient camp because it shares space with a violet
+            hero on the photos screen below.
+          </li>
+          <li>
+            <strong>"Maybe later" escape hatch.</strong> Verification is an
+            upsell, not a gate — the photos screen's Continue still works.
+            A muted secondary text dismiss makes that explicit instead of
+            forcing the user to find the X.
+          </li>
+          <li>
+            <strong>Drag handle.</strong> 40×4 pill at the top — native iOS
+            sheet vocabulary, hints that the sheet is dismissible by swipe,
+            and softens the otherwise hard top edge of the panel.
+          </li>
+          <li>
+            <strong>Warm-ink scrim, not gray.</strong> The dim layer is
+            <code> rgba(29,17,41,0.42)</code> — the brand's ink color, not a
+            neutral black. The photos behind glow faintly violet, on tone
+            with the rest of the product.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

@@ -115,16 +115,7 @@ class PromptsViewModel(
     /**
      * A suggestion card on the screen was tapped.
      *
-     * @param position which card, from 0. The registry wants it so that "were these the right
-     *   three" can be read per slot rather than only per topic.
      */
-    fun writeSuggestion(topicId: String, position: Int) =
-        chooseTopic(topicId, TopicEntryPoint.Suggestion, position)
-
-    /** A row of the browse sheet was tapped. [position] is the row's index within the sheet. */
-    fun pickTopic(topicId: String, position: Int) =
-        chooseTopic(topicId, TopicEntryPoint.Browse, position)
-
     /**
      * Picking a topic REPLACES the topic sheet with the write sheet -- the two never stack.
      *
@@ -135,14 +126,12 @@ class PromptsViewModel(
      *
      * The example resets too -- it is per sheet rather than per session.
      */
-    private fun chooseTopic(topicId: String, from: TopicEntryPoint, position: Int) {
+    fun chooseTopic(topicId: String) {
         val current = _state.value
         val selections = current.topicSelections + 1
         analytics?.report(
             ProfileAnalytics.promptTopicSelected(
                 topicId = topicId,
-                entryPoint = from,
-                position = position,
                 // 1-based, and counted across the whole visit to the step.
                 selectionIndex = selections,
             ),
@@ -151,14 +140,13 @@ class PromptsViewModel(
         analytics?.report(
             ProfileAnalytics.promptEditorOpened(
                 topicId = topicId,
-                entryPoint = from.entryPoint,
                 isEdit = editing,
                 promptCount = current.count,
             ),
         )
         set(
             current.copy(
-                sheet = PromptSheet.Write(topicId, editing = editing, entryPoint = from.entryPoint),
+                sheet = PromptSheet.Write(topicId, editing = editing),
                 nudge = false,
                 exampleHiddenFor = null,
                 sheetOpenedAtMillis = now(),
@@ -174,8 +162,8 @@ class PromptsViewModel(
      *
      * NO `prompt_topic_selected` HERE, and that is the registry change of 16 September 2026: an
      * edit is not a fresh choice of topic, and firing it inflated the topic-demand chart with
-     * re-edits of prompts already written. [PromptAnalytics.promptTopicSelected] could not accept
-     * this entry point even if it were called -- [TopicEntryPoint] has no `edit` case.
+     * re-edits of prompts already written. The type that used to enforce it is gone -- §18 was
+     * retired in registry 1.4.5 -- so what keeps it true is this function not calling it.
      *
      * It does not raise [PromptsState.topicSelections] either, for the same reason.
      */
@@ -185,14 +173,13 @@ class PromptsViewModel(
         analytics?.report(
             ProfileAnalytics.promptEditorOpened(
                 topicId = topicId,
-                entryPoint = PromptEntryPoint.Edit,
                 isEdit = true,
                 promptCount = current.count,
             ),
         )
         set(
             current.copy(
-                sheet = PromptSheet.Write(topicId, editing = true, entryPoint = PromptEntryPoint.Edit),
+                sheet = PromptSheet.Write(topicId, editing = true),
                 drafts = current.drafts + (topicId to existing),
                 nudge = false,
                 exampleHiddenFor = null,
@@ -250,7 +237,9 @@ class PromptsViewModel(
             is PromptSheet.Write -> analytics?.report(
                 ProfileAnalytics.promptEditorDismissed(
                     topicId = sheet.topicId,
-                    entryPoint = sheet.entryPoint,
+                    // NEW IN 1.4.5, and the reason retiring §18 cost this event nothing: giving up
+                    // on a rewrite is not the same as giving up on a blank one.
+                    isEdit = sheet.editing,
                     // The LENGTH, never the draft. The bucket is computed inside the builder.
                     draftLength = current.draftFor(sheet.topicId).trim().length,
                     method = method,
@@ -348,7 +337,6 @@ class PromptsViewModel(
                     analytics?.report(
                         ProfileAnalytics.promptSaved(
                             topicId = sheet.topicId,
-                            entryPoint = sheet.entryPoint,
                             // An edit does not consume a slot, and `is_edit` has to be honest
                             // about that: `prompt_count` is the count AFTER the action either way.
                             isEdit = sheet.editing,
@@ -356,15 +344,13 @@ class PromptsViewModel(
                             promptCount = updated.size,
                         ),
                     )
-                    // ONCE, on the FIRST save, carrying the topic and entry point that got the
-                    // user there -- the registry calls that pairing the most useful row here.
+                    // ONCE, on the FIRST save, carrying the topic that got the user there.
                     val crossed = !now.minimumReported && updated.size >= PROMPTS_REQUIRED
                     if (crossed) {
                         analytics?.report(
                             ProfileAnalytics.promptsMinimumMet(
                                 count = updated.size,
                                 topicId = sheet.topicId,
-                                entryPoint = sheet.entryPoint,
                             ),
                         )
                     }

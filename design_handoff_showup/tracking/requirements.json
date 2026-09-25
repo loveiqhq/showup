@@ -1,0 +1,610 @@
+{
+  "taxonomy_version": "1.4",
+  "reconciled_against": "loveiqhq/showup main @ c195089",
+  "generated": "2026-09-16",
+  "sensitivity_model": {
+    "summary": "The field_id registry owns the classification; the client resolves it at emit time and writes sensitivity_class + field_registry_version into the payload. Neither a fixed per-event class nor a pure downstream join works.",
+    "required_payload_additions": [
+      {
+        "name": "sensitivity_class",
+        "type": "int 0-3",
+        "note": "Resolved from the registry at emit time, never joined downstream."
+      },
+      {
+        "name": "field_registry_version",
+        "type": "semver string",
+        "note": "The registry_version field at the top of enums.json — NOT taxonomy_version. Versions the vocabulary, so a row keeps the classification it was collected under."
+      }
+    ],
+    "rules": [
+      {
+        "id": "1",
+        "title": "The registry is the single source of truth, and it lives in the repo",
+        "detail": "One versioned file, compiled into both the client and the pipeline. Maintained in a spreadsheet, the two copies drift within a release.",
+        "emphasis": "should"
+      },
+      {
+        "id": "2",
+        "title": "Fail closed on an unknown field_id",
+        "detail": "Any identifier the pipeline does not recognise is treated as Class 2 until someone adds the registry row, and counted in an unclassified attributes metric. Wrong but safe, and visible — rather than special-category data landing in an unrestricted table and surfacing in an audit.",
+        "emphasis": "must"
+      },
+      {
+        "id": "3",
+        "title": "The stamp is historical truth",
+        "detail": "Reclassifying politics from 1 to 2 is a one-row edit, and rows collected beforehand still carry the class they were collected under. A downstream join cannot answer that, because it always returns today’s classification — and that is precisely the question a regulator asks.",
+        "emphasis": "should"
+      },
+      {
+        "id": "4",
+        "title": "Cost",
+        "detail": "One integer and one version string per event, plus the discipline of keeping the registry authoritative. Cheap against the alternative.",
+        "emphasis": "should"
+      }
+    ]
+  },
+  "legends": [
+    {
+      "legend": "Sensitivity class",
+      "values": [
+        {
+          "key": "Class 0",
+          "definition": "Operational. No personal meaning alone. Full warehouse access."
+        },
+        {
+          "key": "Class 1",
+          "definition": "Personal, not special-category. Consent states, coarse location, permissions, life circumstances. Access-controlled."
+        },
+        {
+          "key": "Class 2",
+          "definition": "Special-category, GDPR Art. 9 — gender, orientation, religion, politics, health and substance use. Bucketed on device; raw values never transmitted. Restricted role."
+        },
+        {
+          "key": "Class 3",
+          "definition": "Biometric or safety-critical. Result flags only, never the artefact. Named-individual access, audit-logged."
+        },
+        {
+          "key": "inherit",
+          "definition": "Class comes from the field_id registry and is stamped at emit time. Used by the generic attribute events."
+        }
+      ]
+    },
+    {
+      "legend": "Delivery tier",
+      "values": [
+        {
+          "key": "Tier 1",
+          "definition": "High-volume behavioural. Batched, best-effort, may be sampled. Loss tolerable."
+        },
+        {
+          "key": "Tier 2",
+          "definition": "Business-critical. Guaranteed delivery, retried, never sampled. Feeds funnels, score and billing."
+        }
+      ]
+    },
+    {
+      "legend": "Backend build status",
+      "values": [
+        {
+          "key": "Live",
+          "definition": "Backend stores it. The event can fire and mean something today."
+        },
+        {
+          "key": "Partial",
+          "definition": "Stored, but not in the shape the event assumes."
+        },
+        {
+          "key": "Client only",
+          "definition": "Purely client-side by design — no backend counterpart expected."
+        },
+        {
+          "key": "Not built",
+          "definition": "No backend storage. Specified ahead of the build."
+        }
+      ]
+    }
+  ],
+  "conventions": [
+    {
+      "rule": "Naming",
+      "detail": "object_action, past tense, lower snake case. An event names something that happened, never an intention."
+    },
+    {
+      "rule": "Viewed vs shown",
+      "detail": "_viewed is user-initiated arrival; _shown is system-initiated presentation. The distinction is load-bearing for guard and gate modals."
+    },
+    {
+      "rule": "Client vs server",
+      "detail": "Client fires intent and UI state; server fires the committed fact. Where both exist — date_confirm_submitted and date_confirmed — the server row is the one to count."
+    },
+    {
+      "rule": "Free text is never sent",
+      "detail": "Only char_count, has_free_text or a bucket. This holds for prompts, bios, chat, reports and reviews without exception."
+    },
+    {
+      "rule": "Bucketing happens on devicenew",
+      "detail": "A Class 2 value is bucketed before it leaves the client. The pipeline never receives a raw special-category string, so there is nothing to strip later."
+    },
+    {
+      "rule": "Multi-select eventsnew",
+      "detail": "Fire once per change with a running total — interest_selected carries total_selected — never one event per final set."
+    }
+  ],
+  "decision_log": [
+    {
+      "id": "01",
+      "title": "Minimum photo count Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "The event asserted three photos; the completion rule requires four."
+      ],
+      "outcome": "Event corrected to count: 4. Matches MIN_PHOTOS — no code change needed."
+    },
+    {
+      "id": "02",
+      "title": "OTP length Engineering",
+      "status_tags": [
+        "Resolved",
+        "Engineering"
+      ],
+      "notes": [
+        "The taxonomy said six digits; the OTP service issues four."
+      ],
+      "outcome": "Taxonomy stands. Engineering to change otp.service.ts to 4 → 6 digits; UI being corrected separately."
+    },
+    {
+      "id": "03",
+      "title": "Email capture Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "Five events in Family D instrumented an email flow the backend does not have — email only arrived with Apple or Google sign-in."
+      ],
+      "outcome": "All five events keep their spec and move from a taxonomy problem to a build item. Engineering needs an email field on the account plus a verification endpoint; the events then read Live."
+    },
+    {
+      "id": "04",
+      "title": "Per-field privacy Engineering",
+      "status_tags": [
+        "Resolved",
+        "Engineering"
+      ],
+      "notes": [
+        "Nothing to decide, as it turns out — the design already has it. A visibility switch reading “Don’t show on my profile” sits on all seven Share some details screens, on Habits and on the age line of the DoB step — nine in total v1.1 counted 8 and called it a checkbox. The backend has only one global visibility switch, so the feature is unbuilt rather than undecided."
+      ],
+      "outcome": "field_display_opted_out and fields_hidden_count stay as specified. Engineering to add per-field privacy; note the semantics — the answer is still used for matching, it just does not surface on the profile."
+    },
+    {
+      "id": "05",
+      "title": "Verification provider Engineering",
+      "status_tags": [
+        "Resolved",
+        "Engineering"
+      ],
+      "notes": [
+        "No biometric provider is connected; the stand-in always returns passed, so every result reads pass and the badge cannot be trusted."
+      ],
+      "outcome": "Until it lands, the verification funnel is suppressed rather than caveated — a dashboard showing 100% pass is worse than no dashboard."
+    },
+    {
+      "id": "06",
+      "title": "Gender is an enum after all Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "Gender is a four-option single-select on the screen — Woman, Man, Non-binary, Other — so the value is already closed and my “free text” concern was about the backend column, not the UI. The registry now mirrors the screen exactly. Same for orientation, language, education, religion and politics: all closed lists, all read off the kit."
+      ],
+      "outcome": "Registry updated to the real option sets. Engineering to narrow the column to an enum so the two cannot drift. The profile options also moved from Female/Male to Woman/Man: the question asks about gender, and Female/Male are sexes — this also collapses profile and filter onto one vocabulary, since the filter is just the plural of the same values."
+    },
+    {
+      "id": "07",
+      "title": "looking_for is filter state, not a profile field Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "Settled by the screens. Orientation is captured once at profile creation — step 3, single-select — and “who you want to meet” is a search filter where the user picks target genders and the orientations they should have selected. Two different things at two different moments, so nothing is missing from the flow."
+      ],
+      "outcome": "looking_for removed from the field_id registry and specified as filter_id on Enums §10. The backend varchar(40) looking_for column is to be dropped — decided, not optional — along with its DTO field and any write path, so nobody stores a profile attribute the product does not collect. The looking_for user property is removed from this document for the same reason. One consequence flagged there: filter payloads carrying orientation are Class 2 about the person filtering."
+    },
+    {
+      "id": "07b",
+      "title": "What “Don’t show on my profile” actually means Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "The toggle appears on all seven Share some details screens and on Habits, and the semantics needed stating before anyone built a report on it."
+      ],
+      "outcome": "Recorded on Enums §10. fields_hidden_count is a display-preference metric only — reading it as “data matching cannot see” would be wrong. The inference consequence for orientation-filtered results is accepted."
+    },
+    {
+      "id": "07c",
+      "title": "Opt-out is tracked explicitly; silence means displayed Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "The control is now one checkbox with fixed copy (“Don't display on my profile”), unticked by default, on all nine profile-creation steps. field_display_opted_out carried hidden: bool, which on an opt-out-only event is always true."
+      ],
+      "outcome": "Renamed to field_display_opted_out with payload field_id only. No event on untick — the absence of the event for a field means the answer is displayed, so fields_hidden_count is derived from distinct opted-out field_ids at profile completion. A user who ticks and then unticks needs the completion-time state to be authoritative over the event stream."
+    },
+    {
+      "id": "08",
+      "title": "photo_verified cannot express the real states",
+      "status_tags": [
+        "Resolved"
+      ],
+      "notes": [
+        "The property was Boolean; the backend carries four states, so pending and rejected both collapsed to false — very different situations for support and for trust."
+      ],
+      "outcome": "Replaced by verification_state (none | pending | verified | rejected) on Properties P3."
+    },
+    {
+      "id": "09",
+      "title": "photos_count excluded zero",
+      "status_tags": [
+        "Resolved"
+      ],
+      "notes": [
+        "Allowed values were 1 to 6, but the profile is created empty, so zero is valid and common during onboarding."
+      ],
+      "outcome": "Range corrected to 0 to 6."
+    },
+    {
+      "id": "10",
+      "title": "mode is required but often meaningless Engineering",
+      "status_tags": [
+        "Resolved",
+        "Engineering"
+      ],
+      "notes": [
+        "Required on every event, including pre-auth and before Instant Mode ships — forcing the client to send a value that does not exist yet."
+      ],
+      "outcome": "none added to the enum. Property stays Required."
+    },
+    {
+      "id": "11",
+      "title": "Missing lifecycle events Engineering",
+      "status_tags": [
+        "Resolved",
+        "Engineering"
+      ],
+      "notes": [
+        "A deletion request can be cancelled and returns the account to active, but nothing logged it — so the deletion funnel overcounted permanently. Also unlogged: the step-up re-auth deletion requires, and the refresh-token reuse cutoff that terminates every session on an account."
+      ],
+      "outcome": "Four events specified below. Engineering to confirm the exact trigger points."
+    },
+    {
+      "id": "12",
+      "title": "question_id collided across two events",
+      "status_tags": [
+        "Resolved"
+      ],
+      "notes": [
+        "life_question_answered and future_question_answered both used partnership, family and living, merging present and future answers in any table keyed on question."
+      ],
+      "outcome": "Future ids namespaced with _ahead. Living situation now lives only as question_id=\"living\" — the duplicate living_status registry field is gone."
+    },
+    {
+      "id": "13",
+      "title": "screen_id ownership Product",
+      "status_tags": [
+        "Deferred",
+        "Product"
+      ],
+      "notes": [
+        "Defined in v1.0 as a design-canvas artboard ID, which couples the warehouse’s primary screen dimension to design-file naming — the first rename breaks it silently.",
+        "Consequence to hold: until ids exist, screen_id has no allowed set, so the nine events keyed on it — screen_viewed, error_shown, form_validation_failed and the rest — cannot back a screen-level funnel. Instrument them as each flow is built rather than retrofitting ids afterwards."
+      ],
+      "outcome": "Ids are assigned screen by screen and flow by flow as development proceeds, and added to Enums §7 as they are confirmed. The pattern there stands as the proposal; nothing is enumerated yet."
+    },
+    {
+      "id": "14",
+      "title": "Profile creation re-checked against the kit Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "The section grew eight screens after v1.1 was written — the two embrace bridges, notifications, Stay reachable, the concierge phone-book card and the location ask, plus new media and prompts states. Six taxonomy rows were describing a flow that no longer exists."
+      ],
+      "outcome": "Two events removed, two added, four respecified, and the field_id, step_id, channel and rule vocabularies extended. Net event count is unchanged at 270."
+    },
+    {
+      "id": "15",
+      "title": "Age confirmation is not tracked Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "age_confirm_shown and age_confirm_accepted described a popup. The design confirms age inline on the DoB screen, so both events measured a modal that never renders — and the question they were meant to answer is simply whether the step converts."
+      ],
+      "outcome": "Deleted. dob_submitted is the conversion, age_gate_failed the under-18 case, dob_validation_failed the impossible date, and a Continue tapped with no date entered fires form_validation_failed rule:\"required_missing\"."
+    },
+    {
+      "id": "16",
+      "title": "A refused Continue is an event, not a dead control Analytics",
+      "status_tags": [
+        "Resolved",
+        "Analytics"
+      ],
+      "notes": [
+        "The kit deliberately keeps Continue live on gated screens and answers a premature tap with a toast — photos under the four-photo minimum being the clearest case. Nothing recorded that tap, so the strongest drop-off signal in profile creation was invisible."
+      ],
+      "outcome": "No new event. form_validation_failed gains a closed rule enum and a step_id, and fires on the refused tap rather than on render. photos_minimum_met keeps its one-time crossing role."
+    },
+    {
+      "id": "17",
+      "title": "Consent needs both directions and a leaving state Analytics",
+      "status_tags": [
+        "Resolved",
+        "Analytics"
+      ],
+      "notes": [
+        "Stay reachable carries six toggles; the channel enum listed five and had no value for the calendar consent. There was also no record of the state a user leaves the screen in, only of individual flips."
+      ],
+      "outcome": "calendar added to channel; consent_changed explicitly carries opt-in as well as opt-out through on: bool; new reachability_saved records channels_on, count and has_phone on save. Consent provenance stays an open question."
+    },
+    {
+      "id": "18",
+      "title": "Hide-rate needs a state mirror, not just an event Product",
+      "status_tags": [
+        "Resolved",
+        "Product"
+      ],
+      "notes": [
+        "The per-field control is a switch that defaults to visible, so it can be turned back off again. field_display_opted_out fires on hide only — enough to rank screens by hide-rate, but it cannot answer “how many users hide religion at this moment”, and repeat toggling inflates the count."
+      ],
+      "outcome": "Event stays opt-out only, by decision. New user property hidden_fields (Properties §P3) is rewritten in both directions and carries current-state reporting. habits fires once for the whole screen; age becomes a registry value."
+    },
+    {
+      "id": "19",
+      "title": "“Show more” expansions were untracked Analytics",
+      "status_tags": [
+        "Resolved",
+        "Analytics"
+      ],
+      "notes": [
+        "Photos got an event for revealing its optional slots; the equivalent control on Interests — and any sectioned picker after it — got nothing, so there was no way to see how many users look past the first row."
+      ],
+      "outcome": "show_more_expanded { screen_id, section_id, revealed_count }. section_id is namespaced against the two existing section vocabularies and slugged off the tag_id sections; Photos keeps photo_slot_tapped action:\"reveal_optional\"."
+    },
+    {
+      "id": "20",
+      "title": "The code was built from ticket prose, not from this spec",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026"
+      ],
+      "notes": [
+        "The sign-up and tutorial tickets carried a Tracking section written as prose — \"Screenview (card index 1 of 5)\", \"CTA click\". events.json was never referenced by those tickets, so it was never read. 35 events shipped under invented names; across both documents only account_created matched exactly."
+      ],
+      "outcome": "Code names win for the flows that are built; unbuilt events keep their spec names until each is implemented. Tickets stop carrying prose tracking sections — they reference event names from this registry instead. That is the change that stops the drift recurring."
+    },
+    {
+      "id": "21",
+      "title": "Six events shared a name with the spec and carried a different payload",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026"
+      ],
+      "notes": [
+        "screen_viewed, like_sent, match_created, date_confirmed, date_cancelled, notification_sent. These fail silently — the name resolves and the query returns the wrong column or nothing."
+      ],
+      "outcome": "Union of both payloads; where a property collides, the spec name wins (screen_id over screen_name, event_type over notification_type). Twenty-four events now carry a code_delta field naming exactly what the apps or server must change."
+    },
+    {
+      "id": "22",
+      "title": "date_cancelled could not compute Show-up Rate",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026"
+      ],
+      "notes": [
+        "The code sent { date_id, had_reason }. \"Without fair notice\" needs hours_notice; the visibility penalty needs penalty_points; neither was sent. This is the one place the code was overruled."
+      ],
+      "outcome": "The spec payload is adopted whole: date_id, hours_notice, initiator, penalty_points, reason. had_reason is dropped as redundant. Treated as a requirement, not a naming preference."
+    },
+    {
+      "id": "23",
+      "title": "Tutorial card numbering: the code counts six cards, Jira counts five plus a welcome screen",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026"
+      ],
+      "notes": [
+        "A funnel filtered to card = 5 returned \"thirty minutes\" while Jira card 05 is \"Show Up every time\". Nothing errored; the chart was simply about a different screen than its title."
+      ],
+      "outcome": "The code numbering stands — Welcome is card 1, the tour is cards 2–6. The mapping is written into enums.json §14 so it is read, not remembered. Ticket titles are NOT renumbered."
+    },
+    {
+      "id": "24",
+      "title": "Social auth success and failure fired client-side; the spec said server",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026"
+      ],
+      "notes": [
+        "A client-fired success is lost when the app dies mid-callback, which is exactly when a linking failure matters most."
+      ],
+      "outcome": "Both. connect_link_succeeded and connect_link_failed are emitted from client and server; the server row is the one counted. The client row stays for funnel continuity."
+    },
+    {
+      "id": "25",
+      "title": "The three emitter rules were unimplemented and unticketed",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026"
+      ],
+      "notes": [
+        "The sensitivity stamp, enums.json as the generated registry, and the T1/T2 tier split are specified in this file and appear in no ticket — which is why they were missed. None of the 35 shipped events is an attribute event, so nothing is wrong today; profile creation is the next flow and is nothing but attribute events."
+      ],
+      "outcome": "All three go in before mobile tracking is switched on (decided on the design side, 7 Sep 2026 — no counter-preference given). Retrofitting the stamp means reprocessing history, so the cost only ever rises. Needs a ticket; it is a build task, not a wording fix."
+    },
+    {
+      "id": "26",
+      "title": "Two prefixes for Check-In",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026"
+      ],
+      "notes": [
+        "check_in_created ships on the server while the ten unbuilt events in that family are checkin_*. Two prefixes for one feature is an afternoon lost in the warehouse later."
+      ],
+      "outcome": "The shipped event keeps its name. When the Check-In flow is built the family standardises on check_in_ and the ten unbuilt events are renamed then — recorded on check_in_created as a code_delta so it cannot be forgotten."
+    },
+    {
+      "id": "27",
+      "title": "Screen names must stay human-readable — two properties, not one",
+      "status_tags": [
+        "Resolved",
+        "Code reconciliation 7 Sep 2026",
+        "Supersedes decision 21 for screen_viewed"
+      ],
+      "notes": [
+        "Decision 21 had screen_name renamed to screen_id, and enums.json §11 proposed normalising the five shipped labels to snake_case. That was wrong: the labels exist so that a person can find a screen in the analytics tool a year from now, and \"Signup - CreateAccount\" does that where signup_create_account does not. It also would have cost a rename in two apps for no analytical gain."
+      ],
+      "outcome": "Both. screen_viewed carries screen_id (stable snake_case key, assigned once, never edited) AND screen_name (the human label, verbatim as shipped). Every other event carries screen_id alone and joins to it. Both come from the §11 registry, never from a literal at the call site. Nothing shipped is renamed; the id is added alongside. §11 gains the naming rules and the standing requirement that a screen has a registry row before it has a ticket."
+    },
+    {
+      "id": "28",
+      "title": "Five questions the registry could not answer — the profile Email screen",
+      "status_tags": [
+        "Resolved",
+        "Product",
+        "Registry repair",
+        "Raised from implementation 9 Sep 2026"
+      ],
+      "notes": [
+        "Implementation of the Name / Email / DoB tickets stopped on five points the registry either answered wrongly or did not answer. Two were defects in enums.json, three were product questions that had never been asked. Stopping was correct — every one of them would have been a guess baked into a call site.",
+        "DEFECT 1, §1 and §2: nine values carried a concatenated version badge — namev1.2, emailv1.2, email_verifyv1.2, dobv1.2, habitsv1.2, agev1.2, notificationsv1.2, reachabilityv1.2, phonebookv1.2, locationv1.2, plus the keys section_idv1.2 and rulev1.2. enums.json is generated from the taxonomy HTML and the extractor swept the <span class=\"new\">v1.2</span> badge into the adjacent cell text. Corrected to the bare values. step_index for the four basics steps was also \"—\" where the tickets specify 1, 2, 2, 3, so profile_step_viewed could not be generated at all.",
+        "DEFECT 2, §7: §7 is the v1.0 CRITIQUE of screen_id — it documents the rejected artboard-ID definition, and its values array is a mixed list of the property name, the events carrying it, and examples of the discarded format. It is shaped like a registry, so a generator cannot tell it from one. Marked codegen: exclude. The registry is §11 (decision 27).",
+        "QUESTION 1, marketing consent: the Email screen asks consent for marketing mail only. The address is used for password resets and for support replying about a date whether or not the box is ticked — that mail is transactional, has no consent to withdraw, and is never tracked as a consent. An unticked box means no marketing mail, not no mail.",
+        "QUESTION 2, disposable addresses: no detection source was ever defined, and none is wanted. The user may enter any address they can receive mail at; losing access to it later is an app-logic problem to solve then, not a signup-time block.",
+        "QUESTION 3, prefill from Apple/Google: the address is prefilled and the screen is still shown. Whose address it ends up being is not interesting — that we hold a working one is. Verification runs on every address regardless of origin: a Google address is verified by Google and an Apple relay address is deliverable but is not the user's own, so neither is trusted here."
+      ],
+      "outcome": "channel gains marketing_email, distinct from the Stay-reachable email toggle and from entry_point:\"email\" — three uses of one address, told apart by the vocabulary. surface becomes a real enum (profile_creation · settings) and is required on consent_changed; a consent record that cannot be traced to where it was given cannot be honoured. email_validation_failed emits rule:\"format\" only; disposable stays RESERVED and unimplemented, with the rate read from email_submitted{domain} in the warehouse. profile_step_skipped never fires for step_id:\"email\" and is struck from ticket profile/02; no prefill-provenance properties are added. Ticket profile/03 is unchanged — there is no verification skip path to build. Registry bumped to 1.3.0: value sets changed, so field_registry_version changes with them."
+    },
+    {
+      "id": "29",
+      "title": "A flat payload list read as \"every property, every screen\" — screen_viewed",
+      "status_tags": [
+        "Resolved",
+        "Registry repair",
+        "Raised from implementation 9 Sep 2026"
+      ],
+      "notes": [
+        "Implementation asked whether last_used and state should be sent on the profile screens, since the registry lists five properties on screen_viewed and the profile tickets name only three. The question was correct and the registry was at fault: the payload was a flat array with no required/optional marker and no scope, so \"five properties on every screen\" was the only available reading.",
+        "Neither belongs on a profile step. last_used is which auth method the user last signed in with — it means something only on a screen that offers a method list. state exists because §11 assigns one row per screen rather than per state, and only connect_sso needs it.",
+        "state could not describe the DoB or verify-email states even if we wanted it to: screen_viewed fires once on mount, so it can only ever record the initial state. Those states are already carried by dob_validation_failed, age_gate_failed and email_code_submitted{result}. state on connect_sso remains the defect already logged — always \"idle\" for exactly this reason.",
+        "Confirmed at the same time, unchanged: step_index is name=1, email=2, email_verify=2, dob=3. email_verify deliberately shares 2 because the progress bar does not advance for it. Funnels key on step_id, never step_index — three Share-some-details screens also share index 9."
+      ],
+      "outcome": "screen_viewed carries screen_id, screen_name and referrer_screen_id on EVERY screen, always. last_used and state are marked required:false with an applies_to list naming the only screens that may send them, and are omitted everywhere else. A required_payload note on the event states the rule, because a flat property array does not. The four profile tickets say so explicitly rather than by omission."
+    },
+    {
+      "id": "32",
+      "title": "Media capture tracking — the medium, the prompt and the prior state are all required",
+      "status_tags": [
+        "Resolved",
+        "Product",
+        "v1.4"
+      ],
+      "notes": [
+        "One screen carries the video card and the voice card, so a media event without type cannot be attributed to either. Four events were specified without it.",
+        "prompt_id on the recording events collided with the written-prompt registry (§6, §17) — same key, unrelated vocabulary.",
+        "Retake and delete were specified as bare type events, so \"a user who already had a video and replaced it\" was unrecoverable.",
+        "The inspiration sheet the taxonomy tracked (media_inspiration_opened { topic_id }) no longer exists in the design — the prompt list replaced it on 16 Sep 2026."
+      ],
+      "outcome": "type is required on every media event. prompt_id renamed media_prompt_id against a new registry (§20). media_screen_viewed carries has_video + has_voice on every mount, and retake/delete carry the same pair plus from: \"review\"|\"media_card\" — so a replaced artefact and a discarded draft are never one number. media_inspiration_opened respecified as media_prompt_list_opened { type, entry_point, has_existing }, and media_prompt_selected, media_prompt_list_dismissed, media_review_shown and media_preview_played were added for the prompt list and the post-Stop review screen. profile_step_skipped now requires screen_id."
+    },
+    {
+      "id": "33",
+      "title": "The prompt previewed on each empty media card is ranked from completions, per medium",
+      "status_tags": [
+        "Resolved",
+        "Product",
+        "v1.4"
+      ],
+      "notes": [
+        "The two previewed prompts were a designer's pick (MEDIA_PROMPTS[7] for video, [2] for voice). The list itself is the instrument that answers which prompt people actually want, so the card should show that answer.",
+        "Ranking on selections is self-reinforcing: the previewed prompt is far more visible than the other ten, so it wins the ranking because it was previewed.",
+        "Ranking on selections also counts prompts people picked and abandoned, which is not a preference — a prompt that is easy to choose and hard to answer is the worst thing to put on the card."
+      ],
+      "outcome": "Rank on COMPLETIONS, per medium, excluding the self-reinforced path. Concretely: for each medium, count video_prompt_recorded / voice_prompt_recorded by media_prompt_id over a trailing 30 days, counting ONLY takes whose media_prompt_selected carried was_previewed: false — the prompts chosen when all eleven were equally visible. own_idea is excluded (it is an escape hatch, not a prompt). Tie-break: higher completion rate (recorded ÷ selected), then the fixed §20 position. Minimum 50 qualifying completions for that medium in the window, otherwise preview_source: \"fallback\" and the §20 cold-start prompt is shown. The job runs daily but publishes at most once per week per medium, and only when the challenger leads the incumbent by more than 10% relative — card copy that flickers weekly is worse than a slightly stale prompt. Every publish fires media_prompt_ranking_published with its sample and window; every view records what it displayed (preview_*_prompt_id, preview_source). The client never ranks: it renders the two prompts the server hands it, and falls back to MEDIA_PREVIEW if it has none. THE LIST ORDER NEVER CHANGES — only the preview does."
+    }
+  ],
+  "registry_version": "1.4.1",
+  "product_decisions": [
+    {
+      "date": "2026-08-06",
+      "id": "otp-length",
+      "decision": "OTP is 6 digits, both the phone SMS path and the email path. The design is the truth; the code changes.",
+      "status": "decided, not yet developed",
+      "affects": [
+        "auth/otp.service.ts",
+        "taxonomy conflict 02",
+        "gap report item 07"
+      ]
+    },
+    {
+      "date": "2026-08-06",
+      "id": "email-required",
+      "decision": "An email address is requested during profile creation and must be verified by a 6-digit code. Distinct from phone sign-in.",
+      "status": "decided, not yet developed",
+      "affects": [
+        "profiles entity (email column + verification state)",
+        "new outbound mail sender",
+        "second OTP path, 6 digits, own cooldown + attempt counter",
+        "Family D: email_submitted, email_validation_failed, email_code_sent, email_code_resent, email_code_submitted — flip Not built → Live"
+      ],
+      "open_sub_question": "Whether a verified email is ever the ONLY way to reach or recover an account. If yes it is an identity credential and needs a recovery path designed."
+    },
+    {
+      "date": "2026-09-07",
+      "id": "tracking-source-of-truth",
+      "decision": "For any flow that is built, the code is the source of truth for event and property names, and events.json is regenerated to match it. For unbuilt flows, events.json is the source of truth. Tickets never restate a tracking spec in prose — they cite event names from events.json.",
+      "status": "decided",
+      "affects": [
+        "design_handoff_showup/tracking/*",
+        "all screen tickets: Tracking sections",
+        "JIRA-HANDOFF.md"
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "id": "media-review-step",
+      "decision": "Stop does not commit a recording. A take goes to a review screen — play, retake, keep — and only \"Use this clip\" / \"Use this recording\" writes it to the profile. video_prompt_recorded / voice_prompt_recorded therefore fire on accept, not on Stop.",
+      "status": "decided, not yet developed",
+      "affects": [
+        "ui_kits/show-up/screens-profile-media.jsx (VideoRecordingView / VoiceRecordingView, phase=\"review\")",
+        "tracking/events.json family E",
+        "tracking/enums.json §11, §20, §21"
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "id": "media-preview-ranking",
+      "decision": "The prompt previewed on each empty media card is the most-completed prompt for that medium, ranked server-side from tracking and refreshed at most weekly. Video and voice rank separately and will not agree.",
+      "status": "decided, not yet developed",
+      "affects": [
+        "ui_kits/show-up/screens-profile-media.jsx (ScreenProfileMedia previewVideo / previewVoice; MEDIA_PREVIEW is now the cold-start fallback)",
+        "tracking/events.json → media_screen_viewed, media_prompt_selected, media_prompt_ranking_published",
+        "tracking/enums.json §20, §22",
+        "A server ranking job + a config value the client reads — no client-side computation"
+      ]
+    }
+  ],
+  "reconciled_with_code": "ShowUp app + server tracking catalogue, 7 September 2026"
+}

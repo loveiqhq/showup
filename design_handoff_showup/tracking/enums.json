@@ -1,0 +1,1256 @@
+{
+  "registry_version": "1.4.5",
+  "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_5": [
+    "§18 prompt entry_point — RETIRED. The values suggestion · browse · edit are no longer sent on any event. 25 Sep 2026, product decision: which topics are chosen matters, where they were chosen from does not. Section kept, emptied, so numbering and citations stay stable.",
+    "§17 note updated to match. The app-open entry_point (cold · push · sms · whatsapp · email · deeplink) and §21 media entry_point are unaffected."
+  ],
+  "changed_in_1_4_4": [
+    "§24 permission_status — NEW. The four OS permission states (not_determined · granted · denied · restricted), one set for every permission in §8. Created 21 Sep 2026 for permission_status_changed, the event that records a permission changing OUTSIDE our app. Do not spell them per-platform (iOS authorizationStatus and Android's shouldShowRequestPermissionRationale both map onto these four); do not add limited here — it is a photo-library concept and it lives on permission_result only.",
+    "Clarified with it: our CONSENT (§8 channel, carried by consent_changed) and the OS PERMISSION (§8 type + §24 status) are two different facts and must never be collapsed. Consent is ours and lives on the server; permission is the device's and is re-read, never remembered. A push consent of true with a permission of denied is a real, reachable state — it is a consent we cannot honour, not a data error."
+  ],
+  "changed_in_1_4_3": [
+    "§11: profile_notifications / ProfileNotifications added — the screen registry row, written BEFORE the Profile 09 ticket, per the standing rule. 21 Sep 2026.",
+    "§2 note extended: a step_id row with step_index \"—\" is NOT a licence to fire profile_step_viewed / profile_step_completed. profile_step_viewed requires an int step_index; the four out-of-bar screens (notifications, reachability, phonebook, location) have none. Their step_id exists so a SKIP can be recorded (profile_step_skipped carries step_id + screen_id and no index). Profile 09 has no skip CTA, so it fires no step event of any kind.",
+    "§8 type (permission): unchanged — notifications is already a value on permission_prompted. Profile 09 needed no new value set; the question 'what does the notifications ask emit' was already answered by family G (decision: answer from the registry first)."
+  ],
+  "changed_in_1_4_2": [
+    "§23 sheet dismiss_method — NEW, and CANONICAL: close · backdrop · swipe · system_back, one set for every bottom sheet in the product. §8's dismiss_method row now points here. prompt_editor_dismissed (was close|scrim|swipe|back) and media_prompt_list_dismissed (was cancel|...) are migrated; neither shipped.",
+    "§8 rule — prompts_below_minimum added: Continue pressed on the prompts screen with zero prompts saved, the sibling of photos_below_minimum.",
+    "§18 — clarified: edit is carried by prompt_editor_opened / prompt_saved / prompt_editor_dismissed only. prompt_topic_selected is scoped to suggestion and browse from taxonomy 1.4.1, so topic demand is not inflated by edits.",
+    "§2 / §11 — no change needed: prompts is already step_index 2 of The real you and profile_prompts is already registered (both landed in 1.3.1). Re-verified 16 Sep 2026 against the current flow: photos 1, prompts 2, media_voice / media_video 3."
+  ],
+  "changed_in_1_3_1": [
+    "§11: profile_prompts / ProfilePrompts added — the screen registry row, written BEFORE the Profile 07 ticket, per the standing rule.",
+    "§2 step_id: prompts moved from step_index 10 (Share some details) to step_index 2 of The real you — it was mis-slotted; the prompts screen has always belonged to that group. photos: step 1 of 4 → step 1 of 3, and media_voice / media_video: \"—\" → 3. VERIFY PROFILE IS CUT FROM THE MVP (13 Sep 2026), so the group is three steps and its bar is steps={3}.",
+    "§17 prompt_topic_id, §18 prompt entry_point, §19 prompt length_bucket added with the Profile 07 ticket. Nine prompt_* events added to events.json family E against them.",
+    "photo_verification_* events are left registered but the screen is not built in the MVP."
+  ],
+  "changed_in_1_3_0": [
+    "§1 field_id + §2 step_id: nine values had a version badge concatenated onto them (namev1.2, emailv1.2, email_verifyv1.2, dobv1.2, habitsv1.2, agev1.2, notificationsv1.2, reachabilityv1.2, phonebookv1.2, locationv1.2) and the keys section_idv1.2 / rulev1.2 likewise. Corrected to the bare values.",
+    "§2 step_id: step_index for name / email / email_verify / dob was \"—\"; now 1, 2, 2, 3 as the tickets specify. email and email_verify SHARE index 2 — that is deliberate, not a duplicate.",
+    "§7: marked codegen: exclude. It is the v1.0 critique, not a registry (decision 28).",
+    "§8 channel: gains calendar and marketing_email.",
+    "§8 surface: new value set, profile_creation · settings, required on consent_changed.",
+    "§8 rule: disposable documented as RESERVED and unimplemented."
+  ],
+  "generator_warning": "THIS FILE IS EXTRACTED FROM THE TAXONOMY HTML IN reports/, AND THE EXTRACTOR HAS SWEPT VISUAL BADGES INTO VALUES BEFORE. The <span class=\"new\">v1.2</span> marker next to a new row is presentation, not part of the value; it corrupted twelve values in 1.2.0 (decision 28). On any regeneration, diff the value columns against this file before publishing, and treat a value ending in a version string as a bug in the extractor rather than a name.",
+  "taxonomy_version": "1.4.1",
+  "reconciled_against": "loveiqhq/showup main @ c195089",
+  "generated": "2026-09-16",
+  "sets": [
+    {
+      "id": "e1",
+      "num": "1",
+      "name": "field_id registry",
+      "tables": [
+        {
+          "columns": [
+            "field_id",
+            "step",
+            "value_bucketed",
+            "class",
+            "backend",
+            "notes"
+          ],
+          "rows": [
+            {
+              "field_id": "height",
+              "step": "1",
+              "value_bucketed": "<150 · 150_159 · 160_164 · 165_169 · 170_174 · 175_179 · 180_184 · 185_189 · 190_199 · 200+",
+              "class": "0",
+              "backend": "Not built",
+              "notes": "Numeric cm input, valid 120–230 per the screen. Bucketed on device — the exact figure is never sent. No field on the profile entity yet."
+            },
+            {
+              "field_id": "gender",
+              "step": "2",
+              "value_bucketed": "woman · man · non_binary · other",
+              "class": "2",
+              "backend": "Partial",
+              "notes": "Matches the screen exactly — GENDER_OPTIONS is a 4-option single-select, so the value is already closed and no bucketing is required. Singular here because the user is describing themselves; the search filter displays the same values in the plural. The backend column is varchar(40) and should become an enum."
+            },
+            {
+              "field_id": "orientation",
+              "step": "3",
+              "value_bucketed": "straight · gay · lesbian · bisexual · pansexual · other",
+              "class": "2",
+              "backend": "Not built",
+              "notes": "From ORIENTATION_OPTIONS. Single-select, 6 options. gay and lesbian are separate values rather than one clinical homosexual — same register decision as woman/man. Any analysis wanting the combined figure unions the two."
+            },
+            {
+              "field_id": "dating_language",
+              "step": "4",
+              "value_bucketed": "german · english · spanish · italian · french · turkish · russian · arabic",
+              "class": "1",
+              "backend": "Not built",
+              "notes": "Multi-select over 8 fixed options — fires per selection with a running total_selected. Not BCP 47; the screen offers a closed list."
+            },
+            {
+              "field_id": "education",
+              "step": "5",
+              "value_bucketed": "a_levels_abitur · apprenticeship · university_degree · phd",
+              "class": "1",
+              "backend": "Not built",
+              "notes": "From EDUCATION_OPTIONS. First field with a Skip CTA — pairs with detail_skipped."
+            },
+            {
+              "field_id": "religion",
+              "step": "6",
+              "value_bucketed": "protestant · catholic · orthodox · jewish · buddhist · hindu · atheist · spiritual_other",
+              "class": "2",
+              "backend": "Not built",
+              "notes": "Logged verbatim rather than bucketed: the screen is a closed 8-option list, so there is no free-text tail to collapse. Class 2 access control does the protecting instead."
+            },
+            {
+              "field_id": "politics",
+              "step": "7",
+              "value_bucketed": "left · mid_left · middle · mid_right · conservative · right · libertarian · apolitical",
+              "class": "2",
+              "backend": "Not built",
+              "notes": "From POLITICS_OPTIONS, spectrum order preserved. Worth deciding whether to log at all — the value is Class 2 and thin on matching signal."
+            },
+            {
+              "field_id": "habits",
+              "step": "9",
+              "value_bucketed": "—",
+              "class": "2",
+              "backend": "Not built",
+              "notes": "Opt-out only, and screen-level: one switch covers all four habit questions, so field_display_opted_out fires once with field_id=\"habits\" rather than four times. The answers themselves travel on habit_answered per habit_id (§5) — this row never carries a value_bucketed."
+            },
+            {
+              "field_id": "age",
+              "step": "—",
+              "value_bucketed": "—",
+              "class": "0",
+              "backend": "Partial",
+              "notes": "Not a Share some details field — the visibility switch on the DoB step. Carries the opt-out only; the value travels on dob_submitted and lives on the record as age_band."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e2",
+      "num": "2",
+      "name": "step_id",
+      "tables": [
+        {
+          "columns": [
+            "step_id",
+            "step_index",
+            "screen"
+          ],
+          "rows": [
+            {
+              "step_id": "name",
+              "step_index": "1",
+              "screen": "The basics · step 1 of 3"
+            },
+            {
+              "step_id": "email",
+              "step_index": "2",
+              "screen": "The basics · step 2 of 3 (skippable — social sign-in already supplied one)"
+            },
+            {
+              "step_id": "email_verify",
+              "step_index": "2",
+              "screen": "The basics · holds at step 2, not its own segment"
+            },
+            {
+              "step_id": "dob",
+              "step_index": "3",
+              "screen": "The basics · step 3 of 3, incl. the inline age-confirm card"
+            },
+            {
+              "step_id": "height",
+              "step_index": "1",
+              "screen": "Share some details · step 1"
+            },
+            {
+              "step_id": "gender",
+              "step_index": "2",
+              "screen": "Share some details · step 2"
+            },
+            {
+              "step_id": "orientation",
+              "step_index": "3",
+              "screen": "Share some details · step 3"
+            },
+            {
+              "step_id": "dating_language",
+              "step_index": "4",
+              "screen": "Share some details · step 4"
+            },
+            {
+              "step_id": "education",
+              "step_index": "5",
+              "screen": "Share some details · step 5"
+            },
+            {
+              "step_id": "religion",
+              "step_index": "6",
+              "screen": "Share some details · step 6"
+            },
+            {
+              "step_id": "politics",
+              "step_index": "7",
+              "screen": "Share some details · step 7"
+            },
+            {
+              "step_id": "interests",
+              "step_index": "8",
+              "screen": "Share some details · step 8"
+            },
+            {
+              "step_id": "life_now",
+              "step_index": "9",
+              "screen": "Share some details · step 9"
+            },
+            {
+              "step_id": "life_ahead",
+              "step_index": "9",
+              "screen": "Share some details · step 9"
+            },
+            {
+              "step_id": "habits",
+              "step_index": "9",
+              "screen": "Share some details · step 9"
+            },
+            {
+              "step_id": "prompts",
+              "step_index": "2",
+              "screen": "The real you · step 2 of 3 · outside the Share-some-details progress bar"
+            },
+            {
+              "step_id": "photos",
+              "step_index": "1",
+              "screen": "The real you · step 1 of 3 · outside the Share-some-details progress bar"
+            },
+            {
+              "step_id": "media_voice",
+              "step_index": "3",
+              "screen": "The real you · step 3 of 3 (one screen carries voice + video; both ids share the index)"
+            },
+            {
+              "step_id": "media_video",
+              "step_index": "3",
+              "screen": "The real you · step 3 of 3 (one screen carries voice + video; both ids share the index)"
+            },
+            {
+              "step_id": "notifications",
+              "step_index": "—",
+              "screen": "Permission ask · outside the progress bar"
+            },
+            {
+              "step_id": "reachability",
+              "step_index": "—",
+              "screen": "Stay reachable for a match · six consent toggles + phone number"
+            },
+            {
+              "step_id": "phonebook",
+              "step_index": "—",
+              "screen": "Save the concierge number · outside the progress bar"
+            },
+            {
+              "step_id": "location",
+              "step_index": "—",
+              "screen": "Permission ask · outside the progress bar"
+            }
+          ]
+        }
+      ],
+      "note": "step_id is the FLOW-PROGRESS vocabulary and is not a screen name. It answers \"where in the sequence\" (name → email → email_verify → dob), which is why email_verify holds at step 2 rather than having a segment of its own. Do not put a screen name in it: a screen and a step are different things. Screen identity lives in §11 (screen_id + screen_name), and both travel on their own events. A row with step_index \"—\" (notifications, reachability, phonebook, location) is outside every progress bar and is NOT a step for funnel purposes: profile_step_viewed requires an int step_index, so it does not fire for them. Those ids exist so that profile_step_skipped — which carries step_id + screen_id and no index — has a stable value when the screen has a skip. Added 21 Sep 2026 with the Profile 09 ticket."
+    },
+    {
+      "id": "e3",
+      "num": "3",
+      "name": "tag_id",
+      "tables": [
+        {
+          "columns": [
+            "section",
+            "tag_id"
+          ],
+          "rows": [
+            {
+              "section": "evenings",
+              "tag_id": "gymcookingtv_seriesreadinggoing_for_a_walkgaminglive_musicyogaboard_gamesmovie_nights"
+            },
+            {
+              "section": "weekends",
+              "tag_id": "weekend_tripsbrunchsportslocal_marketshikingcyclingcity_breaksmuseumsbrewery_hopsbouldering"
+            },
+            {
+              "section": "workfree",
+              "tag_id": "beachall_inclusivewellnessfestivalsretreatscruise_shipsroad_tripscampingsurf_tripsbackpacking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e4",
+      "num": "4",
+      "name": "question_id",
+      "tables": [
+        {
+          "columns": [
+            "question_id",
+            "event",
+            "class",
+            "values"
+          ],
+          "rows": [
+            {
+              "question_id": "partnership",
+              "event": "life_",
+              "class": "1",
+              "values": "singleopen_relationshipin_a_relationshipmarriedseparatedits_complicated"
+            },
+            {
+              "question_id": "family",
+              "event": "life_",
+              "class": "1",
+              "values": "no_childrenone_childtwo_childrenthree_or_morenot_saying"
+            },
+            {
+              "question_id": "living",
+              "event": "life_",
+              "class": "1",
+              "values": "living_aloneliving_with_roommatesliving_with_familyliving_with_partner"
+            },
+            {
+              "question_id": "partnership_ahead",
+              "event": "future_",
+              "class": "1",
+              "values": "long_term_partnermonogamous_relationshipopensomething_casualundecided"
+            },
+            {
+              "question_id": "family_ahead",
+              "event": "future_",
+              "class": "1",
+              "values": "want_kidsopen_to_childrenno_kidsundecided"
+            },
+            {
+              "question_id": "living_ahead",
+              "event": "future_",
+              "class": "1",
+              "values": "cohabitingliving_aloneundecided"
+            }
+          ]
+        }
+      ],
+      "note": "KNOWN DAMAGED BY THE RETIRED EXTRACTOR, flagged 16 Sep 2026: the values column is a run-together concatenation of what were separate chips (single + open_relationship + in_a_relationship + married + separated + its_complicated reads as one string), and the event column was cut to a prefix. Do NOT codegen from this section. Re-slug both columns from the option arrays in ui_kits/show-up/ and the event names in events.json family F before this section is used, then delete this flag. The question ids themselves are intact."
+    },
+    {
+      "id": "e5",
+      "num": "5",
+      "name": "habit_id & frequency",
+      "tables": [
+        {
+          "columns": [
+            "habit_id",
+            "frequency",
+            "screen_question"
+          ],
+          "rows": [
+            {
+              "habit_id": "alcohol",
+              "frequency": "yesnooccasionally",
+              "screen_question": "Do you drink alcohol?"
+            },
+            {
+              "habit_id": "smoke",
+              "frequency": "yesnooccasionally",
+              "screen_question": "Do you smoke?"
+            },
+            {
+              "habit_id": "cannabis",
+              "frequency": "yesnooccasionally",
+              "screen_question": "Do you use cannabis?"
+            },
+            {
+              "habit_id": "drugs",
+              "frequency": "yesnooccasionally",
+              "screen_question": "Do you use other drugs?"
+            }
+          ]
+        }
+      ],
+      "note": "KNOWN DAMAGED BY THE RETIRED EXTRACTOR, flagged 16 Sep 2026: the frequency column is three chips run together (yes + no + occasionally). The habit ids and the screen questions are intact; re-slug the frequency set from the kit before codegen."
+    },
+    {
+      "id": "e6",
+      "num": "6",
+      "name": "topic_id",
+      "values": [
+        "topic_id",
+        "PROMPT_TOPICS",
+        "prompt_id",
+        "topic_id",
+        "match_me_if_you__slot2",
+        "char_count",
+        "at_char_limit",
+        "first_date_i_want_to",
+        "match_me_if_you",
+        "dont_bother_matching_if_you",
+        "what_im_actually_looking_for",
+        "three_things_i_wont_compromise_on",
+        "my_idea_of_commitment",
+        "ill_talk_for_hours_about",
+        "id_cross_town_for",
+        "what_30_minutes_with_me_feels_like",
+        "why_im_here_not_another_app",
+        "fastest_way_to_my_attention",
+        "im_proud_of"
+      ],
+      "prose": [
+        "Slugged from PROMPT_TOPICS. prompt_id is topic_id plus the slot it occupies — match_me_if_you__slot2 — so a topic moved between slots stays traceable. Answers themselves are never sent: only char_count and at_char_limit."
+      ],
+      "note": "SUPERSEDED FOR THE WRITTEN PROMPTS BY §17, and KNOWN DAMAGED: this section was extracted from the v1.0 HTML and its values array has property names swept into it (topic_id, PROMPT_TOPICS, prompt_id, char_count, at_char_limit are not topics). §17 prompt_topic_id is the live registry for the prompts screen — fifteen topics, three groups, source of truth ui_kits/show-up/. Read §6 as history only, and never codegen from it."
+    },
+    {
+      "id": "e7",
+      "num": "7",
+      "name": "screen_id — v1.0 critique, NOT A REGISTRY",
+      "codegen": "exclude",
+      "generated_from": "Nothing. This section documents the REJECTED v1.0 definition and the values array below is a mixed list: the property name, the events that carry it, and examples of the artboard-ID format that was thrown out. Do not generate from it. The screen registry is §11 (screen_id + screen_name), per decision 27.",
+      "values": [
+        "screen_id",
+        "screen_viewed",
+        "error_shown",
+        "form_validation_failed",
+        "<family_letter>_<screen>",
+        "d_profile_height",
+        "d_verify_email_code",
+        "e_photo_grid",
+        "h_checkin_availability",
+        "i_search_one_up",
+        "k_date_coordinate_locked"
+      ],
+      "prose": [
+        "v1.0 defines this as a design-tool artboard ID. It is the primary screen dimension on screen_viewed, error_shown, form_validation_failed and six others — tying it to artboard names means the first rename in the design file silently breaks the warehouse. Make it an independent enum that the design file references, not the reverse."
+      ]
+    },
+    {
+      "id": "e8",
+      "num": "8",
+      "name": "Shared payload enums",
+      "tables": [
+        {
+          "columns": [
+            "key",
+            "values",
+            "notes"
+          ],
+          "rows": [
+            {
+              "key": "result",
+              "values": "pass · fail",
+              "notes": "OTP and verification outcomes. Never a reason string on the client."
+            },
+            {
+              "key": "rule",
+              "values": "format · disposable · length · invalid_prefix · impossible",
+              "notes": "Validation failure causes across Families B, D and T. disposable is RESERVED, NOT IMPLEMENTED: no detection source is defined and none is planned — the disposable rate is read from email_submitted{domain} in the warehouse instead. Kept in the vocabulary so it need not be re-added later; a client that emits it today is wrong (decision 28)."
+            },
+            {
+              "key": "method",
+              "values": "phone · apple · google — and separately cta · swipe · backdrop",
+              "notes": "Two unrelated vocabularies share the key method. Rename the sheet one to dismiss_method."
+            },
+            {
+              "key": "channel",
+              "values": "push · sms · whatsapp · email · call · calendar · marketing_email",
+              "notes": "Consistent across G, J and the consent properties. THREE USES OF EMAIL, DELIBERATELY DISTINCT: marketing_email is consent to send marketing mail, asked once on the profile Email screen (consent_changed there always carries this value); email is the Stay-reachable toggle, a preference for being contacted about a match; entry_point:\"email\" is arrival from a link in a mail. Transactional mail — password reset, support replying about a date — is NOT consent-gated and is never tracked as a consent, so it has no value here (decision 28)."
+            },
+            {
+              "key": "band",
+              "values": "trusted · steady · at_risk",
+              "notes": "Show-Up band. Not built."
+            },
+            {
+              "key": "lead_time",
+              "values": "24h · 2h · 1h · 15m",
+              "notes": "Reminder offsets in K."
+            },
+            {
+              "key": "decision",
+              "values": "wait · leave",
+              "notes": "Late-partner decision in M."
+            },
+            {
+              "key": "outcome",
+              "values": "confirmed · deferred · hung_up",
+              "notes": "Concierge call termination in J."
+            },
+            {
+              "key": "placement",
+              "values": "likes_received · live_grid · advanced_filters",
+              "notes": "Premium lock surfaces in R."
+            },
+            {
+              "key": "layout",
+              "values": "one_up · grid",
+              "notes": "Search presentation in I."
+            },
+            {
+              "key": "section_id",
+              "values": "See tag_id sections (§3)",
+              "notes": "Which “Show more” was expanded, on show_more_expanded in F. Always paired with screen_id — the word section is already taken by the profile accordion in I and the score breakdown in P, so this one is namespaced section_id."
+            },
+            {
+              "key": "rule",
+              "values": "required_missing · photos_below_minimum · prompts_below_minimum · nothing_selected · at_char_limit · format · impossible",
+              "notes": "Why a screen refused to advance, on form_validation_failed in T. The first four are gated-Continue taps rather than typing errors. prompts_below_minimum added 16 Sep 2026: Continue pressed with zero prompts saved, which on that screen fires a toast rather than disabling the CTA — so this event is the only record that the user tried to leave."
+            },
+            {
+              "key": "section",
+              "values": "prompts · interests · habits · essentials",
+              "notes": "Profile accordion in I. A different section vocabulary exists in P — namespace them."
+            },
+            {
+              "key": "surface",
+              "values": "profile_creation · settings",
+              "notes": "Which screen a consent was changed on, on consent_changed. profile_creation is the one-off ask inside the sign-up flow; settings is the same control revisited later. Required — a consent record without it cannot be read."
+            },
+            {
+              "key": "entry_point",
+              "values": "cold · push · sms · whatsapp · email · deeplink",
+              "notes": "Global property, reused as a payload key in B and D."
+            },
+            {
+              "key": "dismiss_method",
+              "values": "see §23 — close · backdrop · swipe · system_back",
+              "notes": "How a bottom sheet was closed. MOVED TO ITS OWN SECTION (§23) in 1.4.2 because it now has three users — prompt_editor_dismissed, prompt_topic_list_dismissed and media_prompt_list_dismissed — and they had drifted into three spellings of the same four acts. THE RENAME this section has asked for since v1.0: method already carries phone · apple · google for auth, and the two vocabularies must not share a key. system_back is Android only and is not the same act as the X (decision 32)."
+            },
+            {
+              "key": "stop_reason",
+              "values": "user_stop · max_length",
+              "notes": "On media_review_shown. Whether the user stopped the take or the 10s / 15s cap did. A cap that stops most takes is a cap that is too short."
+            },
+            {
+              "key": "from",
+              "values": "review · media_card",
+              "notes": "On media_retaken and media_deleted — which surface the act came from. review is a take not yet kept; media_card is an artefact already on the profile. Required on media_retaken: the two are different products and one number for both means neither (decision 32)."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e9",
+      "num": "9",
+      "name": "Still unowned",
+      "tables": [
+        {
+          "columns": [
+            "key",
+            "covers",
+            "owner",
+            "status"
+          ],
+          "rows": [
+            {
+              "key": "sheet_id",
+              "covers": "Every modal sheet in the kit",
+              "owner": "Design",
+              "status": "A sheet inventory exists in the kit; slug from the component names."
+            },
+            {
+              "key": "chip_id",
+              "covers": "Structured chat action chips",
+              "owner": "Product",
+              "status": "Family L is not built; blocked on the chat spec."
+            },
+            {
+              "key": "state_id",
+              "covers": "Empty states",
+              "owner": "Design",
+              "status": "One per zero-content view; enumerable from the kit today."
+            },
+            {
+              "key": "code",
+              "covers": "Error codes",
+              "owner": "Engineering",
+              "status": "Should mirror the API error contract, not be invented for analytics."
+            },
+            {
+              "key": "template_id",
+              "covers": "Notification templates",
+              "owner": "Engineering",
+              "status": "The backend has the templates; four service e-mails plus the check-in reminder."
+            },
+            {
+              "key": "sku",
+              "covers": "Billing products",
+              "owner": "Finance",
+              "status": "Blocked until pricing is set."
+            },
+            {
+              "key": "boost_id",
+              "covers": "Boost products",
+              "owner": "Finance",
+              "status": "Blocked with billing."
+            },
+            {
+              "key": "pose_id",
+              "covers": "Verification poses",
+              "owner": "Product",
+              "status": "Single pose today; enum exists for future multi-pose."
+            },
+            {
+              "key": "venue_type",
+              "covers": "Auto-scheduled venue categories",
+              "owner": "Product",
+              "status": "Referenced by date_auto_scheduled. The glossary flags venue and meeting area as open questions."
+            },
+            {
+              "key": "motivation",
+              "covers": "Check-in dating motivation",
+              "owner": "Design",
+              "status": "Derivable from the check-in screens now."
+            },
+            {
+              "key": "vibe",
+              "covers": "Check-in vibe tags",
+              "owner": "Design",
+              "status": "Three groups exist in the check-in kit — activities and two more."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e10",
+      "num": "10",
+      "name": "filter_id — who you want to meet",
+      "tables": [
+        {
+          "columns": [
+            "filter_id",
+            "values",
+            "class",
+            "notes"
+          ],
+          "rows": [
+            {
+              "filter_id": "meet_gender",
+              "values": "womanmannon_binaryother",
+              "class": "2",
+              "notes": "Multi-select over the same enum as the profile field — one vocabulary, no mapping table. The UI renders the plural (“Women”, “Men”) because the filter selects people; the stored value is identical. other is included so users who selected it are matchable rather than invisible."
+            },
+            {
+              "filter_id": "meet_orientation",
+              "values": "straightgaylesbianbisexualpansexualother",
+              "class": "2",
+              "notes": "Multi-select over the step-3 option set — the same enum, no mapping."
+            },
+            {
+              "filter_id": "age_range",
+              "values": "min_age + max_age, 18–99",
+              "class": "0",
+              "notes": "From the premium filter list."
+            },
+            {
+              "filter_id": "distance_km",
+              "values": "Integer, bucketed",
+              "class": "0",
+              "notes": "Pairs with radius_widened in Family I."
+            },
+            {
+              "filter_id": "dating_intent",
+              "values": "Per the check-in screens",
+              "class": "1",
+              "notes": "Listed in LockedFiltersUnderlay."
+            },
+            {
+              "filter_id": "height_range",
+              "values": "cm bands, as the registry",
+              "class": "0",
+              "notes": "Premium."
+            },
+            {
+              "filter_id": "lifestyle_habits",
+              "values": "Per habit_id",
+              "class": "2",
+              "notes": "Premium. Class 2 by inheritance from habits."
+            },
+            {
+              "filter_id": "showup_band",
+              "values": "trusted · steady · at_risk",
+              "class": "1",
+              "notes": "Premium. Not built — depends on the score."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e11",
+      "num": "11",
+      "name": "screen registry — screen_id + screen_name",
+      "note": "THE SCREEN DICTIONARY. Every screen gets a row here BEFORE its ticket is written, and both values come from this row — never typed at a call site. screen_id is the stable key: snake_case, assigned once, never edited and never re-used, so a rename never breaks a saved funnel. screen_name is the human label, in the ticket’s own words, and is what a person searches for in the analytics tool; it may be edited when the screen is renamed, and the id stays put. Decided 7 Sep 2026 (decision 27): the shipped labels are kept verbatim, casing included — nothing is renamed.",
+      "tables": [
+        {
+          "columns": [
+            "screen_id",
+            "screen_name",
+            "flow",
+            "ticket",
+            "status"
+          ],
+          "rows": [
+            {
+              "screen_id": "signup_create_account",
+              "screen_name": "Signup - CreateAccount",
+              "flow": "Welcome & sign-up",
+              "ticket": "SHOWUP-140",
+              "status": "label shipped · id to add"
+            },
+            {
+              "screen_id": "signup_welcome_back",
+              "screen_name": "Signup - welcomeback",
+              "flow": "Welcome & sign-up",
+              "ticket": "SHOWUP-142",
+              "status": "label shipped · id to add"
+            },
+            {
+              "screen_id": "signup_phone_number",
+              "screen_name": "Signup - Phonenumber",
+              "flow": "Welcome & sign-up",
+              "ticket": "SHOWUP-143",
+              "status": "label shipped · id to add"
+            },
+            {
+              "screen_id": "signup_code_entry",
+              "screen_name": "Signup - Codeentry",
+              "flow": "Welcome & sign-up",
+              "ticket": "SHOWUP-143",
+              "status": "label shipped · id to add"
+            },
+            {
+              "screen_id": "connect_sso",
+              "screen_name": "ConnectSSO",
+              "flow": "Welcome & sign-up",
+              "ticket": "SHOWUP-144",
+              "status": "label shipped · id to add"
+            },
+            {
+              "screen_id": "—",
+              "screen_name": "SSOLogin",
+              "flow": "Welcome & sign-up",
+              "ticket": "SHOWUP-145",
+              "status": "DELETE — duplicate declaration of Signup - welcomeback; unwired"
+            },
+            {
+              "screen_id": "tutorial_welcome",
+              "screen_name": "Tutorial 1 - Welcome",
+              "flow": "Tutorial",
+              "ticket": "SHOWUP-117",
+              "status": "no screen_viewed today — tutorial cards fire tutorial_card_viewed instead"
+            },
+            {
+              "screen_id": "tutorial_card",
+              "screen_name": "Tutorial 2-6 - <card_name>",
+              "flow": "Tutorial",
+              "ticket": "SHOWUP-135…139",
+              "status": "covered by tutorial_card_viewed { card, card_name } — see §14"
+            },
+            {
+              "screen_id": "profile_name",
+              "screen_name": "ProfileName",
+              "flow": "Profile creation · The basics",
+              "ticket": "Profile 01",
+              "status": "ticketed — not built"
+            },
+            {
+              "screen_id": "profile_email",
+              "screen_name": "ProfileEmail",
+              "flow": "Profile creation · The basics",
+              "ticket": "Profile 02",
+              "status": "ticketed — not built"
+            },
+            {
+              "screen_id": "profile_email_verification",
+              "screen_name": "ProfileEmailVerification",
+              "flow": "Profile creation · The basics",
+              "ticket": "Profile 03",
+              "status": "ticketed — not built"
+            },
+            {
+              "screen_id": "profile_dob",
+              "screen_name": "ProfileDoB",
+              "flow": "Profile creation · The basics",
+              "ticket": "Profile 04",
+              "status": "ticketed — not built"
+            },
+            {
+              "screen_id": "profile_embrace_build",
+              "screen_name": "ProfileEmbraceBuild",
+              "flow": "Profile creation · bridge",
+              "ticket": "Profile 05",
+              "status": "ticketed — not built"
+            },
+            {
+              "screen_id": "profile_embrace_details",
+              "screen_name": "ProfileEmbraceDetails",
+              "flow": "Profile creation · bridge",
+              "ticket": "TBD — sibling bridge, same shell",
+              "status": "registered — not ticketed"
+            },
+            {
+              "screen_id": "profile_prompts",
+              "screen_name": "ProfilePrompts",
+              "flow": "Profile creation · The real you",
+              "notes": "Step 2 of 3 of “The real you”. One screen_id for all eight states, including both bottom sheets — the sheets have no entry point of their own and are not separate screens. Added 13 Sep 2026 with the Profile 07 ticket, before the ticket was written."
+            },
+            {
+              "screen_id": "profile_photos",
+              "screen_name": "ProfilePhotos",
+              "flow": "Profile creation · The real you",
+              "ticket": "Profile 06",
+              "status": "ticketed — not built"
+            },
+            {
+              "screen_id": "profile_media",
+              "screen_name": "ProfileMedia",
+              "flow": "Profile creation · The real you",
+              "ticket": "Profile 08",
+              "status": "ticketed — not built",
+              "notes": "Step 3 of 3 of \"The real you\". ONE screen_id for all states — empty, video only, voice only, both — and for the prompt-list sheet over it, which has no entry point of its own. The recording and review screens are separate rows below because they are full-screen modes with their own lifecycle. Added 16 Sep 2026."
+            },
+            {
+              "screen_id": "profile_media_record",
+              "screen_name": "ProfileMediaRecord",
+              "flow": "Profile creation · The real you",
+              "ticket": "Profile 08",
+              "status": "ticketed — not built",
+              "notes": "The full-bleed capture screen. One row for video and voice; the medium is type on the events, not a second id."
+            },
+            {
+              "screen_id": "profile_media_review",
+              "screen_name": "ProfileMediaReview",
+              "flow": "Profile creation · The real you",
+              "ticket": "Profile 08",
+              "status": "ticketed — not built",
+              "notes": "The post-Stop review screen: play, retake, keep. One row for video and voice. Added 16 Sep 2026 with the review screens."
+            },
+            {
+              "screen_id": "profile_notifications",
+              "screen_name": "ProfileNotifications",
+              "flow": "Profile creation · permission ask",
+              "ticket": "Profile 09",
+              "status": "ticketed — not built",
+              "notes": "The notification permission ask, between media (08) and Stay reachable (10). ONE state and one screen_id. It sits OUTSIDE both progress bars and is not a step: §2 holds a notifications step_id for a future skip only, and no profile_step_* event fires here. The OS sheet it raises is not a screen and gets no row — it is measured by permission_os_sheet_shown / permission_result. Profile creation runs once on a fresh install, so the status here is always 'not determined' and the screen is shown; it is skipped only on Android <= 12 and as a guard when the status is already determined (restore-from-backup, or killed mid-sheet). screen_viewed here therefore always means the ask was really made. Added 21 Sep 2026, before the Profile 09 ticket was written."
+            }
+          ]
+        }
+      ],
+      "naming_rules": [
+        "screen_name: \"<Flow> - <Screen>\", the flow prefix taken from the epic and the screen in the words the ticket uses. Readable at a glance in a long analytics dropdown, and it sorts by flow.",
+        "screen_id: snake_case of the same words, prefixed by flow. Assigned once. If a screen is renamed, the label changes and the id does not.",
+        "One row per screen, not per state. A screen with ten states is one screen_id carrying a state property (see ConnectSSO).",
+        "A screen with no row has no ticket. If the row is missing, add it here first — that is the step that stops an event name being invented.",
+        "The two embrace bridges are TWO screens, not two states of one — they sit at different points in the flow and carry different copy. They share a shell and a variant value set (§16); they do not share a screen_id. Added 9 Sep 2026, before the Profile 05 ticket was written.",
+        "A bridge screen is a screen but NOT a step. profile_embrace_build has a row here and deliberately has no row in §2 — firing profile_step_viewed on it would put a phantom step in the completion funnel.",
+        "ProfilePhotos is step 1 of a DIFFERENT group (\"The real you\"), not a fifth step of \"The basics\". Its step_index is 1 within that group; §2 also records that photos sits outside the Share-some-details progress bar. Two progress bars, two vocabularies — do not renumber one against the other.",
+        "The photos screen's PERMISSION states have no events yet. A card-shown / mode / granted / refused / returned-from-settings set must be defined in events.json (with a closed access_status value set here) BEFORE the Profile 06 sprint — flagged 9 Sep 2026. Until then the screen's most likely drop-off point is invisible.",
+        "Profile 06 requests NO library permission (system picker on iOS and Android 13+), so the library access card is Android ≤ 12 only and there is no limited-access state at all. Any access_status value set defined later must cover the CAMERA (both platforms, always) and the old-Android library case — not an iOS library status, which we never read."
+      ]
+    },
+    {
+      "id": "e12",
+      "num": "12",
+      "name": "phone_validation_reason registry",
+      "note": "Adopted from the code, which asks libphonenumber rather than measuring length. The tickets named three reasons; only tooShort and notMobile overlapped, and \"unsupported country\" can never fire — there is no supported-country list and libphonenumber accepts every region.",
+      "values": [
+        "empty",
+        "notANumber",
+        "tooShort",
+        "tooLong",
+        "invalidLength",
+        "unrecognised",
+        "notMobile"
+      ]
+    },
+    {
+      "id": "e13",
+      "num": "13",
+      "name": "legal_link registry",
+      "note": "Seven links across three screens, one event. legal_notice is new — the screens show it and the spec had no value for it.",
+      "values": [
+        "terms",
+        "privacy",
+        "legal_notice"
+      ]
+    },
+    {
+      "id": "e14",
+      "num": "14",
+      "name": "tutorial card registry",
+      "note": "THE OFF-BY-ONE, WRITTEN DOWN. The code counts the Welcome screen as card 1, so every shipped card number is one higher than the Jira card it corresponds to. Decided 7 Sep 2026: the code numbering stands. Read this table before building any tutorial funnel.",
+      "tables": [
+        {
+          "columns": [
+            "card",
+            "card_name",
+            "jira_card",
+            "ticket"
+          ],
+          "rows": [
+            {
+              "card": "1",
+              "card_name": "welcome",
+              "jira_card": "— (Welcome screen)",
+              "ticket": "SHOWUP-117"
+            },
+            {
+              "card": "2",
+              "card_name": "meet_in_real_life",
+              "jira_card": "card 01",
+              "ticket": "SHOWUP-135"
+            },
+            {
+              "card": "3",
+              "card_name": "match_on_availability",
+              "jira_card": "card 02",
+              "ticket": "SHOWUP-136"
+            },
+            {
+              "card": "4",
+              "card_name": "match_means_meet",
+              "jira_card": "card 03",
+              "ticket": "SHOWUP-137"
+            },
+            {
+              "card": "5",
+              "card_name": "thirty_minutes",
+              "jira_card": "card 04",
+              "ticket": "SHOWUP-138"
+            },
+            {
+              "card": "6",
+              "card_name": "show_up_every_time",
+              "jira_card": "card 05",
+              "ticket": "SHOWUP-139"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e15",
+      "num": "15",
+      "name": "auth_method registry",
+      "note": "Four methods on the Welcome back screen. The spec listed three; facebook is the addition.",
+      "values": [
+        "phone",
+        "apple",
+        "google",
+        "facebook"
+      ]
+    },
+    {
+      "id": "e16",
+      "num": "16",
+      "name": "embrace_bridge variant registry",
+      "note": "The two values of embrace_bridge_viewed.variant. Two screens, one shell, two copy payloads — the same pattern as the tutorial cards. Added 9 Sep 2026 with the Profile 05 ticket so the value set has one home rather than being typed into each ticket. Map to §11: build_profile → profile_embrace_build · add_details → profile_embrace_details.",
+      "values": [
+        "build_profile",
+        "add_details"
+      ]
+    },
+    {
+      "id": "e17",
+      "num": "17",
+      "name": "prompt_topic_id registry",
+      "note": "THE TOPIC DICTIONARY, and the reason this section exists: the product question on the prompts screen is which topics people actually want to answer, and that can only be read if every topic has a stable id. STORE AND SEND THE ID, NEVER THE DISPLAY STRING — a copy edit to a topic must not orphan the prompts written under it or split it into two rows in the analytics tool. Carried by prompt_topic_selected, prompt_editor_opened, prompt_saved, prompt_editor_dismissed, prompt_char_limit_reached, prompt_example_dismissed and prompt_deleted. Group order and topic order are fixed and are what the browse sheet renders; three of the fifteen are the suggestion cards on the screen itself (suggested = yes) and that set is expected to change, and which list a topic was chosen from is deliberately not tracked (§18 retired in 1.4.5). Added 13 Sep 2026 with the Profile 07 ticket. Source of truth for the display strings: profile/screen-prompts-reference.jsx → TOPIC_GROUPS.",
+      "tables": [
+        {
+          "columns": [
+            "topic_id",
+            "topic_group",
+            "group_label",
+            "display",
+            "suggested"
+          ],
+          "rows": [
+            {
+              "topic_id": "first_date_usually",
+              "topic_group": "dating_me",
+              "group_label": "Dating me",
+              "display": "On a first date, I usually…",
+              "suggested": "yes"
+            },
+            {
+              "topic_id": "out_the_door",
+              "topic_group": "dating_me",
+              "group_label": "Dating me",
+              "display": "The easiest way to get me out the door is…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "ideal_30_min",
+              "topic_group": "dating_me",
+              "group_label": "Dating me",
+              "display": "My ideal 30-minute date looks like…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "cross_town_for",
+              "topic_group": "dating_me",
+              "group_label": "Dating me",
+              "display": "I'd cross town for…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "spontaneous_plan",
+              "topic_group": "dating_me",
+              "group_label": "Dating me",
+              "display": "A spontaneous plan with me usually involves…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "thirty_min_feels",
+              "topic_group": "real_life",
+              "group_label": "Me in real life",
+              "display": "What 30 minutes with me feels like…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "in_real_life_more",
+              "topic_group": "real_life",
+              "group_label": "Me in real life",
+              "display": "In real life, I'm way more…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "unsexy_truth",
+              "topic_group": "real_life",
+              "group_label": "Me in real life",
+              "display": "The unsexy truth about me is…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "sunday_energy",
+              "topic_group": "real_life",
+              "group_label": "Me in real life",
+              "display": "My default Sunday energy is…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "weird_habit",
+              "topic_group": "real_life",
+              "group_label": "Me in real life",
+              "display": "A weird or specific habit of mine…",
+              "suggested": "yes"
+            },
+            {
+              "topic_id": "talk_for_hours",
+              "topic_group": "opinions",
+              "group_label": "Opinions & obsessions",
+              "display": "I'll talk for hours about…",
+              "suggested": "yes"
+            },
+            {
+              "topic_id": "know_too_much",
+              "topic_group": "opinions",
+              "group_label": "Opinions & obsessions",
+              "display": "A random topic I know way too much about…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "hill_to_die_on",
+              "topic_group": "opinions",
+              "group_label": "Opinions & obsessions",
+              "display": "The hill I'm willing to die on…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "green_flag",
+              "topic_group": "opinions",
+              "group_label": "Opinions & obsessions",
+              "display": "A green flag that always catches my attention…",
+              "suggested": "—"
+            },
+            {
+              "topic_id": "hot_take",
+              "topic_group": "opinions",
+              "group_label": "Opinions & obsessions",
+              "display": "My hot take on…",
+              "suggested": "—"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e18",
+      "num": "18",
+      "name": "prompt entry_point — RETIRED",
+      "note": "RETIRED 25 Sep 2026 (registry 1.4.5). Do not send entry_point on any prompt_* event. Product decision: we measure which topics are chosen (topic_id, §17), not whether the tap came from a suggestion card or the browse sheet. Edit is carried by is_edit. The section number is kept so §19 onward are not renumbered and old citations resolve here. Was: suggestion | browse | edit.",
+      "values": [],
+      "retired": true
+    },
+    {
+      "id": "e19",
+      "num": "19",
+      "name": "prompt length_bucket",
+      "note": "Bucketed answer length on prompt_saved, and draft length on prompt_editor_dismissed (which adds \"0\" for an untouched field). NEVER SEND THE ANSWER TEXT — it is user-written free text about themselves, destined for a public profile, and it has no business in the analytics pipeline. The buckets exist to answer one question: did framing the field with a floor (“One good sentence is enough”) instead of a 0/160 ceiling move what people write. Boundaries are inclusive and tied to the 160 cap; if the cap changes, these change with it. Added 13 Sep 2026 with the Profile 07 ticket.",
+      "values": [
+        "0",
+        "1_40",
+        "41_80",
+        "81_120",
+        "121_160"
+      ]
+    },
+    {
+      "id": "e20",
+      "num": "20",
+      "name": "media_prompt_id registry",
+      "note": "THE MEDIA PROMPT DICTIONARY. Separate from prompt_topic_id (§17) and topic_id (§6) — those are the written prompts on the profile; these are the eleven things a person can say in ten or fifteen seconds. STORE AND SEND THE ID, NEVER THE DISPLAY STRING: the prompts are copy, they will be edited, and an edit must not orphan the clips recorded under them. Position is the order the list renders and is fixed; own_idea is always last and always carries is_own_prompt: true. The SAME eleven are offered for video and for voice — nothing in the id says which, so type is required on every event that carries one. preview_on marks the prompt shown on an empty card, per medium, which is the one the user sees before opening the list. Carried by media_prompt_selected, video_recording_started, voice_recording_started, video_prompt_recorded, voice_prompt_recorded, media_review_shown, media_retaken and media_deleted. Added 16 Sep 2026 with the Media screens pass. Source of truth for the display strings: ui_kits/show-up/screens-profile-media.jsx → MEDIA_PROMPTS + MEDIA_PROMPT_OWN. FROM 16 SEP 2026 THE CARD PREVIEW IS RANKED, NOT FIXED (decision 33): the prompt shown on each empty card is the most-completed prompt for that medium, published by the server, and the preview_on column below is only the cold-start fallback used until the sample is large enough. Position stays fixed — the LIST order does not move, only the preview does; a list that reorders itself makes a user who came back for row 7 hunt for it.",
+      "tables": [
+        {
+          "columns": [
+            "media_prompt_id",
+            "position",
+            "display",
+            "cold_start_preview"
+          ],
+          "rows": [
+            {
+              "media_prompt_id": "everyday_good_mood",
+              "position": "0",
+              "display": "The little everyday thing that instantly puts me in a good mood",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "ideal_sunny_morning",
+              "position": "1",
+              "display": "What my ideal sunny morning looks like",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "relaxing_sound",
+              "position": "2",
+              "display": "A sound that always makes me feel relaxed",
+              "cold_start_preview": "voice"
+            },
+            {
+              "media_prompt_id": "comfort_snack",
+              "position": "3",
+              "display": "My go-to comfort snack when having a good day",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "friends_three_words",
+              "position": "4",
+              "display": "How my friends would describe my energy in three words",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "best_weather",
+              "position": "5",
+              "display": "The kind of weather that brings out the best in me",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "song_makes_me_move",
+              "position": "6",
+              "display": "A song that always makes me want to move",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "relaxed_and_happy",
+              "position": "7",
+              "display": "What I usually look like when I'm relaxed and happy",
+              "cold_start_preview": "video"
+            },
+            {
+              "media_prompt_id": "simple_pleasure",
+              "position": "8",
+              "display": "The best simple pleasure in my daily routine",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "made_me_smile",
+              "position": "9",
+              "display": "Something cute or funny that made me smile this week",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "easy_30_outside",
+              "position": "10",
+              "display": "My favorite way to spend an easy 30 minutes outside",
+              "cold_start_preview": "—"
+            },
+            {
+              "media_prompt_id": "own_idea",
+              "position": "11",
+              "display": "Something else — my own idea",
+              "cold_start_preview": "—"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e21",
+      "num": "21",
+      "name": "media entry_point",
+      "note": "How the user reached the media prompt list, on media_prompt_list_opened. see_the_prompts is the CTA on an empty card — the intended first path. retake is the list reopened over something already recorded, from a filled card or after discarding a take. A closed set, never a free string, and never inferred from whether an artefact exists: has_existing already says that, and the two answer different questions (one is state, one is intent). Added 16 Sep 2026.",
+      "values": [
+        "see_the_prompts",
+        "retake"
+      ]
+    },
+    {
+      "id": "e22",
+      "num": "22",
+      "name": "preview_source",
+      "note": "On media_screen_viewed and media_prompt_ranking_published. ranked means the previewed prompt came from the completion ranking; fallback means the ranking had no publishable answer — under the minimum sample, a new market, or the job has not run — and the cold-start prompt in §20 was shown. Required, because \"the preview did nothing\" and \"the preview was never ranked\" are the same number without it. Added 16 Sep 2026.",
+      "values": [
+        "ranked",
+        "fallback"
+      ]
+    },
+    {
+      "id": "e23",
+      "num": "23",
+      "name": "sheet dismiss_method",
+      "note": "THE CANONICAL SHEET-CLOSE VOCABULARY, and the only one: every bottom sheet in the product reports its dismissal with these four values. Carried by prompt_editor_dismissed, prompt_topic_list_dismissed and media_prompt_list_dismissed, and by every sheet added after them. close is the X or a Cancel control; backdrop is a tap on the scrim; swipe is the drag-down gesture; system_back is the Android gesture or hardware key, which is NOT the same act as the X and must not be folded into it (decision 32). Created 16 Sep 2026 by unifying three drifted spellings of the same four acts — close|scrim|swipe|back on the prompts write sheet and cancel|backdrop|swipe|system_back on the media prompt list. Neither had shipped, so nothing in the warehouse needed migrating; a sheet-close value outside this set is a bug at the call site. Never use the key method for this (§8): method already means phone · apple · google.",
+      "values": [
+        "close",
+        "backdrop",
+        "swipe",
+        "system_back"
+      ]
+    },
+    {
+      "id": "e24",
+      "num": "24",
+      "name": "permission_status",
+      "note": "THE OS PERMISSION STATE, for every permission in §8's type set. Four values, one vocabulary across both platforms: not_determined (never asked — the only state in which our own sheet can be raised), granted, denied (includes 'permanently denied' — the distinction is the platform's rationale flag, which is a BEHAVIOUR branch, not a second value), restricted (parental controls / MDM; treated as denied everywhere in the product). Carried by permission_status_changed as from and to. NOT a consent: consent is §8 channel and lives on our server, this is the device's answer and is re-read on every foreground rather than remembered. limited is deliberately absent — it is a photo-library concept and stays on permission_result's own type. Android <= 12 notifications have no runtime permission at all and are reported as granted. Created 21 Sep 2026 with the Profile 09 ticket.",
+      "values": [
+        "not_determined",
+        "granted",
+        "denied",
+        "restricted"
+      ]
+    }
+  ],
+  "reconciled_with_code": "ShowUp app + server tracking catalogue, 7 September 2026",
+  "changed_in_1_4_0": [
+    "§20 media_prompt_id — NEW. The eleven media prompts plus the own-idea escape hatch, slugged from MEDIA_PROMPTS in the kit. Added 16 Sep 2026 with the Media screens pass.",
+    "§21 media entry_point — NEW. How the prompt list was reached: see_the_prompts or retake.",
+    "§8 — three rows added: dismiss_method (the rename §8 has asked for since v1.0, now with a real second user), stop_reason and from.",
+    "§11 — three screen rows added: profile_media, profile_media_record, profile_media_review."
+  ],
+  "changed_in_1_4_1": [
+    "§20 — preview_on reinterpreted: it is now the COLD-START fallback, not a fixed design choice. The live preview per medium is ranked from completions (decision 33).",
+    "§22 preview_source — NEW. ranked · fallback."
+  ]
+}

@@ -198,8 +198,11 @@ private struct TutorialFlow: View {
             state: prompts.state,
             onBack: { go(to: .profilePhotos) },
             onOpenTopics: { prompts.openTopics() },
-            onWriteTopic: { prompts.writeSuggestion($0, position: $1) },
-            onPickTopic: { prompts.pickTopic($0, position: $1) },
+            // THE SAME FUNCTION TWICE, and that is the point: a suggestion card and a row of
+            // the browse sheet are the same act now. Registry 1.4.5 retired the property that
+            // told them apart.
+            onWriteTopic: { prompts.chooseTopic($0) },
+            onPickTopic: { prompts.chooseTopic($0) },
             onEditPrompt: { prompts.editPrompt($0) },
             onDraftChange: { prompts.draftChanged($0) },
             onHideExample: { prompts.hideExample() },

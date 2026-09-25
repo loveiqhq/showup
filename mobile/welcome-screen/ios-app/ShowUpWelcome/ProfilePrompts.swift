@@ -72,17 +72,11 @@ enum PromptSheet: Equatable, Codable {
     /// rather than derived from whether the topic is already used — a user can open the topic
     /// sheet, pick a topic, and be editing nothing at all.
     ///
-    /// `entryPoint` is carried for the same reason `editing` is, and a sharper one: the registry
-    /// says `entry_point` is "never inferred from whether a sheet was open - pass it through from
-    /// the control that was tapped". Two of its three values have the sheet open, so there is
-    /// nothing to infer from. It rides on the sheet so that `prompt_saved` and
-    /// `prompt_editor_dismissed`, which happen later, still report the control that started this.
-    ///
-    /// NO DEFAULT, and not only because Swift forbids one on an enum case: a defaulted entry point
-    /// is a real 18 value that nobody chose, and the whole reason this property exists is that it
-    /// must come from the control that was tapped. A preview naming `.suggestion` is stating what
-    /// it is drawing; a default would be stating it by accident.
-    case write(topicId: String, editing: Bool, entryPoint: PromptEntryPoint)
+    /// IT IS THE ONLY THING THAT RIDES HERE NOW. The sheet used to carry `entryPoint` too, so
+    /// that `prompt_saved` and `prompt_editor_dismissed` - which happen later - could still report
+    /// the control that started the sheet. §18 is retired (registry 1.4.5), and what those two
+    /// events need from the beginning of the sheet is whether it was an edit.
+    case write(topicId: String, editing: Bool)
 }
 
 /// Everything the prompts screen renders.
@@ -320,7 +314,7 @@ struct UnscaledGlyph: View {
 /// between the first prompt and the second.
 private struct TopicPickerSheet: View {
     let used: [String]
-    let onPick: (String, Int) -> Void
+    let onPick: (String) -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -386,7 +380,7 @@ private struct TopicPickerSheet: View {
         // person scanning the list sees, and the group boundaries are already carried by
         // `topic_group`.
         let position = promptTopics.firstIndex { $0.id == topic.id } ?? 0
-        Button { if !isUsed { onPick(topic.id, position) } } label: {
+        Button { if !isUsed { onPick(topic.id) } } label: {
             HStack(spacing: Spacing.xl) {
                 Text(topic.text)
                     .font(F.manrope(14.5, .semibold))
@@ -669,9 +663,9 @@ struct ProfilePromptsView: View {
     var onBack: () -> Void = {}
     var onOpenTopics: () -> Void = {}
     /// A suggestion card. The Int is which card, from 0 - `position` in the registry.
-    var onWriteTopic: (String, Int) -> Void = { _, _ in }
+    var onWriteTopic: (String) -> Void = { _ in }
     /// A row of the browse sheet. The Int is the row's index across the whole sheet.
-    var onPickTopic: (String, Int) -> Void = { _, _ in }
+    var onPickTopic: (String) -> Void = { _ in }
     var onEditPrompt: (String) -> Void = { _ in }
     var onDraftChange: (String) -> Void = { _ in }
     var onHideExample: () -> Void = {}
@@ -735,7 +729,7 @@ struct ProfilePromptsView: View {
                                                      count: state.count == 0 ? 3 : 2)
                             .enumerated()), id: \.element.id) { position, topic in
                             SuggestionCard(topic: topic) {
-                                onWriteTopic(topic.id, position)
+                                onWriteTopic(topic.id)
                             }
                         }
                         BrowseAllButton(onTap: onOpenTopics)
@@ -769,7 +763,7 @@ struct ProfilePromptsView: View {
                                      onPick: onPickTopic,
                                      onClose: { onDismissSheet(.close) })
                 }
-            case .write(let topicId, _, _):
+            case .write(let topicId, _):
                 SheetScaffold(onDismiss: onDismissSheet) {
                     WritePromptSheet(
                         topicId: topicId,
@@ -838,31 +832,31 @@ private let fullDraft = cappedAnswer(
 }
 
 #Preview("E · write empty") {
-    ProfilePromptsView(state: PromptsState(sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion)))
+    ProfilePromptsView(state: PromptsState(sheet: .write(topicId: "first_date_usually", editing: false)))
 }
 
 #Preview("F · write mid") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+        sheet: .write(topicId: "first_date_usually", editing: false),
         drafts: ["first_date_usually": midDraft]))
 }
 
 #Preview("G · write at cap") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+        sheet: .write(topicId: "first_date_usually", editing: false),
         drafts: ["first_date_usually": fullDraft]))
 }
 
 #Preview("H · write nudge") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion), nudge: true))
+        sheet: .write(topicId: "first_date_usually", editing: false), nudge: true))
 }
 
 #Preview("toast · refused") { ProfilePromptsView(previewToast: true) }
 
 #Preview("I · save failed") {
     ProfilePromptsView(state: PromptsState(
-        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+        sheet: .write(topicId: "first_date_usually", editing: false),
         drafts: ["first_date_usually": midDraft],
         failed: true))
 }

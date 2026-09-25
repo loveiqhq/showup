@@ -41,13 +41,13 @@ class ProfileAnalyticsTest {
 
     @Test
     fun `the field registry version matches the bundle that defined the vocabulary`() {
-        // enums.json bumped 1.2.0 -> 1.3.0 when the identifiers were corrected, and 1.3.1 ->
-        // 1.4.2 on 16 September 2026, which unified `dismiss_method` across every bottom sheet,
-        // added the `prompts_below_minimum` rule, scoped `prompt_topic_selected` to suggestion and
-        // browse, and re-verified `prompts` at step_index 2. Stamping the old string would claim a
-        // vocabulary these payloads are not using -- and this test is the thing that noticed, which
-        // is exactly what it is for.
-        assertEquals("1.4.2", Stamp.FIELD_REGISTRY_VERSION)
+        // enums.json bumped 1.2.0 -> 1.3.0 when the identifiers were corrected, 1.3.1 -> 1.4.2
+        // on 16 September 2026, and 1.4.4 -> 1.4.5 on 25 September, which RETIRED §18 prompt
+        // `entry_point`, took `position` off every prompt event with it, and moved `is_edit` onto
+        // `prompt_editor_dismissed`. Stamping an older string would claim a vocabulary these
+        // payloads are not using -- and this test is the thing that noticed, twice, which is
+        // exactly what it is for.
+        assertEquals("1.4.5", Stamp.FIELD_REGISTRY_VERSION)
     }
 
     // ── consent_changed, unblocked by registry 1.3.0 ──────────────────────────
@@ -86,7 +86,7 @@ class ProfileAnalyticsTest {
     fun `consent is a class 1 attribute event`() {
         val (_, payload) = ProfileAnalytics.consentChanged(on = true)
         assertEquals(1, payload["sensitivity_class"])
-        assertEquals("1.4.2", payload["field_registry_version"])
+        assertEquals("1.4.5", payload["field_registry_version"])
     }
 
     // ── the rule the ticket calls a bug to break ──────────────────────────────

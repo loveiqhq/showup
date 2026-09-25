@@ -106,10 +106,10 @@ final class PromptsTrackingTests: XCTestCase {
     // MARK: selection_index
 
     func testSelectionIndexIs1BasedAndCountsAcrossTheWholeVisitToTheStep() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.dismissSheet(.close)
         model.openTopics()
-        model.pickTopic("hot_take", position: 14)
+        model.chooseTopic("hot_take")
 
         let selections = analytics.all("prompt_topic_selected")
         XCTAssertEqual(selections.count, 2)
@@ -121,7 +121,7 @@ final class PromptsTrackingTests: XCTestCase {
     }
 
     func testAnEditNeitherIncrementsSelectionIndexNorFiresASelection() async {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         await write("An answer.")
         analytics.clear()
 
@@ -130,45 +130,63 @@ final class PromptsTrackingTests: XCTestCase {
         XCTAssertEqual(analytics.count("prompt_topic_selected"), 0)
         XCTAssertEqual(analytics.count("prompt_editor_opened"), 1)
         XCTAssertEqual(analytics.only("prompt_editor_opened")["is_edit"] as? Bool, true)
-        XCTAssertEqual(string(analytics.only("prompt_editor_opened"), "entry_point"), "edit")
 
         model.dismissSheet(.close)
-        model.writeSuggestion("weird_habit", position: 0)
+        model.chooseTopic("weird_habit")
         XCTAssertEqual(int(analytics.only("prompt_topic_selected"), "selection_index"), 2)
     }
 
-    // MARK: entry_point
+    // MARK: where the tap came from is deliberately NOT recorded (registry 1.4.5)
 
-    func testEntryPointComesFromTheControlTappedNotFromWhetherASheetWasOpen() {
-        model.writeSuggestion("first_date_usually", position: 1)
-        XCTAssertEqual(string(analytics.only("prompt_topic_selected"), "entry_point"), "suggestion")
-        XCTAssertEqual(int(analytics.only("prompt_topic_selected"), "position"), 1)
-        XCTAssertEqual(string(analytics.only("prompt_topic_selected"), "topic_group"), "dating_me")
+    /// THE ACCEPTANCE CRITERION IS AN ABSENCE, so this is the shape that can hold it.
+    ///
+    /// "No `prompt_*` event carries `entry_point` or `position`." §18 was retired on 25 September
+    /// 2026 - "which topics are chosen matters, where they were chosen from does not" - and this
+    /// file used to assert the opposite twice, in tests named after the measurement the revision
+    /// was supposed to produce. Both are gone; one assertion that neither property comes back is
+    /// worth more than either of them was.
+    ///
+    /// Every prompt event, not just the two that carried it, because the next person to add one
+    /// will copy whichever builder is nearest.
+    func testNoPromptEventCarriesEntryPointOrPosition() async {
+        model.chooseTopic("first_date_usually")
+        await write("An answer.")
+        model.editPrompt("first_date_usually")
+        model.dismissSheet(.backdrop)
+        model.openTopics()
+        model.chooseTopic("hot_take")
+        model.dismissSheet(.close)
+
+        let prompts = analytics.events.filter { $0.0.hasPrefix("prompt") }
+        XCTAssertFalse(prompts.isEmpty, "no prompt_* events were produced at all")
+        for (name, payload) in prompts {
+            XCTAssertNil(payload["entry_point"], "\(name) still carries entry_point")
+            XCTAssertNil(payload["position"], "\(name) still carries position")
+        }
+    }
+
+    func testASuggestionCardAndABrowseRowProduceTheSameEvent() {
+        model.chooseTopic("first_date_usually")
+        let fromCard = analytics.only("prompt_topic_selected")
         analytics.clear()
 
         model.dismissSheet(.close)
         model.openTopics()
-        model.pickTopic("talk_for_hours", position: 10)
-        // The sheet was open in BOTH cases, which is exactly why it cannot be inferred.
-        XCTAssertEqual(string(analytics.only("prompt_topic_selected"), "entry_point"), "browse")
-        XCTAssertEqual(int(analytics.only("prompt_topic_selected"), "position"), 10)
-        XCTAssertEqual(string(analytics.only("prompt_topic_selected"), "topic_group"), "opinions")
-    }
+        model.chooseTopic("talk_for_hours")
+        let fromSheet = analytics.only("prompt_topic_selected")
 
-    func testTheEntryPointThatOpenedTheSheetIsTheOneTheSaveReports() async {
-        model.openTopics()
-        model.pickTopic("hot_take", position: 14)
-        await write("A hot take.")
-        // A save that started in the browse sheet stays separable from one that started at a card,
-        // which is the whole point of carrying it on the sheet rather than re-deriving it.
-        XCTAssertEqual(string(analytics.only("prompt_saved"), "entry_point"), "browse")
+        // Same keys, and the only differences are the topic and its group. Nothing about the
+        // control that was tapped survives into the payload.
+        XCTAssertEqual(Set(fromCard.keys), Set(fromSheet.keys))
+        XCTAssertEqual(string(fromCard, "topic_group"), "dating_me")
+        XCTAssertEqual(string(fromSheet, "topic_group"), "opinions")
     }
 
     // MARK: the browse sheet's funnel
 
     func testPickingATopicIsASelectionAndNeverAlsoADismissal() {
         model.openTopics()
-        model.pickTopic("hot_take", position: 14)
+        model.chooseTopic("hot_take")
         // opened = selected + dismissed. One act, one event.
         XCTAssertEqual(analytics.count("prompt_topic_list_opened"), 1)
         XCTAssertEqual(analytics.count("prompt_topic_selected"), 1)
@@ -210,7 +228,7 @@ final class PromptsTrackingTests: XCTestCase {
     // MARK: the write sheet's abandonment
 
     func testAbandoningTheWriteSheetReportsTheBucketAndNeverTheText() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.draftChanged("half a sentence about something real")
         model.dismissSheet(.backdrop)
 
@@ -218,13 +236,14 @@ final class PromptsTrackingTests: XCTestCase {
         XCTAssertEqual(payload["had_draft"] as? Bool, true)
         XCTAssertEqual(string(payload, "draft_length_bucket"), "1_40")
         XCTAssertEqual(string(payload, "dismiss_method"), "backdrop")
-        XCTAssertEqual(string(payload, "entry_point"), "suggestion")
+        // NEW IN 1.4.5, and the one fact `entry_point: "edit"` carried that nothing else did.
+        XCTAssertEqual(payload["is_edit"] as? Bool, false)
         let rendered = payload.values.map { "\($0)" }.joined(separator: " ")
         XCTAssertFalse(rendered.contains("something real"), "the draft leaked")
     }
 
     func testAnUntouchedSheetReportsNoDraft() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.dismissSheet(.close)
         let payload = analytics.only("prompt_editor_dismissed")
         // `had_draft` is what separates "changed their mind" from "could not finish".
@@ -233,7 +252,7 @@ final class PromptsTrackingTests: XCTestCase {
     }
 
     func testWhitespaceAloneIsNotADraft() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.draftChanged("   ")
         model.dismissSheet(.close)
         XCTAssertEqual(analytics.only("prompt_editor_dismissed")["had_draft"] as? Bool, false)
@@ -242,7 +261,7 @@ final class PromptsTrackingTests: XCTestCase {
     // MARK: saving
 
     func testASaveReportsTheBucketTheCountAfterItAndNeverTheAnswer() async {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         await write(String(repeating: "x", count: 95))
 
         let payload = analytics.only("prompt_saved")
@@ -254,7 +273,7 @@ final class PromptsTrackingTests: XCTestCase {
     }
 
     func testAnEditIsHonestAboutNotConsumingASlot() async {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         await write("First answer.")
         model.editPrompt("first_date_usually")
         await write("A better answer.")
@@ -269,16 +288,15 @@ final class PromptsTrackingTests: XCTestCase {
     }
 
     func testTheMinimumIsReportedOnceOnTheFirstSaveWithWhatGotThemThere() async {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         await write("An answer.")
 
         let met = analytics.only("prompts_minimum_met")
         XCTAssertEqual(int(met, "count"), 1)
         XCTAssertEqual(string(met, "topic_id"), "first_date_usually")
-        XCTAssertEqual(string(met, "entry_point"), "suggestion")
 
         model.openTopics()
-        model.pickTopic("hot_take", position: 14)
+        model.chooseTopic("hot_take")
         await write("Another.")
         // Once. The second save does not re-cross anything.
         XCTAssertEqual(analytics.count("prompts_minimum_met"), 1)
@@ -286,7 +304,7 @@ final class PromptsTrackingTests: XCTestCase {
 
     func testAFailedSaveReportsNothing() async {
         model = makeModel(fail: true)
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         await write("An answer.")
         // The server does not have it, so nothing may say it does.
         XCTAssertEqual(analytics.count("prompt_saved"), 0)
@@ -294,7 +312,7 @@ final class PromptsTrackingTests: XCTestCase {
     }
 
     func testAnEmptySaveNudgesAndRecordsNothing() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         analytics.clear()
         model.save()
         // State H is a nudge, not a validation failure. The one refusal this screen registers is
@@ -306,7 +324,7 @@ final class PromptsTrackingTests: XCTestCase {
     // MARK: the cap
 
     func testTheCapIsReportedOncePerEditorSessionNotPerKeystroke() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         for _ in 0..<3 { model.draftChanged(String(repeating: "x", count: promptMaxChars)) }
         XCTAssertEqual(analytics.count("prompt_char_limit_reached"), 1)
         XCTAssertEqual(string(analytics.only("prompt_char_limit_reached"), "topic_id"),
@@ -314,17 +332,17 @@ final class PromptsTrackingTests: XCTestCase {
     }
 
     func testReopeningASheetStartsANewEditorSessionForTheCap() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.draftChanged(String(repeating: "x", count: promptMaxChars))
         model.dismissSheet(.close)
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.draftChanged(String(repeating: "x", count: promptMaxChars))
         // Per SESSION, so twice — two sittings at the cap are two facts.
         XCTAssertEqual(analytics.count("prompt_char_limit_reached"), 2)
     }
 
     func testStoppingShortOfTheCapReportsNothing() {
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.draftChanged(String(repeating: "x", count: promptMaxChars - 1))
         XCTAssertEqual(analytics.count("prompt_char_limit_reached"), 0)
     }
@@ -332,7 +350,7 @@ final class PromptsTrackingTests: XCTestCase {
     // MARK: the example
 
     func testDismissingTheExampleNamesTheTopicItWasFor() {
-        model.writeSuggestion("weird_habit", position: 1)
+        model.chooseTopic("weird_habit")
         model.hideExample()
         XCTAssertEqual(string(analytics.only("prompt_example_dismissed"), "topic_id"),
                        "weird_habit")
@@ -377,10 +395,10 @@ final class PromptsTrackingTests: XCTestCase {
 
     func testContinueWithPromptsReportsTheTrueCountAndTheTimeOnTheStep() async {
         model.arrived()
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         await write("An answer.")
         model.openTopics()
-        model.pickTopic("hot_take", position: 14)
+        model.chooseTopic("hot_take")
         await write("Another.")
         clock += 42
         analytics.clear()
@@ -407,7 +425,7 @@ final class PromptsTrackingTests: XCTestCase {
     func testNoFamilyFNameIsEverEmitted() async {
         model.arrived()
         model.openTopics()
-        model.pickTopic("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.draftChanged("An answer that is long enough to be interesting.")
         model.hideExample()
         model.save()
@@ -433,11 +451,11 @@ final class PromptsTrackingTests: XCTestCase {
 
     func testEveryPayloadIsStampedWithTheRegistryTheValuesCameFrom() async {
         model.arrived()
-        model.writeSuggestion("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         await write("An answer.")
         XCTAssertFalse(analytics.events.isEmpty)
         for (name, payload) in analytics.events {
-            XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.2",
+            XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.5",
                            "\(name) was stamped with the wrong registry")
         }
     }
@@ -446,7 +464,7 @@ final class PromptsTrackingTests: XCTestCase {
         let secret = "the specific sentence a person wrote about themselves"
         model.arrived()
         model.openTopics()
-        model.pickTopic("first_date_usually", position: 0)
+        model.chooseTopic("first_date_usually")
         model.draftChanged(secret)
         model.save()
         await settle()
