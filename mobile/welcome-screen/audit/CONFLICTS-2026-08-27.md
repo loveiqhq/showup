@@ -665,14 +665,33 @@ Shipped as the reference draws it, on both platforms and from the same arithmeti
 reactivity would be inventing design, and it would make the thirty evidence screenshots
 unreproducible. If the design side wants a live level, it needs a frame.
 
-## E18 · The permission row still has no artboard. OPEN, as the ticket itself states
+## E18 · The permission row still has no artboard. CLOSED 25 September 2026 — accepted as built
 
 *"Ten states are drawn; the two permission modes are not."* Built to the ticket's own binding
 recommendation — the reserved status region above the card's CTA, the quiet lilac row, the violet
-lock glyph, a 30pt action pill — rather than inventing a third treatment. **Still needs one
-spec-sheet frame.**
+lock glyph, a 30pt action pill — rather than inventing a third treatment.
 
-## E19 · The build inventory has no playback pipeline, and three controls need one. RESOLVED IN CODE, needs a ticket line
+**Design's answer, 25 September 2026, now in SHOWUP-161's Open section:** *"The permission row is
+accepted as built — built to the recommendation above, reviewed in QA. No spec-sheet frame will be
+drawn unless QA finds a problem."*
+
+So there is nothing to draw and nothing to change. What it does move is who checks it: the row has
+no artboard to compare against, so QA is the only thing standing between it and a treatment nobody
+intended. It is worth saying out loud that this is the one part of screen 08 where "matches the
+design" cannot be asserted by anybody, here or in a review.
+
+## E19 · The build inventory has no playback pipeline, and three controls need one. CLOSED 25 September 2026 — approved as built
+
+**Design's answer, now in SHOWUP-161:** playback is approved exactly as built, and the two tracking
+questions it raised are settled the way this entry proposed — *"Replays of saved media are not
+tracked. The saved card's play control fires no event; `media_preview_played` is review-screen
+plays only, so its ratio to `media_review_shown` stays clean. **Do not add `media_artefact_played`.**"*
+
+That is the card firing nothing, which is what was built after the card was caught firing the
+review screen's event. `media_artefact_played` was this entry's own suggestion and it is refused on
+better grounds than it was offered: an event that would have made the review funnel's denominator
+ambiguous. Nothing to change; the paragraphs below are the record of how it got there.
+
 
 The inventory lists both capture pipelines -- *"video capture pipeline"*, *"audio capture pipeline"*
 -- and no playback pipeline. The acceptance criteria assume one exists:
@@ -821,6 +840,67 @@ instead of by two injected closures agreeing.
 **What ships meanwhile:** iOS recordings are long by roughly the same proportion Android's were.
 The cap still stops them, the artefact still uploads, and the duration written is the counted one.
 Nobody has reported it, because nobody has run the iOS app on a device at all.
+
+## E29 · The 1.4.5 note says the property was never implemented. It was. FOR THE TICKET
+
+SHOWUP-158's change note, 25 September 2026:
+
+> **Changed 25 Sep 2026 (taxonomy 1.4.4 / registry 1.4.5) — `entry_point` and `position` are
+> removed from every prompt event.** [...] **Nothing that is already built needs removing — the
+> property was never implemented.**
+
+**It was implemented, on both platforms.** Five builders carried `entry_point`
+(`prompt_topic_selected`, `prompt_editor_opened`, `prompt_editor_dismissed`, `prompt_saved`,
+`prompts_minimum_met`), `prompt_topic_selected` carried `position`, two enums existed to hold the
+values, and the write sheet carried the entry point through its whole life so that the save and
+the dismissal could report the control that opened it. There were four tests asserting it, two of
+them named after the measurement the revision was supposed to produce.
+
+None of it had shipped, so nothing in the warehouse is affected — which is presumably what the
+note meant. But "nothing needs removing" read literally would have left five events sending a
+retired property at a registry version that no longer defines it, and the acceptance criterion
+directly under it (*"No `prompt_*` event carries `entry_point` or `position`"*) would have failed.
+
+All of it is removed. Recorded so the next person reading that line does not trust it.
+
+**And one contradiction left inside the ticket.** Question 6 of *the seven questions this screen
+has to answer* still reads:
+
+> `prompt_editor_opened{entry_point:"edit", is_edit:true}` on the pencil
+
+which is the property the same ticket retires three paragraphs earlier and forbids in its own
+acceptance criteria. The criteria win and the build follows them: the pencil fires
+`prompt_editor_opened{is_edit: true}` and no entry point. Worth a copy edit before somebody
+implements question 6.
+
+## E30 · The backend and the apps now stamp different `field_registry_version`. LOW, but it is one number
+
+Committing the handoff put both registries in the repo for the first time, side by side:
+
+| | File | `registry_version` | Stamps |
+| --- | --- | --- | --- |
+| backend | `src/modules/analytics/registry/enums.json` | **1.1.0** | `FIELD_REGISTRY_VERSION = '1.1.0'` |
+| design | `design_handoff_showup/tracking/enums.json` | **1.4.5** | mobile stamps `"1.4.5"` |
+
+**The vocabularies agree.** §1 `field_id` holds the same nine ids on both sides, so nothing is
+misclassified and the backend's fail-closed-to-class-2 default is not being hit by a field it has
+never heard of. That is the part that would have mattered and it is fine.
+
+**What differs is the claim.** `field_registry_version` exists so a row carries the vocabulary it
+was collected under, and the same product is now emitting two different answers to that question
+depending on which half of it fired the event. The two files are also different SHAPES — the
+backend's is a flat map keyed by field with a `sensitivity_class`, the design one is a `sets` list
+— so they are not two copies of one artefact and a sync is not a file copy.
+
+Arguable that 1.1.0 is right for the backend: §1 has not changed since, and every bump from 1.3.0
+to 1.4.5 moved sections the backend does not stamp against. But the registry versions the document,
+not the section — its own note says "this versions the vocabulary, not the taxonomy document" — so
+two live values is a thing somebody will have to reconcile when the two event streams are joined.
+
+**Not fixed here.** The backend copy is drift-guarded by `sensitivity.spec.ts` and belongs to
+Epic 11; changing its stamp is a backend ticket with a test to satisfy, not a line in a mobile PR.
+Recorded because it became visible today and will be invisible again the moment nobody is looking
+at both files at once.
 
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 

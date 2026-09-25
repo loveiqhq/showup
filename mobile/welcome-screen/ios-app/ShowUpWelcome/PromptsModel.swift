@@ -131,20 +131,12 @@ final class PromptsModel {
         set(next)
     }
 
-    /// A suggestion card on the screen was tapped.
-    ///
-    /// - Parameter position: which card, from 0. The registry wants it so that "were these the
-    ///   right three" can be read per slot rather than only per topic.
-    func writeSuggestion(_ topicId: String, position: Int) {
-        chooseTopic(topicId, from: .suggestion, position: position)
-    }
-
-    /// A row of the browse sheet was tapped. `position` is the row's index within the sheet.
-    func pickTopic(_ topicId: String, position: Int) {
-        chooseTopic(topicId, from: .browse, position: position)
-    }
-
     /// Picking a topic REPLACES the topic sheet with the write sheet - the two never stack.
+    ///
+    /// ONE FUNCTION FOR BOTH CONTROLS since registry 1.4.5. A suggestion card and a row of the
+    /// browse sheet used to be `writeSuggestion` and `pickTopic`, separate only so that each
+    /// could report its own `entry_point`. §18 is retired, so they are the same act and two
+    /// functions that do the same thing would be an invitation to make them differ again.
     ///
     /// ONE SELECTION, NOT A DISMISSAL PLUS A SELECTION. The registry says so in as many words, and
     /// it is why this does not route through `dismissSheet`: the browse sheet resolving into the
@@ -152,19 +144,18 @@ final class PromptsModel {
     /// `prompt_topic_list_opened = selected + dismissed` stop adding up.
     ///
     /// The example resets too - it is per sheet rather than per session.
-    private func chooseTopic(_ topicId: String, from: TopicEntryPoint, position: Int) {
+    func chooseTopic(_ topicId: String) {
         let selections = state.topicSelections + 1
         analytics?.report(ProfileAnalytics.promptTopicSelected(
-            topicId: topicId, entryPoint: from, position: position,
+            topicId: topicId,
             // 1-based, and counted across the whole visit to the step.
             selectionIndex: selections))
         let editing = state.usedTopicIds.contains(topicId)
         analytics?.report(ProfileAnalytics.promptEditorOpened(
-            topicId: topicId, entryPoint: from.entryPoint, isEdit: editing,
-            promptCount: state.count))
+            topicId: topicId, isEdit: editing, promptCount: state.count))
 
         var next = state
-        next.sheet = .write(topicId: topicId, editing: editing, entryPoint: from.entryPoint)
+        next.sheet = .write(topicId: topicId, editing: editing)
         next.nudge = false
         next.exampleHiddenFor = nil
         next.sheetOpenedAt = now()
@@ -178,15 +169,15 @@ final class PromptsModel {
     ///
     /// NO `prompt_topic_selected` HERE, and that is the registry change of 16 September 2026: an
     /// edit is not a fresh choice of topic, and firing it inflated the topic-demand chart with
-    /// re-edits of prompts already written. `promptTopicSelected` could not accept this entry
-    /// point even if it were called - `TopicEntryPoint` has no `edit` case.
+    /// re-edits of prompts already written. The type that used to enforce it is gone - §18 was
+    /// retired in registry 1.4.5 - so what keeps it true is this function not calling it.
     ///
     /// It does not raise `topicSelections` either, for the same reason.
     func editPrompt(_ topicId: String) {
         analytics?.report(ProfileAnalytics.promptEditorOpened(
-            topicId: topicId, entryPoint: .edit, isEdit: true, promptCount: state.count))
+            topicId: topicId, isEdit: true, promptCount: state.count))
         var next = state
-        next.sheet = .write(topicId: topicId, editing: true, entryPoint: .edit)
+        next.sheet = .write(topicId: topicId, editing: true)
         next.drafts[topicId] = state.prompts.first { $0.topicId == topicId }?.answer ?? ""
         next.nudge = false
         next.exampleHiddenFor = nil
@@ -196,7 +187,7 @@ final class PromptsModel {
     }
 
     func draftChanged(_ text: String) {
-        guard case .write(let topicId, _, _) = state.sheet else { return }
+        guard case .write(let topicId, _) = state.sheet else { return }
         // ONCE PER EDITOR SESSION. Every keystroke at the cap is the same fact, and 160 rows
         // saying it is not 160 times the information.
         let report = text.count >= promptMaxChars && state.charLimitReportedFor != topicId
@@ -211,7 +202,7 @@ final class PromptsModel {
     }
 
     func hideExample() {
-        guard case .write(let topicId, _, _) = state.sheet else { return }
+        guard case .write(let topicId, _) = state.sheet else { return }
         analytics?.report(ProfileAnalytics.promptExampleDismissed(topicId: topicId))
         var next = state
         next.exampleHiddenFor = topicId
@@ -228,9 +219,11 @@ final class PromptsModel {
             analytics?.report(ProfileAnalytics.promptTopicListDismissed(
                 method: method, usedCount: state.count,
                 timeOnSheetSeconds: secondsSince(state.sheetOpenedAt)))
-        case .write(let topicId, _, let entryPoint):
+        case .write(let topicId, let editing):
             analytics?.report(ProfileAnalytics.promptEditorDismissed(
-                topicId: topicId, entryPoint: entryPoint,
+                // NEW IN 1.4.5, and the reason retiring §18 cost this event nothing: giving up on
+                // a rewrite is not the same as giving up on a blank one.
+                topicId: topicId, isEdit: editing,
                 // The LENGTH, never the draft. The bucket is computed inside the builder.
                 draftLength: state.draftFor(topicId)
                     .trimmingCharacters(in: .whitespacesAndNewlines).count,
@@ -287,7 +280,7 @@ final class PromptsModel {
     /// back to the text they wrote — so the draft is only cleared once the server has it, and a
     /// failure leaves the sheet exactly as it was.
     func save() {
-        guard case .write(let topicId, let editing, let entryPoint) = state.sheet else { return }
+        guard case .write(let topicId, let editing) = state.sheet else { return }
         let answer = state.draftFor(topicId)
         if promptAnswerIsEmpty(answer) {
             // SAVE IS NEVER DISABLED. An empty press explains.
@@ -321,17 +314,16 @@ final class PromptsModel {
                     next.prompts.append(prompt)
                 }
                 self.analytics?.report(ProfileAnalytics.promptSaved(
-                    topicId: topicId, entryPoint: entryPoint,
+                    topicId: topicId,
                     // An edit does not consume a slot, and `is_edit` has to be honest about that:
                     // `prompt_count` is the count AFTER the action either way.
                     isEdit: editing, answerLength: prompt.answer.count,
                     promptCount: next.prompts.count))
-                // ONCE, on the FIRST save, carrying the topic and entry point that got the user
-                // there - the registry calls that pairing the most useful row here.
+                // ONCE, on the FIRST save, carrying the topic that got the user there.
                 let crossed = !next.minimumReported && next.prompts.count >= promptsRequired
                 if crossed {
                     self.analytics?.report(ProfileAnalytics.promptsMinimumMet(
-                        count: next.prompts.count, topicId: topicId, entryPoint: entryPoint))
+                        count: next.prompts.count, topicId: topicId))
                     next.minimumReported = true
                 }
                 next.sheet = nil

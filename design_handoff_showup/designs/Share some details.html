@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Profile · share some details</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none; background: none; padding: 0;
+    cursor: pointer; color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 28px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.step1 { background: #FE6839; box-shadow: 0 0 0 3px rgba(254,104,57,0.18); }
+  .frame-label .pip.step2 { background: #E8579B; box-shadow: 0 0 0 3px rgba(232,87,155,0.18); }
+  .frame-label .pip.step3 { background: #C548CF; box-shadow: 0 0 0 3px rgba(197,72,207,0.18); }
+  .frame-label .pip.step4 { background: #A78BFA; box-shadow: 0 0 0 3px rgba(167,139,250,0.22); }
+  .frame-label .pip.step5 { background: #812AEC; box-shadow: 0 0 0 3px rgba(129,42,236,0.18); }
+  .frame-label .pip.step6 { background: #6A1FBF; box-shadow: 0 0 0 3px rgba(106,31,191,0.20); }
+  .frame-label .pip.step7 { background: #4B1493; box-shadow: 0 0 0 3px rgba(75,20,147,0.22); }
+
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app { border-radius: 38px; overflow: hidden; }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 24px;
+    max-width: 760px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Shared primitives + the screens we lean on for FloatingField etc. -->
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile-embrace2.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile-details.jsx"></script>
+
+<script type="text/babel">
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          03 · Profile creation · Share some details
+        </span>
+        <h1>Seven <em style={{ fontWeight: 500 }}>optional</em> matching details.</h1>
+        <p>
+          Sits behind <strong>Embrace 2 · Add profile details</strong>. A 7-step
+          SQPS sub-flow — one question per screen — that captures the soft
+          matching attributes (height, gender, orientation, dating language,
+          education, religion, politics). Same chrome the rest of the kit uses;
+          the brand voice rules adapted to a sub-flow that has to feel calm
+          and quickly skippable.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="01 Height">
+          <div className="frame-label"><span className="pip step1"></span>Step 1 · Height</div>
+          <div className="frame-shell"><ScreenProfileHeight initialValue="175"/></div>
+          <div className="caption">
+            <strong>Numeric cm input.</strong> Reuses the kit's
+            FloatingField primitive so the input matches every other
+            SQPS field (Name, Email). The <em>"Be honest"</em> nudge sits
+            inside the answer block — it's specific to a self-reported
+            number, not a per-screen helper.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="02 Gender">
+          <div className="frame-label"><span className="pip step2"></span>Step 2 · Gender</div>
+          <div className="frame-shell"><ScreenProfileGender initialValue="Non-binary"/></div>
+          <div className="caption">
+            <strong>Single-select OptionRow list.</strong> Selected row
+            picks up the faint lavender wash + filled violet dot. The
+            list is borderless save for hairline dividers — reads as a
+            list, not a stack of cards.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="03 Orientation">
+          <div className="frame-label"><span className="pip step3"></span>Step 3 · Orientation</div>
+          <div className="frame-shell"><ScreenProfileOrientation initialValue="Bisexual"/></div>
+          <div className="caption">
+            <strong>Same primitive, five options.</strong> Italic on
+            "orientation" — the editorial flourish carries the brand
+            voice even on a transactional screen.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="04 Dating language">
+          <div className="frame-label"><span className="pip step4"></span>Step 4 · Dating language</div>
+          <div className="frame-shell"><ScreenProfileLanguages initialValues={['German','English','Spanish']}/></div>
+          <div className="caption">
+            <strong>Multi-select.</strong> Subhelper switches to
+            "Select all that apply"; indicator becomes a checkbox.
+            "Skip for now" appears in the footer — this is the first
+            screen where the answer is genuinely optional.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="05 Education">
+          <div className="frame-label"><span className="pip step5"></span>Step 5 · Education</div>
+          <div className="frame-shell"><ScreenProfileEducation initialValue="University degree"/></div>
+          <div className="caption">
+            <strong>Same single-select primitive</strong> as gender +
+            orientation; "Skip for now" carries through from the
+            language screen because education is the most optional
+            matching attribute.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="06 Religious beliefs">
+          <div className="frame-label"><span className="pip step6"></span>Step 6 · Religious beliefs</div>
+          <div className="frame-shell"><ScreenProfileReligion initialValue="Buddhist"/></div>
+          <div className="caption">
+            <strong>Eight-row single-select.</strong> Compact 12px row
+            padding (same as the language screen) so all eight options
+            plus the privacy toggle clear the canvas without scroll.
+            "Skip for now" carries — beliefs are inherently optional.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="07 Political beliefs">
+          <div className="frame-label"><span className="pip step7"></span>Step 7 · Political beliefs</div>
+          <div className="frame-shell"><ScreenProfilePolitics initialValue="Middle"/></div>
+          <div className="caption">
+            <strong>Mirror of the religion screen.</strong> Ordering
+            preserved from the reference — a rough left→right spectrum
+            with Libertarian + Apolitical as the off-axis tail. Same
+            radio primitive, same compact row, same footer.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>How this sub-flow fits the system</h3>
+        <ul>
+          <li>
+            <strong>Shared scaffold.</strong> A new <code>DetailsScaffold</code>
+            wraps the status bar, "Share some details" header,
+            <code>StepProgress</code> (10 segments — five reserved for
+            later background-detail steps), italic-flourish Lora headline
+            and Manrope subhelper, so every screen in this sub-flow is
+            visually identical above the answer block.
+          </li>
+          <li>
+            <strong>Italic flourish per screen.</strong>
+            <em>tall · you · orientation · language · education</em> — one
+            italicized word per headline per the brand rule. The
+            sub-orange wash from <code>.su-underlined em</code> carries
+            through unchanged.
+          </li>
+          <li>
+            <strong>OptionRow primitive.</strong> A single component
+            handles both radio (gender, orientation, education) and
+            checkbox (language) selection — same row geometry, same
+            tap target, same selected wash. Lives in this file because
+            it's only used by this sub-flow for now; promote to
+            <code>shared.jsx</code> if a second flow picks it up.
+          </li>
+          <li>
+            <strong>Privacy toggle, not opt-out.</strong> "Don't show on my
+            profile" is structurally similar to the email screen's
+            marketing opt-out but the semantics differ: you still
+            <em>answer</em> the question (we use it for matching) — you
+            just hide it from the public profile. New
+            <code>PrivacyToggle</code> component to keep the copy short
+            and the row visually low-key.
+          </li>
+          <li>
+            <strong>Skip on later screens only.</strong> Per the
+            reference, the first three screens (height, gender,
+            orientation) have just a primary <em>Continue</em> — the
+            data is core to matching. Language and education add
+            <em>Skip for now</em> on the footer because they're optional
+            attributes, not matching constraints.
+          </li>
+          <li>
+            <strong>No emoji.</strong> The reference wireframe has a
+            smiley inside the height field; per brand rule
+            (<em>no emoji, anywhere</em>) it doesn't carry over. The
+            success state already gives the field a green tick — that's
+            the affirmation glyph the system uses.
+          </li>
+          <li>
+            <strong>Two new belief screens.</strong> Religion and
+            politics extend the sub-flow to seven steps (out of ten
+            reserved). Both reuse <code>DetailsScaffold</code>,
+            <code>PrivacyToggle</code> and a compact 12px-padding
+            variant of the radio row (<code>OptionRowCompact</code>)
+            so an eight-option list fits the canvas without scroll —
+            the same approach the language screen already pioneered.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

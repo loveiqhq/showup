@@ -237,16 +237,15 @@ sealed interface PromptSheet {
      * topic sheet, pick a topic, and be editing nothing at all.
      *
      * [entryPoint] is carried for the same reason and a sharper one: the registry says
-     * `entry_point` is "never inferred from whether a sheet was open — pass it through from the
-     * control that was tapped". Two of its three values have the sheet open, so there is nothing
-     * to infer from. It rides on the sheet so that `prompt_saved` and `prompt_editor_dismissed`,
-     * which happen later, still report the control that started this.
+     * [editing] IS THE ONLY THING THAT RIDES HERE NOW. The sheet used to carry `entry_point`
+     * too, so that `prompt_saved` and `prompt_editor_dismissed` -- which happen later -- could
+     * still report the control that started the sheet. §18 is retired (registry 1.4.5), and what
+     * those two events need from the beginning of the sheet is whether it was an edit.
      */
     @Serializable
     data class Write(
         val topicId: String,
         val editing: Boolean = false,
-        val entryPoint: PromptEntryPoint = PromptEntryPoint.Suggestion,
     ) : PromptSheet
 }
 
@@ -560,7 +559,7 @@ private fun FilledPromptCard(prompt: SavedPrompt, onEdit: () -> Unit) {
 @Composable
 private fun TopicPickerSheet(
     used: List<String>,
-    onPick: (topicId: String, position: Int) -> Unit,
+    onPick: (topicId: String) -> Unit,
     onClose: () -> Unit,
 ) {
     Column(
@@ -632,7 +631,7 @@ private fun TopicPickerSheet(
                                     Modifier
                                 } else {
                                     Modifier.clickable(role = Role.Button) {
-                                        onPick(topic.id, position)
+                                        onPick(topic.id)
                                     }
                                 },
                             )
@@ -989,9 +988,9 @@ fun ProfilePromptsScreen(
     onBack: () -> Unit = {},
     onOpenTopics: () -> Unit = {},
     /** A suggestion card. The Int is which card, from 0 -- `position` in the registry. */
-    onWriteTopic: (topicId: String, position: Int) -> Unit = { _, _ -> },
+    onWriteTopic: (topicId: String) -> Unit = {},
     /** A row of the browse sheet. The Int is the row's index across the whole sheet. */
-    onPickTopic: (topicId: String, position: Int) -> Unit = { _, _ -> },
+    onPickTopic: (topicId: String) -> Unit = {},
     onEditPrompt: (String) -> Unit = {},
     onDraftChange: (String) -> Unit = {},
     onHideExample: () -> Unit = {},
@@ -1098,8 +1097,8 @@ fun ProfilePromptsScreen(
                     suggestionsFor(
                         used = state.usedTopicIds,
                         count = if (state.count == 0) 3 else 2,
-                    ).forEachIndexed { position, topic ->
-                        SuggestionCard(topic) { onWriteTopic(topic.id, position) }
+                    ).forEach { topic ->
+                        SuggestionCard(topic) { onWriteTopic(topic.id) }
                     }
                     BrowseAllButton(onOpenTopics)
                 }

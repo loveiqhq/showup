@@ -221,14 +221,13 @@ class PromptTopicsTest {
         val payloads = listOf(
             ProfileAnalytics.promptSaved(
                 topicId = "first_date_usually",
-                entryPoint = PromptEntryPoint.Suggestion,
                 isEdit = false,
                 answerLength = answer.length,
                 promptCount = 1,
             ).second,
             ProfileAnalytics.promptEditorDismissed(
                 topicId = "first_date_usually",
-                entryPoint = PromptEntryPoint.Browse,
+                isEdit = false,
                 draftLength = answer.length,
                 method = SheetDismissMethod.Backdrop,
             ).second,

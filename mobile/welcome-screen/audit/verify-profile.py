@@ -498,8 +498,12 @@ check("158 example is not the placeholder (swift)",
 for label, text in (("kotlin", analytics_kt), ("swift", analytics_sw)):
     # THE PAYLOAD STAMP. A payload stamped with a version its values did not come from is worse
     # than an unstamped one, because it looks checked.
-    check("158 registry stamp is 1.4.2 (%s)" % label, '"1.4.2"' in text)
-    check("158 no stale registry stamp (%s)" % label, '"1.3.0"' not in text)
+    check("158 registry stamp is 1.4.5 (%s)" % label, 'FIELD_REGISTRY_VERSION = "1.4.5"' in text
+          or 'fieldRegistryVersion = "1.4.5"' in text)
+    check("158 no stale registry stamp (%s)" % label,
+          'FIELD_REGISTRY_VERSION = "1.4.2"' not in text
+          and 'fieldRegistryVersion = "1.4.2"' not in text
+          and '"1.3.0"' not in text)
 
     # FAMILY E, NOT FAMILY F. The four v1.0 names are marked SUPERSEDED -- DO NOT FIRE in
     # events.json, emptied of their payloads so the name resolves to the notice. Nothing on this
@@ -519,11 +523,22 @@ for label, text in (("kotlin", analytics_kt), ("swift", analytics_sw)):
         check("158 dismiss_method %s (%s)" % (value, label), '"%s"' % value in text)
     check("158 no pre-1.4.2 scrim (%s)" % label, '"scrim"' not in text)
 
-    # 18, and the rule that arrived with 1.4.1: `prompt_topic_selected` is scoped to suggestion
-    # and browse. Enforced as a TYPE with no edit case, because prose is not enforcement.
-    check("158 entry_point set (%s)" % label,
-          '"suggestion"' in text and '"browse"' in text and '"edit"' in text)
-    check("158 topic selection cannot carry an edit (%s)" % label, "TopicEntryPoint" in text)
+    # 18 IS RETIRED (registry 1.4.5, 25 September 2026): "which topics are chosen matters, where
+    # they were chosen from does not." This file used to assert the value set and the type that
+    # enforced it; both are gone, and what is worth holding is that neither comes back.
+    #
+    # The values are checked as STRINGS rather than as a type, because the failure to guard
+    # against is somebody re-adding `put("entry_point", "suggestion")` by hand after the enums
+    # that would have made it a compile error no longer exist.
+    _code = code_only(text)
+    check("158 no retired entry_point type (%s)" % label,
+          "TopicEntryPoint" not in _code and "PromptEntryPoint" not in _code)
+    for _retired in ('"suggestion"', '"browse"'):
+        check("158 no 18 value %s (%s)" % (_retired, label), _retired not in _code)
+
+    # `is_edit` is what 1.4.5 kept when it retired the rest, and the NEW property on the
+    # abandonment event -- the one job `entry_point: "edit"` was doing that nothing else carried.
+    check("158 is_edit survives 18 (%s)" % label, '"is_edit"' in text)
 
     # 8. `prompts_below_minimum` is the sibling of `photos_below_minimum`; `nothing_selected`
     # belongs to a chooser where nothing was ticked, not a screen where nothing was written.

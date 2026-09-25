@@ -342,11 +342,11 @@ final class PromptTopicsTests: XCTestCase {
         // that could carry the text even if a caller wanted it to. This asserts the outcome.
         let answer = "Talk about anything real, not the safe thing."
         let payloads = [
-            ProfileAnalytics.promptSaved(topicId: "first_date_usually", entryPoint: .suggestion,
+            ProfileAnalytics.promptSaved(topicId: "first_date_usually",
                                          isEdit: false, answerLength: answer.count,
                                          promptCount: 1).1,
             ProfileAnalytics.promptEditorDismissed(topicId: "first_date_usually",
-                                                   entryPoint: .browse,
+                                                   isEdit: false,
                                                    draftLength: answer.count,
                                                    method: .backdrop).1,
         ]
@@ -362,11 +362,11 @@ final class PromptTopicsTests: XCTestCase {
     // MARK: the state the screen is a function of
 
     func testADraftBelongsToATopicSoDismissingAndReopeningRestoresIt() {
-        var state = PromptsState(sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+        var state = PromptsState(sheet: .write(topicId: "first_date_usually", editing: false),
                                  drafts: ["first_date_usually": "half a sentence"])
         state.sheet = nil
         XCTAssertEqual(state.draftFor("first_date_usually"), "half a sentence")
-        state.sheet = .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion)
+        state.sheet = .write(topicId: "first_date_usually", editing: false)
         XCTAssertEqual(state.draftFor("first_date_usually"), "half a sentence")
         // And a different topic starts empty.
         XCTAssertEqual(state.draftFor("hot_take"), "")
@@ -381,7 +381,7 @@ final class PromptTopicsTests: XCTestCase {
     func testTheSavedStateSurvivesARoundTripThroughItsEncoding() {
         let state = PromptsState(
             prompts: [SavedPrompt(topicId: "first_date_usually", answer: "an answer")],
-            sheet: .write(topicId: "hot_take", editing: true, entryPoint: .edit),
+            sheet: .write(topicId: "hot_take", editing: true),
             drafts: ["hot_take": "half written"],
             nudge: true,
             exampleHiddenFor: "hot_take")

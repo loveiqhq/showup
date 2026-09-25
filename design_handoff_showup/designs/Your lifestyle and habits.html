@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Profile · Your lifestyle and habits</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none; background: none; padding: 0;
+    cursor: pointer; color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 28px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; background: #812AEC; box-shadow: 0 0 0 3px rgba(129,42,236,0.18); }
+
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app { border-radius: 38px; overflow: hidden; }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 8px;
+    max-width: 760px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+  .notes li code {
+    font-family: var(--liq-font-mono); font-size: 12.5px;
+    background: rgba(129,42,236,0.08); color: var(--liq-primary-500);
+    padding: 1px 5px; border-radius: 4px;
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile-details.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile-habits.jsx"></script>
+
+<script type="text/babel">
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          03 · Profile creation · Lifestyle and habits
+        </span>
+        <h1>Four <em style={{ fontWeight: 500 }}>parallel</em> categoricals, one canvas.</h1>
+        <p>
+          Final step of <strong>Share some details</strong>. Four
+          substance-use questions sharing the same Yes / No / Occasionally
+          answer shape, collapsed onto a single canvas. One radio chip-row
+          per question — sentence-case labels, kit's primary-violet on
+          select, tap-again-to-clear. Skip-for-now is always available
+          because the whole screen is optional matching signal.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="09 Habits — empty">
+          <div className="frame-label"><span className="pip"></span>Empty state</div>
+          <div className="frame-shell">
+            <ScreenProfileHabits initialValues={{}}/>
+          </div>
+          <div className="caption">
+            <strong>Empty state.</strong> Continue dims to 42% +
+            desaturates until any answer lands. Skip-for-now is the
+            primary affordance until then — matches the Life and the
+            Religion/Politics steps.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="09 Habits — partial">
+          <div className="frame-label"><span className="pip"></span>Two answered</div>
+          <div className="frame-shell">
+            <ScreenProfileHabits initialValues={{ alcohol: 'Occasionally', smoke: 'No' }}/>
+          </div>
+          <div className="caption">
+            <strong>Partial answers.</strong> Continue lights up as
+            soon as any single category has a selection — we don't
+            gate on four-of-four because every category is genuinely
+            optional matching signal.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="09 Habits — all">
+          <div className="frame-label"><span className="pip"></span>All answered</div>
+          <div className="frame-shell">
+            <ScreenProfileHabits initialValues={{
+              alcohol: 'Occasionally',
+              smoke: 'No',
+              cannabis: 'Occasionally',
+              drugs: 'No',
+            }} initialPrivate={true}/>
+          </div>
+          <div className="caption">
+            <strong>All four answered, privacy on.</strong> Selected
+            chips fill with primary-violet + bold weight. The privacy
+            toggle keeps the answers in the matching engine but hides
+            them from the public profile.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>Design choices worth flagging</h3>
+        <ul>
+          <li>
+            <strong>Chip-row, not OptionRow.</strong> Every other
+            single-select screen in this sub-flow (gender,
+            orientation, education, religion, politics) uses the
+            stacked OptionRow primitive. We deviate here because the
+            answer shape is identical across all four categories
+            (<em>Yes / No / Occasionally</em>) and the labels are
+            short — a stack of 12 full-width rows would burn the
+            canvas and read as bureaucratic. Compact chips repeat
+            visually, but the question changes, so the rhythm reads
+            as a single composite question.
+          </li>
+          <li>
+            <strong>Same chip geometry as the Life step.</strong>
+            38px tall, 18px horizontal padding, 12px corner radius —
+            slightly more generous than the 34px Life pill because
+            this is a denser stack of four questions and we want a
+            comfortable tap target on each.
+          </li>
+          <li>
+            <strong>Sentence-case all labels.</strong> "Do you drink
+            alcohol?", "Do you use cannabis?", "Do you use
+            recreational drugs?". Matches the brand voice rule.
+          </li>
+          <li>
+            <strong>Naming.</strong> Reference said "Marijuhana"
+            (typo) — corrected to <em>Cannabis</em>. Reads more
+            neutral on a matching surface and avoids US-leaning
+            slang on a Euro-centric product.
+          </li>
+          <li>
+            <strong>Italic flourish on <em>lifestyle</em>.</strong>
+            One italicised word per headline; the soft-orange
+            <code>.su-underlined em</code> wash carries through
+            unchanged so the screen visibly belongs to the
+            sub-flow.
+          </li>
+          <li>
+            <strong>Privacy toggle, not opt-out.</strong> Same
+            <code>PrivacyToggle</code> primitive as the rest of the
+            details sub-flow. Substance-use is the most
+            privacy-sensitive matching signal in the whole
+            onboarding — the toggle defaulting to off (still public)
+            is intentional; the user explicitly opts <em>into</em>
+            hiding.
+          </li>
+          <li>
+            <strong>Step 9 of 10.</strong> Final matching-details
+            screen — leaves one segment for the closing
+            "ready-to-go" step. Reuses
+            <code>SHARE_STEPS_TOTAL</code> from the details file so
+            adding/removing a step in the sub-flow is a single-source
+            edit.
+          </li>
+          <li>
+            <strong>Tap-again-to-clear.</strong> Re-tapping a
+            selected chip in a category clears the answer. Matches
+            the radio behaviour on gender / orientation / life.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

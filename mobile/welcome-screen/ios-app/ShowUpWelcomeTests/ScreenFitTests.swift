@@ -366,21 +366,21 @@ final class ScreenFitTests: XCTestCase {
                     on: device), .orange),
                 ("Prompts write empty", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion))),
+                        sheet: .write(topicId: "first_date_usually", editing: false))),
                     on: device), .violet),
                 ("Prompts write mid", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+                        sheet: .write(topicId: "first_date_usually", editing: false),
                         drafts: ["first_date_usually": "Talk about anything real. Not the weather."])),
                     on: device), .violet),
                 ("Prompts write at cap", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion),
+                        sheet: .write(topicId: "first_date_usually", editing: false),
                         drafts: ["first_date_usually": fitFullDraft])),
                     on: device), .violet),
                 ("Prompts write nudge", try render(
                     ProfilePromptsView(state: PromptsState(
-                        sheet: .write(topicId: "first_date_usually", editing: false, entryPoint: .suggestion), nudge: true)),
+                        sheet: .write(topicId: "first_date_usually", editing: false), nudge: true)),
                     on: device), .violet),
 
                 // SHOWUP-161, the four card states. Their CTA is the ORANGE NextButton, which is

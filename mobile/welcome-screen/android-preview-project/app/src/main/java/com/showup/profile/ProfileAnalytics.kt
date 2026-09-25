@@ -149,42 +149,20 @@ object ProfileField {
     const val PROMPTS = "prompts"
 }
 
-/**
- * `entry_point` from the registry's 18, in full.
- *
- * HOW THE USER ARRIVED AT A TOPIC, and the measurement the whole conversion pass exists to
- * produce: `suggestion` is one of the three cards on the screen, `browse` is the fifteen-topic
- * sheet, `edit` is reopening a prompt already written. A closed set, never a free string, and
- * NEVER INFERRED FROM WHETHER A SHEET WAS OPEN -- it is passed through from the control that was
- * tapped, because the sheet is open in two of the three cases and that tells you nothing.
- */
-enum class PromptEntryPoint(val trackingValue: String) {
-    Suggestion("suggestion"),
-    Browse("browse"),
-    Edit("edit"),
-}
-
-/**
- * The two values a TOPIC CHOICE can carry.
- *
- * A separate type with no `edit` case, so `prompt_topic_selected` cannot report one even by
- * mistake. That rule arrived as prose in registry 1.4.2 -- "prompt_topic_selected is scoped to
- * suggestion and browse... an edit is not a fresh choice of topic, and firing it there inflated
- * topic demand with re-edits of prompts already written" -- and prose is not enforcement. The
- * compiler is.
- */
-enum class TopicEntryPoint(val trackingValue: String) {
-    Suggestion("suggestion"),
-    Browse("browse"),
-    ;
-
-    /** The same value in the wider set, for the events that also accept an edit. */
-    val entryPoint: PromptEntryPoint
-        get() = when (this) {
-            Suggestion -> PromptEntryPoint.Suggestion
-            Browse -> PromptEntryPoint.Browse
-        }
-}
+// §18 prompt `entry_point` IS RETIRED, and the two enums that expressed it are gone with it.
+//
+// `PromptEntryPoint` (suggestion | browse | edit) and `TopicEntryPoint` (the same minus edit, a
+// separate type so `prompt_topic_selected` could not report an edit even by mistake) both lived
+// here. Registry 1.4.5, 25 September 2026: "which topics are chosen matters, where they were
+// chosen from does not." The section is kept and emptied so numbering and citations stay stable;
+// the types are deleted, because an enum nothing sends is a trap for the next person.
+//
+// `is_edit` survives them. It was the one fact `edit` carried that nothing else did, and it now
+// rides on `prompt_editor_opened`, `prompt_saved` and -- new in 1.4.5 -- `prompt_editor_dismissed`.
+//
+// NOT AFFECTED, and easy to conflate: §21 `MediaEntryPoint` (see_the_prompts | retake) on the
+// media prompt list, and the app-open `entry_point` on `profile_build_started`. Different
+// sections, different questions, both still sent.
 
 /**
  * `dismiss_method` from 23. THE CANONICAL SHEET-CLOSE VOCABULARY, and the only one.
@@ -276,13 +254,17 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
-     * 1.4.2 (16 September 2026) is the version that unified `dismiss_method` across every bottom
-     * sheet (§23), added the `prompts_below_minimum` rule (§8), scoped `prompt_topic_selected` to
-     * suggestion and browse, and re-verified `prompts` at `step_index` 2. READ IT FROM HERE AND
-     * NOWHERE ELSE -- a payload stamped with a version the values did not come from is worse than
-     * an unstamped one, because it looks checked.
+     * 1.4.5 (25 September 2026) is the version that RETIRED §18 prompt `entry_point` -- "which
+     * topics are chosen matters, where they were chosen from does not" -- taking `position` off
+     * every prompt event with it and moving `is_edit` onto `prompt_editor_dismissed`. It sits on
+     * 1.4.4 (§24 permission_status, for the notifications ask) and 1.4.2 (§23 dismiss_method
+     * unified across every bottom sheet, `prompts_below_minimum`, `prompts` re-verified at
+     * step_index 2).
+     *
+     * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
+     * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.2"
+    const val FIELD_REGISTRY_VERSION = "1.4.5"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -619,37 +601,40 @@ object ProfileAnalytics {
     /**
      * T2, class 0. A topic was chosen from a suggestion card or from a row of the browse sheet.
      *
-     * NEVER ON AN EDIT, and that is enforced by the TYPE: [TopicEntryPoint] has two cases and no
-     * `edit`. This is the registry change of 16 September 2026 -- reopening a saved prompt is not
-     * a fresh choice of topic, and firing this there inflated topic demand with re-edits of
+     * NEVER ON AN EDIT. The registry change of 16 September 2026 -- reopening a saved prompt is
+     * not a fresh choice of topic, and firing this there inflated topic demand with re-edits of
      * prompts already written. An edit fires [promptEditorOpened] alone.
+     *
+     * WHERE THE TAP CAME FROM IS DELIBERATELY NOT RECORDED, from registry 1.4.5 (25 September
+     * 2026): "which topics are chosen matters, where they were chosen from does not". §18 is
+     * retired and `position` went with it, so a suggestion card and a row of the browse sheet
+     * produce the same event and the type that used to tell them apart is gone.
      *
      * `topic_group` is looked up rather than passed, so a caller cannot file a topic under a group
      * it is not in.
      */
     fun promptTopicSelected(
         topicId: String,
-        entryPoint: TopicEntryPoint,
-        position: Int,
         selectionIndex: Int,
     ) = PROMPT_TOPIC_SELECTED to buildMap<String, Any> {
         put("topic_id", topicId)
         put("topic_group", topicGroupFor(topicId))
-        put("entry_point", entryPoint.trackingValue)
-        put("position", position)
         put("selection_index", selectionIndex)
         putAll(Stamp.of(0))
     }
 
-    /** T2, class 0. The write sheet mounted -- on a card, on a browse row, or on the pencil. */
+    /**
+     * T2, class 0. The write sheet mounted -- on a card, on a browse row, or on the pencil.
+     *
+     * [isEdit] is the whole of what §18 used to carry here: the pencil is a different act from a
+     * first write, and it is the one distinction 1.4.5 kept when it retired the rest.
+     */
     fun promptEditorOpened(
         topicId: String,
-        entryPoint: PromptEntryPoint,
         isEdit: Boolean,
         promptCount: Int,
     ) = PROMPT_EDITOR_OPENED to buildMap<String, Any> {
         put("topic_id", topicId)
-        put("entry_point", entryPoint.trackingValue)
         put("is_edit", isEdit)
         put("prompt_count", promptCount)
         putAll(Stamp.of(0))
@@ -661,15 +646,20 @@ object ProfileAnalytics {
      * THE ABANDONMENT EVENT THIS SCREEN IS DESIGNED AGAINST. `had_draft` separates "changed their
      * mind" from "could not finish"; [draftLength] is bucketed on the way in and the draft itself
      * never leaves the device.
+     *
+     * [isEdit] ARRIVED WITH 1.4.5 and is the reason retiring §18 lost nothing here. The old
+     * `entry_point: "edit"` was carrying one fact this event actually needed -- abandoning a
+     * rewrite of something already written is not the same as abandoning a blank one -- so the
+     * fact stayed and the enum went.
      */
     fun promptEditorDismissed(
         topicId: String,
-        entryPoint: PromptEntryPoint,
+        isEdit: Boolean,
         draftLength: Int,
         method: SheetDismissMethod,
     ) = PROMPT_EDITOR_DISMISSED to buildMap<String, Any> {
         put("topic_id", topicId)
-        put("entry_point", entryPoint.trackingValue)
+        put("is_edit", isEdit)
         put("had_draft", draftLength > 0)
         put("draft_length_bucket", promptLengthBucket(draftLength))
         put("dismiss_method", method.trackingValue)
@@ -684,14 +674,12 @@ object ProfileAnalytics {
      */
     fun promptSaved(
         topicId: String,
-        entryPoint: PromptEntryPoint,
         isEdit: Boolean,
         answerLength: Int,
         promptCount: Int,
     ) = PROMPT_SAVED to buildMap<String, Any> {
         put("topic_id", topicId)
         put("topic_group", topicGroupFor(topicId))
-        put("entry_point", entryPoint.trackingValue)
         put("is_edit", isEdit)
         put("length_bucket", promptLengthBucket(answerLength))
         put("prompt_count", promptCount)
@@ -715,14 +703,16 @@ object ProfileAnalytics {
     /**
      * T2, class 0. The first prompt was saved, so the step can be completed.
      *
-     * ONCE, on the first crossing, carrying the topic and entry point that got the user there --
-     * the registry calls that pairing "the single most useful row on the screen".
+     * ONCE, on the first crossing, carrying the topic that got the user there.
+     *
+     * It used to carry the entry point with it, and the registry called that pairing "the single
+     * most useful row on the screen". 1.4.5 decided otherwise and retired §18; the topic is what
+     * is left, and it is the half the ranking actually reads.
      */
-    fun promptsMinimumMet(count: Int, topicId: String, entryPoint: PromptEntryPoint) =
+    fun promptsMinimumMet(count: Int, topicId: String) =
         PROMPTS_MINIMUM_MET to buildMap<String, Any> {
             put("count", count)
             put("topic_id", topicId)
-            put("entry_point", entryPoint.trackingValue)
             putAll(Stamp.of(0))
         }
 

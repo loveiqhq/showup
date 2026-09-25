@@ -116,10 +116,10 @@ class PromptsTrackingTest {
     @Test
     fun `selection_index is 1-based and counts across the whole visit to the step`() =
         runTest(dispatcher) {
-            vm.writeSuggestion("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             vm.dismissSheet(SheetDismissMethod.Close)
             vm.openTopics()
-            vm.pickTopic("hot_take", position = 14)
+            vm.chooseTopic("hot_take")
 
             val selections = analytics.all("prompt_topic_selected")
             assertEquals(2, selections.size)
@@ -133,7 +133,7 @@ class PromptsTrackingTest {
     @Test
     fun `an edit does not increment selection_index and does not fire a selection at all`() =
         runTest(dispatcher) {
-            vm.writeSuggestion("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             write("first_date_usually", "An answer.")
             analytics.clear()
 
@@ -142,52 +142,69 @@ class PromptsTrackingTest {
             assertEquals(0, analytics.count("prompt_topic_selected"))
             assertEquals(1, analytics.count("prompt_editor_opened"))
             assertEquals(true, analytics.only("prompt_editor_opened")["is_edit"])
-            assertEquals("edit", analytics.only("prompt_editor_opened")["entry_point"])
 
             // And the count it did not touch is still visible on the next real selection.
             vm.dismissSheet(SheetDismissMethod.Close)
-            vm.writeSuggestion("weird_habit", position = 0)
+            vm.chooseTopic("weird_habit")
             assertEquals(2, analytics.only("prompt_topic_selected")["selection_index"])
         }
 
-    // ── entry_point, the measurement the revision exists to produce ──────────
+    // ── where the tap came from is deliberately NOT recorded (registry 1.4.5) ──
+
+    /**
+     * THE ACCEPTANCE CRITERION IS AN ABSENCE, so this is the shape that can hold it.
+     *
+     * "No `prompt_*` event carries `entry_point` or `position`." §18 was retired on 25 September
+     * 2026 -- "which topics are chosen matters, where they were chosen from does not" -- and this
+     * file used to assert the opposite twice, in tests named after the measurement the revision
+     * was supposed to produce. Both are gone; one assertion that neither property comes back is
+     * worth more than either of them was.
+     *
+     * Every prompt event, not just the two that carried it, because the next person to add one
+     * will copy whichever builder is nearest.
+     */
+    @Test
+    fun `no prompt event carries entry_point or position`() = runTest(dispatcher) {
+        vm.chooseTopic("first_date_usually")
+        write("first_date_usually", "An answer.")
+        vm.editPrompt("first_date_usually")
+        vm.dismissSheet(SheetDismissMethod.Backdrop)
+        vm.openTopics()
+        vm.chooseTopic("hot_take")
+        vm.dismissSheet(SheetDismissMethod.Close)
+
+        val prompts = analytics.events.filter { it.first.startsWith("prompt") }
+        assertTrue("no prompt_* events were produced at all", prompts.isNotEmpty())
+        for ((name, payload) in prompts) {
+            assertFalse("$name still carries entry_point", payload.containsKey("entry_point"))
+            assertFalse("$name still carries position", payload.containsKey("position"))
+        }
+    }
 
     @Test
-    fun `entry_point comes from the control that was tapped, not from whether a sheet was open`() =
-        runTest(dispatcher) {
-            vm.writeSuggestion("first_date_usually", position = 1)
-            assertEquals("suggestion", analytics.only("prompt_topic_selected")["entry_point"])
-            assertEquals(1, analytics.only("prompt_topic_selected")["position"])
-            assertEquals("dating_me", analytics.only("prompt_topic_selected")["topic_group"])
-            analytics.clear()
+    fun `a suggestion card and a browse row produce the same event`() = runTest(dispatcher) {
+        vm.chooseTopic("first_date_usually")
+        val fromCard = analytics.only("prompt_topic_selected")
+        analytics.clear()
 
-            vm.dismissSheet(SheetDismissMethod.Close)
-            vm.openTopics()
-            vm.pickTopic("talk_for_hours", position = 10)
-            // The sheet was open in BOTH cases, which is exactly why it cannot be inferred.
-            assertEquals("browse", analytics.only("prompt_topic_selected")["entry_point"])
-            assertEquals(10, analytics.only("prompt_topic_selected")["position"])
-            assertEquals("opinions", analytics.only("prompt_topic_selected")["topic_group"])
-        }
+        vm.dismissSheet(SheetDismissMethod.Close)
+        vm.openTopics()
+        vm.chooseTopic("talk_for_hours")
+        val fromSheet = analytics.only("prompt_topic_selected")
 
-    @Test
-    fun `the entry point that opened the sheet is the one the save reports`() =
-        runTest(dispatcher) {
-            vm.openTopics()
-            vm.pickTopic("hot_take", position = 14)
-            write("hot_take", "A hot take.")
-            // A save that started in the browse sheet stays separable from one that started at a
-            // card, which is the whole point of carrying it on the sheet rather than re-deriving
-            // it when Save is pressed.
-            assertEquals("browse", analytics.only("prompt_saved")["entry_point"])
-        }
+        // Same keys, and the only differences are the topic and its group. Nothing about the
+        // control that was tapped survives into the payload.
+        assertEquals(fromCard.keys, fromSheet.keys)
+        assertEquals("dating_me", fromCard["topic_group"])
+        assertEquals("opinions", fromSheet["topic_group"])
+    }
 
     // ── the browse sheet's funnel closes ────────────────────────────────────
 
     @Test
     fun `picking a topic is a selection and never also a dismissal`() = runTest(dispatcher) {
         vm.openTopics()
-        vm.pickTopic("hot_take", position = 14)
+        vm.chooseTopic("hot_take")
         // opened = selected + dismissed. One act, one event: the sheet resolving into the write
         // sheet is the sheet succeeding, not the user abandoning it.
         assertEquals(1, analytics.count("prompt_topic_list_opened"))
@@ -234,7 +251,7 @@ class PromptsTrackingTest {
     @Test
     fun `abandoning the write sheet reports the draft's bucket and never its text`() =
         runTest(dispatcher) {
-            vm.writeSuggestion("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             vm.draftChanged("half a sentence about something real")
             vm.dismissSheet(SheetDismissMethod.Backdrop)
 
@@ -242,14 +259,15 @@ class PromptsTrackingTest {
             assertEquals(true, payload["had_draft"])
             assertEquals("1_40", payload["draft_length_bucket"])
             assertEquals("backdrop", payload["dismiss_method"])
-            assertEquals("suggestion", payload["entry_point"])
+            // NEW IN 1.4.5, and the one fact `entry_point: "edit"` carried that nothing else did.
+            assertEquals(false, payload["is_edit"])
             val rendered = payload.values.joinToString(" ")
             assertFalse("the draft leaked: $rendered", rendered.contains("something real"))
         }
 
     @Test
     fun `an untouched sheet reports no draft`() = runTest(dispatcher) {
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         vm.dismissSheet(SheetDismissMethod.Close)
         val payload = analytics.only("prompt_editor_dismissed")
         // `had_draft` is what separates "changed their mind" from "could not finish".
@@ -259,7 +277,7 @@ class PromptsTrackingTest {
 
     @Test
     fun `whitespace alone is not a draft`() = runTest(dispatcher) {
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         vm.draftChanged("   ")
         vm.dismissSheet(SheetDismissMethod.Close)
         // Whitespace-only counts as empty everywhere else on this screen; it counts as empty here.
@@ -271,7 +289,7 @@ class PromptsTrackingTest {
     @Test
     fun `a save reports the bucket, the count after it, and never the answer`() =
         runTest(dispatcher) {
-            vm.writeSuggestion("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             write("first_date_usually", "x".repeat(95))
 
             val payload = analytics.only("prompt_saved")
@@ -284,7 +302,7 @@ class PromptsTrackingTest {
 
     @Test
     fun `an edit is honest about not consuming a slot`() = runTest(dispatcher) {
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         write("first_date_usually", "First answer.")
         vm.editPrompt("first_date_usually")
         write("first_date_usually", "A better answer.")
@@ -301,16 +319,15 @@ class PromptsTrackingTest {
     @Test
     fun `the minimum is reported once, on the first save, with what got them there`() =
         runTest(dispatcher) {
-            vm.writeSuggestion("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             write("first_date_usually", "An answer.")
 
             val met = analytics.only("prompts_minimum_met")
             assertEquals(1, met["count"])
             assertEquals("first_date_usually", met["topic_id"])
-            assertEquals("suggestion", met["entry_point"])
 
             vm.openTopics()
-            vm.pickTopic("hot_take", position = 14)
+            vm.chooseTopic("hot_take")
             write("hot_take", "Another.")
             // Once. The second save does not re-cross anything.
             assertEquals(1, analytics.count("prompts_minimum_met"))
@@ -319,7 +336,7 @@ class PromptsTrackingTest {
     @Test
     fun `a failed save reports nothing`() = runTest(dispatcher) {
         repo.fail = true
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         write("first_date_usually", "An answer.")
         // The server does not have it, so nothing may say it does.
         assertEquals(0, analytics.count("prompt_saved"))
@@ -328,7 +345,7 @@ class PromptsTrackingTest {
 
     @Test
     fun `an empty Save nudges and records nothing`() = runTest(dispatcher) {
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         analytics.clear()
         vm.save()
         dispatcher.scheduler.advanceUntilIdle()
@@ -342,7 +359,7 @@ class PromptsTrackingTest {
 
     @Test
     fun `the cap is reported once per editor session, not per keystroke`() = runTest(dispatcher) {
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         vm.draftChanged("x".repeat(PROMPT_MAX_CHARS))
         vm.draftChanged("x".repeat(PROMPT_MAX_CHARS))
         vm.draftChanged("x".repeat(PROMPT_MAX_CHARS))
@@ -352,10 +369,10 @@ class PromptsTrackingTest {
 
     @Test
     fun `reopening a sheet starts a new editor session for the cap`() = runTest(dispatcher) {
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         vm.draftChanged("x".repeat(PROMPT_MAX_CHARS))
         vm.dismissSheet(SheetDismissMethod.Close)
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         vm.draftChanged("x".repeat(PROMPT_MAX_CHARS))
         // Per SESSION, so twice -- two sittings at the cap are two facts.
         assertEquals(2, analytics.count("prompt_char_limit_reached"))
@@ -363,7 +380,7 @@ class PromptsTrackingTest {
 
     @Test
     fun `stopping short of the cap reports nothing`() = runTest(dispatcher) {
-        vm.writeSuggestion("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         vm.draftChanged("x".repeat(PROMPT_MAX_CHARS - 1))
         assertEquals(0, analytics.count("prompt_char_limit_reached"))
     }
@@ -372,7 +389,7 @@ class PromptsTrackingTest {
 
     @Test
     fun `dismissing the example names the topic it was for`() = runTest(dispatcher) {
-        vm.writeSuggestion("weird_habit", position = 1)
+        vm.chooseTopic("weird_habit")
         vm.hideExample()
         assertEquals("weird_habit", analytics.only("prompt_example_dismissed")["topic_id"])
     }
@@ -421,10 +438,10 @@ class PromptsTrackingTest {
     fun `Continue with prompts reports the true count and the time on the step`() =
         runTest(dispatcher) {
             vm.arrived()
-            vm.writeSuggestion("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             write("first_date_usually", "An answer.")
             vm.openTopics()
-            vm.pickTopic("hot_take", position = 14)
+            vm.chooseTopic("hot_take")
             write("hot_take", "Another.")
             clock += 42_000
             analytics.clear()
@@ -453,7 +470,7 @@ class PromptsTrackingTest {
     fun noFamilyFNameIsEverEmitted() = runTest(dispatcher) {
         vm.arrived()
         vm.openTopics()
-        vm.pickTopic("first_date_usually", position = 0)
+        vm.chooseTopic("first_date_usually")
         vm.draftChanged("An answer that is long enough to be interesting.")
         vm.hideExample()
         vm.save()
@@ -485,13 +502,13 @@ class PromptsTrackingTest {
     fun `every payload is stamped with the registry the values came from`() =
         runTest(dispatcher) {
             vm.arrived()
-            vm.writeSuggestion("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             write("first_date_usually", "An answer.")
             assertTrue(analytics.events.isNotEmpty())
             analytics.events.forEach { (name, payload) ->
                 assertEquals(
                     "$name was stamped with the wrong registry",
-                    "1.4.2",
+                    "1.4.5",
                     payload["field_registry_version"],
                 )
             }
@@ -503,7 +520,7 @@ class PromptsTrackingTest {
             val secret = "the specific sentence a person wrote about themselves"
             vm.arrived()
             vm.openTopics()
-            vm.pickTopic("first_date_usually", position = 0)
+            vm.chooseTopic("first_date_usually")
             vm.draftChanged(secret)
             vm.save()
             dispatcher.scheduler.advanceUntilIdle()
