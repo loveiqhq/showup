@@ -1344,7 +1344,19 @@ private fun Modifier.reorderable(
         .onSizeChanged { cell = it }
         // Above its neighbours while it moves, so the tile the user is holding is the one on top.
         .zIndex(if (dragging) 1f else 0f)
-        .graphicsLayer { translationX = drag.x; translationY = drag.y }
+        // THE GESTURE IS OUTSIDE THE LAYER THAT MOVES, AND THAT ORDER IS THE WHOLE FIX.
+        //
+        // A modifier to the LEFT wraps the ones to its right, so with `graphicsLayer` first the
+        // pointer node lived INSIDE the translated layer -- it moved with the tile, under the
+        // finger. `detectDragGesturesAfterLongPress` reports `amount` in the node's own
+        // coordinates, so translating the node by everything reported so far subtracts that much
+        // from the next report: the deltas collapse toward zero after the first frame. The tile
+        // twitches by about the touch slop and stops, `reorderTarget` is handed a `dx`/`dy` of
+        // roughly nothing and returns `from`, and no reorder ever fires.
+        //
+        // That is what "drag to reorder doesn't work" was on a real device. With the pointer
+        // input outside, the node stays where it was laid out, the deltas are the finger's real
+        // movement, and only the content inside moves.
         .pointerInput(index, count, cell) {
             detectDragGesturesAfterLongPress(
                 onDragEnd = {
@@ -1364,6 +1376,8 @@ private fun Modifier.reorderable(
                 },
             )
         }
+        // Innermost: only the tile's content is translated, not the region listening for the drag.
+        .graphicsLayer { translationX = drag.x; translationY = drag.y }
 }
 
 // ── previews: seven states x three frames ───────────────────────────────────

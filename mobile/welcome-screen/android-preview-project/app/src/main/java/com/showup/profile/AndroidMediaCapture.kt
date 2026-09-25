@@ -37,7 +37,6 @@ import androidx.annotation.RequiresPermission
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
-import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.video.AudioConfig
 import androidx.core.content.ContextCompat
@@ -233,8 +232,15 @@ private class AndroidVideoSession(
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     override suspend fun start(onEnded: (CaptureFailure) -> Unit): Boolean {
         val camera = controller() ?: return false
+        // NOT `setEnabledUseCases` HERE. Enabling a use case rebinds the camera session, and a
+        // `startRecording` issued against a rebind still in flight attaches to nothing: the
+        // encoder never writes, `finish` finds a zero-byte file, and the user gets no review
+        // screen. The controller is bound with VIDEO_CAPTURE already on -- see MainActivity.
+        //
+        // Checked rather than assumed, because the failure it prevents is silent: a recording
+        // that appears to run for ten seconds and produces no file.
+        if (!camera.isVideoCaptureEnabled) return false
         return runCatching {
-            camera.setEnabledUseCases(CameraController.VIDEO_CAPTURE)
             recording = camera.startRecording(
                 FileOutputOptions.Builder(output).build(),
                 // Audio on: a ten-second clip of a silent face is not what was asked for.

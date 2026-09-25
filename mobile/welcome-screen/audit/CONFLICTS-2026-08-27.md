@@ -785,6 +785,43 @@ so it cannot quietly grow.
 This build is (1), because (2) is theirs to make and (3) pre-spends the ladder without finishing
 the job.
 
+## E28 · The recording clock is fixed on Android and still counts ticks on iOS. NEEDS FINISHING
+
+A device found it: *"these seconds last much longer than real life seconds"*. Both platforms drove
+the recording bar by counting — `delay(tickMs)` / `await tickWait(tickMs)` in a loop, adding
+`tickMs` per pass. A sleep guarantees **at least** its argument and never exactly, and each pass
+also wrote state that recomposed the capture screen and redrew a live waveform. On an Android
+phone the loop ran around 70ms per 50ms tick: a ten-second video took about fourteen seconds, and
+the recorder wrote fourteen seconds of footage while the bar said ten.
+
+**Android reads a monotonic clock now**, with a regression test checked in both directions — it
+fails against the counting build and passes against this one.
+
+**iOS still counts.** The same change there turned most of `MediaRulesTests` red, and not by
+failing an assertion: the suite injects a `tickWait` that returns immediately, so the ticker is a
+HOT loop, and making each pass take two lock acquisitions plus a clock read starved the
+cooperative executor the rest of the suite runs on. Takes were left mid-recording with no path,
+and nineteen tests failed on consequences of that rather than on the clock.
+
+Two attempts, both reverted:
+
+- `MainActor.assumeIsolated` for the test's clock, copying this suite's `Recorder`. It crashed the
+  test binary. `Recorder` is called synchronously from the model and never leaves the actor;
+  `tickWait` is a non-isolated `@Sendable` closure, so awaiting it hops off the main actor and the
+  assumption is false.
+- `OSAllocatedUnfairLock`, which is correct and Sendable and still changed the suite's timing
+  enough to break it.
+
+**What it needs is a Mac.** Each attempt is a ten-minute CI round trip from here and the failure is
+in the harness's interleaving rather than in the fix, which is the one thing a remote log is worst
+at showing. The honest fix is probably to give that suite a virtual clock the way the Kotlin side
+gets one from `runTest`, so `tickWait` and the recording clock advance together by construction
+instead of by two injected closures agreeing.
+
+**What ships meanwhile:** iOS recordings are long by roughly the same proportion Android's were.
+The cap still stops them, the artefact still uploads, and the duration written is the counted one.
+Nobody has reported it, because nobody has run the iOS app on a device at all.
+
 ## E21 · The kit writes letterSpacing two ways, and one of them renders as nothing. FOR THE KIT
 
 `components/shared.jsx` and the profile references carry both spellings:

@@ -99,12 +99,21 @@ class MediaTrackingTest {
         capture: MediaCaptureFactory,
         analytics: AnalyticsTracker?,
         now: () -> Long,
+        /**
+         * VIRTUAL TIME, so the recording clock measures the same thing here as on a device.
+         *
+         * The view model reads elapsed time from a monotonic clock rather than counting its own
+         * ticks -- counting is what made a ten-second video take fourteen on a real phone. Under
+         * `runTest` a `delay` advances the scheduler by exactly its argument, so this is a clock
+         * that moves in step with the ticks and the suite measures what it always did.
+         */
+        elapsedRealtimeMs: () -> Long,
     ) : MediaViewModel(
         repo, access, capture,
         // This suite is about what is reported, not about sound: the fake plays instantly and
         // never finishes on its own, so nothing here has to think about a playhead.
         FakeMediaPlayer(now = now),
-        analytics, now, tickMs = 10L,
+        analytics, now, tickMs = 10L, elapsedRealtimeMs = elapsedRealtimeMs,
     ) {
         override fun readTake(path: String?): ByteArray? = ByteArray(8)
         override fun deleteTake(path: String) = Unit
@@ -130,6 +139,7 @@ class MediaTrackingTest {
 
     private fun build(access: MediaAccess = GRANTED) = TestViewModel(
         repo, FixedMediaAccess(access), capture, events, { clock },
+        elapsedRealtimeMs = { dispatcher.scheduler.currentTime },
     ).also { it.refreshAccess() }
 
     private companion object {
