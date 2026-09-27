@@ -1476,6 +1476,31 @@ for name, kt, sw in [
     check("%s blurs behind its sheet (swift)" % name,
           "blurBehindSheet(state.sheet != nil)" in read(SW, sw))
 
+# ── no machine name may reach a sentence ────────────────────────────────────
+#
+# A real user on a real Pixel was shown "Android.permission-group.UNDEFINED access is off. Turn
+# on Android.permission-group.UNDEFINED in Settings to film."
+#
+# `PermissionInfo.group` is DEPRECATED SINCE API 29 and answers `android.permission-group.
+# UNDEFINED`; resolving that gives a group with no label resource, and `PackageItemInfo.loadLabel`
+# falls back to the item's own `name` INSTEAD OF THROWING -- so the `runCatching` around it never
+# fired. This checks the two halves of the fix, because the failure mode is a valid String rather
+# than an exception and nothing else in this repo would notice it.
+media_access_kt = code_only(read(KT, "profile", "MediaAccess.kt"))
+check("the deprecated permission-group lookup is gone",
+      ".group" not in media_access_kt or "getPermissionInfo" not in media_access_kt)
+check("the platform label is validated before it reaches copy",
+      "usablePermissionLabel(platform, ours)" in media_access_kt)
+check("the validator refuses a dotted identifier", "label.contains('.')" in media_access_kt)
+
+# AND IOS HARD-CODES ITS TWO, which is correct rather than a shortcut: Apple names these rows in
+# Settings and exposes no API for them, so there is nothing to ask. The check is that the words
+# still live behind the same function on both platforms, so a localised build has one place to
+# correct on each.
+media_access_sw = code_only(read(SW, "MediaAccess.swift"))
+check("iOS resolves its labels through platformLabel too",
+      "func platformLabel" in media_access_sw)
+
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
 if failures:

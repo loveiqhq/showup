@@ -189,19 +189,77 @@ class AndroidMediaAccess(private val context: Context) : MediaAccessReader {
      * `PermissionInfo.loadLabel` for CAMERA returns a sentence -- "take pictures and record video"
      * -- which is a description of what the app may do, not the name of the row in Settings. The
      * group label is the row: "Camera", "Microphone", translated by the platform.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * THE GROUP IS NAMED HERE BECAUSE THE PLATFORM STOPPED NAMING IT
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * This used to ask `getPermissionInfo(permission).group`, which is the obvious way round and
+     * has been DEPRECATED SINCE API 29. What it returns now is
+     * `android.permission-group.UNDEFINED`, and the second call happily resolves that: a group
+     * with no label resource falls back to its own `name` in `PackageItemInfo.loadLabel`, so
+     * nothing throws, the `runCatching` never fires, and the screen renders
+     *
+     *     "Android.permission-group.UNDEFINED access is off. Turn on
+     *      Android.permission-group.UNDEFINED in Settings to film."
+     *
+     * to a real user on a real Pixel -- the leading capital being ours, from the `uppercase` that
+     * was meant to tidy a word. THE LESSON IS THE FAILURE MODE, not the API: this one fails into
+     * PLAUSIBLE-LOOKING GARBAGE rather than into an exception, so every guard built around
+     * catching was guarding the wrong thing.
+     *
+     * So the group is named directly -- those constants still resolve to the rows Settings draws
+     * -- and whatever comes back is CHECKED before it reaches a sentence. See
+     * [usablePermissionLabel], which is a plain function precisely so the check is testable
+     * without a device.
      */
     override fun platformLabel(capability: MediaCapability): String {
-        val fallback = when (capability) {
+        val ours = when (capability) {
             MediaCapability.Camera -> "Camera"
             MediaCapability.Microphone -> "Microphone"
         }
-        return runCatching {
+        // Deprecated constants, and deliberately: they are the well-known group names the
+        // platform still ships labels for, and the alternative is the field that returns
+        // UNDEFINED. Suppressed rather than silently used, so the next reader knows it was a
+        // decision.
+        @Suppress("DEPRECATION")
+        val group = when (capability) {
+            MediaCapability.Camera -> Manifest.permission_group.CAMERA
+            MediaCapability.Microphone -> Manifest.permission_group.MICROPHONE
+        }
+        val platform = runCatching {
             val pm = context.packageManager
-            val group = pm.getPermissionInfo(capability.permission, 0).group ?: return fallback
             pm.getPermissionGroupInfo(group, 0).loadLabel(pm).toString()
-                .replaceFirstChar { it.uppercase() }
-        }.getOrDefault(fallback)
+        }.getOrNull()
+        return usablePermissionLabel(platform, ours)
     }
+}
+
+/**
+ * The platform's label, or ours, and never a constant.
+ *
+ * A PLAIN FUNCTION, because the bug it exists to stop is a string test and needed no device: the
+ * platform hands back a machine name whenever it has no human one, and a machine name reads as
+ * copy right up until somebody sees it on a phone.
+ *
+ * WHAT DISQUALIFIES A LABEL. Empty or blank, obviously. Anything holding a dotted identifier --
+ * `android.permission-group.UNDEFINED`, and the same shape from an OEM. And anything long enough
+ * to be a sentence rather than a row name: `PermissionInfo`'s own label is "take pictures and
+ * record video", which is what this function would receive if the group lookup were ever
+ * "fixed" to fall back to the permission, and it would read as nonsense in "... access is off".
+ *
+ * The test is deliberately CRUDE. A label is either a short human word or it is not used, and a
+ * false negative costs an English word on a German phone while a false positive costs what the
+ * screenshot showed. Those are not the same price.
+ */
+internal fun usablePermissionLabel(platform: String?, ours: String): String {
+    val label = platform?.trim().orEmpty()
+    if (label.isEmpty()) return ours
+    // A dotted identifier is never a name a person wrote.
+    if (label.contains('.') || label.contains("permission", ignoreCase = true)) return ours
+    // A row in Settings is one or two words. Anything longer is a description.
+    if (label.length > 40 || label.split(' ').size > 3) return ours
+    return label.replaceFirstChar { it.uppercase() }
 }
 
 /**
