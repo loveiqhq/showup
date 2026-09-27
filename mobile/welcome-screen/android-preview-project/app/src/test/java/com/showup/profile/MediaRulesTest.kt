@@ -585,6 +585,80 @@ class MediaRulesTest {
         }
 
     /**
+     * A TAKE THAT RUNS AND WRITES NOTHING, which is the shape the device actually failed in.
+     *
+     * The recorder starts, the counter runs, the user presses stop -- and no file exists. Until
+     * `FakeMediaCapture` learned `finishSucceeds` this could not be written at all: `finish`
+     * returned null only when `start` had already failed, so the suite could express "the camera
+     * would not open" and could not express "the camera opened and recorded nothing".
+     *
+     * THAT IS WHY EVERY TEST WAS GREEN while video was broken on a Pixel. The fake sits exactly
+     * where the bug was -- below it is CameraX, which a unit test cannot reach -- so no test here
+     * could have FOUND it. What these two can do is pin what the app does when it happens, which
+     * is the part that was never decided: it returns to the card and says nothing, for both media
+     * and for every cause. See E34.
+     */
+    @Test
+    fun `a video take that produces no file shows no review and attaches nothing`() =
+        runTest(dispatcher) {
+            // `refreshAccess`, as `build` does: the model starts at NotDetermined for both and
+            // only learns otherwise by asking, so a fixture that skips it is blocked at the
+            // permission gate -- which is the gate working, and is why this is spelled out rather
+            // than assumed.
+            val vm = TestViewModel(
+                repo, FixedMediaAccess(GRANTED), FakeMediaCapture(finishSucceeds = false),
+                player, analytics, { clock },
+            ) { dispatcher.scheduler.currentTime }.also { it.refreshAccess() }
+            vm.openPrompts(MediaKind.Video, MediaEntryPoint.SeeThePrompts)
+            vm.pickPrompt(PROMPT)
+            vm.commitPrompt()
+            // BOUNDED, not `advanceUntilIdle`: the ticker reschedules itself until the cap, so
+            // draining it would run the whole ten seconds and stop the take before the assertion
+            // below could see it exist. Half a second of virtual time is a take in progress.
+            kotlinx.coroutines.delay(500)
+            // The take really started -- this is not the "would not start" case.
+            assertNotNull(vm.state.value.take)
+
+            vm.stopPressed()
+            advanceUntilIdle()
+
+            assertNull("no review screen: there is nothing to review", vm.state.value.take)
+            assertNull("and nothing is attached to the card", vm.state.value.video)
+            // `media_review_shown` is the event that says a review happened. It must not fire for
+            // a review that did not.
+            assertEquals(0, analytics.count(ProfileAnalytics.MEDIA_REVIEW_SHOWN))
+        }
+
+    @Test
+    fun `a voice take that produces no file behaves exactly as the video one does`() =
+        runTest(dispatcher) {
+            // THE TWO MEDIA MUST FAIL THE SAME WAY. Voice reaches the platform through
+            // `MediaRecorder` and video through a pre-bound CameraX session, which is why only one
+            // of them broke -- but that is a difference in what can go wrong, never in what the
+            // screen does about it.
+            // `refreshAccess`, as `build` does: the model starts at NotDetermined for both and
+            // only learns otherwise by asking, so a fixture that skips it is blocked at the
+            // permission gate -- which is the gate working, and is why this is spelled out rather
+            // than assumed.
+            val vm = TestViewModel(
+                repo, FixedMediaAccess(GRANTED), FakeMediaCapture(finishSucceeds = false),
+                player, analytics, { clock },
+            ) { dispatcher.scheduler.currentTime }.also { it.refreshAccess() }
+            vm.openPrompts(MediaKind.Voice, MediaEntryPoint.SeeThePrompts)
+            vm.pickPrompt(PROMPT)
+            vm.commitPrompt()
+            kotlinx.coroutines.delay(500)
+            assertNotNull(vm.state.value.take)
+
+            vm.stopPressed()
+            advanceUntilIdle()
+
+            assertNull(vm.state.value.take)
+            assertNull(vm.state.value.voice)
+            assertEquals(0, analytics.count(ProfileAnalytics.MEDIA_REVIEW_SHOWN))
+        }
+
+    /**
      * THE BAR MEASURES TIME, IT DOES NOT COUNT TICKS.
      *
      * This is the regression test for a bug a real device found and no test could: the clock
