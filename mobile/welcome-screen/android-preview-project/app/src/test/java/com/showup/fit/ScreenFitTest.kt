@@ -393,7 +393,10 @@ class ScreenFitTest {
      */
     @Test
     fun `profile photos, all seven states`() {
-        fun confirmed(n: Int) = List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed) }
+        // `slot = it`: without it every photo lands in box 0 and the sweep measures a grid
+        // with ONE tile in it whatever n says. See ProfilePhotosScreen's preview helper.
+        fun confirmed(n: Int) =
+            List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed, slot = it) }
 
         sweep("Photos/A empty") { ProfilePhotosScreen() }
         sweep("Photos/B partial") { ProfilePhotosScreen(PhotoGridState(photos = confirmed(2))) }
@@ -401,9 +404,9 @@ class ScreenFitTest {
             ProfilePhotosScreen(
                 PhotoGridState(
                     photos = listOf(
-                        PickedPhoto(0, null, UploadStatus.Confirmed),
-                        PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f),
-                        PickedPhoto(2, null, UploadStatus.Failed),
+                        PickedPhoto(0, null, UploadStatus.Confirmed, slot = 0),
+                        PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f, slot = 1),
+                        PickedPhoto(2, null, UploadStatus.Failed, slot = 2),
                     ),
                 ),
             )
@@ -656,7 +659,10 @@ class ScreenFitTest {
      */
     @Test
     fun `the real you, at the largest system font`() {
-        fun confirmed(n: Int) = List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed) }
+        // `slot = it`: without it every photo lands in box 0 and the sweep measures a grid
+        // with ONE tile in it whatever n says. See ProfilePhotosScreen's preview helper.
+        fun confirmed(n: Int) =
+            List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed, slot = it) }
         val onePrompt = listOf(
             SavedPrompt(
                 "first_date_usually",
@@ -674,9 +680,9 @@ class ScreenFitTest {
                 ProfilePhotosScreen(
                     PhotoGridState(
                         photos = listOf(
-                            PickedPhoto(0, null, UploadStatus.Confirmed),
-                            PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f),
-                            PickedPhoto(2, null, UploadStatus.Failed),
+                            PickedPhoto(0, null, UploadStatus.Confirmed, slot = 0),
+                            PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f, slot = 1),
+                            PickedPhoto(2, null, UploadStatus.Failed, slot = 2),
                         ),
                     ),
                 )

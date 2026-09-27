@@ -323,14 +323,17 @@ final class ScreenFitTests: XCTestCase {
                             interest: [.aiCall, .whatsApp, .sms], saveFailed: true
                         )
                     ), on: device), .violet),
-                ("Reach C confirm", try render(
-                    ProfileReachabilityView(
-                        state: ReachabilityState(prompt: .userTurnedItOff)
-                    ), on: device), .violet),
-                ("Reach D after denial", try render(
-                    ProfileReachabilityView(
-                        state: ReachabilityState(pushOn: false, prompt: .afterOsDenial)
-                    ), on: device), .violet),
+                // C AND D ARE DELIBERATELY ABSENT, for the reason already recorded above the
+                // photo source sheet: both put a modal over the screen, and its scrim is exactly
+                // what a colour probe cannot see past. The CTA behind it is dimmed by design --
+                // "a dialog that leaves the primary action tappable behind it is not modal" --
+                // so a probe that found it would be reporting a bug, not the absence of one.
+                //
+                // The property that matters in those states is stronger than a pixel and is
+                // asserted where it can be: `ReachabilityFitTest` measures that the CTA is gone
+                // from the MERGED semantics tree while the dialog is up, and
+                // `ReachabilityRulesTests` proves the dialog's own two buttons do the right
+                // things. Neither depends on recognising a colour.
                 ("Embrace named", try render(
                     ProfileEmbraceView(firstName: "Leo"), on: device), .violet),
                 ("Embrace no name", try render(

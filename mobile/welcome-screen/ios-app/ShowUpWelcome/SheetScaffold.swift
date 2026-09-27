@@ -72,6 +72,29 @@ struct SheetCloseButton: View {
     }
 }
 
+/// `backdrop-filter: blur(1.5px)`, which the scrim CANNOT draw itself.
+///
+/// CSS's `backdrop-filter` blurs whatever is painted behind an element. SwiftUI has no equivalent
+/// and could not: a view draws its own subtree and has no handle on the pixels underneath it.
+/// `SheetScaffold` is drawn OVER the screen, so no modifier it applies to itself reaches the
+/// screen — `.blur()` there would blur the sheet, which is the opposite of the design.
+///
+/// So the blur belongs to the thing being blurred. The screen applies this to its own content and
+/// passes whether a sheet is up; the radius lives here, next to the scrim opacity it was
+/// specified with, so the two halves of callout 15 cannot drift apart.
+///
+/// 1.5 is a SOFTENING, not a frosted panel — the spec's own words are "the screen stays visible
+/// behind it". `.ultraThinMaterial` would be the frosted panel and is the wrong instrument.
+extension View {
+    @ViewBuilder
+    func blurBehindSheet(_ covered: Bool) -> some View {
+        blur(radius: covered ? sheetBackdropBlur : 0)
+    }
+}
+
+/// 1.5, from callout 15 and the reference file both.
+private let sheetBackdropBlur: CGFloat = 1.5
+
 /// The scrim and the rising surface both sheets sit in.
 ///
 /// `sheet-rise` is 28 up and 0.85 → 1 opacity over `Motion.sheet` — a shared keyframe, not a

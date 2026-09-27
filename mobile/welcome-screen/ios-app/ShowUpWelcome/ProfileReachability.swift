@@ -633,9 +633,14 @@ struct ProfileReachabilityView: View {
                         )
                         .accessibilityIdentifier(reachCtaId)
                     }
-                    .padding(.horizontal, 24)
                     .padding(.top, 10)
                     .padding(.bottom, 6)
+                    // NO `.padding(.horizontal)` HERE. `WelcomeScaffold` already applies its own
+                    // `gutter` to whatever it is handed as a footer, so a second one is 48 of
+                    // inset and a visibly narrower button than every other CTA in the flow. The
+                    // Compose side owns its gutter because that scaffold hands the footer the
+                    // full frame on purpose, so the two files differ by one line and agree on
+                    // the rendered result.
                     .background(
                         LinearGradient(
                             stops: [

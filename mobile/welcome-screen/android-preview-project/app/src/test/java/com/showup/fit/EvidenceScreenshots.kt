@@ -272,7 +272,16 @@ class EvidenceScreenshots {
         shadowOf(Looper.getMainLooper()).idleFor(SETTLE_MS, TimeUnit.MILLISECONDS)
     }
 
-    private fun confirmed(n: Int) = List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed) }
+    // `slot = it` IS NOT OPTIONAL, and leaving it off is why every one of these states rendered
+    // ONE photo instead of n. `PhotoGridState.at(index)` matches on `PickedPhoto.slot`, which
+    // defaults to 0 -- so a list built without it puts every photo in the first box, `at(1..5)`
+    // returns null, and the grid draws one filled tile and five empty ones. Nothing throws and
+    // nothing looks broken: an "empty" state and a "four photos" state are the same picture.
+//
+    // It was found by a drag test, not by looking: only slot 0 could be dragged, because
+    // `reorderable` is enabled per slot on `at(index) != null`.
+    private fun confirmed(n: Int) =
+        List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed, slot = it) }
 
     private val onePrompt = listOf(
         SavedPrompt(
@@ -442,9 +451,9 @@ class EvidenceScreenshots {
             ProfilePhotosScreen(
                 PhotoGridState(
                     photos = listOf(
-                        PickedPhoto(0, null, UploadStatus.Confirmed),
-                        PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f),
-                        PickedPhoto(2, null, UploadStatus.Failed),
+                        PickedPhoto(0, null, UploadStatus.Confirmed, slot = 0),
+                        PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f, slot = 1),
+                        PickedPhoto(2, null, UploadStatus.Failed, slot = 2),
                     ),
                 ),
             )

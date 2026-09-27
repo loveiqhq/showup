@@ -132,6 +132,7 @@ import kotlinx.serialization.json.Json
 import com.showup.designsystem.Border
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.eyebrowCase
+import com.showup.designsystem.blurBehindSheet
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerFg
@@ -1006,6 +1007,9 @@ fun ProfilePromptsScreen(
 
     Box(Modifier.fillMaxSize()) {
         RealYouScaffold(
+            // Same backdrop as screen 08: the sheet's scrim is drawn over this, and the blur
+            // behind it has to be applied by the thing being blurred. See `blurBehindSheet`.
+            modifier = Modifier.blurBehindSheet(state.sheet != null),
             step = RealYouStep.Prompts,
             onBack = onBack,
             // THE BAR SCROLLS ON THIS SCREEN. Deliberate; see the file header.

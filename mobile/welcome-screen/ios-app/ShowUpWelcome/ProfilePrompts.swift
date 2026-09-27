@@ -681,6 +681,8 @@ struct ProfilePromptsView: View {
 
     var body: some View {
         ZStack {
+            // Same backdrop as screen 08: the sheet's scrim is drawn over this, and the blur
+            // behind it has to be applied by the thing being blurred.
             RealYouScaffold(step: .prompts, onBack: onBack, progressFixed: false) {
                 // THE BAR SCROLLS ON THIS SCREEN. Deliberate; see the file header.
                 StepProgress(steps: RealYouStep.count, current: RealYouStep.prompts.progressSegment)
@@ -755,6 +757,7 @@ struct ProfilePromptsView: View {
             } footer: {
                 footerView
             }
+            .blurBehindSheet(state.sheet != nil)
 
             switch state.sheet {
             case .topics:

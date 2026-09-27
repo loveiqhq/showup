@@ -47,7 +47,8 @@
 package com.showup.profile
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import android.graphics.ImageDecoder
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -92,9 +93,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.CornerRadius
@@ -1295,6 +1303,12 @@ private fun PhotoGrid(
                         // would make it depend on the column width and therefore on the device.
                         modifier = Modifier
                             .weight(1f)
+                            // ADDRESSABLE, so a test can put a finger on a specific tile. The
+                            // slots are otherwise indistinguishable to a matcher -- an empty one
+                            // has no text and a filled one has whatever photo it has -- and
+                            // "drag to reorder" is a promise no assertion could reach without
+                            // this. See `PhotoDragGestureTest`.
+                            .testTag(photoSlotTag(index))
                             .reorderable(
                                 index = index,
                                 enabled = state.canReorder && state.at(index) != null,
@@ -1310,6 +1324,22 @@ private fun PhotoGrid(
         }
     }
 }
+
+/**
+ * How far a finger may wander during the hold and still be holding, as a multiple of touch slop.
+ *
+ * Touch slop alone is what a thumb drifts by accident, which is exactly why the stock detector
+ * loses the gesture. Two of them is enough room to be still without being enough to look like a
+ * scroll -- and the cost when it is wrong is only that the first few millimetres of a slow scroll
+ * are swallowed, not that the scroll fails.
+ */
+private const val GrabSlopFactor = 2f
+
+/** How much the held tile grows. Enough to read as lifted, not enough to cover its neighbour. */
+private const val GrabLift = 1.04f
+
+/** One slot's test tag. Shared with `PhotoDragGestureTest` so the two cannot drift. */
+internal fun photoSlotTag(index: Int) = "photo-slot-$index"
 
 /**
  * Long-press and drag a slot to move it.
@@ -1336,6 +1366,7 @@ private fun Modifier.reorderable(
     onReorder: (Int, Int) -> Unit,
 ): Modifier {
     if (!enabled) return this
+    val haptics = LocalHapticFeedback.current
     var cell by remember { mutableStateOf(IntSize.Zero) }
     var drag by remember { mutableStateOf(Offset.Zero) }
     val gapPx = with(LocalDensity.current) { Spacing.xl.toPx() }
@@ -1358,23 +1389,97 @@ private fun Modifier.reorderable(
         // input outside, the node stays where it was laid out, the deltas are the finger's real
         // movement, and only the content inside moves.
         .pointerInput(index, count, cell) {
-            detectDragGesturesAfterLongPress(
-                onDragEnd = {
-                    val to = reorderTarget(
-                        from = index,
-                        dx = drag.x, dy = drag.y,
-                        cellWidth = cell.width.toFloat(), cellHeight = cell.height.toFloat(),
-                        gap = gapPx, count = count,
-                    )
-                    drag = Offset.Zero
-                    if (to != index) onReorder(index, to)
-                },
-                onDragCancel = { drag = Offset.Zero },
-                onDrag = { change, amount ->
+            // ── THE HOLD HAS TO SURVIVE A THUMB ──────────────────────────────
+            //
+            // This was `detectDragGesturesAfterLongPress`, which is the obvious choice and is
+            // wrong HERE, inside a `verticalScroll`. Its wait is
+            // `awaitLongPressOrCancellation`, and that gives up the moment ANOTHER NODE CONSUMES
+            // the change. The scrolling ancestor consumes as soon as the finger passes touch
+            // slop -- about 8dp -- so the sequence on a real phone is: press, thumb settles by a
+            // few millimetres, scroll claims the gesture, long press is cancelled, nothing is
+            // ever grabbed. The screen says "Drag to reorder" and the tile does not move.
+            //
+            // NOTHING CAUGHT IT. `reorderTarget` is unit-tested and was never wrong. The fit
+            // sweep measures layout. `PhotoDragGestureTest` drives a real gesture and passes,
+            // because Robolectric injects a perfectly still 500ms hold -- a hand does not have
+            // one. The bug lived precisely in the gap between an injected finger and a real one,
+            // which is why `CLAUDE.md`'s last Definition-of-Done line is a person on a device.
+            //
+            // So the hold is written out. While it is waiting it CONSUMES small movement, which
+            // is what stops the scroll claiming the gesture out from under an unsteady hand --
+            // a child sees the Main pass before its ancestors, so consuming here is the one
+            // place the decision can be made. Past [GrabSlop] the finger is scrolling and the
+            // gesture is handed back untouched.
+            val grabSlop = viewConfiguration.touchSlop * GrabSlopFactor
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                var travelled = Offset.Zero
+
+                val grabbed = try {
+                    withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                        var settled = false
+                        while (!settled) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                            if (change == null || change.changedToUpIgnoreConsumed()) {
+                                // Lifted before the hold finished: a tap, which belongs to the
+                                // slot underneath and must reach it unconsumed.
+                                settled = true
+                            } else {
+                                travelled += change.positionChange()
+                                if (travelled.getDistance() > grabSlop) {
+                                    settled = true // a scroll -- let the ancestor have it
+                                } else if (change.positionChanged()) {
+                                    change.consume()
+                                }
+                            }
+                        }
+                        false
+                    }
+                } catch (_: PointerEventTimeoutCancellationException) {
+                    // The timeout IS the success case: the finger stayed put long enough.
+                    true
+                }
+                if (!grabbed) return@awaitEachGesture
+
+                // THE ONLY SIGNAL THAT THE TILE IS HELD. Without it the interaction is invisible
+                // until the tile moves, and a user who lifts early never learns that holding is
+                // what this gesture wants. It is the same feedback the platform gives for every
+                // other long press, which is what makes it legible rather than novel.
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                var moved = Offset.Zero
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (change.changedToUpIgnoreConsumed()) break
+                    // READ THE DELTA, THEN CONSUME. `positionChange()` returns Offset.Zero once
+                    // the change is consumed, so consuming first makes every delta zero and the
+                    // tile never moves -- the same collapse the modifier order caused, arrived
+                    // at by a different route, and invisible in source both times.
+                    val delta = change.positionChange()
                     change.consume()
-                    drag += amount
-                },
-            )
+                    moved += delta
+                    drag = moved
+                }
+
+                val to = reorderTarget(
+                    from = index,
+                    dx = moved.x, dy = moved.y,
+                    cellWidth = cell.width.toFloat(), cellHeight = cell.height.toFloat(),
+                    gap = gapPx, count = count,
+                )
+                drag = Offset.Zero
+                if (to != index) onReorder(index, to)
+            }
+        }
+        // HELD, AND VISIBLY SO. The lift is ours, not the reference's -- see E34 -- and it earns
+        // its place: a tile that only moves once the finger does gives no sign that the hold
+        // worked, and the haptic above is not available to a user who has feedback switched off.
+        .graphicsLayer {
+            val lift = if (dragging) GrabLift else 1f
+            scaleX = lift
+            scaleY = lift
         }
         // Innermost: only the tile's content is translated, not the region listening for the drag.
         .graphicsLayer { translationX = drag.x; translationY = drag.y }
@@ -1385,13 +1490,22 @@ private fun Modifier.reorderable(
 // The ticket's device matrix. 375 x 667 is checked first and is where the grid, the count row and
 // the footer compete for height; 430 x 932 is where the whole grid fits above the fold.
 
-private fun confirmed(n: Int) = List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed) }
+// `slot = it` IS NOT OPTIONAL, and leaving it off is why every one of these states rendered
+// ONE photo instead of n. `PhotoGridState.at(index)` matches on `PickedPhoto.slot`, which
+// defaults to 0 -- so a list built without it puts every photo in the first box, `at(1..5)`
+// returns null, and the grid draws one filled tile and five empty ones. Nothing throws and
+// nothing looks broken: an "empty" state and a "four photos" state are the same picture.
+//
+// It was found by a drag test, not by looking: only slot 0 could be dragged, because
+// `reorderable` is enabled per slot on `at(index) != null`.
+private fun confirmed(n: Int) =
+    List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed, slot = it) }
 
 private val InFlightState = PhotoGridState(
     photos = listOf(
-        PickedPhoto(0, null, UploadStatus.Confirmed),
-        PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f),
-        PickedPhoto(2, null, UploadStatus.Failed),
+        PickedPhoto(0, null, UploadStatus.Confirmed, slot = 0),
+        PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f, slot = 1),
+        PickedPhoto(2, null, UploadStatus.Failed, slot = 2),
     ),
 )
 

@@ -1447,6 +1447,35 @@ check("163/09 the already-determined skip survives (kotlin)",
 check("163/09 the already-determined skip survives (swift)",
       "shouldShowAsk(status)" in code_only(read(SW, "ShowUpWelcomeApp.swift")))
 
+# ── the sheet backdrop, callout 15 ──────────────────────────────────────────
+#
+# "scrim rgba(29,17,41,.42) + backdrop blur(1.5px) -- the screen stays visible behind it". We
+# shipped the scrim and not the blur, on both platforms, for as long as the sheets have existed.
+#
+# THE BLUR CANNOT BE ASSERTED BY LOOKING. `backdrop-filter` has no equivalent in either toolkit:
+# a view draws its own subtree and has no handle on the pixels beneath it, so the blur has to be
+# applied by the SCREEN and the scrim drawn over it. That makes it two edits in two files that
+# must agree, which is exactly the shape a checker is for -- and it is the only check available,
+# because Robolectric does not rasterise `RenderEffect` at any radius, so no screenshot in this
+# repo can show the blur is there. A device is the only proof.
+sheet_kt = read(KT, "designsystem", "SheetScaffold.kt")
+sheet_sw = read(SW, "SheetScaffold.swift")
+check("sheet backdrop blur is 1.5 (kotlin)", "SheetBackdropBlur = 1.5.dp" in sheet_kt)
+check("sheet backdrop blur is 1.5 (swift)", "sheetBackdropBlur: CGFloat = 1.5" in sheet_sw)
+check("sheet scrim is 0.42 (kotlin)", "alpha = 0.42f" in sheet_kt)
+check("sheet scrim is 0.42 (swift)", "opacity(0.42)" in sheet_sw)
+
+# BOTH SCREENS THAT RAISE A SHEET APPLY IT. A blur on one of the two is the drift this checker
+# exists to catch -- the sheets look identical and only one would be right.
+for name, kt, sw in [
+    ("media (08)", "ProfileMediaScreen.kt", "ProfileMedia.swift"),
+    ("prompts (07)", "ProfilePromptsScreen.kt", "ProfilePrompts.swift"),
+]:
+    check("%s blurs behind its sheet (kotlin)" % name,
+          "blurBehindSheet(state.sheet != null)" in read(KT, "profile", kt))
+    check("%s blurs behind its sheet (swift)" % name,
+          "blurBehindSheet(state.sheet != nil)" in read(SW, sw))
+
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
 if failures:
