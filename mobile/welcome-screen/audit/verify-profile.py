@@ -498,8 +498,12 @@ check("158 example is not the placeholder (swift)",
 for label, text in (("kotlin", analytics_kt), ("swift", analytics_sw)):
     # THE PAYLOAD STAMP. A payload stamped with a version its values did not come from is worse
     # than an unstamped one, because it looks checked.
-    check("158 registry stamp is 1.4.5 (%s)" % label, 'FIELD_REGISTRY_VERSION = "1.4.5"' in text
-          or 'fieldRegistryVersion = "1.4.5"' in text)
+    # 1.4.6 SINCE SHOWUP-163. enums.json's registry_version, not events.json's
+    # taxonomy_version -- they are different numbers on the same day and the Profile 10 ticket
+    # quotes both: "taxonomy 1.4.5 / registry 1.4.6".
+    check("158/163 registry stamp is 1.4.6 (%s)" % label,
+          'FIELD_REGISTRY_VERSION = "1.4.6"' in text
+          or 'fieldRegistryVersion = "1.4.6"' in text)
     check("158 no stale registry stamp (%s)" % label,
           'FIELD_REGISTRY_VERSION = "1.4.2"' not in text
           and 'fieldRegistryVersion = "1.4.2"' not in text
@@ -999,7 +1003,10 @@ for _label, _txt in [
     ("headline em", u"a date"),
     ("headline tail", u" with Notifications!"),
     ("lead", u"No spam! Every notification is about your dates and helps you to never miss one."),
-    ("cta", u"Enable notifications"),
+    # RENAMED BY SHOWUP-163: the button no longer enables anything, it goes to the screen
+    # that does. The old label is asserted ABSENT in the 163 section, because a copy pass
+    # restoring "Enable notifications" would read as a fix rather than as a regression.
+    ("cta", u"Continue"),
     ("row 1", u"Get instant notifications when you receive a match and never miss out on a date."),
     ("row 2", u"Don't miss your chance to meet — we surface it the second it arrives."),
     ("row 3", u"Get notified if your date asks — e.g. meet time change, running late."),
@@ -1108,21 +1115,35 @@ check("162 the title yields to the pill, not the reverse (kotlin)",
 check("162 the pill keeps its own width (swift)",
       "fixedSize(horizontal: true, vertical: false)" in notify_sw)
 
-# THE SKIPPED USER STILL NEEDS A TOKEN. The spec sheet's Android <= 12 row says so outright --
-# "These users still need push registration and all five categories" -- and `register()` had
-# exactly one call site: the grant callback on a screen those users never see. minSdk is 30, so
-# API 30-32 would every one of them have been a device the backend has no token for.
+# THE SKIPPED USER STILL NEEDS A TOKEN, AND 163 MOVED WHERE THEY GET IT.
+#
+# The spec sheet's Android <= 12 row says so outright -- "These users still need push registration
+# and all five categories" -- and when 09 was built, `register()` had exactly one call site: the
+# grant callback on a screen those users never see. 162 answered that with `skipped()` here.
+#
+# SHOWUP-163 routes every user through Stay reachable (10) instead, whose `Save preferences` is
+# the only way off it and which registers when push is on. So the need is met one screen later,
+# and keeping `skipped()` as well would register twice -- worse, it registered on a GRANTED status
+# REGARDLESS OF CONSENT, so a user who reached 10 and switched push off would already have had a
+# token filed. These checks now assert the absence on both platforms, because a helpful
+# re-addition of `skipped()` is exactly the kind of thing that looks like a bug fix.
 _model_kt = code_only(read(KT, "profile", "NotificationsViewModel.kt"))
 _model_sw = code_only(read(SW, "NotificationsModel.swift"))
-check("162 a skipped user registers for push (kotlin)", "fun skipped(" in _model_kt)
-check("162 a skipped user registers for push (swift)", "func skipped(" in _model_sw)
-check("162 only a GRANTED skip registers (kotlin)",
-      "status != NotificationPermission.Granted" in _model_kt)
-check("162 only a GRANTED skip registers (swift)", "status == .granted" in _model_sw)
-check("162 the skip path is wired from the host (kotlin)",
-      "notifyModel.skipped(status)" in code_only(read(KT, "MainActivity.kt")))
-check("162 the skip path is wired from the host (swift)",
-      "notifications.skipped(status)" in code_only(read(SW, "ShowUpWelcomeApp.swift")))
+check("162/163 09 no longer registers on the skip path (kotlin)", "fun skipped(" not in _model_kt)
+check("162/163 09 no longer registers on the skip path (swift)", "func skipped(" not in _model_sw)
+check("162/163 nothing on 09 reaches push registration (kotlin)",
+      "push.register()" not in _model_kt)
+check("162/163 nothing on 09 reaches push registration (swift)",
+      "push.register()" not in _model_sw)
+check("162/163 the host no longer calls it (kotlin)",
+      "notifyModel.skipped(" not in code_only(read(KT, "MainActivity.kt")))
+check("162/163 the host no longer calls it (swift)",
+      "notifications.skipped(" not in code_only(read(SW, "ShowUpWelcomeApp.swift")))
+# AND THE REGISTRATION REALLY IS ON 10, which is what makes the deletion safe rather than a loss.
+check("162/163 Stay reachable registers on a grant (kotlin)",
+      "push.register()" in read(KT, "profile", "ReachabilityViewModel.kt"))
+check("162/163 Stay reachable registers on a grant (swift)",
+      "push.register()" in read(SW, "ReachabilityModel.swift"))
 
 # The line: Manrope 500 / 13.5 / 1.4, 3 below the title.
 check("162 row line is Manrope 500 at 13.5 (kotlin)", "fontSize = 13.5.sp" in notify_kt)
@@ -1166,6 +1187,265 @@ check("162 lead is Manrope 500 at 15 (kotlin)", "fontSize = 15.sp" in notify_kt)
 check("162 lead is Manrope 500 at 15 (swift)", "F.manrope(15, .medium)" in notify_sw)
 check("162 lead line height 1.55 (kotlin)", "(15f * 1.55f).sp" in notify_kt)
 check("162 lead line height 1.55 (swift)", "lineSpacing(15 * 0.55)" in notify_sw)
+
+# ── SHOWUP-163 · Stay reachable ─────────────────────────────────────────────
+#
+# THE FIRST ACCEPTANCE CRITERION IS A LIST OF ABSENCES: "Built from `scope="mvp"`. Nothing from
+# `scope="full"` ships: no concierge-call card, calendar card, phone field, email row, or
+# WhatsApp/SMS toggles." The reference file carries both scopes behind one prop, so every one of
+# those is a component sitting in the file somebody built this from -- which is exactly the kind
+# of thing a later "finish the screen" pass adds back without malice.
+reach_kt = code_only(read(KT, "profile", "ProfileReachabilityScreen.kt"))
+reach_sw = code_only(read(SW, "ProfileReachability.swift"))
+reach_model_kt = read(KT, "profile", "ReachabilityModel.kt")
+reach_vm_kt = read(KT, "profile", "ReachabilityViewModel.kt")
+reach_model_sw = read(SW, "ReachabilityModel.swift")
+switch_kt = code_only(read(KT, "designsystem", "ConsentSwitch.kt"))
+switch_sw = code_only(read(SW, "ConsentSwitch.swift"))
+
+for label, forbidden in [
+    ("concierge card", "oncierge"),
+    ("calendar card", "alendar"),
+    ("phone number field", "honeNumberField"),
+    ("email channel row", "mailRow"),
+    ("skip link", "kip for now"),
+]:
+    check("163 no %s from scope=full (kotlin)" % label, forbidden not in reach_kt)
+    check("163 no %s from scope=full (swift)" % label, forbidden not in reach_sw)
+
+# NO HEADER, NO PROGRESS BAR, NO SKIP, NO CLOSE; BACK IS BLOCKED. Same four absences as 09, and
+# the ticket repeats them because this screen is longer and looks more like a settings page.
+check("163 no AppHeader (kotlin)", "AppHeader" not in reach_kt)
+check("163 no AppHeader (swift)", "AppHeader" not in reach_sw)
+check("163 no StepProgress (kotlin)", "StepProgress" not in reach_kt)
+check("163 no StepProgress (swift)", "StepProgress" not in reach_sw)
+check("163 no SkipLink (kotlin)", "SkipLink" not in reach_kt)
+check("163 no SkipLink (swift)", "SkipLink" not in reach_sw)
+check("163 back is blocked (kotlin)", "BackHandler(enabled = true)" in reach_kt)
+check("163 back is blocked (swift)", "navigationBarBackButtonHidden(true)" in reach_sw)
+
+# NOT A STEP AND NO SKIP. §2 gives `reachability` a dash index, and the ticket lists all three
+# step events under "Must NOT fire here".
+check("163 fires no step event (kotlin)", "stepViewed" not in reach_vm_kt
+      and "stepSkipped" not in reach_vm_kt)
+check("163 fires no step event (swift)", "stepViewed" not in reach_model_sw
+      and "stepSkipped" not in reach_model_sw)
+
+# ── the copy, verbatim from the ticket ──────────────────────────────────────
+#
+# Quoted here rather than referenced, because "copy matches the ticket exactly" is a criterion and
+# a verifier that reads the copy out of the source cannot fail.
+REACH_COPY = [
+    ("headline em", "Never miss"),
+    ("headline tail", " a date and avoid getting a penalty!"),
+    ("card title", "Get notifications"),
+    ("push row", "Push notifications"),
+    ("pill", "Recommended"),
+    ("interest heading", "More ways to reach you are coming soon."),
+    ("interest line", u"Tell us which ones you\u2019d like."),
+    ("ai call row", "Phone call from our AI assistant"),
+    ("ai call sub", "A short automated call when something changes."),
+    ("whatsapp row", "WhatsApp"),
+    ("sms row", "SMS"),
+    ("privacy link", "Read our Privacy Policy"),
+    ("cta", "Save preferences"),
+    ("confirm title", "Are you sure?"),
+    ("confirm lead", "Please remember:"),
+    ("confirm keep", "Keep active"),
+    ("confirm settings", "Open Settings"),
+    ("confirm deactivate", "Confirm deactivation"),
+]
+for label, text in REACH_COPY:
+    check("163 copy %s (kotlin)" % label, text in reach_kt)
+    check("163 copy %s (swift)" % label, text in reach_sw)
+
+# `Show-up Rate`, NEVER "Show-Up Rate". The ticket says so twice and it is a product term. It
+# appears in the lead AND in the dialog body, so a single-place fix would leave the other wrong.
+for name, src in [("kotlin", reach_kt), ("swift", reach_sw)]:
+    check("163 Show-up Rate is spelled the product way (%s)" % name,
+          src.count("Show-up Rate") == 2 and "Show-Up Rate" not in src)
+
+# The em dash in the fine print is a SPACED EM DASH, not a hyphen.
+check("163 fine print uses a spaced em dash (kotlin)",
+      u"your dates \u2014 never for marketing" in reach_kt)
+check("163 fine print uses a spaced em dash (swift)",
+      u"your dates \u2014 never for marketing" in reach_sw)
+
+# "Settings" in the fine print is PLAIN TEXT, not a link -- the ticket says so outright, and a
+# second link here would be a second thing to tap that goes nowhere.
+check("163 Privacy Policy is the only link (kotlin)",
+      reach_kt.count("onPrivacy") >= 1 and "onSettingsLink" not in reach_kt)
+check("163 Privacy Policy is the only link (swift)",
+      reach_sw.count("onPrivacy") >= 1 and "onSettingsLink" not in reach_sw)
+
+# ── the defaults ────────────────────────────────────────────────────────────
+#
+# "Push is on by default, and the three checkboxes are unchecked by default." An opt-out, not an
+# opt-in, and it is one word in each file -- exactly the kind of default a later refactor flips.
+check("163 push defaults on (kotlin)", "val pushOn: Boolean = true" in reach_model_kt)
+check("163 push defaults on (swift)", "var pushOn = true" in reach_model_sw)
+check("163 interest defaults empty (kotlin)",
+      "val interest: Set<InterestChannel> = emptySet()" in reach_model_kt)
+check("163 interest defaults empty (swift)",
+      "var interest: Set<InterestChannel> = []" in reach_model_sw)
+
+# ── §25, and the wall between interest and consent ──────────────────────────
+#
+# "Deliberately a separate vocabulary from §8 channel so an interest can never be read as a
+# consent." The enums are checked for their exact values, and the models for the absence of the
+# one call that would collapse the wall.
+for name, src in [("kotlin", reach_model_kt), ("swift", reach_model_sw)]:
+    check("163 §25 ai_call (%s)" % name, '"ai_call"' in src)
+    check("163 §25 whatsapp (%s)" % name, '"whatsapp"' in src)
+    # `sms` is spelled differently in each language and that is not drift: Swift infers a
+    # String raw value from the case name, so `case sms` IS "sms" and writing it out is the
+    # redundancy the compiler warns about. What matters is the WIRE value, which
+    # `ReachabilityRulesTests` asserts by reading the payload back.
+    check("163 §25 sms (%s)" % name, '"sms"' in src or "case sms" in src)
+
+check("163 no consent_changed for an interest box (kotlin)",
+      "consentChanged" not in reach_vm_kt.split("fun interestToggled")[1].split("fun ")[0])
+check("163 no consent_changed for an interest box (swift)",
+      "consentChanged" not in reach_model_sw.split("func interestToggled")[1].split("\n    func ")[0])
+
+# ── the registry stamp ──────────────────────────────────────────────────────
+#
+# TAXONOMY 1.4.5 / REGISTRY 1.4.6, and the ticket quotes both together. The stamp is the SECOND
+# one: enums.json's `registry_version`, which "versions the vocabulary, not the taxonomy
+# document". Reading the wrong file is the obvious mistake and both platforms would make it the
+# same way, so a parity check alone would not catch it.
+check("163 stamp is the enums.json registry version (kotlin)",
+      'FIELD_REGISTRY_VERSION = "1.4.6"' in read(KT, "profile", "ProfileAnalytics.kt"))
+check("163 stamp is the enums.json registry version (swift)",
+      'fieldRegistryVersion = "1.4.6"' in read(SW, "ProfileAnalytics.swift"))
+
+# ── legal_link_tapped, corrected against events.json ────────────────────────
+#
+# The payload is typed `"terms"|"privacy"|"legal_notice"` and carries `screen_id`, not
+# `screen_name` -- a code_delta the registry states outright. Both platforms shipped the longer
+# spellings and the label, identically, which is how a taxonomy error survives a parity check.
+signup_kt = read(KT, "analytics", "SignUpAnalytics.kt")
+signup_sw = read(SW, "SignUpAnalytics.swift")
+for name, src in [("kotlin", signup_kt), ("swift", signup_sw)]:
+    check("163 legal link value is privacy (%s)" % name,
+          '"privacy_policy"' not in src and '"privacy"' in src)
+    check("163 legal link value is terms (%s)" % name,
+          '"terms_and_conditions"' not in src and '"terms"' in src)
+    check("163 legal_link_tapped carries screen_id (%s)" % name,
+          '"screen_id"' in src and '"screen_name" to screen' not in src)
+
+# ── the two dialogs ─────────────────────────────────────────────────────────
+#
+# "After Don't allow, the deactivation confirm appears with the primary labelled `Open Settings`
+# ... A user-initiated toggle-off shows `Keep active`." One label per behaviour: the button opens
+# Settings, so it must not promise to keep anything on.
+check("163 state D primary is Open Settings (kotlin)",
+      "AfterOsDenial" in reach_kt and "CONFIRM_SETTINGS" in reach_kt)
+check("163 state D primary is Open Settings (swift)",
+      "afterOsDenial" in reach_sw and "confirmSettings" in reach_sw)
+
+# `Open Settings` is `permission_settings_opened`, NOT `consent_deactivation_abandoned`. The
+# ticket bolds the distinction, and the two answer different questions.
+# Asserted as a PAIR rather than by slicing one function body: what the ticket bolds is that
+# these two events do not swap places, and each appearing exactly where the other does not is
+# what says so.
+# `openSettings()` WITH THE PARENTHESES, because `openSettingsOrReprompt()` on the host protocol
+# is declared earlier in both files and a prefix match lands on that instead -- a slice of the
+# wrong function that happens to contain neither event, so the check fails for a reason that has
+# nothing to do with what it is asking.
+for _n, _src, _kw in [("kotlin", reach_vm_kt, "fun "), ("swift", reach_model_sw, "func ")]:
+    _opened = _src.split(_kw + "openSettings()")[1].split(_kw)[0]
+    _kept = _src.split(_kw + "keepActive()")[1].split(_kw)[0]
+    check("163 Open Settings is not an abandonment (%s)" % _n,
+          "permissionSettingsOpened" in _opened
+          and "consentDeactivationAbandoned" not in _opened)
+    check("163 Keep active is not a Settings trip (%s)" % _n,
+          "consentDeactivationAbandoned" in _kept
+          and "permissionSettingsOpened" not in _kept)
+
+# ── the switch ──────────────────────────────────────────────────────────────
+#
+# "The switch thumb ANIMATES (the kit's `justify-content` shortcut is not copied)." The kit moves
+# its thumb by realigning the flex child and then declares a transform transition on it; those
+# never meet, so the transition is dead code and the thumb jumps.
+check("163 the thumb is placed by an animated offset (kotlin)",
+      "animateDpAsState" in switch_kt and "thumbX" in switch_kt)
+check("163 the thumb is placed by an animated offset (swift)",
+      "timingCurve" in switch_sw and "offset(x:" in switch_sw)
+check("163 the track crossfades too (kotlin)", "animateColorAsState" in switch_kt)
+check("163 51x31 drawn (kotlin)",
+      "TrackWidth = 51.dp" in switch_kt and "TrackHeight = 31.dp" in switch_kt)
+check("163 51x31 drawn (swift)",
+      "trackWidth: CGFloat = 51" in switch_sw and "trackHeight: CGFloat = 31" in switch_sw)
+
+# EVERY ROW IS A HIT TARGET, and the checked state is announced. `clickable(role = Checkbox)`
+# names the control type and says nothing about whether it is checked; only `toggleable` does.
+check("163 the interest row is toggleable, not merely clickable (kotlin)",
+      "role = Role.Checkbox," in reach_kt and "toggleable(" in reach_kt)
+check("163 the interest row announces its state (swift)",
+      "accessibilityValue(on ?" in reach_sw)
+check("163 the switch is padded to the tap floor (kotlin)", "minTapTarget(48.dp)" in switch_kt)
+check("163 the switch is padded to the tap floor (swift)",
+      "ComponentSizes.minTapTarget" in switch_sw)
+
+# ── the pinned footer ───────────────────────────────────────────────────────
+#
+# "The body scrolls and the CTA stays pinned. The fine print scrolls fully clear of the CTA."
+# The clearance is RESERVED rather than hoped for -- the same lesson 09 learned when a Galaxy Fold
+# opened on a permission screen with no button drawn on it.
+check("163 the CTA is in the pinned footer (kotlin)",
+      "footer = {" in reach_kt and "REACH_CTA_TAG" in reach_kt)
+check("163 the CTA is in the pinned footer (swift)",
+      "footer: {" in reach_sw and "reachCtaId" in reach_sw)
+check("163 the footer clearance is reserved (kotlin)", "FooterClearance" in reach_kt)
+check("163 the footer clearance is reserved (swift)", "footerClearance" in reach_sw)
+
+# ── the failure state ───────────────────────────────────────────────────────
+#
+# "Not optimistic: the flow position advances only after the server confirms." A failure the user
+# cannot see is a CTA that appears to do nothing, so the card is in the PINNED footer rather than
+# at the end of a body that may be scrolled anywhere.
+check("163 the save failure is drawn (kotlin)", "InlineErrorCard" in reach_kt)
+check("163 the save failure is drawn (swift)", "InlineErrorCard" in reach_sw)
+check("163 the save failure uses the shared card (kotlin)",
+      "com.showup.designsystem.InlineErrorCard" in read(KT, "profile",
+                                                        "ProfileReachabilityScreen.kt"))
+
+# ── 09's three changes, which this ticket owns ──────────────────────────────
+#
+# "Profile 09: no OS dialog, CTA reads `Continue`, and none of the three permission events fire
+# there -- verified on both platforms."
+notify_kt2 = code_only(read(KT, "profile", "ProfileNotificationsScreen.kt"))
+notify_sw2 = code_only(read(SW, "ProfileNotifications.swift"))
+notify_vm_kt = read(KT, "profile", "NotificationsViewModel.kt")
+notify_vm_sw = read(SW, "NotificationsModel.swift")
+
+check("163/09 CTA reads Continue (kotlin)", 'CTA = "Continue"' in notify_kt2)
+check("163/09 CTA reads Continue (swift)", 'cta = "Continue"' in notify_sw2)
+check("163/09 the old label is gone (kotlin)", '"Enable notifications"' not in notify_kt2)
+check("163/09 the old label is gone (swift)", '"Enable notifications"' not in notify_sw2)
+
+for name, src in [("kotlin", notify_vm_kt), ("swift", notify_vm_sw)]:
+    body = code_only(src)
+    check("163/09 fires no permission_prompted (%s)" % name, "permissionPrompted(" not in body)
+    check("163/09 fires no permission_os_sheet_shown (%s)" % name,
+          "permissionOsSheetShown(" not in body)
+    check("163/09 fires no permission_result (%s)" % name, "permissionResult(" not in body)
+
+# AND 09 RAISES NO DIALOG. The event absence above would still pass if the request were made
+# silently, which is the worse version of the bug: a sheet with no record of it.
+check("163/09 raises no OS dialog (kotlin)",
+      "askNotifications.launch" not in code_only(read(KT, "profile",
+                                                      "NotificationsViewModel.kt")))
+check("163/09 raises no OS dialog (swift)", "ask.request()" not in code_only(notify_vm_sw))
+
+# UNCHANGED ON 09: the ALREADY-DETERMINED SKIP itself, which the ticket lists under what this
+# ticket must not touch. What went with 163 is the push registration that used to hang off it --
+# see the 162/163 block above for why that is a deletion rather than a loss.
+check("163/09 the already-determined skip survives (kotlin)",
+      "shouldShowAsk(status)" in code_only(read(KT, "MainActivity.kt")))
+check("163/09 the already-determined skip survives (swift)",
+      "shouldShowAsk(status)" in code_only(read(SW, "ShowUpWelcomeApp.swift")))
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)

@@ -96,23 +96,20 @@ final class NotificationRulesTests: XCTestCase {
 
     // MARK: - what fires, and what must not
 
-    func testArrivingReportsTheScreenAndOurOwnSurface() {
+    func testArrivingReportsTheScreenAndNothingElse() {
         let events = Recorder()
         let model = build(events: events, push: FakePush())
         model.arrived()
 
-        XCTAssertEqual(
-            events.names,
-            [ProfileAnalytics.screenViewedName, ProfileAnalytics.permissionPromptedName]
-        )
+        // `permission_prompted` USED TO FIRE HERE and no longer does. Registry 1.4.6 moved it:
+        // "From 25 Sep 2026 the notifications case is Stay reachable (Profile 10) ... Profile 09
+        // NO LONGER fires it — 09 raises no sheet any more." A pre-permission event on a screen
+        // that pre-permissions nothing would double-count the ask against Stay reachable's own.
+        XCTAssertEqual(events.names, [ProfileAnalytics.screenViewedName])
         let viewed = events.only(ProfileAnalytics.screenViewedName)
         XCTAssertEqual(viewed["screen_id"] as? String, "profile_notifications")
         XCTAssertEqual(viewed["screen_name"] as? String, "ProfileNotifications")
         XCTAssertEqual(viewed["referrer_screen_id"] as? String, "profile_media")
-        XCTAssertEqual(
-            events.only(ProfileAnalytics.permissionPromptedName)["type"] as? String,
-            "notifications"
-        )
     }
 
     func testArrivingTwiceReportsOnce() {
@@ -120,17 +117,18 @@ final class NotificationRulesTests: XCTestCase {
         let model = build(events: events, push: FakePush())
         model.arrived()
         model.arrived()
-        XCTAssertEqual(events.count(ProfileAnalytics.permissionPromptedName), 1)
+        // The guard is on the screenview now that it is the only thing arrival reports.
+        XCTAssertEqual(events.count(ProfileAnalytics.screenViewedName), 1)
     }
 
-    func testNoStepEventFiresHere() async {
+    func testNoStepEventFiresHere() {
         // §2's note: a step_id row with a dash index is NOT a licence to fire profile_step_viewed,
         // and this screen has no skip CTA so it fires no step event at all. A phantom step here is
         // invisible until someone reads the completion funnel.
         let events = Recorder()
         let model = build(events: events, push: FakePush())
         model.arrived()
-        await model.enablePressed()
+        model.continuePressed()
 
         XCTAssertTrue(
             events.names.allSatisfy { !$0.hasPrefix("profile_step_") },
@@ -138,13 +136,47 @@ final class NotificationRulesTests: XCTestCase {
         )
     }
 
-    func testNoRecoverySettingsOrConsentEventFiresHere() async {
+    // MARK: - the dialog this screen no longer raises (SHOWUP-163)
+
+    /// THE WHOLE OF WHAT 163 TOOK AWAY, asserted as an absence.
+    ///
+    /// This screen owned the OS notification dialog until 25 September 2026: `enablePressed`
+    /// reported `permission_os_sheet_shown` and launched the request, and the answer reported
+    /// `permission_result`. All three events and the request moved to Stay reachable, where the
+    /// dialog is raised by `Save preferences`.
+    ///
+    /// Six tests were deleted with them — they were testing a thing that is now somebody else's,
+    /// and `ReachabilityRulesTests` is where they live in spirit. What is left is this one, which
+    /// would fail the moment any of it came back.
+    func testNoPermissionEventFiresOnThisScreenAnyMore() {
+        let events = Recorder()
+        let model = build(granted: false, events: events, push: FakePush())
+        model.arrived()
+        model.continuePressed()
+        model.continuePressed()
+
+        let moved = [
+            ProfileAnalytics.permissionPromptedName,
+            ProfileAnalytics.permissionOsSheetShownName,
+            ProfileAnalytics.permissionResultName,
+        ]
+        for name in moved {
+            XCTAssertEqual(
+                events.count(name), 0,
+                "\(name) moved to Stay reachable and must not fire here"
+            )
+        }
+        // The screenview stays: this is still a screen somebody looked at.
+        XCTAssertEqual(events.count(ProfileAnalytics.screenViewedName), 1)
+    }
+
+    func testNoRecoverySettingsOrConsentEventFiresHere() {
         // All three belong to Stay reachable (10). `consent_changed` in particular would
         // double-count the same consent from two surfaces — the OS grant is not our consent.
         let events = Recorder()
         let model = build(granted: false, events: events, push: FakePush())
         model.arrived()
-        await model.enablePressed()
+        model.continuePressed()
 
         let forbidden = [
             "permission_denied_recovery_shown", "permission_settings_opened", "consent_changed",
@@ -155,70 +187,34 @@ final class NotificationRulesTests: XCTestCase {
         )
     }
 
-    // MARK: - the sheet
-
-    func testGrantingReportsGrantedAndRegisters() async {
-        let events = Recorder()
-        let push = FakePush()
-        let model = build(granted: true, events: events, push: push)
-
-        await model.enablePressed()
-        // The registration is a detached Task; give it a turn.
-        for _ in 0..<16 { await Task.yield() }
-
-        XCTAssertEqual(events.count(ProfileAnalytics.permissionOsSheetShownName), 1)
-        XCTAssertEqual(
-            events.only(ProfileAnalytics.permissionResultName)["result"] as? String, "granted"
-        )
-        // Hoisted: XCTAssertEqual takes autoclosures, and `await` cannot live inside one.
-        let calls = await push.calls
-        XCTAssertEqual(
-            calls, 1,
-            "granting and never registering is the silent failure this ticket names"
-        )
-    }
-
-    func testDenyingReportsDeniedAndRegistersNothing() async {
-        let events = Recorder()
-        let push = FakePush()
-        let model = build(granted: false, events: events, push: push)
-
-        await model.enablePressed()
-        for _ in 0..<16 { await Task.yield() }
-
-        XCTAssertEqual(
-            events.only(ProfileAnalytics.permissionResultName)["result"] as? String, "denied"
-        )
-        let calls = await push.calls
-        XCTAssertEqual(calls, 0)
-    }
-
-    func testASecondPressDoesNothingAndReportsNothing() async {
+    func testContinueNavigatesOnceAndRefusesASecondPress() {
         let events = Recorder()
         let model = build(events: events, push: FakePush())
 
-        await model.enablePressed()
-        await model.enablePressed()
-
-        XCTAssertEqual(
-            events.count(ProfileAnalytics.permissionOsSheetShownName), 1,
-            "a tap that raises no sheet is not a sheet being shown"
-        )
-        XCTAssertEqual(events.count(ProfileAnalytics.permissionResultName), 1)
-        XCTAssertTrue(model.sheetUp)
+        XCTAssertTrue(model.continuePressed(), "the first press navigates")
+        XCTAssertFalse(model.continuePressed(), "a double tap must not produce two navigations")
+        // And nothing is reported for either — the press is not an event on this screen.
+        XCTAssertEqual(events.names, [])
     }
 
-    func testTheResultIsNeverLimited() async {
-        // `granted | denied | limited` is the family's set and `limited` is a photo-library state
-        // that cannot occur for notifications. The signature takes a Bool so there is no third
-        // value to pass by mistake; this asserts the mapping.
-        for granted in [true, false] {
-            let events = Recorder()
-            let model = build(granted: granted, events: events, push: FakePush())
-            await model.enablePressed()
-            let result = events.only(ProfileAnalytics.permissionResultName)["result"] as? String
-            XCTAssertTrue(result == "granted" || result == "denied")
-        }
+    func testTheCTAReadsContinue() {
+        // 163 renames it, because the button no longer enables anything — it goes to the screen
+        // that does. A label describing the screen after it is the kind of thing a copy pass
+        // quietly reverts.
+        XCTAssertEqual(NotificationsCopy.cta, "Continue")
+    }
+
+    func testNothingRegistersForPushOnThisScreenAnyMore() async {
+        // The registration moved with the grant it depended on. `skipped` is the one path from
+        // this screen that still registers, and it is tested below.
+        let push = FakePush()
+        let model = build(granted: true, events: Recorder(), push: push)
+        model.arrived()
+        model.continuePressed()
+        for _ in 0..<16 { await Task.yield() }
+
+        let calls = await push.calls
+        XCTAssertEqual(calls, 0, "a press here reaches no platform API at all")
     }
 
     // MARK: - the user who never sees the screen

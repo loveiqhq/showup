@@ -137,14 +137,22 @@ if not fails:
     bad = sorted(n for n in kotlin_events | swift_events if not convention.match(n))
     check("every event name is snake_case", not bad, ", ".join(bad))
 
-    # 26 snake_case constants: the 23 events the five tickets define, plus the three `Legal` link
-    # VALUES (terms_and_conditions, privacy_policy, legal_notice), which are property values rather
-    # than event names but are declared the same way and are worth holding steady too.
+    # 29 snake_case constants: the 23 events the five tickets define, the three `Legal` link
+    # VALUES (terms, privacy, legal_notice) and the three `ScreenId` KEYS (signup_create_account,
+    # signup_welcome_back, connect_sso). The last six are property values rather than event names
+    # but are declared the same way and are worth holding steady too.
+    #
+    # WAS 26 UNTIL SHOWUP-163, and both halves of the move are why. events.json types
+    # `legal_link_tapped.link` as `"terms"|"privacy"|"legal_notice"` -- our `terms_and_conditions`
+    # and `privacy_policy` were longer than the registry, so a filter on the enum matched nothing
+    # -- and its code_delta renames `screen_name` to `screen_id` on that event, which needed a
+    # registry of §11 KEYS beside the existing registry of labels. Three values corrected, three
+    # constants added.
     #
     # A magic number, deliberately. If it moves, a ticket's Tracking section moved with it, and
     # somebody should have read the ticket rather than adjusted this line.
-    check("the catalogue still holds 26 snake_case constants",
-          len(kotlin_events) == 26,
+    check("the catalogue still holds 29 snake_case constants",
+          len(kotlin_events) == 29,
           "found %d -- if a ticket's Tracking section changed, update the count and say why"
           % len(kotlin_events))
 

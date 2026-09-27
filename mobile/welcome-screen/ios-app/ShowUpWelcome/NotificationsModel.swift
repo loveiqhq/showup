@@ -42,9 +42,6 @@ final class NotificationsModel {
     /// Guards `permission_prompted` against a redraw firing it twice.
     private var announced = false
 
-    /// Guards the skip path's registration against running twice.
-    private var registeredOnSkip = false
-
     init(
         access: any NotificationAccessReading = UNNotificationAccess(),
         ask: any NotificationAsking = UNNotificationAsk(),
@@ -57,60 +54,63 @@ final class NotificationsModel {
         self.analytics = analytics
     }
 
-    /// The screen was really shown.
+    /// The screen was really shown. `screen_viewed`, AND NOTHING ELSE.
     ///
-    /// `permission_prompted` is OUR pre-permission surface, and events.json is explicit that it
-    /// "does not fire when the screen is skipped because the OS status is already determined". The
-    /// skip case never constructs this, so the guarantee is structural rather than a condition.
+    /// `permission_prompted` used to fire here and no longer does. Registry 1.4.6 moved it:
+    /// "From 25 Sep 2026 the notifications case is Stay reachable (Profile 10) ... Profile 09 NO
+    /// LONGER fires it — 09 raises no sheet any more." A pre-permission event on a screen that
+    /// pre-permissions nothing would double-count the ask against Stay reachable's own.
     func arrived() {
         guard !announced else { return }
         announced = true
         analytics?.report(ProfileAnalytics.screenViewed(.notifications, referrer: .media))
-        analytics?.report(ProfileAnalytics.permissionPrompted())
     }
 
-    /// The CTA was pressed: raises the sheet, reports the result, registers on a grant.
+    /// The CTA was pressed. IT ONLY NAVIGATES NOW.
     ///
-    /// A SECOND PRESS DOES NOTHING AND REPORTS NOTHING. A tap that raises no sheet is not a sheet
-    /// being shown, and counting it would inflate the denominator of the grant rate with taps that
-    /// never reached the platform.
+    /// SHOWUP-163 took the request away: "Remove the OS notification request from 09. Its CTA only
+    /// navigates to Stay reachable (10)." `permission_os_sheet_shown` and `permission_result` went
+    /// with it, and the button was renamed `Continue` to match — a CTA reading `Enable
+    /// notifications` that enables nothing is the kind of label a copy pass quietly restores.
     ///
-    /// BOTH OUTCOMES ADVANCE — the caller navigates either way and the user never lands back here.
-    func enablePressed() async {
-        guard !sheetUp else { return }
+    /// Returns whether this press is the one that navigates. A DOUBLE TAP MUST NOT PRODUCE TWO
+    /// NAVIGATIONS, and nothing is reported for either press: the tap is not an event on this
+    /// screen.
+    ///
+    /// `ask` and `push` are still held, and deliberately unused here. They belong to `skipped`,
+    /// below, which is the one path that still registers from this screen.
+    @discardableResult
+    func continuePressed() -> Bool {
+        guard !sheetUp else { return false }
         sheetUp = true
-        analytics?.report(ProfileAnalytics.permissionOsSheetShown())
-
-        let granted = await ask.request()
-        analytics?.report(ProfileAnalytics.permissionResult(granted: granted))
-        if granted {
-            // GRANTING AND NEVER REGISTERING is a silent failure that looks exactly like success
-            // on this screen. Fire and forget: it must not hold the user here.
-            Task { _ = await push.register() }
-        }
+        return true
     }
 
-    /// The screen was SKIPPED, and the skipped user still needs a token.
-    ///
-    /// The Swift half of the Android <= 12 case. There is no API-level skip on iOS, so what
-    /// reaches here is the guard case only — a status already determined, from a restored backup
-    /// or an app killed mid-sheet. An APNs token does not survive a restore, so a user who comes
-    /// back already granted still needs to register, and the only thing that registered was a
-    /// callback on a screen they are about to be skipped past.
-    ///
-    /// FIRES NOTHING. `permission_prompted` is our own surface and does not fire on a skip; there
-    /// is no "ask skipped" event and the ticket forbids inventing one at a call site.
-    func skipped(_ status: NotificationPermission) {
-        guard status == .granted, !registeredOnSkip else { return }
-        registeredOnSkip = true
-        Task { _ = await push.register() }
-    }
+    // `skipped(_:)` IS GONE, AND ITS DELETION IS THE POINT (SHOWUP-163).
+    //
+    // It existed because `register()` had exactly one call site — the grant callback on this
+    // screen — so a user who never saw this screen was a device the backend had no token for.
+    // SHOWUP-163 routes EVERY user through Stay reachable (10), whose `Save preferences` is the
+    // only way off it and which registers when push is on. The skipped user now registers there,
+    // one screen later and tied to the consent rather than to a screen they did not see.
+    //
+    // Keeping both would have been a double registration on every Android <= 12 device and every
+    // restored install — and worse on the path that matters: this one registered on a GRANTED
+    // status regardless of consent, so a user who reached 10 and switched push OFF would already
+    // have had a token filed. Registering a device for push right after the user declines it is
+    // the failure that version had, and it was invisible because a second register succeeds.
+    //
+    // Android deleted it with the same reasoning. `push` is still held here for the initialiser's
+    // shape and for the tests that assert nothing registers from this screen any more.
 
     /// Read on every foreground while the screen is mounted.
     ///
-    /// THE SCREEN IS NEVER A TERMINAL STATE. A user who backgrounds the sheet, turns notifications
-    /// on in Settings by hand and comes back would otherwise face a button that can raise nothing
-    /// — the dialog is shown once per install — on a screen with no skip, no back and no close.
+    /// NO LONGER USED FOR NAVIGATION, and kept because the question is still a real one.
+    ///
+    /// It existed because this screen's only button raised a dialog the OS shows once per install:
+    /// a status that became determined while the screen was mounted left a dead CTA, so the screen
+    /// had to advance by itself. It raises nothing now, so `Continue` always works and there is no
+    /// dead state to escape. The re-read that matters moved to 10, where it drives a toggle.
     func statusIsNowDetermined() async -> Bool {
         await !shouldShowAsk(access.read())
     }

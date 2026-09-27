@@ -91,8 +91,14 @@ final class FlowScreenTests: XCTestCase {
         // profileNotifications is the seventeenth, added with SHOWUP-162. Like the bridge and the
         // media step it is not a resume point: it holds nothing on the account, so there is no
         // fact that says whether it was seen.
-        XCTAssertEqual(FlowScreen.allCases.count, 17)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 17)
+        //
+        // profileReachability is the eighteenth, added with SHOWUP-163. It is the first of the
+        // four that DOES hold something — a push consent — but it is still not a resume point
+        // while `NoConsentBackend` is the repository: there is no endpoint to read the consent
+        // back from, so nothing can say whether the screen was answered. When that endpoint
+        // exists, this is the one to revisit.
+        XCTAssertEqual(FlowScreen.allCases.count, 18)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 18)
     }
 
     // MARK: - the routing vocabulary a scene stores

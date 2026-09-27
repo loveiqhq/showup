@@ -74,7 +74,12 @@ import com.showup.profile.MediaState
 import com.showup.profile.MediaTake
 import com.showup.profile.MediaUploadStatus
 import com.showup.profile.ProfileMediaScreen
+import com.showup.profile.DeactivationPrompt
+import com.showup.profile.InterestChannel
 import com.showup.profile.ProfileNotificationsScreen
+import androidx.compose.foundation.ScrollState
+import com.showup.profile.ProfileReachabilityScreen
+import com.showup.profile.ReachabilityState
 import com.showup.profile.ProfilePhotosScreen
 import com.showup.profile.RecordingPhase
 import com.showup.profile.ProfilePromptsScreen
@@ -155,6 +160,17 @@ class EvidenceScreenshots {
         fontScale: Float = 1f,
         /** Which frames to render. Defaults to the three the tickets name. */
         devices: List<Device> = frames,
+        /**
+         * Drives this state to the end of its scroll before the shutter opens.
+         *
+         * A RAW `ComposeView`, not a test rule: there is no `performScrollTo` here and no gesture
+         * to send. So the screen's scroll position is hoisted, handed in by the caller, and then
+         * pushed past any plausible content height -- Compose clamps it to `maxValue`, which is
+         * exactly "scrolled to the bottom" and needs no arithmetic about how tall the content is.
+         *
+         * AFTER LAYOUT, necessarily: `maxValue` does not exist until the content is measured.
+         */
+        scrolled: ScrollState? = null,
         content: @Composable () -> Unit,
     ) {
         // ANIMATIONS OFF, FOR THE WHOLE HARNESS.
@@ -208,6 +224,13 @@ class EvidenceScreenshots {
             )
             view.layout(0, 0, widthPx, heightPx)
             settle()
+
+            if (scrolled != null) {
+                scrolled.dispatchRawDelta(100_000f)
+                settle()
+                view.layout(0, 0, widthPx, heightPx)
+                settle()
+            }
 
             val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
             view.draw(Canvas(bitmap))
@@ -367,6 +390,45 @@ class EvidenceScreenshots {
 
     @Test
     fun `every state of every ticket, at the three frames the tickets name`() {
+        // SHOWUP-163 -- four states. The ticket asks for A, B, C and D at the three frames, with
+        // 375 x 667 additionally shown scrolled to the top and to the bottom; the scrolled pair
+        // is `ReachabilityFitTest`'s job because it needs to drive the scroll, not the camera's.
+        shoot("SHOWUP-163", "A-default") { ProfileReachabilityScreen() }
+        shoot("SHOWUP-163", "B-interest") {
+            ProfileReachabilityScreen(
+                ReachabilityState(
+                    interest = setOf(InterestChannel.AiCall, InterestChannel.WhatsApp),
+                ),
+            )
+        }
+        shoot("SHOWUP-163", "C-confirm") {
+            ProfileReachabilityScreen(
+                ReachabilityState(prompt = DeactivationPrompt.UserTurnedItOff),
+            )
+        }
+        shoot("SHOWUP-163", "D-after-denial") {
+            ProfileReachabilityScreen(
+                ReachabilityState(prompt = DeactivationPrompt.AfterOsDenial),
+            )
+        }
+
+        // THE ONE FRAME THE ACCEPTANCE CRITERIA ASK FOR TWICE: "with 375 x 667 shown scrolled to
+        // the top and to the bottom". 375 x 667 is the tightest of the three and the only one
+        // where this screen scrolls at the default font, so it is the only place a scrolled
+        // photograph says anything at all.
+        //
+        // What the pair has to show together is the criterion: the fine print ends clear of a
+        // CTA that has not moved between the two images.
+        val tight = DEVICES.filter { it.width == 375 && it.height == 667 }
+        val atTop = ScrollState(0)
+        val atBottom = ScrollState(0)
+        shoot("SHOWUP-163", "A-scrolled-top", devices = tight) {
+            ProfileReachabilityScreen(scrollState = atTop)
+        }
+        shoot("SHOWUP-163", "A-scrolled-bottom", devices = tight, scrolled = atBottom) {
+            ProfileReachabilityScreen(scrollState = atBottom)
+        }
+
         // SHOWUP-155 -- one state. The ticket asks for three images and says what to check on the
         // smallest: that the spacer collapsed to about 65 and the headline still fits.
         shoot("SHOWUP-155", "bridge") { ProfileEmbraceScreen(firstName = "Leo") }

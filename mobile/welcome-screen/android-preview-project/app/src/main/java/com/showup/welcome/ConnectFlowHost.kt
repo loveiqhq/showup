@@ -109,12 +109,12 @@ fun ConnectFlowHost(
     ConnectAccountScreen(
         onTerms = {
             track(SignUpAnalytics.legalLinkTapped(
-                SignUpAnalytics.Legal.TERMS, SignUpAnalytics.Screen.CONNECT_SSO))
+                SignUpAnalytics.Legal.TERMS, SignUpAnalytics.ScreenId.CONNECT_SSO))
             onOpenLegal("Terms & Conditions")
         },
         onPrivacy = {
             track(SignUpAnalytics.legalLinkTapped(
-                SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.Screen.CONNECT_SSO))
+                SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.ScreenId.CONNECT_SSO))
             onOpenLegal("Privacy Policy")
         },
         state = state,

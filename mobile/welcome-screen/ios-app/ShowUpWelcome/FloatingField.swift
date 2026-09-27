@@ -148,6 +148,21 @@ struct CheckGlyph: View {
 
 /// The round danger badge with an "!" in it. Lora rather than Manrope — the serif "!" has the
 /// weight the design draws, and it is the same choice the phone screen's error glyph makes.
+/// THE BADGE IS A FIXED SIZE AND SO IS ITS GLYPH, and until 25 September 2026 only the first half
+/// of that was true.
+///
+/// `frame(width: size, height: size)` is a physical circle; `.font(.custom(_, size:))` scales with
+/// Dynamic Type. At the 1.3x step the "!" needs more line height than an 18pt box has, so it was
+/// clipped on every device in the Compose sweep -- in a shared component that four screens draw.
+///
+/// It survived this long because no screen's ERROR state had been swept at that size: the fit
+/// harness renders each screen in the states its own test names, and the error card only reached
+/// the sweep when SHOWUP-163 added a state that carries one.
+///
+/// `.dynamicTypeSize(...(.large))` pins the glyph at the size it is drawn whatever the setting.
+/// That is right HERE and would be wrong almost anywhere else: this is a decorative mark inside a
+/// badge the design fixes at 18, and the message beside it -- the part a person actually reads --
+/// scales in full.
 struct DangerGlyph: View {
     let size: CGFloat
     var glyphSize: CGFloat
@@ -158,8 +173,12 @@ struct DangerGlyph: View {
             Text("!")
                 .font(.custom(PS.loraBold, size: glyphSize))
                 .foregroundColor(.white)
+                .dynamicTypeSize(...DynamicTypeSize.large)
         }
         .frame(width: size, height: size)
+        // The mark carries no information the message does not. Saying "exclamation mark" before
+        // every error would be noise.
+        .accessibilityHidden(true)
     }
 }
 

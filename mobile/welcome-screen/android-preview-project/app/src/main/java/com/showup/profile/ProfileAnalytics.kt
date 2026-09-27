@@ -112,6 +112,18 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     Notifications("profile_notifications", "ProfileNotifications"),
 
     /**
+     * Stay reachable (SHOWUP-163).
+     *
+     * A SCREEN AND NOT A STEP, the same as the notifications ask: no `profile_step_viewed`, no
+     * `_completed`, no `_skipped`, and there is no skip here to record.
+     *
+     * Registry row added 25 September 2026, before the ticket was written -- the standing rule.
+     * The same change note supersedes part of `profile_notifications`: 09 no longer raises the OS
+     * sheet, and the three permission events moved here.
+     */
+    Reachability("profile_reachability", "ProfileReachability"),
+
+    /**
      * The full-bleed capture screen (states G and I).
      *
      * ONE ROW FOR VIDEO AND VOICE -- "the medium is `type` on the events, not a second id". It
@@ -224,6 +236,16 @@ object ValidationRule {
  */
 object ConsentChannel {
     const val MARKETING_EMAIL = "marketing_email"
+
+    /**
+     * The ONE live Stay-reachable consent in the MVP.
+     *
+     * §8's note is explicit that `call · whatsapp · sms · calendar · email` are reserved for the
+     * later scope, and SHOWUP-163 forbids `consent_changed` with any of them: "consent_changed
+     * with any channel other than push" is on its must-NOT-fire list. They are deliberately not
+     * spelled here, so a call site cannot reach for one.
+     */
+    const val PUSH = "push"
 }
 
 /**
@@ -254,7 +276,9 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
-     * 1.4.5 (25 September 2026) is the version that RETIRED §18 prompt `entry_point` -- "which
+     * 1.4.6 (25 September 2026) adds §25 `interest_channel` and the Stay reachable events, and
+     * the §11 row for that screen. It sits on 1.4.5 of the same day, which RETIRED §18 prompt
+     * `entry_point` -- "which
      * topics are chosen matters, where they were chosen from does not" -- taking `position` off
      * every prompt event with it and moving `is_edit` onto `prompt_editor_dismissed`. It sits on
      * 1.4.4 (§24 permission_status, for the notifications ask) and 1.4.2 (§23 dismiss_method
@@ -264,7 +288,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.5"
+    const val FIELD_REGISTRY_VERSION = "1.4.6"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -332,6 +356,18 @@ object ProfileAnalytics {
     const val PERMISSION_OS_SHEET_SHOWN = "permission_os_sheet_shown"
     const val PERMISSION_RESULT = "permission_result"
     const val PERMISSION_STATUS_CHANGED = "permission_status_changed"
+
+    // ── Stay reachable, registry 1.4.6 (SHOWUP-163) ─────────────────────────
+    //
+    // Every one is `implemented: false` before this ticket. `permission_prompted`,
+    // `permission_os_sheet_shown` and `permission_result` are NOT new -- they MOVED here from the
+    // notifications ask, which no longer raises the OS dialog.
+    const val PERMISSION_SETTINGS_OPENED = "permission_settings_opened"
+    const val CONSENT_DEACTIVATION_CONFIRM_SHOWN = "consent_deactivation_confirm_shown"
+    const val CONSENT_DEACTIVATION_ABANDONED = "consent_deactivation_abandoned"
+    const val CONSENT_DEACTIVATION_CONFIRMED = "consent_deactivation_confirmed"
+    const val CHANNEL_INTEREST_CHANGED = "channel_interest_changed"
+    const val REACHABILITY_SAVED = "reachability_saved"
 
     /**
      * The closed set on `permission_prompted.type`, from `enums.json` §8.
@@ -781,13 +817,119 @@ object ProfileAnalytics {
      */
     fun consentChanged(
         on: Boolean,
+        // THE CHANNEL IS A PARAMETER since SHOWUP-163, and it was hard-coded to the marketing
+        // email before because that was the only consent in the product. Stay reachable adds
+        // `push`, and §8's other values are reserved for the later scope -- a call site reaching
+        // for `whatsapp` here is on the ticket's must-NOT-fire list.
+        channel: String = ConsentChannel.MARKETING_EMAIL,
         surface: String = ConsentSurface.PROFILE_CREATION,
     ) = CONSENT_CHANGED to buildMap {
-        put("channel", ConsentChannel.MARKETING_EMAIL)
+        put("channel", channel)
         put("on", on)
         put("surface", surface)
         putAll(Stamp.of(1))
     }
+
+    // ── Stay reachable (SHOWUP-163) ─────────────────────────────────────────
+
+    /**
+     * T2, class 1. Settings was opened for a permission we cannot re-ask for.
+     *
+     * TWO PLACES ON THIS SCREEN, one act: the `Open Settings` primary of the post-denial dialog,
+     * and the toggle when the status is already denied. Both are the user leaving for Settings.
+     *
+     * NOT `consent_deactivation_abandoned`. The ticket calls that out by name, and the reason is
+     * that the two answer different questions: abandoning is "they thought better of it and push
+     * stayed on", opening Settings is "they left the app to fix it". Counting the second as the
+     * first would make the deactivation funnel look healthier than it is.
+     */
+    fun permissionSettingsOpened(type: String = PERMISSION_NOTIFICATIONS) =
+        PERMISSION_SETTINGS_OPENED to buildMap<String, Any> {
+            put("type", type)
+            putAll(Stamp.of(1))
+        }
+
+    /**
+     * T2, class 1. The deactivation confirm went up.
+     *
+     * THE DENOMINATOR of the deactivation funnel: shown = abandoned + confirmed + settings. It
+     * fires for BOTH states C and D, because both are the same dialog asking the same question --
+     * only the primary's label differs.
+     */
+    fun consentDeactivationConfirmShown(channel: String = ConsentChannel.PUSH) =
+        CONSENT_DEACTIVATION_CONFIRM_SHOWN to buildMap<String, Any> {
+            put("channel", channel)
+            putAll(Stamp.of(1))
+        }
+
+    /** T2, class 1. `Keep active`, or a tap on the scrim. Push stayed on. */
+    fun consentDeactivationAbandoned(channel: String = ConsentChannel.PUSH) =
+        CONSENT_DEACTIVATION_ABANDONED to buildMap<String, Any> {
+            put("channel", channel)
+            putAll(Stamp.of(1))
+        }
+
+    /** T2, class 1. `Confirm deactivation`. Push is now off, and [consentChanged] follows. */
+    fun consentDeactivationConfirmed(channel: String = ConsentChannel.PUSH) =
+        CONSENT_DEACTIVATION_CONFIRMED to buildMap<String, Any> {
+            put("channel", channel)
+            putAll(Stamp.of(1))
+        }
+
+    /**
+     * T2, class 0. An interest box was checked or unchecked.
+     *
+     * NOT A CONSENT, AND THE TYPE SAYS SO. [InterestChannel] is §25, a separate vocabulary from
+     * §8's `channel` precisely so that "an interest can never be read as a consent" -- so this
+     * builder cannot be handed a consent channel and [consentChanged] cannot be handed an
+     * interest. The ticket's hardest rule is "no `consent_changed` for a checkbox. Ever."
+     *
+     * Class 0, not 1: an interest in a channel that does not exist is not personal data. The
+     * consent events above are class 1 because a consent record is.
+     *
+     * EVERY FLIP, not the final state. `reachability_saved.interest` carries the final state; this
+     * carries the path, so a check followed by an uncheck is not counted as interest.
+     */
+    fun channelInterestChanged(channel: InterestChannel, on: Boolean) =
+        CHANNEL_INTEREST_CHANGED to buildMap<String, Any> {
+            put("channel", channel.trackingValue)
+            put("on", on)
+            put("screen_id", ProfileScreen.Reachability.screenId)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T2, class 1. The server confirmed the push consent and the flow is about to advance.
+     *
+     * AFTER THE CONFIRMATION, never on the tap. The screen is "not optimistic" by epic rule: the
+     * position advances only once the consent is committed, so an event fired on the tap would
+     * count saves that never happened.
+     *
+     * The payload CHANGED in 1.4.6 -- `channels_on`, `count` and `has_phone` are gone, and the
+     * ticket says to remove them if they are already emitted. They never were here; the screen is
+     * new. What is left is the three facts the demand test actually reads.
+     */
+    fun reachabilitySaved(
+        pushOn: Boolean,
+        permission: NotificationPermission,
+        interest: List<String>,
+    ) = REACHABILITY_SAVED to buildMap<String, Any> {
+        put("push_on", pushOn)
+        put("permission", permission.trackingValue)
+        put("interest", interest)
+        putAll(Stamp.of(1))
+    }
+
+    /**
+     * T2, class 0. A legal link was tapped. ONE EVENT for all seven links on three screens.
+     *
+     * Delegates to the shared builder rather than spelling the payload again -- the one in
+     * `SignUpAnalytics` is where the §13 vocabulary and the `screen_id` key live, and a second
+     * copy is how the two would come to disagree. What this adds is the §11 id, taken from the
+     * screen registry instead of typed.
+     */
+    fun legalLinkTapped(link: String, screen: ProfileScreen) =
+        com.showup.analytics.SignUpAnalytics.legalLinkTapped(link, screen.screenId)
 
     /** T2, class 0. **BLOCKED** — the skip path itself is an open question in ticket 02. */
     fun stepSkipped(step: BasicsStep, screen: ProfileScreen) =

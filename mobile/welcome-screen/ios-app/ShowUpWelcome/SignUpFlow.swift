@@ -183,19 +183,19 @@ struct SignUpFlowView: View {
                     onTerms: {
                         track(SignUpAnalytics.legalLinkTapped(
                             SignUpAnalytics.Legal.terms,
-                            screen: SignUpAnalytics.Screen.createAccount))
+                            screenId: SignUpAnalytics.ScreenId.createAccount))
                         onOpenLegal("Terms & Conditions")
                     },
                     onPrivacy: {
                         track(SignUpAnalytics.legalLinkTapped(
                             SignUpAnalytics.Legal.privacy,
-                            screen: SignUpAnalytics.Screen.createAccount))
+                            screenId: SignUpAnalytics.ScreenId.createAccount))
                         onOpenLegal("Privacy Policy")
                     },
                     onLegalNotice: {
                         track(SignUpAnalytics.legalLinkTapped(
                             SignUpAnalytics.Legal.legalNotice,
-                            screen: SignUpAnalytics.Screen.createAccount))
+                            screenId: SignUpAnalytics.ScreenId.createAccount))
                         onOpenLegal("Legal Notice")
                     },
                     // On, because this target is the preview the spec sheet is reviewed against and
@@ -249,13 +249,13 @@ struct SignUpFlowView: View {
                     onLegal: {
                         track(SignUpAnalytics.legalLinkTapped(
                             SignUpAnalytics.Legal.legalNotice,
-                            screen: SignUpAnalytics.Screen.welcomeBack))
+                            screenId: SignUpAnalytics.ScreenId.welcomeBack))
                         onOpenLegal("Legal Notice")
                     },
                     onPrivacy: {
                         track(SignUpAnalytics.legalLinkTapped(
                             SignUpAnalytics.Legal.privacy,
-                            screen: SignUpAnalytics.Screen.welcomeBack))
+                            screenId: SignUpAnalytics.ScreenId.welcomeBack))
                         onOpenLegal("Privacy Policy")
                     }
                 )

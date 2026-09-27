@@ -308,6 +308,29 @@ final class ScreenFitTests: XCTestCase {
                 // paragraph and five two-line rows -- so "is the CTA on screen at all" is exactly
                 // the question worth asking here.
                 ("Notifications", try render(ProfileNotificationsView(), on: device), .violet),
+
+                // SHOWUP-163, the states that decide the layout. The FIRST SCREEN IN THIS FLOW
+                // THAT IS ALLOWED TO SCROLL, so "below the fold" says nothing here and the
+                // question worth asking is whether the pinned CTA is drawn at all -- which is
+                // what the probe below checks, at the sunset ramp's violet end as above.
+                //
+                // F is the tallest state there is: every box checked AND the inline error above
+                // the CTA. D is the dialog with the longest primary label on it.
+                ("Reach A default", try render(ProfileReachabilityView(), on: device), .violet),
+                ("Reach F save failed", try render(
+                    ProfileReachabilityView(
+                        state: ReachabilityState(
+                            interest: [.aiCall, .whatsApp, .sms], saveFailed: true
+                        )
+                    ), on: device), .violet),
+                ("Reach C confirm", try render(
+                    ProfileReachabilityView(
+                        state: ReachabilityState(prompt: .userTurnedItOff)
+                    ), on: device), .violet),
+                ("Reach D after denial", try render(
+                    ProfileReachabilityView(
+                        state: ReachabilityState(pushOn: false, prompt: .afterOsDenial)
+                    ), on: device), .violet),
                 ("Embrace named", try render(
                     ProfileEmbraceView(firstName: "Leo"), on: device), .violet),
                 ("Embrace no name", try render(

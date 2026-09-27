@@ -50,7 +50,11 @@ import com.showup.profile.MediaState
 import com.showup.profile.MediaTake
 import com.showup.profile.MediaUploadStatus
 import com.showup.profile.ProfileMediaScreen
+import com.showup.profile.DeactivationPrompt
+import com.showup.profile.InterestChannel
 import com.showup.profile.ProfileNotificationsScreen
+import com.showup.profile.ProfileReachabilityScreen
+import com.showup.profile.ReachabilityState
 import com.showup.profile.ProfilePromptsScreen
 import com.showup.profile.RecordingPhase
 import com.showup.profile.PROMPT_SAMPLE_AT_CAP
@@ -509,6 +513,57 @@ class ScreenFitTest {
         sweep("Notifications") { ProfileNotificationsScreen() }
         sweep("Notifications @1.3", fontScale = 1.3f) { ProfileNotificationsScreen() }
         sweep("Notifications @2.0", fontScale = 2.0f) { ProfileNotificationsScreen() }
+        assertClean()
+    }
+
+    /**
+     * SHOWUP-163, all seven states.
+     *
+     * THE FIRST SCREEN IN THE FLOW THAT IS ALLOWED TO SCROLL, which changes what this sweep can
+     * promise. On 09 a BELOW THE FOLD finding is a defect; here the content legitimately runs past
+     * a 686-tall frame at 2.0 and the screen scrolls, so the finding is an advisory and the thing
+     * that actually matters -- that the CTA is reachable -- is measured in `ReachabilityFitTest`
+     * against the pinned footer rather than here.
+     *
+     * What this sweep is still the right place for is the horizontal half and the dialog. A 320
+     * frame is where the RECOMMENDED pill wrapped to a circle, and the dialog is drawn in a `Box`
+     * over the whole screen, so it has its own width to get wrong.
+     */
+    @Test
+    fun `profile reachability, all seven states`() {
+        val all = ReachabilityState(interest = InterestChannel.ORDER.toSet())
+
+        sweep("Reach/A default") { ProfileReachabilityScreen() }
+        // B is what a confirmed deactivation leaves behind: the switch off, the card unchanged.
+        sweep("Reach/B push off") { ProfileReachabilityScreen(ReachabilityState(pushOn = false)) }
+        // C and D are one dialog with one label different, and both are drawn over a full screen.
+        sweep("Reach/C confirm") {
+            ProfileReachabilityScreen(
+                ReachabilityState(prompt = DeactivationPrompt.UserTurnedItOff),
+            )
+        }
+        sweep("Reach/D after denial") {
+            ProfileReachabilityScreen(
+                ReachabilityState(pushOn = false, prompt = DeactivationPrompt.AfterOsDenial),
+            )
+        }
+        sweep("Reach/E all interests") { ProfileReachabilityScreen(all) }
+        // F is the tallest state there is -- every box checked AND the inline error above the CTA.
+        sweep("Reach/F save failed") { ProfileReachabilityScreen(all.copy(saveFailed = true)) }
+        sweep("Reach/G saving") { ProfileReachabilityScreen(all.copy(saving = true)) }
+
+        // The two font scales, on the two states that decide the height. `Open Settings` is the
+        // longest label in the dialog and 320 x 2.0 is where it has the least room to be it.
+        for (scale in listOf(1.3f, 2.0f)) {
+            sweep("Reach/F save failed @" + scale, fontScale = scale) {
+                ProfileReachabilityScreen(all.copy(saveFailed = true))
+            }
+            sweep("Reach/D after denial @" + scale, fontScale = scale) {
+                ProfileReachabilityScreen(
+                    ReachabilityState(pushOn = false, prompt = DeactivationPrompt.AfterOsDenial),
+                )
+            }
+        }
         assertClean()
     }
 
