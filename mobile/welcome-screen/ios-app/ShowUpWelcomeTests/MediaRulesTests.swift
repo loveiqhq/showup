@@ -149,8 +149,15 @@ final class MediaRulesTests: XCTestCase {
             analytics: events,
             now: { box.value },
             tickMs: 10,
-            // Returns immediately: a ten-second cap costs a thousand loop iterations and no time.
-            tickWait: { _ in },
+            // RETURNS THE NOMINAL STEP, IMMEDIATELY. The clocks measure what a tick cost rather
+            // than assuming it, so the fixture is where "a tick costs exactly what it asked for"
+            // is declared -- a thousand iterations reach a ten-second cap in no time, and the cap
+            // assertions below stay exact.
+            //
+            // This is also what makes E28 fixable at all: the earlier attempt read a real
+            // monotonic clock, which never moves when this closure returns instantly, so the
+            // recording loop never ended and the suite hung.
+            tickWait: { $0 },
             readFile: { _ in Data(count: 8) },
             removeFile: { _ in }
         )

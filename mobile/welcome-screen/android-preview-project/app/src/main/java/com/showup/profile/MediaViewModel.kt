@@ -200,6 +200,12 @@ open class MediaViewModel(
                     selectedId = existing?.promptId,
                     openedAtMs = now(),
                 ),
+                // OPENING THE LIST CLEARS A FAILED TAKE'S NOTICE. The message belongs to a take
+                // that is over, and choosing a prompt again is the user moving on from it --
+                // waiting for the next take to BEGIN would leave it sitting under the sheet for
+                // the whole time the sheet is open, which is a notice about something that is no
+                // longer the state of the screen.
+                captureFailed = null,
             )
         }
         analytics?.report(
@@ -308,6 +314,10 @@ open class MediaViewModel(
         }
         val attempt = (attempts[kind] ?: 0) + 1
         attempts[kind] = attempt
+        // A NEW ATTEMPT CLEARS THE LAST FAILURE. The message belongs to one take, not to the
+        // screen -- leaving it up while a fresh viewfinder opens would report a failure that is
+        // no longer happening.
+        _state.update { it.copy(captureFailed = null) }
 
         val isRetake = attempt > 1 || _state.value.artefact(kind) != null
         _state.update {
@@ -330,9 +340,16 @@ open class MediaViewModel(
             val ok = created.start { reason -> onCaptureEnded(reason) }
             if (!ok) {
                 // The recorder would not start at all. Nothing was captured, so there is nothing to
-                // review -- return to the card rather than showing an empty review screen.
+                // review -- return to the card rather than showing an empty review screen, AND SAY
+                // SO. A take that vanishes without a word is indistinguishable from one that was
+                // never attempted.
                 session = null
-                _state.update { it.copy(take = null) }
+                _state.update {
+                    it.copy(
+                        take = null,
+                        captureFailed = CaptureFailed(kind, CaptureFailure2.NeverStarted),
+                    )
+                }
                 return@launch
             }
             runClock(kind)
@@ -402,10 +419,16 @@ open class MediaViewModel(
         viewModelScope.launch {
             val captured = current.finish(take.elapsedMs)
             if (captured == null) {
-                // Nothing usable was written -- a take too short for the encoder, or a failure on
-                // close. There is no take to review, so the card is where the user goes.
+                // The recorder RAN and wrote nothing usable -- a take too short for the encoder, a
+                // failure on close, or a camera session that was never really recording. A
+                // different problem from "would not start", and reported as one.
                 session = null
-                _state.update { it.copy(take = null) }
+                _state.update {
+                    it.copy(
+                        take = null,
+                        captureFailed = CaptureFailed(take.kind, CaptureFailure2.NothingRecorded),
+                    )
+                }
                 return@launch
             }
             showReview(take, captured, reason)
@@ -633,11 +656,36 @@ open class MediaViewModel(
             // The grace is because a decoder can run a little past its nominal duration; the end
             // is normally noticed by `hasFinished` well before the bound is reached, and the bound
             // is the backstop for a player that never reports one.
-            var waited = 0L
+            // ANCHORED TO A START, NOT ACCUMULATED -- the same correction the recording clock
+            // needed, and the reason playback was reported as "starts slow then speeds up".
+            //
+            // `delay(tickMs)` sleeps AT LEAST its argument, so on an emulator, or any device busy
+            // decoding, each pass overshoots and the overshoot COMPOUNDS. The player itself never
+            // changed rate -- ExoPlayer runs at 1.0 and `positionMs()` is read from it -- but the
+            // POLL fell further and further behind, so the bar and the readout updated late and
+            // then jumped to catch up. What a person sees is a clip that drags and then races,
+            // which is exactly how it was described, and none of it is playback speed.
+            //
+            // `waited` was also the bound, so a late poll made the clock run PAST the clip: the
+            // loop thought less time had passed than really had. Both faults come from counting
+            // ticks, and both go away by reading the clock.
+            val startedAt = elapsedRealtimeMs()
             val limit = durationMs + PLAY_CLOCK_GRACE_MS
-            while (waited < limit) {
-                delay(tickMs)
-                waited += tickMs
+            // BOUNDED BY BOTH, and the pass count is not belt-and-braces.
+            //
+            // Reading the clock for the exit condition means the loop ends when TIME passes -- and
+            // a clock that does not move never ends it. That is not hypothetical: a test can hold
+            // one still, and so can a stub. The first version of this anchoring hung the suite
+            // for exactly that reason, which is the same trap the recording clock next door was
+            // already bounded against.
+            //
+            // Ten times the passes the clip should need, so a slow device cannot trip it.
+            val maxPasses = (limit / tickMs).toInt() * 10 + 100
+            var passes = 0
+            while (elapsedRealtimeMs() - startedAt < limit && passes < maxPasses) {
+                val deadline = startedAt + (++passes) * tickMs
+                val sleep = deadline - elapsedRealtimeMs()
+                if (sleep > 0) delay(sleep) else yield()
                 if (playing !== session) return@launch
                 if (session.hasFinished()) {
                     stopPlayback()

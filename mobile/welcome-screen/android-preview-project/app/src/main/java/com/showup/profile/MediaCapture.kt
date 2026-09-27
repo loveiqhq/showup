@@ -111,6 +111,20 @@ interface MediaCaptureFactory {
  */
 class FakeMediaCapture(
     private val startSucceeds: Boolean = true,
+    /**
+     * Whether a take that STARTED goes on to produce a file.
+     *
+     * THE FAILURE THE REAL RECORDER HAS AND THIS FAKE COULD NOT EXPRESS. Until 27 September 2026
+     * `finish` returned null only when `start` had already failed, so the one shape that actually
+     * shipped -- a recording that runs, shows a counter for ten seconds, and writes nothing --
+     * had no test anywhere. On a device that is the user filming, pressing stop, and landing back
+     * on the card with no review screen; in the suite it was unreachable.
+     *
+     * It is a parameter rather than a per-kind setting because the model must treat both media
+     * the same way, and a fake that could only fail for video would bake the asymmetry it is
+     * meant to detect into the test.
+     */
+    private val finishSucceeds: Boolean = true,
     private val pathFor: (MediaKind) -> String = { "/dev/null/${it.trackingValue}.take" },
 ) : MediaCaptureFactory {
 
@@ -118,11 +132,12 @@ class FakeMediaCapture(
     val sessions = mutableListOf<FakeSession>()
 
     override fun create(kind: MediaKind): MediaCaptureSession =
-        FakeSession(kind, startSucceeds, pathFor(kind)).also { sessions += it }
+        FakeSession(kind, startSucceeds, finishSucceeds, pathFor(kind)).also { sessions += it }
 
     class FakeSession(
         val kind: MediaKind,
         private val startSucceeds: Boolean,
+        private val finishSucceeds: Boolean,
         private val path: String,
     ) : MediaCaptureSession {
         var started = false
@@ -138,7 +153,7 @@ class FakeMediaCapture(
         }
 
         override suspend fun finish(elapsedMs: Int): CaptureTake? =
-            if (!started) null
+            if (!started || !finishSucceeds) null
             else CaptureTake(
                 path = path,
                 durationMs = elapsedMs,

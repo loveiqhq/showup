@@ -28,6 +28,16 @@ import SwiftUI
 
 /// Copy for the media step, quoted from the ticket's "Copy — final strings".
 enum MediaCopy {
+    /// A take that never reached the recorder.
+    ///
+    /// OURS, NOT THE TICKET'S — see `MediaFailureRow` and E34. Names what happened and what to do,
+    /// and blames nothing it cannot prove: the camera may be busy, the permission may have been
+    /// revoked between the check and the call. Guessing sends people to fix the wrong thing.
+    static let captureNeverStarted = "We couldn't start recording. Please try again."
+
+    /// A take that ran and wrote nothing. A different problem, and a different sentence.
+    static let captureNothingRecorded = "That recording didn't save. Please try again."
+
     static let optionalPill = "Optional · you can skip this"
     static let headlineBefore = "Show your face. Let them "
     static let headlineEm = "hear you"
@@ -147,11 +157,48 @@ struct PromptCaption: View {
 /// DELIBERATELY COMPACT. The whole empty state — pill, headline, both cards and both CTAs — has to
 /// sit above the fold on a 390x844 with nothing cut off, and that budget is why the removed
 /// manifesto card is not coming back.
+/// A take that produced nothing, said out loud.
+///
+/// THE COPY HERE IS OURS AND IS NOT APPROVED. The ticket specifies a permission row and an upload
+/// retry and NO recording failure at all — ten states are drawn and this is not one of them. So
+/// these two sentences are written in the flow's existing voice and recorded in
+/// `audit/CONFLICTS-2026-08-27.md` as E34, needing a copy decision.
+///
+/// They are here rather than absent because the alternative was measured against a real user
+/// twice: a take that fails silently is indistinguishable from one that was never attempted.
+///
+/// NO ACTION BUTTON, deliberately. The card's own CTA already reopens the prompt list.
+struct MediaFailureRow: View {
+    let cause: CaptureFailureCause
+
+    var body: some View {
+        HStack(spacing: Spacing.lg) {
+            BrandIconView(icon: .alertCircle, size: 15, stroke: 1.8, tint: .liqDanger)
+            Text(cause == .neverStarted
+                 ? MediaCopy.captureNeverStarted
+                 : MediaCopy.captureNothingRecorded)
+                .font(F.manrope(12, .medium))
+                .lineSpacing(12 * 0.35)
+                .foregroundColor(.liqDangerFg)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
+        // The danger tint at the weight the permission row uses for lilac: this went wrong, and
+        // should not read as the same kind of notice as a permission not yet granted.
+        .background(Color.liqDanger.opacity(0.08), in: RoundedRectangle(cornerRadius: innerRadius))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct MediaSlotCard: View {
     let kind: MediaKind
     let preview: MediaPrompt
     var blocker: MediaBlocker?
     var platformLabel: String = ""
+    /// The last take on THIS card that produced nothing, or nil.
+    var failure: CaptureFailureCause?
     var onChoose: () -> Void = {}
     var onPermissionAction: () -> Void = {}
 
@@ -209,9 +256,15 @@ struct MediaSlotCard: View {
             // The permission row, in the RESERVED status region above the CTA — the same place, and
             // the same treatment, as screen 06's camera row. Nothing is drawn before the first
             // refusal: a user who has never been asked sees two clean cards.
+            //
+            // A FAILED TAKE USES THE SAME SLOT, and the permission row takes precedence: a
+            // recording that failed for want of a permission shows the permission row, because
+            // that one can be acted on.
             if let blocker {
                 MediaPermissionRow(blocker: blocker, platformLabel: platformLabel,
                                    action: onPermissionAction)
+            } else if let failure {
+                MediaFailureRow(cause: failure)
             }
 
             // `md`, not the flow's full-width `lg`. See ComponentSizes.controlHeightMedium: this is
