@@ -96,6 +96,20 @@ interface MediaCaptureSession {
 
     /** Abandons the take and deletes whatever was written. Safe to call twice. */
     suspend fun discard()
+
+    /**
+     * Why the last `finish` produced nothing, in the platform's own words, or null.
+     *
+     * DIAGNOSTIC ONLY, AND SHOWN ONLY IN A DEBUG BUILD. `finish` returning null says a take
+     * produced no file; it cannot say whether the encoder refused, the disk was full or the
+     * camera went away mid-take, and those are different problems with different fixes. CameraX
+     * reports exactly that in its Finalize event and this carries it out rather than dropping it
+     * on the floor -- which is what happened for three rounds of "it does not work", each one
+     * indistinguishable from the last.
+     *
+     * Defaulted to null so a fake, a preview and the voice recorder need say nothing.
+     */
+    fun failureDetail(): String? = null
 }
 
 /** Creates a session per take. */

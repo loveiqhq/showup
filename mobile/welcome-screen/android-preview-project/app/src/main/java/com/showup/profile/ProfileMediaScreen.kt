@@ -213,7 +213,7 @@ private fun MediaSlot(
                 // ONLY THIS CARD'S FAILURE. A voice take that produced nothing must not put a
                 // notice on the video card, and the state carries one failure at a time for
                 // exactly that reason -- it belongs to a take, and a take has a kind.
-                failure = state.captureFailed?.takeIf { it.kind == kind }?.cause,
+                failure = state.captureFailed?.takeIf { it.kind == kind },
                 onPermissionAction = {
                     blocker?.let { onPermissionAction(it.capability, it.status) }
                 },

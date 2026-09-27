@@ -218,6 +218,30 @@ private class AndroidVoiceSession(
  * captured with the video, which is why the video card needs BOTH permissions and the voice card
  * needs only one -- the single fact the whole permission matrix is derived from.
  */
+/**
+ * CameraX's finalize error codes, named.
+ *
+ * `VideoRecordEvent.Finalize.ERROR_*` are plain ints and the class offers no name for them, so a
+ * report would otherwise read "error 7" -- which is true and useless. The ones that actually
+ * happen are worth spelling: an emulator's software encoder gives ENCODING_FAILED or
+ * RECORDER_ERROR, a full device gives INSUFFICIENT_STORAGE, and a camera taken away mid-take
+ * gives SOURCE_INACTIVE. Each is somebody else's problem to fix and they are not the same
+ * somebody.
+ */
+private fun finalizeErrorName(code: Int): String = when (code) {
+    VideoRecordEvent.Finalize.ERROR_NONE -> "none"
+    VideoRecordEvent.Finalize.ERROR_UNKNOWN -> "unknown"
+    VideoRecordEvent.Finalize.ERROR_FILE_SIZE_LIMIT_REACHED -> "file size limit"
+    VideoRecordEvent.Finalize.ERROR_INSUFFICIENT_STORAGE -> "insufficient storage"
+    VideoRecordEvent.Finalize.ERROR_SOURCE_INACTIVE -> "camera source inactive"
+    VideoRecordEvent.Finalize.ERROR_INVALID_OUTPUT_OPTIONS -> "invalid output options"
+    VideoRecordEvent.Finalize.ERROR_ENCODING_FAILED -> "encoding failed"
+    VideoRecordEvent.Finalize.ERROR_RECORDER_ERROR -> "recorder error"
+    VideoRecordEvent.Finalize.ERROR_NO_VALID_DATA -> "no valid data"
+    VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED -> "duration limit"
+    else -> "code $code"
+}
+
 private class AndroidVideoSession(
     private val context: Context,
     private val controller: () -> LifecycleCameraController?,
@@ -229,6 +253,15 @@ private class AndroidVideoSession(
 
     /** Completed by the Finalize event, which is the only place CameraX reports a real duration. */
     private val finalized = CompletableDeferred<Int?>()
+
+    /**
+     * What CameraX said went wrong, for a debug build to show.
+     *
+     * The Finalize event's error code is the ONLY place the platform explains itself, and it was
+     * being read for a yes/no and then discarded. Kept here so `failureDetail` can hand it to the
+     * screen when a take produces nothing.
+     */
+    private var finalizeError: String? = null
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     override suspend fun start(onEnded: (CaptureFailure) -> Unit): Boolean {
@@ -269,6 +302,14 @@ private class AndroidVideoSession(
                 if (event is VideoRecordEvent.Finalize) {
                     val nanos = event.recordingStats.recordedDurationNanos
                     val ms = (nanos / 1_000_000L).toInt()
+                    if (event.hasError()) {
+                        // The code, its name, and what the recorder thinks it wrote. A number
+                        // alone sends whoever reads it to the documentation; the name is the
+                        // half that makes a bug report actionable.
+                        finalizeError =
+                            "${finalizeErrorName(event.error)} (${event.error}), ${ms}ms, " +
+                                "${output.length()} bytes"
+                    }
                     // hasError covers a full disk, a revoked permission mid-take and the source
                     // becoming inactive. Some errors still leave a playable prefix, which is why
                     // the duration travels either way and the caller decides what to keep.
@@ -309,6 +350,8 @@ private class AndroidVideoSession(
         }
     }
 
+    override fun failureDetail(): String? = finalizeError
+
     override suspend fun discard() {
         if (!finished) {
             finished = true
@@ -320,7 +363,20 @@ private class AndroidVideoSession(
     }
 
     private companion object {
-        const val FINALIZE_TIMEOUT_MS = 4_000L
+        /**
+         * How long to wait for CameraX to close the file.
+         *
+         * FIFTEEN SECONDS, NOT FOUR, and the four was a guess that cost a week. Finalisation is
+         * the muxer writing the MP4's index and closing the file, and until it lands the file on
+         * disk is legitimately empty -- so a wait that gives up early reads a zero-byte file and
+         * reports "that recording didn't save" for a take that was about to be perfectly fine.
+         *
+         * On a phone it arrives in well under a second, so the extra eleven cost nothing and are
+         * never spent. On an emulator, where the video encoder is software and slow, they are
+         * the difference between a take and a shrug. The timeout exists for a callback that
+         * never comes at all, and that is a much rarer thing than a slow one.
+         */
+        const val FINALIZE_TIMEOUT_MS = 15_000L
 
         /**
          * How long to wait for a bound camera before giving up on the take.
