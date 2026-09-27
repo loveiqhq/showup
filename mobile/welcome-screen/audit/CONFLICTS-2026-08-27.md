@@ -1168,3 +1168,41 @@ is not drift — the platforms' scale ladders are different and each is expresse
 **It is defensible here and nowhere else on either screen**, because the badge repeats something
 the screen already says: the toggle beside it is on by default. Nothing whose only statement is a
 badge would be allowed to stop growing.
+
+## E34 · A video take that produces nothing returns to the card in silence. NEEDS A SURFACE
+
+Four different failures inside `AndroidVideoSession` end the same way: the take is cleared, the
+user is put back on the media card, and nothing is said. The camera controller is missing; video
+capture is not enabled; `startRecording` throws; the file is written empty. From the user's side
+all four are identical — **film for ten seconds, press stop, and land where you started.**
+
+That is what was reported from a Pixel, twice. The first report was answered by fixing a CameraX
+rebind race; the second had a different cause (see the permission-time bind, fixed 27 September),
+and the reason one report could not be told from the other is that **the screen says nothing in
+either case.**
+
+The state machine has no error surface: `MediaState` carries `take`, `sheet`, `playback` and
+`loaded`, and no failure. The ticket specifies a permission row and an upload retry and no
+recording failure at all, so there is no approved copy for one — which is why this is recorded
+rather than invented. A sentence here is a product decision, not a build detail.
+
+**What it should say is the open question.** "We could not record that — try again" is the shape;
+whether it is a toast, an inline row on the card, or a dialog is a design call. Until it exists,
+the next report of this will again be indistinguishable from the last.
+
+## E35 · The fine print's link cannot be a 44pt target, and is not one
+
+`CLAUDE.md` says 44pt / 48dp for anything tappable, "even where the reference draws smaller".
+Callout 12 draws `Read our Privacy Policy` as a run INSIDE a sentence — the spec sheet's scrolled
+frame shows one flowing paragraph ending in the link and a full stop — and a run of text inside a
+paragraph cannot carry its own hit area without ceasing to be part of the paragraph.
+
+Built as a real inline link on both platforms: `withLink(LinkAnnotation.Clickable)` on Android,
+`AttributedString.link` with an `OpenURLAction` on iOS. Both are the mechanisms their platform
+provides for exactly this, both are what the welcome flow's three legal links already use, and
+both give the run a link role to a screen reader.
+
+**The trade is stated rather than hidden:** the link's touch area is its glyphs, about 15pt tall
+at 11.5 type. That is below the floor and is the same trade the sign-up screens have shipped since
+SHOWUP-140. It is listed here so the two are reviewed together if the floor is ever enforced —
+the answer would be a design change to every legal line in the product, not a patch to this one.
