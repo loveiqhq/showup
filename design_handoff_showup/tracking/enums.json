@@ -1,6 +1,12 @@
 {
-  "registry_version": "1.4.5",
+  "registry_version": "1.4.6",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_6": [
+    "§25 interest_channel — NEW: ai_call · whatsapp · sms. The MVP demand test on Stay reachable. Not a consent.",
+    "§11 profile_reachability / ProfileReachability — NEW row, before the Profile 10 ticket. profile_notifications note: superseded in part — 09 no longer raises the OS sheet.",
+    "§8 channel note: in MVP only push is a live Stay-reachable consent; call · whatsapp · sms · calendar · email reserved for the later scope.",
+    "§2 reachability and phonebook rows updated; phonebook is not in the MVP."
+  ],
   "changed_in_1_4_5": [
     "§18 prompt entry_point — RETIRED. The values suggestion · browse · edit are no longer sent on any event. 25 Sep 2026, product decision: which topics are chosen matters, where they were chosen from does not. Section kept, emptied, so numbering and citations stay stable.",
     "§17 note updated to match. The app-open entry_point (cold · push · sms · whatsapp · email · deeplink) and §21 media entry_point are unaffected."
@@ -245,12 +251,12 @@
             {
               "step_id": "reachability",
               "step_index": "—",
-              "screen": "Stay reachable for a match · six consent toggles + phone number"
+              "screen": "Stay reachable · MVP: push toggle + three interest checkboxes (25 Sep 2026)"
             },
             {
               "step_id": "phonebook",
               "step_index": "—",
-              "screen": "Save the concierge number · outside the progress bar"
+              "screen": "Save the concierge number · outside the progress bar · NOT IN MVP (25 Sep 2026) — the AI call is interest-only"
             },
             {
               "step_id": "location",
@@ -463,7 +469,7 @@
             {
               "key": "channel",
               "values": "push · sms · whatsapp · email · call · calendar · marketing_email",
-              "notes": "Consistent across G, J and the consent properties. THREE USES OF EMAIL, DELIBERATELY DISTINCT: marketing_email is consent to send marketing mail, asked once on the profile Email screen (consent_changed there always carries this value); email is the Stay-reachable toggle, a preference for being contacted about a match; entry_point:\"email\" is arrival from a link in a mail. Transactional mail — password reset, support replying about a date — is NOT consent-gated and is never tracked as a consent, so it has no value here (decision 28)."
+              "notes": "Consistent across G, J and the consent properties. THREE USES OF EMAIL, DELIBERATELY DISTINCT: marketing_email is consent to send marketing mail, asked once on the profile Email screen (consent_changed there always carries this value); email is the Stay-reachable toggle, a preference for being contacted about a match; entry_point:\"email\" is arrival from a link in a mail. Transactional mail — password reset, support replying about a date — is NOT consent-gated and is never tracked as a consent, so it has no value here (decision 28). MVP (25 Sep 2026): of the Stay-reachable values only push is a live consent. call · whatsapp · sms · calendar · email are RESERVED for the later scope and are never sent in MVP — interest in the first three is §25 interest_channel on channel_interest_changed, which is not a consent."
             },
             {
               "key": "band",
@@ -843,7 +849,15 @@
               "flow": "Profile creation · permission ask",
               "ticket": "Profile 09",
               "status": "ticketed — not built",
-              "notes": "The notification permission ask, between media (08) and Stay reachable (10). ONE state and one screen_id. It sits OUTSIDE both progress bars and is not a step: §2 holds a notifications step_id for a future skip only, and no profile_step_* event fires here. The OS sheet it raises is not a screen and gets no row — it is measured by permission_os_sheet_shown / permission_result. Profile creation runs once on a fresh install, so the status here is always 'not determined' and the screen is shown; it is skipped only on Android <= 12 and as a guard when the status is already determined (restore-from-backup, or killed mid-sheet). screen_viewed here therefore always means the ask was really made. Added 21 Sep 2026, before the Profile 09 ticket was written."
+              "notes": "The notification permission ask, between media (08) and Stay reachable (10). ONE state and one screen_id. It sits OUTSIDE both progress bars and is not a step: §2 holds a notifications step_id for a future skip only, and no profile_step_* event fires here. The OS sheet it raises is not a screen and gets no row — it is measured by permission_os_sheet_shown / permission_result. Profile creation runs once on a fresh install, so the status here is always 'not determined' and the screen is shown; it is skipped only on Android <= 12 and as a guard when the status is already determined (restore-from-backup, or killed mid-sheet). screen_viewed here therefore always means the ask was really made. Added 21 Sep 2026, before the Profile 09 ticket was written. ⚠ SUPERSEDED IN PART 25 Sep 2026: screen 09 no longer raises the OS sheet. Its CTA advances to Stay reachable (10), and the sheet is raised by 10's Save preferences. screen_viewed here now means the explainer was seen, not that the ask was made — the ask is permission_os_sheet_shown on profile_reachability."
+            },
+            {
+              "screen_id": "profile_reachability",
+              "screen_name": "ProfileReachability",
+              "flow": "Profile creation · permission ask",
+              "ticket": "Profile 10",
+              "status": "ticketed — not built",
+              "notes": "Stay reachable. MVP scope (25 Sep 2026): one push toggle, three interest checkboxes (§25), and the push deactivation confirm over it — the dialog has no entry point of its own and is not a separate screen. Raises the OS notification sheet on Save preferences (moved from 09). Added 25 Sep 2026, before the Profile 10 ticket was written."
             }
           ]
         }
@@ -1239,6 +1253,17 @@
         "granted",
         "denied",
         "restricted"
+      ]
+    },
+    {
+      "id": "e25",
+      "num": "25",
+      "name": "interest_channel",
+      "note": "THE DEMAND TEST on Stay reachable (Profile 10), MVP only. A checked box records interest in a channel that does NOT exist yet — it is not a consent, nothing is sent on it, and no contact data is collected for it. Deliberately a separate vocabulary from §8 channel so an interest can never be read as a consent. ai_call is the phone call from our AI assistant (§8 call when it ships). Created 25 Sep 2026 with the Profile 10 ticket.",
+      "values": [
+        "ai_call",
+        "whatsapp",
+        "sms"
       ]
     }
   ],

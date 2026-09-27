@@ -155,9 +155,15 @@ class SignUpTrackingTest {
                     SignUpAnalytics.Legal.LEGAL_NOTICE,
                 ),
             )
-            // The same three links appear on four screens. Without the screen name the taps are
-            // indistinguishable in the warehouse.
-            assertEquals("Signup - CreateAccount", tap.properties["screen_name"])
+            // The same three links appear on four screens. Without the screen the taps are
+            // indistinguishable in the warehouse -- and it is the ID, not the label: events.json
+            // carries the rename as an explicit code_delta, "this event carries the key only;
+            // screen_viewed is where the label lives". A funnel joining the two joins on the id.
+            assertEquals("signup_create_account", tap.properties["screen_id"])
+            assertTrue(
+                "the label belongs to screen_viewed, not here",
+                tap.properties["screen_name"] == null,
+            )
         }
 
     @Test
@@ -169,9 +175,9 @@ class SignUpTrackingTest {
         // Not every screen has all three. SHOWUP-142 says explicitly that no Terms & Conditions
         // line appears on Welcome back, so two is correct there and three would be wrong.
         val expected = mapOf(
-            SignUpAnalytics.Screen.CREATE_ACCOUNT to 3,   // Terms, Privacy, Legal Notice
-            SignUpAnalytics.Screen.WELCOME_BACK to 2,     // Legal Notice, Privacy -- no Terms
-            SignUpAnalytics.Screen.CONNECT_SSO to 2,      // Terms, Privacy
+            SignUpAnalytics.ScreenId.CREATE_ACCOUNT to 3, // Terms, Privacy, Legal Notice
+            SignUpAnalytics.ScreenId.WELCOME_BACK to 2,   // Legal Notice, Privacy -- no Terms
+            SignUpAnalytics.ScreenId.CONNECT_SSO to 2,    // Terms, Privacy
         )
 
         // Counted from the source rather than by tapping: the links live inside annotated strings,
@@ -186,23 +192,27 @@ class SignUpTrackingTest {
         // Split on the call itself and look at what follows: each legalLinkTapped( call names its
         // link and then its screen, so the fragment after the call contains exactly one screen
         // constant. No regex -- the escaping is not worth the cleverness here.
+        //
+        // `ScreenId.`, not `Screen.`: the call sites pass the §11 key now. The two objects share
+        // their constant NAMES, so a stale `Screen.` here matched nothing and reported every
+        // screen as wiring zero links rather than failing on the rename itself.
         val calls = wiring.split("legalLinkTapped(").drop(1)
 
         for ((screen, count) in expected) {
             val constant = screenConstant(screen)
             val found = calls.count { fragment ->
-                fragment.take(200).contains("Screen.$constant")
+                fragment.take(200).contains("ScreenId.$constant")
             }
             assertEquals("$screen should wire $count legal links", count, found)
         }
     }
 
-    /** The constant name for a screen, as it appears at the call sites. */
-    private fun screenConstant(screen: String): String = when (screen) {
-        SignUpAnalytics.Screen.CREATE_ACCOUNT -> "CREATE_ACCOUNT"
-        SignUpAnalytics.Screen.WELCOME_BACK -> "WELCOME_BACK"
-        SignUpAnalytics.Screen.CONNECT_SSO -> "CONNECT_SSO"
-        else -> error("unmapped screen $screen")
+    /** The constant name for a screen id, as it appears at the call sites. */
+    private fun screenConstant(screenId: String): String = when (screenId) {
+        SignUpAnalytics.ScreenId.CREATE_ACCOUNT -> "CREATE_ACCOUNT"
+        SignUpAnalytics.ScreenId.WELCOME_BACK -> "WELCOME_BACK"
+        SignUpAnalytics.ScreenId.CONNECT_SSO -> "CONNECT_SSO"
+        else -> error("unmapped screen id $screenId")
     }
 
     @Test

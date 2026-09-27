@@ -57,6 +57,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import com.showup.api.EncryptedTokenStore
 import com.showup.api.ShowUpApi
+import com.showup.profile.NoConsentBackend
+import com.showup.profile.ProfileReachabilityScreen
+import com.showup.profile.ReachabilityHost
+import com.showup.profile.ReachabilityViewModel
+import android.os.Build
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import com.showup.profile.AndroidMediaAccess
 import com.showup.profile.AndroidMediaCaptureFactory
 import com.showup.profile.AndroidMediaPlayer
@@ -269,6 +277,21 @@ class MainActivity : ComponentActivity() {
             // navigation either goes through the ask or does not.
             val notifications = remember(context) { AndroidNotificationAccess(context) }
 
+            val reachModel: ReachabilityViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        ReachabilityViewModel(
+                            access = notifications,
+                            push = PushRegistration(api),
+                            // No endpoint for the push consent yet -- see ReachabilityRepository.
+                            // No sink is wired in this host yet: every profile view model
+                            // here reports to nothing, which is brief Step 2 and its own ticket.
+                            consent = NoConsentBackend,
+                        )
+                    }
+                },
+            )
+
             val notifyModel: NotificationsViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
@@ -283,9 +306,10 @@ class MainActivity : ComponentActivity() {
             /**
              * Where media's Continue and Skip both land.
              *
-             * STAY REACHABLE (10) DOES NOT EXIST YET, so both the ask and the two skip cases end
-             * at Home for now. When 10 is built this is the single place that changes -- which is
-             * why it is a function rather than two copies of the same conditional.
+             * 09 IS STILL SKIPPED ON A DETERMINED STATUS, and 10 never is. SHOWUP-163 leaves the
+             * guard alone -- "unchanged on 09: the Android <= 12 / already-determined skip guard"
+             * -- so a user whose permission is already settled goes straight past the explainer
+             * to Stay reachable, which is the screen that can actually act on it.
              */
             fun afterMedia(): FlowScreen {
                 val status = notifications.read()
@@ -293,37 +317,38 @@ class MainActivity : ComponentActivity() {
                 // THE SKIPPED USER STILL NEEDS A TOKEN. Below API 33 notifications are on with
                 // nothing to ask for, and the only thing that registered for push was a callback
                 // on the screen those users never see. See NotificationsViewModel.skipped.
-                notifyModel.skipped(status)
-                return FlowScreen.Home
+                // NO SKIP-PATH REGISTRATION ANY MORE, and that is SHOWUP-163 undoing a fix
+                // from earlier the same day rather than a regression.
+                //
+                // The old problem was that an Android <= 12 user never saw 09 and so never hit
+                // the grant callback that registered for push. Every user reaches Stay reachable
+                // now, and IT registers -- as part of the save, after the consent, which is the
+                // better place: registration and consent land together or not at all.
+                // Registering here as well would simply do it twice.
+                return FlowScreen.ProfileReachability
             }
 
-            // The OS sheet's answer. `permission_result` fires here and nowhere else, and the
-            // flow advances on BOTH outcomes -- the user never lands back on the ask.
+            // ── the OS notification dialog, now raised by Stay reachable (SHOWUP-163) ──
+            //
+            // IT ANSWERS A SUSPEND FUNCTION. `ReachabilityViewModel.savePressed` has to WAIT for
+            // the answer -- the ticket's order is "raise the OS dialog and wait", then register,
+            // then commit, then advance -- and a launcher callback cannot be awaited. So the
+            // callback completes a deferred the suspend side is sitting on.
+            //
+            // The launcher is declared here, above the `when`, so its callback survives the
+            // navigation it triggers. That was already the rule when 09 owned it.
+            var permissionAnswer by remember { mutableStateOf<CompletableDeferred<Boolean>?>(null) }
             val askNotifications = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { granted ->
-                // RECORDED HERE, NOT BEFORE THE LAUNCH, and the difference is a user the ticket
-                // names by name.
-                //
-                // Android cannot tell "never asked" from "refused" -- both read as not-granted --
-                // so `PermissionAskLog` is the proxy, and recording it before the dialog is
-                // ANSWERED makes a liar of it. A user who raises the sheet and then backgrounds
-                // the app without answering would come back recorded as denied, while the OS
-                // status is still not determined. The ticket describes exactly that person: they
-                // "land on Stay reachable never having been asked", and 10's row must raise the
-                // same sheet for them. A false denial would send them to Settings instead, for a
-                // dialog they never saw.
-                //
-                // This callback fires when the platform has an answer, which is the only moment
-                // the ask is a fact. Killed mid-dialog, it never fires and nothing is recorded --
-                // which is correct, because nothing was answered.
+                // RECORDED WHEN IT IS ANSWERED, never before the launch. Android cannot tell
+                // "never asked" from "refused" -- both read as not-granted -- so `PermissionAskLog`
+                // is the proxy, and recording it before the dialog is answered makes a liar of it:
+                // a user who raises the sheet and backgrounds the app without answering would come
+                // back recorded as denied while the OS status is still not determined.
                 PermissionAskLog.recordAsked(context, Manifest.permission.POST_NOTIFICATIONS)
-
-                // Reports the result and, on a grant, registers for push -- GRANTING AND NOT
-                // REGISTERING IS A SILENT FAILURE that looks exactly like success on this screen.
-                notifyModel.answered(granted)
-                // BOTH OUTCOMES ADVANCE. Stay reachable (10) is not built, so Home stands in.
-                screen = FlowScreen.Home
+                permissionAnswer?.complete(granted)
+                permissionAnswer = null
             }
 
             // The player, held here for the same reason the camera controller is: it owns a
@@ -786,46 +811,122 @@ class MainActivity : ComponentActivity() {
                     }
 
                     FlowScreen.ProfileNotifications -> {
-                        // `permission_prompted` is OUR pre-permission surface being shown, and it
-                        // fires on view -- but only when the screen is really shown. The skip
-                        // cases never reach here, which is exactly what events.json requires:
-                        // "it does not fire when the screen is skipped".
+                        // `screen_viewed` only. SHOWUP-163 moved `permission_prompted` and the
+                        // two OS-dialog events to Stay reachable, which is where the dialog is
+                        // raised now -- see NotificationsViewModel.arrived.
                         LaunchedEffect(Unit) { notifyModel.arrived() }
 
-                        // THE SCREEN IS NEVER A TERMINAL STATE. If the status becomes determined
-                        // while it is mounted -- the user backgrounds the sheet, turns
-                        // notifications on in Settings by hand, and comes back -- it advances by
-                        // itself rather than leaving a button that can no longer raise anything.
+                        // NO FOREGROUND RE-READ AND NO SELF-ADVANCE ANY MORE.
                         //
-                        // The reconciler's own `permission_status_changed` is not fired here: that
-                        // event is the shared reconciler's and it must never double up with
-                        // `permission_result` for one act. This is the navigation half only.
-                        val notifyLifecycle = LocalLifecycleOwner.current
-                        DisposableEffect(notifyLifecycle) {
-                            val observer = LifecycleEventObserver { _, event ->
-                                if (event == Lifecycle.Event.ON_RESUME &&
-                                    notifyModel.statusIsNowDetermined()
-                                ) {
-                                    screen = FlowScreen.Home
-                                }
-                            }
-                            notifyLifecycle.lifecycle.addObserver(observer)
-                            onDispose { notifyLifecycle.lifecycle.removeObserver(observer) }
-                        }
-
+                        // Both existed because this screen's only button raised a dialog that the
+                        // OS shows once per install: a status that became determined while it was
+                        // mounted left a dead CTA, so it had to advance by itself. It raises
+                        // nothing now, so `Continue` always works and there is no dead state to
+                        // escape. The re-read that matters moved to 10, where it drives a toggle.
                         val sheetUp by notifyModel.sheetUp.collectAsStateWithLifecycle()
 
                         ProfileNotificationsScreen(
                             busy = sheetUp,
                             onEnable = {
                                 // False on a second press, and nothing is reported for it.
-                                if (notifyModel.enablePressed()) {
-                                    // Below 33 there is no runtime permission and `shouldShowAsk`
-                                    // would already have skipped the screen, so reaching here
-                                    // means the request is real. The ask is recorded in the RESULT
-                                    // callback, not here -- see the comment there.
-                                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                if (notifyModel.continuePressed()) {
+                                    screen = FlowScreen.ProfileReachability
                                 }
+                            },
+                        )
+                    }
+
+                    // ── Stay reachable (SHOWUP-163) ─────────────────────────
+                    FlowScreen.ProfileReachability -> {
+                        val reachState by reachModel.state.collectAsStateWithLifecycle()
+
+                        // THE HOST DOES THE TWO THINGS ONLY AN ACTIVITY CAN: raise the dialog and
+                        // leave for Settings. Everything else is in the view model, which is what
+                        // lets every rule on this screen be tested with no device.
+                        val reachScope = rememberCoroutineScope()
+                        DisposableEffect(reachModel) {
+                            reachModel.attach(
+                                object : ReachabilityHost {
+                                    override suspend fun requestNotificationPermission(): Boolean {
+                                        // Below API 33 there is no runtime permission to ask for
+                                        // and notifications are already on.
+                                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                            return true
+                                        }
+                                        val answer = CompletableDeferred<Boolean>()
+                                        permissionAnswer = answer
+                                        askNotifications.launch(
+                                            Manifest.permission.POST_NOTIFICATIONS,
+                                        )
+                                        return answer.await()
+                                    }
+
+                                    override fun openSettingsOrReprompt() {
+                                        // ANDROID CAN SOMETIMES STILL ASK, and when it can, an
+                                        // in-app dialog is a far shorter path than Settings. The
+                                        // ticket allows either and the event is the same.
+                                        val canAsk = Build.VERSION.SDK_INT >=
+                                            Build.VERSION_CODES.TIRAMISU &&
+                                            !PermissionAskLog.hasAsked(
+                                                context, Manifest.permission.POST_NOTIFICATIONS,
+                                            )
+                                        if (canAsk) {
+                                            reachScope.launch {
+                                                val answer = CompletableDeferred<Boolean>()
+                                                permissionAnswer = answer
+                                                askNotifications.launch(
+                                                    Manifest.permission.POST_NOTIFICATIONS,
+                                                )
+                                                answer.await()
+                                                reachModel.foregrounded()
+                                            }
+                                        } else {
+                                            openAppSettings(context)
+                                        }
+                                    }
+                                },
+                            )
+                            onDispose { }
+                        }
+
+                        LaunchedEffect(Unit) { reachModel.arrived() }
+
+                        // The status is re-read on every foreground, so returning from Settings
+                        // with notifications allowed shows the toggle on. NOTHING AUTO-ADVANCES:
+                        // the user taps Save preferences again and no dialog is raised.
+                        val reachLifecycle = LocalLifecycleOwner.current
+                        DisposableEffect(reachLifecycle) {
+                            val observer = LifecycleEventObserver { _, event ->
+                                if (event == Lifecycle.Event.ON_RESUME) reachModel.foregrounded()
+                            }
+                            reachLifecycle.lifecycle.addObserver(observer)
+                            onDispose { reachLifecycle.lifecycle.removeObserver(observer) }
+                        }
+
+                        ProfileReachabilityScreen(
+                            state = reachState,
+                            onPushChange = reachModel::pushChanged,
+                            onInterestToggle = reachModel::interestToggled,
+                            onKeepActive = reachModel::keepActive,
+                            onOpenSettings = reachModel::openSettings,
+                            // THE SAME DESTINATION AS `onSave`, because on state D this IS
+                            // the save finishing -- see ReachabilityViewModel.confirmDeactivation.
+                            // On state C the lambda is never reached.
+                            onConfirmDeactivate = {
+                                reachModel.confirmDeactivation { screen = FlowScreen.Home }
+                            },
+                            onPrivacy = {
+                                reachModel.privacyTapped()
+                                // REPORTS AND GOES NOWHERE, which is what the welcome flow's
+                                // three legal links already do: `SignUpFlow.onOpenLegal` defaults
+                                // to a no-op and this host supplies none, because the documents
+                                // are not hosted yet. Where they live is one ticket for all seven
+                                // links, not a decision to take on this screen.
+                            },
+                            onSave = {
+                                // LOCATION (12) DOES NOT EXIST YET, so the one exit ends at Home.
+                                // When 12 is built this is the single line that changes.
+                                reachModel.savePressed { screen = FlowScreen.Home }
                             },
                         )
                     }

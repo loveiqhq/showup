@@ -114,13 +114,17 @@ class SignUpAnalyticsTest {
     fun `a legal link tap names which link and which screen`() {
         val (event, props) = SignUpAnalytics.legalLinkTapped(
             SignUpAnalytics.Legal.PRIVACY,
-            SignUpAnalytics.Screen.CREATE_ACCOUNT,
+            SignUpAnalytics.ScreenId.CREATE_ACCOUNT,
         )
 
         assertEquals("legal_link_tapped", event)
-        assertEquals("privacy_policy", props["link"])
-        // The same three links appear on four screens; without this the taps are indistinguishable.
-        assertEquals("Signup - CreateAccount", props["screen_name"])
+        // `privacy`, NOT `privacy_policy`. events.json types the payload
+        // `"terms"|"privacy"|"legal_notice"`, and the longer spelling was ours, not the
+        // registry's -- a value that never matches the enum is a filter nobody can write.
+        assertEquals("privacy", props["link"])
+        // The same three links appear on four screens; without this the taps are
+        // indistinguishable. The key, not the label -- see the code_delta on this event.
+        assertEquals("signup_create_account", props["screen_id"])
     }
 
     @Test

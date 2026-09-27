@@ -26,6 +26,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -133,6 +134,46 @@ fun SheetCloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
  * `sheet-rise` is 28 up and 0.85 -> 1 opacity over [Motion.SHEET] -- a shared keyframe, not a
  * per-sheet animation, and skipped entirely when the device asks for no motion.
  */
+/**
+ * `backdrop-filter: blur(1.5px)`, which the scrim CANNOT draw itself.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS IS A MODIFIER ON THE CALLER AND NOT A LINE INSIDE [SheetScaffold]
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * CSS's `backdrop-filter` blurs whatever happens to be painted BEHIND an element. Compose has no
+ * equivalent and, on reflection, could not: a composable draws its own subtree and has no handle
+ * on the pixels underneath it. [SheetScaffold] is drawn OVER the screen, so no modifier it
+ * applies to itself can reach the screen -- `Modifier.blur` there would blur the sheet, which is
+ * the opposite of the design.
+ *
+ * So the blur belongs to the thing being blurred. The screen applies this to its own content and
+ * passes whether a sheet is up; the radius lives here, next to the scrim alpha it was specified
+ * with, so the two halves of callout 15 cannot drift apart.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * IT DOES NOTHING ON ANDROID 11
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * `Modifier.blur` is `RenderEffect` underneath, which is API 31. On API 30 -- this project's
+ * minimum -- Compose ignores it rather than crashing, and that degradation is acceptable HERE
+ * and would not be everywhere: at 1.5dp the blur is a softening, not a legibility device. The
+ * scrim is what makes the sheet readable and the scrim is drawn on every version.
+ *
+ * NO `Build.VERSION` GATE, deliberately, and it is the one place in this project where that is
+ * the right call: a gate would guard a call that is already a documented no-op, so it would read
+ * as a behaviour difference where there is none. The comment is the gate.
+ */
+fun Modifier.blurBehindSheet(covered: Boolean): Modifier =
+    if (covered) blur(SheetBackdropBlur) else this
+
+/**
+ * 1.5, from callout 15 and the reference file both. A SOFTENING, not a frosted panel -- the
+ * spec's own words are "the screen stays visible behind it", and every larger value tried here
+ * turned the screen into wallpaper.
+ */
+private val SheetBackdropBlur = 1.5.dp
+
 @Composable
 fun SheetScaffold(
     onDismiss: (SheetDismissMethod) -> Unit,

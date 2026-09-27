@@ -49,6 +49,16 @@ val Success = Color(0xFF00AB55)        // --liq-success     · the connected bad
  */
 val SuccessFg = Color(0xFF0A7A47)      // --liq-success-fg  · success glyphs on light ground
 val Muted = Color(0x9E1D1129)          // --liq-fg-muted    · rgba(29,17,41,.62)
+/**
+ * `--liq-fg-subtle`, rgba(29, 17, 41, 0.46) — tertiary ink.
+ *
+ * The register the GDPR fine print is set in on Stay reachable (SHOWUP-163): quieter than
+ * [Neutral] so it reads as reassurance rather than as another paragraph to get through. Added
+ * with that screen because it is the first to need it; `--liq-fg-muted` and `--liq-fg-faint`
+ * are in the token file too and are not used by anything yet, so they are not here.
+ */
+val FgSubtle = Color(0x751D1129)       // --liq-fg-subtle   · rgba(29,17,41,.46)
+
 val Border = Color(0x1F1D1129)         // --liq-border      · rgba(29,17,41,.12)
 val Danger = Color(0xFFFB323B)         // --liq-danger      · invalid borders, the ! glyph
 val DangerFg = Color(0xFFB71F26)       // --liq-danger-fg   · error helper text

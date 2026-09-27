@@ -1,8 +1,14 @@
 {
-  "taxonomy_version": "1.4.4",
+  "taxonomy_version": "1.4.5",
   "reconciled_against": "loveiqhq/showup main @ c195089",
   "generated": "2026-09-25",
-  "event_count": 296,
+  "event_count": 297,
+  "changed_in_1_4_5": [
+    "channel_interest_changed — NEW, family G: the Stay reachable interest checkboxes (§25). Not a consent.",
+    "reachability_saved — payload is now push_on · permission · interest; channels_on, count, has_phone removed for the MVP scope.",
+    "permission_prompted / permission_os_sheet_shown — the notifications ask moved from Profile 09 to Profile 10 (Save preferences). 09 fires neither any more.",
+    "consent_changed — MVP: Stay reachable fires channel:\"push\" only."
+  ],
   "changed_in_1_4_4": [
     "Prompt entry_point REMOVED from prompt_topic_selected, prompt_editor_opened, prompt_saved, prompt_editor_dismissed and prompts_minimum_met; position removed from prompt_topic_selected. Product decision 25 Sep 2026: we measure WHICH topics are chosen (topic_id), not whether the tap came from a suggestion card or the browse sheet. enums §18 retired.",
     "prompt_editor_dismissed gains is_edit: bool — the one job entry_point: \"edit\" did that nothing else carried (backing out of an edit vs. abandoning a new prompt).",
@@ -2377,7 +2383,7 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. Profile 09 (ProfileNotifications) is the full-screen case and fires this on view with type: \"notifications\"; it does not fire when the screen is skipped because the OS status is already determined.",
+          "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. From 25 Sep 2026 the notifications case is Stay reachable (Profile 10, profile_reachability): fires on view with type: \"notifications\" when the OS status is not_determined. Profile 09 NO LONGER fires it — 09 raises no sheet any more.",
           "implemented": false
         },
         {
@@ -2393,7 +2399,7 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "System permission dialog triggers",
+          "trigger": "System permission dialog triggers. Notifications: raised by Save preferences on Stay reachable (Profile 10), only when the push toggle is on and the status is not_determined — moved from Profile 09 on 25 Sep 2026.",
           "implemented": false
         },
         {
@@ -2502,7 +2508,31 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Not built",
-          "trigger": "A consent toggle changed, in either direction — on:false is the opt-out, on:true the opt-in. TWO PLACES FIRE THIS. (1) The marketing checkbox on the profile Email screen: channel:\"marketing_email\", surface:\"profile_creation\". The address itself is not a consent — it is used for password resets and support replies regardless; the checkbox governs marketing mail alone, so an unchecked box means no marketing, not no email (decision 28). (2) The six Stay reachable toggles: channel is one of the other six values. surface is required on both — a consent record that cannot be traced to where it was given cannot be honoured.",
+          "trigger": "A consent toggle changed, in either direction — on:false is the opt-out, on:true the opt-in. TWO PLACES FIRE THIS. (1) The marketing checkbox on the profile Email screen: channel:\"marketing_email\", surface:\"profile_creation\". The address itself is not a consent — it is used for password resets and support replies regardless; the checkbox governs marketing mail alone, so an unchecked box means no marketing, not no email (decision 28). (2) The six Stay reachable toggles: channel is one of the other six values. surface is required on both — a consent record that cannot be traced to where it was given cannot be honoured. MVP (25 Sep 2026): Stay reachable fires this for channel:\"push\" ONLY. An interest checkbox is not a consent and fires channel_interest_changed instead — never consent_changed.",
+          "implemented": false
+        },
+        {
+          "name": "channel_interest_changed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "channel",
+              "type": "str — enums.json §25 interest_channel"
+            },
+            {
+              "name": "on",
+              "type": "bool"
+            },
+            {
+              "name": "screen_id",
+              "type": "str — \"profile_reachability\""
+            }
+          ],
+          "sensitivity_class": 1,
+          "backend_status": "Not built",
+          "trigger": "An interest checkbox on Stay reachable (Profile 10) checked or unchecked — every flip, in order. The MVP demand test for channels that do not exist yet. NOT a consent: never fire consent_changed for it, never collect contact data for it, never send on it. The final state is reachability_saved.interest. NEW 25 Sep 2026.",
           "implemented": false
         },
         {
@@ -2512,21 +2542,21 @@
           "tier": "T2",
           "payload": [
             {
-              "name": "channels_on",
-              "type": "[str]"
+              "name": "push_on",
+              "type": "bool — the push consent the user leaves with"
             },
             {
-              "name": "count",
-              "type": "int"
+              "name": "permission",
+              "type": "str — enums.json §24, read after the OS sheet (or on arrival if none was raised)"
             },
             {
-              "name": "has_phone",
-              "type": "bool"
+              "name": "interest",
+              "type": "[str] — enums.json §25; the boxes checked at Save, [] if none"
             }
           ],
           "sensitivity_class": 1,
           "backend_status": "Not built",
-          "trigger": "“Save preferences” tapped — the state the user actually leaves the screen in, which per-toggle events cannot reconstruct. A skip fires profile_step_skipped step_id:\"reachability\"",
+          "trigger": "“Save preferences” tapped and the save confirmed by the server — the state the user actually leaves the screen in, which per-toggle events cannot reconstruct. THE DENOMINATOR-SIDE ROW OF THE DEMAND TEST: share of screen_viewed{profile_reachability} whose reachability_saved.interest contains a channel. Payload changed 25 Sep 2026 for the MVP scope: channels_on, count and has_phone removed (no phone field, one consent channel). Stay reachable has no skip, so profile_step_skipped does not fire here.",
           "implemented": false
         },
         {

@@ -234,17 +234,17 @@ fun SignUpFlow(
                 },
                 onTerms = {
                     track(SignUpAnalytics.legalLinkTapped(
-                        SignUpAnalytics.Legal.TERMS, SignUpAnalytics.Screen.CREATE_ACCOUNT))
+                        SignUpAnalytics.Legal.TERMS, SignUpAnalytics.ScreenId.CREATE_ACCOUNT))
                     onOpenLegal("Terms & Conditions")
                 },
                 onPrivacy = {
                     track(SignUpAnalytics.legalLinkTapped(
-                        SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.Screen.CREATE_ACCOUNT))
+                        SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.ScreenId.CREATE_ACCOUNT))
                     onOpenLegal("Privacy Policy")
                 },
                 onLegalNotice = {
                     track(SignUpAnalytics.legalLinkTapped(
-                        SignUpAnalytics.Legal.LEGAL_NOTICE, SignUpAnalytics.Screen.CREATE_ACCOUNT))
+                        SignUpAnalytics.Legal.LEGAL_NOTICE, SignUpAnalytics.ScreenId.CREATE_ACCOUNT))
                     onOpenLegal("Legal Notice")
                 },
             )
@@ -290,12 +290,12 @@ fun SignUpFlow(
                 },
                 onLegal = {
                     track(SignUpAnalytics.legalLinkTapped(
-                        SignUpAnalytics.Legal.LEGAL_NOTICE, SignUpAnalytics.Screen.WELCOME_BACK))
+                        SignUpAnalytics.Legal.LEGAL_NOTICE, SignUpAnalytics.ScreenId.WELCOME_BACK))
                     onOpenLegal("Legal Notice")
                 },
                 onPrivacy = {
                     track(SignUpAnalytics.legalLinkTapped(
-                        SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.Screen.WELCOME_BACK))
+                        SignUpAnalytics.Legal.PRIVACY, SignUpAnalytics.ScreenId.WELCOME_BACK))
                     onOpenLegal("Privacy Policy")
                 },
             )

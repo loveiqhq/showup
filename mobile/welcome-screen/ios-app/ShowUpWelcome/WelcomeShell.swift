@@ -559,7 +559,14 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  video, mic, play, refresh, trash,
                  // The notifications ask (SHOWUP-162). `x` is `close`, already at the kit's
                  // geometry. `heartFilled` is the kit's own second heart -- see heartPath.
-                 sparkles, messageCircle, clock, heartFilled }
+                 sparkles, messageCircle, clock, heartFilled,
+                 // Stay reachable (SHOWUP-163). `bell` is also 09's pip on the confirm dialog.
+                 //
+                 // `whatsApp` IS NOT THE WHATSAPP BRAND ASSET. It is the kit's own line icon --
+                 // a speech bubble with a handset inside it -- because putting the real mark on
+                 // the screen would put a third party's branding rules on it too, and this row
+                 // is a demand test for a channel that does not exist yet.
+                 bell, phoneCall, whatsApp, alertCircle }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -929,6 +936,110 @@ struct BrandIconView: View {
                     b.addCurve(to: .init(x: 21.5, y: 5.5), control1: .init(x: 19.3, y: 1.7), control2: .init(x: 22.3, y: 2.5))
                     b.addLine(to: .init(x: 12, y: 15)); b.addLine(to: .init(x: 8, y: 16))
                     b.addLine(to: .init(x: 9, y: 12)); b.closeSubpath()
+                }
+            case .bell:
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 18, y: 8))
+                    // `a6 6 0 1 0-12 0` -- the large-arc flag is what makes this the TOP half of
+                    // the circle rather than the bottom, and it is the difference between a bell
+                    // and a bowl.
+                    b.addArc(center: .init(x: 12, y: 8), radius: 6,
+                             startAngle: .degrees(0), endAngle: .degrees(180), clockwise: true)
+                    b.addCurve(to: .init(x: 3, y: 17),
+                               control1: .init(x: 6, y: 15), control2: .init(x: 3, y: 17))
+                    b.addLine(to: .init(x: 21, y: 17))
+                    b.addCurve(to: .init(x: 18, y: 8),
+                               control1: .init(x: 21, y: 17), control2: .init(x: 18, y: 15))
+                    // The clapper, a separate subpath so it is not joined to the dome.
+                    b.move(to: .init(x: 13.73, y: 21))
+                    b.addCurve(to: .init(x: 11.98, y: 22.03),
+                               control1: .init(x: 13.37, y: 21.64), control2: .init(x: 12.7, y: 22.03))
+                    b.addCurve(to: .init(x: 10.27, y: 21),
+                               control1: .init(x: 11.26, y: 22.03), control2: .init(x: 10.6, y: 21.64))
+                }
+            case .phoneCall:
+                // The handset plus the two signal arcs. Drawn as arc SWEEPS rather than as the
+                // source's `a` commands: the geometry is the same and an arc is the one path
+                // command whose endpoint form is easy to get subtly wrong in two languages.
+                filled = false
+                p = Path { b in
+                    b.addPath(Self.phonePath)
+                    b.addArc(center: .init(x: 19.05, y: 8.95), radius: 5,
+                             startAngle: .degrees(-90), endAngle: .degrees(-29), clockwise: false)
+                    b.addArc(center: .init(x: 23.05, y: 8.94), radius: 9,
+                             startAngle: .degrees(-90), endAngle: .degrees(-29), clockwise: false)
+                }
+            case .whatsApp:
+                filled = false
+                p = Path { b in
+                    // The bubble is `messageCircle`'s outline exactly -- one shape, two uses --
+                    // with the handset inside it instead of nothing.
+                    b.move(to: .init(x: 21, y: 11.5))
+                    b.addCurve(to: .init(x: 20.1, y: 15.3),
+                               control1: .init(x: 21, y: 12.83), control2: .init(x: 20.69, y: 14.14))
+                    b.addCurve(to: .init(x: 12.5, y: 20),
+                               control1: .init(x: 18.66, y: 18.18), control2: .init(x: 15.72, y: 20))
+                    b.addCurve(to: .init(x: 8.7, y: 19.1),
+                               control1: .init(x: 11.17, y: 20), control2: .init(x: 9.86, y: 19.69))
+                    b.addLine(to: .init(x: 3, y: 21))
+                    b.addLine(to: .init(x: 4.9, y: 15.3))
+                    b.addCurve(to: .init(x: 4, y: 11.5),
+                               control1: .init(x: 4.31, y: 14.14), control2: .init(x: 4, y: 12.83))
+                    b.addCurve(to: .init(x: 8.7, y: 3.9),
+                               control1: .init(x: 4, y: 8.28), control2: .init(x: 5.82, y: 5.34))
+                    b.addCurve(to: .init(x: 12.5, y: 3),
+                               control1: .init(x: 9.86, y: 3.31), control2: .init(x: 11.17, y: 3))
+                    b.addLine(to: .init(x: 13, y: 3))
+                    b.addCurve(to: .init(x: 21, y: 11),
+                               control1: .init(x: 17.5, y: 3.25), control2: .init(x: 20.75, y: 6.5))
+                    b.addLine(to: .init(x: 21, y: 11.5))
+                    b.closeSubpath()
+
+                    b.move(to: .init(x: 9.4, y: 8.2))
+                    b.addCurve(to: .init(x: 8.2, y: 9.6),
+                               control1: .init(x: 8.8, y: 8.2), control2: .init(x: 8.2, y: 8.8))
+                    b.addCurve(to: .init(x: 9.2, y: 12.4),
+                               control1: .init(x: 8.2, y: 10.9), control2: .init(x: 9.1, y: 12.2))
+                    b.addCurve(to: .init(x: 13.7, y: 16.4),
+                               control1: .init(x: 9.4, y: 12.6), control2: .init(x: 11, y: 15.3))
+                    b.addCurve(to: .init(x: 15.4, y: 16.6),
+                               control1: .init(x: 14.4, y: 16.7), control2: .init(x: 15, y: 16.7))
+                    b.addCurve(to: .init(x: 17, y: 15.4),
+                               control1: .init(x: 15.9, y: 16.5), control2: .init(x: 16.8, y: 16))
+                    b.addCurve(to: .init(x: 17.1, y: 14.2),
+                               control1: .init(x: 17.2, y: 14.8), control2: .init(x: 17.2, y: 14.3))
+                    b.addCurve(to: .init(x: 16.6, y: 13.9),
+                               control1: .init(x: 17.1, y: 14.1), control2: .init(x: 16.9, y: 14))
+                    b.addLine(to: .init(x: 15.2, y: 13.2))
+                    b.addCurve(to: .init(x: 14.7, y: 13.3),
+                               control1: .init(x: 15, y: 13.1), control2: .init(x: 14.8, y: 13.2))
+                    b.addLine(to: .init(x: 14.1, y: 14.1))
+                    b.addCurve(to: .init(x: 13.6, y: 14.2),
+                               control1: .init(x: 14, y: 14.2), control2: .init(x: 13.8, y: 14.3))
+                    b.addCurve(to: .init(x: 11.7, y: 12.9),
+                               control1: .init(x: 12.9, y: 13.9), control2: .init(x: 12.2, y: 13.5))
+                    b.addCurve(to: .init(x: 10.7, y: 11.5),
+                               control1: .init(x: 11.3, y: 12.5), control2: .init(x: 10.9, y: 12))
+                    b.addCurve(to: .init(x: 10.8, y: 11),
+                               control1: .init(x: 10.6, y: 11.3), control2: .init(x: 10.7, y: 11.1))
+                    b.addLine(to: .init(x: 11.3, y: 10.4))
+                    b.addCurve(to: .init(x: 11.4, y: 10),
+                               control1: .init(x: 11.4, y: 10.3), control2: .init(x: 11.4, y: 10.1))
+                    b.addLine(to: .init(x: 10.8, y: 8.5))
+                    b.addCurve(to: .init(x: 10.2, y: 8),
+                               control1: .init(x: 10.6, y: 8), control2: .init(x: 10.4, y: 8))
+                    b.closeSubpath()
+                }
+            case .alertCircle:
+                // `circle r10` + a stem and a dot. The dot is a zero-length round-capped line,
+                // which is how the source authors it (`x1="12" y1="16" x2="12.01" y2="16"`) and
+                // what makes it a dot rather than a second stem.
+                filled = false
+                p = Path { b in
+                    b.addEllipse(in: .init(x: 2, y: 2, width: 20, height: 20))
+                    b.move(to: .init(x: 12, y: 8)); b.addLine(to: .init(x: 12, y: 12))
+                    b.move(to: .init(x: 12, y: 16)); b.addLine(to: .init(x: 12.01, y: 16))
                 }
             case .phone:
                 filled = false

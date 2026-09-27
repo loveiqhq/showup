@@ -157,7 +157,14 @@ internal object NotificationsCopy {
     const val LEAD =
         "No spam! Every notification is about your dates and helps you to never miss one."
 
-    const val CTA = "Enable notifications"
+    /**
+     * `Continue`, since SHOWUP-163. It read `Enable notifications` while this screen raised the
+     * OS dialog; it does not any more, so a label promising to enable something would be a label
+     * describing the screen after it.
+     *
+     * Everything else about the button is unchanged: full-width sunset, no trailing icon.
+     */
+    const val CTA = "Continue"
 
     /** Row 2's label. Always capitalised, always this one word, never an upsell. */
     const val PREMIUM = "Premium"
@@ -312,11 +319,11 @@ private fun BenefitRow(benefit: NotifyBenefit) {
 fun ProfileNotificationsScreen(
     onEnable: () -> Unit = {},
     /**
-     * Swallows a second press for the lifetime of the OS sheet.
+     * Swallows a second press while the navigation is in flight.
      *
      * The CTA is NEVER DISABLED -- it never greys out and never changes -- it simply stops
-     * answering while the sheet is up. A second request no-ops silently at the platform level, so
-     * a double tap that looked like a hang would be a hang we invented.
+     * answering. It used to guard the OS sheet's lifetime; SHOWUP-163 moved the sheet to Stay
+     * reachable, so what it guards now is a double tap producing two navigations.
      */
     busy: Boolean = false,
 ) {
@@ -365,7 +372,12 @@ fun ProfileNotificationsScreen(
             PrimaryButton(
                 label = NotificationsCopy.CTA,
                 onClick = { if (!busy) onEnable() },
-                modifier = Modifier.padding(bottom = 18.dp).testTag(CTA_TAG),
+                // THE GUTTER IS THE FOOTER'S OWN since the scaffold's footer went full-bleed for
+                // SHOWUP-163. 28 is this screen's gutter, so the button is exactly where it was.
+                modifier = Modifier
+                    .padding(horizontal = 28.dp)
+                    .padding(bottom = 18.dp)
+                    .testTag(CTA_TAG),
                 variant = PrimaryButtonVariant.Sunset,
             )
         },

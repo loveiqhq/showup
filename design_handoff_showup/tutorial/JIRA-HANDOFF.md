@@ -135,7 +135,7 @@ design_handoff_showup/<flow>/
 | --- | --- | --- |
 | Tutorial (5 cards) | `tutorial/` | 01–05 |
 | Welcome & sign-up | `welcome/` | 01 Startup — first run · 02 Welcome back — re-login · 03 Phone verification (4 states) · 04 Connect an account — full flow (10 states, incl. the already-exists conflict) |
-| Profile creation | `profile/` | 01 Name (3 states) · 02 Email (3 states) · 03 Verify email (2 states) · 04 Date of birth (4 states, incl. the inline age confirmation) · 05 Embrace — build your profile (1 state, the bridge) · 06 Photos (7 states, incl. the source sheet and the two library permission modes) · 07 Prompts (8 states, incl. both sheets) · 08 Media (10 states, incl. both capture views and both review screens) · 09 Notifications permission ask (1 state) |
+| Profile creation | `profile/` | 01 Name (3 states) · 02 Email (3 states) · 03 Verify email (2 states) · 04 Date of birth (4 states, incl. the inline age confirmation) · 05 Embrace — build your profile (1 state, the bridge) · 06 Photos (7 states, incl. the source sheet and the two library permission modes) · 07 Prompts (8 states, incl. both sheets) · 08 Media (10 states, incl. both capture views and both review screens) · 09 Notifications permission ask (1 state) · 10 Stay reachable — MVP (3 states) + later-scope backlog ticket |
 
 Naming in `exports/`: `<flow>-NN-<screen-slug>-spec-sheet.html` / `.png` / `-ticket.md`. The tutorial's five keep their original `NN-<slug>-…` names.
 
@@ -166,6 +166,15 @@ Every screen in `profile/`'s "The basics" group renders a **mocked** keyboard in
 - The ticket carries a **"What is not ours"** section naming the keyboard, and an AC that the mock is *not* implemented.
 - **Never spec a keyboard height.** State the mock's height (286 + 28 home indicator at 390 × 844) as a budget note only, and say which element absorbs the difference — on these screens, the single `flex: 1` spacer.
 - Suggestion strip, emoji/dictation chrome and the action-key label are the OS's. We request the action (`Go` / `Done`) and the capitalisation hint; we style none of it.
+
+## MVP scope vs. later scope — one screen, two tickets
+
+**When the MVP ships a reduced version of a designed screen, nothing is deleted.** Worked example: Profile 10, 25 Sep 2026.
+
+- **The kit keeps one component with a `scope` prop** (`"mvp"` | `"full"`), never a fork, so the shared parts cannot drift apart. The canvas shows both side by side; the full artboards are labelled *FULL (not in MVP)*.
+- **Two tickets.** `NN-<slug>.md` is the build target and names `scope="mvp"` in block A. `NN-<slug>-later.md` is a short backlog ticket pointing at `scope="full"`, carrying the known issues so the next person does not rediscover them.
+- **The MVP ticket gets a *Non-goals — do not build* section.** A test feature without a function behind it (an interest checkbox) is the thing most likely to be over-built.
+- **Tracking:** events for the later scope stay in the registry, with their values marked *reserved* in `enums.json`. A demand test gets its **own** vocabulary (§25), so interest can never be read as consent.
 
 ## When a decision changes a ticket that is already written
 

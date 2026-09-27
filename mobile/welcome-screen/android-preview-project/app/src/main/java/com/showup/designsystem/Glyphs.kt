@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -67,6 +68,21 @@ fun DangerGlyph(
     modifier: Modifier = Modifier,
     glyphSize: Dp = size * 0.59f,
 ) {
+    // THE BADGE IS A FIXED SIZE AND SO IS ITS GLYPH, and until 25 September 2026 only the first
+    // half of that was true.
+    //
+    // `size(18.dp)` is a physical circle; `fontSize = 12.sp` scales with the user's font setting.
+    // At font scale 1.3 the "!" needs more line height than an 18dp box has, so it was clipped by
+    // 4px on EVERY ONE OF THE SEVENTEEN DEVICES -- in a shared component that four screens draw.
+    //
+    // It survived this long because no screen's ERROR state had been swept at 1.3: the fit
+    // harness renders each screen in the states its own test names, and the error card only
+    // reached the sweep when SHOWUP-163 added a state that carries one.
+    //
+    // `Dp.toSp()` converts a physical size back into a text size, so the glyph renders at exactly
+    // [glyphSize] whatever the setting. That is right HERE and would be wrong almost anywhere
+    // else: this is a decorative mark inside a badge the design fixes at 18, and the message
+    // beside it -- the part a person actually reads -- scales in full.
     Box(
         modifier.size(size).background(Danger, CircleShape),
         contentAlignment = Alignment.Center,
@@ -76,7 +92,7 @@ fun DangerGlyph(
             color = Elevated,
             fontFamily = Lora,
             fontWeight = FontWeight.Bold,
-            fontSize = glyphSize.value.sp,
+            fontSize = with(LocalDensity.current) { glyphSize.toSp() },
         )
     }
 }

@@ -60,6 +60,7 @@ import com.showup.designsystem.Cream
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Purple
 import com.showup.designsystem.SheetScaffold
+import com.showup.designsystem.blurBehindSheet
 import com.showup.designsystem.SkipLink
 import com.showup.designsystem.Spacing
 import com.showup.designsystem.StepProgress
@@ -99,6 +100,10 @@ fun ProfileMediaScreen(
 ) {
     Box(Modifier.fillMaxSize().background(Cream)) {
         RealYouScaffold(
+            // THE SCREEN BLURS ITSELF while a sheet is over it -- callout 15's
+            // `backdrop-filter: blur(1.5px)`, which the scrim cannot draw from above.
+            // See `blurBehindSheet`.
+            modifier = Modifier.blurBehindSheet(state.sheet != null),
             step = RealYouStep.Media,
             onBack = onBack,
             // THE PROGRESS BAR SCROLLS WITH THE CONTENT HERE, as on screen 07 and unlike screen 06.

@@ -70,8 +70,11 @@ Never measure the PNG. Every number in it is in the reference file.
 
 | # | Screen | Status |
 | --- | --- | --- |
-| 09 | Notifications — permission ask · **one state, no header, no progress bar** | speccd + ticketed |
-| 10 | Stay reachable — six consent toggles + phone · deactivation confirm | not yet ticketed — **carries three requirements from 09** |
+| 09 | Notifications — explainer · **one state, no header, no progress bar** · ⚠ raises no OS dialog since 25 Sep 2026 | speccd + ticketed — superseded in part |
+| 10 | Stay reachable — **MVP**: push toggle + three interest checkboxes · deactivation confirm · **raises the OS dialog on Save** | speccd + ticketed 25 Sep 2026 |
+| ~~11~~ | ~~Phone book~~ | **not in the MVP** |
+
+**⚠ Decided 25 Sep 2026: the OS notification dialog moved from 09 to 10's Save preferences.** Where the paragraph below says 09's CTA raises the sheet, read "navigates to 10". The skip guard is unchanged. Push is the only live channel in the MVP; see the epic's *MVP scope for the asks*.
 
 **Screen 09 has one path, because profile creation runs once on a fresh install.** A fresh install has no notification permission on either platform, so the status here is always *not determined*: the CTA raises the OS sheet and both outcomes advance. Two skip cases, decided **before the screen is pushed** and never after it mounts — **Android ≤ 12** (no `POST_NOTIFICATIONS` before API 33, notifications on by default) and the **guard** of an already-determined status (restored from a backup, or the app killed while the sheet was up). The system dialog is shown **once per install**; a screen whose only button raises a dialog that will not appear is a dead end, which is why there is no denied state and no `Open Settings` here. **Recovery from a denial belongs to Stay reachable (10)**, which owns the notifications consent row. Re-read the status on every foreground. Both outcomes of the sheet — granted and denied — advance to 10, and **the saved flow position advances when the sheet is raised rather than when it returns**, so an app killed mid-sheet relaunches onto 10 and never onto a screen whose button can no longer do anything. **Screen 10 is the recovery** for a denial and for a sheet that was never answered — its notifications row raises the sheet when the status is still *not determined* and deep-links to Settings when it is denied, and it must not conflate **our consent record** (the six toggles, `consent_changed`) with **the OS permission**. Those three requirements are written at the foot of `tickets/09-notifications.md`; move them into 10's ticket when it is written. Full matrix in `tickets/09-notifications.md`.
 

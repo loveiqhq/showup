@@ -122,6 +122,18 @@ enum class FlowScreen {
      */
     ProfileNotifications,
 
+    /**
+     * Stay reachable (SHOWUP-163), between the notifications explainer and Location (12).
+     *
+     * NOT A STEP and not a resume point, for the same reason as 09 and the two bridges: it holds
+     * nothing on the account until its consent write lands, so there is no fact that says whether
+     * it was seen.
+     *
+     * IT IS NEVER SKIPPED. 09 still is, on an already-determined status -- but 10 is where the
+     * toggle and the consent live, so every path out of media reaches it.
+     */
+    ProfileReachability,
+
     /** Where the flow ends, for both the tutorial and a returning member. */
     Home,
     ;

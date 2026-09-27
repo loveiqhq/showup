@@ -75,14 +75,39 @@ enum SignUpAnalytics {
     /// tapped records the same information and matches every other property-bearing event here.
     static let legalLinkTapped = "legal_link_tapped"
 
+    /// The three documents, spelled as events.json types them.
+    ///
+    /// `"terms"|"privacy"|"legal_notice"`, and the first two were LONGER HERE than in the
+    /// registry - `terms_and_conditions` and `privacy_policy`. Those were ours. A value that never
+    /// matches the enum it is declared against is a filter nobody can write, and it had shipped
+    /// on both platforms the same way, which is how a taxonomy error survives a parity check.
     enum Legal {
-        static let terms = "terms_and_conditions"
-        static let privacy = "privacy_policy"
+        static let terms = "terms"
+        static let privacy = "privacy"
         static let legalNotice = "legal_notice"
     }
 
-    static func legalLinkTapped(_ link: String, screen: String) -> (String, [String: any Sendable]) {
-        (legalLinkTapped, ["link": link, "screen_name": screen])
+    /// The §11 keys for the screens that carry a legal link.
+    ///
+    /// NOT `Screen`, which holds LABELS ("Signup - CreateAccount") for `screen_name`. This event
+    /// carries `screen_id`, and events.json says why in its code_delta: "this event carries the
+    /// key only; screen_viewed is where the label lives". Sending a label under an id was the
+    /// second half of the same defect.
+    enum ScreenId {
+        static let createAccount = "signup_create_account"
+        static let welcomeBack = "signup_welcome_back"
+        static let connectSSO = "connect_sso"
+    }
+
+    /// One event across all seven links on three screens.
+    ///
+    /// `screen_id`, NOT `screen_name`. A funnel joining this to `screen_viewed` joins on the id,
+    /// and a label will not match.
+    static func legalLinkTapped(
+        _ link: String,
+        screenId: String
+    ) -> (String, [String: any Sendable]) {
+        (legalLinkTapped, ["link": link, "screen_id": screenId])
     }
 
     // MARK: - SHOWUP-142 / 145 · Welcome back

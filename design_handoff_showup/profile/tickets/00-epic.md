@@ -41,9 +41,9 @@ Each story is **one screen with all of its states**, and ships with a spec sheet
 | ~~07~~ | ~~Verify profile~~ | **cut from the MVP 13 Sep 2026 — not built, no progress segment. The number is retired, not re-used** |
 | 07 | Prompts | 8 — 0/1/3 saved · topic sheet · write sheet ×4 (empty · mid · at the cap · empty submit) |
 | 08 | Media — video & voice | 8 — empty · video · voice · both · recording ×2 · inspiration sheet |
-| 09 | Notifications permission | 1 — and it is **not shown at all** unless the OS status is *not determined* (ticketed 21 Sep 2026) |
-| 10 | Reachability & consents | 2 — consents on · deactivation confirm |
-| 11 | Phone book concierge | 3 — recommend · OS sheet · saved |
+| 09 | Notifications permission | 1 — and it is **not shown at all** unless the OS status is *not determined* (ticketed 21 Sep 2026). ⚠ **25 Sep 2026: raises no OS dialog any more** — its CTA navigates to 10 |
+| 10 | Stay reachable — **MVP** | 3 — default (push on) · interest checked · push deactivation confirm. **Raises the OS notification dialog on Save** (moved from 09, 25 Sep 2026). Later scope: `10-reachability-later.md`, backlog |
+| ~~11~~ | ~~Phone book concierge~~ | **Not in the MVP (25 Sep 2026)** — the AI call is interest-only. Backlog with the later scope |
 | 12 | Location permission | 3 — ask · system sheet · denied recovery |
 | 13 | Embrace 2 — interstitial | 1 |
 | 14–24 | "Share some details" ×11 | 2–3 each — empty · answered · (cap, where relevant) |
@@ -89,6 +89,10 @@ The single exception is story 03's `Verify code` button, disabled until six digi
 **One question per screen.** Do not consolidate steps to reduce screen count; the flow's length is a deliberate trade for its completion rate.
 
 **Copy is final and lives in the stories.** Product terms capitalise exactly: **Show Up** · **Show-up Rate** · **Instant Mode** · **Match Mate** · **Check-In**.
+
+## MVP scope for the asks — decided 25 Sep 2026
+
+**Push is the only live contact channel in the MVP.** The OS notification dialog is raised by **Stay reachable (10) → Save preferences**, not by 09. Push defaults on; switching it off goes through the deactivation confirm. The AI call, WhatsApp and SMS ship as **interest checkboxes** on 10 — a demand test with no function behind it (`channel_interest_changed`, `enums.json` §25). Phone book (11), the calendar card, the phone field and email are out. The full design is kept as `scope="full"` in the reference file and as the backlog ticket `10-reachability-later.md`.
 
 ## Notification state is three facts, not one — flow-level rule, 21 Sep 2026
 
