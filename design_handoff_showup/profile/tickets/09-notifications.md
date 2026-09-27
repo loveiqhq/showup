@@ -3,6 +3,12 @@
 **Parent:** Profile creation flow (SHOWUP-TBD — epic `profile/tickets/00-epic.md`) · **Type:** Story · **Priority:** High
 **Attachments:** the handoff folder as a **zip** · `profile-09-notifications-spec-sheet.png`
 
+## ⚠ Superseded in part — 25 Sep 2026 — read first
+
+**This screen no longer raises the OS notification dialog.** Its CTA navigates to **Stay reachable (10)** and does nothing else. The dialog is raised by **10's Save preferences**, and the three permission events move with it. **If the request call is already built here, remove it. The CTA label becomes `Continue`.** Both changes are specified in the Profile 10 ticket; the Jira description of 09 is left as built. Every point below that this changes is marked ⚠ in place; the Profile 10 ticket is the specification for the ask.
+
+Unchanged: the layout, copy, backdrop, the Android ≤ 12 / already-determined skip guard, blocked back, and `screen_viewed`.
+
 ## Description
 
 The notification permission ask. It sits after media (08) and before Stay reachable (10), and it is the last thing profile creation asks for that is not a profile attribute.
@@ -13,7 +19,7 @@ The notification permission ask. It sits after media (08) and before Stay reacha
 
 Entered from media (08) on Continue or Skip. **One exit:**
 
-- **CTA "Enable notifications"** → the OS sheet → **Stay reachable (10) on any outcome, granted or denied**
+- **CTA "Enable notifications"** → ~~the OS sheet →~~ **Stay reachable (10)** — ⚠ superseded 25 Sep 2026: no sheet here any more; the ask is on 10
 
 **There is no "Not now", no skip and no close, and that is deliberate** — the OS sheet's own "Don't allow" is the decline, and the flow advances either way. See *Open* for the one thing worth measuring before that is made permanent.
 
@@ -127,9 +133,9 @@ Product terms capitalise exactly: **Show Up** · **Show-up Rate** · **Instant M
 A path whose item is not done ships **hidden**, not disabled.
 
 - **A notification-permission status reader** — not determined / granted / denied / restricted, on both platforms, re-read on foreground. Cheap, and it is what makes the two skip cases safe. **The API-level branch (skip below API 33) is the one that actually fires in production.**
-- **The Android 13+ `POST_NOTIFICATIONS` request**, and the API-level branch that skips the screen below 33.
+- **The Android 13+ `POST_NOTIFICATIONS` request** (⚠ **the request moved to Profile 10, 25 Sep 2026**), and the API-level branch that skips the screen below 33.
 - **Notifications treated as on below API 33** — the Android ≤ 12 path never sees this screen and must still register for push and receive all five categories.
-- **Push registration on grant** — APNs / FCM token acquisition and upload. Granting the permission and never registering the device is a silent failure that looks exactly like success on this screen.
+- ⚠ **Moved to Profile 10 (25 Sep 2026).** **Push registration on grant** — APNs / FCM token acquisition and upload. Granting the permission and never registering the device is a silent failure that looks exactly like success on this screen.
 - **The five notification categories as real templates** — the rows are a promise. `template_id` already exists on `notification_sent`; these five have to map to it.
 - The saved flow position (shared by the flow).
 
@@ -152,15 +158,15 @@ A path whose item is not done ships **hidden**, not disabled.
 - [ ] No absolute Y positioning anywhere in the content column
 - [ ] **The status is read before the screen is pushed, not after it mounts** — on Android ≤ 12, and on the guard case of an already-determined status, the screen is skipped **silently**: no flash, no toast, straight to Stay reachable
 - [ ] **The full status → behaviour matrix above is implemented**, and the status is **re-read on foreground** — a user who backgrounds mid-sheet and returns must not be looking at an ask that can no longer raise a dialog
-- [ ] **Tapping the CTA raises the OS sheet and nothing else** — no in-app dialog, no look-alike sheet, no pre-sheet confirmation
-- [ ] **Both outcomes advance to Stay reachable**, and the CTA cannot be tapped twice while the sheet is up
-- [ ] **The saved flow position is advanced when the sheet is raised, not when it returns** — killing the app mid-sheet and relaunching lands on Stay reachable, never back on this screen
+- [ ] **Tapping the CTA navigates to Stay reachable (10) and raises nothing** — superseded 25 Sep 2026 from "raises the OS sheet and nothing else"; the sheet moved to 10's Save preferences. No in-app dialog, no OS sheet, no look-alike
+- [ ] The CTA cannot be tapped twice — superseded 25 Sep 2026 from "both outcomes advance… while the sheet is up": there is no sheet here, so there are no outcomes
+- [ ] ⚠ **Superseded 25 Sep 2026:** ~~the saved flow position is advanced when the sheet is raised~~ — there is no sheet; the position advances on the tap. The kill-mid-sheet case is now Profile 10's, and 10 always has a working CTA
 - [ ] **The screen advances by itself if the status becomes determined while it is mounted** (foreground re-read), so a dead CTA is unreachable
-- [ ] **Explicitly tested:** tap `Enable notifications`, answer the sheet, force-kill the app before it navigates, relaunch — the user lands on Stay reachable. Repeat force-killing **without** answering: the user lands on Stay reachable and the notifications row there can still raise the sheet
-- [ ] **On grant, the device registers for push** (APNs / FCM) and the token reaches the backend — verified, not assumed
+- [ ] ⚠ **Superseded 25 Sep 2026 — moved to Profile 10's ACs.** ~~Explicitly tested:~~ tap `Enable notifications`, answer the sheet, force-kill the app before it navigates, relaunch — the user lands on Stay reachable. Repeat force-killing **without** answering: the user lands on Stay reachable and the notifications row there can still raise the sheet
+- [ ] ⚠ **Moved to Profile 10 (25 Sep 2026).** ~~On grant, the device registers for push~~
 - [ ] **There is no `Open Settings` path on this screen** in any state; recovery from a denial is Stay reachable's job
 - [ ] Copy matches the strings above exactly, including the em dashes and `e.g.`
-- [ ] **Evidence of done:** attach screenshots at **375 × 667, 390 × 844 and 430 × 932** — three images. Each must show all five rows, the lead paragraph, the headline and the CTA fully visible, nothing clipped or truncated, and **no scroll**. On 375 × 667, state what the spacer collapsed to. Plus one screenshot of the OS sheet as raised on each platform (to prove it is the platform's own, unstyled), and a screen recording or log line showing a denied user landing on Stay reachable.
+- [ ] **Evidence of done:** attach screenshots at **375 × 667, 390 × 844 and 430 × 932** — three images. Each must show all five rows, the lead paragraph, the headline and the CTA fully visible, nothing clipped or truncated, and **no scroll**. On 375 × 667, state what the spacer collapsed to. (⚠ The OS-sheet screenshots and the denied-user recording moved to Profile 10, 25 Sep 2026.)
 
 ## Tracking
 
@@ -169,9 +175,7 @@ Event names come from `design_handoff_showup/tracking/events.json` (family **G �
 | What | Event | Payload |
 |---|---|---|
 | Screenview | `screen_viewed` | `screen_id: "profile_notifications"`, `screen_name: "ProfileNotifications"`, `referrer_screen_id` |
-| Our pre-permission surface shown | `permission_prompted` | `type: "notifications"` |
-| OS sheet raised (on the tap) | `permission_os_sheet_shown` | `type: "notifications"` |
-| The user answers the sheet | `permission_result` | `type: "notifications"`, `result: "granted" \| "denied"` |
+| ⚠ ~~Pre-permission surface · OS sheet raised · answered~~ | ~~`permission_prompted` · `permission_os_sheet_shown` · `permission_result`~~ | **Moved to Profile 10, 25 Sep 2026.** Do not fire any of the three here |
 | The status changed outside our app and the reconciler noticed | `permission_status_changed` | `type: "notifications"`, `from`, `to` (`enums.json` §24), `detected_on`, `in_flow: true` here — **NEW, added to `events.json` 21 Sep 2026** |
 
 The `screen_id` / `screen_name` pair comes from the registry row for this screen in `tracking/enums.json` §11 — **added 21 Sep 2026, before this ticket was written**. `type` is the closed set on `permission_prompted`; `permission_os_sheet_shown.type` is typed `str` in the registry and takes the **same value**, `notifications`.
@@ -192,6 +196,8 @@ The `screen_id` / `screen_name` pair comes from the registry row for this screen
 **What is deliberately not measured:** the users who never see this screen because the status was already determined. There is no *ask skipped* event, and one must not be invented at the call site. If that rate is wanted — and it is worth wanting, because it is the denominator of the whole ask — it gets **defined in `events.json` first** and this ticket is updated.
 
 ## What this ticket requires of Stay reachable (10) — not built here
+
+⚠ **Superseded 25 Sep 2026** by the Profile 10 ticket, which now raises the OS sheet for everyone and owns the full status matrix. Kept for history.
 
 This ticket specifies **screen 09 only**: one screen, one CTA, one OS sheet. It does, however, place three requirements on screen 10, and they belong in **10's ticket** rather than being inherited from this paragraph. Carry them over when it is written:
 
@@ -217,6 +223,8 @@ Stay reachable (10) and its six consent toggles — including everything above, 
 - Lora + Manrope in the app font set, and `.su-underlined em` as a shared rule
 
 ## Open (not blocking)
+
+- ⚠ **Decided 25 Sep 2026: the CTA label is `Continue`**, not `Enable notifications` — the screen only navigates to 10 now. Specified in the Profile 10 ticket; the reference file is updated.
 
 - **`Notifications` is capitalised mid-sentence in the headline, and it is not a product term.** The capitalisation rule names five terms and this is not one of them. It reads as a deliberate nod to the OS sheet the user is about to see, so it is kept for now — but if the voice guidelines tighten, the fix is in the kit first, then the sheet, then this ticket. Same question for the two exclamation marks (headline and lead); they are the only two in the profile flow.
 - **The ask has no decline of its own.** The OS sheet's "Don't allow" is the only way past, which is fine on iOS but means the user cannot leave the screen without summoning a system dialog. A `Not now` would cost a row of vertical space we do not have at 375 × 667 — the trade is deliberate, and worth revisiting only if the grant rate on 375-class devices is materially lower.

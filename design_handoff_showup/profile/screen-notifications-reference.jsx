@@ -261,7 +261,7 @@ function ScreenProfileNotifications({ onEnable } = {}) {
             fullWidth
             onClick={onEnable}
           >
-            Enable notifications
+            Continue
           </Button>
         </div>
       </div>
