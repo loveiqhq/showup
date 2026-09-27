@@ -10,6 +10,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.content.Intent
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.net.toUri
 import android.Manifest
@@ -247,7 +249,36 @@ class MainActivity : ComponentActivity() {
             // created before the first bind still finds it.
             val cameraController = remember(context) { LifecycleCameraController(context) }
             val captureLifecycle = LocalLifecycleOwner.current
+
+            /**
+             * Whether the camera may be opened at all.
+             *
+             * STATE, AND KEYED INTO THE BIND BELOW, because this starts FALSE on a real install
+             * and becomes true in the middle of the flow -- and nothing was re-binding when it
+             * did. See the effect.
+             */
+            var cameraGranted by remember {
+                mutableStateOf(
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                        PackageManager.PERMISSION_GRANTED,
+                )
+            }
+            // Re-read on every foreground: the permission can also be granted in Settings and
+            // revoked there, and a controller bound against a revoked camera is the same dead
+            // viewfinder in the other direction.
             DisposableEffect(captureLifecycle) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        cameraGranted = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.CAMERA,
+                        ) == PackageManager.PERMISSION_GRANTED
+                    }
+                }
+                captureLifecycle.lifecycle.addObserver(observer)
+                onDispose { captureLifecycle.lifecycle.removeObserver(observer) }
+            }
+
+            DisposableEffect(captureLifecycle, cameraGranted) {
                 // VIDEO_CAPTURE IS ENABLED HERE, AT BIND TIME, AND NOWHERE ELSE.
                 //
                 // `CameraController`'s default is IMAGE_CAPTURE | IMAGE_ANALYSIS -- video is NOT
@@ -262,10 +293,36 @@ class MainActivity : ComponentActivity() {
                 //
                 // Enabled before `bindToLifecycle`, the use case is part of the first bind and
                 // there is no second one to race.
-                cameraController.setEnabledUseCases(CameraController.VIDEO_CAPTURE)
-                cameraController.cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-                cameraController.bindToLifecycle(captureLifecycle)
-                onDispose { cameraController.unbind() }
+                //
+                // ── AND ONLY WHEN THE PERMISSION IS HELD ─────────────────────
+                //
+                // `bindToLifecycle` is `@RequiresPermission(CAMERA)`. This used to run once, at
+                // composition, keyed on the lifecycle alone -- which on a REAL INSTALL is before
+                // the user has granted anything. The camera could not open, and nothing bound
+                // again when the grant arrived seconds later, so the controller spent the rest of
+                // the session bound to a camera that was never opened.
+                //
+                // `isVideoCaptureEnabled` cannot see that: it describes the CONFIGURED USE CASES,
+                // not whether a camera is open, so the guard in `AndroidVideoSession.start` read
+                // true and the recording attached to nothing. The encoder wrote no bytes, `finish`
+                // found a zero-length file and returned null, and the user was returned to the
+                // card with no review screen and no explanation -- after filming for ten seconds.
+                // Voice was unaffected throughout because `MediaRecorder` is not CameraX.
+                //
+                // Keying the effect on the grant is the whole fix: the moment it flips, this
+                // disposes and binds again, with permission.
+                //
+                // IT IS ALSO THE RIGHT SCOPE FOR A SECOND REASON. Binding at composition opened
+                // the front camera for the entire app session, which on Android 12 and above
+                // lights the green camera indicator the whole time somebody is editing their
+                // profile. A camera that is open when nothing is filming is a privacy defect
+                // whatever else it does.
+                if (cameraGranted) {
+                    cameraController.setEnabledUseCases(CameraController.VIDEO_CAPTURE)
+                    cameraController.cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                    cameraController.bindToLifecycle(captureLifecycle)
+                }
+                onDispose { if (cameraGranted) cameraController.unbind() }
             }
 
             // ── the notification ask (SHOWUP-162) ────────────────────────────────────
@@ -378,6 +435,13 @@ class MainActivity : ComponentActivity() {
             val askCapture = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestMultiplePermissions(),
             ) { _ ->
+                // THE GRANT IS READ BACK BEFORE THE TAKE BEGINS. `permissionResult` goes straight
+                // on to `beginTake`, so this is the moment the bind above has to learn that the
+                // camera may now be opened -- and `AndroidVideoSession.start` waits for it to
+                // actually be open rather than assuming this recomposition has landed.
+                cameraGranted = ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.CAMERA,
+                ) == PackageManager.PERMISSION_GRANTED
                 val pending = pendingTake
                 pendingTake = null
                 if (pending != null) media.permissionResult(pending.first, pending.second)

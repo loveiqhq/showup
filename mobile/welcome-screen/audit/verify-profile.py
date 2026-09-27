@@ -1501,6 +1501,39 @@ media_access_sw = code_only(read(SW, "MediaAccess.swift"))
 check("iOS resolves its labels through platformLabel too",
       "func platformLabel" in media_access_sw)
 
+# ── the fine print, callout 12 ──────────────────────────────────────────────
+#
+# "Manrope 500 - 11.5 / 1.5 - --liq-fg-subtle. `Settings` 600 - --liq-fg, plain text not a link.
+# `Read our Privacy Policy` - primary-500 - 600 - underline, the only link on the screen."
+#
+# THREE THINGS WERE WRONG AND ONE OF THEM WAS INVISIBLE TO EVERY CHECK HERE. `Settings` was bold
+# and still grey, because the `emphasised` helper carries weight and not colour; the link sat on
+# its own line behind a 44dp target instead of inside the sentence; and iOS set the whole thing at
+# 12 rather than 11.5. All three came back from a person looking at the screen.
+check("163 the fine print is 11.5 (kotlin)", "fontSize = 11.5.sp" in reach_kt)
+check("163 the fine print is 11.5 (swift)", "F.manrope(11.5, .medium)" in reach_sw)
+
+# `Settings` IS DARK, which is the half that was wrong. Asserted on the colour, not the weight.
+check("163 Settings is the foreground colour, not subtle (kotlin)",
+      "SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)" in reach_kt)
+check("163 Settings is the foreground colour, not subtle (swift)",
+      "settings.foregroundColor = .liqFg" in reach_sw)
+
+# AND IT IS NOT A LINK. The ticket says so outright -- a second link here would be a second thing
+# to tap that goes nowhere.
+check("163 Settings is not a link (kotlin)",
+      "LinkAnnotation.Clickable" in reach_kt and "Settings\") {" not in reach_kt)
+
+# THE PRIVACY LINK IS INSIDE THE PARAGRAPH, not a block under it. `withLink` and
+# `AttributedString.link` are the only mechanisms that make a RUN tappable, which is what makes
+# this checkable at all: a separate Button would be a different construct entirely.
+check("163 the privacy link is inline (kotlin)", "withLink(LinkAnnotation.Clickable" in reach_kt)
+check("163 the privacy link is inline (swift)", "link.link = URL(string:" in reach_sw)
+check("163 the paragraph ends with a full stop after the link (kotlin)",
+      'append(".")' in reach_kt)
+check("163 the paragraph ends with a full stop after the link (swift)",
+      'out.append(AttributedString("."))' in reach_sw)
+
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
 if failures:

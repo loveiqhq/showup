@@ -90,6 +90,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -97,6 +98,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -130,6 +132,9 @@ internal const val REACH_CTA_TAG = "reachability-cta"
 
 /** The scrolling body's last element, so the harness can prove the fine print clears the CTA. */
 internal const val REACH_FINEPRINT_TAG = "reachability-fineprint"
+
+/** The privacy link's annotation, so a test can find the run rather than the paragraph. */
+internal const val REACH_PRIVACY_LINK_TAG = "reachability-privacy"
 
 /** The save-failure card, which exists on no other path and so cannot be found by its copy. */
 internal const val REACH_ERROR_TAG = "reachability-save-failed"
@@ -172,6 +177,10 @@ internal object ReachCopy {
     const val FINE_PRINT =
         "We use this only to coordinate your dates — never for marketing, and we never sell " +
             "your data. Turn any of these off whenever you like in Settings."
+
+    /** The one word in the fine print that is dark rather than subtle. Plain text, never a link. */
+    const val SETTINGS_WORD = "Settings"
+
     const val PRIVACY_LINK = "Read our Privacy Policy"
 
     const val CTA = "Save preferences"
@@ -671,29 +680,51 @@ private fun ReachCard(
  */
 @Composable
 private fun FinePrint(onPrivacy: () -> Unit) {
-    Column(Modifier.padding(top = 4.dp).padding(horizontal = 4.dp).testTag(REACH_FINEPRINT_TAG)) {
-        Text(
-            emphasised(ReachCopy.FINE_PRINT, listOf("Settings")),
-            color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.Medium,
-            fontSize = 11.5.sp, lineHeight = (11.5f * 1.5f).sp,
-        )
-        Text(
-            buildAnnotatedString {
-                withStyle(
-                    SpanStyle(
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = TextDecoration.Underline,
-                    ),
-                ) { append(ReachCopy.PRIVACY_LINK) }
-            },
-            modifier = Modifier
-                .minTapTarget()
-                .clickable(role = Role.Button, onClick = onPrivacy)
-                .padding(top = 2.dp),
-            color = Purple, fontFamily = Manrope,
-            fontSize = 11.5.sp, lineHeight = (11.5f * 1.5f).sp,
-        )
-    }
+    // ONE PARAGRAPH, AND THE LINK IS INSIDE IT.
+    //
+    // This was two Texts in a Column, with `Read our Privacy Policy` on its own line under a 44dp
+    // tap target. Callout 12 and the spec sheet's scrolled frame both show ONE FLOWING SENTENCE
+    // that ends with the link and a full stop -- "... whenever you like in Settings. Read our
+    // Privacy Policy." -- and a link on its own line read as a detached button, which is how it
+    // came back reported as missing rather than as misplaced.
+    //
+    // `withLink` rather than a clickable modifier, because it is the only way to make a RUN of
+    // text tappable rather than a block, and because it is what the welcome flow's legal line
+    // already uses -- so the two behave the same way to a finger and to a screen reader.
+    //
+    // THE 44DP FLOOR CANNOT APPLY TO A WORD INSIDE A SENTENCE, and does not here. That is the
+    // same trade the three legal links on the sign-up screens already make, and it is the design
+    // rather than an oversight. Recorded as E35.
+    val linkStyle = SpanStyle(
+        color = Purple,
+        fontWeight = FontWeight.SemiBold,
+        textDecoration = TextDecoration.Underline,
+    )
+    Text(
+        buildAnnotatedString {
+            val text = ReachCopy.FINE_PRINT
+            val settings = text.indexOf(ReachCopy.SETTINGS_WORD)
+            append(text.substring(0, settings))
+            // `Settings` is --liq-fg AND 600 -- DARK, not the subtle grey the rest is set in.
+            // `emphasised` carries weight and nothing else, which is why this word was bold and
+            // still grey, and why it was reported as not being black.
+            withStyle(SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)) {
+                append(ReachCopy.SETTINGS_WORD)
+            }
+            append(text.substring(settings + ReachCopy.SETTINGS_WORD.length))
+            append(" ")
+            withLink(LinkAnnotation.Clickable(REACH_PRIVACY_LINK_TAG) { onPrivacy() }) {
+                withStyle(linkStyle) { append(ReachCopy.PRIVACY_LINK) }
+            }
+            append(".")
+        },
+        modifier = Modifier
+            .padding(top = 4.dp)
+            .padding(horizontal = 4.dp)
+            .testTag(REACH_FINEPRINT_TAG),
+        color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 11.5.sp, lineHeight = (11.5f * 1.5f).sp,
+    )
 }
 
 /**
