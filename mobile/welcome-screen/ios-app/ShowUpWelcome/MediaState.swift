@@ -158,6 +158,20 @@ struct MediaSheet: Equatable, Sendable {
 ///
 /// The four drawn states A-D are not a field: they are `video` and `voice` being present or absent,
 /// which is the only representation that cannot disagree with itself.
+/// Why a take produced nothing.
+///
+/// TWO CAUSES, AND THEY ARE GENUINELY DIFFERENT PROBLEMS. One is a recorder that never ran; the
+/// other is a recorder that ran and wrote no bytes. The first is a camera or a permission; the
+/// second is an encoder, a full disk, or a session bound to nothing. A single "recording failed"
+/// would merge them, and merging them is what made two reports indistinguishable.
+enum CaptureFailureCause: Equatable, Sendable { case neverStarted, nothingRecorded }
+
+/// A take that produced nothing, and which card it belonged to.
+struct CaptureFailed: Equatable, Sendable {
+    let kind: MediaKind
+    let cause: CaptureFailureCause
+}
+
 struct MediaState: Equatable, Sendable {
     var video: MediaArtefact?
     var voice: MediaArtefact?
@@ -170,6 +184,17 @@ struct MediaState: Equatable, Sendable {
     /// What is playing, if anything. Nil at rest -- playback here is never automatic.
     var playback: MediaPlayback?
     var loaded: Bool = false
+
+    /// The last take that produced nothing, or nil.
+    ///
+    /// WHY THIS EXISTS. Several different failures inside the recorder ended the same way -- the
+    /// take was cleared, the user was returned to the card, and NOTHING WAS SAID. From their side
+    /// a camera that will not open and a camera that records ten seconds of nothing are the same
+    /// event, which is why two reports of the same symptom could not be told apart.
+    ///
+    /// Carries the KIND so the message names the right card, and the CAUSE so a report says
+    /// something a fix can start from. Cleared by the next attempt: this belongs to one take.
+    var captureFailed: CaptureFailed?
 
     var hasVideo: Bool { video != nil }
     var hasVoice: Bool { voice != nil }

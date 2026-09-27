@@ -122,18 +122,29 @@ func fileName(for kind: MediaKind) -> String {
 final class FakeMediaCapture: MediaCaptureMaking {
     private let startSucceeds: Bool
 
+    /// Whether a take that STARTED goes on to produce a file.
+    ///
+    /// THE FAILURE THE REAL RECORDER HAS AND THIS FAKE COULD NOT EXPRESS. `finish` returned a take
+    /// whenever `start` had succeeded, so the one shape that actually shipped — a recording that
+    /// runs, shows a counter for ten seconds, and writes nothing — had no test anywhere. On a
+    /// device that is the user filming, pressing stop, and landing back on the card with no review
+    /// screen; in the suite it was unreachable.
+    private let finishSucceeds: Bool
+
     /// Every session this factory has made, in order, for a test to inspect.
     private(set) var sessions: [FakeSession] = []
 
-    init(startSucceeds: Bool = true) {
+    init(startSucceeds: Bool = true, finishSucceeds: Bool = true) {
         self.startSucceeds = startSucceeds
+        self.finishSucceeds = finishSucceeds
     }
 
     /// No camera, and saying so is the point — see `MediaCaptureMaking.previewSession`.
     var previewSession: CameraSession? { nil }
 
     func makeSession(_ kind: MediaKind) -> any MediaCaptureSession {
-        let session = FakeSession(kind: kind, startSucceeds: startSucceeds)
+        let session = FakeSession(kind: kind, startSucceeds: startSucceeds,
+                                  finishSucceeds: finishSucceeds)
         sessions.append(session)
         return session
     }
@@ -142,13 +153,15 @@ final class FakeMediaCapture: MediaCaptureMaking {
     final class FakeSession: MediaCaptureSession {
         let kind: MediaKind
         private let startSucceeds: Bool
+        private let finishSucceeds: Bool
         private(set) var started = false
         private(set) var discarded = false
         private var onEnded: (@MainActor (CaptureFailure) -> Void)?
 
-        init(kind: MediaKind, startSucceeds: Bool) {
+        init(kind: MediaKind, startSucceeds: Bool, finishSucceeds: Bool = true) {
             self.kind = kind
             self.startSucceeds = startSucceeds
+            self.finishSucceeds = finishSucceeds
         }
 
         func start(onEnded: @escaping @MainActor (CaptureFailure) -> Void) async -> Bool {
@@ -158,7 +171,7 @@ final class FakeMediaCapture: MediaCaptureMaking {
         }
 
         func finish(elapsedMs: Int) async -> CaptureTake? {
-            guard started else { return nil }
+            guard started, finishSucceeds else { return nil }
             return CaptureTake(
                 path: "/dev/null/\(kind.rawValue).take",
                 durationMs: elapsedMs,

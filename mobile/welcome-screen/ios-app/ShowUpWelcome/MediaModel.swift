@@ -66,7 +66,7 @@ final class MediaModel {
     /// ten-second cap. Kotlin gets this free from `runTest`'s virtual time; Swift has no
     /// equivalent, so the wait itself is the seam. A test passes a closure that returns
     /// immediately and the whole take runs in no time at all.
-    private let tickWait: @Sendable (Int) async -> Void
+    private let tickWait: @Sendable (Int) async -> Int
 
     /// Reads a take off disk, and removes one.
     ///
@@ -123,8 +123,31 @@ final class MediaModel {
         analytics: (any AnalyticsTracking)? = nil,
         now: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
         tickMs: Int = 50,
-        tickWait: @escaping @Sendable (Int) async -> Void = { ms in
+        /// Waits, and REPORTS HOW LONG IT ACTUALLY TOOK.
+        ///
+        /// ─────────────────────────────────────────────────────────────────
+        /// THIS RETURN VALUE IS THE FIX FOR E28
+        /// ─────────────────────────────────────────────────────────────────
+        ///
+        /// `Task.sleep` guarantees AT LEAST its argument and never exactly. The clocks used to add
+        /// the argument back — `elapsed += step` — so every overshoot was lost: on a device busy
+        /// encoding, fifty milliseconds asked for is seventy delivered, and a ten-second take
+        /// recorded fourteen seconds of footage while the bar said ten. Reported from a phone as
+        /// "these seconds last much longer than real life seconds".
+        ///
+        /// Android fixed it by reading a monotonic clock. The same move here was tried and
+        /// REVERTED (E28): the test fixture returns from this closure instantly, so a clock that
+        /// only moves with real time never moves at all and the loop never ends.
+        ///
+        /// Returning the cost sidesteps that entirely. Production measures and returns the truth;
+        /// the fixture returns the nominal step, so a thousand iterations still reach a ten-second
+        /// cap in no time and every existing assertion holds. No shared clock, no box to make
+        /// `Sendable`, and no way for a stalled tick to be silently discounted.
+        tickWait: @escaping @Sendable (Int) async -> Int = { ms in
+            let began = DispatchTime.now().uptimeNanoseconds
             try? await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+            let took = DispatchTime.now().uptimeNanoseconds &- began
+            return max(ms, Int(took / 1_000_000))
         },
         readFile: @escaping @Sendable (String) -> Data? = {
             try? Data(contentsOf: URL(fileURLWithPath: $0))
@@ -203,6 +226,10 @@ final class MediaModel {
         let existing = state.artefact(kind)
         state.sheet = MediaSheet(kind: kind, entryPoint: entryPoint,
                                  selectedId: existing?.promptId, openedAtMs: now())
+        // OPENING THE LIST CLEARS A FAILED TAKE'S NOTICE. The message belongs to a take that is
+        // over, and choosing a prompt again is the user moving on from it -- leaving it up would
+        // report a failure underneath the sheet for as long as the sheet is open.
+        state.captureFailed = nil
         analytics?.report(ProfileAnalytics.mediaPromptListOpened(
             kind, entryPoint: entryPoint, hasExisting: existing != nil
         ))
@@ -312,9 +339,12 @@ final class MediaModel {
         }
         guard started else {
             // The recorder would not start at all. Nothing was captured, so there is nothing to
-            // review -- return to the card rather than showing an empty review screen.
+            // review -- return to the card rather than showing an empty review screen, AND SAY
+            // SO. A take that vanishes without a word is indistinguishable from one that was
+            // never attempted.
             session = nil
             state.take = nil
+            state.captureFailed = CaptureFailed(kind: kind, cause: .neverStarted)
             return
         }
         runClock(kind)
@@ -333,9 +363,11 @@ final class MediaModel {
             let maxMs = MediaLimits.maxMs(kind)
             var elapsed = 0
             while elapsed < maxMs {
-                await self.tickWait(step)
+                // MEASURED, NOT COUNTED. The tick reports what it really cost; adding the step
+                // back is what made a ten-second take run fourteen. See `tickWait`.
+                let took = await self.tickWait(step)
                 if Task.isCancelled { return }
-                elapsed = min(maxMs, elapsed + step)
+                elapsed = min(maxMs, elapsed + took)
                 guard var take = self.state.take, take.phase == .recording else { return }
                 take.elapsedMs = elapsed
                 self.state.take = take
@@ -351,10 +383,12 @@ final class MediaModel {
         guard let take = state.take, take.phase == .recording, let current = session else { return }
         ticker?.cancel()
         guard let captured = await current.finish(elapsedMs: take.elapsedMs) else {
-            // Nothing usable was written -- a take too short for the encoder, or a failure on
-            // close. There is no take to review, so the card is where the user goes.
+            // The recorder RAN and wrote nothing usable -- a take too short for the encoder, a
+            // failure on close, or a session that was never really recording. A different problem
+            // from "would not start", and reported as one.
             session = nil
             state.take = nil
+            state.captureFailed = CaptureFailed(kind: take.kind, cause: .nothingRecorded)
             return
         }
         showReview(take, captured: captured, reason: reason)
@@ -536,10 +570,17 @@ final class MediaModel {
             guard let self else { return }
             var waited = 0
             let limit = durationMs + Self.playClockGraceMs
-            while waited < limit {
-                await self.tickWait(step)
+            // BOUNDED BY BOTH TIME AND PASSES. The time bound is what a clip's length means; the
+            // pass bound is what stops a tick that reports nothing from looping forever.
+            var passes = 0
+            let maxPasses = (limit / max(step, 1)) * 10 + 100
+            while waited < limit && passes < maxPasses {
+                passes += 1
+                // The position below comes from the PLAYER and always did -- nothing here sets a
+                // rate and nothing derives a position from this sum. What was wrong is that the
+                // sum under-counted, so the poll outlived the clip it was following.
+                waited += await self.tickWait(step)
                 if Task.isCancelled { return }
-                waited += step
                 guard self.playing === session else { return }
                 if session.hasFinished() {
                     self.stopPlayback()

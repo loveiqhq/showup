@@ -155,6 +155,10 @@ struct ProfileMediaView: View {
                 preview: state.preview(kind),
                 blocker: blocker,
                 platformLabel: blocker.map { platformLabel($0.capability) } ?? "",
+                // ONLY THIS CARD'S FAILURE. A voice take that produced nothing must not put a
+                // notice on the video card, and the state carries one failure at a time for
+                // exactly that reason — it belongs to a take, and a take has a kind.
+                failure: state.captureFailed.flatMap { $0.kind == kind ? $0.cause : nil },
                 onChoose: { onOpenPrompts(kind, .seeThePrompts) },
                 onPermissionAction: {
                     if let blocker { onPermissionAction(blocker.capability, blocker.status) }

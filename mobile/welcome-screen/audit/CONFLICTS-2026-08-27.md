@@ -1206,3 +1206,48 @@ both give the run a link role to a screen reader.
 at 11.5 type. That is below the floor and is the same trade the sign-up screens have shipped since
 SHOWUP-140. It is listed here so the two are reviewed together if the floor is ever enforced —
 the answer would be a design change to every legal line in the product, not a patch to this one.
+
+## E36 · The video path's remaining failure is below the seam every test replaces. NEEDS A DEVICE OR AN EMULATOR IN CI
+
+Reported twice from hardware and once from an emulator: film, press Stop, land back on the card
+with no review screen. The investigation on 27 September traced the whole chain and found the
+model and the screen CORRECT — `showReview` sets the phase, `MediaCaptureScreen` draws the play
+button, `Retake` and `Use this clip` off it, and `acceptTake` fills the card optimistically with
+the prompt preserved. All of that is now pinned by `MediaFlowRegressionTest` on both platforms.
+
+**What remains is `AndroidVideoSession.finish()` returning null**, which happens when the output
+file has no bytes. Two causes were found and fixed — a bind that ran before the camera permission
+existed, and a front-camera selector an AVD need not satisfy — and neither can be verified here.
+
+**The seam is the problem, and it is not a flaw in the tests.** `FakeMediaCapture` replaces the
+recorder, which is exactly the layer the defect lives in: below it are CameraX and `MediaRecorder`.
+A JVM test cannot bind a camera, and Robolectric cannot open one. The tests were not missing an
+assertion; they were the wrong instrument.
+
+**What would close it** is an instrumented test on an emulator with a virtual camera — real
+CameraX, real permission grant, real file on disk. That is a CI infrastructure change
+(`reactivecircus/android-emulator-runner`, KVM, several minutes a run), not a test file, and it is
+a decision about how much this class of bug is worth catching automatically rather than something
+to add quietly.
+
+Until then: **E34's failure row is what stands in for it.** A take that produces nothing now says
+which of the two failures it was, so the next report names a cause instead of a symptom.
+
+## E37 · Playback cadence is smoothed on Android and not on iOS
+
+Reported as "playback starts unusually slow, then speeds up". The player was never at fault on
+either platform — nothing sets a rate, and the readout is `positionMs()` from the player itself.
+What drifted was the POLL: `delay(tickMs)` sleeps at least its argument, the overshoot compounds,
+and the bar updates late and then jumps.
+
+**Android** now anchors each deadline to the start of playback, so a late pass is followed by a
+short sleep rather than another full one.
+
+**iOS** fixes the half that was wrong — the poll's bound no longer under-counts, because
+`tickWait` reports what it cost rather than what it asked for (E28, finally) — but does NOT anchor
+the cadence. The readout there has always come from the player, so the value was never wrong, and
+anchoring needs a monotonic clock that the test fixture can move in step with an instant tick.
+
+The asymmetry is deliberate and recorded rather than hidden. It is worth closing when somebody can
+look at an iOS device during playback, because the argument for it is a judgement about smoothness
+that no assertion in this repo can make.
