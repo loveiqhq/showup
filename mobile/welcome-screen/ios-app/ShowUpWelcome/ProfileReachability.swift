@@ -237,7 +237,13 @@ private struct InterestRow: View {
                                   : AccessibilityTraits.isButton)
         .accessibilityLabel(sub == nil ? title : "\(title). \(sub!)")
         .accessibilityValue(on ? "Checked" : "Unchecked")
-        .accessibilityAction(perform: onToggle)
+        // A TRAILING CLOSURE, not `perform:`. `accessibilityAction` takes
+        // `(_ actionKind: AccessibilityActionKind = .default, _ handler: () -> Void)` -- there is
+        // no `perform:` label on it, unlike `onTapGesture(perform:)` and `Button(action:)` which
+        // is where the habit comes from. `ConsentSwitch` two files over already spelled it this
+        // way; this was the one call site that did not, and it was the ONE error in the whole of
+        // this ticket's Swift.
+        .accessibilityAction { onToggle() }
     }
 }
 
