@@ -85,6 +85,9 @@ enum ReachCopy {
     static let finePrint =
         "We use this only to coordinate your dates — never for marketing, and we never sell "
         + "your data. Turn any of these off whenever you like in Settings."
+    /// The one word in the fine print that is dark rather than subtle. Plain text, never a link.
+    static let settingsWord = "Settings"
+
     static let privacyLink = "Read our Privacy Policy"
 
     static let cta = "Save preferences"
@@ -411,30 +414,67 @@ private struct FinePrint: View {
     var onPrivacy: () -> Void = {}
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            (
-                Text(ReachCopy.finePrint.replacingOccurrences(of: " Settings.", with: " "))
-                + Text("Settings").foregroundColor(.liqFg).fontWeight(.semibold)
-                + Text(".")
-            )
-            .font(F.manrope(12, .medium))
-            .lineSpacing(12 * 0.5)
-            .foregroundColor(.liqNeutral)
+        // ONE PARAGRAPH, AND THE LINK IS INSIDE IT.
+        //
+        // This was a Text plus a Button in a VStack, with `Read our Privacy Policy` on its own
+        // line behind a 44pt frame. Callout 12 and the spec sheet's scrolled frame both show ONE
+        // FLOWING SENTENCE ending with the link and a full stop — "... whenever you like in
+        // Settings. Read our Privacy Policy." — and a link on its own line read as a detached
+        // button, which is how it came back reported as missing rather than as misplaced.
+        //
+        // `AttributedString` with a `link`, resolved by `OpenURLAction`, is how the welcome flow's
+        // legal line already does exactly this. A run of text inside a paragraph cannot be a
+        // Button without breaking the paragraph, and this is the mechanism SwiftUI offers for it.
+        //
+        // THE 44PT FLOOR CANNOT APPLY TO A WORD INSIDE A SENTENCE, and does not here — the same
+        // trade the three sign-up legal links already make. Recorded as E35.
+        Text(attributed)
+            .font(F.manrope(11.5, .medium))
+            .lineSpacing(11.5 * 0.5)
+            .foregroundColor(.liqSubtle)
             .fixedSize(horizontal: false, vertical: true)
+            .tint(.liqPurple)
+            .environment(\.openURL, OpenURLAction { _ in
+                onPrivacy()
+                return .handled
+            })
+            .padding(.horizontal, 4)
+            .padding(.top, 4)
+            .accessibilityIdentifier(reachFinePrintId)
+    }
 
-            Button(action: onPrivacy) {
-                Text(ReachCopy.privacyLink)
-                    .font(F.manrope(12, .semibold))
-                    .underline()
-                    .foregroundColor(.liqPurple)
-                    .frame(minHeight: ComponentSizes.minTapTarget, alignment: .leading)
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(.isLink)
+    /// The sentence, with its two styled runs.
+    ///
+    /// `Settings` is `--liq-fg` AND 600 — DARK, not the subtle grey the rest is set in, and it is
+    /// PLAIN TEXT: the spec says so outright, and a second link here would be a second thing to
+    /// tap that goes nowhere.
+    private var attributed: AttributedString {
+        let text = ReachCopy.finePrint
+        guard let range = text.range(of: ReachCopy.settingsWord) else {
+            // The word is a constant of this file and cannot go missing, but a copy edit that
+            // renamed it must not silently drop the whole paragraph.
+            return AttributedString(text)
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 4)
-        .accessibilityIdentifier(reachFinePrintId)
+
+        var out = AttributedString(text[text.startIndex..<range.lowerBound])
+
+        var settings = AttributedString(ReachCopy.settingsWord)
+        settings.font = F.manrope(11.5, .semibold)
+        settings.foregroundColor = .liqFg
+        out.append(settings)
+
+        out.append(AttributedString(text[range.upperBound...]))
+        out.append(AttributedString(" "))
+
+        var link = AttributedString(ReachCopy.privacyLink)
+        link.link = URL(string: "showup://privacy")
+        link.font = F.manrope(11.5, .semibold)
+        link.foregroundColor = .liqPurple
+        link.underlineStyle = .single
+        out.append(link)
+
+        out.append(AttributedString("."))
+        return out
     }
 }
 

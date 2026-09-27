@@ -35,6 +35,7 @@ import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -361,7 +362,22 @@ open class MediaViewModel(
             val maxPasses = (max / tickMs).toInt() * 10 + 100
             var passes = 0
             while (passes++ < maxPasses) {
-                delay(tickMs)
+                // SLEEP TO THE NEXT BOUNDARY, NOT FOR A FIXED SPAN.
+                //
+                // `delay(tickMs)` sleeps *at least* that long and the overshoot ACCUMULATES: on a
+                // phone busy encoding video, fifty milliseconds asked for is seventy or ninety
+                // delivered, so the redraws drift further behind real time with every pass. The
+                // displayed number stayed CORRECT throughout -- it is read from the clock below,
+                // not counted -- but it arrived late and then caught up, which is seen as a
+                // counter that runs smoothly and then jumps a whole second. That was reported
+                // from a device as "it accelerates, it skips a second every once in a while", and
+                // the reporter was describing the cadence rather than the value.
+                //
+                // Anchoring each deadline to `startedAt` means a late pass is followed by a short
+                // sleep rather than another full one, so the drift cannot compound.
+                val deadline = startedAt + passes * tickMs
+                val sleep = deadline - elapsedRealtimeMs()
+                if (sleep > 0) delay(sleep) else yield()
                 val take = _state.value.take ?: return@launch
                 if (take.phase != RecordingPhase.Recording) return@launch
                 // MEASURED, NOT COUNTED. The tick decides how often the bar is redrawn and

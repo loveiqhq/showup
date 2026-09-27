@@ -43,6 +43,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
@@ -240,6 +241,24 @@ private class AndroidVideoSession(
         // Checked rather than assumed, because the failure it prevents is silent: a recording
         // that appears to run for ten seconds and produces no file.
         if (!camera.isVideoCaptureEnabled) return false
+
+        // AND WAIT FOR THE CAMERA TO ACTUALLY BE OPEN, which is a different question.
+        //
+        // `isVideoCaptureEnabled` answers "is VIDEO_CAPTURE among the configured use cases" and
+        // is true whether or not a camera was ever opened -- it read true for the whole of the
+        // bug it was added to catch. `cameraInfo` is null until a bind has really produced a
+        // camera, so it is the readiness signal.
+        //
+        // The wait exists because the grant and the first take are the SAME GESTURE: the user
+        // answers the OS dialog and `permissionResult` calls `beginTake` immediately, so the
+        // bind that the grant triggers may still be in flight one composition later. Polling a
+        // bounded number of times is not elegant and is honest -- CameraX offers no "bound"
+        // signal to await, and the alternative is the race that shipped.
+        val ready = withTimeoutOrNull(CAMERA_READY_TIMEOUT_MS) {
+            while (camera.cameraInfo == null) delay(CAMERA_READY_POLL_MS)
+            true
+        }
+        if (ready != true) return false
         return runCatching {
             recording = camera.startRecording(
                 FileOutputOptions.Builder(output).build(),
@@ -302,5 +321,15 @@ private class AndroidVideoSession(
 
     private companion object {
         const val FINALIZE_TIMEOUT_MS = 4_000L
+
+        /**
+         * How long to wait for a bound camera before giving up on the take.
+         *
+         * Long enough for a bind triggered by the permission grant one gesture earlier, short
+         * enough that a user whose camera will never open is told so rather than left watching a
+         * viewfinder that is not coming.
+         */
+        const val CAMERA_READY_TIMEOUT_MS = 3_000L
+        const val CAMERA_READY_POLL_MS = 50L
     }
 }
