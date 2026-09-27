@@ -163,6 +163,20 @@ data class MediaSheet(
  * The four drawn states A-D are not a field: they are [video] and [voice] being present or absent,
  * which is the only representation that cannot disagree with itself.
  */
+/**
+ * Why a take produced nothing.
+ *
+ * TWO CAUSES, AND THEY ARE GENUINELY DIFFERENT PROBLEMS. One is a recorder that never ran; the
+ * other is a recorder that ran and wrote no bytes. The first is a camera or a permission; the
+ * second is an encoder, a full disk, or a camera session that was bound to nothing. A single
+ * "recording failed" would merge them, and merging them is what made the last two reports
+ * indistinguishable.
+ */
+enum class CaptureFailure2 { NeverStarted, NothingRecorded }
+
+/** A take that produced nothing, and which card it belonged to. */
+data class CaptureFailed(val kind: MediaKind, val cause: CaptureFailure2)
+
 data class MediaState(
     val video: MediaArtefact? = null,
     val voice: MediaArtefact? = null,
@@ -175,6 +189,20 @@ data class MediaState(
     /** What is playing, if anything. Null at rest -- playback here is never automatic. */
     val playback: MediaPlayback? = null,
     val loaded: Boolean = false,
+    /**
+     * The last take that produced nothing, or null.
+     *
+     * WHY THIS EXISTS. Four different failures inside the recorder ended the same way -- the take
+     * was cleared, the user was returned to the card, and NOTHING WAS SAID. From their side, a
+     * camera that will not open and a camera that records ten seconds of nothing are the same
+     * event: film, press stop, land where you started. Two reports of the same symptom could not
+     * be told apart because the screen never said which had happened.
+     *
+     * It carries the KIND so the message can name the right card, and the CAUSE so a report says
+     * something a fix can start from. It is cleared by the next attempt: this is a failure of one
+     * take, not a state the screen sits in.
+     */
+    val captureFailed: CaptureFailed? = null,
 ) {
     /** How far into [kind]'s saved clip the user has listened, for the card's `0:08 / 0:14`. */
     fun playedMs(kind: MediaKind): Int =

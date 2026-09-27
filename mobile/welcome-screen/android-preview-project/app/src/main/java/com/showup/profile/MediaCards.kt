@@ -87,6 +87,7 @@ import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.ControlPip
 import com.showup.designsystem.ControlPipTone
+import com.showup.designsystem.Danger
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
@@ -109,6 +110,19 @@ import kotlinx.coroutines.withContext
 
 /** Copy for the media step, quoted from the ticket's "Copy — final strings". */
 object MediaCopy {
+    /**
+     * A take that never reached the recorder.
+     *
+     * OURS, NOT THE TICKET'S -- see `MediaFailureRow` and E34. Names what happened and what to do,
+     * and blames nothing it cannot prove: the camera may be busy, the permission may have been
+     * revoked between the check and the call, the device may have refused. Guessing at one of
+     * those in the copy sends people to fix the wrong thing.
+     */
+    const val CAPTURE_NEVER_STARTED = "We couldn't start recording. Please try again."
+
+    /** A take that ran and wrote nothing. A different problem, and a different sentence. */
+    const val CAPTURE_NOTHING_RECORDED = "That recording didn't save. Please try again."
+
     const val OPTIONAL_PILL = "Optional · you can skip this"
     const val HEADLINE_BEFORE = "Show your face. Let them "
     const val HEADLINE_EM = "hear you"
@@ -249,6 +263,8 @@ fun MediaSlotCard(
     modifier: Modifier = Modifier,
     blocker: MediaBlocker? = null,
     platformLabel: String = "",
+    /** The last take on THIS card that produced nothing, or null. */
+    failure: CaptureFailure2? = null,
     onPermissionAction: () -> Unit = {},
 ) {
     Column(modifier) {
@@ -316,8 +332,14 @@ fun MediaSlotCard(
             // The permission row, in the RESERVED status region above the CTA -- the same place,
             // and the same treatment, as screen 06's camera row. Nothing is drawn before the first
             // refusal: a user who has never been asked sees two clean cards.
-            if (blocker != null) {
-                MediaPermissionRow(blocker, platformLabel, onPermissionAction)
+            //
+            // A FAILED TAKE USES THE SAME SLOT, and takes precedence: a user who has just filmed
+            // ten seconds and got nothing needs to be told that before anything else. The two
+            // cannot both be true in a useful way -- a recording that failed for want of a
+            // permission shows the permission row, because that one can be acted on.
+            when {
+                blocker != null -> MediaPermissionRow(blocker, platformLabel, onPermissionAction)
+                failure != null -> MediaFailureRow(failure)
             }
 
             PrimaryButton(
@@ -331,6 +353,57 @@ fun MediaSlotCard(
                 labelSize = 15.sp,
             )
         }
+    }
+}
+
+/**
+ * A take that produced nothing, said out loud.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE COPY HERE IS OURS AND IS NOT APPROVED
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * The ticket specifies a permission row and an upload retry and NO recording failure at all --
+ * ten states are drawn and this is not one of them. So these two sentences are written in the
+ * flow's existing voice and recorded in `audit/CONFLICTS-2026-08-27.md` as E34, needing a copy
+ * decision.
+ *
+ * They are here rather than absent because the alternative was measured against a real user
+ * twice: a take that fails silently is indistinguishable from one that was never attempted, and
+ * two reports of the same symptom could not be separated for exactly that reason. A wrong
+ * sentence can be corrected in one line; a missing one costs a round trip to a device.
+ *
+ * NO ACTION BUTTON, deliberately. `Retake` is not it -- the prompt is still chosen and the card's
+ * own CTA already reopens the list -- and a button that only said "try again" would be a second
+ * way to do what the card does.
+ */
+@Composable
+fun MediaFailureRow(cause: CaptureFailure2, modifier: Modifier = Modifier) {
+    val message = when (cause) {
+        // Two causes, two sentences, because they are two different problems: one is a recorder
+        // that never ran, the other one that ran and wrote nothing.
+        CaptureFailure2.NeverStarted -> MediaCopy.CAPTURE_NEVER_STARTED
+        CaptureFailure2.NothingRecorded -> MediaCopy.CAPTURE_NOTHING_RECORDED
+    }
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(InnerShape)
+            // The danger tint at the same weight the permission row uses for lilac: this is a
+            // thing that went wrong, and it should not read as the same kind of notice as a
+            // permission the user has simply not granted yet.
+            .background(Danger.copy(alpha = 0.08f))
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(BrandIcon.AlertCircle, 15.dp, tint = Danger, strokeWidth = 1.8f)
+        Text(
+            message,
+            modifier = Modifier.weight(1f),
+            color = DangerFg, fontFamily = Manrope, fontWeight = FontWeight.Medium,
+            fontSize = 12.sp, lineHeight = (12f * 1.35f).sp,
+        )
     }
 }
 

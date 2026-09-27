@@ -319,7 +319,25 @@ class MainActivity : ComponentActivity() {
                 // whatever else it does.
                 if (cameraGranted) {
                     cameraController.setEnabledUseCases(CameraController.VIDEO_CAPTURE)
-                    cameraController.cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                    // FRONT BY DEFAULT, AND WHATEVER EXISTS OTHERWISE.
+                    //
+                    // The ticket asks for the front camera and draws no flip control: a selfie is
+                    // the obvious intent for a face clip. Every real phone has one, so on a device
+                    // this is the front camera and nothing else ever happens.
+                    //
+                    // An EMULATOR is where it is not: an AVD can be configured with no front
+                    // camera at all, and binding a selector the device cannot satisfy throws
+                    // rather than falling back -- which reaches a user as a viewfinder that never
+                    // opens and a take that produces nothing. This is not a stand-in for real
+                    // capture and does not fake anything: the same session, the same recorder and
+                    // the same state machine run either way, pointed at whichever lens exists.
+                    cameraController.cameraSelector = runCatching {
+                        if (cameraController.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) {
+                            CameraSelector.DEFAULT_FRONT_CAMERA
+                        } else {
+                            CameraSelector.DEFAULT_BACK_CAMERA
+                        }
+                    }.getOrDefault(CameraSelector.DEFAULT_FRONT_CAMERA)
                     cameraController.bindToLifecycle(captureLifecycle)
                 }
                 onDispose { if (cameraGranted) cameraController.unbind() }
