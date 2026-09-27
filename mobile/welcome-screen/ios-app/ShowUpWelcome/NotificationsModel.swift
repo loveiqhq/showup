@@ -77,8 +77,11 @@ final class NotificationsModel {
     /// NAVIGATIONS, and nothing is reported for either press: the tap is not an event on this
     /// screen.
     ///
-    /// `ask` and `push` are still held, and deliberately unused here. They belong to `skipped`,
-    /// below, which is the one path that still registers from this screen.
+    /// `ask` and `push` ARE STILL HELD AND ARE NOW UNUSED BY EVERY PATH ON THIS SCREEN, which
+    /// is a deliberate seam rather than dead weight: they keep the initialiser's shape so the
+    /// host and the tests are unchanged, and `NotificationRulesTests` injects a counting `push`
+    /// precisely to assert that NOTHING here reaches it any more. A parameter that exists to be
+    /// proven unused is doing work.
     @discardableResult
     func continuePressed() -> Bool {
         guard !sheetUp else { return false }

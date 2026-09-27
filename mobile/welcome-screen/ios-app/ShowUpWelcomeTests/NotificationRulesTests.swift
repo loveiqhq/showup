@@ -205,8 +205,8 @@ final class NotificationRulesTests: XCTestCase {
     }
 
     func testNothingRegistersForPushOnThisScreenAnyMore() async {
-        // The registration moved with the grant it depended on. `skipped` is the one path from
-        // this screen that still registers, and it is tested below.
+        // The registration moved with the grant it depended on, and no path from this screen
+        // reaches it now -- see the block below for what went and why.
         let push = FakePush()
         let model = build(granted: true, events: Recorder(), push: push)
         model.arrived()
@@ -219,53 +219,44 @@ final class NotificationRulesTests: XCTestCase {
 
     // MARK: - the user who never sees the screen
 
-    func testASkippedUserWhosePermissionIsAlreadyOnStillRegisters() async {
-        // The Swift half of the Android <= 12 case. There is no API-level skip on iOS, so what
-        // reaches here is the guard case: a status already determined, from a restored backup or
-        // an app killed mid-sheet. An APNs token does not survive a restore, so a user who comes
-        // back already granted still needs one — and the only thing that registered was a callback
-        // on the screen they are about to be skipped past.
+    /**
+     * FOUR TESTS USED TO LIVE HERE, and they went with the function they tested.
+     *
+     * `skipped(_:)` registered for push when a user was routed PAST this screen on an
+     * already-determined status. It existed because `register()` had exactly one call site --
+     * the grant callback on this screen -- so a user who never saw it was a device the backend
+     * had no token for.
+     *
+     * SHOWUP-163 routes every user through Stay reachable (10), whose `Save preferences` is the
+     * only way off it and which registers when push is on. The need is met one screen later and
+     * tied to the consent rather than to a screen the user did not see.
+     *
+     * Keeping both would have registered twice on every Android <= 12 device and every restored
+     * install -- and worse on the path that matters: the old one registered on a GRANTED status
+     * REGARDLESS OF CONSENT, so a user who reached 10 and switched push off would already have
+     * had a token filed. Registering a device for push right after the user declines it is the
+     * failure that version had, and a second `register()` succeeding is what made it invisible.
+     *
+     * What is left is the absence, asserted two ways: nothing on this screen registers, and the
+     * screen that does is the one the user always reaches. The second half is
+     * `ReachabilityRulesTests.testSavingWithPushOnAndNothingAnsweredRaisesTheDialogThenAdvances`.
+     */
+    func testNothingOnThisScreenRegistersForPush() async {
         let push = FakePush()
-        let model = build(.granted, events: Recorder(), push: push)
-        model.skipped(.granted)
-        for _ in 0..<16 { await Task.yield() }
-
-        let calls = await push.calls
-        XCTAssertEqual(calls, 1)
-    }
-
-    func testASkippedUserRegistersOnceHoweverManyTimesTheHostAsks() async {
-        let push = FakePush()
-        let model = build(.granted, events: Recorder(), push: push)
-        model.skipped(.granted)
-        model.skipped(.granted)
-        for _ in 0..<16 { await Task.yield() }
-
-        let calls = await push.calls
-        XCTAssertEqual(calls, 1)
-    }
-
-    func testASkippedUserWithNoPermissionRegistersNothing() async {
-        let push = FakePush()
-        for status in [NotificationPermission.denied, .restricted, .notDetermined] {
+        for status in [NotificationPermission.granted, .denied, .restricted, .notDetermined] {
             let model = build(status, events: Recorder(), push: push)
-            model.skipped(status)
+            model.arrived()
+            model.continuePressed()
+            model.continuePressed()
+            _ = await model.statusIsNowDetermined()
         }
         for _ in 0..<16 { await Task.yield() }
 
         let calls = await push.calls
-        XCTAssertEqual(calls, 0)
-    }
-
-    func testSkippingReportsNothingAtAll() async {
-        // `permission_prompted` does not fire on a skip, and there is no `ask skipped` event to
-        // invent at a call site. The users who never see the ask are deliberately unmeasured.
-        let events = Recorder()
-        let model = build(.granted, events: events, push: FakePush())
-        model.skipped(.granted)
-        for _ in 0..<16 { await Task.yield() }
-
-        XCTAssertTrue(events.names.isEmpty, "a skip reports nothing: \(events.names)")
+        XCTAssertEqual(
+            calls, 0,
+            "registration moved to Stay reachable with the consent it belongs to"
+        )
     }
 
     // MARK: - the foreground re-read
