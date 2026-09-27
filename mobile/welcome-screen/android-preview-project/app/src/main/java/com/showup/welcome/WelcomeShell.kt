@@ -23,6 +23,7 @@ import com.showup.designsystem.Spacing
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.InlineTextContent
@@ -566,6 +567,12 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
     // exist; `x` is [Close], already drawn at the kit's exact geometry; and `heart` needed
     // splitting -- see [HeartFilled].
     Sparkles, MessageCircle, Clock,
+
+    // ── added for Stay reachable (SHOWUP-163) ───────────────────────────────
+    //
+    // `Bell` is the card's head pip and the push row's; `PhoneCall` and `WhatsApp` are two of the
+    // three interest rows (SMS reuses `MessageCircle`); `AlertCircle` is the dialog's pip.
+    Bell, PhoneCall, WhatsApp, AlertCircle,
     /**
      * The kit's `heart-filled`, which is what Connect's button has always drawn.
      *
@@ -792,6 +799,128 @@ fun Icon(
                 BrandIcon.Clock -> {
                     drawCircle(tint, radius = 9f, center = Offset(12f, 12f), style = stroke)
                     drawPath(path(listOf(12f to 7f, 12f to 12f, 15f to 14f)), tint, style = stroke)
+                }
+                // ── added for Stay reachable (SHOWUP-163) ───────────────────────────
+                //
+                // Same rule as the media five: copied from `components/shared.jsx` at its exact
+                // 24-grid geometry rather than redrawn.
+                //
+                // `M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9` + `M13.73 21a2 2 0 0 1-3.46 0`.
+                // The dome is a 6-radius half-circle centred (12, 8); the skirt runs from it out
+                // to the 3/21 rim and straight across; the clapper is the small arc beneath.
+                BrandIcon.Bell -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(18f, 8f)
+                            // a6 6 0 1 0-12 0 -- the large-arc flag is what makes this the TOP
+                            // half of the circle rather than the bottom, and it is the difference
+                            // between a bell and a bowl.
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(6f, 2f, 18f, 14f),
+                                0f, -180f, false,
+                            )
+                            cubicTo(6f, 15f, 3f, 17f, 3f, 17f)
+                            lineTo(21f, 17f)
+                            cubicTo(21f, 17f, 18f, 15f, 18f, 8f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(13.73f, 21f)
+                            cubicTo(13.37f, 21.64f, 12.7f, 22.03f, 11.98f, 22.03f)
+                            cubicTo(11.26f, 22.03f, 10.6f, 21.64f, 10.27f, 21f)
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                // `M15.05 5A5 5 0 0 1 19 8.95 M15.05 1A9 9 0 0 1 23 8.94` -- two signal arcs --
+                // over the same handset body the `phone` glyph already uses.
+                BrandIcon.PhoneCall -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(15.05f, 5f)
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(14.05f, 3.95f, 24.05f, 13.95f),
+                                -90f, 61f, false,
+                            )
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(15.05f, 1f)
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(14.05f, -0.06f, 32.05f, 17.94f),
+                                -90f, 61f, false,
+                            )
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(phonePath(), tint, style = stroke)
+                }
+                // The kit's own outline -- a speech bubble with a tail dropping to (3, 21) and the
+                // handset inside it. NOT the WhatsApp brand asset: this is a line icon in our set,
+                // and using the real mark would put a third party's branding rules on the screen.
+                BrandIcon.WhatsApp -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(21f, 11.5f)
+                            cubicTo(21f, 12.83f, 20.69f, 14.14f, 20.1f, 15.3f)
+                            cubicTo(18.66f, 18.18f, 15.72f, 20f, 12.5f, 20f)
+                            cubicTo(11.17f, 20f, 9.86f, 19.69f, 8.7f, 19.1f)
+                            lineTo(3f, 21f)
+                            lineTo(4.9f, 15.3f)
+                            cubicTo(4.31f, 14.14f, 4f, 12.83f, 4f, 11.5f)
+                            cubicTo(4f, 8.28f, 5.82f, 5.34f, 8.7f, 3.9f)
+                            cubicTo(9.86f, 3.31f, 11.17f, 3f, 12.5f, 3f)
+                            lineTo(13f, 3f)
+                            cubicTo(17.5f, 3.25f, 20.75f, 6.5f, 21f, 11f)
+                            lineTo(21f, 11.5f)
+                            close()
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(9.4f, 8.2f)
+                            cubicTo(8.8f, 8.2f, 8.2f, 8.8f, 8.2f, 9.6f)
+                            cubicTo(8.2f, 10.9f, 9.1f, 12.2f, 9.2f, 12.4f)
+                            cubicTo(9.4f, 12.6f, 11f, 15.3f, 13.7f, 16.4f)
+                            cubicTo(14.4f, 16.7f, 15f, 16.7f, 15.4f, 16.6f)
+                            cubicTo(15.9f, 16.5f, 16.8f, 16f, 17f, 15.4f)
+                            cubicTo(17.2f, 14.8f, 17.2f, 14.3f, 17.1f, 14.2f)
+                            cubicTo(17.1f, 14.1f, 16.9f, 14f, 16.6f, 13.9f)
+                            lineTo(15.2f, 13.2f)
+                            cubicTo(15f, 13.1f, 14.8f, 13.2f, 14.7f, 13.3f)
+                            lineTo(14.1f, 14.1f)
+                            cubicTo(14f, 14.2f, 13.8f, 14.3f, 13.6f, 14.2f)
+                            cubicTo(12.9f, 13.9f, 12.2f, 13.5f, 11.7f, 12.9f)
+                            cubicTo(11.3f, 12.5f, 10.9f, 12f, 10.7f, 11.5f)
+                            cubicTo(10.6f, 11.3f, 10.7f, 11.1f, 10.8f, 11f)
+                            lineTo(11.3f, 10.4f)
+                            cubicTo(11.4f, 10.3f, 11.4f, 10.1f, 11.4f, 10f)
+                            lineTo(10.8f, 8.5f)
+                            cubicTo(10.6f, 8f, 10.4f, 8f, 10.2f, 8f)
+                            close()
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                // `circle r10` + a stem and a dot -- the standard alert glyph. The dot is drawn as
+                // a zero-length round-capped line, which is how the source authors it
+                // (`x1="12" y1="16" x2="12.01" y2="16"`) and what makes it a dot rather than a
+                // second stem.
+                BrandIcon.AlertCircle -> {
+                    drawCircle(tint, radius = 10f, center = Offset(12f, 12f), style = stroke)
+                    drawLine(
+                        tint, Offset(12f, 8f), Offset(12f, 12f),
+                        stroke.width, StrokeCap.Round,
+                    )
+                    drawLine(
+                        tint, Offset(12f, 16f), Offset(12.01f, 16f),
+                        stroke.width, StrokeCap.Round,
+                    )
                 }
                 // ── added for the media step (SHOWUP-161) ───────────────────────────
                 //
@@ -1153,6 +1282,20 @@ fun WelcomeScaffold(
     placement: OrbPlacement = OrbPlacement.Startup,
     orangeAlpha: Float = 0.32f,
     violetAlpha: Float = 0.28f,
+    /**
+     * The body's scroll position, hoisted so a caller can place it.
+     *
+     * DEFAULTS TO THE ONE IT ALWAYS HAD, so every existing call site is unchanged. It became a
+     * parameter for SHOWUP-163, whose acceptance criteria ask for evidence of the screen
+     * "scrolled to the top and to the bottom": the evidence camera draws into a raw `ComposeView`
+     * rather than through a test rule, so it has no gesture to send and no node to scroll to.
+     * Handing it the state is the only way to photograph a scrolled screen.
+     *
+     * It is also the honest shape. A scroll position is state, and hoisting it is what this
+     * project's first rule about state says to do. It is not saved anywhere yet, because no
+     * screen has asked to survive a rotation mid-scroll.
+     */
+    scrollState: ScrollState = rememberScrollState(),
     topPadding: Dp = 20.dp,
     /**
      * The side gutter.
@@ -1200,10 +1343,18 @@ fun WelcomeScaffold(
      * spacer still takes the slack and the button still lands at the bottom of the screen, because
      * that is where the band already is.
      *
-     * It takes the same [gutter] as the content -- it is the bottom of the same column, not a
-     * separate surface -- and it clears the gesture bar, because the insets are on that column. A
-     * screen that wants a gradient mask over scrolling content wants `RealYouScaffold` instead:
-     * that footer is a band drawn OVER the content, and this one is the end of it.
+     * IT IS FULL-BLEED, and applies its own horizontal padding.
+     *
+     * It used to inherit [gutter], which is simpler and was wrong the moment a footer needed a
+     * BACKGROUND: Stay reachable (SHOWUP-163) specifies "the footer is pinned, with its fade from
+     * transparent to --liq-bg", and a fade inset by 24 leaves two unfaded strips down the sides
+     * where the backdrop orbs show through. `RealYouScaffold` had this right already -- "footer:
+     * fixed, the screen's own padding and background" -- so this is that shape, not a new one.
+     *
+     * A footer with no background looks identical either way, which is why the notifications
+     * ask's did not notice; it carries its own 28 now and is unchanged on screen.
+     *
+     * It still clears the gesture bar: the insets are on the column this sits in.
      */
     footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -1218,19 +1369,24 @@ fun WelcomeScaffold(
         val insets = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(start = gutter, end = gutter, top = topPadding)
 
         Column(insets) {
             // `weight(1f)` hands the region a FIXED height, which is what both branches need: the
             // scrolling one measures its viewport from it, and the content's own weighted spacer
             // resolves against it. With no footer the region is the whole column, so this is the
             // layout that was here before, spelled with one more box.
-            val region = Modifier.fillMaxWidth().weight(1f)
+            //
+            // THE GUTTER AND THE TOP PADDING LIVE HERE, not on the column, so that [footer] spans
+            // the frame and can carry a full-bleed band.
+            val region = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(start = gutter, end = gutter, top = topPadding)
 
             if (scrollWhenTight) {
                 BoxWithConstraints(region) {
                     val viewport = maxHeight
-                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Column(Modifier.verticalScroll(scrollState)) {
                         Column(Modifier.heightIn(min = viewport), content = content)
                     }
                 }

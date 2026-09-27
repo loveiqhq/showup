@@ -41,13 +41,19 @@ class ProfileAnalyticsTest {
 
     @Test
     fun `the field registry version matches the bundle that defined the vocabulary`() {
-        // enums.json bumped 1.2.0 -> 1.3.0 when the identifiers were corrected, 1.3.1 -> 1.4.2
-        // on 16 September 2026, and 1.4.4 -> 1.4.5 on 25 September, which RETIRED §18 prompt
-        // `entry_point`, took `position` off every prompt event with it, and moved `is_edit` onto
-        // `prompt_editor_dismissed`. Stamping an older string would claim a vocabulary these
-        // payloads are not using -- and this test is the thing that noticed, twice, which is
-        // exactly what it is for.
-        assertEquals("1.4.5", Stamp.FIELD_REGISTRY_VERSION)
+        // THE STAMP IS enums.json's `registry_version`, NOT events.json's `taxonomy_version`.
+        // The two are different numbers on the same day -- on 25 September 2026 events.json says
+        // 1.4.5 and enums.json says 1.4.6 -- and enums.json says which one this is: "the string
+        // stamped into field_registry_version on every attribute event -- it versions the
+        // vocabulary, not the taxonomy document". Reading the wrong file is the obvious mistake,
+        // and it is why this comment names the file.
+        //
+        // 1.2.0 -> 1.3.0 corrected the identifiers; 1.3.1 -> 1.4.2 on 16 September; 1.4.4 -> 1.4.5
+        // on 25 September retired §18 prompt `entry_point`; 1.4.6, the same day, added §25
+        // interest_channel and the profile_reachability row for Stay reachable. Stamping an older
+        // string would claim a vocabulary these payloads are not using -- and this test is the
+        // thing that noticed, three times now, which is exactly what it is for.
+        assertEquals("1.4.6", Stamp.FIELD_REGISTRY_VERSION)
     }
 
     // ── consent_changed, unblocked by registry 1.3.0 ──────────────────────────
@@ -86,7 +92,7 @@ class ProfileAnalyticsTest {
     fun `consent is a class 1 attribute event`() {
         val (_, payload) = ProfileAnalytics.consentChanged(on = true)
         assertEquals(1, payload["sensitivity_class"])
-        assertEquals("1.4.5", payload["field_registry_version"])
+        assertEquals("1.4.6", payload["field_registry_version"])
     }
 
     // ── the rule the ticket calls a bug to break ──────────────────────────────

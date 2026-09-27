@@ -149,6 +149,16 @@ private struct TutorialFlow: View {
 
     @State private var notifications = NotificationsModel()
 
+    @State private var reachability = ReachabilityModel(
+        // No endpoint for the push consent yet -- see ReachabilityRepository.
+        consent: NoConsentBackend()
+    )
+
+    /// Held rather than built in `onAppear`: a new host every redraw would be a new object for
+    /// the model's weak reference to point at, and the one built during a suspended
+    /// `requestNotificationPermission` would be the one that goes away.
+    private let reachabilityHost = AppReachabilityHost()
+
     @State private var media = MediaModel(
         repo: MediaRepository(api: APIAccess.client),
         access: AVMediaAccess(),
@@ -257,15 +267,17 @@ private struct TutorialFlow: View {
     /// decided here, so the user never sees the ask mount and navigate away — no toast, no
     /// confirmation, no flash.
     ///
-    /// STAY REACHABLE (10) DOES NOT EXIST YET, so both the ask and the skip end at home for now.
-    /// When 10 is built this is the single place that changes.
+    /// 09 IS STILL SKIPPED ON A DETERMINED STATUS, AND 10 NEVER IS.
+    ///
+    /// SHOWUP-163 leaves the guard alone — "unchanged on 09: the Android <= 12 / already-determined
+    /// skip guard" — so a user whose permission is already settled goes straight past the explainer
+    /// to Stay reachable, which is the screen that can actually act on it.
     private func afterMedia() async -> FlowScreen {
         let status = await notificationAccess.read()
         guard shouldShowAsk(status) else {
-            // THE SKIPPED USER STILL NEEDS A TOKEN — a restored backup arrives already granted
-            // and with no APNs token. See NotificationsModel.skipped.
-            notifications.skipped(status)
-            return .home
+            // NO REGISTRATION HERE ANY MORE. Stay reachable is the next screen either way and it
+            // registers on Save — see NotificationsModel, where `skipped` used to be.
+            return .profileReachability
         }
         return .profileNotifications
     }
@@ -273,24 +285,60 @@ private struct TutorialFlow: View {
     @ViewBuilder private var notificationsScreen: some View {
         ProfileNotificationsView(
             onEnable: {
-                Task {
-                    // Raises the sheet, reports the result, registers on a grant. BOTH OUTCOMES
-                    // ADVANCE — the user never lands back here.
-                    await notifications.enablePressed()
-                    go(to: .home)
-                }
+                // The CTA only navigates now. False on a second press, and nothing is reported
+                // for either — see NotificationsModel.continuePressed.
+                if notifications.continuePressed() { go(to: .profileReachability) }
             },
             busy: notifications.sheetUp
         )
-        // `permission_prompted` is OUR pre-permission surface and fires on view — but only when
-        // the screen is really shown, which the skip above guarantees.
+        // `screen_viewed` only. SHOWUP-163 moved `permission_prompted` and the two OS-dialog
+        // events to Stay reachable, which is where the dialog is raised now.
         .onAppear { notifications.arrived() }
-        // THE SCREEN IS NEVER A TERMINAL STATE. If the status becomes determined while it is
-        // mounted — the user backgrounds the sheet, turns notifications on in Settings by hand,
-        // and comes back — it advances by itself rather than leaving a dead button.
+        // NO FOREGROUND RE-READ AND NO SELF-ADVANCE ANY MORE. Both existed because this screen's
+        // only button raised a dialog the OS shows once per install, so a status that became
+        // determined while it was mounted left a dead CTA. It raises nothing now.
+    }
+
+    /// Stay reachable (SHOWUP-163).
+    ///
+    /// THE HOST DOES THE TWO THINGS ONLY AN APP CAN: raise the dialog and leave for Settings.
+    /// Everything else is in the model, which is what lets every rule on this screen be tested
+    /// with no device.
+    @ViewBuilder private var reachabilityScreen: some View {
+        ProfileReachabilityView(
+            state: reachability.state,
+            onPushChange: { on in Task { await reachability.pushChanged(on) } },
+            onInterestToggle: { reachability.interestToggled($0) },
+            onKeepActive: { Task { await reachability.keepActive() } },
+            onOpenSettings: { reachability.openSettings() },
+            // THE SAME DESTINATION AS `onSave`, because on state D this IS the save finishing —
+            // see ReachabilityModel.confirmDeactivation. On state C the closure is never reached.
+            onConfirmDeactivate: {
+                Task { await reachability.confirmDeactivation { go(to: .home) } }
+            },
+            onPrivacy: {
+                reachability.privacyTapped()
+                // REPORTS AND GOES NOWHERE, which is what the welcome flow's three legal links
+                // already do: `SignUpFlow.onOpenLegal` defaults to a no-op and this host supplies
+                // none, because the documents are not hosted yet. Where they live is one ticket
+                // for all seven links, not a decision to take on this screen.
+            },
+            onSave: {
+                // LOCATION (12) DOES NOT EXIST YET, so the one exit ends at home. When 12 is
+                // built this is the single line that changes.
+                Task { await reachability.savePressed { go(to: .home) } }
+            }
+        )
+        .onAppear {
+            reachability.attach(reachabilityHost)
+            Task { await reachability.arrived() }
+        }
+        // The status is re-read on every foreground, so returning from Settings with notifications
+        // allowed shows the toggle on. NOTHING AUTO-ADVANCES: the user taps Save preferences
+        // again, and no dialog is raised.
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
-            Task { if await notifications.statusIsNowDetermined() { go(to: .home) } }
+            Task { await reachability.foregrounded() }
         }
     }
 
@@ -572,6 +620,12 @@ private struct TutorialFlow: View {
                 case .profileNotifications:
                     notificationsScreen
 
+                case .profileReachability:
+                    // SHOWUP-163. The deactivation confirm is NOT its own FlowScreen -- §11 says
+                    // it "has no entry point of its own and is not a separate screen", so it is a
+                    // state of this position rather than a place the router can send anyone.
+                    reachabilityScreen
+
                 case .profileMedia:
                     // SHOWUP-161. One position in the flow, two surfaces: the media screen, and the
                     // full-bleed viewfinder that replaces it while a take is running. The
@@ -700,12 +754,12 @@ struct ConnectFlowHost: View {
             },
             onTerms: {
                 track(SignUpAnalytics.legalLinkTapped(
-                    SignUpAnalytics.Legal.terms, screen: SignUpAnalytics.Screen.connectSSO))
+                    SignUpAnalytics.Legal.terms, screenId: SignUpAnalytics.ScreenId.connectSSO))
                 onOpenLegal("Terms & Conditions")
             },
             onPrivacy: {
                 track(SignUpAnalytics.legalLinkTapped(
-                    SignUpAnalytics.Legal.privacy, screen: SignUpAnalytics.Screen.connectSSO))
+                    SignUpAnalytics.Legal.privacy, screenId: SignUpAnalytics.ScreenId.connectSSO))
                 onOpenLegal("Privacy Policy")
             }
         )

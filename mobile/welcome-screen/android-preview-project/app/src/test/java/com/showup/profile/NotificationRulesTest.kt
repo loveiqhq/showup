@@ -115,19 +115,19 @@ class NotificationRulesTest {
     // ── what fires, and what must not ───────────────────────────────────────
 
     @Test
-    fun `arriving reports the screen and our own pre-permission surface`() {
+    fun `arriving reports the screen, and nothing else`() {
         val vm = build()
         vm.arrived()
 
-        assertEquals(
-            listOf(ProfileAnalytics.SCREEN_VIEWED, ProfileAnalytics.PERMISSION_PROMPTED),
-            events.names(),
-        )
+        // `permission_prompted` USED TO FIRE HERE and no longer does. Registry 1.4.6 moved it:
+        // "From 25 Sep 2026 the notifications case is Stay reachable (Profile 10) ... Profile 09
+        // NO LONGER fires it -- 09 raises no sheet any more." A pre-permission event on a screen
+        // that pre-permissions nothing would double-count the ask against Stay reachable's own.
+        assertEquals(listOf(ProfileAnalytics.SCREEN_VIEWED), events.names())
         val viewed = events.only(ProfileAnalytics.SCREEN_VIEWED)
         assertEquals("profile_notifications", viewed["screen_id"])
         assertEquals("ProfileNotifications", viewed["screen_name"])
         assertEquals("profile_media", viewed["referrer_screen_id"])
-        assertEquals("notifications", events.only(ProfileAnalytics.PERMISSION_PROMPTED)["type"])
     }
 
     @Test
@@ -135,7 +135,10 @@ class NotificationRulesTest {
         val vm = build()
         vm.arrived()
         vm.arrived()
-        assertEquals(1, events.count(ProfileAnalytics.PERMISSION_PROMPTED))
+        // The guard is on the screenview now that it is the only thing arrival reports. A
+        // remembered `LaunchedEffect(Unit)` does not re-run, but a configuration change
+        // recreates the composition and would fire a second one.
+        assertEquals(1, events.count(ProfileAnalytics.SCREEN_VIEWED))
     }
 
     @Test
@@ -145,8 +148,7 @@ class NotificationRulesTest {
         // A phantom step here is invisible until someone reads the completion funnel.
         val vm = build()
         vm.arrived()
-        vm.enablePressed()
-        vm.answered(granted = true)
+        vm.continuePressed()
 
         assertTrue(
             "no profile_step_* may fire here: ${events.names()}",
@@ -160,8 +162,7 @@ class NotificationRulesTest {
         // double-count the same consent from two surfaces -- the OS grant is not our consent.
         val vm = build()
         vm.arrived()
-        vm.enablePressed()
-        vm.answered(granted = false)
+        vm.continuePressed()
 
         val forbidden = listOf(
             "permission_denied_recovery_shown", "permission_settings_opened", "consent_changed",
@@ -172,136 +173,55 @@ class NotificationRulesTest {
         )
     }
 
-    // ── the sheet ───────────────────────────────────────────────────────────
+    // ── the dialog this screen no longer raises (SHOWUP-163) ────────────────
 
+    /**
+     * THE WHOLE OF WHAT 163 TOOK AWAY, asserted as an absence.
+     *
+     * This screen owned the OS notification dialog until 25 September 2026: `enablePressed`
+     * reported `permission_os_sheet_shown` and launched the request, and `answered` reported
+     * `permission_result`. All three events and the request moved to Stay reachable, where the
+     * dialog is raised by `Save preferences`.
+     *
+     * Five tests were deleted with them -- they were testing a thing that is now somebody else's,
+     * and `ReachabilityRulesTest` is where they live in spirit. What is left is this one, which
+     * would fail the moment any of it came back.
+     */
     @Test
-    fun `pressing enable reports the sheet once and refuses a second press`() {
+    fun `no permission event fires on this screen any more`() {
         val vm = build()
-        assertTrue("the first press raises the sheet", vm.enablePressed())
-        assertFalse("the second does not", vm.enablePressed())
+        vm.arrived()
+        vm.continuePressed()
+        vm.continuePressed()
 
-        assertEquals(
-            "a tap that raises no sheet is not a sheet being shown",
-            1, events.count(ProfileAnalytics.PERMISSION_OS_SHEET_SHOWN),
+        val moved = listOf(
+            ProfileAnalytics.PERMISSION_PROMPTED,
+            ProfileAnalytics.PERMISSION_OS_SHEET_SHOWN,
+            ProfileAnalytics.PERMISSION_RESULT,
         )
-        assertEquals("notifications", events.only(ProfileAnalytics.PERMISSION_OS_SHEET_SHOWN)["type"])
-    }
-
-    @Test
-    fun `granting reports granted and registers for push`() = runTest(dispatcher) {
-        val vm = build()
-        vm.enablePressed()
-        vm.answered(granted = true)
-        advanceUntilIdle()
-
-        assertEquals("granted", events.only(ProfileAnalytics.PERMISSION_RESULT)["result"])
-        assertEquals(
-            "granting and never registering is the silent failure this ticket names",
-            1, push.calls,
-        )
-    }
-
-    @Test
-    fun `denying reports denied and registers nothing`() = runTest(dispatcher) {
-        val vm = build()
-        vm.enablePressed()
-        vm.answered(granted = false)
-        advanceUntilIdle()
-
-        assertEquals("denied", events.only(ProfileAnalytics.PERMISSION_RESULT)["result"])
-        assertEquals(0, push.calls)
-    }
-
-    @Test
-    fun `the result is never limited`() = runTest(dispatcher) {
-        // `granted | denied | limited` is the family's set and `limited` is a photo-library state
-        // that cannot occur for notifications. The signature takes a Boolean so there is no third
-        // value to pass by mistake; this asserts the mapping.
-        listOf(true, false).forEach { granted ->
-            // A fresh recorder each time: the same one would hold two results and `only` is the
-            // point of the assertion.
-            events = Recorder()
-            NotificationsViewModel(
-                FixedNotificationAccess(NotificationPermission.NotDetermined), push, events,
-            ).answered(granted)
-            advanceUntilIdle()
-            assertTrue(
-                events.only(ProfileAnalytics.PERMISSION_RESULT)["result"] in
-                    listOf("granted", "denied"),
-            )
+        for (name in moved) {
+            assertEquals("$name moved to Stay reachable and must not fire here", 0,
+                events.count(name))
         }
+        // The screenview stays: this is still a screen somebody looked at.
+        assertEquals(1, events.count(ProfileAnalytics.SCREEN_VIEWED))
     }
 
     @Test
-    fun `an ask that was never answered must not read as a denial`() {
-        // THE BUG THIS GUARDS. Android cannot tell "never asked" from "refused" -- both read as
-        // not-granted -- so the ask log is the proxy. Recording the ask BEFORE the dialog is
-        // answered makes a liar of it: a user who raises the sheet and backgrounds the app without
-        // answering comes back recorded as denied while the OS status is still not determined.
-        //
-        // The ticket names that person: they "land on Stay reachable never having been asked", and
-        // 10's row must raise the same sheet for them. A false denial sends them to Settings for a
-        // dialog they never saw. So the record happens in the RESULT callback, and this is what
-        // the reader must say until then.
-        assertEquals(
-            "sheet raised, not yet answered",
-            NotificationPermission.NotDetermined,
-            notificationPermissionFor(33, granted = false, hasAsked = false),
-        )
-        assertEquals(
-            "answered and refused",
-            NotificationPermission.Denied,
-            notificationPermissionFor(33, granted = false, hasAsked = true),
-        )
-    }
-
-    // ── the user who never sees the screen ──────────────────────────────────
-
-    @Test
-    fun `a skipped user whose permission is already on still registers for push`() = runTest(dispatcher) {
-        // THE ANDROID <= 12 PATH. The ticket's build inventory: "Notifications treated as on below
-        // API 33 -- the Android <= 12 path never sees this screen and must still register for push
-        // and receive all five categories." minSdk here is 30, so this is API 30 to 32.
-        //
-        // It is the ticket's own named silent failure arriving through a door the warning did not
-        // close: registration lived in the grant callback of a screen these users never reach.
-        val vm = build(NotificationPermission.Granted)
-        vm.skipped(NotificationPermission.Granted)
-        advanceUntilIdle()
-        assertEquals(1, push.calls)
-    }
-
-    @Test
-    fun `a skipped user registers once, however many times the host asks`() = runTest(dispatcher) {
-        // `afterMedia` runs on Continue AND on Skip, and a recomposition can run it again.
-        val vm = build(NotificationPermission.Granted)
-        vm.skipped(NotificationPermission.Granted)
-        vm.skipped(NotificationPermission.Granted)
-        advanceUntilIdle()
-        assertEquals(1, push.calls)
-    }
-
-    @Test
-    fun `a skipped user with no permission registers nothing`() = runTest(dispatcher) {
-        // The guard case can arrive DENIED -- restored from a backup where the user refused, or
-        // parental controls. There is no token to get and nothing to send.
-        for (status in listOf(NotificationPermission.Denied, NotificationPermission.Restricted)) {
-            val vm = build(status)
-            vm.skipped(status)
-            advanceUntilIdle()
-        }
-        assertEquals(0, push.calls)
-    }
-
-    @Test
-    fun `skipping reports nothing at all`() = runTest(dispatcher) {
-        // events.json: `permission_prompted` "does not fire when the screen is skipped". There is
-        // no `ask skipped` event either, and the ticket forbids inventing one at a call site --
-        // the users who never see the ask are deliberately unmeasured.
-        val vm = build(NotificationPermission.Granted)
-        vm.skipped(NotificationPermission.Granted)
-        advanceUntilIdle()
+    fun `continue navigates once and refuses a second press`() {
+        val vm = build()
+        assertTrue("the first press navigates", vm.continuePressed())
+        assertFalse("a double tap must not produce two navigations", vm.continuePressed())
+        // And nothing is reported for either -- the press is not an event on this screen.
         assertEquals(emptyList<String>(), events.names())
+    }
+
+    @Test
+    fun `the CTA reads Continue, not Enable notifications`() {
+        // 163 renames it, because the button no longer enables anything -- it goes to the screen
+        // that does. A label describing the screen after it is the kind of thing a copy pass
+        // quietly reverts.
+        assertEquals("Continue", NotificationsCopy.CTA)
     }
 
     // ── the foreground re-read ──────────────────────────────────────────────

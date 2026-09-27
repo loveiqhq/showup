@@ -107,6 +107,9 @@ struct ProfileMediaView: View {
                     .padding(.bottom, 14)
                 }
             )
+            // THE SCREEN BLURS ITSELF while a sheet is over it — callout 15's
+            // `backdrop-filter: blur(1.5px)`, which the scrim cannot draw from above.
+            .blurBehindSheet(state.sheet != nil)
 
             // The sheet, over the screen, with the screen still visible behind the scrim.
             if let sheet = state.sheet {

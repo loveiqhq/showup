@@ -59,9 +59,6 @@ open class NotificationsViewModel(
     /** Guards `permission_prompted` against a recomposition firing it twice. */
     private var announced = false
 
-    /** Guards the skip path's registration against being launched twice. */
-    private var registeredOnSkip = false
-
     /**
      * The screen was really shown.
      *
@@ -78,65 +75,27 @@ open class NotificationsViewModel(
                 referrer = ProfileScreen.Media,
             ),
         )
-        analytics?.report(ProfileAnalytics.permissionPrompted())
+        // NO `permission_prompted` HERE SINCE SHOWUP-163. It is the pre-permission surface's
+        // event and this screen is no longer the surface that precedes the dialog -- Stay
+        // reachable is, and it fires all three of the permission events now. `screen_viewed`
+        // above stays, because this screen is still a screen somebody looked at.
     }
 
     /**
-     * The CTA was pressed. Returns whether the caller should actually raise the sheet.
+     * The CTA was pressed. Returns whether the caller should navigate.
      *
-     * FALSE ON A SECOND PRESS, and nothing is reported for it -- a tap that raises no sheet is not
-     * a sheet being shown, and `permission_os_sheet_shown` counting it would inflate the
-     * denominator of the grant rate with taps that never reached the platform.
+     * IT NO LONGER RAISES ANYTHING. Until SHOWUP-163 this screen owned the OS notification
+     * dialog: it reported `permission_os_sheet_shown`, launched the request, and reported
+     * `permission_result` when it came back. All three moved to Stay reachable (10), where the
+     * dialog is now raised by `Save preferences` -- so 09 is a pure explainer and this is a
+     * guarded navigation.
+     *
+     * FALSE ON A SECOND PRESS, and nothing is reported for it.
      */
-    fun enablePressed(): Boolean {
+    fun continuePressed(): Boolean {
         if (_sheetUp.value) return false
         _sheetUp.value = true
-        analytics?.report(ProfileAnalytics.permissionOsSheetShown())
         return true
-    }
-
-    /**
-     * The user answered.
-     *
-     * BOTH OUTCOMES ADVANCE -- the caller navigates either way and the user never lands back here.
-     * On a grant the device registers for push, and that registration is fire-and-forget: it must
-     * not hold the user on a screen, and its failure is a background problem. See
-     * [PushRegistration] for why this build cannot actually complete it.
-     */
-    fun answered(granted: Boolean) {
-        analytics?.report(ProfileAnalytics.permissionResult(granted))
-        if (granted) viewModelScope.launch { push.register() }
-    }
-
-    /**
-     * The screen was SKIPPED, and the skipped user still needs a token.
-     *
-     * The ticket's build inventory is explicit about the case that made this necessary:
-     * "Notifications treated as on below API 33 -- the Android <= 12 path never sees this screen
-     * and must still register for push and receive all five categories." `minSdk` here is 30, so
-     * that is API 30 to 32 -- a real slice of the install base, every one of them a device the
-     * backend would have no token for.
-     *
-     * It arrives through the door the ticket's own warning did not close. "Granting the permission
-     * and never registering the device is a silent failure that looks exactly like success"
-     * describes the grant path; this is the path where there is nothing to grant, the permission
-     * is simply on, and the only place that registered was a callback on a screen these users
-     * never see.
-     *
-     * The guard case reaches here too -- a status already determined, from a restored backup or an
-     * app killed mid-sheet. If that status is GRANTED the device still needs a token, because a
-     * token does not survive a restore; if it is denied or restricted there is nothing to register.
-     *
-     * FIRES NOTHING. `permission_prompted` is our pre-permission surface and events.json says it
-     * does not fire when the screen is skipped; there is no "ask skipped" event and the ticket
-     * forbids inventing one at a call site. The users who never see the ask stay unmeasured on
-     * purpose.
-     */
-    fun skipped(status: NotificationPermission) {
-        if (status != NotificationPermission.Granted) return
-        if (registeredOnSkip) return
-        registeredOnSkip = true
-        viewModelScope.launch { push.register() }
     }
 
     /**

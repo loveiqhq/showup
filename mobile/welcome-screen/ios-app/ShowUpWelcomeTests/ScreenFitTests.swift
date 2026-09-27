@@ -308,6 +308,32 @@ final class ScreenFitTests: XCTestCase {
                 // paragraph and five two-line rows -- so "is the CTA on screen at all" is exactly
                 // the question worth asking here.
                 ("Notifications", try render(ProfileNotificationsView(), on: device), .violet),
+
+                // SHOWUP-163, the states that decide the layout. The FIRST SCREEN IN THIS FLOW
+                // THAT IS ALLOWED TO SCROLL, so "below the fold" says nothing here and the
+                // question worth asking is whether the pinned CTA is drawn at all -- which is
+                // what the probe below checks, at the sunset ramp's violet end as above.
+                //
+                // F is the tallest state there is: every box checked AND the inline error above
+                // the CTA. D is the dialog with the longest primary label on it.
+                ("Reach A default", try render(ProfileReachabilityView(), on: device), .violet),
+                ("Reach F save failed", try render(
+                    ProfileReachabilityView(
+                        state: ReachabilityState(
+                            interest: [.aiCall, .whatsApp, .sms], saveFailed: true
+                        )
+                    ), on: device), .violet),
+                // C AND D ARE DELIBERATELY ABSENT, for the reason already recorded above the
+                // photo source sheet: both put a modal over the screen, and its scrim is exactly
+                // what a colour probe cannot see past. The CTA behind it is dimmed by design --
+                // "a dialog that leaves the primary action tappable behind it is not modal" --
+                // so a probe that found it would be reporting a bug, not the absence of one.
+                //
+                // The property that matters in those states is stronger than a pixel and is
+                // asserted where it can be: `ReachabilityFitTest` measures that the CTA is gone
+                // from the MERGED semantics tree while the dialog is up, and
+                // `ReachabilityRulesTests` proves the dialog's own two buttons do the right
+                // things. Neither depends on recognising a colour.
                 ("Embrace named", try render(
                     ProfileEmbraceView(firstName: "Leo"), on: device), .violet),
                 ("Embrace no name", try render(

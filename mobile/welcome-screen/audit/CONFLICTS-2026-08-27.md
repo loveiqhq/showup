@@ -445,7 +445,18 @@ returns the position in THIS group — photos 1, prompts 2, media 3. Recorded he
 **Decision needed:** update §2's two rows. Until then a funnel joining `profile_step_viewed` to
 the registry will read `prompts` as a step of a group it is not in.
 
-## E5 · `profile_prompts` has no §11 row. OPEN
+## E5 · `profile_prompts` has no §11 row. CLOSED — added by registry 1.3.1, and the spelling went the right way
+
+**Both halves settled and verified against the registry shipped on 25 September 2026.** §11 now
+carries `profile_prompts` / `ProfilePrompts`, added in 1.3.1 "before the Profile 07 ticket, per the
+standing rule". The spelling question below went the way this entry hoped: the row is PascalCase
+like every other, not the `Profile - Prompts` the ticket had quoted, and `verify-profile.py`
+asserts both the new name and the absence of the old one.
+
+Left below as first written, because the note about a funnel binding to a name is the reason the
+rule exists.
+
+
 
 Found the same day. §11 (the screen registry) carries `profile_photos` / `ProfilePhotos` and stops.
 SHOWUP-158's own tracking section flags it: "The registry row for this screen must be added before
@@ -458,7 +469,25 @@ chooses differently, that is the one place to correct.
 Note that `screen_name` there is the only one in the registry with spaces and a hyphen; every other
 row is PascalCase. Worth settling when the row is added rather than after a funnel binds to it.
 
-## E6 · `entry_point` for prompts has no value set. OPEN, and it is the measurement the ticket exists for
+## E6 · `entry_point` for prompts has no value set. CLOSED — overtaken twice, and the second time it was retired
+
+**It got its value set, and then the product decided it did not want the measurement.**
+
+Registry 1.3.1 added §18 with exactly the closed set this entry asked for — `suggestion | browse |
+edit` — and the build implemented it. Registry **1.4.5, 25 September 2026, retired the whole
+section**: "which topics are chosen matters, where they were chosen from does not." §18 is now
+present, empty, and flagged `retired: true`; `position` went with it and `is_edit` took over the
+one job `edit` was doing. See E29 for what removing it actually cost, which was more than the
+ticket thought.
+
+The other half of this entry — the missing abandonment event — was built: `prompt_editor_dismissed`
+for the write sheet and `prompt_topic_list_dismissed` for the browse sheet, so
+`prompt_topic_list_opened = selected + dismissed` closes.
+
+Left below as first written. An entry that asked for a measurement, got it, and then watched it be
+retired is worth keeping legible.
+
+
 
 SHOWUP-158 calls it "the one measurement this revision exists to produce": whether a topic came
 from a **suggestion card** or from **browse all**. It asks for a closed set — `suggestion` |
@@ -1076,3 +1105,66 @@ for and this ticket is a notifications screen. Recorded so it is a decision some
 than a divergence that widens every time the shell changes. Either it is a handoff snapshot and
 wants a README saying so and a date, or it is dead and wants deleting.
 
+
+## E31 · Stay reachable scrolls its headline; the reference pins it. DELIBERATE
+
+The reference file structures the screen as `StatusBar -> headline block (flex: none) -> scrolling
+body (flex: 1, min-height: 0, overflow: auto) -> pinned footer`, and the ticket quotes that
+structure in its layout warning. Both platforms build the footer exactly that way. **Neither pins
+the headline** — it scrolls with the body.
+
+At the reference's own 390 x 844 with default type the two are identical: nothing scrolls at all,
+so there is no observable difference. They diverge only where the reference was never drawn. At
+font scale 2.0 on the 320-wide Galaxy Fold cover screen the headline alone is 31pt type over four
+lines; pinned, it takes most of the frame and leaves the card a sliver to scroll inside. The
+ticket's own warning is the argument against doing that — "German copy runs about 30% longer and
+Dynamic Type can double the card height".
+
+**The criterion this has to satisfy is the one the ticket actually states**, and it does: "The body
+scrolls and the CTA stays pinned. The fine print scrolls fully clear of the CTA. No absolute Y
+positioning." `ReachabilityFitTest` asserts all three at 17 sizes and three font scales.
+
+Recorded rather than silently done, because it is a structural difference from a reference file
+that "wins on numbers", and somebody comparing the two side by side deserves to find the reason
+here rather than infer it.
+
+## E32 · The save-failure copy is open in the ticket and the screen needs words. FOR PHILIPP
+
+The ticket specifies the mechanism and not the message: "**Not optimistic** (epic rule): on a save
+failure the user stays on 10, the choices are kept, and the CTA works again. *Open:* the error-card
+copy." and, under Open, "The save-failure error copy. Use the flow's shared inline error card above
+the CTA."
+
+The card is built on both platforms, in the pinned footer above the CTA — in the footer and not at
+the end of the scrolling body, because the body can be scrolled anywhere when a save fails and a
+card the user cannot see is a CTA that appears to do nothing.
+
+**The words are ours until they are not.** Both platforms read `We couldn't save your preferences.
+Please try again.` It says what failed and what to do, and deliberately does not apologise or blame
+the connection: the write can fail for reasons that have nothing to do with the user's signal, and
+naming one guess as the cause sends people to turn their wifi off and on.
+
+Not blocking. `NoConsentBackend` returns true because no consent endpoint exists yet, so the path
+cannot be reached in the shipped build — but it is built, tested and rendered, so the copy is a one
+-line change whenever it is decided.
+
+## E33 · The `Recommended` pill is the one piece of type on this screen that stops growing. DELIBERATE
+
+`RECOMMENDED` is eleven characters of one unbreakable word in a pill beside a 51pt switch. At font
+scale 2.0 it needs more width than the push row can offer on five of the seventeen devices, and
+both obvious answers are visibly worse than the problem: `maxLines = 1` spends the shortfall on an
+ellipsis (`RECOMMEND...` inside a decorative badge), and letting it wrap breaks INSIDE the word —
+`RECOMMENDE` over `D`. Both were seen rendered, not reasoned about.
+
+**The reference has no answer either.** It sets `flex: 'none'` on the pill, which in CSS means the
+pill overflows its container rather than shrinking. An overflowing pill is not an option in either
+toolkit.
+
+So the badge grows with the user's font setting and then holds: to **1.3x** on Android (Android's
+largest non-accessibility step, and the threshold the fit harness already sweeps at), and to the
+default step on iOS via `.dynamicTypeSize(...(.large))`. The two are not the same number and that
+is not drift — the platforms' scale ladders are different and each is expressed in its own terms.
+
+**It is defensible here and nowhere else on either screen**, because the badge repeats something
+the screen already says: the toggle beside it is on by default. Nothing whose only statement is a
+badge would be allowed to stop growing.

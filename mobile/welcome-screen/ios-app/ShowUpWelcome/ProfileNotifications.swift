@@ -63,7 +63,13 @@ enum NotificationsCopy {
     static let lead =
         "No spam! Every notification is about your dates and helps you to never miss one."
 
-    static let cta = "Enable notifications"
+    /// `Continue`, NOT `Enable notifications`.
+    ///
+    /// SHOWUP-163 renamed it, because the button no longer enables anything — it goes to the
+    /// screen that does. A label describing the screen after it is the kind of thing a copy pass
+    /// quietly reverts, so `verify-profile.py` asserts both halves: this string, and the absence
+    /// of the old one.
+    static let cta = "Continue"
 
     /// Row 2's label. Always capitalised, always this one word, never an upsell.
     static let premium = "Premium"

@@ -193,7 +193,13 @@ class FlowRestorationTest {
         // ProfileNotifications is the seventeenth, added with SHOWUP-162. Like the bridge and the
         // media step it is not a resume point: it holds nothing on the account, so there is no
         // fact that says whether it was seen.
-        assertEquals(17, FlowScreen.entries.size)
+        //
+        // ProfileReachability is the eighteenth, added with SHOWUP-163. It is the first of the
+        // four that DOES hold something -- a push consent -- but it is still not a resume point
+        // while `NoConsentBackend` is the repository: there is no endpoint to read the consent
+        // back from, so nothing can say whether the screen was answered. When the endpoint
+        // exists, this is the one to revisit.
+        assertEquals(18, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

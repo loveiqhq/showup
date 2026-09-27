@@ -93,6 +93,16 @@ enum ProfileScreen: String {
     /// Registry row added by the design side on 21 September 2026, before the ticket was written.
     case notifications = "profile_notifications"
 
+    /// Stay reachable (SHOWUP-163).
+    ///
+    /// ALSO A SCREEN AND NOT A STEP, for the same reason as the row above -- §2 gives
+    /// `reachability` a dash index. §11's note adds the part specific to this one: the
+    /// deactivation confirm "has no entry point of its own and is not a separate screen", so the
+    /// dialog does not get an id and state C is not a screenview.
+    ///
+    /// Registry row added 25 September 2026, before the Profile 10 ticket was written.
+    case reachability = "profile_reachability"
+
     var screenId: String { rawValue }
 
     var screenName: String {
@@ -108,6 +118,7 @@ enum ProfileScreen: String {
         case .mediaRecord: return "ProfileMediaRecord"
         case .mediaReview: return "ProfileMediaReview"
         case .notifications: return "ProfileNotifications"
+        case .reachability: return "ProfileReachability"
         }
     }
 }
@@ -201,6 +212,14 @@ enum ValidationRule {
 /// withdraw and is never tracked as one.
 enum ConsentChannel {
     static let marketingEmail = "marketing_email"
+
+    /// The ONE live consent channel on Stay reachable, and the only §8 value that screen may use.
+    ///
+    /// events.json, 1.4.5: "MVP (25 Sep 2026): Stay reachable fires this for channel:"push" ONLY."
+    /// `call`, `whatsapp`, `sms`, `calendar` and `email` are reserved for the later scope and are
+    /// deliberately absent here - an interest in one of them is `InterestChannel`, a separate
+    /// vocabulary, so nothing in this enum can be handed to a checkbox by mistake.
+    static let push = "push"
 }
 
 /// `surface` from enums.json §8 — which screen a consent was changed on.
@@ -222,16 +241,20 @@ enum ConsentSurface {
 enum Stamp {
     /// enums.json -> registry_version at the time of writing.
     ///
-    /// 1.4.5 (25 September 2026) is the version that RETIRED §18 prompt `entry_point` - "which
-    /// topics are chosen matters, where they were chosen from does not" - taking `position` off
-    /// every prompt event with it and moving `is_edit` onto `prompt_editor_dismissed`. It sits on
-    /// 1.4.4 (§24 permission_status, for the notifications ask) and 1.4.2 (§23 dismiss_method
-    /// unified across every bottom sheet, `prompts_below_minimum`, `prompts` re-verified at
-    /// step_index 2).
+    /// 1.4.6 (25 September 2026) added §25 `interest_channel` - the Stay reachable demand test -
+    /// and the `profile_reachability` row in §11. It sits on 1.4.5, the same day, which RETIRED
+    /// §18 prompt `entry_point`; on 1.4.4 (§24 permission_status, for the notifications ask); and
+    /// on 1.4.2 (§23 dismiss_method unified across every bottom sheet).
+    ///
+    /// THIS IS enums.json's `registry_version`, NOT events.json's `taxonomy_version`. They are
+    /// different numbers on the same day - events.json says 1.4.5 and enums.json 1.4.6 - and the
+    /// Profile 10 ticket quotes both together: "taxonomy 1.4.5 / registry 1.4.6". enums.json says
+    /// which one belongs here: "the string stamped into field_registry_version on every attribute
+    /// event - it versions the vocabulary, not the taxonomy document".
     ///
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
-    static let fieldRegistryVersion = "1.4.5"
+    static let fieldRegistryVersion = "1.4.6"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
@@ -294,6 +317,26 @@ enum ProfileAnalytics {
     static let permissionOsSheetShownName = "permission_os_sheet_shown"
     static let permissionResultName = "permission_result"
     static let permissionStatusChangedName = "permission_status_changed"
+
+    // MARK: family G · Stay reachable (SHOWUP-163)
+
+    /// The Settings deep link was taken - from the denied-guard toggle, or from state D.
+    static let permissionSettingsOpenedName = "permission_settings_opened"
+
+    /// The push deactivation confirm opened, either because the user reached for the switch or
+    /// because the OS said "Don't allow".
+    static let consentDeactivationConfirmShownName = "consent_deactivation_confirm_shown"
+
+    /// `Keep active`, or a tap on the scrim. Identical acts, one event.
+    static let consentDeactivationAbandonedName = "consent_deactivation_abandoned"
+
+    static let consentDeactivationConfirmedName = "consent_deactivation_confirmed"
+
+    /// An interest box flipped. NEW 25 September 2026, and NOT a consent.
+    static let channelInterestChangedName = "channel_interest_changed"
+
+    /// The state the user actually leaves Stay reachable in, after the server confirms it.
+    static let reachabilitySavedName = "reachability_saved"
 
     /// The closed set on `permission_prompted.type`, from `enums.json` §8.
     ///
@@ -594,13 +637,104 @@ enum ProfileAnalytics {
     /// states it outright — "fires in both directions, never opt-out only".
     ///
     /// Unblocked by registry 1.3.0, which gave `surface` a closed vocabulary.
+    ///
+    /// TWO SCREENS FIRE THIS AND THEY DIFFER ONLY IN `channel`, which is why it is a parameter
+    /// with the Email screen's value as the default rather than two builders: the profile Email
+    /// screen's marketing checkbox is `marketing_email`, and Stay reachable's push toggle is
+    /// `push`. An interest checkbox is NEITHER - it fires `channelInterestChanged` and must never
+    /// reach this function, which is enforced by `InterestChannel` having no member here.
     static func consentChanged(
         on: Bool,
+        channel: String = ConsentChannel.marketingEmail,
         surface: String = ConsentSurface.profileCreation
     ) -> (String, [String: any Sendable]) {
         (consentChangedName, [
-            "channel": ConsentChannel.marketingEmail, "on": on, "surface": surface,
+            "channel": channel, "on": on, "surface": surface,
         ].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    // MARK: family G builders · Stay reachable (SHOWUP-163)
+
+    /// T2, class 1. The Settings deep link was taken.
+    ///
+    /// NOT an abandonment, and the ticket names the distinction: state D's primary opens Settings
+    /// rather than keeping anything on, so it is this event and not
+    /// `consentDeactivationAbandoned`. They answer different questions.
+    static func permissionSettingsOpened(
+        type: String = permissionNotifications
+    ) -> (String, [String: any Sendable]) {
+        (permissionSettingsOpenedName, ["type": type].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. The deactivation confirm was raised.
+    static func consentDeactivationConfirmShown(
+        channel: String = ConsentChannel.push
+    ) -> (String, [String: any Sendable]) {
+        (consentDeactivationConfirmShownName,
+         ["channel": channel].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. `Keep active`, or the scrim.
+    static func consentDeactivationAbandoned(
+        channel: String = ConsentChannel.push
+    ) -> (String, [String: any Sendable]) {
+        (consentDeactivationAbandonedName,
+         ["channel": channel].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. `Confirm deactivation`.
+    static func consentDeactivationConfirmed(
+        channel: String = ConsentChannel.push
+    ) -> (String, [String: any Sendable]) {
+        (consentDeactivationConfirmedName,
+         ["channel": channel].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. An interest box was checked or unchecked. EVERY FLIP, in order.
+    ///
+    /// THE DEMAND TEST, and it is not a consent: nothing is stored on the profile, nothing is
+    /// sent to the consent service, and no sending code ever reads it. The registry keeps §25 a
+    /// separate vocabulary from §8 "so an interest can never be read as a consent", and the
+    /// signature takes `InterestChannel` so a §8 string cannot be passed here either.
+    static func channelInterestChanged(
+        _ channel: InterestChannel,
+        on: Bool
+    ) -> (String, [String: any Sendable]) {
+        (channelInterestChangedName, [
+            "channel": channel.trackingValue,
+            "on": on,
+            "screen_id": ProfileScreen.reachability.screenId,
+        ].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 1. Save confirmed BY THE SERVER - never on the tap.
+    ///
+    /// The denominator-side row of the demand test: the share of `screen_viewed` on this screen
+    /// whose `reachability_saved.interest` contains a channel. `channels_on`, `count` and
+    /// `has_phone` were REMOVED from this payload on 25 September 2026 for the MVP scope; if any
+    /// of them reappears here, the registry is being contradicted rather than extended.
+    static func reachabilitySaved(
+        pushOn: Bool,
+        permission: NotificationPermission,
+        interest: [String]
+    ) -> (String, [String: any Sendable]) {
+        (reachabilitySavedName, [
+            "push_on": pushOn,
+            "permission": permission.trackingValue,
+            "interest": interest,
+        ].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// The Privacy Policy link, which is the only link on Stay reachable.
+    ///
+    /// DELEGATES rather than redefining: `legal_link_tapped` is one event across every screen
+    /// that draws one of the three documents, and a second definition here would be a second
+    /// place for its payload to drift. This one only supplies the §11 key.
+    static func legalLinkTapped(
+        _ link: String,
+        screen: ProfileScreen
+    ) -> (String, [String: any Sendable]) {
+        SignUpAnalytics.legalLinkTapped(link, screenId: screen.screenId)
     }
 
     /// T2, class 0. **BLOCKED** — the skip path itself is an open question in ticket 02.

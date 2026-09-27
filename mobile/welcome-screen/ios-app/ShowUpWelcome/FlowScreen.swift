@@ -103,6 +103,16 @@ enum FlowScreen: String, CaseIterable, Comparable {
     /// quotes rule 1 verbatim and a reviewer walking that list needs to find the reason.
     case profileNotifications
 
+    /// Stay reachable (SHOWUP-163).
+    ///
+    /// The first screen in this flow that HOLDS SOMETHING — a push consent — and still not a
+    /// resume point, because `NoConsentBackend` is the repository: there is no endpoint to read
+    /// the consent back from, so no server fact can say whether the screen was answered. When
+    /// that endpoint exists, this is the case to revisit.
+    ///
+    /// It is also where the OS notification dialog now lives. 09 raises nothing.
+    case profileReachability
+
     /// Where the flow ends, for both the tutorial and a returning member.
     case home
 

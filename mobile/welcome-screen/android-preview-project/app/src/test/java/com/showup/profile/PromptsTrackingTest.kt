@@ -508,7 +508,7 @@ class PromptsTrackingTest {
             analytics.events.forEach { (name, payload) ->
                 assertEquals(
                     "$name was stamped with the wrong registry",
-                    "1.4.5",
+                    "1.4.6",
                     payload["field_registry_version"],
                 )
             }
