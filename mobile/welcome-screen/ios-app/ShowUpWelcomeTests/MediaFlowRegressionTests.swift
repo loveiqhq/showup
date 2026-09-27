@@ -33,6 +33,9 @@ private actor RegressionRepo: MediaRepositoring {
         MediaSnapshot(items: [], previewVideoId: nil, previewVoiceId: nil, previewSource: .fallback)
     }
 
+    // The signature is the protocol's EXACTLY: `onProgress` is `@Sendable`, not `@escaping
+    // @Sendable`. Swift treats those as different types for conformance, and the error it gives
+    // names the protocol rather than the parameter -- which is why this is spelled out.
     func upload(
         kind: MediaKind,
         promptId: String,
@@ -40,7 +43,7 @@ private actor RegressionRepo: MediaRepositoring {
         bytes: Data,
         mimeType: String,
         fileName: String,
-        onProgress: @escaping @Sendable (Double) -> Void
+        onProgress: @Sendable (Double) -> Void
     ) async -> UploadMediaResult {
         .stored(StoredMedia(id: "remote-1", kind: kind, url: "u",
                             promptId: promptId, durationMs: durationMs))
