@@ -78,8 +78,23 @@ sealed interface SendCodeResult {
 sealed interface VerifyCodeResult {
     data object Verified : VerifyCodeResult
 
-    /** Wrong, expired, or superseded — the server does not say which. */
+    /**
+     * The code was wrong. NOT expired, and not the cap -- the server distinguishes all three now.
+     *
+     * It used to mean "wrong, expired, or superseded, and the server does not say which", and the
+     * screen rendered that as "That code doesn't match. Check your inbox." So a user holding a
+     * correct code that had simply aged out was told to look in their inbox for the code they had
+     * just typed. Reported twice from a device before the reason existed to tell them apart.
+     */
     data object Refused : VerifyCodeResult
+
+    /**
+     * The code aged out, or was superseded by a newer send.
+     *
+     * A DIFFERENT PROBLEM WITH A DIFFERENT ANSWER: retyping cannot fix it and the user needs the
+     * resend, so the screen says so and releases the link rather than blaming the typing.
+     */
+    data object Expired : VerifyCodeResult
 
     /** The cap. Recognised by message text; see the file header. */
     data object TooManyAttempts : VerifyCodeResult
@@ -104,7 +119,20 @@ sealed interface SaveBasicsResult {
  * Takes a [ShowUpApi] rather than building one, so a test can hand it a client pointed at a
  * MockWebServer — which is how every mapping below is verified without a backend.
  */
-class BasicsRepository(
+/**
+ * `open`, for the same reason `MediaRepository` is: a view-model test needs to answer a call
+ * without a socket.
+ *
+ * The alternative was measured and is not acceptable. Driving `BasicsViewModel` through
+ * MockWebServer means the model suspends on REAL OkHttp I/O on a real thread, which a test
+ * scheduler cannot wait for -- so the fixture has to alternate virtual time with real sleeps, and
+ * a suite that did exactly that took NINE HOURS to run once. A repository that can simply answer
+ * takes milliseconds and asserts the same rules.
+ *
+ * `BasicsRepositoryTest` still uses a real server, and should: what IT tests is the wire mapping,
+ * where a real request and a real status code are the whole point.
+ */
+open class BasicsRepository(
     private val api: ShowUpApi,
     /**
      * The stand-in used when NOTHING ANSWERED, or null to let that failure be a failure.
@@ -117,7 +145,7 @@ class BasicsRepository(
 ) {
 
     /** Sends a code to [email]. Authenticated: the server takes the user from the bearer token. */
-    suspend fun sendCode(email: String): SendCodeResult = runCatching {
+    open suspend fun sendCode(email: String): SendCodeResult = runCatching {
         val response = api.auth.startEmailVerification(RequestEmailDto(email = email))
         val body = response.body()
         when {
@@ -139,14 +167,23 @@ class BasicsRepository(
     }
 
     /** Confirms [code]. 204 on success — the route returns no body. */
-    suspend fun verifyCode(code: String): VerifyCodeResult = runCatching {
+    open suspend fun verifyCode(code: String): VerifyCodeResult = runCatching {
         val response = api.auth.verifyEmail(VerifyEmailDto(code = code))
         if (response.isSuccessful) return VerifyCodeResult.Verified
 
         val error = errorOf(response.code(), response.errorBody()?.string())
         when {
             response.code() != 401 -> VerifyCodeResult.Failed(error)
-            // Fragile on purpose, and it fails safe: see the file header.
+            // THE SERVER'S OWN REASON FIRST. `error` is the domain-code slot and the route fills
+            // it with one of three values; matching on it is exact where the message-text match
+            // below is a guess.
+            error?.error == OTP_EXPIRED -> VerifyCodeResult.Expired
+            error?.error == OTP_TOO_MANY -> VerifyCodeResult.TooManyAttempts
+            error?.error == OTP_MISMATCH -> VerifyCodeResult.Refused
+            // THE TEXT MATCH IS THE FALLBACK, not the rule, and it stays for one reason: a client
+            // can be newer than the server it is talking to. An app that assumed the reason was
+            // always present would report every refusal as a mismatch against any backend that
+            // had not shipped it yet -- which is the bug this whole change is about.
             error?.messages.orEmpty().any { it.contains(TOO_MANY, ignoreCase = true) } ->
                 VerifyCodeResult.TooManyAttempts
             else -> VerifyCodeResult.Refused
@@ -193,6 +230,17 @@ class BasicsRepository(
     private companion object {
         /** The server's sentence for the cap. Matched, not parsed — see the file header. */
         const val TOO_MANY = "Too many attempts"
+
+        /**
+         * The domain codes `/auth/email/verify` answers with. Must match `email-otp.service.ts`.
+         *
+         * MATCHED ON `error`, NOT ON THE SENTENCE. The route returns the same human message for a
+         * wrong code and an aged-out one -- deliberately, since both are "invalid or expired" to
+         * a reader -- so the sentence cannot separate them and this is what does.
+         */
+        const val OTP_EXPIRED = "otp_expired"
+        const val OTP_TOO_MANY = "otp_too_many"
+        const val OTP_MISMATCH = "otp_mismatch"
 
         /** The registry `field_id`, and the only value `HIDEABLE_FIELDS` accepts today. */
         const val HIDDEN_FIELD_AGE = "age"

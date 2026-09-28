@@ -32,6 +32,19 @@ export interface EmailChallengeResult {
 }
 
 /**
+ * The three ways a code can be refused, as machine-readable reasons.
+ *
+ * The client cannot show the right sentence without them: "wrong" and "expired" need different
+ * advice, and one of them needs the resend link released. See the block in `verify`.
+ *
+ * NOT named `code` -- that field name is redacted by the logging pipeline (Epic 16), and a
+ * reason that arrives blank in the logs is worse than no reason at all.
+ */
+export const OTP_MISMATCH = 'otp_mismatch';
+export const OTP_EXPIRED = 'otp_expired';
+export const OTP_TOO_MANY = 'otp_too_many';
+
+/**
  * Verifies that a user owns an email address, via a 6-digit code (support/contact only — email is
  * NOT a sign-in or recovery credential). Mirrors OtpService; the code is HMAC-hashed, single-use,
  * expiring, attempt-limited and rate-limited. On success the address is written to the user with an
@@ -119,16 +132,44 @@ export class EmailOtpService {
       where: { userId, consumedAt: IsNull() },
       order: { createdAt: 'DESC' },
     });
-    if (!challenge) throw new UnauthorizedException('Invalid or expired code');
+    // WHY THESE SAY WHICH, WHERE MOST OTP ENDPOINTS DELIBERATELY DO NOT.
+    //
+    // A sign-in OTP hides the difference between "wrong code" and "no such challenge" because
+    // the caller is not yet known and the distinction leaks whether an account exists. THIS
+    // ROUTE IS AUTHENTICATED: the bearer token already identifies the user, and the challenge
+    // being described is their own. There is nothing to enumerate, so the only thing the shared
+    // message bought was a client that could not tell a stale code from a typo.
+    //
+    // It cost exactly that. The app rendered every refusal as "That code doesn't match. Check
+    // your inbox" -- so somebody holding a correct-but-expired code was told to check their
+    // inbox for the code they had already typed, and did, repeatedly. Reported twice.
+    //
+    // `error` is the field the client already reads for domain codes; the human `message` is
+    // unchanged so nothing that renders it breaks.
+    if (!challenge) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Invalid or expired code',
+        error: OTP_EXPIRED,
+      });
+    }
 
     if (challenge.expiresAt.getTime() < Date.now()) {
       await this.repo.delete({ id: challenge.id });
-      throw new UnauthorizedException('Invalid or expired code');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Invalid or expired code',
+        error: OTP_EXPIRED,
+      });
     }
 
     const maxAttempts = this.config.get<number>('auth.otpMaxAttempts') ?? 5;
     if (challenge.attempts >= maxAttempts) {
-      throw new UnauthorizedException('Too many attempts; request a new code');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Too many attempts; request a new code',
+        error: OTP_TOO_MANY,
+      });
     }
     challenge.attempts += 1;
 
@@ -138,7 +179,11 @@ export class EmailOtpService {
       expected.length === actual.length && timingSafeEqual(expected, actual);
     if (!matches) {
       await this.repo.save(challenge);
-      throw new UnauthorizedException('Invalid or expired code');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Invalid or expired code',
+        error: OTP_MISMATCH,
+      });
     }
 
     challenge.consumedAt = new Date();
