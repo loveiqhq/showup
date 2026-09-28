@@ -183,6 +183,25 @@ class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
                         shakeKey = it.shakeKey + 1,
                     )
                 }
+                // THE SERVER SAYS IT IS GONE, SO THE CLIENT AGREES.
+                //
+                // `expiresAt` is moved to now rather than a separate flag being set, because the
+                // whole screen already derives from it: `verifyState` puts Expired ahead of
+                // Mismatch, `canSubmitCode` stops accepting the dead code, and `canResend`
+                // releases the link. One fact, and every consequence follows.
+                //
+                // It is also the case the client CANNOT work out alone. A code superseded by a
+                // newer send, or dropped by a restart, is gone while the clock still says it has
+                // minutes left -- and a client trusting its own countdown would keep insisting
+                // the user had mistyped.
+                VerifyCodeResult.Expired -> _state.update {
+                    it.copy(
+                        busy = false,
+                        expiresAt = now(),
+                        lastSubmitRefused = false,
+                        shakeKey = it.shakeKey + 1,
+                    )
+                }
                 is VerifyCodeResult.Failed ->
                     _state.update { it.copy(busy = false, transportFailed = true) }
             }

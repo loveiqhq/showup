@@ -1059,10 +1059,19 @@ class MainActivity : ComponentActivity() {
                         fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 0.7.sp,
                     )
                     Text(
-                        if (serverEmailCode != null) {
-                            "the code is $emailCode"
-                        } else {
-                            "OFFLINE · no server · the code is $emailCode"
+                        // IT SAYS WHEN THE CODE IS DEAD, and that is the whole point of the
+                        // change. This strip showed the last code it was handed with nothing to
+                        // say whether it still worked, so a tester read a correct-looking code,
+                        // typed it, and was told it did not match -- twice, because the strip
+                        // was the most trustworthy thing on the screen and it was wrong.
+                        //
+                        // `expired` is the same derivation the screen itself uses, so the strip
+                        // cannot disagree with the error card under it.
+                        when {
+                            basicsState.expired(java.time.OffsetDateTime.now()) ->
+                                "this code has EXPIRED · send a new one"
+                            serverEmailCode != null -> "the code is $emailCode"
+                            else -> "OFFLINE · no server · the code is $emailCode"
                         },
                         color = Color.White, fontFamily = Manrope,
                         fontWeight = FontWeight.Medium, fontSize = 11.sp,

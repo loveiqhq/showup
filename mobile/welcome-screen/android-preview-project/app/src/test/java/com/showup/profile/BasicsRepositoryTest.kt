@@ -141,6 +141,51 @@ class BasicsRepositoryTest {
         assertEquals(VerifyCodeResult.Verified, repo.verifyCode("482170"))
     }
 
+    /**
+     * THE TEST THAT WOULD HAVE CAUGHT IT, and the reason the server now names its refusals.
+     *
+     * `/auth/email/verify` answered the SAME sentence -- "Invalid or expired code" -- for a
+     * mistyped code, an aged-out one, a superseded one and a missing challenge. This layer had no
+     * way to separate them, so it called them all `Refused`, and the screen rendered that as
+     * "That code doesn't match. Check your inbox."
+     *
+     * A user holding a CORRECT code that had simply expired was therefore told to look in their
+     * inbox for the code they had just typed. Reported twice from a device, the second time with
+     * a screenshot of the test-build banner showing the very code being refused.
+     */
+    @Test
+    fun `an expired code is told apart from a wrong one, by the server's own reason`() = runTest {
+        respond(401, apiError(401, "Invalid or expired code", error = "otp_expired"))
+        assertEquals(VerifyCodeResult.Expired, repo.verifyCode("482170"))
+    }
+
+    @Test
+    fun `a mismatch reason is a refusal, not an expiry`() = runTest {
+        // The same HTTP status and the same human sentence as the case above. ONLY the reason
+        // separates them, which is the whole point.
+        respond(401, apiError(401, "Invalid or expired code", error = "otp_mismatch"))
+        assertEquals(VerifyCodeResult.Refused, repo.verifyCode("482170"))
+    }
+
+    @Test
+    fun `the cap is recognised by its reason rather than its sentence`() = runTest {
+        respond(401, apiError(401, "Too many attempts; request a new code", error = "otp_too_many"))
+        assertEquals(VerifyCodeResult.TooManyAttempts, repo.verifyCode("482170"))
+    }
+
+    /**
+     * A CLIENT CAN BE NEWER THAN ITS SERVER, and this is what stops that being a regression.
+     *
+     * An app that assumed the reason was always present would report every refusal from an older
+     * backend as a mismatch -- which is precisely the bug being fixed, reintroduced by the fix.
+     * The sentence match stays underneath as the fallback it always was.
+     */
+    @Test
+    fun `a server with no reason still has its cap recognised`() = runTest {
+        respond(401, apiError(401, "Too many attempts; request a new code"))
+        assertEquals(VerifyCodeResult.TooManyAttempts, repo.verifyCode("482170"))
+    }
+
     @Test
     fun `the ordinary 401 is a refusal`() = runTest {
         respond(401, apiError(401, "Invalid or expired code"))
