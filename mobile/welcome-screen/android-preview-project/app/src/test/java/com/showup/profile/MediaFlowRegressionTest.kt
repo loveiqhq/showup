@@ -469,4 +469,80 @@ class MediaFlowRegressionTest {
 
         assertNull("a stale failure must not sit under a fresh choice", vm.state.value.captureFailed)
     }
+
+    // ── 11 · the window between asking to record and recording ──────────────
+
+    /*
+     * WHAT THESE TWO GUARD, AND WHAT THEY STILL CANNOT SEE.
+     *
+     * On 28 September 2026 a take on the emulator finalised with `no valid data (8), 0ms, 0 bytes`.
+     * The logcat timeline was unambiguous: start requested at 05.480, stop at 07.843, and CameraX's
+     * own `VideoRecordEvent.Start` not until 08.476 -- the take was ended six hundred milliseconds
+     * BEFORE the camera produced its first frame, so the muxer had nothing to write.
+     *
+     * The cause was that `AndroidVideoSession.start` reported success when `startRecording`
+     * RETURNED rather than when the recorder actually rolled. That is below this seam and these
+     * tests cannot reach it; what they can reach is the contract the fix rests on, which is that
+     * the clock and the state machine both key off `start` returning. Modelling the gap in
+     * `FakeMediaCapture` is what makes that contract testable at all -- with an instant fake, the
+     * entire start window was unreachable, which is why a Stop inside it went unnoticed.
+     *
+     * The CameraX half stays unverified here and is tracked as E36.
+     */
+
+    @Test
+    fun `the recording clock is anchored to the recorder, not to the request`() =
+        runTest(dispatcher) {
+            val vm = Vm(repo, FakeMediaCapture(startDelayMs = 3_000), player, analytics) {
+                dispatcher.scheduler.currentTime
+            }.also { it.refreshAccess() }
+            vm.openPrompts(MediaKind.Video, MediaEntryPoint.SeeThePrompts)
+            vm.pickPrompt(promptFor(MediaKind.Video))
+            vm.commitPrompt()
+
+            // Inside the gap the viewfinder is up and nothing is being recorded yet. A counter
+            // that moved here would be counting something that does not exist -- and the file it
+            // claims to describe would come out short by exactly this much.
+            delay(1_000)
+            assertEquals(
+                "the counter must not run before the recorder does",
+                0, vm.state.value.take?.elapsedMs,
+            )
+
+            // Two seconds of actual recording, three seconds after the request.
+            delay(4_000)
+            val elapsed = vm.state.value.take?.elapsedMs ?: -1
+            assertTrue(
+                "elapsed was $elapsed: the gap must not be counted as recorded time",
+                elapsed in 1_900..2_100,
+            )
+        }
+
+    @Test
+    fun `a stop inside the start gap still reaches review`() = runTest(dispatcher) {
+        val vm = Vm(repo, FakeMediaCapture(startDelayMs = 3_000), player, analytics) {
+            dispatcher.scheduler.currentTime
+        }.also { it.refreshAccess() }
+        vm.openPrompts(MediaKind.Video, MediaEntryPoint.SeeThePrompts)
+        vm.pickPrompt(promptFor(MediaKind.Video))
+        vm.commitPrompt()
+
+        // The session exists from the moment the take does, so Stop can reach it while `start`
+        // is still waiting. It is a real gesture: on an emulator the gap is three seconds, which
+        // is long enough for anyone to decide they were not ready.
+        delay(1_000)
+        vm.stopPressed()
+        advanceUntilIdle()
+
+        val take = vm.state.value.take
+        assertNotNull("a stop inside the gap must still produce a take", take)
+        assertEquals(RecordingPhase.Review, take?.phase)
+        // THE SEVERE HALF. `start` answers late and answers false, because `finish` got there
+        // first and owns the take. Acting on that answer would clear the take and replace a
+        // review screen the user is looking at with a failure message.
+        assertNull(
+            "a late start answer must not overwrite the outcome stop already chose",
+            vm.state.value.captureFailed,
+        )
+    }
 }

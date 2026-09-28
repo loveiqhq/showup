@@ -340,6 +340,16 @@ open class MediaViewModel(
         viewModelScope.launch {
             val ok = created.start { reason -> onCaptureEnded(reason) }
             if (!ok) {
+                // STOP MAY HAVE ARRIVED WHILE `start` WAS STILL WAITING for the recorder to roll.
+                // The session exists from the moment the take does, so `stopTake` can reach it
+                // first; when it does, `finish` owns the take and has already chosen between a
+                // review screen and a failure. Reporting a start failure on top of that would
+                // replace a perfectly good review with an error message.
+                if (session !== created ||
+                    _state.value.take?.phase != RecordingPhase.Recording
+                ) {
+                    return@launch
+                }
                 // The recorder would not start at all. Nothing was captured, so there is nothing to
                 // review -- return to the card rather than showing an empty review screen, AND SAY
                 // SO. A take that vanishes without a word is indistinguishable from one that was
