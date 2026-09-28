@@ -32,6 +32,7 @@ package com.showup.profile
 import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.showup.BuildConfig
 import com.showup.analytics.AnalyticsTracker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -426,7 +427,13 @@ open class MediaViewModel(
                 _state.update {
                     it.copy(
                         take = null,
-                        captureFailed = CaptureFailed(take.kind, CaptureFailure2.NothingRecorded),
+                        captureFailed = CaptureFailed(
+                            take.kind,
+                            CaptureFailure2.NothingRecorded,
+                            // DEBUG ONLY. The platform's explanation is a diagnostic, not copy,
+                            // and a release build must not show a user an error code.
+                            detail = if (BuildConfig.DEBUG) current.failureDetail() else null,
+                        ),
                     )
                 }
                 return@launch

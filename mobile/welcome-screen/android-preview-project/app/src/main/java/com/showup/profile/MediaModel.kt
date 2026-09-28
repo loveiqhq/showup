@@ -174,8 +174,19 @@ data class MediaSheet(
  */
 enum class CaptureFailure2 { NeverStarted, NothingRecorded }
 
-/** A take that produced nothing, and which card it belonged to. */
-data class CaptureFailed(val kind: MediaKind, val cause: CaptureFailure2)
+/**
+ * A take that produced nothing, and which card it belonged to.
+ *
+ * [detail] is the platform's own explanation and is populated ONLY IN A DEBUG BUILD -- see
+ * `MediaCaptureSession.failureDetail`. A release build shows the sentence and nothing else: a
+ * user has no use for "encoding failed (6)", and whoever is holding the phone while it happens
+ * has no use for anything less.
+ */
+data class CaptureFailed(
+    val kind: MediaKind,
+    val cause: CaptureFailure2,
+    val detail: String? = null,
+)
 
 data class MediaState(
     val video: MediaArtefact? = null,

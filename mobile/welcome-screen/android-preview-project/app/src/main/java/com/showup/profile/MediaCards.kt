@@ -264,7 +264,7 @@ fun MediaSlotCard(
     blocker: MediaBlocker? = null,
     platformLabel: String = "",
     /** The last take on THIS card that produced nothing, or null. */
-    failure: CaptureFailure2? = null,
+    failure: CaptureFailed? = null,
     onPermissionAction: () -> Unit = {},
 ) {
     Column(modifier) {
@@ -339,7 +339,7 @@ fun MediaSlotCard(
             // permission shows the permission row, because that one can be acted on.
             when {
                 blocker != null -> MediaPermissionRow(blocker, platformLabel, onPermissionAction)
-                failure != null -> MediaFailureRow(failure)
+                failure != null -> MediaFailureRow(failure.cause, detail = failure.detail)
             }
 
             PrimaryButton(
@@ -378,7 +378,18 @@ fun MediaSlotCard(
  * way to do what the card does.
  */
 @Composable
-fun MediaFailureRow(cause: CaptureFailure2, modifier: Modifier = Modifier) {
+fun MediaFailureRow(
+    cause: CaptureFailure2,
+    modifier: Modifier = Modifier,
+    /**
+     * The platform's own explanation, in a debug build only.
+     *
+     * Drawn under the sentence in a smaller, quieter line so it reads as a note to whoever is
+     * testing rather than as part of the message. It is null in a release build and this whole
+     * branch disappears -- see `CaptureFailed.detail`.
+     */
+    detail: String? = null,
+) {
     val message = when (cause) {
         // Two causes, two sentences, because they are two different problems: one is a recorder
         // that never ran, the other one that ran and wrote nothing.
@@ -398,12 +409,22 @@ fun MediaFailureRow(cause: CaptureFailure2, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(BrandIcon.AlertCircle, 15.dp, tint = Danger, strokeWidth = 1.8f)
-        Text(
-            message,
-            modifier = Modifier.weight(1f),
-            color = DangerFg, fontFamily = Manrope, fontWeight = FontWeight.Medium,
-            fontSize = 12.sp, lineHeight = (12f * 1.35f).sp,
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                message,
+                color = DangerFg, fontFamily = Manrope, fontWeight = FontWeight.Medium,
+                fontSize = 12.sp, lineHeight = (12f * 1.35f).sp,
+            )
+            if (detail != null) {
+                Text(
+                    detail,
+                    modifier = Modifier.padding(top = 2.dp),
+                    color = DangerFg.copy(alpha = 0.7f), fontFamily = Manrope,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 10.5.sp, lineHeight = (10.5f * 1.3f).sp,
+                )
+            }
+        }
     }
 }
 
