@@ -71,11 +71,19 @@ enum ReachCopy {
         "Activate notifications so you never miss a date! Missing a date lowers your Show-up "
         + "Rate, which will lead to a temporary ban or permanent suspension from the app."
 
-    static let cardTitle = "Get notifications"
+    // CHANGED 28 Sep 2026. The separate push row is gone and its title became the card's, so
+    // the head names the one thing the card switches instead of naming the category twice.
+    static let cardTitle = "Push notifications"
     static let cardLine =
         "We’ll let you know about new matches, meet time or location changes and date "
         + "cancellations."
 
+    /// The switch's accessibility name.
+    ///
+    /// Was the separate push row's visible label until 28 Sep 2026, when that row was folded
+    /// into the card head. The string survives as the switch's name because `cardTitle` is now a
+    /// sibling of the switch rather than its label, and a switch announced only as "on" says
+    /// nothing about what it governs.
     static let pushRow = "Push notifications"
     static let recommended = "Recommended"
 
@@ -219,8 +227,12 @@ private struct InterestRow: View {
             }
             .frame(width: 22, height: 22)
         }
-        .padding(.vertical, 12)
-        .frame(minHeight: ComponentSizes.minTapTarget)
+        // 9, WITH A 52 FLOOR. The ticket tightens the padding and states the floor in the
+        // same breath, because they are the same requirement: three rows lose nine points each
+        // and none of them may drop below a comfortable target doing it. 52 is the ticket's
+        // number and it clears the 44pt iOS minimum this project holds to.
+        .padding(.vertical, 9)
+        .frame(minHeight: 52)
         // THE WHOLE ROW. `contentShape` is what makes the padding tappable rather than only the
         // pip and the text — without it the gaps between them do nothing, which is a control
         // whose hit area is smaller than it looks.
@@ -263,19 +275,51 @@ private struct ReachCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // ── the head, which is the whole push control since 28 September 2026 ──
+            //
+            // The card used to introduce notifications and then offer a separate row to switch
+            // them on. Two titles for one thing, and the pair cost about sixty points of height
+            // — enough that the fine print fell below the fold on a 393 x 852 iPhone, which is
+            // the frame the ticket now names as the target. Folding the switch into the head is
+            // Philipp's answer and it is a better card as well as a shorter one: the thing being
+            // switched and the switch are one row.
             HStack(alignment: .top, spacing: 13) {
+                // FILLED, NOT TINTED, since the same change. The pip was a lilac wash behind a
+                // violet bell while a second, filled pip sat in the push row below; with one
+                // head there is one pip, and it takes the filled treatment that used to mark
+                // the row that was already the answer.
                 ZStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Gradients.lilac())
-                    BrandIconView(icon: .bell, size: 20, stroke: 1.8, tint: .liqPurple)
+                        .fill(Color.liqPurple)
+                    BrandIconView(icon: .bell, size: 20, stroke: 1.8, tint: .white)
                 }
                 .frame(width: 40, height: 40)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(ReachCopy.cardTitle)
-                        .font(F.lora(16, bold: true))
-                        .lineSpacing(16 * 0.2)
-                        .foregroundColor(.liqFg)
+                    // ABOVE THE TITLE, which retires `PushRowLabel`'s two-line workaround. The
+                    // pill and the label shared a row and really did wrap at 390, so they had to
+                    // be stacked by hand — and the badge had to stop scaling because eleven
+                    // unbreakable characters would not fit beside the label. On its own line the
+                    // pill has the column's full width and neither workaround is load-bearing.
+                    RecommendedPill()
+                        .padding(.bottom, 4)
+                    HStack(spacing: 10) {
+                        Text(ReachCopy.cardTitle)
+                            .font(F.lora(16, bold: true))
+                            .lineSpacing(16 * 0.2)
+                            .foregroundColor(.liqFg)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // The switch is a fixed 51 x 31 and the title is text, so the title is
+                        // what absorbs a narrow frame or a large Dynamic Type size. Letting the
+                        // switch share the shortfall would shrink a control whose 44pt target is
+                        // a floor rather than a starting point.
+                        ConsentSwitch(
+                            on: state.pushOn,
+                            label: ReachCopy.pushRow,
+                            onChange: onPushChange
+                        )
+                    }
                     Text(ReachCopy.cardLine)
                         .font(F.manrope(13, .medium))
                         .lineSpacing(13 * 0.42)
@@ -284,24 +328,6 @@ private struct ReachCard: View {
                         .padding(.top, 6)
                 }
             }
-
-            // ── the push row ────────────────────────────────────────────────
-            HStack(spacing: 12) {
-                // `recommended` FILLS the pip rather than tinting it — the one row on the screen
-                // that is already the answer.
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.liqPurple)
-                    BrandIconView(icon: .bell, size: 17, stroke: 1.8, tint: .white)
-                }
-                .frame(width: 34, height: 34)
-
-                PushRowLabel()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                ConsentSwitch(on: state.pushOn, label: ReachCopy.pushRow, onChange: onPushChange)
-            }
-            .padding(.top, 8)
-            .padding(.vertical, 12)
 
             // ── the demand test ─────────────────────────────────────────────
             VStack(alignment: .leading, spacing: 0) {
@@ -328,11 +354,13 @@ private struct ReachCard: View {
                 }
                 .padding(.top, 6)
             }
-            .padding(.top, 18)
+            // 12 above the rule and 12 below it, where it used to be 10 and 18. Even now,
+            // which reads as a divider between two blocks rather than a lid on the one beneath.
+            .padding(.top, 12)
             .overlay(alignment: .top) {
-                Rectangle().fill(Color.liqBorderSoft).frame(height: 1).offset(y: -10)
+                Rectangle().fill(Color.liqBorderSoft).frame(height: 1).offset(y: -12)
             }
-            .padding(.top, 10)
+            .padding(.top, 12)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -352,41 +380,18 @@ private struct ReachCard: View {
 
 /// The push row's label and its `Recommended` pill.
 ///
-/// `flexWrap: 'wrap'` IN THE REFERENCE, AND IT REALLY WRAPS AT 390: the label is about 130 and the
-/// pill about 110 in a 201-wide slot, so the design's OWN frame puts the pill on a second line
-/// under the label. SwiftUI's `HStack` does not wrap — it shares the width — and the two things it
-/// can do instead are both visibly wrong: squeeze the pill until RECOMMENDED breaks across lines
-/// and the capsule draws as an ellipse, or squeeze the label until `Push notification/s` breaks.
-/// Both were caught on the Compose side by looking at the render, not by a measurement.
+/// The `Recommended` badge, on its own line above the card title.
 ///
-/// So the label and the pill are laid out as a two-line block with the pill under the label, which
-/// is what the reference's own frame produces, and neither can take width from the other.
-private struct PushRowLabel: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(ReachCopy.pushRow)
-                .font(F.manrope(15, .semibold))
-                .foregroundColor(.liqFg)
-                .fixedSize(horizontal: false, vertical: true)
-            RecommendedPill()
-        }
-    }
-}
-
-/// THE ONE PLACE IN THIS FLOW WHERE TYPE STOPS GROWING.
+/// IT USED TO SHARE A ROW WITH THE LABEL and that was the hard case: eleven unbreakable
+/// characters next to a 130-wide label in a 201-wide slot. It wrapped at 390 in the design's own
+/// frame, SwiftUI's `HStack` cannot wrap, and the two things it can do instead were both visibly
+/// wrong — squeeze the pill until RECOMMENDED breaks and the capsule draws as an ellipse, or
+/// squeeze the label until `Push notification/s` breaks. The answer was a hand-stacked two-line
+/// block plus a cap on the badge's type so the word stayed whole.
 ///
-/// RECOMMENDED is eleven characters of one unbreakable word, and at the largest accessibility
-/// sizes it needs more width than this row can offer on the narrow frames. The Compose sweep found
-/// that; looking at it found what the two obvious answers actually produce. Truncating spends the
-/// shortfall on an ellipsis — `RECOMMEND…`, inside a decorative badge. Wrapping spends it on a
-/// line break INSIDE the word: `RECOMMENDE` over `D`, which is worse. The reference has no answer
-/// either: `flex: 'none'` means CSS would let the pill overflow its container.
-///
-/// So the badge is drawn at a FIXED size and does not scale. `.dynamicTypeSize(...(.large))` caps
-/// it at the default step and lets everything around it grow. What is given up is real and is only
-/// this: at larger settings the badge stays the size it was drawn. What is kept is that the word
-/// is always whole — and it is defensible here and nowhere else on this screen, because the badge
-/// repeats something the screen already says: the toggle beside it is on by default.
+/// Since 28 Sep 2026 the pill has the column's full width to itself, so the stacking is the
+/// layout rather than a workaround and the type cap is gone with the constraint that justified
+/// it. `fixedSize` stays: a capsule that can be compressed is a capsule that will be.
 private struct RecommendedPill: View {
     var body: some View {
         Text(ReachCopy.recommended.uppercased())
@@ -397,7 +402,6 @@ private struct RecommendedPill: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
             .background(Color.liqPurple, in: Capsule())
-            .dynamicTypeSize(...DynamicTypeSize.large)
             .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel(ReachCopy.recommended)
     }
@@ -438,8 +442,9 @@ private struct FinePrint: View {
                 onPrivacy()
                 return .handled
             })
+            // No top margin of its own since 28 Sep 2026: the body stack's 12 between the
+            // card and this is the whole gap now.
             .padding(.horizontal, 4)
-            .padding(.top, 4)
             .accessibilityIdentifier(reachFinePrintId)
     }
 
@@ -645,7 +650,11 @@ struct ProfileReachabilityView: View {
                 // `padding: '32px 28px 0'` and the body at `'20px 24px 8px'` — the card is four
                 // wider than the text above it, which is what stops it reading as an indent. The
                 // scaffold carries the narrower of the two and the headline pads the difference.
-                topPadding: 32,
+                // 20, NOT 32, SINCE 28 September 2026 — and every value in this file that
+                // the ticket's "Updated" section names moved with it. They are one change, not
+                // seven: the goal is that on 393 x 852 at default type the headline through
+                // `Save preferences` is on screen without scrolling, in all four states.
+                topPadding: 20,
                 gutter: 24,
                 scrollWhenTight: true,
                 footer: {
@@ -673,7 +682,7 @@ struct ProfileReachabilityView: View {
                         )
                         .accessibilityIdentifier(reachCtaId)
                     }
-                    .padding(.top, 10)
+                    .padding(.top, 8)
                     .padding(.bottom, 6)
                     // NO `.padding(.horizontal)` HERE. `WelcomeScaffold` already applies its own
                     // `gutter` to whatever it is handed as a footer, so a second one is 48 of
@@ -710,7 +719,7 @@ struct ProfileReachabilityView: View {
                     .foregroundColor(.liqNeutral)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 4)
-                    .padding(.top, 14)
+                    .padding(.top, 10)
 
                 VStack(spacing: 12) {
                     ReachCard(
@@ -720,7 +729,7 @@ struct ProfileReachabilityView: View {
                     )
                     FinePrint(onPrivacy: onPrivacy)
                 }
-                .padding(.top, 20)
+                .padding(.top, 14)
 
                 // The fine print must scroll CLEAR of the pinned CTA. Reserved, not hoped for.
                 Spacer(minLength: footerClearance)

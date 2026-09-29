@@ -214,6 +214,62 @@ class ReachabilityFitTest {
             misses.isEmpty())
     }
 
+    /**
+     * THE WHOLE POINT OF THE 28 SEPTEMBER UPDATE, as one number.
+     *
+     * "On 393 x 852 at default text size, the headline -> Save preferences is fully visible
+     * without scrolling, in states A-D." That is the acceptance criterion the seven spacing
+     * changes and the folded-in push toggle exist to satisfy, and it is the kind of thing that
+     * is true on the day it ships and quietly false three tickets later -- a row gains four
+     * points of padding, nobody measures, and the fine print slips under the CTA again.
+     *
+     * ASSERTED ON THE FINE PRINT because it is the last thing in the scrolling body: if it ends
+     * above the footer with no scrolling, everything above it did too. `scrollToBottom` is
+     * deliberately NOT passed -- the test above already proves the fine print is reachable BY
+     * scrolling on every device, and this one proves that here it does not have to be.
+     *
+     * 393 x 852 ONLY, and at default type only. The ticket is explicit that smaller devices and
+     * larger Dynamic Type still scroll, so widening this would assert something the design
+     * deliberately does not promise.
+     */
+    @Test
+    fun `on a 393 by 852 the whole screen fits without scrolling, in every state`() {
+        val device = DEVICES.first { it.width == 393 && it.height == 852 }
+        val misses = mutableListOf<String>()
+        for ((name, state) in FOLD_STATES) {
+            val s = shoot(device.width, device.safeHeight, fontScale = 1f, state = state)
+            if (s.finePrintBottom > s.ctaTop + 0.5f) {
+                misses += "$name  fine print ends at ${s.finePrintBottom}, " +
+                    "CTA starts at ${s.ctaTop} -- ${s.finePrintBottom - s.ctaTop}dp over"
+            }
+        }
+        assertTrue(
+            "the headline through Save preferences must fit on 393 x 852 without scrolling:\n" +
+                misses.joinToString("\n"),
+            misses.isEmpty(),
+        )
+    }
+
+    /**
+     * The four states the criterion names.
+     *
+     * C and D are the deactivation confirm, which is a modal over this screen rather than a
+     * different layout of it -- the body underneath is state A's. They are listed anyway because
+     * the ticket lists them, and because a modal that changed the body's height would be a
+     * defect worth catching here rather than by eye.
+     */
+    private val FOLD_STATES
+        get() = listOf(
+            "A default" to ReachabilityState(),
+            "B interest checked" to ALL,
+            "C confirm" to ReachabilityState(
+                prompt = com.showup.profile.DeactivationPrompt.UserTurnedItOff,
+            ),
+            "D after denial" to ReachabilityState(
+                prompt = com.showup.profile.DeactivationPrompt.AfterOsDenial,
+            ),
+        )
+
     // ── the hit targets ─────────────────────────────────────────────────────
 
     /**

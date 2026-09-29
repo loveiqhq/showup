@@ -1238,8 +1238,10 @@ check("163 fires no step event (swift)", "stepViewed" not in reach_model_sw
 REACH_COPY = [
     ("headline em", "Never miss"),
     ("headline tail", " a date and avoid getting a penalty!"),
-    ("card title", "Get notifications"),
-    ("push row", "Push notifications"),
+    # CHANGED 28 Sep 2026. The separate push row was folded into the card head, so its title
+    # became the card's and there is no second title to check -- see the structure checks below,
+    # which are what stop the row coming back.
+    ("card title", "Push notifications"),
     ("pill", "Recommended"),
     ("interest heading", "More ways to reach you are coming soon."),
     ("interest line", u"Tell us which ones you\u2019d like."),
@@ -1258,6 +1260,65 @@ REACH_COPY = [
 for label, text in REACH_COPY:
     check("163 copy %s (kotlin)" % label, text in reach_kt)
     check("163 copy %s (swift)" % label, text in reach_sw)
+
+# ── the head holds the switch, and there is no second row (28 Sep 2026) ─────
+#
+# THE COPY CHECK ABOVE CANNOT SEE THIS. "Push notifications" appears whether the string labels a
+# card head or a row of its own, so the one criterion that actually changed -- "No separate push
+# row" -- is invisible to a substring search. These read the structure instead.
+#
+# Checked as an ABSENCE of the old row's own markers rather than a presence of the new head,
+# because a rebuild would reintroduce the row alongside the head rather than instead of it, and
+# that is the failure worth catching.
+check("163 no separate push row (kotlin)", "the push row" not in reach_kt)
+check("163 no separate push row (swift)", "the push row" not in reach_sw)
+
+# The small pip belonged to the row. One head means one bell, and it is the head's 20.
+#
+# KEYED ON THE BELL AT 17, not on the 34pt box: the three interest rows draw 34pt pips of their
+# own and always did, so a size alone matches them too. A 17pt bell existed in exactly one place.
+check("163 one bell pip, and it is the head's (kotlin)",
+      "Icon(BrandIcon.Bell, 17.dp" not in reach_kt)
+check("163 one bell pip, and it is the head's (swift)",
+      "icon: .bell, size: 17" not in reach_sw)
+
+# The switch sits in the card head now, so it is above the divider rather than below the title
+# block. `ConsentSwitch` appearing before "the demand test" is that, and it is the whole point of
+# the change: the thing being switched and the switch are one row.
+for name, src in [("kotlin", reach_kt), ("swift", reach_sw)]:
+    check("163 the switch is in the card head (%s)" % name,
+          "ConsentSwitch(" in src.split("the demand test")[0])
+
+# The pill moved ABOVE the title, which retired the wrap workaround on both platforms. Its cap on
+# type went with the constraint that justified it -- if either comes back, the layout reason for
+# it has to come back too, and this is where that argument gets had.
+check("163 the pill no longer caps its own type (kotlin)",
+      "min(fontScale" not in reach_kt)
+check("163 the pill no longer caps its own type (swift)",
+      "dynamicTypeSize(...DynamicTypeSize.large)" not in reach_sw)
+
+# ── the spacing the 28 Sep update names, on both platforms ──────────────────
+#
+# EVERY ONE OF THESE IS A NUMBER IN THE TICKET. They are checked because the whole change is
+# "make it fit on a 393 x 852 at default type", and a single value quietly reverted takes the
+# fine print back below the fold without breaking anything a test would otherwise notice.
+REACH_SPACING = [
+    ("headline top padding is 20", "topPadding = 20.dp", "topPadding: 20"),
+    ("lead top margin is 10", "top = 10.dp", ".padding(.top, 10)"),
+    ("body top padding is 14", "Modifier.padding(top = 14.dp)", ".padding(.top, 14)"),
+    ("interest rows are padded 9", "vertical = 9.dp", ".padding(.vertical, 9)"),
+    ("interest rows keep a 52 floor", "heightIn(min = 52.dp)", "minHeight: 52"),
+    ("footer top padding is 8", "top = 8.dp", ".padding(.top, 8)"),
+]
+for label, kt, sw in REACH_SPACING:
+    check("163 %s (kotlin)" % label, kt in reach_kt)
+    check("163 %s (swift)" % label, sw in reach_sw)
+
+# The divider is even now -- 12 above the rule and 12 below, where it was 10 and 18.
+check("163 the interest divider is even (kotlin)",
+      "padding(top = 12.dp).topHairline().padding(top = 12.dp)" in reach_kt)
+check("163 the interest divider is even (swift)",
+      "offset(y: -12)" in reach_sw)
 
 # `Show-up Rate`, NEVER "Show-Up Rate". The ticket says so twice and it is a product term. It
 # appears in the lead AND in the dialog body, so a single-place fix would leave the other wrong.
