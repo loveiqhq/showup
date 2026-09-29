@@ -1238,8 +1238,10 @@ check("163 fires no step event (swift)", "stepViewed" not in reach_model_sw
 REACH_COPY = [
     ("headline em", "Never miss"),
     ("headline tail", " a date and avoid getting a penalty!"),
-    ("card title", "Get notifications"),
-    ("push row", "Push notifications"),
+    # CHANGED 28 Sep 2026. The separate push row was folded into the card head, so its title
+    # became the card's and there is no second title to check -- see the structure checks below,
+    # which are what stop the row coming back.
+    ("card title", "Push notifications"),
     ("pill", "Recommended"),
     ("interest heading", "More ways to reach you are coming soon."),
     ("interest line", u"Tell us which ones you\u2019d like."),
@@ -1258,6 +1260,101 @@ REACH_COPY = [
 for label, text in REACH_COPY:
     check("163 copy %s (kotlin)" % label, text in reach_kt)
     check("163 copy %s (swift)" % label, text in reach_sw)
+
+# ── the head holds the switch, and there is no second row (28 Sep 2026) ─────
+#
+# THE COPY CHECK ABOVE CANNOT SEE THIS. "Push notifications" appears whether the string labels a
+# card head or a row of its own, so the one criterion that actually changed -- "No separate push
+# row" -- is invisible to a substring search. These read the structure instead.
+#
+# Checked as an ABSENCE of the old row's own markers rather than a presence of the new head,
+# because a rebuild would reintroduce the row alongside the head rather than instead of it, and
+# that is the failure worth catching.
+# THE FIRST VERSION OF THIS CHECK COULD NOT FAIL, and it is worth saying why rather than just
+# replacing it: it searched for the phrase "the push row", which only ever appeared in a COMMENT,
+# against `code_only()` output, which strips comments. It passed on a file that still had the row
+# and would have passed on one that grew it back.
+#
+# The code-level marker is the label. `PUSH_ROW` / `pushRow` named the removed row's visible text
+# and now names nothing but the switch's accessibility name, so ONE use is the structure: a second
+# is a second place the words are drawn, which is the row returning.
+# SCOPED TO THE CARD. The words appear a third time in the deactivation dialog, as the channel
+# chip the ticket asks for -- so a whole-file count is not the question. Inside the card, between
+# its declaration and the first interest row, ONE use is the structure: the switch's name. A
+# second is the words drawn again, which is the row coming back.
+for _name, _src, _decl, _use in [
+    ("kotlin", reach_kt, "private fun ReachCard", "ReachCopy.PUSH_ROW"),
+    ("swift", reach_sw, "private struct ReachCard", "ReachCopy.pushRow"),
+]:
+    _card = _src.split(_decl)[-1].split("InterestRow(")[0]
+    check("163 no separate push row (%s)" % _name, _card.count(_use) == 1)
+
+# The small pip belonged to the row. One head means one bell, and it is the head's 20.
+#
+# KEYED ON THE BELL AT 17, not on the 34pt box: the three interest rows draw 34pt pips of their
+# own and always did, so a size alone matches them too. A 17pt bell existed in exactly one place.
+check("163 one bell pip, and it is the head's (kotlin)",
+      "Icon(BrandIcon.Bell, 17.dp" not in reach_kt)
+check("163 one bell pip, and it is the head's (swift)",
+      "icon: .bell, size: 17" not in reach_sw)
+
+# The switch sits in the card head now, so it is above the divider rather than below the title
+# block. `ConsentSwitch` appearing before "the demand test" is that, and it is the whole point of
+# the change: the thing being switched and the switch are one row.
+# SPLIT ON CODE, NOT ON A COMMENT. This too was vacuous: it split on "the demand test", a
+# comment heading, in comment-stripped source -- so the split returned the whole file and the
+# check reduced to "the switch exists somewhere". It would have passed with the switch back in a
+# row below the divider, which is the one thing it is supposed to forbid.
+#
+# The card's own body is the region that matters, and `InterestRow(` is the first thing after the
+# head, so the switch has to appear before it.
+for name, src, decl in [("kotlin", reach_kt, "private fun ReachCard"),
+                        ("swift", reach_sw, "private struct ReachCard")]:
+    body = src.split(decl)[-1]
+    check("163 the switch is in the card head (%s)" % name,
+          "ConsentSwitch(" in body.split("InterestRow(")[0])
+
+# The pill moved ABOVE the title, which retired the wrap workaround on both platforms. Its cap on
+# type went with the constraint that justified it -- if either comes back, the layout reason for
+# it has to come back too, and this is where that argument gets had.
+check("163 the pill no longer caps its own type (kotlin)",
+      "min(fontScale" not in reach_kt)
+check("163 the pill no longer caps its own type (swift)",
+      "dynamicTypeSize(...DynamicTypeSize.large)" not in reach_sw)
+
+# ── the spacing the 28 Sep update names, on both platforms ──────────────────
+#
+# EVERY ONE OF THESE IS A NUMBER IN THE TICKET. They are checked because the whole change is
+# "make it fit on a 393 x 852 at default type", and a single value quietly reverted takes the
+# fine print back below the fold without breaking anything a test would otherwise notice.
+REACH_SPACING = [
+    ("headline top padding is 20", "topPadding = 20.dp", "topPadding: 20"),
+    # THE WHOLE CALL, because `top = 10.dp` on its own also matches the dialog's own padding and
+    # the lead could revert to 14 with the check still green.
+    ("lead top margin is 10",
+     "padding(start = 4.dp, end = 4.dp, top = 10.dp)", ".padding(.top, 10)"),
+    # THE WHOLE BODY PADDING, both ends: `padding: '14px 24px 4px'` in the reference. The 4 is
+    # the body's own bottom and is separate from the pinned-footer reservation under it.
+    ("body padding is 14 over 4",
+     "Modifier.padding(top = 14.dp, bottom = 4.dp)", ".padding(.top, 14)"),
+    ("interest rows are padded 9", "vertical = 9.dp", ".padding(.vertical, 9)"),
+    # THE FLOOR IS THE SHARED TOKEN, and the ticket's "(>= 52pt)" is asserted by measurement
+    # in `ReachabilityFitTest` instead -- it is what the row comes out at, not what it is set to.
+    ("interest rows keep the shared tap floor",
+     "heightIn(min = ComponentSizes.minTapTarget)", "minHeight: ComponentSizes.minTapTarget"),
+    ("the body has the reference's 4 at the bottom",
+     "bottom = 4.dp", ".padding(.bottom, 4)"),
+    ("footer top padding is 8", "top = 8.dp", ".padding(.top, 8)"),
+]
+for label, kt, sw in REACH_SPACING:
+    check("163 %s (kotlin)" % label, kt in reach_kt)
+    check("163 %s (swift)" % label, sw in reach_sw)
+
+# The divider is even now -- 12 above the rule and 12 below, where it was 10 and 18.
+check("163 the interest divider is even (kotlin)",
+      "padding(top = 12.dp).topHairline().padding(top = 12.dp)" in reach_kt)
+check("163 the interest divider is even (swift)",
+      "offset(y: -12)" in reach_sw)
 
 # `Show-up Rate`, NEVER "Show-Up Rate". The ticket says so twice and it is a product term. It
 # appears in the lead AND in the dialog body, so a single-place fix would leave the other wrong.
@@ -1434,10 +1531,49 @@ for name, src in [("kotlin", notify_vm_kt), ("swift", notify_vm_sw)]:
 
 # AND 09 RAISES NO DIALOG. The event absence above would still pass if the request were made
 # silently, which is the worse version of the bug: a sheet with no record of it.
-check("163/09 raises no OS dialog (kotlin)",
-      "askNotifications.launch" not in code_only(read(KT, "profile",
-                                                      "NotificationsViewModel.kt")))
-check("163/09 raises no OS dialog (swift)", "ask.request()" not in code_only(notify_vm_sw))
+#
+# LOOKED FOR WHERE THE DIALOG IS ACTUALLY RAISED, which on Android is not the view model. The
+# first version of this check searched `NotificationsViewModel.kt` for `askNotifications.launch`
+# -- a launcher that only ever exists in `MainActivity`, so the string could not appear there and
+# the check could not fail. Proved by putting the request back on 09's CTA: all 956 checks passed.
+#
+# The branch is the unit that matters. `code_only` has already removed the comments between the
+# two arms, so the slice is exactly 09's wiring.
+_main_kt = code_only(read(KT, "MainActivity.kt"))
+_09_branch_kt = (_main_kt.split("FlowScreen.ProfileNotifications ->")[-1]
+                 .split("FlowScreen.ProfileReachability ->")[0])
+check("163/09 raises no OS dialog (kotlin)", "askNotifications.launch" not in _09_branch_kt)
+
+# iOS keeps the ask ON the model -- held and deliberately unused -- so the model is the right
+# place to look there, and this one was never vacuous. The screen's own wiring is checked too,
+# because a request added at the call site would bypass the model entirely.
+_app_sw = code_only(read(SW, "ShowUpWelcomeApp.swift"))
+
+
+def _balanced_call(src, opener):
+    """The whole of a call beginning with `opener`, to its MATCHING close paren.
+
+    `split(")")[0]` stops at the first close paren, which in a SwiftUI call is almost never the
+    call's own: `onEnable: { if notifications.continuePressed() { ... } }` ends the slice inside
+    the first closure. That left a few characters to search and a check that would have missed a
+    request added anywhere after it -- raised in review, and true.
+    """
+    i = src.find(opener)
+    if i < 0:
+        return ""
+    j, depth = i + len(opener), 1
+    while j < len(src) and depth:
+        if src[j] == "(":
+            depth += 1
+        elif src[j] == ")":
+            depth -= 1
+        j += 1
+    return src[i:j]
+
+
+_09_screen_sw = _balanced_call(_app_sw, "ProfileNotificationsView(")
+check("163/09 raises no OS dialog (swift)",
+      "ask.request()" not in code_only(notify_vm_sw) and "request(" not in _09_screen_sw)
 
 # UNCHANGED ON 09: the ALREADY-DETERMINED SKIP itself, which the ticket lists under what this
 # ticket must not touch. What went with 163 is the push registration that used to hang off it --

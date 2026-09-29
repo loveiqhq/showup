@@ -30,6 +30,8 @@
  */
 package com.showup.profile
 
+import kotlinx.coroutines.delay
+
 /** A finished take: where the bytes are, and how long they ran. */
 data class CaptureTake(
     val path: String,
@@ -139,6 +141,17 @@ class FakeMediaCapture(
      * meant to detect into the test.
      */
     private val finishSucceeds: Boolean = true,
+    /**
+     * How long `start` takes to answer, in virtual milliseconds.
+     *
+     * THE GAP BETWEEN ASKING AND RECORDING, which the real sessions have and this fake did not.
+     * CameraX reports a [MediaCaptureSession] as started only once `VideoRecordEvent.Start`
+     * arrives, and AVFoundation only once `didStartRecordingTo` fires; measured at three seconds
+     * on a Pixel 7 emulator and a fraction of that on a phone. Zero here modelled a recorder that
+     * begins instantly, which nothing does, and left the whole start window untested -- including
+     * a Stop arriving inside it, which destroyed the review screen it had just produced.
+     */
+    private val startDelayMs: Long = 0L,
     private val pathFor: (MediaKind) -> String = { "/dev/null/${it.trackingValue}.take" },
 ) : MediaCaptureFactory {
 
@@ -146,34 +159,51 @@ class FakeMediaCapture(
     val sessions = mutableListOf<FakeSession>()
 
     override fun create(kind: MediaKind): MediaCaptureSession =
-        FakeSession(kind, startSucceeds, finishSucceeds, pathFor(kind)).also { sessions += it }
+        FakeSession(kind, startSucceeds, finishSucceeds, startDelayMs, pathFor(kind))
+            .also { sessions += it }
 
     class FakeSession(
         val kind: MediaKind,
         private val startSucceeds: Boolean,
         private val finishSucceeds: Boolean,
+        private val startDelayMs: Long,
         private val path: String,
     ) : MediaCaptureSession {
         var started = false
             private set
         var discarded = false
             private set
+        private var requested = false
+        private var finished = false
         private var onEnded: ((CaptureFailure) -> Unit)? = null
 
         override suspend fun start(onEnded: (CaptureFailure) -> Unit): Boolean {
             this.onEnded = onEnded
+            requested = true
+            if (startDelayMs > 0) delay(startDelayMs)
+            // MIRRORS THE REAL SESSIONS. `finish` is reachable while `start` is still waiting for
+            // the recorder to roll, because the session exists from the moment the take does.
+            // When it gets there first it owns the take, and `start` must report nothing rather
+            // than a failure the caller would write over the outcome already chosen.
+            if (finished) return false
             started = startSucceeds
             return startSucceeds
         }
 
-        override suspend fun finish(elapsedMs: Int): CaptureTake? =
-            if (!started || !finishSucceeds) null
-            else CaptureTake(
+        override suspend fun finish(elapsedMs: Int): CaptureTake? {
+            if (finished) return null
+            finished = true
+            // `requested`, NOT `started`: a take stopped inside the start gap has been asked for
+            // but has not yet begun, and the real sessions wait for the first frame and then end
+            // it rather than throwing it away.
+            if (!requested || !finishSucceeds) return null
+            return CaptureTake(
                 path = path,
                 durationMs = elapsedMs,
                 mimeType = mimeTypeFor(kind),
                 fileName = fileNameFor(kind),
             )
+        }
 
         override suspend fun discard() {
             discarded = true

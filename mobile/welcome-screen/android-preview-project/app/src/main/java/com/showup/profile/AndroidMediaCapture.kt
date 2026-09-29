@@ -263,6 +263,30 @@ private class AndroidVideoSession(
      */
     private var finalizeError: String? = null
 
+    /**
+     * Completed when the recorder is genuinely rolling, or false if it never did.
+     *
+     * THE DIFFERENCE BETWEEN ASKING AND RECORDING, and the bug this field exists for.
+     * `startRecording` returns a [Recording] as soon as the request is accepted -- the Recorder is
+     * merely PENDING_RECORDING at that point. Frames do not exist until CameraX emits
+     * [VideoRecordEvent.Start], which is when the encoder has its input surface and the camera is
+     * streaming into it.
+     *
+     * Measured on a Pixel 7 emulator, that gap is THREE SECONDS: start requested at 05.480, Start
+     * event at 08.476. On a physical phone it is closer to two hundred milliseconds. It is never
+     * zero, and two real defects lived in it:
+     *
+     *  - a take stopped inside the gap has no frames at all, so the muxer writes nothing and
+     *    CameraX finalises with ERROR_NO_VALID_DATA -- reported from the emulator as "that
+     *    recording didn't save" with `no valid data (8), 0ms, 0 bytes`;
+     *  - and every take that DID survive was short by the width of the gap, because the ten-second
+     *    clock started when we asked rather than when the camera answered.
+     *
+     * The second is the interesting half: it is invisible, it happens on real hardware, and it
+     * makes the counter disagree with the file it is supposedly counting.
+     */
+    private val started = CompletableDeferred<Boolean>()
+
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     override suspend fun start(onEnded: (CaptureFailure) -> Unit): Boolean {
         val camera = controller() ?: return false
@@ -292,14 +316,22 @@ private class AndroidVideoSession(
             true
         }
         if (ready != true) return false
-        return runCatching {
+        val requested = runCatching {
             recording = camera.startRecording(
                 FileOutputOptions.Builder(output).build(),
                 // Audio on: a ten-second clip of a silent face is not what was asked for.
                 AudioConfig.create(true),
                 ContextCompat.getMainExecutor(context),
             ) { event ->
+                // Idempotent by construction: `complete` on an already-completed deferred returns
+                // false and changes nothing, so a Finalize arriving after a normal Start cannot
+                // retroactively turn a good take into a failed start.
+                if (event is VideoRecordEvent.Start) started.complete(true)
                 if (event is VideoRecordEvent.Finalize) {
+                    // A Finalize with no Start before it means the take never rolled. Answering
+                    // the wait here rather than letting it time out turns an eight-second stall
+                    // into an immediate and accurate "we could not start".
+                    started.complete(false)
                     val nanos = event.recordingStats.recordedDurationNanos
                     val ms = (nanos / 1_000_000L).toInt()
                     if (event.hasError()) {
@@ -322,11 +354,43 @@ private class AndroidVideoSession(
             recording = null
             false
         }
+        if (!requested) return false
+
+        // AND NOW WAIT FOR THE CAMERA TO ANSWER.
+        //
+        // This is the whole fix. Returning here rather than above means [MediaViewModel]'s clock
+        // is anchored to the first frame instead of to the request, so the ten-second cap measures
+        // ten seconds of video and a Stop can never land before the recorder has rolled.
+        //
+        // The cost is that the viewfinder sits at 0:00 for the length of the gap -- a blink on a
+        // phone, three seconds on an emulator. That is the truth, and a counter that runs while
+        // nothing is being recorded is the lie it replaces.
+        val rolling = withTimeoutOrNull(START_TIMEOUT_MS) { started.await() }
+
+        // Stop arrived while we were waiting. `finish` set `finished`, owns the recording and the
+        // file, and has already decided the outcome -- so this must not clean up underneath it,
+        // and must not report a start failure over the top of it.
+        if (finished) return false
+
+        if (rolling != true) {
+            runCatching { recording?.stop() }
+            recording = null
+            withContext(Dispatchers.IO) { output.delete() }
+            return false
+        }
+        return true
     }
 
     override suspend fun finish(elapsedMs: Int): CaptureTake? {
         if (finished) return null
         finished = true
+        // STOP ONLY WHAT HAS STARTED.
+        //
+        // Reachable when the user presses Stop inside the start gap, because the session exists
+        // from the moment the take does. Stopping a recording that has produced no frames is
+        // precisely the ERROR_NO_VALID_DATA case, so wait for the first frame before ending it --
+        // bounded, because a recorder that never rolls must still let go of the screen.
+        withTimeoutOrNull(START_TIMEOUT_MS) { started.await() }
         recording?.stop()
         recording = null
 
@@ -385,6 +449,18 @@ private class AndroidVideoSession(
          * enough that a user whose camera will never open is told so rather than left watching a
          * viewfinder that is not coming.
          */
+        /**
+         * How long to wait for [VideoRecordEvent.Start] before calling the take a failure.
+         *
+         * EIGHT SECONDS, against a measured worst case of three. The emulator's software AVC
+         * encoder is the slow case and it is the one that matters here, because it is where this
+         * is developed; a phone's hardware encoder answers in a fraction of a second and never
+         * spends any of this. Like [FINALIZE_TIMEOUT_MS], the timeout is a backstop against a
+         * callback that never arrives at all, not a budget for a slow one -- so it sits well
+         * clear of the slowest thing we have actually seen rather than close to it.
+         */
+        const val START_TIMEOUT_MS = 8_000L
+
         const val CAMERA_READY_TIMEOUT_MS = 3_000L
         const val CAMERA_READY_POLL_MS = 50L
     }

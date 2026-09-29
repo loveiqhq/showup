@@ -140,8 +140,48 @@ data class PhotoGridState(
     /** Whether the drag hint is shown. From the SECOND photo: with one there is nothing to reorder. */
     val canReorder: Boolean get() = confirmedCount >= 2
 
+    /**
+     * How many boxes are DRAWN. Four, or six once the optional pair is revealed.
+     *
+     * NOT `photos.size`, and the difference is the whole of SHOWUP-161's reorder bug. The grid is
+     * six fixed boxes of which any may be empty, so the number of photos and the number of places
+     * a photo may be dropped are different quantities that happen to be equal in the one case
+     * everybody tests: four photos densely filling four boxes.
+     *
+     * Passing the wrong one to [reorderTarget] bounded every drag by the photo count, so a grid
+     * with a gap in it silently lost the tail of its own board. Two photos could only ever swap
+     * with each other; remove the second of four and slot 3 stopped accepting anything. Reported
+     * from a device as "it works for some pics, not for all", which is exactly what it looks
+     * like from the outside -- the failure is per TARGET, so the same tile drags in one
+     * direction and refuses in another.
+     */
+    val slotsOnScreen: Int get() = if (optionalRevealed) PHOTOS_MAX else PHOTOS_REQUIRED
+
     /** What occupies a slot, or null if it is empty. */
     fun at(index: Int): PickedPhoto? = photos.firstOrNull { it.slot == index }
+
+    /**
+     * The box holding the main photo: the lowest one occupied, or null when nothing is.
+     *
+     * USUALLY 0 AND NOT NECESSARILY. `pushOrder` sends the photos sorted by slot, so the server's
+     * first photo is whatever sits in the lowest occupied box -- and once a photo can be dragged
+     * onto an empty box, which is what fixing [slotsOnScreen] restores, the lowest occupied box
+     * is not always the first one. Hard-coding 0 here would badge nothing at all in that case
+     * while the server went on treating slot 1 as the main photo, which is the two halves
+     * disagreeing about the one thing this screen exists to decide.
+     *
+     * CONFIRMED ONLY, and that is the half the first version got wrong. A box holding a failed or
+     * still-uploading photo is occupied but holds nothing the profile HAS, so badging it would
+     * tell the user their main photo is one the server has never seen -- and a failed upload is
+     * the case where that claim is not merely early but false. The old `index == 0` rule had the
+     * same flaw and hid it, because a gap at box 0 simply badged nothing; widening the drag made
+     * the state reachable and the flaw visible with it.
+     *
+     * Null when nothing is stored, which is why the call site no longer needs a count guard.
+     */
+    val mainSlot: Int? get() = photos
+        .filter { it.status == UploadStatus.Confirmed }
+        .minOfOrNull { it.slot }
 
     /** The lowest slot nothing occupies, or null when all six are taken. */
     fun firstFreeSlot(): Int? = (0 until PHOTOS_MAX).firstOrNull { slot -> at(slot) == null }

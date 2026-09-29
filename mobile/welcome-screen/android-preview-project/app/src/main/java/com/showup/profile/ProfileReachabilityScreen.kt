@@ -12,8 +12,12 @@
  * (`10-reachability-later.md`) and they are kept in the reference so nothing is lost, not so they
  * can be built early.
  *
- * What ships is one card: head → the push row → a divider → the interest heading → three
- * checkbox rows. Plus a headline, fine print, and a pinned CTA.
+ * What ships is one card: head → a divider → the interest heading → three checkbox rows.
+ * Plus a headline, fine print, and a pinned CTA.
+ *
+ * THE HEAD IS THE PUSH CONTROL, since 28 September 2026. It used to introduce notifications and
+ * then offer a separate row to switch them on -- two titles for one thing, and about sixty points
+ * of height that put the fine print below the fold on the 393 x 852 the ticket now targets.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * THE BODY SCROLLS AND THE CTA NEVER DOES
@@ -108,6 +112,7 @@ import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Danger
 import com.showup.designsystem.Elevated
+import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.ConsentSwitch
 import com.showup.designsystem.Fg
 import com.showup.designsystem.FgSubtle
@@ -163,11 +168,21 @@ internal object ReachCopy {
         "Activate notifications so you never miss a date! Missing a date lowers your Show-up " +
             "Rate, which will lead to a temporary ban or permanent suspension from the app."
 
-    const val CARD_TITLE = "Get notifications"
+    // CHANGED 28 Sep 2026. The separate push row is gone and its title became the card's, so
+    // the head names the one thing the card switches instead of naming the category twice.
+    const val CARD_TITLE = "Push notifications"
     const val CARD_LINE =
         "We’ll let you know about new matches, meet time or location changes and date " +
             "cancellations."
 
+    /**
+     * The switch's accessibility name.
+     *
+     * Was the separate push row's visible label until 28 Sep 2026, when that row was folded into
+     * the card head. The string survives as the switch's name because [CARD_TITLE] is now a
+     * sibling of the switch rather than its label, and a switch announced only as "on" says
+     * nothing about what it governs.
+     */
     const val PUSH_ROW = "Push notifications"
     const val RECOMMENDED = "Recommended"
 
@@ -288,7 +303,19 @@ private fun InterestRow(
                 onValueChange = { onToggle() },
             )
             .semantics(mergeDescendants = true) {}
-            .padding(vertical = 12.dp),
+            // 9, AND THE FLOOR STAYS THE SHARED ONE.
+            //
+            // The ticket tightens the padding and adds "(the row stays >= 52pt tall)", which
+            // reads like a floor and is not one -- it is what the row MEASURES once the padding
+            // changes: a 34dp pip between two 9s. The reference confirms it, keeping
+            // `minHeight: 44` untouched through the same edit.
+            //
+            // Writing 52 here, as the first pass did, would have been a literal invented from a
+            // parenthesis and a second standard tap height competing with the token. The
+            // guarantee is real and belongs in a test, which is where it now is -- see
+            // `ReachabilityFitTest`.
+            .heightIn(min = ComponentSizes.minTapTarget)
+            .padding(vertical = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -409,7 +436,12 @@ fun ProfileReachabilityScreen(
         // than the text above it, which is what stops it reading as an indent.
         //
         // The scaffold carries the narrower of the two and the headline pads the difference.
-        topPadding = 32.dp,
+        // 20, NOT 32, SINCE 28 September 2026 -- and every value in this file that the
+        // ticket's "Updated" section names moved with it. They are one change, not seven: the
+        // goal is that on 393 x 852 at default type the headline through `Save preferences` is
+        // on screen without scrolling, in all four states. Anything given back here is height
+        // the fine print gets at the bottom.
+        topPadding = 20.dp,
         gutter = 24.dp,
         scrollWhenTight = true,
         scrollState = scrollState,
@@ -428,7 +460,7 @@ fun ProfileReachabilityScreen(
                           1.00f to Cream,
                       ),
                   )
-                  .padding(start = 24.dp, end = 24.dp, top = 10.dp, bottom = 6.dp),
+                  .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 6.dp),
           ) {
             // ABOVE THE CTA, IN THE PINNED FOOTER, which is where the ticket puts it: "Use the
             // flow's shared inline error card above the CTA."
@@ -475,7 +507,7 @@ fun ProfileReachabilityScreen(
 
         Text(
             emphasised(ReachCopy.LEAD_PLAIN, LeadBold),
-            modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 14.dp),
+            modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 10.dp),
             color = Neutral, fontFamily = Manrope, fontWeight = FontWeight.Medium,
             fontSize = 14.5.sp, lineHeight = (14.5f * 1.5f).sp,
         )
@@ -486,7 +518,11 @@ fun ProfileReachabilityScreen(
         // headline above sits at 28. So the body pulls back 4 on each side rather than the
         // scaffold carrying two gutters.
         Column(
-            Modifier.padding(top = 20.dp),
+            // `padding: '14px 24px 4px'`. The 4 is the body's own bottom and is separate from
+            // the footer reservation below it: the reference's footer is a flex SIBLING of the
+            // scroll region, so it never overlaps, while ours is pinned over it and needs
+            // [FooterClearance] as well. The two stack rather than replace each other.
+            Modifier.padding(top = 14.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ReachCard(state, onPushChange, onInterestToggle)
@@ -534,19 +570,67 @@ private fun ReachCard(
             )
             .padding(16.dp),
     ) {
+        // ── the head, which is the whole push control since 28 September 2026 ──
+        //
+        // The card used to introduce notifications and then offer a separate row to switch them
+        // on. Two titles for one thing, and the pair cost about sixty vertical points -- enough
+        // that the fine print fell below the fold on a 393 x 852 iPhone, which is the frame the
+        // ticket now names as the target. Folding the switch into the head is Philipp's answer
+        // and it is a better card as well as a shorter one: the thing being switched and the
+        // switch are one row.
         Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+            // FILLED, NOT TINTED, since the same change. The pip was a lilac wash behind a
+            // violet bell while a second, filled pip sat in the push row below; with one head
+            // there is one pip, and it takes the filled treatment that used to mark the row
+            // that was already the answer.
             Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(LilacWash)
+                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Purple)
                     .clearAndSetSemantics {},
                 contentAlignment = Alignment.Center,
-            ) { Icon(BrandIcon.Bell, 20.dp, tint = Purple, strokeWidth = 1.8f) }
+            ) { Icon(BrandIcon.Bell, 20.dp, tint = Color.White, strokeWidth = 1.8f) }
             Column(Modifier.weight(1f)) {
-                Text(
-                    ReachCopy.CARD_TITLE,
-                    color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
-                    fontSize = 16.5.sp, lineHeight = (16.5f * 1.2f).sp,
-                    letterSpacing = (-0.005).em,
-                )
+                // ABOVE THE TITLE, which is what retires the FlowRow this screen used to need.
+                // The pill and the label shared a row and really did wrap at 390, so the layout
+                // had to be a flow rather than a Row -- and the badge had to stop growing at
+                // 1.3x because eleven unbreakable characters would not fit beside the label at
+                // 320. On its own line the pill has the column's full width and neither
+                // workaround is load-bearing any more. The type cap is gone with the constraint
+                // that justified it; `ScreenFitTest` is what confirms that, not this comment.
+                Box(
+                    Modifier
+                        .padding(bottom = 4.dp)
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(Purple)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        ReachCopy.RECOMMENDED.uppercase(),
+                        color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+                        fontSize = 10.5.sp, letterSpacing = 0.03.em,
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        ReachCopy.CARD_TITLE,
+                        modifier = Modifier.weight(1f),
+                        color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold,
+                        fontSize = 16.5.sp, lineHeight = (16.5f * 1.2f).sp,
+                        letterSpacing = (-0.005).em,
+                    )
+                    // `weight` ON THE TITLE AND NOT HERE: the switch is a fixed 51 x 31 and the
+                    // title is text, so the text is what absorbs a narrow screen or a large
+                    // font. Without it the switch is the thing that shrinks, and a 44dp target
+                    // is a floor rather than a starting point.
+                    ConsentSwitch(
+                        on = state.pushOn,
+                        label = ReachCopy.PUSH_ROW,
+                        onChange = onPushChange,
+                    )
+                }
                 Text(
                     ReachCopy.CARD_LINE,
                     modifier = Modifier.padding(top = 6.dp),
@@ -556,96 +640,10 @@ private fun ReachCard(
             }
         }
 
-        // ── the push row ────────────────────────────────────────────────────
-        Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp).padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // `recommended` fills the pip rather than tinting it -- the one row on the screen
-            // that is already the answer.
-            Box(
-                Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(Purple)
-                    .clearAndSetSemantics {},
-                contentAlignment = Alignment.Center,
-            ) { Icon(BrandIcon.Bell, 17.dp, tint = Color.White, strokeWidth = 1.8f) }
-
-            // `flexWrap: 'wrap'` IN THE REFERENCE, AND IT REALLY WRAPS AT 390. The label is
-            // about 130 and the pill about 110 in a 201-wide slot, so the design's OWN frame puts
-            // the pill on a second line under the label. A plain Row cannot do that, and the two
-            // things it can do instead are both visibly wrong: squeeze the pill until
-            // RECOMMENDED wraps to three lines and the capsule draws as a circle (the first
-            // attempt), or squeeze the label until `Push notification/s` breaks across lines (the
-            // second). Both were caught by looking at the render.
-            //
-            // So this is the one place in the flow that gets a real flow layout. `FlowRow` is
-            // still `ExperimentalLayoutApi`, which is why 162's Premium tag was left un-wrapped
-            // and recorded as E24 -- there the tag never actually needed to wrap. Here it does,
-            // at the reference frame, so the experimental annotation is the lesser cost.
-            FlowRow(
-                Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    ReachCopy.PUSH_ROW,
-                    color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                )
-                // THE ONE PLACE IN THIS FLOW WHERE TYPE STOPS GROWING, and it took three
-                // renders to arrive at rather than one decision.
-                //
-                // RECOMMENDED is eleven characters of one unbreakable word, and at font scale 2.0
-                // it needs more width than this row can offer on five of the seventeen devices.
-                // The sweep found that; looking at it found what the two obvious answers actually
-                // produce. `maxLines = 1` spends the shortfall on an ellipsis -- `RECOMMEND...`,
-                // a truncated word inside a decorative badge. Letting it wrap spends it on a line
-                // break INSIDE the word: `RECOMMENDE` over `D`, which is worse. The reference has
-                // no answer either: `flex: 'none'` means CSS would let the pill overflow its
-                // container, and an overflowing pill is not an option here.
-                //
-                // So the badge grows with the user's font setting up to 1.3x and then stops.
-                // `Dp.toSp()` is what expresses that -- it converts a physical size back into a
-                // text size, so multiplying by a CLAMPED scale gives type that tracks the setting
-                // and then holds.
-                //
-                // 1.3 IS NOT A NUMBER THAT LOOKED RIGHT. It is Android's largest non-accessibility
-                // font step -- the same threshold this project's fit harness sweeps at -- so the
-                // badge tracks every ordinary font setting in full and holds only across the
-                // accessibility range. 1.4 was tried first and was measured as too wide on the
-                // 320-wide Galaxy Fold, which is the frame that decides this: at 320 the row has
-                // about 127dp for a pill that needs about 121 at 1.4 and about 113 at 1.3.
-                //
-                // What is given up is real and is only this: at 1.4x and above the badge is
-                // smaller than it would otherwise be, still 30% larger than default, and still
-                // the same word. What is kept is that the word is always whole.
-                //
-                // It is defensible HERE and nowhere else on this screen because the badge repeats
-                // something the screen already says -- the toggle beside it is on by default.
-                // Nothing whose only statement is this badge would be allowed to stop growing.
-                val badgeSize = with(LocalDensity.current) {
-                    (10.5.dp * min(fontScale, 1.3f)).toSp()
-                }
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(Purple)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        ReachCopy.RECOMMENDED.uppercase(),
-                        maxLines = 1,
-                        color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                        fontSize = badgeSize, letterSpacing = 0.03.em,
-                    )
-                }
-            }
-
-            ConsentSwitch(on = state.pushOn, label = ReachCopy.PUSH_ROW, onChange = onPushChange)
-        }
-
         // ── the demand test ─────────────────────────────────────────────────
-        Column(Modifier.padding(top = 10.dp).topHairline().padding(top = 18.dp)) {
+        // 12 above the rule and 12 below it, where it used to be 10 and 18. Even now, which
+        // reads as a divider between two blocks rather than as a lid on the one beneath it.
+        Column(Modifier.padding(top = 12.dp).topHairline().padding(top = 12.dp)) {
             Text(
                 ReachCopy.INTEREST_HEADING,
                 color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold,
@@ -719,7 +717,8 @@ private fun FinePrint(onPrivacy: () -> Unit) {
             append(".")
         },
         modifier = Modifier
-            .padding(top = 4.dp)
+            // No top margin of its own since 28 Sep 2026: the body column's 12 between the card
+            // and this is the whole gap now.
             .padding(horizontal = 4.dp)
             .testTag(REACH_FINEPRINT_TAG),
         color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.Medium,
