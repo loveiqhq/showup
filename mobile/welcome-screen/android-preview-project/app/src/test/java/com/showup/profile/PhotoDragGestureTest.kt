@@ -68,6 +68,19 @@ class PhotoDragGestureTest {
         photos = List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed, slot = it) },
     )
 
+    /**
+     * Photos in the boxes named, and the rest of the grid empty.
+     *
+     * THE SHAPE EVERY TEST ABOVE IS MISSING. `grid(4)` fills four boxes with four photos, so the
+     * photo count and the box count are the same number and a bug that confuses them cannot show
+     * itself. A real grid is sparse for most of its life -- two photos in, one removed from the
+     * middle, four of six filled -- and that is where drag-to-reorder was reported broken.
+     */
+    private fun sparse(vararg slots: Int, revealed: Boolean = false) = PhotoGridState(
+        photos = slots.map { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed, slot = it) },
+        optionalRevealed = revealed,
+    )
+
     private data class Dragged(val from: Int, val to: Int)
 
     /**
@@ -267,5 +280,145 @@ class PhotoDragGestureTest {
                 assertTrue("slot $i must be addressable, found $tags", slotTag(i) in tags)
             }
         }
+    }
+
+    // ── a grid with gaps in it ──────────────────────────────────────────────
+
+    /*
+     * WHAT THESE ARE FOR.
+     *
+     * Reported from a device on 29 September 2026: "it works just for some pics, not for all."
+     * That is an exact description of the bug and it took a sparse fixture to see. The screen
+     * passed `state.photos.size` to `reorderTarget`, whose `count` parameter is documented as
+     * "how many slots are on screen", and `reorderTarget` refuses any target at or past it.
+     *
+     * With four photos in four boxes the two numbers agree and everything works, which is the
+     * only case this suite had. With two photos the board shrinks to two boxes; remove the
+     * second of four and the fourth box stops accepting anything. The failure is per TARGET, not
+     * per tile, so the same photo drags one way and refuses the other -- "some pics, not all".
+     */
+
+    @Test
+    fun `two photos can be moved into the empty half of the grid`() {
+        // The count bug bit hardest here: with two photos the board was two boxes wide, so the
+        // only move the grid allowed was swapping them with each other.
+        val state = sparse(0, 1)
+        assertEquals(
+            "a photo must be droppable on an empty box below it",
+            2, drag(from = 0, byX = 0f, byY = 176f, state = state)?.to,
+        )
+        assertEquals(
+            "and on the far empty box",
+            3, drag(from = 1, byX = 0f, byY = 176f, state = state)?.to,
+        )
+    }
+
+    @Test
+    fun `a gap left by a removal is still a place a photo can go`() {
+        // Photos in 0, 2 and 3: what the grid looks like the moment the second one is removed.
+        // `photos.size` is 3, so box 3 -- which is on screen and holds a photo -- was refused as
+        // a target, and the tile in it could move out but nothing could move in.
+        val state = sparse(0, 2, 3)
+        assertEquals(
+            "the box the removal emptied must accept a photo",
+            1, drag(from = 0, byX = 176f, byY = 0f, state = state)?.to,
+        )
+        assertEquals(
+            "and the last box must still be reachable",
+            3, drag(from = 2, byX = 176f, byY = 0f, state = state)?.to,
+        )
+    }
+
+    @Test
+    fun `the optional boxes are reachable once they are revealed`() {
+        // Five photos and six boxes: box 5 is drawn, empty, and was unreachable.
+        val state = sparse(0, 1, 2, 3, 4, revealed = true)
+        assertEquals(
+            "the sixth box is on screen, so it is a place a photo can go",
+            5, drag(from = 4, byX = 176f, byY = 0f, state = state)?.to,
+        )
+    }
+
+    /**
+     * EVERY PHOTO TO EVERY BOX, which is the promise the screen makes.
+     *
+     * The table above covers a full grid one step at a time. This covers the sparse case the bug
+     * lived in, and it is written as a sweep rather than as cases because the defect was a SHAPE
+     * -- a diagonal cut across the board at the photo count -- and a sweep is what shows a shape.
+     */
+    @Test
+    fun `every photo reaches every box on a half-filled grid`() {
+        val state = sparse(0, 3)
+        val unreachable = mutableListOf<String>()
+        for (from in listOf(0, 3)) {
+            for (to in 0 until PHOTOS_REQUIRED) {
+                if (to == from) continue
+                val cell = 176f
+                val dx = (to % 2 - from % 2) * cell
+                val dy = (to / 2 - from / 2) * cell
+                val landed = drag(from = from, byX = dx, byY = dy, state = state)?.to
+                if (landed != to) unreachable += "$from->$to (landed on ${landed ?: "nothing"})"
+            }
+        }
+        assertEquals("every box must be reachable from every photo", emptyList<String>(), unreachable)
+    }
+
+    // ── and the main photo follows the photos ───────────────────────────────
+
+    /**
+     * Once a photo can be dragged off box 0, box 0 can be empty -- and then "the first one is
+     * your main photo" has to mean the first one that EXISTS.
+     *
+     * `pushOrder` already sends the photos sorted by slot, so the server's first photo is
+     * whatever sits in the lowest occupied box. The badge read `index == 0`, so in this state it
+     * would have marked nothing at all while the server went on treating slot 1 as the main
+     * photo. A unit check rather than a gesture: this is arithmetic, and it is the half that
+     * would otherwise be noticed by a user wondering which photo is their main one.
+     */
+    @Test
+    fun `the main photo is the lowest box that has one`() {
+        assertEquals(0, PhotoGridState().copy(photos = sparse(0, 2).photos).mainSlot)
+        assertEquals(1, sparse(1, 3).mainSlot)
+        assertEquals(2, sparse(2).mainSlot)
+        assertNull("an empty grid has no main photo", PhotoGridState().mainSlot)
+    }
+
+    /**
+     * A BOX CAN BE OCCUPIED AND HOLD NOTHING THE PROFILE HAS.
+     *
+     * Raised in review. An upload that failed keeps its box so Retry can re-send it, and one
+     * still in flight occupies its box from the moment it is picked -- neither is stored. The
+     * badge says "this is your main photo", which is a claim about the account, so it has to name
+     * a photo the account actually holds.
+     *
+     * Unreachable before the drag was widened: with box 0 always occupied the rule `index == 0`
+     * produced the same answer, and a gap at box 0 simply badged nothing at all.
+     */
+    @Test
+    fun `an unstored photo is never the main one`() {
+        fun built(vararg pairs: Pair<Int, UploadStatus>) = PhotoGridState(
+            photos = pairs.map { (slot, st) -> PickedPhoto(slot.toLong(), null, st, slot = slot) },
+        )
+        assertEquals(
+            "a failed upload in the first box must not be badged",
+            1, built(0 to UploadStatus.Failed, 1 to UploadStatus.Confirmed).mainSlot,
+        )
+        assertEquals(
+            "nor one still in flight",
+            2, built(1 to UploadStatus.InFlight, 2 to UploadStatus.Confirmed).mainSlot,
+        )
+        assertNull(
+            "and a grid with nothing stored has no main photo at all",
+            built(0 to UploadStatus.InFlight, 1 to UploadStatus.Failed).mainSlot,
+        )
+    }
+
+    @Test
+    fun `the board is the boxes on screen, not the photos held`() {
+        // The bug in one assertion. Both grids hold two photos; one has the optional pair
+        // revealed. The number of places a photo may be dropped is a property of the SCREEN.
+        assertEquals(PHOTOS_REQUIRED, sparse(0, 1).slotsOnScreen)
+        assertEquals(PHOTOS_MAX, sparse(0, 1, revealed = true).slotsOnScreen)
+        assertEquals("an empty grid still has a board", PHOTOS_REQUIRED, PhotoGridState().slotsOnScreen)
     }
 }

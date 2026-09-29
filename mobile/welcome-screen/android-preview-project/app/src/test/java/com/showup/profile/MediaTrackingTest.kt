@@ -701,6 +701,62 @@ class MediaTrackingTest {
         }
     }
 
+    /**
+     * THE 25 SEPTEMBER DECISION, which had no test until it was asked for.
+     *
+     * "The saved card's play control plays the saved clip. Replays of saved media are NOT tracked
+     * -- no event fires, and `media_preview_played` counts plays on the review screen only."
+     *
+     * It is a rule about a RATIO, not about a control. `media_review_shown` is the denominator --
+     * "of the takes that reached review, how many were played" -- so a play counted from a saved
+     * card divides review plays by a number that never saw them. The event would still look
+     * plausible in the pipeline; only the answer would be wrong, and only afterwards.
+     *
+     * The implementation is a comment and an omission, which is the least durable shape a rule
+     * can have: nothing fails when someone adds the obvious-looking line.
+     */
+    @Test
+    fun `playing a saved card fires nothing`() = runTest(dispatcher) {
+        val vm = build()
+        vm.arrived()
+        advanceUntilIdle()
+        vm.openPrompts(MediaKind.Video, MediaEntryPoint.SeeThePrompts)
+        vm.pickPrompt(PROMPT)
+        vm.commitPrompt()
+        advanceUntilIdle()
+        vm.stopPressed()
+        advanceUntilIdle()
+
+        // On REVIEW it does fire -- otherwise this test would pass on a build where playback was
+        // simply broken, which is the failure mode the rule is most likely to be confused with.
+        vm.playPressed()
+        advanceUntilIdle()
+        assertTrue(
+            "a play on the review screen is still counted",
+            events.names().contains(ProfileAnalytics.MEDIA_PREVIEW_PLAYED),
+        )
+
+        vm.acceptTake()
+        advanceUntilIdle()
+        val afterAccept = events.names().count { it == ProfileAnalytics.MEDIA_PREVIEW_PLAYED }
+
+        // And on the SAVED CARD it does not, however many times it is pressed.
+        vm.cardPlayPressed(MediaKind.Video)
+        advanceUntilIdle()
+        vm.cardPlayPressed(MediaKind.Video)
+        advanceUntilIdle()
+
+        assertEquals(
+            "a saved card's play must not reach the review screen's counter",
+            afterAccept,
+            events.names().count { it == ProfileAnalytics.MEDIA_PREVIEW_PLAYED },
+        )
+        assertFalse(
+            "and it must not invent an event of its own either",
+            events.names().any { it.contains("artefact") || it.contains("artifact") },
+        )
+    }
+
     @Test
     fun `no caption event is ever emitted`() = runTest(dispatcher) {
         // `caption_added` and `caption_skipped` stay in the registry so the profile-editing flow

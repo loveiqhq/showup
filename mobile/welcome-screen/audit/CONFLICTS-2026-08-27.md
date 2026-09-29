@@ -1233,6 +1233,48 @@ to add quietly.
 Until then: **E34's failure row is what stands in for it.** A take that produces nothing now says
 which of the two failures it was, so the next report names a cause instead of a symptom.
 
+### RESOLVED, 28 September 2026 — and the failure row is what resolved it
+
+E34's diagnostic did the job it was added for on its first use. The emulator reported:
+
+    That recording didn't save. Please try again.
+    no valid data (8), 0ms, 0 bytes
+
+`ERROR_NO_VALID_DATA` with nothing recorded and nothing written, which is CameraX saying the muxer
+was handed no frames at all. The logcat timeline around it settled the rest:
+
+    05.480  Recorder: PENDING_RECORDING --> RECORDING     start() requested
+    07.843  Recorder: RECORDING --> STOPPING              Stop, 2.36s later
+    08.476  Recorder: Sending VideoRecordEvent Start      the recorder ACTUALLY starts
+    08.478  Video source --> ACTIVE_STREAMING             the first frame, after the stop
+    16.056  Finalize [ERROR_NO_VALID_DATA]
+
+**The take was ended before the camera produced a single frame.** The cause was that
+`AndroidVideoSession.start()` reported success when `startRecording()` RETURNED, and
+`VideoCaptureSession.start()` on iOS did the same with `startRecording(to:recordingDelegate:)`.
+Both are requests. The acknowledgements are `VideoRecordEvent.Start` and `didStartRecordingTo`,
+and the gap between them measured **three seconds** on a Pixel 7 emulator.
+
+Both now wait for the acknowledgement before reporting started, both wait for it before stopping,
+and a `Finalize`/`didFinishRecording` with no start before it answers the wait immediately rather
+than letting it time out.
+
+**The second defect is the one worth remembering, because nobody reported it.** The ten-second cap
+is measured by a clock that starts when `start()` returns, so every take that DID survive was
+short by the width of the gap — on a phone a fraction of a second, silently, forever. The counter
+and the file it describes had never agreed. Fixing the crash fixed that too, and only the crash
+was visible.
+
+**What this changes about the seam argument above:** nothing. The fix is still below
+`FakeMediaCapture`, and it was found by reading a device, not by a test. What has changed is that
+the fake now models a recorder that takes time to roll (`startDelayMs`), which made the start
+window reachable for the first time — and the first thing found in it was a Stop inside the gap
+destroying the review screen it had just produced, because a late `start()` answering false
+cleared the take. That one IS covered now, and it was never on anybody's list.
+
+**Still open:** an instrumented emulator test would have caught the original in CI. The
+infrastructure decision stands.
+
 ## E37 · Playback cadence is smoothed on Android and not on iOS
 
 Reported as "playback starts unusually slow, then speeds up". The player was never at fault on

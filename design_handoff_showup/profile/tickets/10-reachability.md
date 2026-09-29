@@ -4,6 +4,25 @@
 **Linked:** Profile 09 Notifications (**changed by this ticket**, see *Decided before build*) · Profile 10 — later scope (`profile/tickets/10-reachability-later.md`, backlog, **not in this sprint**)
 **Attachments:** the handoff folder as a **zip** · `profile-10-reachability-spec-sheet.png` (states A–D, callouts ①–⑯; violet = OS-owned or the demand test)
 
+## ⚠ Updated 28 Sep 2026 — fit above the fold (already built → change these)
+
+Visual only. No change to behaviour, tracking, states or any copy other than the card title.
+
+1. **The push toggle moves into the card head. The separate push row is removed.** The head now reads: violet bell pip (40×40, radius 12, `--liq-primary-500` background, white `bell` 20, stroke 1.8) → `Recommended` pill **above** the title (margin-bottom 4, same pill as before) → title **`Push notifications`** (was `Get notifications`) with the 51×31 toggle to its right in one row (gap 10, vertically centred) → the unchanged card line underneath.
+2. **MVP spacing tightened:**
+   - Headline block top padding: 32 → **20**
+   - Lead top margin: 14 → **10**
+   - Scroll body padding, top / bottom: 20 / 8 → **14 / 4**
+   - Divider above the interest block, margin-top / padding-top: 10 / 18 → **12 / 12**
+   - Interest rows, vertical padding: 12 → **9** (the row stays ≥ 52pt tall)
+   - Fine-print top margin: 4 → **0**
+   - Footer top padding: 10 → **8**
+3. **Goal:** on **393 × 852** (iPhone 15 / 15 Pro) at default text size, the whole screen from the headline to **Save preferences** is visible without scrolling, in all four states. The body still scrolls on smaller devices and at larger Dynamic Type sizes.
+
+The reference file `screen-reachability-reference.jsx` has been updated. The attached spec-sheet PNG still shows the old push row; the reference file wins.
+
+> **Prompt for Claude Code:** *Update Profile 10 "Stay reachable" per the "Updated 28 Sep 2026" section of this ticket. Move the push toggle into the notifications card head, remove the separate push row, rename the card title to "Push notifications" and apply the spacing values. Use `design_handoff_showup/profile/screen-reachability-reference.jsx` (scope="mvp") for the values. Do not change logic, tracking or other copy.*
+
 ## Description
 
 The screen that decides whether we can reach the user when a match lands. **In the MVP it does two jobs, and only the first one has anything behind it:**
@@ -46,7 +65,8 @@ Unchanged on 09: layout, all other copy, the Android ≤ 12 / already-determined
 ⚠ **Layout is flex, not absolute.** StatusBar → headline block (`flex: none`) → **scrolling body** (`flex: 1`, `min-height: 0`, `overflow: auto`) → **pinned footer** with the CTA → HomeIndicator. Never hard-code a Y position: German copy runs about 30% longer and Dynamic Type can double the card height.
 
 - **The body scrolls; the CTA never does.** The footer is pinned, with its fade from transparent to `--liq-bg`. The scroll content needs bottom padding at least equal to the footer, so the fine print can scroll clear of the CTA.
-- **One card.** Card head (bell pip, title, purpose line) → the push row → a divider → the interest heading and three checkbox rows. The card lifts to the violet tint while push is on.
+- **One card.** Card head (violet bell pip, `Recommended` pill, title **with the push toggle**, card line) → a divider → the interest heading and three checkbox rows. **There is no separate push row** (changed 28 Sep 2026). The card lifts to the violet tint while push is on.
+- **Above the fold on 393 × 852:** the whole screen fits without scrolling at default text size (28 Sep 2026). Scrolling remains the fallback for smaller devices and larger text sizes.
 - The backdrop (orange orb, violet orb, peach wash) matches 09. It is decorative and `pointer-events: none`.
 - **Every row is a ≥ 44 × 44 hit target.** The whole interest row toggles its box, not only the 22px square. The switch is 51 × 31 visually, padded to 44 tall.
 
@@ -118,9 +138,9 @@ The status is read **on arrival and on every foreground** by the shared permissi
 
 Headline: `Never miss a date and avoid getting a penalty!` — `Never miss` is the italic em with the shared `.su-underlined em` wash
 Lead: `Activate notifications so you never miss a date! Missing a date lowers your Show-up Rate, which will lead to a temporary ban or permanent suspension from the app.` — the bold words are exactly as in the reference file
-Card title: `Get notifications`
+Card pill (above the title): `Recommended`
+Card title (with the toggle): `Push notifications` — **changed 28 Sep 2026, was `Get notifications`**
 Card line: `We'll let you know about new matches, meet time or location changes and date cancellations.`
-Push row: `Push notifications` + pill `Recommended`
 Interest heading: `More ways to reach you are coming soon.`
 Interest line: `Tell us which ones you'd like.`
 Rows: `Phone call from our AI assistant` / sub-line `A short automated call when something changes.` · `WhatsApp` · `SMS`
@@ -150,7 +170,8 @@ A path whose item is not done ships **hidden**, not disabled.
 ## Acceptance criteria
 
 - [ ] Built from `scope="mvp"`. **Nothing from `scope="full"` ships**: no concierge-call card, calendar card, phone field, email row, or WhatsApp/SMS toggles
-- [ ] One card: head → push row with `Recommended` → divider → interest heading → three checkbox rows, in the order and with the strings above
+- [ ] One card: head (pill `Recommended`, title `Push notifications` + toggle, card line) → divider → interest heading → three checkbox rows, in the order and with the strings above. **No separate push row**
+- [ ] **On 393 × 852 at default text size, the headline → Save preferences is fully visible without scrolling** in states A–D. Spacing matches the "Updated 28 Sep 2026" values
 - [ ] **Push is on by default**, and the three checkboxes are **unchecked by default**
 - [ ] Switching push off opens the deactivation confirm, and **the toggle stays on until Confirm deactivation**. Keep active and a scrim tap both leave it on
 - [ ] **Checking a box fires `channel_interest_changed` and nothing else** — no dialog, no field, no consent write, no network call to the consent service
@@ -167,7 +188,7 @@ A path whose item is not done ships **hidden**, not disabled.
 - [ ] Every toggle and checkbox row is a ≥ 44pt hit target. The switch thumb **animates** (the kit's `justify-content` shortcut is not copied)
 - [ ] No header, no progress bar, no skip, no close; back is blocked
 - [ ] Copy matches the strings above exactly, including **Show-up Rate**
-- [ ] **Evidence of done:** screenshots of states A, B, C and D at **375 × 667, 390 × 844 and 430 × 932**, with 375 × 667 shown scrolled to the top and to the bottom. Plus: the OS dialog as raised on each platform (unstyled), a recording of Don't allow → confirm → Settings on iOS, and the analytics debug log for one full pass showing every event in the table below
+- [ ] **Evidence of done:** screenshots of states A, B, C and D at **375 × 667, 390 × 844, 393 × 852 and 430 × 932**, with 375 × 667 shown scrolled to the top and to the bottom. Plus: the OS dialog as raised on each platform (unstyled), a recording of Don't allow → confirm → Settings on iOS, and the analytics debug log for one full pass showing every event in the table below
 
 ## Tracking
 

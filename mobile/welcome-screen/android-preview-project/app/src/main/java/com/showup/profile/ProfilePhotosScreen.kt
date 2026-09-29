@@ -1298,7 +1298,10 @@ private fun PhotoGrid(
                         hint = slotHint(index, filled),
                         optional = isOptionalSlot(index),
                         cta = filled == 0 && index == 0,
-                        isMain = index == 0 && filled > 0,
+                        // THE LOWEST STORED BOX, not box zero -- see `PhotoGridState.mainSlot`,
+                        // which is null until something is actually stored. The original's
+                        // `filled > 0` guard is gone because it now says the same thing twice.
+                        isMain = state.mainSlot == index,
                         // aspectRatio is NOT used: the slot's height is a constant, and a ratio
                         // would make it depend on the column width and therefore on the device.
                         modifier = Modifier
@@ -1312,7 +1315,12 @@ private fun PhotoGrid(
                             .reorderable(
                                 index = index,
                                 enabled = state.canReorder && state.at(index) != null,
-                                count = state.photos.size,
+                                // BOXES ON SCREEN, NOT PHOTOS HELD. `reorderTarget` refuses any
+                                // target at or past this, so handing it the photo count made the
+                                // empty half of a partly-filled grid undroppable -- and did it
+                                // per direction, which is why it read as "some photos move and
+                                // some don't" rather than as reorder being broken.
+                                count = state.slotsOnScreen,
                                 onReorder = onReorder,
                             ),
                         onTap = { onSlotTap(index) },
