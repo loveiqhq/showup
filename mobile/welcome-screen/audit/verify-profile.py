@@ -1305,9 +1305,17 @@ check("163 the pill no longer caps its own type (swift)",
 REACH_SPACING = [
     ("headline top padding is 20", "topPadding = 20.dp", "topPadding: 20"),
     ("lead top margin is 10", "top = 10.dp", ".padding(.top, 10)"),
-    ("body top padding is 14", "Modifier.padding(top = 14.dp)", ".padding(.top, 14)"),
+    # THE WHOLE BODY PADDING, both ends: `padding: '14px 24px 4px'` in the reference. The 4 is
+    # the body's own bottom and is separate from the pinned-footer reservation under it.
+    ("body padding is 14 over 4",
+     "Modifier.padding(top = 14.dp, bottom = 4.dp)", ".padding(.top, 14)"),
     ("interest rows are padded 9", "vertical = 9.dp", ".padding(.vertical, 9)"),
-    ("interest rows keep a 52 floor", "heightIn(min = 52.dp)", "minHeight: 52"),
+    # THE FLOOR IS THE SHARED TOKEN, and the ticket's "(>= 52pt)" is asserted by measurement
+    # in `ReachabilityFitTest` instead -- it is what the row comes out at, not what it is set to.
+    ("interest rows keep the shared tap floor",
+     "heightIn(min = ComponentSizes.minTapTarget)", "minHeight: ComponentSizes.minTapTarget"),
+    ("the body has the reference's 4 at the bottom",
+     "bottom = 4.dp", ".padding(.bottom, 4)"),
     ("footer top padding is 8", "top = 8.dp", ".padding(.top, 8)"),
 ]
 for label, kt, sw in REACH_SPACING:

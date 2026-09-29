@@ -227,12 +227,14 @@ private struct InterestRow: View {
             }
             .frame(width: 22, height: 22)
         }
-        // 9, WITH A 52 FLOOR. The ticket tightens the padding and states the floor in the
-        // same breath, because they are the same requirement: three rows lose nine points each
-        // and none of them may drop below a comfortable target doing it. 52 is the ticket's
-        // number and it clears the 44pt iOS minimum this project holds to.
+        // 9, AND THE FLOOR STAYS THE SHARED ONE.
+        //
+        // The ticket tightens the padding and adds "(the row stays >= 52pt tall)", which reads
+        // like a floor and is not one -- it is what the row MEASURES once the padding changes: a
+        // 34pt pip between two 9s. The reference confirms it, keeping `minHeight: 44` untouched
+        // through the same edit. The guarantee is real and belongs in a test.
         .padding(.vertical, 9)
-        .frame(minHeight: 52)
+        .frame(minHeight: ComponentSizes.minTapTarget)
         // THE WHOLE ROW. `contentShape` is what makes the padding tappable rather than only the
         // pip and the text — without it the gaps between them do nothing, which is a control
         // whose hit area is smaller than it looks.
@@ -729,7 +731,11 @@ struct ProfileReachabilityView: View {
                     )
                     FinePrint(onPrivacy: onPrivacy)
                 }
+                // `padding: '14px 24px 4px'`. The 4 is the body's own bottom and is separate
+                // from the footer reservation below: the reference's footer is a flex SIBLING
+                // of the scroll region so it never overlaps, while ours is pinned over it.
                 .padding(.top, 14)
+                .padding(.bottom, 4)
 
                 // The fine print must scroll CLEAR of the pinned CTA. Reserved, not hoped for.
                 Spacer(minLength: footerClearance)

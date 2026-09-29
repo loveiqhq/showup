@@ -108,6 +108,7 @@ import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Danger
 import com.showup.designsystem.Elevated
+import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.ConsentSwitch
 import com.showup.designsystem.Fg
 import com.showup.designsystem.FgSubtle
@@ -298,11 +299,18 @@ private fun InterestRow(
                 onValueChange = { onToggle() },
             )
             .semantics(mergeDescendants = true) {}
-            // 9, WITH A 52 FLOOR. The ticket tightens the padding and states the floor in the
-            // same breath, because they are the same requirement: three rows lose nine points
-            // each, and none of them may drop below a comfortable target doing it. 52 is the
-            // ticket's number and it clears the 48dp Material minimum this project holds to.
-            .heightIn(min = 52.dp)
+            // 9, AND THE FLOOR STAYS THE SHARED ONE.
+            //
+            // The ticket tightens the padding and adds "(the row stays >= 52pt tall)", which
+            // reads like a floor and is not one -- it is what the row MEASURES once the padding
+            // changes: a 34dp pip between two 9s. The reference confirms it, keeping
+            // `minHeight: 44` untouched through the same edit.
+            //
+            // Writing 52 here, as the first pass did, would have been a literal invented from a
+            // parenthesis and a second standard tap height competing with the token. The
+            // guarantee is real and belongs in a test, which is where it now is -- see
+            // `ReachabilityFitTest`.
+            .heightIn(min = ComponentSizes.minTapTarget)
             .padding(vertical = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -506,7 +514,11 @@ fun ProfileReachabilityScreen(
         // headline above sits at 28. So the body pulls back 4 on each side rather than the
         // scaffold carrying two gutters.
         Column(
-            Modifier.padding(top = 14.dp),
+            // `padding: '14px 24px 4px'`. The 4 is the body's own bottom and is separate from
+            // the footer reservation below it: the reference's footer is a flex SIBLING of the
+            // scroll region, so it never overlaps, while ours is pinned over it and needs
+            // [FooterClearance] as well. The two stack rather than replace each other.
+            Modifier.padding(top = 14.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ReachCard(state, onPushChange, onInterestToggle)

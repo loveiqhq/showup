@@ -5,6 +5,10 @@
 // (ui_kits/show-up/screens-profile-reachability.jsx). Reference, not
 // production code — recreate it in the app's own patterns. Do not ship it.
 //
+// UPDATED 28 Sep 2026 — MVP layout fits above the fold on iPhone 15 Pro.
+// Push toggle moved into the card head; MVP spacing tightened. See
+// the "Updated 28 Sep 2026" section of tickets/10-reachability.md.
+//
 // ─────────────────────────────────────────────────────────────
 // WHAT MATTERS HERE — read before the kit's own header below
 // ─────────────────────────────────────────────────────────────
@@ -330,7 +334,7 @@ function InterestCheckRow({ icon, title, sub, on, onToggle, first }) {
   return (
     <button type="button" role="checkbox" aria-checked={on} onClick={onToggle} style={{
       width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', gap: 12,
-      padding: '12px 0', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
+      padding: '9px 0', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
       borderTop: first ? 'none' : '1px solid var(--liq-border-soft)',
     }}>
       <div style={{
@@ -364,23 +368,40 @@ function NotifyChannelsCard({ channels, consents, onToggle, mvp = false, interes
       padding: 16,
       transition: 'background 220ms, border-color 220ms',
     }}>
-      {/* Shared purpose — stated once for the whole group. */}
+      {/* Shared purpose — stated once for the whole group.
+          MVP (28 Sep 2026): push is the only live channel, so its toggle sits
+          in this head row instead of a separate channel row underneath —
+          removes a duplicated "notifications" line and keeps the whole screen
+          above the fold on iPhone 15 Pro. */}
       <div style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
         <div style={{
           flex: 'none', width: 40, height: 40, borderRadius: 12,
-          background: 'var(--su-grad-lilac)',
+          background: mvp ? 'var(--liq-primary-500)' : 'var(--su-grad-lilac)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--liq-primary-500)',
+          color: mvp ? '#fff' : 'var(--liq-primary-500)',
         }}>
           <Icon name="bell" size={20} stroke={1.8}/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {mvp && (
+            <span style={{
+              display: 'inline-block', marginBottom: 4,
+              padding: '2px 8px', borderRadius: 999,
+              background: 'var(--liq-primary-500)', color: '#fff',
+              fontFamily: 'var(--liq-font-sans)', fontWeight: 700,
+              fontSize: 10.5, letterSpacing: '0.03em', textTransform: 'uppercase',
+            }}>Recommended</span>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
+            flex: 1, minWidth: 0,
             fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 16.5,
             color: 'var(--liq-fg)', lineHeight: 1.2, letterSpacing: '-0.005em',
             textWrap: 'balance',
           }}>
-            Get notifications
+            {mvp ? 'Push notifications' : 'Get notifications'}
+          </div>
+          {mvp && <ConsentToggle on={!!consents.notifications} onChange={() => onToggle('notifications')} label="Push notifications"/>}
           </div>
           <div style={{
             marginTop: 6,
@@ -393,8 +414,8 @@ function NotifyChannelsCard({ channels, consents, onToggle, mvp = false, interes
         </div>
       </div>
 
-      {/* Channel toggle rows. */}
-      <div style={{ marginTop: 8 }}>
+      {/* Channel toggle rows (full scope only). */}
+      {!mvp && <div style={{ marginTop: 8 }}>
         {channels.map((c, i) => (
           <NotifyChannelRow
             key={c.key}
@@ -404,11 +425,11 @@ function NotifyChannelsCard({ channels, consents, onToggle, mvp = false, interes
             first={i === 0}
           />
         ))}
-      </div>
+      </div>}
 
       {/* MVP demand test — interest checkboxes, no function behind them. */}
       {mvp && (
-        <div style={{ marginTop: 10, paddingTop: 18, borderTop: '1px solid var(--liq-border-soft)' }}>
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--liq-border-soft)' }}>
           <div style={{ fontFamily: 'var(--liq-font-sans)', fontWeight: 700, fontSize: 14, lineHeight: 1.35, color: 'var(--liq-fg)', textWrap: 'pretty' }}>
             More ways to reach you are coming soon.
           </div>
@@ -508,7 +529,7 @@ function ScreenProfileReachability({
       {/* HEADLINE — dark Lora with italic-underline flourish. */}
       <div style={{
         position: 'relative', zIndex: 1,
-        padding: '32px 28px 0', flex: 'none',
+        padding: mvp ? '20px 28px 0' : '32px 28px 0', flex: 'none',
       }}>
         <h1 className="su-underlined" style={{
           fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 31,
@@ -518,7 +539,7 @@ function ScreenProfileReachability({
           <em>Never miss</em> a date and avoid getting a penalty!
         </h1>
         <p style={{
-          margin: '14px 0 0',
+          margin: mvp ? '10px 0 0' : '14px 0 0',
           fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 14.5,
           lineHeight: 1.5, color: 'var(--liq-neutral-200)', textWrap: 'pretty',
         }}>
@@ -532,7 +553,7 @@ function ScreenProfileReachability({
       <div className="su-noscroll" style={{
         position: 'relative', zIndex: 1,
         flex: 1, minHeight: 0, overflow: flow ? 'visible' : 'auto',
-        padding: '20px 24px 8px',
+        padding: mvp ? '14px 24px 4px' : '20px 24px 8px',
         display: 'flex', flexDirection: 'column', gap: 12,
       }}>
         {!mvp && REACH_PRIMARY.map((c) => (
@@ -557,7 +578,7 @@ function ScreenProfileReachability({
             and the Privacy Policy link. Sits in the muted register so
             it reads as reassurance, not another card. */}
         <div style={{
-          marginTop: 4, padding: '2px 4px',
+          marginTop: mvp ? 0 : 4, padding: '2px 4px',
           fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 11.5,
           lineHeight: 1.5, color: 'var(--liq-fg-subtle)', textWrap: 'pretty',
         }}>
@@ -578,7 +599,7 @@ function ScreenProfileReachability({
           its label just shifts to acknowledge whichever state you're in. */}
       <div style={{
         position: 'relative', zIndex: 1,
-        padding: '10px 24px 6px', flex: 'none',
+        padding: mvp ? '8px 24px 6px' : '10px 24px 6px', flex: 'none',
         background: 'linear-gradient(180deg, rgba(255,251,247,0) 0%, var(--liq-bg) 34%)',
       }}>
         <Button variant="sunset" size="lg" fullWidth onClick={onSave}>

@@ -270,6 +270,35 @@ class ReachabilityFitTest {
             ),
         )
 
+    /**
+     * "(the row stays >= 52pt tall)" -- the ticket's parenthesis, measured.
+     *
+     * IT IS A CONSEQUENCE, NOT A SETTING, which is the whole reason it is here rather than in a
+     * `heightIn`. Tightening the interest rows from 12 to 9 takes 6pt off each of three rows,
+     * and the ticket's parenthesis is the assurance that doing so does not quietly produce a
+     * cramped target. What actually holds the height is the 34dp pip inside the row, so the
+     * guarantee survives only as long as that does -- and a future pass that shrinks the pip
+     * would satisfy every other check in this file while breaking this one.
+     *
+     * AT DEFAULT TYPE ONLY. Larger font scales make the row taller, never shorter, so asserting
+     * the floor at 1.0 asserts it everywhere.
+     */
+    @Test
+    fun `the interest rows still measure 52 after the padding was tightened`() {
+        val short = mutableListOf<String>()
+        for (d in DEVICES) {
+            val s = shoot(d.width, d.safeHeight, fontScale = 1f, state = ALL)
+            // The switch is the first box; the three interest rows follow it.
+            s.toggleBoxes.drop(1).forEachIndexed { i, (h, _) ->
+                if (h < 52f) short += "$d  interest row $i is ${h}dp"
+            }
+        }
+        assertTrue(
+            "the ticket promises >= 52pt rows:\n" + short.joinToString("\n"),
+            short.isEmpty(),
+        )
+    }
+
     // ── the hit targets ─────────────────────────────────────────────────────
 
     /**
