@@ -12,8 +12,12 @@
  * (`10-reachability-later.md`) and they are kept in the reference so nothing is lost, not so they
  * can be built early.
  *
- * What ships is one card: head → the push row → a divider → the interest heading → three
- * checkbox rows. Plus a headline, fine print, and a pinned CTA.
+ * What ships is one card: head → a divider → the interest heading → three checkbox rows.
+ * Plus a headline, fine print, and a pinned CTA.
+ *
+ * THE HEAD IS THE PUSH CONTROL, since 28 September 2026. It used to introduce notifications and
+ * then offer a separate row to switch them on -- two titles for one thing, and about sixty points
+ * of height that put the fine print below the fold on the 393 x 852 the ticket now targets.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * THE BODY SCROLLS AND THE CTA NEVER DOES

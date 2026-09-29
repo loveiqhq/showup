@@ -380,8 +380,6 @@ private struct ReachCard: View {
     }
 }
 
-/// The push row's label and its `Recommended` pill.
-///
 /// The `Recommended` badge, on its own line above the card title.
 ///
 /// IT USED TO SHARE A ROW WITH THE LABEL and that was the hard case: eleven unbreakable
