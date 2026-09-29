@@ -1531,10 +1531,26 @@ for name, src in [("kotlin", notify_vm_kt), ("swift", notify_vm_sw)]:
 
 # AND 09 RAISES NO DIALOG. The event absence above would still pass if the request were made
 # silently, which is the worse version of the bug: a sheet with no record of it.
-check("163/09 raises no OS dialog (kotlin)",
-      "askNotifications.launch" not in code_only(read(KT, "profile",
-                                                      "NotificationsViewModel.kt")))
-check("163/09 raises no OS dialog (swift)", "ask.request()" not in code_only(notify_vm_sw))
+#
+# LOOKED FOR WHERE THE DIALOG IS ACTUALLY RAISED, which on Android is not the view model. The
+# first version of this check searched `NotificationsViewModel.kt` for `askNotifications.launch`
+# -- a launcher that only ever exists in `MainActivity`, so the string could not appear there and
+# the check could not fail. Proved by putting the request back on 09's CTA: all 956 checks passed.
+#
+# The branch is the unit that matters. `code_only` has already removed the comments between the
+# two arms, so the slice is exactly 09's wiring.
+_main_kt = code_only(read(KT, "MainActivity.kt"))
+_09_branch_kt = (_main_kt.split("FlowScreen.ProfileNotifications ->")[-1]
+                 .split("FlowScreen.ProfileReachability ->")[0])
+check("163/09 raises no OS dialog (kotlin)", "askNotifications.launch" not in _09_branch_kt)
+
+# iOS keeps the ask ON the model -- held and deliberately unused -- so the model is the right
+# place to look there, and this one was never vacuous. The screen's own wiring is checked too,
+# because a request added at the call site would bypass the model entirely.
+_app_sw = code_only(read(SW, "ShowUpWelcomeApp.swift"))
+_09_screen_sw = _app_sw.split("ProfileNotificationsView(")[-1].split(")")[0]
+check("163/09 raises no OS dialog (swift)",
+      "ask.request()" not in code_only(notify_vm_sw) and "request(" not in _09_screen_sw)
 
 # UNCHANGED ON 09: the ALREADY-DETERMINED SKIP itself, which the ticket lists under what this
 # ticket must not touch. What went with 163 is the push registration that used to hang off it --
