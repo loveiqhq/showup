@@ -674,7 +674,15 @@ w(T + "};")
 w(T + "rootObject = %s /* Project object */;" % PROJECT)
 w("}")
 
-out = os.path.join("ShowUpWelcome.xcodeproj", "project.pbxproj")
+# ANCHORED TO THE SCRIPT, NOT TO THE SHELL'S CWD.
+#
+# Every other path in this file is built from `HERE`; this one was relative, so running the
+# generator from anywhere but `ios-app/` wrote a COMPLETE SECOND PROJECT next to the real one --
+# same name, wrong directory, wrong relative paths to every source file it lists. It happened on
+# 28 September 2026 from `mobile/welcome-screen/`, the duplicate was committed, and only a
+# reviewer noticed. Nothing failed: CI builds the real project by path, so the impostor sat there
+# being wrong in silence.
+out = os.path.join(HERE, "ShowUpWelcome.xcodeproj", "project.pbxproj")
 os.makedirs("ShowUpWelcome.xcodeproj", exist_ok=True)
 io.open(out, "w", encoding="utf-8", newline="\n").write("\n".join(L) + "\n")
 print("wrote %s (%d bytes, %d objects)" % (out, os.path.getsize(out), _n[0]))

@@ -1298,11 +1298,10 @@ private fun PhotoGrid(
                         hint = slotHint(index, filled),
                         optional = isOptionalSlot(index),
                         cta = filled == 0 && index == 0,
-                        // THE LOWEST OCCUPIED BOX, not box zero -- see `PhotoGridState.mainSlot`.
-                        // `filled > 0` is kept from the original: a grid where nothing has
-                        // finished uploading badges nothing, so the crown does not appear before
-                        // there is a stored photo for it to mean anything about.
-                        isMain = state.mainSlot == index && filled > 0,
+                        // THE LOWEST STORED BOX, not box zero -- see `PhotoGridState.mainSlot`,
+                        // which is null until something is actually stored. The original's
+                        // `filled > 0` guard is gone because it now says the same thing twice.
+                        isMain = state.mainSlot == index,
                         // aspectRatio is NOT used: the slot's height is a constant, and a ratio
                         // would make it depend on the column width and therefore on the device.
                         modifier = Modifier

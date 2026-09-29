@@ -1270,8 +1270,24 @@ for label, text in REACH_COPY:
 # Checked as an ABSENCE of the old row's own markers rather than a presence of the new head,
 # because a rebuild would reintroduce the row alongside the head rather than instead of it, and
 # that is the failure worth catching.
-check("163 no separate push row (kotlin)", "the push row" not in reach_kt)
-check("163 no separate push row (swift)", "the push row" not in reach_sw)
+# THE FIRST VERSION OF THIS CHECK COULD NOT FAIL, and it is worth saying why rather than just
+# replacing it: it searched for the phrase "the push row", which only ever appeared in a COMMENT,
+# against `code_only()` output, which strips comments. It passed on a file that still had the row
+# and would have passed on one that grew it back.
+#
+# The code-level marker is the label. `PUSH_ROW` / `pushRow` named the removed row's visible text
+# and now names nothing but the switch's accessibility name, so ONE use is the structure: a second
+# is a second place the words are drawn, which is the row returning.
+# SCOPED TO THE CARD. The words appear a third time in the deactivation dialog, as the channel
+# chip the ticket asks for -- so a whole-file count is not the question. Inside the card, between
+# its declaration and the first interest row, ONE use is the structure: the switch's name. A
+# second is the words drawn again, which is the row coming back.
+for _name, _src, _decl, _use in [
+    ("kotlin", reach_kt, "private fun ReachCard", "ReachCopy.PUSH_ROW"),
+    ("swift", reach_sw, "private struct ReachCard", "ReachCopy.pushRow"),
+]:
+    _card = _src.split(_decl)[-1].split("InterestRow(")[0]
+    check("163 no separate push row (%s)" % _name, _card.count(_use) == 1)
 
 # The small pip belonged to the row. One head means one bell, and it is the head's 20.
 #
@@ -1285,9 +1301,18 @@ check("163 one bell pip, and it is the head's (swift)",
 # The switch sits in the card head now, so it is above the divider rather than below the title
 # block. `ConsentSwitch` appearing before "the demand test" is that, and it is the whole point of
 # the change: the thing being switched and the switch are one row.
-for name, src in [("kotlin", reach_kt), ("swift", reach_sw)]:
+# SPLIT ON CODE, NOT ON A COMMENT. This too was vacuous: it split on "the demand test", a
+# comment heading, in comment-stripped source -- so the split returned the whole file and the
+# check reduced to "the switch exists somewhere". It would have passed with the switch back in a
+# row below the divider, which is the one thing it is supposed to forbid.
+#
+# The card's own body is the region that matters, and `InterestRow(` is the first thing after the
+# head, so the switch has to appear before it.
+for name, src, decl in [("kotlin", reach_kt, "private fun ReachCard"),
+                        ("swift", reach_sw, "private struct ReachCard")]:
+    body = src.split(decl)[-1]
     check("163 the switch is in the card head (%s)" % name,
-          "ConsentSwitch(" in src.split("the demand test")[0])
+          "ConsentSwitch(" in body.split("InterestRow(")[0])
 
 # The pill moved ABOVE the title, which retired the wrap workaround on both platforms. Its cap on
 # type went with the constraint that justified it -- if either comes back, the layout reason for
@@ -1304,7 +1329,10 @@ check("163 the pill no longer caps its own type (swift)",
 # fine print back below the fold without breaking anything a test would otherwise notice.
 REACH_SPACING = [
     ("headline top padding is 20", "topPadding = 20.dp", "topPadding: 20"),
-    ("lead top margin is 10", "top = 10.dp", ".padding(.top, 10)"),
+    # THE WHOLE CALL, because `top = 10.dp` on its own also matches the dialog's own padding and
+    # the lead could revert to 14 with the check still green.
+    ("lead top margin is 10",
+     "padding(start = 4.dp, end = 4.dp, top = 10.dp)", ".padding(.top, 10)"),
     # THE WHOLE BODY PADDING, both ends: `padding: '14px 24px 4px'` in the reference. The 4 is
     # the body's own bottom and is separate from the pinned-footer reservation under it.
     ("body padding is 14 over 4",

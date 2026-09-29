@@ -383,6 +383,36 @@ class PhotoDragGestureTest {
         assertNull("an empty grid has no main photo", PhotoGridState().mainSlot)
     }
 
+    /**
+     * A BOX CAN BE OCCUPIED AND HOLD NOTHING THE PROFILE HAS.
+     *
+     * Raised in review. An upload that failed keeps its box so Retry can re-send it, and one
+     * still in flight occupies its box from the moment it is picked -- neither is stored. The
+     * badge says "this is your main photo", which is a claim about the account, so it has to name
+     * a photo the account actually holds.
+     *
+     * Unreachable before the drag was widened: with box 0 always occupied the rule `index == 0`
+     * produced the same answer, and a gap at box 0 simply badged nothing at all.
+     */
+    @Test
+    fun `an unstored photo is never the main one`() {
+        fun built(vararg pairs: Pair<Int, UploadStatus>) = PhotoGridState(
+            photos = pairs.map { (slot, st) -> PickedPhoto(slot.toLong(), null, st, slot = slot) },
+        )
+        assertEquals(
+            "a failed upload in the first box must not be badged",
+            1, built(0 to UploadStatus.Failed, 1 to UploadStatus.Confirmed).mainSlot,
+        )
+        assertEquals(
+            "nor one still in flight",
+            2, built(1 to UploadStatus.InFlight, 2 to UploadStatus.Confirmed).mainSlot,
+        )
+        assertNull(
+            "and a grid with nothing stored has no main photo at all",
+            built(0 to UploadStatus.InFlight, 1 to UploadStatus.Failed).mainSlot,
+        )
+    }
+
     @Test
     fun `the board is the boxes on screen, not the photos held`() {
         // The bug in one assertion. Both grids hold two photos; one has the optional pair
