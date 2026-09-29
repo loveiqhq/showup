@@ -1548,7 +1548,30 @@ check("163/09 raises no OS dialog (kotlin)", "askNotifications.launch" not in _0
 # place to look there, and this one was never vacuous. The screen's own wiring is checked too,
 # because a request added at the call site would bypass the model entirely.
 _app_sw = code_only(read(SW, "ShowUpWelcomeApp.swift"))
-_09_screen_sw = _app_sw.split("ProfileNotificationsView(")[-1].split(")")[0]
+
+
+def _balanced_call(src, opener):
+    """The whole of a call beginning with `opener`, to its MATCHING close paren.
+
+    `split(")")[0]` stops at the first close paren, which in a SwiftUI call is almost never the
+    call's own: `onEnable: { if notifications.continuePressed() { ... } }` ends the slice inside
+    the first closure. That left a few characters to search and a check that would have missed a
+    request added anywhere after it -- raised in review, and true.
+    """
+    i = src.find(opener)
+    if i < 0:
+        return ""
+    j, depth = i + len(opener), 1
+    while j < len(src) and depth:
+        if src[j] == "(":
+            depth += 1
+        elif src[j] == ")":
+            depth -= 1
+        j += 1
+    return src[i:j]
+
+
+_09_screen_sw = _balanced_call(_app_sw, "ProfileNotificationsView(")
 check("163/09 raises no OS dialog (swift)",
       "ask.request()" not in code_only(notify_vm_sw) and "request(" not in _09_screen_sw)
 
