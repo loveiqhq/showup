@@ -117,10 +117,20 @@ object MediaCopy {
      * and blames nothing it cannot prove: the camera may be busy, the permission may have been
      * revoked between the check and the call, the device may have refused. Guessing at one of
      * those in the copy sends people to fix the wrong thing.
+     *
+     * STILL UNAPPROVED. Its sibling below was approved on 5 October 2026; this one appears only
+     * when the camera will not start at all, which nobody has reached on a device, so it has never
+     * been shown to Philipp.
      */
     const val CAPTURE_NEVER_STARTED = "We couldn't start recording. Please try again."
 
-    /** A take that ran and wrote nothing. A different problem, and a different sentence. */
+    /**
+     * A take that ran and wrote nothing. A different problem, and a different sentence.
+     *
+     * APPROVED by Philipp on 5 October 2026, after seeing it on the emulator. `MediaFailureRowTest`
+     * asserts this exact string, so changing it fails the build until the test changes too --
+     * deliberately, because a change to approved copy should be a decision rather than a drift.
+     */
     const val CAPTURE_NOTHING_RECORDED = "That recording didn't save. Please try again."
 
     const val OPTIONAL_PILL = "Optional · you can skip this"
@@ -360,13 +370,14 @@ fun MediaSlotCard(
  * A take that produced nothing, said out loud.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * THE COPY HERE IS OURS AND IS NOT APPROVED
+ * ONE OF THESE TWO SENTENCES IS APPROVED, AND ONE IS STILL OURS
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * The ticket specifies a permission row and an upload retry and NO recording failure at all --
  * ten states are drawn and this is not one of them. So these two sentences are written in the
  * flow's existing voice and recorded in `audit/CONFLICTS-2026-08-27.md` as E34, needing a copy
- * decision.
+ * decision. "That recording didn't save. Please try again." was approved by Philipp on
+ * 5 October 2026; "We couldn't start recording" has not yet been shown to him.
  *
  * They are here rather than absent because the alternative was measured against a real user
  * twice: a take that fails silently is indistinguishable from one that was never attempted, and

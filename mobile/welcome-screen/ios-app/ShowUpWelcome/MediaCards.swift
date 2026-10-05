@@ -33,9 +33,16 @@ enum MediaCopy {
     /// OURS, NOT THE TICKET'S — see `MediaFailureRow` and E34. Names what happened and what to do,
     /// and blames nothing it cannot prove: the camera may be busy, the permission may have been
     /// revoked between the check and the call. Guessing sends people to fix the wrong thing.
+    ///
+    /// STILL UNAPPROVED. Its sibling below was approved on 5 October 2026; this one appears only
+    /// when the camera will not start at all, which nobody has reached on a device, so it has
+    /// never been shown to Philipp.
     static let captureNeverStarted = "We couldn't start recording. Please try again."
 
     /// A take that ran and wrote nothing. A different problem, and a different sentence.
+    ///
+    /// APPROVED by Philipp on 5 October 2026, after seeing it on the Android emulator. Change it
+    /// only with him.
     static let captureNothingRecorded = "That recording didn't save. Please try again."
 
     static let optionalPill = "Optional · you can skip this"
@@ -159,10 +166,12 @@ struct PromptCaption: View {
 /// manifesto card is not coming back.
 /// A take that produced nothing, said out loud.
 ///
-/// THE COPY HERE IS OURS AND IS NOT APPROVED. The ticket specifies a permission row and an upload
+/// ONE OF THESE TWO SENTENCES IS APPROVED, AND ONE IS STILL OURS. The ticket specifies a permission row and an upload
 /// retry and NO recording failure at all — ten states are drawn and this is not one of them. So
 /// these two sentences are written in the flow's existing voice and recorded in
-/// `audit/CONFLICTS-2026-08-27.md` as E34, needing a copy decision.
+/// `audit/CONFLICTS-2026-08-27.md` as E34, needing a copy decision. "That recording didn't save.
+/// Please try again." was approved by Philipp on 5 October 2026; "We couldn't start recording"
+/// has not yet been shown to him.
 ///
 /// They are here rather than absent because the alternative was measured against a real user
 /// twice: a take that fails silently is indistinguishable from one that was never attempted.

@@ -1190,6 +1190,18 @@ rather than invented. A sentence here is a product decision, not a build detail.
 whether it is a toast, an inline row on the card, or a dialog is a design call. Until it exists,
 the next report of this will again be indistinguishable from the last.
 
+### DECIDED, 5 October 2026 — the sentence is approved
+
+Built as an inline row on the card, and Philipp approved the wording after seeing it on the
+emulator: **"That recording didn't save. Please try again."**
+
+**One of the two sentences only.** `CAPTURE_NEVER_STARTED` — "We couldn't start recording. Please
+try again." — appears when the camera will not start at all. Nobody has reached that state on a
+device, so it has never been shown to him, and it stays recorded as ours until it is.
+
+The debug-only CameraX error line that used to sit under the sentence was taken off the screen on
+4 October (it goes to logcat now), so what he approved is exactly what a user sees.
+
 ## E35 · The fine print's link cannot be a 44pt target, and is not one
 
 `CLAUDE.md` says 44pt / 48dp for anything tappable, "even where the reference draws smaller".
