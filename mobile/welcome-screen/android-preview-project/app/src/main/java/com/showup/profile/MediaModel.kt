@@ -177,15 +177,15 @@ enum class CaptureFailure2 { NeverStarted, NothingRecorded }
 /**
  * A take that produced nothing, and which card it belonged to.
  *
- * [detail] is the platform's own explanation and is populated ONLY IN A DEBUG BUILD -- see
- * `MediaCaptureSession.failureDetail`. A release build shows the sentence and nothing else: a
- * user has no use for "encoding failed (6)", and whoever is holding the phone while it happens
- * has no use for anything less.
+ * THE SENTENCE AND NOTHING ELSE. Until 4 October 2026 this also carried the platform's own
+ * explanation -- "no valid data (8), 0ms, 0 bytes" -- drawn under the message in debug builds.
+ * It found the start-gap bug in a single report, and it also put an error code on the screen of
+ * the person testing the app, who reasonably read it as part of the message. The diagnostic now
+ * goes to logcat instead; see `MediaViewModel.stopTake`.
  */
 data class CaptureFailed(
     val kind: MediaKind,
     val cause: CaptureFailure2,
-    val detail: String? = null,
 )
 
 data class MediaState(
