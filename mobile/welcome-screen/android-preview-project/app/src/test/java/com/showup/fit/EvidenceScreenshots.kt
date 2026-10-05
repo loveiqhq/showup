@@ -399,23 +399,28 @@ class EvidenceScreenshots {
 
     @Test
     fun `every state of every ticket, at the three frames the tickets name`() {
-        // SHOWUP-163 -- four states. The ticket asks for A, B, C and D at the three frames, with
-        // 375 x 667 additionally shown scrolled to the top and to the bottom; the scrolled pair
-        // is `ReachabilityFitTest`'s job because it needs to drive the scroll, not the camera's.
-        shoot("SHOWUP-163", "A-default") { ProfileReachabilityScreen() }
-        shoot("SHOWUP-163", "B-interest") {
+        // SHOWUP-163 -- four states, at FOUR frames since 28 September 2026. Philipp's update
+        // added 393 x 852 to this ticket's evidence ("screenshots of states A, B, C and D at
+        // 375 x 667, 390 x 844, 393 x 852 and 430 x 932"), because that is the frame the whole
+        // update was for: the screen has to fit on it without scrolling. Added for 163 ONLY --
+        // flipping `inAcceptanceCriteria` on the device would put an unrequested fourth image on
+        // every other ticket's evidence too. 375 x 667 is additionally shown scrolled to the top
+        // and bottom below.
+        val reach = frames + DEVICES.first { it.width == 393 && it.height == 852 }
+        shoot("SHOWUP-163", "A-default", devices = reach) { ProfileReachabilityScreen() }
+        shoot("SHOWUP-163", "B-interest", devices = reach) {
             ProfileReachabilityScreen(
                 ReachabilityState(
                     interest = setOf(InterestChannel.AiCall, InterestChannel.WhatsApp),
                 ),
             )
         }
-        shoot("SHOWUP-163", "C-confirm") {
+        shoot("SHOWUP-163", "C-confirm", devices = reach) {
             ProfileReachabilityScreen(
                 ReachabilityState(prompt = DeactivationPrompt.UserTurnedItOff),
             )
         }
-        shoot("SHOWUP-163", "D-after-denial") {
+        shoot("SHOWUP-163", "D-after-denial", devices = reach) {
             ProfileReachabilityScreen(
                 ReachabilityState(prompt = DeactivationPrompt.AfterOsDenial),
             )

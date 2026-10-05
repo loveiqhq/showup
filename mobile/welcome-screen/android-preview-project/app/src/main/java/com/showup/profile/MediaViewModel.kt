@@ -30,6 +30,7 @@
 package com.showup.profile
 
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.BuildConfig
@@ -434,16 +435,22 @@ open class MediaViewModel(
                 // failure on close, or a camera session that was never really recording. A
                 // different problem from "would not start", and reported as one.
                 session = null
+                // CAMERAX'S OWN EXPLANATION, IN LOGCAT AND NOT ON THE SCREEN.
+                //
+                // It used to be drawn under the message in debug builds, and it earned that: one
+                // report reading "no valid data (8), 0ms, 0 bytes" was enough to find the start
+                // gap after three rounds of guessing. But the person reading the screen is
+                // testing the PRODUCT, and a second grey line of error code reads as part of what
+                // users will see. Logcat keeps the diagnostic for whoever is debugging and keeps
+                // it off the screen for everyone else. Debug only, like every log in this app;
+                // it names a CameraX error, never anything about the user.
+                if (BuildConfig.DEBUG) {
+                    current.failureDetail()?.let { Log.w("MediaCapture", "take produced nothing: $it") }
+                }
                 _state.update {
                     it.copy(
                         take = null,
-                        captureFailed = CaptureFailed(
-                            take.kind,
-                            CaptureFailure2.NothingRecorded,
-                            // DEBUG ONLY. The platform's explanation is a diagnostic, not copy,
-                            // and a release build must not show a user an error code.
-                            detail = if (BuildConfig.DEBUG) current.failureDetail() else null,
-                        ),
+                        captureFailed = CaptureFailed(take.kind, CaptureFailure2.NothingRecorded),
                     )
                 }
                 return@launch
