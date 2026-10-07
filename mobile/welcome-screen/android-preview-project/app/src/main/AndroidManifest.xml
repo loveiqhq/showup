@@ -49,6 +49,17 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!--
+        Location, for the location ask (SHOWUP-165). BOTH, and requested together in one call:
+        Android 12+ refuses fine without coarse, and lets the user choose "Approximate", which grants
+        coarse alone; precise and approximate are both accepted.
+
+        WHILE-IN-USE ONLY. There is no ACCESS_BACKGROUND_LOCATION here, and the ticket forbids one
+        anywhere in this flow: "we never ask for background ('Always') location".
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
         required="false" on both so Play does not filter the app off a device missing either. The
         camera is one of two ways to fill a photo slot and the other always works; both media slots
         are optional and the whole step is skippable, so neither is a requirement to use the app.

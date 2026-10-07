@@ -11,6 +11,7 @@
 //
 
 import Foundation
+import ShowUpAPI
 
 /// The facts `GET /me/profile/progress` returns.
 ///
@@ -23,6 +24,13 @@ struct ProfileProgress: Equatable, Sendable {
     var hasDateOfBirth = false
     var photoCount = 0
     var promptCount = 0
+    /// The two MANDATORY "Share some details" steps (Profiles 15, 16). A mandatory step cannot be
+    /// passed without an answer, so the answer is the evidence — like the name.
+    var hasGender = false
+    var hasOrientation = false
+    /// The furthest step completed or skipped after prompts, or nil before any — see
+    /// ProfileFlow.swift. The only evidence a SKIPPABLE step was passed.
+    var flowPosition: String?
 }
 
 /// Where in profile creation an account has got to.
@@ -33,6 +41,20 @@ enum ResumePoint: CaseIterable {
     case dob
     case photos
     case prompts
+    // After prompts the position is no longer derived from facts alone — see ProfileFlow.swift.
+    case media
+    /// The notification ask. Its own skip guard still applies at routing time (`afterMedia`).
+    case notifications
+    case reachability
+    /// The location ask. Its arrival matrix still applies at routing time (SHOWUP-165).
+    case location
+    case height
+    case gender
+    case orientation
+    case datingLanguage
+    case education
+    case religion
+    case politics
     /// Everything the flow asks for is on the account.
     case done
 }
@@ -62,5 +84,25 @@ func resumePoint(_ progress: ProfileProgress) -> ResumePoint {
     if !progress.hasDateOfBirth { return .dob }
     if progress.photoCount < photosRequired { return .photos }
     if progress.promptCount < promptsRequired { return .prompts }
+
+    // ── past prompts: the stored position ────────────────────────────────────
+    //
+    // Until SHOWUP-165 the chain ended here with `.done`, so a relaunch anywhere after prompts went
+    // home and silently skipped media, both asks and every detail step.
+    let at = progress.flowPosition
+    if hasNotReached(at, .media_video) { return .media }
+    if hasNotReached(at, .notifications) { return .notifications }
+    if hasNotReached(at, .reachability) { return .reachability }
+    if hasNotReached(at, .location) { return .location }
+    // NO EMBRACE 2. The second bridge is never a resume point, for the reason the first is not.
+    if hasNotReached(at, .height) { return .height }
+    // MANDATORY STEPS CHECK THE ANSWER TOO: a position past gender with no gender stored — an old
+    // free-text value the migration could not map — must still come back for it.
+    if hasNotReached(at, .gender) || !progress.hasGender { return .gender }
+    if hasNotReached(at, .orientation) || !progress.hasOrientation { return .orientation }
+    if hasNotReached(at, .dating_language) { return .datingLanguage }
+    if hasNotReached(at, .education) { return .education }
+    if hasNotReached(at, .religion) { return .religion }
+    if hasNotReached(at, .politics) { return .politics }
     return .done
 }

@@ -38,6 +38,7 @@ package com.showup.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -79,6 +80,43 @@ open class ReachabilityViewModel(
         this.host = host
     }
 
+    /** The host's Activity is going away; the view model must not keep it. */
+    fun detach(host: ReachabilityHost) {
+        if (this.host === host) this.host = null
+    }
+
+    /**
+     * The OS dialog's answer, while one is awaited.
+     *
+     * HELD HERE, NOT IN THE COMPOSITION. A fold, a scheduled dark-mode switch or a font change while
+     * the dialog is up rebuilds the Activity; AndroidX re-delivers the answer to the NEW launcher,
+     * and a deferred remembered by the old composition was never completed -- the save waited for
+     * ever with the CTA swallowing every press, on a screen with no back. The view model outlives
+     * the rebuild, so the answer always reaches the save that is waiting for it. The same rule
+     * `LocationHost` follows.
+     */
+    private var pendingNotificationAnswer: CompletableDeferred<Boolean>? = null
+
+    /** Launches the dialog with [launch] and waits for [notificationAnswered]. */
+    suspend fun awaitNotificationAnswer(launch: () -> Unit): Boolean {
+        // One wait at a time: a newer one cancels the one it replaces rather than orphaning it.
+        pendingNotificationAnswer?.cancel()
+        val answer = CompletableDeferred<Boolean>()
+        pendingNotificationAnswer = answer
+        try {
+            launch()
+            return answer.await()
+        } finally {
+            if (pendingNotificationAnswer === answer) pendingNotificationAnswer = null
+        }
+    }
+
+    /** The launcher's callback -- the old Activity's or the rebuilt one's. */
+    fun notificationAnswered(granted: Boolean) {
+        pendingNotificationAnswer?.complete(granted)
+        pendingNotificationAnswer = null
+    }
+
     /**
      * The screen was shown.
      *
@@ -92,13 +130,13 @@ open class ReachabilityViewModel(
      */
     fun arrived(referrer: ProfileScreen? = ProfileScreen.Notifications) {
         val status = access.read()
-        _state.update { it.copy(pushOn = status != NotificationPermission.Denied &&
-            status != NotificationPermission.Restricted) }
+        _state.update { it.copy(pushOn = status != PermissionStatus.Denied &&
+            status != PermissionStatus.Restricted) }
 
         if (announced) return
         announced = true
         analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.Reachability, referrer))
-        if (status == NotificationPermission.NotDetermined) {
+        if (status == PermissionStatus.NotDetermined) {
             analytics?.report(ProfileAnalytics.permissionPrompted())
         }
     }
@@ -114,11 +152,11 @@ open class ReachabilityViewModel(
         val status = access.read()
         _state.update {
             when (status) {
-                NotificationPermission.Granted -> it.copy(pushOn = true)
-                NotificationPermission.Denied,
-                NotificationPermission.Restricted -> it.copy(pushOn = false)
+                PermissionStatus.Granted -> it.copy(pushOn = true)
+                PermissionStatus.Denied,
+                PermissionStatus.Restricted -> it.copy(pushOn = false)
                 // Still unanswered: leave the user's own choice alone.
-                NotificationPermission.NotDetermined -> it
+                PermissionStatus.NotDetermined -> it
             }
         }
     }
@@ -140,7 +178,7 @@ open class ReachabilityViewModel(
             return
         }
         when (access.read()) {
-            NotificationPermission.Denied, NotificationPermission.Restricted -> {
+            PermissionStatus.Denied, PermissionStatus.Restricted -> {
                 analytics?.report(ProfileAnalytics.permissionSettingsOpened())
                 host?.openSettingsOrReprompt()
             }
@@ -164,8 +202,8 @@ open class ReachabilityViewModel(
         // what denied looks like: "Off. Switching it on opens Settings". This says it one moment
         // earlier, using the same mapping as the foreground re-read.
         val status = access.read()
-        val denied = status == NotificationPermission.Denied ||
-            status == NotificationPermission.Restricted
+        val denied = status == PermissionStatus.Denied ||
+            status == PermissionStatus.Restricted
         _state.update { it.copy(prompt = null, pushOn = it.pushOn && !denied) }
         analytics?.report(ProfileAnalytics.consentDeactivationAbandoned())
     }
@@ -250,8 +288,8 @@ open class ReachabilityViewModel(
 
             // (1) The dialog, and ONLY when push is on and nothing has been answered yet. With
             // push off, or the status already determined, no dialog appears.
-            var granted = access.read() == NotificationPermission.Granted
-            if (before.pushOn && access.read() == NotificationPermission.NotDetermined) {
+            var granted = access.read() == PermissionStatus.Granted
+            if (before.pushOn && access.read() == PermissionStatus.NotDetermined) {
                 analytics?.report(ProfileAnalytics.permissionOsSheetShown())
                 granted = host?.requestNotificationPermission() ?: false
                 analytics?.report(ProfileAnalytics.permissionResult(granted))

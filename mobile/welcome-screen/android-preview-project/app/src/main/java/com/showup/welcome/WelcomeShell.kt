@@ -130,6 +130,25 @@ enum class OrbPlacement {
      * at different offsets.
      */
     VoiceCapture,
+
+    /**
+     * `Atmosphere` from `components/shared.jsx` -- orange 460 at top -18% / right -25%, violet 460
+     * at bottom -16% / left -26%. "Share some details" uses it at the `form` intensity, 0.13 / 0.11
+     * (SHOWUP-167 to SHOWUP-173). No peach wash: that layer is the bridges' and Startup's.
+     */
+    Atmosphere,
+
+    /**
+     * Embrace 2 (SHOWUP-166): orange 480 at top -18% / right -20%, and the violet as a broad glow
+     * CENTRED at the bottom rather than an orb in the corner -- `radial-gradient(ellipse at 50% 70%)`
+     * over a box 120% wide and 540 tall, sitting 10% below the bottom edge. Its peach wash is 320
+     * tall and fades out by 60%, not Startup's 360 / 70%.
+     *
+     * A placement of the ONE backdrop and not a second component: the ticket asks for exactly
+     * that ("if the backdrop component cannot take it as a prop cheaply, say so before building a
+     * second variant"). It could.
+     */
+    EmbraceDetails,
 }
 
 @Composable
@@ -165,15 +184,45 @@ fun WelcomeBackdrop(
                 radial(Offset(w + 0.25f * w - 260.dp.toPx(), -0.15f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
                 radial(Offset(-0.30f * w + 300.dp.toPx(), h + 0.20f * h - 300.dp.toPx()), 300.dp.toPx(), Purple, violetAlpha)
             }
+            OrbPlacement.Atmosphere -> {
+                radial(Offset(w + 0.25f * w - 230.dp.toPx(), -0.18f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.26f * w + 230.dp.toPx(), h + 0.16f * h - 230.dp.toPx()), 230.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.EmbraceDetails -> {
+                radial(Offset(w + 0.20f * w - 240.dp.toPx(), -0.18f * h + 240.dp.toPx()), 240.dp.toPx(), Orange, orangeAlpha)
+                // THE ELLIPSE, derived rather than eyeballed. CSS sizes an `ellipse at 50% 70%` to
+                // the farthest corner at the closest-side aspect: for a box 1.2w x 540 that is a
+                // vertical radius of sqrt(162^2 + 378^2) = 411.25 whatever the width, and a
+                // horizontal one 1.523 x the width. Centre: half the width, 70% down a box whose
+                // bottom sits at 1.1h -- so 1.1h - 162. Drawn as a circle on an x-scaled canvas,
+                // the same move the headline wash makes; transparent from 60% of the radius, as
+                // the reference stops it.
+                val ry = 411.25.dp.toPx()
+                val rx = 1.5231f * w
+                val centre = Offset(w / 2f, 1.1f * h - 162.dp.toPx())
+                withTransform({ scale(rx / ry, 1f, pivot = centre) }) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0.00f to Purple.copy(alpha = violetAlpha),
+                            0.60f to Color.Transparent,
+                            1.00f to Color.Transparent,
+                            center = centre, radius = ry,
+                        ),
+                        radius = ry, center = centre,
+                    )
+                }
+            }
         }
 
         if (peachWash) {
             // linear-gradient(180deg, rgba(255,229,210,.55) 0%, rgba(255,251,247,0) 70%) · height 360
-            val washH = 360.dp.toPx()
+            // -- Embrace 2 draws its own at 320 tall, transparent by 60%.
+            val embrace2 = placement == OrbPlacement.EmbraceDetails
+            val washH = (if (embrace2) 320 else 360).dp.toPx()
             drawRect(
                 brush = Brush.verticalGradient(
                     0.0f to Color(0xFFFFE5D2).copy(alpha = 0.55f),
-                    0.7f to Color(0x00FFFBF7),
+                    (if (embrace2) 0.6f else 0.7f) to Color(0x00FFFBF7),
                     1.0f to Color.Transparent,
                     startY = 0f, endY = washH,
                 ),
@@ -573,6 +622,12 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
     // `Bell` is the card's head pip and the push row's; `PhoneCall` and `WhatsApp` are two of the
     // three interest rows (SMS reuses `MessageCircle`); `AlertCircle` is the dialog's pip.
     Bell, PhoneCall, WhatsApp, AlertCircle,
+
+    // ── added for the location ask (SHOWUP-165) ─────────────────────────────
+    //
+    // The three benefit rows name `compass · map-pin · navigation` (`Lock` already existed, for the
+    // privacy note). Copied from `components/shared.jsx` at its exact 24-grid geometry.
+    Compass, MapPin, Navigation,
     /**
      * The kit's `heart-filled`, which is what Connect's button has always drawn.
      *
@@ -922,6 +977,41 @@ fun Icon(
                         stroke.width, StrokeCap.Round,
                     )
                 }
+                // ── added for the location ask (SHOWUP-165) ───────────────────────────
+                //
+                // `circle 12,12 r10` + `polygon 16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88`.
+                BrandIcon.Compass -> {
+                    drawCircle(tint, radius = 10f, center = Offset(12f, 12f), style = stroke)
+                    drawPath(
+                        path(
+                            listOf(16.24f to 7.76f, 14.12f to 14.12f, 7.76f to 16.24f, 9.88f to 9.88f),
+                            close = true,
+                        ),
+                        tint, style = stroke,
+                    )
+                }
+                // `M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z` + `circle 12,10 r3`. The `s`
+                // segment's first control point is the reflection of the `c` segment's second,
+                // which sits on the tip (12,23) -- so both curves leave the tip straight down.
+                BrandIcon.MapPin -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(21f, 10f)
+                            cubicTo(21f, 17f, 12f, 23f, 12f, 23f)
+                            cubicTo(12f, 23f, 3f, 17f, 3f, 10f)
+                            // a9 9 0 0 1 18 0 -- the TOP half, clockwise from left to right.
+                            arcTo(Rect(3f, 1f, 21f, 19f), 180f, 180f, false)
+                            close()
+                        },
+                        tint, style = stroke,
+                    )
+                    drawCircle(tint, radius = 3f, center = Offset(12f, 10f), style = stroke)
+                }
+                // `polygon 3 11 22 2 13 21 11 13`.
+                BrandIcon.Navigation -> drawPath(
+                    path(listOf(3f to 11f, 22f to 2f, 13f to 21f, 11f to 13f), close = true),
+                    tint, style = stroke,
+                )
                 // ── added for the media step (SHOWUP-161) ───────────────────────────
                 //
                 // All five copied from `components/shared.jsx` at its exact 24-grid geometry,
@@ -1357,6 +1447,13 @@ fun WelcomeScaffold(
      * It still clears the gesture bar: the insets are on the column this sits in.
      */
     footer: (@Composable () -> Unit)? = null,
+    /**
+     * A full-bleed layer ABOVE the backdrop and BELOW the content -- Embrace 2's confetti
+     * (SHOWUP-166): "the confetti passes behind the copy and the CTA, never over them". Drawn
+     * outside the insets, like the backdrop, so it falls from above the status bar to below the
+     * gesture bar. Null everywhere else, which draws nothing.
+     */
+    behindContent: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Box(modifier.fillMaxSize().background(Cream)) {
@@ -1364,6 +1461,7 @@ fun WelcomeScaffold(
             peachWash = peachWash, placement = placement,
             orangeAlpha = orangeAlpha, violetAlpha = violetAlpha,
         )
+        behindContent?.invoke()
         // safeDrawing = system bars + display cutout + IME, so the column sits above the keyboard.
         // It only reports the IME when the activity is in adjustResize; the manifest sets that.
         val insets = Modifier

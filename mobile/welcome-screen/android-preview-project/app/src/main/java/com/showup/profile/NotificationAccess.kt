@@ -55,7 +55,7 @@ import androidx.core.content.ContextCompat
  *
  * [trackingValue] is what goes on the wire; the names are never typed at a call site.
  */
-enum class NotificationPermission(val trackingValue: String) {
+enum class PermissionStatus(val trackingValue: String) {
     NotDetermined("not_determined"),
     Granted("granted"),
     Denied("denied"),
@@ -82,7 +82,7 @@ enum class NotificationPermission(val trackingValue: String) {
  * has a screen whose entire reason to exist depends on the answer.
  */
 interface NotificationAccessReader {
-    fun read(): NotificationPermission
+    fun read(): PermissionStatus
 }
 
 /**
@@ -91,7 +91,7 @@ interface NotificationAccessReader {
  * The single decision behind both skip cases, as a pure function so the host can take it before
  * the screen is pushed and a test can take it with no device.
  */
-fun shouldShowAsk(status: NotificationPermission): Boolean = !status.isDetermined
+fun shouldShowAsk(status: PermissionStatus): Boolean = !status.isDetermined
 
 /**
  * The status, from the three facts Android can report. A pure function, so the branch that
@@ -105,13 +105,13 @@ fun notificationPermissionFor(
     sdkInt: Int,
     granted: Boolean,
     hasAsked: Boolean,
-): NotificationPermission = when {
+): PermissionStatus = when {
     // Below 33 there is no runtime permission at all. Granted, per §24 -- and the branch the
     // ticket calls "the one that actually fires in production".
-    sdkInt < Build.VERSION_CODES.TIRAMISU -> NotificationPermission.Granted
-    granted -> NotificationPermission.Granted
-    hasAsked -> NotificationPermission.Denied
-    else -> NotificationPermission.NotDetermined
+    sdkInt < Build.VERSION_CODES.TIRAMISU -> PermissionStatus.Granted
+    granted -> PermissionStatus.Granted
+    hasAsked -> PermissionStatus.Denied
+    else -> PermissionStatus.NotDetermined
 }
 
 /** The real reader. */
@@ -121,7 +121,7 @@ class AndroidNotificationAccess(
     private val sdkInt: Int = Build.VERSION.SDK_INT,
 ) : NotificationAccessReader {
 
-    override fun read(): NotificationPermission {
+    override fun read(): PermissionStatus {
         // The context is not touched below 33, where the answer does not depend on it.
         if (sdkInt < Build.VERSION_CODES.TIRAMISU) {
             return notificationPermissionFor(sdkInt, granted = false, hasAsked = false)
@@ -140,7 +140,7 @@ class AndroidNotificationAccess(
 
 /** Answers from memory. Previews, and every test that is about the rules rather than the device. */
 class FixedNotificationAccess(
-    private val status: NotificationPermission = NotificationPermission.NotDetermined,
+    private val status: PermissionStatus = PermissionStatus.NotDetermined,
 ) : NotificationAccessReader {
-    override fun read(): NotificationPermission = status
+    override fun read(): PermissionStatus = status
 }

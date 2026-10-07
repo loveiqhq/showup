@@ -18,6 +18,23 @@ describe('redactForLog', () => {
     expect(out.longitude).toBe(REDACTED);
   });
 
+  it('redacts the special-category profile answers, which arrive as plain body keys', () => {
+    const out = redactForLog({
+      gender: 'woman',
+      orientation: 'bisexual',
+      religion: 'catholic',
+      politics: 'middle',
+      flowPosition: 'politics',
+    }) as Record<string, unknown>;
+
+    expect(out.gender).toBe(REDACTED);
+    expect(out.orientation).toBe(REDACTED);
+    expect(out.religion).toBe(REDACTED);
+    expect(out.politics).toBe(REDACTED);
+    // The flow position names a STEP, not an answer -- "politics" here says how far someone got.
+    expect(out.flowPosition).toBe('politics');
+  });
+
   it('redacts private message content', () => {
     const out = redactForLog({ message: 'see you at 8' }) as Record<
       string,

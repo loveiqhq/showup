@@ -127,6 +127,27 @@ class CrashesTest {
     }
 
     @Test
+    fun `special-category profile answers are redacted, and the analytics field id is not`() {
+        val event = SentryEvent().apply {
+            extras = mapOf(
+                "gender" to "non_binary",
+                "orientation" to "gay",
+                "religion" to "muslim",
+                "politics" to "left",
+                "field_id" to "religion",
+            )
+        }
+
+        val extras = requireNotNull(Crashes.scrub(event).extras)
+
+        listOf("gender", "orientation", "religion", "politics").forEach {
+            assertEquals("$it should be redacted", Crashes.REDACTED, extras[it])
+        }
+        // Naming WHICH question failed is not the answer, and is what makes a report useful.
+        assertEquals("religion", extras["field_id"])
+    }
+
+    @Test
     fun `prohibited tags are redacted too`() {
         val event = SentryEvent().apply {
             tags = mapOf("email" to "someone@example.com", "build" to "release")

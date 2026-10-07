@@ -321,8 +321,18 @@ fun measureFit(
                         "by %.1fdp".format(-left))
                 }
                 if (top < -SLACK_DP) {
-                    found += Violation(device, screen, name, "OFF THE TOP",
-                        "by %.1fdp".format(-top))
+                    // ABOVE THE FOLD of something that scrolls is a scroll too -- the same rule as
+                    // below it, in the other direction. A list opened scrolled to its saved row
+                    // (SHOWUP-169, 172, 173) puts its first rows above the viewport by design; they
+                    // are one drag away, not lost. Outside a scroll it is still a real failure.
+                    found += if (scrollable) {
+                        Violation(device, screen, name, "ABOVE THE FOLD",
+                            "by %.1fdp, reachable by scrolling".format(-top),
+                            advisory = true)
+                    } else {
+                        Violation(device, screen, name, "OFF THE TOP",
+                            "by %.1fdp".format(-top))
+                    }
                 }
                 // 4. a tap target squeezed below the stated minimum
                 val clickable = node.config.getOrNull(SemanticsActions.OnClick) != null

@@ -31,6 +31,14 @@ struct FloatingField: View {
     var capitalization: TextInputAutocapitalization = .words
     var contentType: UITextContentType? = nil
     var onSubmit: () -> Void = {}
+    /// Take focus — and so open the keyboard — as soon as the field is on screen.
+    ///
+    /// THE FOCUS STATE IS THIS VIEW'S OWN, so only this view can set it. A screen that declares its
+    /// own `@FocusState` and sets it on appear binds nothing: the TextField below is bound to
+    /// `focused` here, not to the screen's. Height (SHOWUP-167) asks for "focused on arrival with
+    /// the numeric keypad open", which is what this delivers. Declared last, after every existing
+    /// argument, so no call site changes.
+    var focusOnAppear: Bool = false
 
     @FocusState private var focused: Bool
 
@@ -81,7 +89,7 @@ struct FloatingField: View {
                 } else if valid {
                     ZStack {
                         Circle().fill(Color.liqSuccess.opacity(0.14))
-                        CheckGlyph(size: 13, color: .liqSuccessFg, lineWidth: 3)
+                        CheckGlyph(size: 13, color: .liqSuccessFg, stroke: 3)
                     }
                     .frame(width: 22, height: 22)
                 }
@@ -120,6 +128,13 @@ struct FloatingField: View {
                 .animation(.easeOut(duration: Motion.fast), value: labelColor)
                 .accessibilityHidden(true)
         }
+        // A beat after appearing rather than in `onAppear`: focus set before the field is in the
+        // window is dropped, and the keyboard would not open. Cancelled with the view.
+        .task {
+            guard focusOnAppear else { return }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            focused = true
+        }
     }
 
     /// Focus the field. Called by the screens on appear — the keyboard is open before the first tap.
@@ -129,10 +144,14 @@ struct FloatingField: View {
 // MARK: - Glyphs
 
 /// A drawn tick on a 24 grid, like every other icon here.
+///
+/// `stroke` IS IN THE GRID'S UNITS, exactly as the reference's `strokeWidth` is inside its
+/// `viewBox="0 0 24 24"`, so it scales with `size`: 3 at 13 draws 1.6 wide. It was an absolute
+/// width until 6 October 2026, and every small tick came out about twice as heavy as the design's.
 struct CheckGlyph: View {
     let size: CGFloat
     let color: Color
-    var lineWidth: CGFloat = 2
+    var stroke: CGFloat = 2
 
     var body: some View {
         Path { p in
@@ -141,7 +160,7 @@ struct CheckGlyph: View {
             p.addLine(to: CGPoint(x: 10 * s, y: 17 * s))
             p.addLine(to: CGPoint(x: 19 * s, y: 7 * s))
         }
-        .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+        .stroke(color, style: StrokeStyle(lineWidth: stroke * size / 24, lineCap: .round, lineJoin: .round))
         .frame(width: size, height: size)
     }
 }

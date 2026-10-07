@@ -14,7 +14,7 @@
 export type SensitivityClass = 0 | 1 | 2 | 3;
 
 /** Bumped whenever the field_id registry vocabulary changes; stamped as field_registry_version. */
-export const FIELD_REGISTRY_VERSION = '1.1.0';
+export const FIELD_REGISTRY_VERSION = '1.4.15';
 
 /** Fail-closed default for a field not present in the registry. */
 export const SENSITIVITY_UNKNOWN_DEFAULT: SensitivityClass = 2;

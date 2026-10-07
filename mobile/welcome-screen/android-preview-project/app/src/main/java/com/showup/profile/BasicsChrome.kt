@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -97,7 +98,11 @@ fun AppHeader(
     Row(
         modifier
             .fillMaxWidth()
-            .height(52.dp)
+            // A FLOOR, NOT A FIXED HEIGHT. 52 is the design and every title fits it at the default
+            // size; "Share some details" (SHOWUP-167) is the longest, and at 2.0x type on a 360 phone
+            // it needs a second line that a fixed 52 cut in half (ScreenFitTest). The header grows
+            // only when its title really wraps.
+            .heightIn(min = 52.dp)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),

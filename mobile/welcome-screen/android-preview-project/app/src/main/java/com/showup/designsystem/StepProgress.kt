@@ -67,7 +67,7 @@ fun StepProgress(steps: Int, current: Int, modifier: Modifier = Modifier) {
             val target = if (i < current) Purple else Track
             val segment by animateColorAsState(
                 targetValue = target,
-                animationSpec = tween(durationMillis = if (motion.enabled) 320 else 0),
+                animationSpec = tween(durationMillis = if (motion.enabled) Motion.PROGRESS else 0, easing = CssEase),
                 label = "segment",
             )
             Box(

@@ -53,7 +53,7 @@ private actor FakePush: PushRegistering {
 final class NotificationRulesTests: XCTestCase {
 
     private func build(
-        _ status: NotificationPermission = .notDetermined,
+        _ status: PermissionStatus = .notDetermined,
         granted: Bool = true,
         events: Recorder,
         push: FakePush
@@ -243,7 +243,7 @@ final class NotificationRulesTests: XCTestCase {
      */
     func testNothingOnThisScreenRegistersForPush() async {
         let push = FakePush()
-        for status in [NotificationPermission.granted, .denied, .restricted, .notDetermined] {
+        for status in [PermissionStatus.granted, .denied, .restricted, .notDetermined] {
             let model = build(status, events: Recorder(), push: push)
             model.arrived()
             model.continuePressed()
@@ -265,7 +265,7 @@ final class NotificationRulesTests: XCTestCase {
         // The user backgrounds the sheet, turns notifications on in Settings by hand, comes back.
         // The screen is never a terminal state: a dead CTA must be unreachable.
         let push = FakePush()
-        for status in [NotificationPermission.granted, .denied, .restricted] {
+        for status in [PermissionStatus.granted, .denied, .restricted] {
             let model = build(status, events: Recorder(), push: push)
             let determined = await model.statusIsNowDetermined()
             XCTAssertTrue(determined, "\(status) should advance the screen")

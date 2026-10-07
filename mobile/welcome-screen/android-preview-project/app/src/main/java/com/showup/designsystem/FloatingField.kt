@@ -29,21 +29,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.input.VisualTransformation
 
 /**
  * The outlined input with a label that rides up and notches the border.
@@ -120,13 +127,40 @@ fun FloatingField(
     // 180ms cubic-bezier(.22,1,.36,1) on every affordance, per the spec sheet. The colour tweens
     // are what stop the valid -> error swap reading as a redraw.
     val motion = rememberMotion()
-    val ms = if (motion.enabled) 180 else 0
-    val animatedBorder by animateColorAsState(borderColor, tween(ms), label = "border")
-    val animatedHalo by animateColorAsState(haloColor, tween(ms), label = "halo")
-    val animatedLabelColor by animateColorAsState(labelColor, tween(ms), label = "labelColor")
-    val labelTop by animateDpAsState(if (active) (-8).dp else 22.dp, tween(ms), label = "labelTop")
-    val labelLeft by animateDpAsState(if (active) 14.dp else 18.dp, tween(ms), label = "labelLeft")
-    val labelSize by animateFloatAsState(if (active) 12f else 17f, tween(ms), label = "labelSize")
+    val ms = if (motion.enabled) Motion.FAST else 0
+    val animatedBorder by animateColorAsState(borderColor, tween(ms, easing = ShowUpEasing), label = "border")
+    val animatedHalo by animateColorAsState(haloColor, tween(ms, easing = ShowUpEasing), label = "halo")
+    val animatedLabelColor by animateColorAsState(
+        labelColor, tween(ms, easing = ShowUpEasing), label = "labelColor",
+    )
+    val labelTop by animateDpAsState(
+        if (active) (-8).dp else 22.dp, tween(ms, easing = ShowUpEasing), label = "labelTop",
+    )
+    val labelLeft by animateDpAsState(
+        if (active) 14.dp else 18.dp, tween(ms, easing = ShowUpEasing), label = "labelLeft",
+    )
+    val labelSize by animateFloatAsState(
+        if (active) 12f else 17f, tween(ms, easing = ShowUpEasing), label = "labelSize",
+    )
+
+    // THE CARET LANDS AT THE END OF A VALUE THAT ARRIVES. The String overload of BasicTextField
+    // starts its caret at 0, so a field pre-filled while focused -- height on a resume or a back --
+    // put the caret before "175": backspace deleted nothing and typing went in front. Only a value
+    // that arrives in an EMPTY field moves the caret; every other edit keeps the stock behaviour.
+    var fieldValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    // The last text handed UP, reset whenever the parent's value changes -- what the stock String
+    // overload compares against. Comparing with `value` instead dropped an edit when two arrived in
+    // one frame and the second returned the text to it (type then delete, an autocorrect revert).
+    val lastSent = remember(value) { Held(value) }
+    // "Arrives in an empty field" is judged on what was SHOWN -- the parent's previous value -- as
+    // well as the buffer, which can still hold a keystroke the parent cleared.
+    val previous = remember { Held(value) }
+    val shown = when {
+        fieldValue.text == value -> fieldValue
+        fieldValue.text.isEmpty() || previous.value.isEmpty() -> TextFieldValue(value, TextRange(value.length))
+        else -> fieldValue.copy(text = value)
+    }
+    previous.value = value
 
     val shape = RoundedCornerShape(Radius.control)
 
@@ -135,10 +169,21 @@ fun FloatingField(
             Modifier
                 .fillMaxWidth()
                 .height(64.dp)
-                // The halo is a 4px ring OUTSIDE the stroke. Drawn as a second border on a slightly
-                // larger box rather than a shadow: Modifier.shadow is elevation, which has a light
-                // source and therefore a direction, and this ring must be even on all four sides.
-                .border(4.dp, animatedHalo, shape)
+                // The halo is a 4px ring OUTSIDE the stroke -- the reference's `0 0 0 4px` shadow. It
+                // is drawn as a stroke centred 2 outside the box, so it neither covers the field nor
+                // tints a translucent error background. Not Modifier.shadow: that is elevation, with
+                // a light source and therefore a direction, and this ring is even on all four sides.
+                .drawBehind {
+                    val ring = 4.dp.toPx()
+                    val radius = Radius.control.toPx() + ring / 2f
+                    drawRoundRect(
+                        color = animatedHalo,
+                        topLeft = Offset(-ring / 2f, -ring / 2f),
+                        size = Size(size.width + ring, size.height + ring),
+                        cornerRadius = CornerRadius(radius, radius),
+                        style = Stroke(width = ring),
+                    )
+                }
                 .clip(shape)
                 .background(if (error) Danger.copy(alpha = 0.04f) else Elevated)
                 .border(1.5.dp, animatedBorder, shape)
@@ -147,8 +192,17 @@ fun FloatingField(
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
+                value = shown,
+                onValueChange = { next ->
+                    fieldValue = next
+                    // Sent when it differs from what is shown OR from what was last sent: the first
+                    // catches an edit the parent refused before (it would otherwise match the stale
+                    // `lastSent` for ever), the second two edits in one frame.
+                    if (next.text != value || next.text != lastSent.value) {
+                        lastSent.value = next.text
+                        onValueChange(next.text)
+                    }
+                },
                 modifier = Modifier
                     .weight(1f)
                     // The same guarantee InputField exists to make: the text measures to the box,
@@ -196,7 +250,7 @@ fun FloatingField(
                     Modifier.size(22.dp).background(Success.copy(alpha = 0.14f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CheckGlyph(size = 13.dp, color = SuccessFg, strokeWidth = 3.dp)
+                    CheckGlyph(size = 13.dp, color = SuccessFg, stroke = 3f)
                 }
             }
         }
@@ -220,3 +274,6 @@ fun FloatingField(
         )
     }
 }
+
+/** A plain remembered slot: [FloatingField]'s last text sent up. */
+private class Held(var value: String)

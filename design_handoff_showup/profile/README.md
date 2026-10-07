@@ -13,6 +13,14 @@ profile/
   screen-prompts-reference.jsx     ← screen 07, prompts
   screen-media-reference.jsx       ← screen 08, media (video + voice) + the two capture views
   screen-notifications-reference.jsx ← screen 09, the notification permission ask
+  screen-embrace-details-reference.jsx ← screen 13, the second bridge + ConfettiRain
+  screen-height-reference.jsx      ← screen 14, height + DetailsScaffold, the “Share some details” shell
+  screen-gender-reference.jsx      ← screen 15, gender + OptionRow, the group's single-select row
+  screen-orientation-reference.jsx ← screen 16, orientation — consumes OptionRow, builds nothing
+  screen-dating-language-reference.jsx ← screen 17, dating language + CheckRow, the group's multi-select row
+  screen-education-reference.jsx   ← screen 18, education — consumes OptionRow, builds nothing
+  screen-religion-reference.jsx    ← screen 19, religion — consumes OptionRow, builds nothing, list scrolls on every device
+  screen-politics-reference.jsx    ← screen 20, politics — consumes OptionRow, builds nothing, linear order
   tickets/00-epic.md               ← the epic: flow shape, story list, what is built once
   tickets/01-name.md               ← scope, copy strings, AC
   spec-sheets/01-name.png          ← annotated visual spec, keyed ①–⑮
@@ -23,6 +31,14 @@ profile/
   spec-sheets/06-photos.png        ← keyed ①–⑳, 7 frames, violet permission callouts
   spec-sheets/07-prompts.png       ← keyed ①–㉗, 8 frames, violet conversion callouts
   spec-sheets/08-media.png         ← keyed ①–㉞, 10 frames, violet capture views + permission matrix
+  spec-sheets/13-embrace-details.png ← keyed ①–⑯, 2 frames (at rest · frozen at 900 ms), orange confetti callouts
+  spec-sheets/14-height.png        ← keyed ①–⑯, 3 frames, danger-red refusal callouts
+  spec-sheets/15-gender.png        ← keyed ①–⑰, 3 frames, danger-red refusal callouts
+  spec-sheets/16-orientation.png   ← keyed ①–⑰, 3 frames, danger-red refusal callouts
+  spec-sheets/17-dating-language.png ← keyed ①–⑰, 2 frames, no refused state
+  spec-sheets/18-education.png     ← keyed ①–⑱, 2 frames, no refused state, one violet exception callout
+  spec-sheets/19-religion.png      ← keyed ①–⑲, 3 frames (2 states + scrolled), violet scroll callouts
+  spec-sheets/20-politics.png      ← keyed ①–⑲, 3 frames (2 states + scrolled), violet scroll callouts
   ../components/shared.jsx         ← StatusBar, AppHeader, StepProgress, NextButton, HomeIndicator, Icon
   ../tokens/colors_and_type.css    ← authoritative token values
 ```
@@ -56,7 +72,7 @@ Never measure the PNG. Every number in it is in the reference file.
 | --- | --- | --- |
 | 05 | Embrace — build your profile · **one state, no input, no header, no progress bar** | speccd + ticketed |
 
-**Screen 05 is not a step.** It is a bridge: "The basics" is finished and "Share some details" has not started, so it appears in neither progress bar and has no `AppHeader`. It fires `screen_viewed` and `embrace_bridge_viewed`, and deliberately fires no `profile_step_viewed` — it has no row in `enums.json` §2 and it must not get one. A sibling bridge (`variant: "add_details"`) sits later in the flow, shares this screen's shell, and is registered in §11 but not yet ticketed.
+**Screen 05 is not a step.** It is a bridge: "The basics" is finished and "Share some details" has not started, so it appears in neither progress bar and has no `AppHeader`. It fires `screen_viewed` and `embrace_bridge_viewed`, and deliberately fires no `profile_step_viewed` — it has no row in `enums.json` §2 and it must not get one. A sibling bridge (`variant: "add_details"`, screen 13) sits later in the flow and is built from this screen's shell — ticketed 5 Oct 2026.
 
 **"The real you" — a 3-step group with its own progress bar:**
 
@@ -73,6 +89,20 @@ Never measure the PNG. Every number in it is in the reference file.
 | 09 | Notifications — explainer · **one state, no header, no progress bar** · ⚠ raises no OS dialog since 25 Sep 2026 | speccd + ticketed — superseded in part |
 | 10 | Stay reachable — **MVP**: push toggle + three interest checkboxes · deactivation confirm · **raises the OS dialog on Save** | speccd + ticketed 25 Sep 2026 |
 | ~~11~~ | ~~Phone book~~ | **not in the MVP** |
+| 12 | Location — permission ask · **three states** (ask · denied · phone's Location off) · no header, no progress bar · **raises the OS location dialog on Allow** · exits to Embrace 2 | speccd + ticketed 5 Oct 2026 |
+| 13 | Embrace 2 — add profile details · **one state, no header, no progress bar** · **one-shot confetti on arrival**, ≈3 s, none under Reduce Motion · exits to height | speccd + ticketed 5 Oct 2026 |
+
+**"Share some details" — optional detail steps, own header and progress bar:**
+
+| # | Screen | Status |
+| --- | --- | --- |
+| 14 | Height — empty · 175 cm valid · Continue refused (toast) · **builds `DetailsScaffold`, the group shell** · skippable | speccd + ticketed 5 Oct 2026 |
+| 15 | Gender — empty · Non-binary selected · Continue refused (toast) · **builds `OptionRow`** · **mandatory, no Skip** · a radio never clears · `Other` is a plain option | speccd + ticketed 5 Oct 2026 |
+| 16 | Orientation — empty · Bisexual selected · Continue refused (toast) · **consumes `OptionRow`** · **mandatory, no Skip**, shown on profile by default · all six options, **never filtered by gender** · **answer list scrolls internally on short screens**, rows never shortened | speccd + ticketed 5 Oct 2026 |
+| 17 | Dating language — empty · 3 picked · **builds `CheckRow`** (multi-select, 12 / 4, not an OptionRow variant) · **skippable** · no limit · **Continue with nothing ticked = Skip**, no refused state · saved in list order · one `detail_answered` per Continue (multi-select rule exception) · list scrolls on short screens | speccd + ticketed 5 Oct 2026 |
+| 18 | Education — empty · University selected · **consumes `OptionRow`**, builds nothing · **skippable** · **tapping the selected row clears it** (named exception to gender's "a radio never clears") · **Continue with nothing selected = Skip**, no refused state · sub copy `Select one.` · ≈ 6 px scroll at 375 × 667 only | speccd + ticketed 5 Oct 2026 |
+| 19 | Religion — empty · Buddhist selected · **consumes `OptionRow`** (standard 16 / 4 — **not `OptionRowCompact`**) · **nine options, `Muslim` added** before `Jewish` · **skippable** · tapping the selected row clears it · **Continue with nothing selected = Skip** · sub copy `Select one.` · **list scrolls on every device** (≈ 104 short at 390 × 844) · Class 2 · Art. 9 consent open, owned by legal | speccd + ticketed 5 Oct 2026 |
+| 20 | Politics — empty · Middle selected · **consumes `OptionRow`** (standard 16 / 4; **`OptionRowCompact` deleted from the kit**) · **linear order** — `Conservative` moved after `Right` · **skippable** · tapping the selected row clears it · **Continue with nothing selected = Skip** · sub copy `Select one.` · list scrolls at 390 and 375, **fits at 430** · Class 2, §1 value logged (settled) · Art. 9 consent open, owned by legal | speccd + ticketed 5 Oct 2026 |
 
 **⚠ Decided 25 Sep 2026: the OS notification dialog moved from 09 to 10's Save preferences.** Where the paragraph below says 09's CTA raises the sheet, read "navigates to 10". The skip guard is unchanged. Push is the only live channel in the MVP; see the epic's *MVP scope for the asks*.
 
@@ -97,6 +127,8 @@ Never measure the PNG. Every number in it is in the reference file.
 The nine **detail** steps after "The basics" — photos, prompts, interests, lifestyle, living status, embrace — are a separate group with their own progress and their own rules, and are not part of this three-screen sequence.
 
 ## The rules that break everything if ignored
+
+**0. `Skip for now` means skippable — decided 5 Oct 2026.** Every screen that shows the SkipLink can be skipped by the user: Skip advances the flow position, saves nothing for that step, and never deletes a value saved earlier. A screen is mandatory only if it has no SkipLink. Do not add a confirmation, a disabled state or a "are you sure" to Skip.
 
 **1. No absolute Y positioning.** Status bar / AppHeader / content / keyboard / home indicator is one flex column. Inside the content column everything is top-anchored, with a **single `flex: 1` spacer** between the last input and the CTA row.
 
@@ -128,17 +160,17 @@ Resuming is **silent**: no prompt, no toast, no "welcome back" — the user land
 
 **5. No ambient backdrop.** Flat `--liq-bg`. The welcome flow's orange/violet orbs stop at the door — the keyboard owns the bottom half of every screen here.
 
-**Named exception, decided 9 Sep 2026, extended 21 Sep 2026 to screen 09.** Screen 05, its sibling bridge and the notifications ask **do** carry the backdrop — the orange orb, the violet orb and the 360-tall peach wash, exactly the first-run Startup screen's recipe. The rule exists because every screen with a keyboard has no room for atmosphere; a bridge has no keyboard and no input, and the backdrop is what makes it read as a beat rather than another form. The exception is the two bridges and screen 09 only — none of them has a keyboard — do not carry it into name, email, verify email, date of birth, photos, prompts or media. Extract the backdrop as one component: Startup, screen 05, the sibling bridge and screen 09 all use it.
+**Named exception, decided 9 Sep 2026, extended 21 Sep 2026 to screen 09.** Screen 05, its sibling bridge and the notifications ask **do** carry the backdrop — the orange orb, the violet orb and the 360-tall peach wash, exactly the first-run Startup screen's recipe. The rule exists because every screen with a keyboard has no room for atmosphere; a bridge has no keyboard and no input, and the backdrop is what makes it read as a beat rather than another form. The exception is the two bridges, screen 09 and screen 12 (extended 5 Oct 2026) only — none of them has a keyboard — do not carry it into name, email, verify email, date of birth, photos, prompts or media. Extract the backdrop as one component: Startup, screen 05, the sibling bridge and screen 09 all use it.
 
 **5b. Two CTA shapes, and only one screen gets the second.** Every screen in this group uses the round orange `NextButton` bottom-right — except **03 Verify email**, which uses a **full-width sunset** `Button`. Sunset is reserved for commitment screens, and confirming a code is the only irreversible act in "The basics". Do not use it anywhere else here, and do not swap 03 back to the round button.
 
 **5c. Two layout shapes.** Screens 01, 02 and 04 are **bottom-anchored** — the spacer sits above the CTA row and pushes it to the base. Screen 03 is **bottom-slack** — one top-anchored stack with the spacer at the very bottom, so the CTA sits directly under the slots it belongs to. Both are correct; do not normalise one into the other.
 
-**6. Headlines are 34, not 38.** The keyboard is always open in this group, so the headline is one step smaller than the welcome flow's. One italic em per headline, with the orange wash from the shared `.su-underlined em` rule.
+**6. Headlines are 34, not 38.** The keyboard is always open in this group, so the headline is one step smaller than the welcome flow's. **Decided 5 Oct 2026: the two bridges (05, 13) share one headline size, 34**, carried by the shared shell rather than a prop — screen 13 was drawn at 36 and was corrected before build. One italic em per headline, with the orange wash from the shared `.su-underlined em` rule.
 
 **7. The CTA is orange, not sunset.** These are routine screens. `--su-grad-sunset` is reserved for commitment screens.
 
-**Named exception, decided 9 Sep 2026: screen 05 — extended 21 Sep 2026 to screen 09**, whose CTA is the same full-width sunset `Button` with the label `Enable notifications` and **no trailing arrow icon**. The bridge's CTA is a **full-width sunset** `Button` (`variant="sunset" size="lg" fullWidth`, label `Upload my photos` with a trailing SVG arrow), not the round orange `NextButton`. Agreeing to build the profile is a commitment beat, and so is granting push. Same scope as the rule 5 exception: the two bridges and screen 09.
+**Named exception, decided 9 Sep 2026: screen 05 — extended 21 Sep 2026 to screen 09**, whose CTA is the same full-width sunset `Button` with the label `Continue` (⚠ `Enable notifications` until 25 Sep 2026, when the OS dialog moved to screen 10) and **no trailing arrow icon**. The bridge's CTA is a **full-width sunset** `Button` (`variant="sunset" size="lg" fullWidth`, label `Upload my photos` with a trailing SVG arrow), not the round orange `NextButton`. Agreeing to build the profile is a commitment beat, and so is granting push. Same scope as the rule 5 exception: the two bridges, screen 09 and — extended 5 Oct 2026 — screen 12, whose CTA is `Allow location access` (`Open Settings` in its recovery states), no icon.
 
 **8. `ProfileVisibility` is not on these three screens.** Name, email and date of birth are not per-field-hideable at this step. It belongs to the nine detail steps — do not add it here for consistency.
 
@@ -159,6 +191,10 @@ Screens 09 and 10 together have to leave the app knowing **where it is allowed t
 **Screen 10 does not exit optimistically.** Consent is committed to the server and confirmed **before** the flow position advances. A save failure keeps the user on 10; a crash mid-10 resumes onto 10 by the flow's ordinary resume rule (rule 4a) — no special mechanism, and it is what guarantees that a user who is past 10 has a consent record that exists.
 
 **Recovering a permission change mid-app is NOT a replay of screen 10.** 10 is a consent screen; the permission is the device's. When the status changes later, the user is asked again **where they are** — a prompt at the moment it bites — and never by pushing an onboarding screen back at them. **How that prompt looks and when it fires is deliberately not decided yet** (21 Sep 2026); `permission_status_changed` exists so the size of the problem is measurable before it is designed.
+
+## Backlog — tickets still to write
+
+- **Headline unification across screen groups** (decided 5 Oct 2026, ticket not yet written). One headline size per group. Current kit values: bridges 05 / 13 = **34** (already unified) · name 34, email 32, date of birth 32 (rule 6 says 34) · notifications 09 = 32 · Stay reachable 10 = 31 · location 12 = 32 · "Share some details" steps = 30. The ticket defines the groups, picks one size each, edits the kit, re-exports the affected sheets and adds a ⚠ superseded line to each already-written ticket. Check 10 at 375 × 667 first — it is the densest.
 
 ## Device matrix
 

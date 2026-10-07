@@ -32,7 +32,10 @@ struct ProfileProgressRepository: ProfileProgressReading {
                     emailVerified: json.emailVerified,
                     hasDateOfBirth: json.hasDateOfBirth,
                     photoCount: json.photoCount,
-                    promptCount: json.promptCount)
+                    promptCount: json.promptCount,
+                    hasGender: json.hasGender,
+                    hasOrientation: json.hasOrientation,
+                    flowPosition: json.flowPosition)
             default:
                 return nil
             }

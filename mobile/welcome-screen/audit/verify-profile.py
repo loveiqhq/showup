@@ -19,12 +19,19 @@ source, on BOTH platforms, which is the part reading cannot be trusted with.
 """
 import io
 import os
+import json
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOBILE = os.path.dirname(HERE)
 KT = os.path.join(MOBILE, "android-preview-project", "app", "src", "main", "java", "com", "showup")
 SW = os.path.join(MOBILE, "ios-app", "ShowUpWelcome")
+
+# THE REGISTRY VERSION, READ -- never typed into a check. Two checks below used to compare the app
+# constants to a literal written in this file, so neither could notice the registry moving.
+_REGISTRY = os.path.join(os.path.dirname(os.path.dirname(MOBILE)), "design_handoff_showup", "tracking", "enums.json")
+_REGISTRY_VERSION = json.load(io.open(_REGISTRY, encoding="utf-8"))["registry_version"]
 
 failures = []
 count = 0
@@ -257,26 +264,45 @@ check("155 the variant vocabulary is registry-backed (kotlin)",
 check("155 the screen row is registry-backed (kotlin)",
       '"profile_embrace_build", "ProfileEmbraceBuild"' in read(KT, "profile", "ProfileAnalytics.kt"))
 
-# Rule 5's named exception: the ONE profile screen with the ambient backdrop, and it gets it from
-# the shared component rather than redrawing the orbs.
-check("155 uses the shared backdrop scaffold (kotlin)", "WelcomeScaffold" in embrace_kt)
-check("155 uses the shared backdrop scaffold (swift)", "WelcomeScaffold" in embrace_sw)
-check("155 gutter 28 (kotlin)", "gutter = 28.dp" in embrace_kt)
-check("155 gutter 28 (swift)", "gutter: 28" in embrace_sw)
-check("155 top 64 (kotlin)", "topPadding = 64.dp" in embrace_kt)
-check("155 top 64 (swift)", "topPadding: 64" in embrace_sw)
+# THE BRIDGE SHELL, SINCE SHOWUP-166. Everything the two bridges share -- the backdrop scaffold, the
+# gutter, the top, the fixed headline, the sunset CTA and the swallowed back -- moved into
+# BridgeShell on both platforms, so the layout numbers are asserted THERE, once, and each bridge is
+# asserted to be built on it. A bridge that stopped using the shell would fail here before it could
+# drift.
+bridge_kt = code_only(read(KT, "profile", "BridgeShell.kt"))
+bridge_sw = code_only(read(SW, "BridgeShell.swift"))
+check("155 is built on the bridge shell (kotlin)", "EmbraceBridgeShell(" in embrace_kt)
+check("155 is built on the bridge shell (swift)", "EmbraceBridgeShell(" in embrace_sw)
+check("155 uses the corner backdrop (kotlin)", "BridgeBackdrop.Corner" in embrace_kt)
+check("155 uses the corner backdrop (swift)", "backdrop: .corner" in embrace_sw)
+
+# Rule 5's named exception: the ambient backdrop, from the shared component rather than redrawn.
+check("bridge shell uses the shared backdrop scaffold (kotlin)", "WelcomeScaffold(" in bridge_kt)
+check("bridge shell uses the shared backdrop scaffold (swift)", "WelcomeScaffold(" in bridge_sw)
+check("bridge shell gutter 28 (kotlin)", "gutter = 28.dp" in bridge_kt)
+check("bridge shell gutter 28 (swift)", "gutter: 28" in bridge_sw)
+check("bridge shell top 64 (kotlin)", "topPadding = 64.dp" in bridge_kt)
+check("bridge shell top 64 (swift)", "topPadding: 64" in bridge_sw)
 
 # Rule 7's named exception: full-width SUNSET, not the round orange NextButton.
-check("155 CTA is sunset (kotlin)", "PrimaryButtonVariant.Sunset" in embrace_kt)
-check("155 CTA is sunset (swift)", "variant: .sunset" in embrace_sw)
-check("155 CTA is not the round NextButton (kotlin)", "NextButton" not in embrace_kt)
-check("155 CTA is not the round NextButton (swift)", "NextButton" not in embrace_sw)
+check("bridge shell CTA is sunset (kotlin)", "PrimaryButtonVariant.Sunset" in bridge_kt)
+check("bridge shell CTA is sunset (swift)", "variant: .sunset" in bridge_sw)
+for label, text in (("kotlin", bridge_kt), ("swift", bridge_sw),
+                    ("155 kotlin", embrace_kt), ("155 swift", embrace_sw)):
+    check("bridge has no round NextButton (%s)" % label, "NextButton" not in text)
+    check("bridge has no AppHeader (%s)" % label, "AppHeader" not in text)
+    check("bridge has no StepProgress (%s)" % label, "StepProgress" not in text)
 
-# Headline: Lora 700 / 34 / 1.1 / -0.015em, ONE italic em.
-check("155 headline 34 (kotlin)", "fontSize = 34.sp" in embrace_kt)
-check("155 headline 34 (swift)", "fontSize: 34" in embrace_sw)
-check("155 headline tracking (kotlin)", "(-0.015).em" in embrace_kt)
-check("155 headline tracking (swift)", "trackingEm: -0.015" in embrace_sw)
+# Headline: Lora 700 / 34 / 1.1 / -0.015em -- the same for both bridges.
+check("bridge headline 34 / 1.1 (kotlin)", "fontSize = 34.sp" in bridge_kt and "(34f * 1.1f).sp" in bridge_kt)
+check("bridge headline 34 / 1.1 (swift)", "fontSize: 34, lineHeightMultiple: 1.1" in bridge_sw)
+check("bridge headline tracking (kotlin)", "(-0.015).em" in bridge_kt)
+check("bridge headline tracking (swift)", "trackingEm: -0.015" in bridge_sw)
+
+# NOT A STEP, SO THERE IS NO BACK. Android swallows the system back; iOS has no NavigationStack and
+# therefore no pop gesture to suppress (ProfileEmbrace.swift explains why that is not a gap).
+check("bridge back is swallowed (kotlin)", "BackHandler(enabled = true)" in bridge_kt)
+check("bridge has no back control (swift)", "onBack" not in bridge_sw)
 
 # The bullet dots are ELEMENTS, not glyphs -- no unicode bullet, no emoji, no list marker.
 for label, text in (("kotlin", embrace_kt), ("swift", embrace_sw)):
@@ -501,9 +527,9 @@ for label, text in (("kotlin", analytics_kt), ("swift", analytics_sw)):
     # 1.4.6 SINCE SHOWUP-163. enums.json's registry_version, not events.json's
     # taxonomy_version -- they are different numbers on the same day and the Profile 10 ticket
     # quotes both: "taxonomy 1.4.5 / registry 1.4.6".
-    check("158/163 registry stamp is 1.4.6 (%s)" % label,
-          'FIELD_REGISTRY_VERSION = "1.4.6"' in text
-          or 'fieldRegistryVersion = "1.4.6"' in text)
+    check("158/163 registry stamp is the current enums.json version (%s)" % label,
+          'FIELD_REGISTRY_VERSION = "%s"' % _REGISTRY_VERSION in text
+          or 'fieldRegistryVersion = "%s"' % _REGISTRY_VERSION in text)
     check("158 no stale registry stamp (%s)" % label,
           'FIELD_REGISTRY_VERSION = "1.4.2"' not in text
           and 'fieldRegistryVersion = "1.4.2"' not in text
@@ -1411,10 +1437,16 @@ check("163 no consent_changed for an interest box (swift)",
 # one: enums.json's `registry_version`, which "versions the vocabulary, not the taxonomy
 # document". Reading the wrong file is the obvious mistake and both platforms would make it the
 # same way, so a parity check alone would not catch it.
-check("163 stamp is the enums.json registry version (kotlin)",
-      'FIELD_REGISTRY_VERSION = "1.4.6"' in read(KT, "profile", "ProfileAnalytics.kt"))
-check("163 stamp is the enums.json registry version (swift)",
-      'fieldRegistryVersion = "1.4.6"' in read(SW, "ProfileAnalytics.swift"))
+#
+# READ FROM THE REGISTRY, NOT TYPED HERE. Until 5 October 2026 this compared both constants to the
+# literal "1.4.6" written in this file, so the check could not tell when the registry moved -- and
+# it did, to 1.4.15 across nine tickets, with every check still green. A check that pins a value it
+# should be reading is a second copy of that value, and it drifts silently with the first.
+check("stamp is the enums.json registry version, %s (kotlin)" % _REGISTRY_VERSION,
+      'FIELD_REGISTRY_VERSION = "%s"' % _REGISTRY_VERSION
+      in read(KT, "profile", "ProfileAnalytics.kt"))
+check("stamp is the enums.json registry version, %s (swift)" % _REGISTRY_VERSION,
+      'fieldRegistryVersion = "%s"' % _REGISTRY_VERSION in read(SW, "ProfileAnalytics.swift"))
 
 # ── legal_link_tapped, corrected against events.json ────────────────────────
 #
@@ -1669,6 +1701,234 @@ check("163 the paragraph ends with a full stop after the link (kotlin)",
       'append(".")' in reach_kt)
 check("163 the paragraph ends with a full stop after the link (swift)",
       'out.append(AttributedString("."))' in reach_sw)
+
+# ── SHOWUP-165 to SHOWUP-173 · location, Embrace 2, "Share some details" ─────
+#
+# Quoted from the tickets (saved verbatim with the handoff), both platforms. Copy is compared AFTER
+# joining adjacent string literals, so a sentence wrapped across two source lines still reads as
+# the one sentence the ticket gives -- and a sentence that differs by one character still fails.
+
+def joined(text):
+    """Source with `"a" + "b"` (any whitespace or newline around the plus) read as `"ab"`."""
+    return re.sub(r'"\s*\+\s*"', "", text)
+
+
+def in_order(text, quoted):
+    """Every string appears, quoted, and in the given order."""
+    at = -1
+    for s in quoted:
+        i = text.find('"%s"' % s, at + 1)
+        if i < 0:
+            return False
+        at = i
+    return True
+
+
+ANDROID_MANIFEST = read(MOBILE, "android-preview-project", "app", "src", "main", "AndroidManifest.xml")
+INFO_PLIST = read(SW, "Info.plist")
+loc_kt = joined(code_only(read(KT, "profile", "ProfileLocationScreen.kt")))
+loc_sw = joined(code_only(read(SW, "ProfileLocation.swift")))
+locacc_kt = code_only(read(KT, "profile", "LocationAccess.kt"))
+locacc_sw = code_only(read(SW, "LocationAccess.swift"))
+locvm_kt = code_only(read(KT, "profile", "LocationViewModel.kt"))
+locvm_sw = code_only(read(SW, "LocationModel.swift"))
+emb2_kt = joined(code_only(read(KT, "profile", "ProfileEmbraceDetailsScreen.kt")))
+emb2_sw = joined(code_only(read(SW, "ProfileEmbraceDetails.swift")))
+confetti_kt = code_only(read(KT, "profile", "ConfettiRain.kt"))
+confetti_sw = code_only(read(SW, "ConfettiRain.swift"))
+det_kt = code_only(read(KT, "profile", "ProfileDetails.kt"))
+det_sw = code_only(read(SW, "ProfileDetails.swift"))
+chrome_kt = joined(code_only(read(KT, "profile", "DetailsChrome.kt")))
+chrome_sw = joined(code_only(read(SW, "DetailsChrome.swift")))
+choice_kt = code_only(read(KT, "profile", "ProfileChoiceScreen.kt"))
+choice_sw = code_only(read(SW, "ProfileChoice.swift"))
+lang_kt = code_only(read(KT, "profile", "ProfileDatingLanguageScreen.kt"))
+lang_sw = code_only(read(SW, "ProfileDatingLanguage.swift"))
+height_kt = code_only(read(KT, "profile", "ProfileHeightScreen.kt"))
+height_sw = code_only(read(SW, "ProfileHeight.swift"))
+dvm_kt = code_only(read(KT, "profile", "ProfileDetailsViewModel.kt"))
+dvm_sw = code_only(read(SW, "DetailsModel.swift"))
+pa_kt = read(KT, "profile", "ProfileAnalytics.kt")
+pa_sw = read(SW, "ProfileAnalytics.swift")
+vis_kt = read(KT, "designsystem", "ProfileVisibility.kt")
+vis_sw = read(SW, "ProfileVisibility.swift")
+app_kt = code_only(read(KT, "MainActivity.kt"))
+app_sw = code_only(read(SW, "ShowUpWelcomeApp.swift"))
+
+# 165 · Location, three states of ONE screen.
+for label, text in (("kotlin", loc_kt), ("swift", loc_sw)):
+    for s in ["Find people ", "nearby",
+              "We can't find dates ", "without", " location.",
+              "Your phone has location ", "switched off",
+              "Set a search radius around your location",
+              "We pick a fair halfway venue for you both",
+              "No planning, no home advantage — a busy public spot that's neutral ground for both of you.",
+              "Walking directions on the day",
+              "Your exact location is never shown on your profile. Other people only see the city you're "
+              "in and an approximate distance from themselves e.g. 1.5km.",
+              "Allow location access", "Open Settings", "Not now — ask me when I search",
+              "Location access is off for Show Up. Without it we can't show you anyone nearby — every "
+              "date happens in the real world. ",
+              "Turn it on in ",
+              ", or finish your profile first and we'll ask again when you start searching."]:
+        check("165 copy (%s): %s" % (label, s[:44]), '"%s"' % s in text or s in text)
+    check("165 no progress bar or header (%s)" % label, "StepProgress" not in text and "AppHeader" not in text)
+# ONE PLATFORM SENTENCE EACH, and nothing else differs between the two.
+check("165 B path, Android", '"Permissions › Location"' in loc_kt)
+check("165 B path, iOS", '"Settings › Show Up › Location"' in loc_sw)
+check("165 C body, Android -- the path sentence is dropped",
+      '"Location is off for every app on this phone, not just Show Up. Turn it on in Settings now, '
+      'or finish your profile first and we\'ll ask again when you start searching."' in loc_kt)
+check("165 C body, iOS", '"Location Services is off for every app on this phone, not just Show Up. "' in loc_sw)
+check("165 C path, iOS", '"Settings › Privacy & Security › Location Services"' in loc_sw)
+check("165 iOS purpose string, exactly",
+      "<key>NSLocationWhenInUseUsageDescription</key>\n\t<string>We use your location to find people nearby "
+      "and choose a halfway meeting spot for your date.</string>" in INFO_PLIST)
+check("165 never Always (Info.plist)", "NSLocationAlways" not in INFO_PLIST)
+check("165 never Always (swift)", "requestAlwaysAuthorization" not in locacc_sw
+      and "requestWhenInUseAuthorization()" in locacc_sw)
+check("165 fine AND coarse requested together (manifest)",
+      "android.permission.ACCESS_FINE_LOCATION" in ANDROID_MANIFEST
+      and "android.permission.ACCESS_COARSE_LOCATION" in ANDROID_MANIFEST)
+# Declared permissions only: the manifest's own comment names the one that must not be there.
+check("165 never background (manifest)",
+      not re.search(r'<uses-permission[^>]*ACCESS_BACKGROUND_LOCATION', ANDROID_MANIFEST))
+# THE SWITCH IS CHECKED FIRST: C whatever the permission says.
+check("165 services off is checked first (kotlin)", "!status.servicesOn -> LocationArrival.Show(LocationState.ServicesOff)" in locacc_kt)
+check("165 services off is checked first (swift)", "guard status.servicesOn else { return .show(.servicesOff) }" in locacc_sw)
+check("165 restricted is denied (swift)", "case .denied, .restricted: return .show(.denied)" in locacc_sw)
+check("165 iOS reads the switch off the main thread", "Task.detached" in locacc_sw)
+check("165 Android back does nothing on location", "BackHandler" in loc_kt)
+check("165 the recovery event is registry-backed (kotlin)", '"permission_denied_recovery_shown"' in pa_kt)
+check("165 the recovery event is registry-backed (swift)", '"permission_denied_recovery_shown"' in pa_sw)
+check("165 the reconciler ignores our own dialog (kotlin)", "requesting" in locvm_kt)
+check("165 the reconciler ignores our own dialog (swift)", "guard announced, !ui.requesting else { return }" in locvm_sw)
+check("165 reachability exits into location (kotlin)", "enterLocation()" in app_kt)
+check("165 reachability exits into location (swift)", "await enterLocation()" in app_sw)
+
+# 166 · Embrace 2.
+for label, text in (("kotlin", emb2_kt), ("swift", emb2_sw)):
+    check("166 named headline (%s)" % label, "You are doing great, " in text)
+    check("166 anonymous headline (%s)" % label, '"You are doing great."' in text)
+    check("166 lead (%s)" % label,
+          "You'll see on others' profiles exactly what you choose to share on yours. Let's add a few more details!"
+          in text)
+    check("166 CTA, no arrow character (%s)" % label, '"Add profile details"' in text and "→" not in text)
+    check("166 is built on the bridge shell (%s)" % label, "EmbraceBridgeShell(" in text)
+    check("166 no header, bar or NextButton (%s)" % label,
+          all(x not in text for x in ("AppHeader", "StepProgress", "NextButton")))
+check("166 centred backdrop (kotlin)", "BridgeBackdrop.Centred" in emb2_kt)
+check("166 centred backdrop (swift)", "backdrop: .centred" in emb2_sw)
+check("166 no em in the headline (kotlin)", "to true" not in emb2_kt)
+check("166 no em in the headline (swift)", "true)]" not in emb2_sw)
+check("166 the variant is registry-backed (kotlin)", 'ADD_DETAILS = "add_details"' in pa_kt)
+check("166 the variant is registry-backed (swift)", 'addDetails = "add_details"' in pa_sw)
+# The confetti: 32 fixed rows, gone by 3000, nothing under reduced motion, decorative.
+check("166 confetti has 32 rows (swift)", confetti_sw.count("        piece(") == 32)
+check("166 confetti has 32 rows (kotlin)", len(re.findall(r"^\s+ConfettiPiece\(", confetti_kt, re.M)) == 32
+      or len(re.findall(r"^\s+piece\(", confetti_kt, re.M)) == 32)
+check("166 confetti layer is 3000 ms (kotlin)", "CONFETTI_TOTAL_MS = 3_000" in confetti_kt
+      or "CONFETTI_TOTAL_MS = 3000" in confetti_kt)
+check("166 confetti layer is 3000 ms (swift)", "confettiTotalMs: Double = 3_000" in confetti_sw)
+check("166 reduced motion shows nothing (kotlin)", "motion.enabled" in confetti_kt)
+check("166 reduced motion shows nothing (swift)", "!reduceMotion" in confetti_sw)
+check("166 confetti is decorative (kotlin)", "clearAndSetSemantics {}" in confetti_kt)
+check("166 confetti is decorative (swift)", ".allowsHitTesting(false)" in confetti_sw
+      and ".accessibilityHidden(true)" in confetti_sw)
+check("166 a pop does not replay it (kotlin)", "rememberSaveable" in confetti_kt)
+check("166 a restore does not replay it (swift)", "@Binding var played: Bool" in confetti_sw
+      and 'SceneStorage("embrace2.confettiPlayed")' in app_sw)
+
+# 167 to 173 · the group.
+for label, text in (("kotlin", chrome_kt), ("swift", chrome_sw)):
+    for s in ["Share some details", "Continue", "Skip for now",
+              "Enter height in cm", "e.g. 175", "Be honest — it helps us find the right matches.",
+              "Used to find the right matches.", "Select all that apply.", "Select one.",
+              "Enter a height between 120 and 230 cm to continue",
+              "Pick a gender to continue", "Pick an orientation to continue"]:
+        check("167-173 copy (%s): %s" % (label, s[:40]), '"%s"' % s in text)
+check("167-173 the band label is the shared one (kotlin)",
+      'PROFILE_VISIBILITY_LABEL = "Don\'t display on my profile"' in vis_kt)
+check("167-173 the band label is the shared one (swift)",
+      'profileVisibilityLabel = "Don\'t display on my profile"' in vis_sw)
+
+# Headlines as RUNS, so the one italic em is checked as well as the words.
+HEADLINES = [
+    ("How ", "tall", " are you?"),
+    ("Which gender describes ", "you", " best?"),
+    ("What’s your sexual ", "orientation", "?"),
+    ("What’s your preferred dating ", "language", "?"),
+    ("What’s your highest level of ", "education", "?"),
+    ("What are your ", "religious", " beliefs?"),
+    ("What are your ", "political", " beliefs?"),
+]
+for lead, em, tail in HEADLINES:
+    check("headline (kotlin): %s%s%s" % (lead, em, tail),
+          '"%s" to false, "%s" to true, "%s" to false' % (lead, em, tail) in chrome_kt)
+    sw_lead = lead.replace("’", "\\u{2019}")
+    check("headline (swift): %s%s%s" % (lead, em, tail),
+          '("%s", false), ("%s", true), ("%s", false)' % (sw_lead, em, tail) in chrome_sw)
+
+# Options: the ticket's labels in the ticket's order, on both platforms.
+OPTIONS = {
+    "168 gender": ["Woman", "Man", "Non-binary", "Other"],
+    "169 orientation": ["Straight", "Gay", "Lesbian", "Bisexual", "Pansexual", "Other"],
+    "170 dating language": ["German", "English", "Spanish", "Italian", "French", "Turkish", "Russian", "Arabic"],
+    "171 education": ["A-Levels / Abitur", "Apprenticeship", "University degree", "PhD"],
+    "172 religion": ["Protestant", "Catholic", "Orthodox", "Muslim", "Jewish", "Buddhist", "Hindu", "Atheist",
+                     "Spiritual / other"],
+    "173 politics": ["Left", "Mid-left", "Middle", "Mid-right", "Right", "Conservative", "Libertarian",
+                     "Apolitical"],
+}
+for name, labels in OPTIONS.items():
+    check("%s options in order (kotlin)" % name, in_order(det_kt, labels))
+    check("%s options in order (swift)" % name, in_order(det_sw, labels))
+
+# The numbers the group is built from.
+check("the bar is 10 segments (kotlin)", "const val SHARE_STEPS_TOTAL = 10" in det_kt)
+check("the bar is 10 segments (swift)", "let shareStepsTotal = 10" in det_sw)
+check("167 height is 120-230 (kotlin)", "HEIGHT_CM_MIN = 120" in det_kt and "HEIGHT_CM_MAX = 230" in det_kt)
+check("167 height is 120-230 (swift)", "heightCmMin = 120" in det_sw and "heightCmMax = 230" in det_sw)
+check("only gender and orientation are mandatory (kotlin)", "mandatory = true" in det_kt or
+      "Gender, DetailStep.Orientation" in det_kt or "mandatory" in det_kt)
+check("only gender and orientation are mandatory (swift)",
+      "var mandatory: Bool { self == .gender || self == .orientation }" in det_sw)
+check("only the skippable three clear on reselect (swift)",
+      "var clearsOnReselect: Bool { self == .education || self == .religion || self == .politics }" in det_sw)
+check("the answer region keeps an 80 floor (kotlin)", "ANSWER_REGION_FLOOR = 80.dp" in chrome_kt)
+check("the answer region keeps an 80 floor (swift)", "answerRegionFloor: CGFloat = 80" in chrome_sw)
+check("the group shell has the header and the bar (kotlin)",
+      "AppHeader(title = DetailsCopy.SECTION" in chrome_kt and "StepProgress(steps = SHARE_STEPS_TOTAL" in chrome_kt)
+check("the group shell has the header and the bar (swift)",
+      "AppHeader(title: DetailsCopy.section" in chrome_sw and "StepProgress(steps: shareStepsTotal" in chrome_sw)
+check("back works on every step (kotlin)", "BackHandler(enabled = true, onBack = onBack)" in chrome_kt)
+check("back works on every step, with the swipe (swift)", "EdgeSwipeBack(onBack: onBack)" in chrome_sw)
+# No SkipLink on the two mandatory steps -- not hidden, absent.
+check("168/169 have no skip (kotlin)", "onSkip = if (step.mandatory) null else onSkip" in choice_kt)
+check("168/169 have no skip (swift)", "step.mandatory" in choice_sw)
+# The scroll indicator flashes where rows hide, and NOT on education ("do not flash").
+check("flash on orientation, religion, politics (kotlin)",
+      "step == DetailStep.Orientation" in choice_kt and "DetailStep.Religion" in choice_kt
+      and "DetailStep.Politics" in choice_kt and "DetailStep.Education" not in choice_kt.split("flashIndicator")[1][:160])
+check("flash on orientation, religion, politics (swift)",
+      "flashIndicator: step == .orientation || step == .religion || step == .politics" in choice_sw)
+check("170 flashes (kotlin)", "flashIndicator = true" in lang_kt)
+check("170 flashes (swift)", "flashIndicator: true" in lang_sw)
+check("167 the keypad is numeric (kotlin)", "KeyboardType.Number" in height_kt)
+check("167 the keypad is numeric (swift)", ".numberPad" in height_sw or "numberPad" in height_sw)
+# ONE request per accepted Continue: the answer, its visibility and the position together.
+check("one PATCH carries the position (kotlin)", "flowPosition = step.position" in dvm_kt)
+check("one PATCH carries the position (swift)", "flowPositionPayload(value1: step.position)" in dvm_sw)
+check("hidden_fields is read fresh for every save (kotlin)", "val current = store.load()?.also { saved = it }" in dvm_kt)
+check("hidden_fields is read fresh for every save (swift)", "let current = await store.load()" in dvm_sw)
+check("the accepted answer is the one saved (kotlin)", "answer(step, draft, onAdvance)" in dvm_kt)
+check("the accepted answer is the one saved (swift)", "await answer(step, draft: draft, onAdvance: onAdvance)" in dvm_sw)
+for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
+    for name in ("detail_answered", "detail_skipped", "field_display_opted_out"):
+        check("the %s event is registry-backed (%s)" % (name, label), '"%s"' % name in text)
+# Politics ends the walk at home until interests (step 8) is built -- one line on each side.
+check("173 politics continues home for now (swift)", "choiceScreen(.politics, next: .home" in app_sw)
+check("173 politics continues home for now (kotlin)", "FlowScreen.Home" in app_kt)
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)

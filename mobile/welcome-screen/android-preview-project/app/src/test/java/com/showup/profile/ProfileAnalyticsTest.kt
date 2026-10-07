@@ -53,7 +53,7 @@ class ProfileAnalyticsTest {
         // interest_channel and the profile_reachability row for Stay reachable. Stamping an older
         // string would claim a vocabulary these payloads are not using -- and this test is the
         // thing that noticed, three times now, which is exactly what it is for.
-        assertEquals("1.4.6", Stamp.FIELD_REGISTRY_VERSION)
+        assertEquals("1.4.15", Stamp.FIELD_REGISTRY_VERSION)
     }
 
     // ── consent_changed, unblocked by registry 1.3.0 ──────────────────────────
@@ -92,7 +92,7 @@ class ProfileAnalyticsTest {
     fun `consent is a class 1 attribute event`() {
         val (_, payload) = ProfileAnalytics.consentChanged(on = true)
         assertEquals(1, payload["sensitivity_class"])
-        assertEquals("1.4.6", payload["field_registry_version"])
+        assertEquals("1.4.15", payload["field_registry_version"])
     }
 
     // ── the rule the ticket calls a bug to break ──────────────────────────────

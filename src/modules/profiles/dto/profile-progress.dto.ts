@@ -67,4 +67,25 @@ export class ProfileProgressDto {
     description: '"The real you" step 2 needs one.',
   })
   promptCount: number;
+
+  @ApiProperty({
+    description:
+      'Share some details step 2 (mandatory). The value itself is on /me/profile.',
+  })
+  hasGender: boolean;
+
+  @ApiProperty({
+    description:
+      'Share some details step 3 (mandatory). The value itself is on /me/profile.',
+  })
+  hasOrientation: boolean;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'The furthest §2 step completed or skipped after prompts, or null before any. Skippable ' +
+      'steps leave no other trace, so this is the only evidence they were passed.',
+  })
+  flowPosition: string | null;
 }

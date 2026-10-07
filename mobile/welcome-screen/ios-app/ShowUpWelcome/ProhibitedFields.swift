@@ -39,6 +39,14 @@ enum ProhibitedFields {
         "dob",
         "birthdate",
         "dateofbirth",
+        // Special-category profile answers, sensitivity class 2 (SHOWUP-168, 169, 172, 173). A
+        // crash report built around a failed profile save could otherwise carry someone's religion
+        // or orientation. Analytics records them as `field_id` + value under a class stamp, never
+        // under these names, so withholding the names takes nothing from it.
+        "gender",
+        "orientation",
+        "religion",
+        "politics",
         // Secrets. Note `code`: the one-time sign-in and email-verification payloads name the
         // secret `code`, so the bare name is withheld. An API error code is a different thing and
         // must be named `error_code` so it is not caught by this rule.

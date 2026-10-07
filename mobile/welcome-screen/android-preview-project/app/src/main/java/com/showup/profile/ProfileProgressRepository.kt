@@ -27,6 +27,9 @@ open class ProfileProgressRepository(private val api: ShowUpApi) {
                 hasDateOfBirth = body.hasDateOfBirth,
                 photoCount = body.photoCount,
                 promptCount = body.promptCount,
+                hasGender = body.hasGender,
+                hasOrientation = body.hasOrientation,
+                flowPosition = body.flowPosition,
             )
         } else {
             // A 401 lands here too, which is correct: an account that cannot be read has no

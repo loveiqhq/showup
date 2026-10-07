@@ -14,8 +14,21 @@ describe('hidden-fields', () => {
 
     it('rejects a field whose control does not exist yet', () => {
       // Named in the registry, but its screen is unbuilt. Accepting it would let a client store a
-      // preference nothing can honour.
-      expect(isHideableField('height')).toBe(false);
+      // preference nothing can honour. `habits` is the last such field since the seven detail
+      // screens shipped (SHOWUP-167 to SHOWUP-173).
+      expect(isHideableField('habits')).toBe(false);
+    });
+
+    it.each([
+      'height',
+      'gender',
+      'orientation',
+      'dating_language',
+      'education',
+      'religion',
+      'politics',
+    ])('accepts %s, now that its screen carries the control', (field) => {
+      expect(isHideableField(field)).toBe(true);
     });
 
     it('rejects isVisible, which is not a field_id at all', () => {
