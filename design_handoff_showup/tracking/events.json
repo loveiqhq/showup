@@ -1,8 +1,13 @@
 {
-  "taxonomy_version": "1.4.5",
+  "taxonomy_version": "1.4.6",
   "reconciled_against": "loveiqhq/showup main @ c195089",
   "generated": "2026-09-25",
   "event_count": 297,
+  "changed_in_1_4_6": [
+    "Profile 12 (location ask), 5 Oct 2026: permission_prompted / permission_os_sheet_shown / permission_result triggers name the location case.",
+    "permission_denied_recovery_shown — NEW optional payload reason (enums.json §26), required when type is location.",
+    "location_gate_shown.reason — now cites enums.json §26 (not_determined · denied · services_off), replacing inline undetermined|denied|device_off. Not shipped; nothing migrates."
+  ],
   "changed_in_1_4_5": [
     "channel_interest_changed — NEW, family G: the Stay reachable interest checkboxes (§25). Not a consent.",
     "reachability_saved — payload is now push_on · permission · interest; channels_on, count, has_phone removed for the MVP scope.",
@@ -2144,7 +2149,7 @@
             },
             {
               "name": "value_bucketed",
-              "type": "str"
+              "type": "str — the enums.json §1 value. Multi-select dating_language: the ticked §1 values in list order, comma-joined, no spaces (v1.4.12)"
             }
           ],
           "sensitivity_class": null,
@@ -2383,7 +2388,7 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. From 25 Sep 2026 the notifications case is Stay reachable (Profile 10, profile_reachability): fires on view with type: \"notifications\" when the OS status is not_determined. Profile 09 NO LONGER fires it — 09 raises no sheet any more.",
+          "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. From 25 Sep 2026 the notifications case is Stay reachable (Profile 10, profile_reachability): fires on view with type: \"notifications\" when the OS status is not_determined. Profile 09 NO LONGER fires it — 09 raises no sheet any more. Location (from 5 Oct 2026): Profile 12 (profile_location) fires it on view of the ask state with type: \"location\" — never on the denied or services_off states.",
           "implemented": false
         },
         {
@@ -2399,7 +2404,7 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "System permission dialog triggers. Notifications: raised by Save preferences on Stay reachable (Profile 10), only when the push toggle is on and the status is not_determined — moved from Profile 09 on 25 Sep 2026.",
+          "trigger": "System permission dialog triggers. Notifications: raised by Save preferences on Stay reachable (Profile 10), only when the push toggle is on and the status is not_determined — moved from Profile 09 on 25 Sep 2026. Location: raised by 'Allow location access' on Profile 12, type: \"location\".",
           "implemented": false
         },
         {
@@ -2419,7 +2424,7 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "User responds to OS permission dialog",
+          "trigger": "User responds to OS permission dialog. Location: precise and approximate are both granted, and so is iOS Allow Once / Android Only this time; limited never applies.",
           "implemented": false
         },
         {
@@ -2431,11 +2436,16 @@
             {
               "name": "type",
               "type": "str"
+            },
+            {
+              "name": "reason",
+              "type": "str — enums.json §26 location_unavailable_reason: denied | services_off. REQUIRED when type is location, absent otherwise. Added 5 Oct 2026.",
+              "required": false
             }
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Recovery banner shown after denial",
+          "trigger": "Recovery banner shown after denial. Location: Profile 12's denied and services_off states, with reason.",
           "implemented": false
         },
         {
@@ -3201,7 +3211,7 @@
           "payload": [
             {
               "name": "reason",
-              "type": "\"undetermined\"|\"denied\"|\"device_off\""
+              "type": "str — enums.json §26 location_unavailable_reason (not_determined · denied · services_off). Was inline undetermined|denied|device_off until 5 Oct 2026."
             }
           ],
           "sensitivity_class": 1,

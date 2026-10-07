@@ -75,6 +75,29 @@ val Lavender = Color(0xFFA78BFA)       // --liq-lavender-400
  */
 val LavenderWash = Color(0xFFF9F7FF)   // --liq-lavender-50 · the palest surface in the ramp
 
+// ── added for SHOWUP-165 to SHOWUP-173 ─────────────────────────────────────
+//
+// The two lighter steps the confetti draws in (Profile 13 names them as tokens: "tokens only:
+// --liq-orange-500 · --liq-orange-400 · --liq-primary-500 · --liq-primary-400"), and the three
+// translucent fills the location ask and the detail rows set.
+val Orange400 = Color(0xFFFF9450)      // --liq-orange-400
+val Purple400 = Color(0xFFA855F7)      // --liq-primary-400
+
+/**
+ * The selected-row wash on `OptionRow` and `CheckRow`, rgba(129,42,236,.06). The reference sets it
+ * inline on both rows; it is a token here because two components carry it and must not drift.
+ */
+val SelectedRowWash = Color(0x0F812AEC)
+
+/** The location ask's privacy-note fill, rgba(167,139,250,.10). */
+val PrivacyNoteWash = Color(0x1AA78BFA)
+
+/**
+ * The toast's shadow ink, rgba(46,1,71,.22) -- the violet-black every `--liq-shadow-*` token is
+ * cast in (46, 1, 71), at the alpha the three toast references set.
+ */
+val ToastShadow = Color(0x382E0147)
+
 /** --su-grad-sunset · 135°, midpoint at 38%. Not an even three-stop ramp. */
 val SunsetStops = listOf(0.00f to Color(0xFFFE6839), 0.38f to Color(0xFFD05976), 1.00f to Color(0xFF812AEC))
 

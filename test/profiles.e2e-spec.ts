@@ -82,7 +82,7 @@ describe('Profiles (e2e)', () => {
     const res = await request(server)
       .patch('/me/profile')
       .set('Authorization', bearer())
-      .send({ displayName: 'Leo', dateOfBirth: '1998-04-23', gender: 'male' })
+      .send({ displayName: 'Leo', dateOfBirth: '1998-04-23', gender: 'man' })
       .expect(200);
     expect(res.body.displayName).toBe('Leo');
     expect(res.body.age).toBeGreaterThanOrEqual(18);
@@ -188,10 +188,12 @@ describe('Profiles (e2e)', () => {
   });
 
   it('rejects a field_id with no control behind it', async () => {
+    // `habits`: named in the registry, screen unbuilt. It used to be `height`, until the detail
+    // screens gave height its control (SHOWUP-167).
     await request(server)
       .patch('/me/profile')
       .set('Authorization', bearer())
-      .send({ hiddenFields: ['height'] })
+      .send({ hiddenFields: ['habits'] })
       .expect(400);
   });
 
@@ -436,6 +438,14 @@ describe('Profiles (e2e)', () => {
   });
 
   it('an admin can set verification status', async () => {
+    // SET FIRST, so the absence below is proved against values that exist rather than inferred
+    // from empty columns: religion, politics and orientation are Class 2 special-category data,
+    // and verifying an identity has no use for any of them.
+    await request(server)
+      .patch('/me/profile')
+      .set('Authorization', bearer())
+      .send({ religion: 'buddhist', politics: 'left', orientation: 'gay' })
+      .expect(200);
     await users.update({ id: userId }, { role: UserRole.Admin });
     const res = await request(server)
       .patch(`/admin/profiles/${userId}/verification`)
@@ -443,5 +453,15 @@ describe('Profiles (e2e)', () => {
       .send({ status: 'verified' })
       .expect(200);
     expect(res.body.verificationStatus).toBe('verified');
+    for (const field of [
+      'religion',
+      'politics',
+      'orientation',
+      'datingLanguages',
+      'education',
+      'heightCm',
+    ]) {
+      expect(res.body).not.toHaveProperty(field);
+    }
   });
 });

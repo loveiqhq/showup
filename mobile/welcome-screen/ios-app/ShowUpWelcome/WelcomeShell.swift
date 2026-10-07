@@ -51,6 +51,16 @@ enum OrbPlacement {
     /// there is nothing for a low violet to muddy — and the suggestion cards fill the middle, which
     /// a second top orb would sit behind.
     case realYouSplit
+
+    /// `Atmosphere` from `components/shared.jsx`: orange 460 at top -18% / right -25%, violet 460 at
+    /// bottom -16% / left -26%. "Share some details" draws it at the `form` intensity, 0.13 / 0.11.
+    case atmosphere
+
+    /// Embrace 2 (SHOWUP-166): orange 480 at top -18% / right -20%, and the violet as a broad glow
+    /// CENTRED at the bottom — `radial-gradient(ellipse at 50% 70%)` over a box 120% wide and 540
+    /// tall, 10% below the bottom edge. Its peach wash is 320 tall and fades out by 60%. A placement
+    /// of the ONE backdrop, which is what the ticket asks for, not a second component.
+    case embraceDetails
 }
 
 struct WelcomeBackdrop: View {
@@ -90,18 +100,43 @@ struct WelcomeBackdrop: View {
                         .position(x: w * 1.25 - 260, y: -0.15 * h + 260)
                     orb(600, .liqPurple, violetAlpha)
                         .position(x: -0.30 * w + 300, y: h * 1.20 - 300)
+                case .atmosphere:
+                    orb(460, .liqOrange, orangeAlpha)
+                        .position(x: w * 1.25 - 230, y: -0.18 * h + 230)
+                    orb(460, .liqPurple, violetAlpha)
+                        .position(x: -0.26 * w + 230, y: h * 1.16 - 230)
+                case .embraceDetails:
+                    orb(480, .liqOrange, orangeAlpha)
+                        .position(x: w * 1.20 - 240, y: -0.18 * h + 240)
+                    // THE ELLIPSE, derived rather than eyeballed — the same arithmetic as the Kotlin
+                    // twin: a vertical radius of 411.25 whatever the width, a horizontal one 1.523
+                    // times the width, centred at half the width and 162 above 110% of the height.
+                    // `EllipticalGradient` fills its frame with an ellipse whose edge is the 0.5
+                    // radius fraction, so the frame is the full ellipse and the stops run 0 -> 0.6.
+                    EllipticalGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: Color.liqPurple.opacity(violetAlpha), location: 0.0),
+                            .init(color: Color.liqPurple.opacity(0.0), location: 0.6),
+                            .init(color: .clear, location: 1.0),
+                        ]),
+                        center: .center
+                    )
+                    .frame(width: 1.5231 * w * 2, height: 411.25 * 2)
+                    .position(x: w / 2, y: 1.1 * h - 162)
                 }
                 if peachWash {
-                    // linear-gradient(180deg, rgba(255,229,210,.55) 0%, rgba(255,251,247,0) 70%)
+                    // linear-gradient(180deg, rgba(255,229,210,.55) 0%, rgba(255,251,247,0) 70%) ·
+                    // 360 tall — Embrace 2 draws its own at 320, transparent by 60%.
+                    let embrace2 = placement == .embraceDetails
                     LinearGradient(
                         stops: [
                             .init(color: Color(hex: 0xFFE5D2).opacity(0.55), location: 0.0),
-                            .init(color: Color(hex: 0xFFFBF7).opacity(0.0), location: 0.7),
+                            .init(color: Color(hex: 0xFFFBF7).opacity(0.0), location: embrace2 ? 0.6 : 0.7),
                             .init(color: .clear, location: 1.0),
                         ],
                         startPoint: .top, endPoint: .bottom
                     )
-                    .frame(height: 360)
+                    .frame(height: embrace2 ? 320 : 360)
                 }
             }
         }
@@ -153,6 +188,11 @@ struct WelcomeScaffold<Content: View, Footer: View>: View {
     /// reachable, not visible, and on the notifications ask (SHOWUP-162) that meant a Galaxy Fold
     /// opening on a permission screen with no button drawn on it at all. Pass `footer` as well.
     var scrollWhenTight: Bool = false
+    /// A full-bleed layer ABOVE the backdrop and BELOW the content — Embrace 2's confetti
+    /// (SHOWUP-166): "the confetti passes behind the copy and the CTA, never over them". Nil
+    /// everywhere else. Type-erased because exactly one screen passes one, and a third generic on
+    /// this scaffold would ripple through every call site for that one screen.
+    var behindContent: AnyView? = nil
     /// A fixed band below the scrolling region — the CTA, and nothing else so far.
     ///
     /// `EmptyView` on every screen but one, through the convenience init below, and that path is
@@ -185,6 +225,13 @@ struct WelcomeScaffold<Content: View, Footer: View>: View {
             WelcomeBackdrop(peachWash: peachWash, placement: placement,
                             orangeAlpha: orangeAlpha, violetAlpha: violetAlpha)
                 .ignoresSafeArea()
+
+            if let behindContent {
+                behindContent
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
 
             VStack(spacing: 0) {
                 if scrollWhenTight {
@@ -235,12 +282,14 @@ extension WelcomeScaffold where Footer == EmptyView {
         topPadding: CGFloat = 20,
         gutter: CGFloat = Spacing.screenGutter,
         scrollWhenTight: Bool = false,
+        behindContent: AnyView? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(
             peachWash: peachWash, placement: placement, orangeAlpha: orangeAlpha,
             violetAlpha: violetAlpha, topPadding: topPadding, gutter: gutter,
-            scrollWhenTight: scrollWhenTight, footer: { EmptyView() }, content: content
+            scrollWhenTight: scrollWhenTight, behindContent: behindContent,
+            footer: { EmptyView() }, content: content
         )
     }
 }
@@ -566,7 +615,10 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  // a speech bubble with a handset inside it -- because putting the real mark on
                  // the screen would put a third party's branding rules on it too, and this row
                  // is a demand test for a channel that does not exist yet.
-                 bell, phoneCall, whatsApp, alertCircle }
+                 bell, phoneCall, whatsApp, alertCircle,
+                 // The location ask (SHOWUP-165): `compass · map-pin · navigation`, at the kit's
+                 // exact 24-grid geometry. `lock`, for its privacy note, already existed.
+                 compass, mapPin, navigation }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -1040,6 +1092,44 @@ struct BrandIconView: View {
                     b.addEllipse(in: .init(x: 2, y: 2, width: 20, height: 20))
                     b.move(to: .init(x: 12, y: 8)); b.addLine(to: .init(x: 12, y: 12))
                     b.move(to: .init(x: 12, y: 16)); b.addLine(to: .init(x: 12.01, y: 16))
+                }
+            // ── added for the location ask (SHOWUP-165) ───────────────────────────
+            case .compass:
+                // `circle 12,12 r10` + `polygon 16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88`.
+                filled = false
+                p = Path { b in
+                    b.addEllipse(in: .init(x: 2, y: 2, width: 20, height: 20))
+                    b.move(to: .init(x: 16.24, y: 7.76))
+                    b.addLine(to: .init(x: 14.12, y: 14.12))
+                    b.addLine(to: .init(x: 7.76, y: 16.24))
+                    b.addLine(to: .init(x: 9.88, y: 9.88))
+                    b.closeSubpath()
+                }
+            case .mapPin:
+                // `M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z` + `circle 12,10 r3`.
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 21, y: 10))
+                    b.addCurve(to: .init(x: 12, y: 23),
+                               control1: .init(x: 21, y: 17), control2: .init(x: 12, y: 23))
+                    b.addCurve(to: .init(x: 3, y: 10),
+                               control1: .init(x: 12, y: 23), control2: .init(x: 3, y: 17))
+                    // a9 9 0 0 1 18 0 — the TOP half, left to right; the same arc the lock's
+                    // shackle draws.
+                    b.addArc(center: .init(x: 12, y: 10), radius: 9,
+                             startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+                    b.closeSubpath()
+                    b.addEllipse(in: .init(x: 9, y: 7, width: 6, height: 6))
+                }
+            case .navigation:
+                // `polygon 3 11 22 2 13 21 11 13`.
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 3, y: 11))
+                    b.addLine(to: .init(x: 22, y: 2))
+                    b.addLine(to: .init(x: 13, y: 21))
+                    b.addLine(to: .init(x: 11, y: 13))
+                    b.closeSubpath()
                 }
             case .phone:
                 filled = false

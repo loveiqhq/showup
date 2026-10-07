@@ -144,6 +144,25 @@ final class CrashesTests: XCTestCase {
         XCTAssertEqual(extra?["token_type"] as? String, "Bearer")
     }
 
+    func testSpecialCategoryProfileAnswersAreRedactedAndTheAnalyticsFieldIdIsNot() {
+        let event = Event()
+        event.extra = [
+            "gender": "non_binary",
+            "orientation": "gay",
+            "religion": "muslim",
+            "politics": "left",
+            "field_id": "religion",
+        ]
+
+        let extra = Crashes.scrub(event).extra
+
+        for key in ["gender", "orientation", "religion", "politics"] {
+            XCTAssertEqual(extra?[key] as? String, Crashes.redacted, "\(key) should be redacted")
+        }
+        // Naming WHICH question failed is not the answer, and is what makes a report useful.
+        XCTAssertEqual(extra?["field_id"] as? String, "religion")
+    }
+
     func testProhibitedTagsAreRedactedToo() {
         let event = Event()
         event.tags = ["email": "someone@example.com", "build": "release"]

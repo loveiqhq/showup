@@ -49,7 +49,6 @@
  */
 package com.showup.profile
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,22 +61,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Orange
 import com.showup.designsystem.PrimaryButton
-import com.showup.designsystem.PrimaryButtonVariant
-import com.showup.welcome.BrandIcon
-import com.showup.welcome.Icon
-import com.showup.welcome.WashHeadline
 import com.showup.welcome.WelcomeScaffold
 
 /**
@@ -142,33 +135,27 @@ fun ProfileEmbraceScreen(
     firstName: String = "",
     onContinue: () -> Unit = {},
 ) {
-    // Mandatory once entered: there is nothing behind this screen to return to, and a screen with
-    // no chevron that the OS can still dismiss is worse than no rule at all. Same handler, same
-    // reason, as ProfileNameScreen.
-    BackHandler(enabled = true) { /* deliberately nothing */ }
-
     val clean = firstName.trim()
     val greeting =
         if (clean.isEmpty()) EmbraceCopy.GREETING_ANONYMOUS else EmbraceCopy.greeting(clean)
 
-    // topPadding 64 and gutter 28 come straight from the reference's headline block,
-    // `padding: '64px 28px 0'`. The 64 is what replaces the chrome this screen does not have:
-    // on every other profile screen the header and the progress bar occupy that space.
-    WelcomeScaffold(topPadding = 64.dp, gutter = 28.dp) {
-        // Lora 700 / 34 / 1.1 / -0.015em, with ONE italic em. The hard break keeps the greeting on
-        // its own line: `textWrap: balance` in the reference is a wrapping hint for the second
-        // sentence, not permission for the two to run together.
-        WashHeadline(
-            parts = listOf(
-                (greeting + "\n" + EmbraceCopy.HEADLINE_LEAD) to false,
-                EmbraceCopy.HEADLINE_EM to true,
-                EmbraceCopy.HEADLINE_TAIL to false,
-            ),
-            fontSize = 34.sp,
-            lineHeight = (34f * 1.1f).sp,
-            letterSpacing = (-0.015).em,
-        )
-
+    // THE SHARED BRIDGE SHELL since SHOWUP-166 -- see BridgeShell.kt. Everything that is the same
+    // on both bridges (no chrome, the backdrop, the 34 headline, the one spacer, the sunset CTA
+    // with its trailing arrow, the swallowed back) lives there; this screen is its payload.
+    //
+    // The headline is Lora 700 / 34 / 1.1 / -0.015em with ONE italic em. The hard break keeps the
+    // greeting on its own line: `textWrap: balance` in the reference is a wrapping hint for the
+    // second sentence, not permission for the two to run together.
+    EmbraceBridgeShell(
+        headline = listOf(
+            (greeting + "\n" + EmbraceCopy.HEADLINE_LEAD) to false,
+            EmbraceCopy.HEADLINE_EM to true,
+            EmbraceCopy.HEADLINE_TAIL to false,
+        ),
+        cta = EmbraceCopy.CTA,
+        onContinue = onContinue,
+        backdrop = BridgeBackdrop.Corner,
+    ) {
         // The body block's own 28 top padding. The headline block has no bottom padding, so this
         // single value is the whole gap between them.
         Box(Modifier.padding(top = 28.dp)) {
@@ -192,23 +179,6 @@ fun ProfileEmbraceScreen(
             modifier = Modifier.padding(top = 14.dp),
             color = Neutral, fontFamily = Manrope, fontWeight = FontWeight.Medium,
             fontSize = 15.5.sp, lineHeight = (15.5f * 1.55f).sp,
-        )
-
-        // THE ONLY FLEXIBLE ELEMENT. It absorbs every device difference: about 240 at 390 x 844,
-        // about 65 at 375 x 667. Never a hard-coded Y, and never a second spacer.
-        Box(Modifier.weight(1f))
-
-        // Sunset and full width -- rule 7's named exception. The trailing arrow is the design
-        // system's own `arrow-right` from components/shared.jsx (line 5,12 -> 19,12 with the head
-        // at 12,5 / 19,12 / 12,19), which is what BrandIcon.ArrowRight already draws. The
-        // reference file inlines a slightly different path of its own; the shared icon set is the
-        // design system's and wins over one screen's inline copy.
-        PrimaryButton(
-            label = EmbraceCopy.CTA,
-            onClick = onContinue,
-            modifier = Modifier.padding(bottom = 22.dp),
-            variant = PrimaryButtonVariant.Sunset,
-            trailing = { Icon(BrandIcon.ArrowRight, 18.dp, tint = Color.White, strokeWidth = 2f) },
         )
     }
 }

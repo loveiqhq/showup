@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// Animation durations, in seconds. Mirrors `Motion.kt`, which holds the same values in
 /// milliseconds.
@@ -20,6 +20,11 @@ enum Motion {
     /// Longer than `fast` because it is an arrival rather than a state change: the card is asking
     /// a question, and a 180ms appearance reads as a flicker rather than something to answer.
     static let confirm: TimeInterval = 0.24
+
+    /// The step progress bar's segment fill — `StepProgress` in shared.jsx, `transition: background
+    /// 280ms`, on `cssEase`. Its own number, not `screen`'s: the reference times the bar separately
+    /// from the transition between the screens that draw it.
+    static let progress: TimeInterval = 0.28
 
     /// Screen-to-screen transition.
     static let screen: TimeInterval = 0.32
@@ -44,4 +49,11 @@ enum Motion {
     /// Not a fade and not a transition: it is a READING duration, which is why it is an order of
     /// magnitude longer than everything above it. The fade in and out is `fast` either side.
     static let toast: TimeInterval = 2.6
+
+    /// CSS's default `ease`, for the transitions the reference writes with a duration and NO curve
+    /// — the answer rows' and the visibility band's `transition: background 180ms`. A browser runs
+    /// that on `ease`; `.easeOut` is a different curve. Android names the same one `CssEase`.
+    static func cssEase(_ duration: TimeInterval) -> Animation {
+        .timingCurve(0.25, 0.1, 0.25, 1, duration: duration)
+    }
 }

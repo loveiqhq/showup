@@ -70,6 +70,11 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     ///
     /// Nil everywhere else, which is every button in the app that is not one of a set.
     var labelWidth: CGFloat?
+    /// How many lines the label may wrap to before it is cut. Two everywhere but one: the location
+    /// ask's `Not now — ask me when I search` (SHOWUP-165), the longest label on any button, needs a
+    /// third at the largest type on the narrowest phone. Declared before `action`, defaulted, so no
+    /// call site changes.
+    var labelLineLimit: Int = 2
     var action: () -> Void
     @ViewBuilder var leading: () -> Leading
     /// Mirrors `leading`. Used once: the tutorial CTA's trailing arrow.
@@ -92,7 +97,7 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
                     // Two, so a label too wide for a narrow phone wraps instead of being
                     // cut. Still bounded: unlimited would let a translation grow the control
                     // without end. Mirrors PrimaryButton.kt.
-                    .lineLimit(2)
+                    .lineLimit(labelLineLimit)
                     .multilineTextAlignment(.center)
                     .foregroundColor(labelColor)
                 trailing()
@@ -168,9 +173,10 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
 
 extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
     init(_ label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
-         height: CGFloat = 56, labelSize: CGFloat = 16, action: @escaping () -> Void) {
+         height: CGFloat = 56, labelSize: CGFloat = 16, labelLineLimit: Int = 2,
+         action: @escaping () -> Void) {
         self.init(label: label, variant: variant, enabled: enabled, height: height,
-                  labelSize: labelSize, action: action,
+                  labelSize: labelSize, labelLineLimit: labelLineLimit, action: action,
                   leading: { EmptyView() }, trailing: { EmptyView() })
     }
 }

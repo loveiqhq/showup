@@ -21,6 +21,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -89,9 +91,9 @@ class ReachabilityRulesTest {
      * behind, and the permission `reachability_saved` carries.
      */
     private class MovingAccess(
-        var status: NotificationPermission = NotificationPermission.NotDetermined,
+        var status: PermissionStatus = PermissionStatus.NotDetermined,
     ) : NotificationAccessReader {
-        override fun read(): NotificationPermission = status
+        override fun read(): PermissionStatus = status
     }
 
     private val dispatcher = StandardTestDispatcher()
@@ -113,13 +115,27 @@ class ReachabilityRulesTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun build(
-        status: NotificationPermission = NotificationPermission.NotDetermined,
+        status: PermissionStatus = PermissionStatus.NotDetermined,
     ) = ReachabilityViewModel(
         access = FixedNotificationAccess(status),
         push = push,
         consent = consent,
         analytics = analytics,
     ).also { it.attach(host) }
+
+    @Test
+    fun `the dialog's answer reaches the waiting save from a rebuilt Activity's launcher`() =
+        runTest(dispatcher) {
+            // The deferred is the view model's, not the composition's: the launcher that answers
+            // may belong to an Activity built after the one that raised the dialog.
+            val vm = build()
+            var launched = 0
+            val answer = async { vm.awaitNotificationAnswer { launched++ } }
+            runCurrent()
+            vm.notificationAnswered(true)
+            assertTrue(answer.await())
+            assertEquals(1, launched)
+        }
 
     // ── the defaults ────────────────────────────────────────────────────────
 
@@ -137,7 +153,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `a denied status shows the toggle off, because an opt-out cannot promise what the OS refused`() {
-        val vm = build(NotificationPermission.Denied)
+        val vm = build(PermissionStatus.Denied)
         vm.arrived()
         assertFalse(vm.state.value.pushOn)
     }
@@ -146,7 +162,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `arriving reports the screen, and the pre-permission surface only when it is one`() {
-        val vm = build(NotificationPermission.NotDetermined)
+        val vm = build(PermissionStatus.NotDetermined)
         vm.arrived()
         assertEquals(
             listOf(ProfileAnalytics.SCREEN_VIEWED, ProfileAnalytics.PERMISSION_PROMPTED),
@@ -162,7 +178,7 @@ class ReachabilityRulesTest {
     fun `an already-answered status is not a pre-permission surface`() {
         // The ticket qualifies it: `permission_prompted` fires "only when the status is not
         // determined". Somebody whose answer is already on file is not being pre-permissioned.
-        val vm = build(NotificationPermission.Granted)
+        val vm = build(PermissionStatus.Granted)
         vm.arrived()
         assertEquals(0, analytics.count(ProfileAnalytics.PERMISSION_PROMPTED))
         assertEquals(1, analytics.count(ProfileAnalytics.SCREEN_VIEWED))
@@ -302,7 +318,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `switching on against a refusal opens Settings rather than setting a dead toggle`() {
-        val vm = build(NotificationPermission.Denied)
+        val vm = build(PermissionStatus.Denied)
         vm.arrived()
         analytics.clear()
 
@@ -318,7 +334,7 @@ class ReachabilityRulesTest {
     @Test
     fun `saving with push on and nothing answered raises the dialog, registers, then advances`() =
         runTest(dispatcher) {
-            val vm = build(NotificationPermission.NotDetermined)
+            val vm = build(PermissionStatus.NotDetermined)
             vm.arrived()
             analytics.clear()
             host.grants = true
@@ -346,7 +362,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `no dialog when push is off`() = runTest(dispatcher) {
-        val vm = build(NotificationPermission.NotDetermined)
+        val vm = build(PermissionStatus.NotDetermined)
         vm.arrived()
         vm.pushChanged(false)
         vm.confirmDeactivation()
@@ -364,7 +380,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `no dialog when the status is already determined`() = runTest(dispatcher) {
-        val vm = build(NotificationPermission.Granted)
+        val vm = build(PermissionStatus.Granted)
         vm.arrived()
         analytics.clear()
 
@@ -382,7 +398,7 @@ class ReachabilityRulesTest {
     @Test
     fun `a denial shows the confirm with Open Settings and does not advance`() =
         runTest(dispatcher) {
-            val vm = build(NotificationPermission.NotDetermined)
+            val vm = build(PermissionStatus.NotDetermined)
             vm.arrived()
             analytics.clear()
             host.grants = false
@@ -411,7 +427,7 @@ class ReachabilityRulesTest {
      */
     @Test
     fun `confirming after a denial finishes the save and advances`() = runTest(dispatcher) {
-        val access = MovingAccess(NotificationPermission.NotDetermined)
+        val access = MovingAccess(PermissionStatus.NotDetermined)
         val vm = ReachabilityViewModel(
             access = access, push = push, consent = consent, analytics = analytics,
         ).also { it.attach(host) }
@@ -427,7 +443,7 @@ class ReachabilityRulesTest {
         analytics.clear()
 
         // The OS answer is on file now, which is what the device would report from here on.
-        access.status = NotificationPermission.Denied
+        access.status = PermissionStatus.Denied
 
         vm.confirmDeactivation { advanced = true }
         advanceUntilIdle()
@@ -474,7 +490,7 @@ class ReachabilityRulesTest {
             // A scrim tap on state D is the one path that can leave a switch claiming a permission
             // the DEVICE has refused -- `Keep active` is not even drawn there. The arrival matrix
             // already says denied shows off; this is the same mapping one moment earlier.
-            val access = MovingAccess(NotificationPermission.NotDetermined)
+            val access = MovingAccess(PermissionStatus.NotDetermined)
             val vm = ReachabilityViewModel(
                 access = access, push = push, consent = consent, analytics = analytics,
             ).also { it.attach(host) }
@@ -482,7 +498,7 @@ class ReachabilityRulesTest {
             host.grants = false
             vm.savePressed { }
             advanceUntilIdle()
-            access.status = NotificationPermission.Denied
+            access.status = PermissionStatus.Denied
 
             vm.keepActive()
 
@@ -494,7 +510,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `Open Settings is not an abandonment`() = runTest(dispatcher) {
-        val vm = build(NotificationPermission.NotDetermined)
+        val vm = build(PermissionStatus.NotDetermined)
         vm.arrived()
         host.grants = false
         vm.savePressed { }
@@ -514,7 +530,7 @@ class ReachabilityRulesTest {
     fun `nothing advances until the server confirms`() = runTest(dispatcher) {
         // NOT OPTIMISTIC. On a failure the user stays on 10 with their choices kept, and the CTA
         // works again. The alternative produces accounts past a consent screen with no consent.
-        val vm = build(NotificationPermission.Granted)
+        val vm = build(PermissionStatus.Granted)
         vm.arrived()
         vm.interestToggled(InterestChannel.Sms)
         consent.succeeds = false
@@ -535,7 +551,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `the save carries the final interest, in the drawn order`() = runTest(dispatcher) {
-        val vm = build(NotificationPermission.Granted)
+        val vm = build(PermissionStatus.Granted)
         vm.arrived()
         vm.interestToggled(InterestChannel.Sms)
         vm.interestToggled(InterestChannel.AiCall)
@@ -555,7 +571,7 @@ class ReachabilityRulesTest {
 
     @Test
     fun `the CTA cannot be tapped twice`() = runTest(dispatcher) {
-        val vm = build(NotificationPermission.Granted)
+        val vm = build(PermissionStatus.Granted)
         vm.arrived()
 
         var advanced = 0
@@ -571,12 +587,12 @@ class ReachabilityRulesTest {
 
     @Test
     fun `coming back from Settings updates the toggle and advances nothing`() {
-        val access = MutableAccess(NotificationPermission.Denied)
+        val access = MutableAccess(PermissionStatus.Denied)
         val vm = ReachabilityViewModel(access, push, consent, analytics).also { it.attach(host) }
         vm.arrived()
         assertFalse(vm.state.value.pushOn)
 
-        access.status = NotificationPermission.Granted
+        access.status = PermissionStatus.Granted
         vm.foregrounded()
 
         assertTrue("returning with notifications allowed shows the toggle on", vm.state.value.pushOn)
@@ -586,7 +602,7 @@ class ReachabilityRulesTest {
     fun `the reconciler's event is not this screen's to fire`() = runTest(dispatcher) {
         // `permission_status_changed` is for changes made OUTSIDE the app. The answer to our own
         // dialog is `permission_result`, and the two must never both fire for one act.
-        val vm = build(NotificationPermission.NotDetermined)
+        val vm = build(PermissionStatus.NotDetermined)
         vm.arrived()
         vm.savePressed { }
         advanceUntilIdle()
@@ -595,7 +611,7 @@ class ReachabilityRulesTest {
     }
 
     /** A reader whose answer can change between reads, which is what a foreground re-read is. */
-    private class MutableAccess(var status: NotificationPermission) : NotificationAccessReader {
-        override fun read(): NotificationPermission = status
+    private class MutableAccess(var status: PermissionStatus) : NotificationAccessReader {
+        override fun read(): PermissionStatus = status
     }
 }

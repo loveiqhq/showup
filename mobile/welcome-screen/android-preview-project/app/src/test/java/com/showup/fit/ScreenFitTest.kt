@@ -63,6 +63,16 @@ import com.showup.profile.PromptsState
 import com.showup.profile.SavedPrompt
 import com.showup.profile.UploadStatus
 import com.showup.profile.ProfileNameScreen
+import com.showup.profile.DetailDraft
+import com.showup.profile.DetailStep
+import com.showup.profile.DetailToast
+import com.showup.profile.DetailsUiState
+import com.showup.profile.LocationState
+import com.showup.profile.ProfileChoiceScreen
+import com.showup.profile.ProfileDatingLanguageScreen
+import com.showup.profile.ProfileEmbraceDetailsScreen
+import com.showup.profile.ProfileHeightScreen
+import com.showup.profile.ProfileLocationScreen
 import com.showup.profile.ProfileVerifyEmailScreen
 import com.showup.profile.VerifyState
 import com.showup.welcome.StartupScreen
@@ -797,6 +807,73 @@ class ScreenFitTest {
         }
         sweep("Prompts/topics + keyboard", keyboardDp = 300) {
             ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Topics))
+        }
+        assertClean()
+    }
+
+    // ── Location, Embrace 2 and "Share some details" (SHOWUP-165 to SHOWUP-173) ───
+
+    @Test
+    fun `the location ask, all three states, at three type sizes`() {
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            LocationState.entries.forEach { state ->
+                sweep("Location/$state @$scale", fontScale = scale) { ProfileLocationScreen(state) }
+            }
+        }
+        assertClean()
+    }
+
+    @Test
+    fun `embrace 2, named and anonymous, at three type sizes`() {
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            sweep("Embrace2/named @$scale", fontScale = scale) { ProfileEmbraceDetailsScreen(firstName = "Leo") }
+            sweep("Embrace2/long name @$scale", fontScale = scale) {
+                ProfileEmbraceDetailsScreen(firstName = "Maximiliana-Rose")
+            }
+            sweep("Embrace2/no name @$scale", fontScale = scale) { ProfileEmbraceDetailsScreen(firstName = "") }
+        }
+        assertClean()
+    }
+
+    @Test
+    fun `every detail step, every state, at three type sizes`() {
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            sweep("Height/A @$scale", fontScale = scale) { ProfileHeightScreen(DetailsUiState(), autoFocus = false) }
+            sweep("Height/B @$scale", fontScale = scale) {
+                ProfileHeightScreen(DetailsUiState(draft = DetailDraft(heightText = "175")), autoFocus = false)
+            }
+            sweep("Height/C @$scale", fontScale = scale) {
+                ProfileHeightScreen(DetailsUiState(toast = DetailToast.Refusal, toastTick = 1), autoFocus = false)
+            }
+            sweep("DatingLanguage/A @$scale", fontScale = scale) { ProfileDatingLanguageScreen() }
+            sweep("DatingLanguage/B @$scale", fontScale = scale) {
+                ProfileDatingLanguageScreen(DetailsUiState(draft = DetailDraft(languages = setOf("german", "english"))))
+            }
+            listOf(DetailStep.Gender, DetailStep.Orientation, DetailStep.Education, DetailStep.Religion, DetailStep.Politics)
+                .forEach { step ->
+                    sweep("$step/A @$scale", fontScale = scale) { ProfileChoiceScreen(step) }
+                    sweep("$step/B @$scale", fontScale = scale) {
+                        ProfileChoiceScreen(step, DetailsUiState(draft = DetailDraft().withSelection(step, step.options.last().value)))
+                    }
+                    if (step.mandatory) {
+                        sweep("$step/C @$scale", fontScale = scale) {
+                            ProfileChoiceScreen(step, DetailsUiState(toast = DetailToast.Refusal, toastTick = 1))
+                        }
+                    }
+                }
+            sweep("Details/save failed @$scale", fontScale = scale) {
+                ProfileChoiceScreen(DetailStep.Religion, DetailsUiState(toast = DetailToast.SaveFailed, toastTick = 1))
+            }
+        }
+        assertClean()
+    }
+
+    /** Height with the keypad up -- the only detail step with a keyboard, and the tightest frame. */
+    @Test
+    fun `height clears a numeric keypad`() {
+        sweep("Height/A + keypad", keyboardDp = 260) { ProfileHeightScreen(DetailsUiState(), autoFocus = false) }
+        sweep("Height/C + keypad", keyboardDp = 260) {
+            ProfileHeightScreen(DetailsUiState(toast = DetailToast.Refusal, toastTick = 1), autoFocus = false)
         }
         assertClean()
     }

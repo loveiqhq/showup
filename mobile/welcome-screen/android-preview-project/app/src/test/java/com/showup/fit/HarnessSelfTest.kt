@@ -31,6 +31,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsNode
@@ -174,6 +175,32 @@ class HarnessSelfTest {
         val hit = v.firstOrNull { it.problem.contains("56dp spec") }
         assertTrue("a 48dp control should be noted: $v", hit != null)
         assertTrue("...but only as an advisory", hit!!.advisory)
+    }
+
+    @Test
+    fun `content pushed above the top OUTSIDE a scroll is a failure`() {
+        val v = measureFit(PHONE, "off the top") {
+            Box(Modifier.fillMaxSize()) {
+                Text("lost", Modifier.offset(y = (-40).dp))
+            }
+        }
+        val hit = v.firstOrNull { it.problem == "OFF THE TOP" }
+        assertTrue("text 40dp above the top was not caught: $v", hit != null)
+        assertTrue("outside a scroll it must be a failure", !hit!!.advisory)
+    }
+
+    @Test
+    fun `content scrolled above the top INSIDE a scroll is an advisory, not a failure`() {
+        // A list opened scrolled to its saved row: the first rows are above the viewport and one
+        // drag away. Reported, never failed -- the mirror of BELOW THE FOLD.
+        val v = measureFit(PHONE, "scrolled list") {
+            val state = rememberScrollState(initial = 200)
+            Column(Modifier.height(300.dp).verticalScroll(state)) {
+                repeat(20) { Text("row $it", Modifier.height(48.dp)) }
+            }
+        }
+        assertTrue("scrolled-away rows must not fail: $v", v.none { it.problem == "OFF THE TOP" })
+        assertTrue("...but they are noted: $v", v.any { it.problem == "ABOVE THE FOLD" && it.advisory })
     }
 
     @Test

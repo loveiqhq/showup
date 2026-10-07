@@ -412,6 +412,20 @@
         ],
         "type": "object"
       },
+      "DatingLanguage": {
+        "description": "The languages someone is happy to date in (registry §1 dating_language). Send at least one; stored de-duplicated and in list order, whatever order is sent.",
+        "enum": [
+          "german",
+          "english",
+          "spanish",
+          "italian",
+          "french",
+          "turkish",
+          "russian",
+          "arabic"
+        ],
+        "type": "string"
+      },
       "DeletePushTokenDto": {
         "properties": {
           "token": {
@@ -435,6 +449,7 @@
             "type": "integer"
           },
           "gender": {
+            "description": "Null when unanswered, or when the person has chosen not to show it on their profile",
             "nullable": true,
             "type": "string"
           },
@@ -459,6 +474,42 @@
           "distanceMeters"
         ],
         "type": "object"
+      },
+      "Education": {
+        "enum": [
+          "a_levels_abitur",
+          "apprenticeship",
+          "university_degree",
+          "phd"
+        ],
+        "type": "string"
+      },
+      "FlowPosition": {
+        "description": "The §2 step just completed or skipped. Only ever moves forward: an earlier step is accepted and ignored, so going back a screen never rewinds the account.",
+        "enum": [
+          "media_voice",
+          "media_video",
+          "notifications",
+          "reachability",
+          "location",
+          "height",
+          "gender",
+          "orientation",
+          "dating_language",
+          "education",
+          "religion",
+          "politics"
+        ],
+        "type": "string"
+      },
+      "Gender": {
+        "enum": [
+          "woman",
+          "man",
+          "non_binary",
+          "other"
+        ],
+        "type": "string"
       },
       "GoogleLoginDto": {
         "properties": {
@@ -640,6 +691,17 @@
         ],
         "type": "object"
       },
+      "Orientation": {
+        "enum": [
+          "straight",
+          "gay",
+          "lesbian",
+          "bisexual",
+          "pansexual",
+          "other"
+        ],
+        "type": "string"
+      },
       "OtpChallengeResponseDto": {
         "properties": {
           "devCode": {
@@ -658,6 +720,105 @@
         "required": [
           "expiresAt",
           "resendAvailableAt"
+        ],
+        "type": "object"
+      },
+      "OwnProfileDto": {
+        "properties": {
+          "age": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "datingLanguages": {
+            "description": "In list order; null when never answered. Each: One of: german, english, spanish, italian, french, turkish, russian, arabic. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "displayName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "education": {
+            "description": "One of: a_levels_abitur, apprenticeship, university_degree, phd. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "gender": {
+            "description": "One of: woman, man, non_binary, other. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "heightCm": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "hiddenFields": {
+            "description": "Registry field_ids the user has hidden from their profile. Presentation only — a hidden field does not affect discovery visibility or matching.",
+            "example": [
+              "age"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isComplete": {
+            "type": "boolean"
+          },
+          "isVisible": {
+            "type": "boolean"
+          },
+          "lookingFor": {
+            "nullable": true,
+            "type": "string"
+          },
+          "orientation": {
+            "description": "One of: straight, gay, lesbian, bisexual, pansexual, other. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "politics": {
+            "description": "One of: left, mid_left, middle, mid_right, right, conservative, libertarian, apolitical. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "religion": {
+            "description": "One of: protestant, catholic, orthodox, muslim, jewish, buddhist, hindu, atheist, spiritual_other. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "verificationStatus": {
+            "enum": [
+              "none",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "age",
+          "gender",
+          "lookingFor",
+          "isVisible",
+          "hiddenFields",
+          "isComplete",
+          "verificationStatus",
+          "heightCm",
+          "orientation",
+          "datingLanguages",
+          "education",
+          "religion",
+          "politics"
         ],
         "type": "object"
       },
@@ -695,6 +856,19 @@
         ],
         "type": "object"
       },
+      "Politics": {
+        "enum": [
+          "left",
+          "mid_left",
+          "middle",
+          "mid_right",
+          "right",
+          "conservative",
+          "libertarian",
+          "apolitical"
+        ],
+        "type": "string"
+      },
       "ProfileDto": {
         "properties": {
           "age": {
@@ -706,6 +880,7 @@
             "type": "string"
           },
           "gender": {
+            "description": "One of: woman, man, non_binary, other. Read tolerantly: a newer server may add values.",
             "nullable": true,
             "type": "string"
           },
@@ -771,8 +946,21 @@
             "description": "Step 3. False while an address is present but its code has not been confirmed.",
             "type": "boolean"
           },
+          "flowPosition": {
+            "description": "The furthest §2 step completed or skipped after prompts, or null before any. Skippable steps leave no other trace, so this is the only evidence they were passed.",
+            "nullable": true,
+            "type": "string"
+          },
           "hasDateOfBirth": {
             "description": "Step 4. The date itself is never returned — only whether it is set.",
+            "type": "boolean"
+          },
+          "hasGender": {
+            "description": "Share some details step 2 (mandatory). The value itself is on /me/profile.",
+            "type": "boolean"
+          },
+          "hasOrientation": {
+            "description": "Share some details step 3 (mandatory). The value itself is on /me/profile.",
             "type": "boolean"
           },
           "photoCount": {
@@ -790,7 +978,10 @@
           "emailVerified",
           "hasDateOfBirth",
           "photoCount",
-          "promptCount"
+          "promptCount",
+          "hasGender",
+          "hasOrientation",
+          "flowPosition"
         ],
         "type": "object"
       },
@@ -875,6 +1066,20 @@
           "platform"
         ],
         "type": "object"
+      },
+      "Religion": {
+        "enum": [
+          "protestant",
+          "catholic",
+          "orthodox",
+          "muslim",
+          "jewish",
+          "buddhist",
+          "hindu",
+          "atheist",
+          "spiritual_other"
+        ],
+        "type": "string"
       },
       "ReorderPhotosDto": {
         "properties": {
@@ -1216,15 +1421,47 @@
             "example": "1998-04-23",
             "type": "string"
           },
+          "datingLanguages": {
+            "description": "The languages someone is happy to date in (registry §1 dating_language). Send at least one; stored de-duplicated and in list order, whatever order is sent.",
+            "items": {
+              "$ref": "#/components/schemas/DatingLanguage"
+            },
+            "type": "array"
+          },
           "displayName": {
             "example": "Leo",
             "type": "string"
           },
+          "education": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Education"
+              }
+            ]
+          },
+          "flowPosition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FlowPosition"
+              }
+            ],
+            "description": "The §2 step just completed or skipped. Only ever moves forward: an earlier step is accepted and ignored, so going back a screen never rewinds the account."
+          },
           "gender": {
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              }
+            ]
+          },
+          "heightCm": {
+            "description": "Whole centimetres.",
+            "maximum": 230,
+            "minimum": 120,
+            "type": "integer"
           },
           "hiddenFields": {
-            "description": "Registry field_ids the user does not want displayed on their profile. Replaces the whole set — send the full list, not a delta. Currently accepted: age. Does NOT affect discovery visibility or matching; use isVisible for that.",
+            "description": "Registry field_ids the user does not want displayed on their profile. Replaces the whole set — send the full list, not a delta. Accepted: age, height, gender, orientation, dating_language, education, religion, politics. Does NOT affect discovery visibility or matching; use isVisible for that.",
             "example": [
               "age"
             ],
@@ -1239,6 +1476,27 @@
           },
           "lookingFor": {
             "type": "string"
+          },
+          "orientation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Orientation"
+              }
+            ]
+          },
+          "politics": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Politics"
+              }
+            ]
+          },
+          "religion": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Religion"
+              }
+            ]
           }
         },
         "type": "object"
@@ -4633,7 +4891,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileDto"
+                  "$ref": "#/components/schemas/OwnProfileDto"
                 }
               }
             },
@@ -4688,7 +4946,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileDto"
+                  "$ref": "#/components/schemas/OwnProfileDto"
                 }
               }
             },
@@ -4753,7 +5011,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileDto"
+                  "$ref": "#/components/schemas/OwnProfileDto"
                 }
               }
             },
@@ -4857,7 +5115,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileDto"
+                  "$ref": "#/components/schemas/OwnProfileDto"
                 }
               }
             },

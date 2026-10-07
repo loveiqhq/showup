@@ -81,20 +81,19 @@ struct ProfileEmbraceView: View {
     }
 
     var body: some View {
-        // topPadding 64 and gutter 28 come straight from the reference's headline block,
-        // `padding: '64px 28px 0'`. The 64 is what replaces the chrome this screen does not have.
-        WelcomeScaffold(topPadding: 64, gutter: 28) {
-            // Lora 700 / 34 / 1.1 / -0.015em, one italic em. The hard break keeps the greeting on
-            // its own line whatever the name's length — the reference puts a literal `<br/>` here.
-            WashHeadline(
-                parts: [
-                    (greeting + "\n" + EmbraceCopy.headlineLead, false),
-                    (EmbraceCopy.headlineEm, true),
-                    (EmbraceCopy.headlineTail, false),
-                ],
-                fontSize: 34, lineHeightMultiple: 1.1, trackingEm: -0.015
-            )
-
+        // THE SHARED BRIDGE SHELL since SHOWUP-166 — see BridgeShell.swift. Everything the two
+        // bridges share lives there; this screen is its payload. The hard break keeps the greeting
+        // on its own line whatever the name's length — the reference puts a literal `<br/>` here.
+        EmbraceBridgeShell(
+            headline: [
+                (greeting + "\n" + EmbraceCopy.headlineLead, false),
+                (EmbraceCopy.headlineEm, true),
+                (EmbraceCopy.headlineTail, false),
+            ],
+            cta: EmbraceCopy.cta,
+            onContinue: onContinue,
+            backdrop: .corner
+        ) {
             // The body block's own 28 top padding. The headline block has no bottom padding, so
             // this single value is the whole gap between them.
             Text(EmbraceCopy.lead)
@@ -116,23 +115,6 @@ struct ProfileEmbraceView: View {
                 .lineSpacing(15.5 * 0.55)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 14)
-
-            // THE ONLY FLEXIBLE ELEMENT. `minLength: 0` so it may collapse entirely on the
-            // shortest frame rather than forcing the CTA off the bottom — a bare Spacer() keeps a
-            // minimum and is how a SwiftUI column silently overflows.
-            Spacer(minLength: 0)
-
-            // Sunset and full width — rule 7's named exception. The trailing arrow is the design
-            // system's own `arrow-right`, which is what BrandIcon.arrowRight already draws; the
-            // reference file inlines a slightly different path of its own and the shared icon set
-            // wins over one screen's inline copy.
-            PrimaryButton(
-                label: EmbraceCopy.cta,
-                variant: .sunset,
-                action: onContinue,
-                trailing: { BrandIconView(icon: .arrowRight, size: 18, stroke: 2, tint: .white) }
-            )
-            .padding(.bottom, 22)
         }
     }
 }

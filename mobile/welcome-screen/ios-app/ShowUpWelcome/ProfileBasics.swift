@@ -258,7 +258,7 @@ struct ProfileEmailView: View {
                         .opacity(serverError == nil ? 1 : 0)
                 } else {
                     HStack(alignment: .top, spacing: Spacing.md) {
-                        CheckGlyph(size: 16, color: .liqSuccessFg, lineWidth: 2)
+                        CheckGlyph(size: 16, color: .liqSuccessFg, stroke: 2)
                             .padding(.top, 1)
                         // Muted, NOT success green — the tick carries the colour. The only place in
                         // the flow the user is told a code screen is coming.
@@ -316,7 +316,7 @@ struct MarketingOptIn: View {
                         .fill(checked ? Color.liqPurple : Color.liqElevated)
                     RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(checked ? Color.liqPurple : Color.liqBorder, lineWidth: 1.5)
-                    if checked { CheckGlyph(size: 13, color: .white, lineWidth: 3) }
+                    if checked { CheckGlyph(size: 13, color: .white, stroke: 3) }
                 }
                 .frame(width: 22, height: 22)
                 .animation(.easeOut(duration: Motion.fast), value: checked)

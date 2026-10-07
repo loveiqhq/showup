@@ -170,6 +170,31 @@ private struct TutorialFlow: View {
     private let progressRepo = ProfileProgressRepository(api: APIAccess.client)
     @State private var resumeChecked = false
 
+    // ── the saved flow position, Location and "Share some details" (SHOWUP-165 to 173) ──────
+    //
+    // ONE model for Embrace 2 and the seven steps: they share one answer sheet, and each step's
+    // back has to show the previous step's saved value. Its draft lives in scene storage, so a
+    // scene restore mid-step keeps what was picked.
+    @State private var details = DetailsModel(
+        store: ProfileDetailsRepository(api: APIAccess.client),
+        positions: FlowPositionReporter(api: APIAccess.client)
+    )
+    @SceneStorage("profile.details") private var detailsStored: String = ""
+    /// Whether Embrace 2's confetti has started for this showing — so a scene restore onto the
+    /// bridge does not replay it. Cleared by the push, never by the way out.
+    @SceneStorage("embrace2.confettiPlayed") private var confettiPlayed = false
+
+    @State private var location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client))
+    /// Held rather than built in `onAppear`, for the reason `reachabilityHost` gives.
+    private let locationHost = AppLocationHost()
+    /// Which state 12 opens in — decided by the arrival matrix BEFORE the push.
+    @SceneStorage("location.start") private var locationStartRaw: String = LocationState.ask.rawValue
+
+    /// Where the user came from, for `referrer_screen_id`: "set by the navigation, never hard-coded
+    /// per screen". Scene-scoped like the screen itself, so a restore keeps it.
+    @SceneStorage("flow.cameFrom") private var cameFromRaw: String = ""
+    private var cameFrom: FlowScreen? { FlowScreen(rawValue: cameFromRaw) }
+
     @SceneStorage("basics.dob") private var dobStored: String = ""
     @SceneStorage("basics.hideAge") private var hideAgeStored: Bool = false
 
@@ -180,6 +205,7 @@ private struct TutorialFlow: View {
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
     private func go(to next: FlowScreen) {
+        cameFromRaw = screen.rawValue
         forward = next > screen
         if reduceMotion {
             screenRaw = next.rawValue
@@ -287,7 +313,10 @@ private struct TutorialFlow: View {
             onEnable: {
                 // The CTA only navigates now. False on a second press, and nothing is reported
                 // for either — see NotificationsModel.continuePressed.
-                if notifications.continuePressed() { go(to: .profileReachability) }
+                if notifications.continuePressed() {
+                    details.record(.notifications)
+                    go(to: .profileReachability)
+                }
             },
             busy: notifications.sheetUp
         )
@@ -314,7 +343,11 @@ private struct TutorialFlow: View {
             // THE SAME DESTINATION AS `onSave`, because on state D this IS the save finishing —
             // see ReachabilityModel.confirmDeactivation. On state C the closure is never reached.
             onConfirmDeactivate: {
-                Task { await reachability.confirmDeactivation { go(to: .home) } }
+                Task {
+                    var advanced = false
+                    await reachability.confirmDeactivation { advanced = true }
+                    if advanced { await leaveReachability() }
+                }
             },
             onPrivacy: {
                 reachability.privacyTapped()
@@ -324,9 +357,12 @@ private struct TutorialFlow: View {
                 // for all seven links, not a decision to take on this screen.
             },
             onSave: {
-                // LOCATION (12) DOES NOT EXIST YET, so the one exit ends at home. When 12 is
-                // built this is the single line that changes.
-                Task { await reachability.savePressed { go(to: .home) } }
+                // Into Location (12), through its arrival matrix (SHOWUP-165).
+                Task {
+                    var advanced = false
+                    await reachability.savePressed { advanced = true }
+                    if advanced { await leaveReachability() }
+                }
             }
         )
         .onAppear {
@@ -404,13 +440,165 @@ private struct TutorialFlow: View {
                 // Sound does not follow the user off the screen.
                 onSkip: {
                     media.stopPlayback(); media.skipPressed()
+                    // Past media, whichever way: the saved flow position.
+                    details.record(.media_video)
                     Task { go(to: await afterMedia()) }
                 },
                 onContinue: {
                     media.stopPlayback(); media.continuePressed()
+                    details.record(.media_video)
                     Task { go(to: await afterMedia()) }
                 }
             )
+        }
+    }
+
+    // MARK: Location, Embrace 2 and "Share some details" (SHOWUP-165 to SHOWUP-173)
+
+    /// Out of Stay reachable: record the position, then into location through its matrix.
+    private func leaveReachability() async {
+        details.record(.reachability)
+        await enterLocation()
+    }
+
+    /// Into location: Location Services off -> C, not determined -> A, granted -> skipped silently
+    /// to Embrace 2, denied or restricted -> B.
+    private func enterLocation() async {
+        switch await location.decideArrival() {
+        case .skip:
+            pushEmbraceDetails()
+        case .show(let state):
+            locationStartRaw = state.rawValue
+            go(to: .profileLocation)
+        }
+    }
+
+    /// Past location, by any of its exits: grant, `Not now`, or a grant noticed on return.
+    private func leaveLocation() {
+        location.left()
+        pushEmbraceDetails()
+    }
+
+    /// A PUSH of Embrace 2 — the only thing that may play its confetti. Clearing the flag here,
+    /// and not on the way out, means a pop's exit transition can never start a rain.
+    private func pushEmbraceDetails() {
+        confettiPlayed = false
+        go(to: .profileEmbraceDetails)
+    }
+
+    /// Binds the details model to scene storage — idempotent, so every step can call it.
+    private func attachDetails() {
+        let stored = $detailsStored
+        details.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
+    }
+
+    /// The §11 screen a flow position is, for `referrer_screen_id`. Nil where none is registered.
+    private func profileScreen(of flow: FlowScreen?) -> ProfileScreen? {
+        switch flow {
+        case .profilePrompts: return .prompts
+        case .profileMedia: return .media
+        case .profileNotifications: return .notifications
+        case .profileReachability: return .reachability
+        case .profileLocation: return .location
+        case .profileEmbraceDetails: return .embraceDetails
+        case .profileHeight: return .height
+        case .profileGender: return .gender
+        case .profileOrientation: return .orientation
+        case .profileDatingLanguage: return .datingLanguage
+        case .profileEducation: return .education
+        case .profileReligion: return .religion
+        case .profilePolitics: return .politics
+        default: return nil
+        }
+    }
+
+    @ViewBuilder private var locationScreen: some View {
+        ProfileLocationView(
+            state: location.ui.state,
+            requesting: location.ui.requesting,
+            onAllow: { Task { await location.allowPressed { leaveLocation() } } },
+            onOpenSettings: { location.openSettingsPressed() },
+            onNotNow: { location.notNowPressed { leaveLocation() } }
+        )
+        .onAppear {
+            location.attach(locationHost)
+            // The stored start is only the first frame; `arrived` reads the status again — a scene
+            // restored after the system ended the app comes back already active, so the phase
+            // change below would never fire for a grant made in Settings meanwhile.
+            let start = LocationState(rawValue: locationStartRaw) ?? .ask
+            let referrer = profileScreen(of: cameFrom)
+            Task { await location.arrived(initial: start, referrer: referrer) { leaveLocation() } }
+        }
+        // RE-READ ON EVERY FOREGROUND: Location Services turned on in C shows A; a grant in Settings
+        // from B or C advances silently. Nothing while our own dialog is up.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await location.foregrounded { leaveLocation() } }
+        }
+    }
+
+    @ViewBuilder private var embraceDetailsScreen: some View {
+        // A back-pop from height is not a push: no `embrace_bridge_viewed`, no confetti replay.
+        let pop = cameFrom == .profileHeight
+        ProfileEmbraceDetailsView(
+            firstName: firstName,
+            onContinue: { details.embraceContinue { go(to: .profileHeight) } },
+            playConfetti: !pop,
+            confettiPlayed: $confettiPlayed
+        )
+        .onAppear {
+            // Attached here too: the bridge's "announced" flag is restored from the same storage.
+            attachDetails()
+            details.embraceArrived(referrer: profileScreen(of: cameFrom), pop: pop)
+        }
+    }
+
+    @ViewBuilder private var heightScreen: some View {
+        ProfileHeightView(
+            state: details.state,
+            onHeightChange: { details.heightChanged($0) },
+            onToggleVisibility: { details.visibilityToggled(.height) },
+            onContinue: { Task { await details.continuePressed(.height) { go(to: .profileGender) } } },
+            onSkip: { details.skipPressed(.height) { go(to: .profileGender) } },
+            onBack: { details.backPressed(.height) { go(to: .profileEmbraceDetails) } }
+        )
+        .onAppear {
+            attachDetails()
+            details.arrived(.height, referrer: profileScreen(of: cameFrom))
+        }
+    }
+
+    @ViewBuilder private var datingLanguageScreen: some View {
+        ProfileDatingLanguageView(
+            state: details.state,
+            onTap: { details.languageTapped($0) },
+            onToggleVisibility: { details.visibilityToggled(.datingLanguage) },
+            onContinue: {
+                Task { await details.continuePressed(.datingLanguage) { go(to: .profileEducation) } }
+            },
+            onSkip: { details.skipPressed(.datingLanguage) { go(to: .profileEducation) } },
+            onBack: { details.backPressed(.datingLanguage) { go(to: .profileOrientation) } }
+        )
+        .onAppear {
+            attachDetails()
+            details.arrived(.datingLanguage, referrer: profileScreen(of: cameFrom))
+        }
+    }
+
+    /// One single-select step: five share it, because they share every rule.
+    private func choiceScreen(_ step: DetailStep, next: FlowScreen, previous: FlowScreen) -> some View {
+        ProfileChoiceView(
+            step: step,
+            state: details.state,
+            onTap: { details.optionTapped(step, $0) },
+            onToggleVisibility: { details.visibilityToggled(step) },
+            onContinue: { Task { await details.continuePressed(step) { go(to: next) } } },
+            onSkip: { details.skipPressed(step) { go(to: next) } },
+            onBack: { details.backPressed(step) { go(to: previous) } }
+        )
+        .onAppear {
+            attachDetails()
+            details.arrived(step, referrer: profileScreen(of: cameFrom))
         }
     }
 
@@ -634,6 +822,29 @@ private struct TutorialFlow: View {
                     // the router can send anyone.
                     mediaScreen
 
+                case .profileLocation:
+                    // SHOWUP-165. A, B and C are states of this position, never separate screens.
+                    locationScreen
+
+                case .profileEmbraceDetails:
+                    // SHOWUP-166. The second bridge: no header, no progress bar, no back.
+                    embraceDetailsScreen
+
+                // "Share some details", steps 1 to 7 (SHOWUP-167 to SHOWUP-173).
+                case .profileHeight: heightScreen
+                case .profileGender: choiceScreen(.gender, next: .profileOrientation, previous: .profileHeight)
+                case .profileOrientation:
+                    choiceScreen(.orientation, next: .profileDatingLanguage, previous: .profileGender)
+                case .profileDatingLanguage: datingLanguageScreen
+                case .profileEducation:
+                    choiceScreen(.education, next: .profileReligion, previous: .profileDatingLanguage)
+                case .profileReligion:
+                    choiceScreen(.religion, next: .profilePolitics, previous: .profileEducation)
+                case .profilePolitics:
+                    // INTERESTS (step 8) IS NOT BUILT, so politics ends at home for now. When it is,
+                    // this is the single line that changes.
+                    choiceScreen(.politics, next: .home, previous: .profileReligion)
+
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
                 }
@@ -674,8 +885,23 @@ private struct TutorialFlow: View {
             // it is a beat on the forward walk, not a place to return to.
             case .photos: go(to: .profilePhotos)
             case .prompts: go(to: .profilePrompts)
+            // PAST PROMPTS, FROM THE STORED POSITION (SHOWUP-165). Each routes exactly as the
+            // forward walk does: notifications through `afterMedia`, location through its matrix.
+            case .media: go(to: .profileMedia)
+            case .notifications: go(to: await afterMedia())
+            case .reachability: go(to: .profileReachability)
+            case .location: await enterLocation()
+            case .height: go(to: .profileHeight)
+            case .gender: go(to: .profileGender)
+            case .orientation: go(to: .profileOrientation)
+            case .datingLanguage: go(to: .profileDatingLanguage)
+            case .education: go(to: .profileEducation)
+            case .religion: go(to: .profileReligion)
+            case .politics: go(to: .profilePolitics)
             case .done: go(to: .home)
             }
+            // A resume onto a detail step pre-fills the saved value: start the read now.
+            details.preload()
         }
     }
 }

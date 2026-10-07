@@ -1,7 +1,7 @@
 {
-  "registry_version": "1.1.0",
+  "registry_version": "1.4.15",
   "taxonomy_version": "1.2",
-  "source": "Cleaned/codegen-ready copy of the design handoff tracking/enums.json (06 Aug 2026).",
+  "source": "Cleaned/codegen-ready copy of the design handoff tracking/enums.json (06 Aug 2026; field_id values and version re-synced to 1.4.15 on 06 Oct 2026). sensitivity.spec.ts fails if field_id or step_id drift from the handoff file.",
   "_liq_revisions": {
     "format": "Every value set is a proper array of strings (the shipped file had several run-together, un-parseable lists). Values verified against the design component files where those exist.",
     "life_questions": "life_now uses the DESIGN screen values (screens-profile-life.jsx / Living status.html), which are the source of truth and differ from the shipped enums.json. Flagged for the boss to confirm.",
@@ -13,8 +13,8 @@
     "orientation": { "step": 3, "sensitivity_class": 2, "values": ["straight", "gay", "lesbian", "bisexual", "pansexual", "other"] },
     "dating_language": { "step": 4, "sensitivity_class": 1, "values": ["german", "english", "spanish", "italian", "french", "turkish", "russian", "arabic"] },
     "education": { "step": 5, "sensitivity_class": 1, "values": ["a_levels_abitur", "apprenticeship", "university_degree", "phd"] },
-    "religion": { "step": 6, "sensitivity_class": 2, "values": ["protestant", "catholic", "orthodox", "jewish", "buddhist", "hindu", "atheist", "spiritual_other"] },
-    "politics": { "step": 7, "sensitivity_class": 2, "values": ["left", "mid_left", "middle", "mid_right", "conservative", "right", "libertarian", "apolitical"] },
+    "religion": { "step": 6, "sensitivity_class": 2, "values": ["protestant", "catholic", "orthodox", "muslim", "jewish", "buddhist", "hindu", "atheist", "spiritual_other"] },
+    "politics": { "step": 7, "sensitivity_class": 2, "values": ["left", "mid_left", "middle", "mid_right", "right", "conservative", "libertarian", "apolitical"] },
     "habits": { "step": 9, "sensitivity_class": 2, "values": [], "note": "Opt-out only; answers travel on habit_answered per habit_id." },
     "age": { "step": null, "sensitivity_class": 0, "values": [], "note": "Visibility switch on the DoB step; value lives as age_band." }
   },

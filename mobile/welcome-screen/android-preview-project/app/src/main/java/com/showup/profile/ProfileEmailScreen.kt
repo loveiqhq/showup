@@ -295,7 +295,7 @@ fun ProfileEmailScreen(
                     verticalAlignment = Alignment.Top,
                 ) {
                     Box(Modifier.padding(top = 1.dp)) {
-                        CheckGlyph(size = 16.dp, color = SuccessFg, strokeWidth = 2.dp)
+                        CheckGlyph(size = 16.dp, color = SuccessFg, stroke = 2f)
                     }
                     // Muted, NOT success green -- the tick carries the colour. This is the only
                     // place in the flow the user is told a code screen is coming.
@@ -355,7 +355,7 @@ internal fun MarketingOptIn(
                 .border(1.5.dp, if (checked) Purple else Border, RoundedCornerShape(6.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            if (checked) CheckGlyph(size = 13.dp, color = Elevated, strokeWidth = 3.dp)
+            if (checked) CheckGlyph(size = 13.dp, color = Elevated, stroke = 3f)
         }
     }
 }

@@ -56,7 +56,8 @@ final class BasicsRepositoryTests: XCTestCase {
         """
         {"id":"p1","displayName":"Leo","age":\(age),"gender":null,"lookingFor":null,\
         "isVisible":true,"hiddenFields":\(hidden),"isComplete":false,\
-        "verificationStatus":"none"}
+        "verificationStatus":"none","heightCm":null,"orientation":null,\
+        "datingLanguages":null,"education":null,"religion":null,"politics":null}
         """
     }
 

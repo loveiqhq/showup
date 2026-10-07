@@ -127,10 +127,16 @@ existed, which is worth locking down rather than leaving to coincidence.
 | Token | Android | iOS | Meaning |
 |---|---|---|---|
 | `FAST` / `fast` | 180 | 0.18 | press feedback and fades |
+| `PROGRESS` / `progress` | 280 | 0.28 | the step progress bar's segment fill (`StepProgress`, `transition: background 280ms`) |
 | `SCREEN` / `screen` | 320 | 0.32 | screen-to-screen transition |
 | `SHAKE` / `shake` | 480 | 0.48 | the one-shot mismatch shake. **SHOWUP-143 specifies 480ms** |
 | `PULSE_SLOW` / `pulseSlow` | 900 | 0.9 | in-flight pulse on a provider button |
 | `PULSE_LONG` / `pulseLong` | 1400 | 1.4 | Connect linking animation |
+
+Two curves sit beside the durations. `ShowUpEasing` / the Swift `.timingCurve(0.22, 1, 0.36, 1)` is
+the house curve, `cubic-bezier(.22,1,.36,1)`. `CssEase` / `Motion.cssEase(_:)` is CSS's default
+`ease`, `cubic-bezier(.25,.1,.25,1)`, for every reference `transition` that names a duration and no
+curve: the answer rows, the visibility band and the progress bar.
 
 **Left local:** the 500/1200/1600ms delays in `ConnectFlowHost` — the fake provider round trip,
 which goes away with the real SDKs.

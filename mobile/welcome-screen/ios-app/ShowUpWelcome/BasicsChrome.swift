@@ -61,13 +61,16 @@ struct AppHeader: View {
                 .foregroundColor(.liqFg)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
             // Empty on every screen in this flow, and still occupying its 36 for the same reason
             // the leading slot does.
             Color.clear.frame(width: 36, height: 36)
         }
         .padding(.horizontal, 16)
-        .frame(height: 52)
+        // A FLOOR, NOT A FIXED HEIGHT — the Kotlin twin says why: "Share some details" wraps at the
+        // largest type on narrow phones, and a fixed 52 cut its second line in half.
+        .frame(minHeight: 52)
     }
 }
 

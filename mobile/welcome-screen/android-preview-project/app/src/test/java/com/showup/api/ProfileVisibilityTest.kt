@@ -52,11 +52,18 @@ class ProfileVisibilityTest {
             tokens = InMemoryTokenStore(access = "t"),
         ).profiles
 
-    /** The real ProfileDto shape, with every required field the contract declares. */
+    /**
+     * The real `/me/profile` shape, with every required field the contract declares.
+     *
+     * `OwnProfileDto` since SHOWUP-167: the owner's view carries the six detail answers, each
+     * required-but-nullable, so a body without them is a contract violation and the generated
+     * decoder refuses it -- which is exactly what this fake would have hidden had it stayed short.
+     */
     private fun profile(hidden: String, isVisible: Boolean = true) = """
         {"id":"p1","displayName":"Leo","age":28,"gender":null,"lookingFor":null,
          "isVisible":$isVisible,"hiddenFields":$hidden,"isComplete":false,
-         "verificationStatus":"none"}
+         "verificationStatus":"none","heightCm":null,"orientation":null,
+         "datingLanguages":null,"education":null,"religion":null,"politics":null}
     """.trimIndent()
 
     private fun json(body: String, code: Int = 200) = MockResponse()

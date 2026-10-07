@@ -78,40 +78,41 @@ enum FlowScreen: String, CaseIterable, Comparable {
 
     /// "The real you", step 3 of 3 and the last screen of the group (SHOWUP-161).
     ///
-    /// NOT A RESUME POINT, and that is a consequence rather than an oversight. `resumePoint`
-    /// returns the first GAP in the flow, and this step is optional — skipping it is a valid
-    /// ending, and the account holds no fact that tells a skip apart from a step never reached. So
-    /// a user who force-quits here and relaunches lands on Home.
-    ///
-    /// The same reasoning that keeps `profileEmbrace` out of the resume table: "there is no fact on
-    /// the account that says whether it was seen". Closing it needs a server-side "media step
-    /// decided" flag, which is a product decision rather than a client one, and it is raised with
-    /// the ticket rather than invented here.
+    /// A RESUME POINT SINCE SHOWUP-165. The step is optional and no fact told a skip from a step
+    /// never reached, so a relaunch here used to land on Home. The server now keeps the saved flow
+    /// position; Continue and Skip both report `media_video`. See ProfileFlow.swift.
     case profileMedia
 
     /// The notification permission ask (SHOWUP-162), between media and Stay reachable.
     ///
-    /// NOT A STEP and not a resume point, for the same reason as the bridge and the media step: it
-    /// holds nothing on the account, so there is no fact that says whether it was seen.
-    ///
-    /// That is also why this codebase cannot reach the stuck state the ticket guards against. Its
-    /// first anti-stuck rule — "advance the saved flow position when the sheet is raised" — assumes
-    /// a per-screen saved position; resume here is derived from server profile facts, so a kill
-    /// mid-sheet relaunches to wherever those facts point and never onto a dead button. The other
-    /// two rules, the status guard before the push and the foreground re-read, are both built.
-    /// Recorded as E23 in `audit/CONFLICTS-2026-08-27.md`, because an acceptance criterion
-    /// quotes rule 1 verbatim and a reviewer walking that list needs to find the reason.
+    /// NOT A STEP; a resume point since SHOWUP-165 — Continue reports `notifications`, and a resume
+    /// still goes through `afterMedia`, so a determined status skips it exactly as the forward walk
+    /// does. It raises no dialog any more (SHOWUP-163), so there is no dead button to relaunch onto.
     case profileNotifications
 
     /// Stay reachable (SHOWUP-163).
     ///
-    /// The first screen in this flow that HOLDS SOMETHING — a push consent — and still not a
-    /// resume point, because `NoConsentBackend` is the repository: there is no endpoint to read
-    /// the consent back from, so no server fact can say whether the screen was answered. When
-    /// that endpoint exists, this is the case to revisit.
-    ///
-    /// It is also where the OS notification dialog now lives. 09 raises nothing.
+    /// NOT A STEP; a resume point since SHOWUP-165 — Save preferences reports `reachability`. It is
+    /// also where the OS notification dialog lives. 09 raises nothing.
     case profileReachability
+
+    /// The location ask (SHOWUP-165): three states, one position — A, B and C are states of this
+    /// screen, never separate positions. Reached through the arrival matrix, which can skip it.
+    case profileLocation
+
+    /// The second bridge (SHOWUP-166). Never a resume point, like the first: it holds nothing and no
+    /// fact says it was seen. Past location, a relaunch lands on height.
+    case profileEmbraceDetails
+
+    // "Share some details", steps 1 to 7 (SHOWUP-167 to SHOWUP-173), in walk order — which is also
+    // back order: each one's back pops to the one above it.
+    case profileHeight
+    case profileGender
+    case profileOrientation
+    case profileDatingLanguage
+    case profileEducation
+    case profileReligion
+    case profilePolitics
 
     /// Where the flow ends, for both the tutorial and a returning member.
     case home

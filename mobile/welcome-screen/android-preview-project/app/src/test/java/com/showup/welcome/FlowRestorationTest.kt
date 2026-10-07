@@ -11,7 +11,13 @@
  *
  * What IS testable is the Android half, and the shape both platforms share: that the saved values
  * survive the save/restore round trip, and that the typed [FlowScreen] that replaced the Int scheme
- * still restores. `StateRestorationTester` does exactly what the system does on process death --
+ * still restores.
+ *
+ * THE SCREEN ITSELF NO LONGER LIVES IN `rememberSaveable`: since SHOWUP-165 it is held by
+ * [FlowNavigator], so a save finishing after an Activity rebuild navigates the live screen, and
+ * `FlowNavigatorTest` restores it through the handle. These tests still guard the mechanism the
+ * rest of the flow's typed input (the name, the email, the consent) relies on, and the enum's
+ * ordering that the transitions read. `StateRestorationTester` does exactly what the system does on process death --
  * it saves the registry, throws the composition away and rebuilds it -- so this is the real
  * mechanism rather than a stand-in for it.
  *
@@ -194,12 +200,13 @@ class FlowRestorationTest {
         // media step it is not a resume point: it holds nothing on the account, so there is no
         // fact that says whether it was seen.
         //
-        // ProfileReachability is the eighteenth, added with SHOWUP-163. It is the first of the
-        // four that DOES hold something -- a push consent -- but it is still not a resume point
-        // while `NoConsentBackend` is the repository: there is no endpoint to read the consent
-        // back from, so nothing can say whether the screen was answered. When the endpoint
-        // exists, this is the one to revisit.
-        assertEquals(18, FlowScreen.entries.size)
+        // ProfileReachability is the eighteenth, added with SHOWUP-163.
+        //
+        // Nine more with SHOWUP-165 to SHOWUP-173, for twenty-seven: ProfileLocation (whose A, B
+        // and C are states of one position, never three), ProfileEmbraceDetails (the second
+        // bridge, never a resume point), and the seven "Share some details" steps in walk order.
+        // Media, 09 and 10 became resume points with them, through the saved flow position.
+        assertEquals(27, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

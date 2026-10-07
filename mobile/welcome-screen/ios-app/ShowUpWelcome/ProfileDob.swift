@@ -147,7 +147,7 @@ struct ProfileDobView: View {
             .accessibilityAddTraits(.updatesFrequently)
         }, cta: {
             VStack(spacing: 0) {
-                ProfileVisibilityRow(hidden: $hideAge)
+                ProfileVisibility(hidden: $hideAge, label: DobCopy.visibility)
                 Spacer().frame(height: 26)
                 HStack {
                     Spacer(minLength: 0)
@@ -241,55 +241,8 @@ private struct AgeCard: View {
     }
 }
 
-/// The visibility band (callout ⑪).
-///
-/// NOT `MarketingOptIn`, and the five differences are why: transparent under a hairline divider
-/// rather than a raised card, box on the LEFT, hit area capped to the switch and its label instead
-/// of the full row, an eye-off mark, and a 700/14 label against that row's 500/13.
-///
-/// **Checked means the age is not DISPLAYED. It is still used for matching.** The choice hides a
-/// value; it never excludes the user.
-struct ProfileVisibilityRow: View {
-    @Binding var hidden: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Color.liqBorderSoft).frame(height: 1)
-            Button {
-                hidden.toggle()
-            } label: {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(hidden ? Color.liqPurple : Color.liqElevated)
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(hidden ? Color.liqPurple : Color.liqBorder, lineWidth: 1.5)
-                        if hidden { CheckGlyph(size: 13, color: .liqElevated, lineWidth: 3) }
-                    }
-                    .frame(width: 22, height: 22)
-
-                    HStack(spacing: 6) {
-                        BrandIconView(icon: .eyeOff, size: 14, stroke: 2.1,
-                                      tint: hidden ? .liqPurple : .liqSubtle)
-                        Text(DobCopy.visibility)
-                            .font(F.manrope(14, .bold))
-                            .foregroundColor(.liqFg)
-                    }
-                }
-                // Capped to the switch and its label, NOT the full row: an edge-to-edge target
-                // above the CTA invites a mis-tap on the control the user actually meant.
-                .frame(minHeight: 56)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(hidden ? [.isButton, .isSelected] : .isButton)
-            .accessibilityLabel(DobCopy.visibility)
-            .accessibilityValue(hidden ? "Hidden" : "Shown")
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
+// The visibility band is `ProfileVisibility.swift` since SHOWUP-167, when the seven "Share some
+// details" steps became its second caller.
 
 #Preview("A · empty") {
     ProfileDobView(value: .constant(""), hideAge: .constant(false))

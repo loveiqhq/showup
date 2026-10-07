@@ -26,14 +26,18 @@ import androidx.compose.ui.unit.sp
  *
  * Drawn rather than a font glyph or a vector asset, for the same reason `BrandIcon` is: a stroked
  * path scales cleanly at any size and takes its weight from a parameter, where a glyph takes it
- * from whatever the font decides. Two sizes are in use -- 13 inside the field's success pill and 16
- * on the email helper line -- and they are the same shape at two weights.
+ * from whatever the font decides.
+ *
+ * [stroke] IS IN THE GRID'S UNITS, exactly as the reference's `strokeWidth` is inside its
+ * `viewBox="0 0 24 24"`, so it scales with [size]: `strokeWidth="3"` at width 13 draws 1.6 wide.
+ * Until 6 October 2026 it was an absolute width, and every tick drawn small came out about twice as
+ * heavy as the design's.
  */
 @Composable
 fun CheckGlyph(
     size: Dp,
     color: Color,
-    strokeWidth: Dp = 2.dp,
+    stroke: Float = 2f,
     modifier: Modifier = Modifier,
 ) {
     Canvas(modifier.size(size)) {
@@ -47,7 +51,7 @@ fun CheckGlyph(
             path,
             color = color,
             style = Stroke(
-                width = strokeWidth.toPx(),
+                width = stroke * s,
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round,
             ),

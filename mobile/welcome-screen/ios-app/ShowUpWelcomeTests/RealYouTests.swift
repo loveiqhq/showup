@@ -441,9 +441,10 @@ final class RealYouStepTests: XCTestCase {
 
 /// Where a half-finished profile picks up (flow README rule 4a).
 ///
-/// The Swift half of `ProfileResumeTest.kt`. The rule is one sentence -- "route straight to the
-/// last incomplete step" -- and six ways to get wrong, so every gap is checked, plus the two cases
-/// that are not gaps: the bridge, which must never be resumed onto, and a finished profile.
+/// The Swift half of `ProfileResumeTest.kt`, case for case. The rule is one sentence -- "route
+/// straight to the last incomplete step" -- and many ways to get wrong, so every gap is checked,
+/// plus the cases that are not gaps: the two bridges, which must never be resumed onto, and a
+/// finished profile. Past prompts the evidence is the saved flow position (SHOWUP-165).
 final class ProfileResumeTests: XCTestCase {
 
     private let complete = ProfileProgress(
@@ -500,8 +501,89 @@ final class ProfileResumeTests: XCTestCase {
         XCTAssertEqual(resumePoint(progress), .prompts)
     }
 
-    func testOnePromptIsEnoughToBeFinished() {
-        XCTAssertEqual(resumePoint(complete), .done)
+    func testOnePromptFinishesTheRealYouFactsAndTheWalkGoesOnToMedia() {
+        // Until SHOWUP-165 this was `.done`, and a relaunch here skipped media, both asks and every
+        // detail step. With no saved position yet, the next step is media.
+        XCTAssertEqual(resumePoint(complete), .media)
+    }
+
+    func testMoreThanTheMinimumIsTheSame() {
+        var progress = complete
+        progress.photoCount = photosMax
+        progress.promptCount = promptsMax
+        XCTAssertEqual(resumePoint(progress), .media)
+    }
+
+    // MARK: past prompts: the saved flow position (SHOWUP-165 to SHOWUP-173)
+
+    /// Everything a finished profile holds, at `position`.
+    private func at(_ position: String?) -> ProfileProgress {
+        var progress = complete
+        progress.flowPosition = position
+        progress.hasGender = true
+        progress.hasOrientation = true
+        return progress
+    }
+
+    func testEachReachedStepResumesOntoTheOneAfterIt() {
+        let walk: [(String?, ResumePoint)] = [
+            (nil, .media),
+            ("media_video", .notifications),
+            ("notifications", .reachability),
+            ("reachability", .location),
+            ("location", .height),
+            ("height", .gender),
+            ("gender", .orientation),
+            ("orientation", .datingLanguage),
+            ("dating_language", .education),
+            ("education", .religion),
+            ("religion", .politics),
+            ("politics", .done),
+        ]
+        for (position, expected) in walk {
+            XCTAssertEqual(resumePoint(at(position)), expected, "at \(position ?? "nil")")
+        }
+    }
+
+    func testTheMediaScreensOtherIdIsTheSameStep() {
+        XCTAssertEqual(resumePoint(at("media_voice")), .notifications)
+    }
+
+    func testPastLocationTheRelaunchLandsOnHeightAndNeverOnEmbrace2() {
+        // The second bridge holds nothing and no fact says it was seen -- the first bridge's rule.
+        XCTAssertEqual(resumePoint(at("location")), .height)
+    }
+
+    func testAPositionPastGenderWithNoGenderStoredComesBackForIt() {
+        // An old free-text value the migration could not map is NULL now. Gender is mandatory, so
+        // the account returns to it rather than walking on with no answer.
+        var missing = at("politics")
+        missing.hasGender = false
+        XCTAssertEqual(resumePoint(missing), .gender)
+    }
+
+    func testTheSameForOrientation() {
+        var missing = at("religion")
+        missing.hasOrientation = false
+        XCTAssertEqual(resumePoint(missing), .orientation)
+    }
+
+    func testASkippedStepLeavesNoAnswerAndStillCountsAsPassed() {
+        // Skip "saves nothing for that step" -- the position is the only evidence, and it is enough.
+        XCTAssertEqual(resumePoint(at("education")), .religion)
+    }
+
+    func testAPositionThisBuildDoesNotKnowResumesEarlyNeverLate() {
+        // A newer server may store a step this app has no screen for. Showing a screen twice is
+        // recoverable; skipping one silently is the bug the position exists to prevent.
+        XCTAssertEqual(resumePoint(at("interests")), .media)
+        XCTAssertEqual(resumePoint(at("garbage")), .media)
+    }
+
+    func testAnEarlyGapStillWinsOverTheSavedPosition() {
+        var progress = at("politics")
+        progress.photoCount = 0
+        XCTAssertEqual(resumePoint(progress), .photos)
     }
 
     func testABlankNameIsNoName() {
@@ -526,6 +608,10 @@ final class ProfileResumeTests: XCTestCase {
         var noDob = complete; noDob.hasDateOfBirth = false
         var noPhotos = complete; noPhotos.photoCount = 0
         var noPrompts = complete; noPrompts.promptCount = 0
+        let positions: [String?] = [
+            nil, "media_video", "notifications", "reachability", "location", "height", "gender",
+            "orientation", "dating_language", "education", "religion", "politics",
+        ]
         let reached = Set([
             resumePoint(ProfileProgress()),
             resumePoint(noEmail),
@@ -533,8 +619,7 @@ final class ProfileResumeTests: XCTestCase {
             resumePoint(noDob),
             resumePoint(noPhotos),
             resumePoint(noPrompts),
-            resumePoint(complete),
-        ])
+        ] + positions.map { resumePoint(at($0)) })
         XCTAssertEqual(reached, Set(ResumePoint.allCases))
     }
 }

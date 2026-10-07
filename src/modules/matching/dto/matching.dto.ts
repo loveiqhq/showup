@@ -4,6 +4,7 @@ import {
   Profile,
   ProfileVerificationStatus,
 } from '../../profiles/entities/profile.entity';
+import { isFieldHidden } from '../../profiles/util/hidden-fields';
 import { Like } from '../entities/like.entity';
 import { Match } from '../entities/match.entity';
 import { LikeStatus, MatchStatus } from '../util/match';
@@ -42,7 +43,12 @@ export class DiscoveryProfileDto {
   @ApiProperty({ type: String, nullable: true })
   displayName: string | null;
 
-  @ApiProperty({ type: String, nullable: true })
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Null when unanswered, or when the person has chosen not to show it on their profile',
+  })
   gender: string | null;
 
   @ApiProperty({ type: String, nullable: true })
@@ -61,7 +67,13 @@ export class DiscoveryProfileDto {
     return {
       userId: profile.userId,
       displayName: profile.displayName,
-      gender: profile.gender,
+      // HIDDEN MEANS NOT SENT. Gender became hideable with Profile 15 (SHOWUP-168), and this card
+      // is the one view of another person that carries it. Matching still reads the stored value
+      // -- hiding a field never removes anyone from discovery -- but the card must not show it,
+      // and leaving it in the payload for the app to suppress would put it on the wire anyway.
+      gender: isFieldHidden(profile.hiddenFields, 'gender')
+        ? null
+        : profile.gender,
       lookingFor: profile.lookingFor,
       verified:
         profile.verificationStatus === ProfileVerificationStatus.Verified,

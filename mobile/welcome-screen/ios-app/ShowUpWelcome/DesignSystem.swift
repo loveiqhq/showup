@@ -52,6 +52,18 @@ extension Color {
     /// that one is a tint OF the accent, this one is a named step in the ramp.
     static let liqLavenderWash = Color(hex: 0xF9F7FF)
 
+    // ── added for SHOWUP-165 to SHOWUP-173 — mirrors DesignSystem.kt ────────────────────────
+    //
+    // The two lighter steps the confetti draws in ("tokens only: --liq-orange-500 · -400 ·
+    // --liq-primary-500 · -400"), and the translucent fills the location ask and the detail rows set.
+    static let liqOrange400 = Color(hex: 0xFF9450)                   // --liq-orange-400
+    static let liqPurple400 = Color(hex: 0xA855F7)                   // --liq-primary-400
+    /// The selected-row wash on `OptionRow` and `CheckRow`, rgba(129,42,236,.06). Two components
+    /// carry it, so it has one definition.
+    static let liqSelectedRowWash = Color(hex: 0x812AEC).opacity(0.06)
+    /// The location ask's privacy-note fill, rgba(167,139,250,.10).
+    static let liqPrivacyNoteWash = Color(hex: 0xA78BFA).opacity(0.10)
+
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
     ///

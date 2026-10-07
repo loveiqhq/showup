@@ -8,6 +8,22 @@ import {
 } from 'typeorm';
 
 import { ModerationStanding } from '../../safety/util/safety';
+import {
+  DATING_LANGUAGES,
+  EDUCATIONS,
+  GENDERS,
+  ORIENTATIONS,
+  POLITICS,
+  RELIGIONS,
+} from '../util/profile-details';
+import type {
+  DatingLanguage,
+  Education,
+  Gender,
+  Orientation,
+  Politics,
+  Religion,
+} from '../util/profile-details';
 
 /** Whether a profile/user has passed identity verification (trust & safety). */
 export enum ProfileVerificationStatus {
@@ -38,8 +54,83 @@ export class Profile {
   @Column({ name: 'date_of_birth', type: 'date', nullable: true })
   dateOfBirth: string | null;
 
-  @Column({ type: 'varchar', length: 40, nullable: true })
-  gender: string | null;
+  /**
+   * §1 `gender` (Profile 15). An enum since SHOWUP-168, "so the column and the screen cannot drift";
+   * it was free text before. Class 2.
+   */
+  @Column({
+    type: 'enum',
+    enum: GENDERS,
+    enumName: 'profiles_gender_enum',
+    nullable: true,
+  })
+  gender: Gender | null;
+
+  /** Whole centimetres, 120-230 (Profile 14). The database enforces the range too. */
+  @Column({ name: 'height_cm', type: 'smallint', nullable: true })
+  heightCm: number | null;
+
+  /** §1 `orientation` (Profile 16). Class 2. */
+  @Column({
+    type: 'enum',
+    enum: ORIENTATIONS,
+    enumName: 'profiles_orientation_enum',
+    nullable: true,
+  })
+  orientation: Orientation | null;
+
+  /**
+   * §1 `dating_language` (Profile 17), stored in list order. NULL means never answered; an empty
+   * set is refused by a CHECK, because "skipped" and "answered with nothing" are the same act.
+   */
+  @Column({
+    name: 'dating_languages',
+    type: 'enum',
+    enum: DATING_LANGUAGES,
+    enumName: 'profiles_dating_language_enum',
+    array: true,
+    nullable: true,
+  })
+  datingLanguages: DatingLanguage[] | null;
+
+  /** §1 `education` (Profile 18). */
+  @Column({
+    type: 'enum',
+    enum: EDUCATIONS,
+    enumName: 'profiles_education_enum',
+    nullable: true,
+  })
+  education: Education | null;
+
+  /** §1 `religion` (Profile 19). Class 2, special-category data. */
+  @Column({
+    type: 'enum',
+    enum: RELIGIONS,
+    enumName: 'profiles_religion_enum',
+    nullable: true,
+  })
+  religion: Religion | null;
+
+  /** §1 `politics` (Profile 20). Class 2, special-category data. */
+  @Column({
+    type: 'enum',
+    enum: POLITICS,
+    enumName: 'profiles_politics_enum',
+    nullable: true,
+  })
+  politics: Politics | null;
+
+  /**
+   * The furthest §2 step reached after prompts -- see `util/flow-position.ts`. Monotonic: going back
+   * a screen never rewinds it.
+   */
+  @Column({
+    name: 'flow_position',
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  flowPosition: string | null;
 
   @Column({ name: 'looking_for', type: 'varchar', length: 40, nullable: true })
   lookingFor: string | null;

@@ -72,16 +72,91 @@ class ProfileResumeTest {
     }
 
     @Test
-    fun `one prompt is enough to be finished`() {
-        assertEquals(ResumePoint.Done, resumePoint(complete))
+    fun `one prompt finishes the real-you facts and the walk goes on to media`() {
+        // Until SHOWUP-165 this was Done, and a relaunch here skipped media, both asks and every
+        // detail step. With no saved position yet, the next step is media.
+        assertEquals(ResumePoint.Media, resumePoint(complete))
     }
 
     @Test
-    fun `more than the minimum is still finished`() {
+    fun `more than the minimum is the same`() {
         assertEquals(
-            ResumePoint.Done,
+            ResumePoint.Media,
             resumePoint(complete.copy(photoCount = PHOTOS_MAX, promptCount = PROMPTS_MAX)),
         )
+    }
+
+    // ── past prompts: the saved flow position (SHOWUP-165 to SHOWUP-173) ──────
+
+    /** Everything a finished profile holds, at [position]. */
+    private fun at(position: String?) =
+        complete.copy(flowPosition = position, hasGender = true, hasOrientation = true)
+
+    @Test
+    fun `each reached step resumes onto the one after it`() {
+        val walk = listOf(
+            null to ResumePoint.Media,
+            "media_video" to ResumePoint.Notifications,
+            "notifications" to ResumePoint.Reachability,
+            "reachability" to ResumePoint.Location,
+            "location" to ResumePoint.Height,
+            "height" to ResumePoint.Gender,
+            "gender" to ResumePoint.Orientation,
+            "orientation" to ResumePoint.DatingLanguage,
+            "dating_language" to ResumePoint.Education,
+            "education" to ResumePoint.Religion,
+            "religion" to ResumePoint.Politics,
+            "politics" to ResumePoint.Done,
+        )
+        walk.forEach { (position, expected) ->
+            assertEquals("at $position", expected, resumePoint(at(position)))
+        }
+    }
+
+    @Test
+    fun `the media screen's other id is the same step`() {
+        assertEquals(ResumePoint.Notifications, resumePoint(at("media_voice")))
+    }
+
+    @Test
+    fun `past location the relaunch lands on height and NEVER on Embrace 2`() {
+        // The second bridge holds nothing and no fact says it was seen -- the first bridge's rule.
+        assertEquals(ResumePoint.Height, resumePoint(at("location")))
+    }
+
+    @Test
+    fun `a position past gender with no gender stored comes back for it`() {
+        // An old free-text value the migration could not map is NULL now. Gender is mandatory,
+        // so the account returns to it rather than walking on with no answer.
+        val missing = at("politics").copy(hasGender = false)
+        assertEquals(ResumePoint.Gender, resumePoint(missing))
+    }
+
+    @Test
+    fun `the same for orientation`() {
+        val missing = at("religion").copy(hasOrientation = false)
+        assertEquals(ResumePoint.Orientation, resumePoint(missing))
+    }
+
+    @Test
+    fun `a skipped step leaves no answer and still counts as passed`() {
+        // Skip "saves nothing for that step" -- the position is the only evidence, and it is
+        // enough: an account past education with no education resumes on religion.
+        assertEquals(ResumePoint.Religion, resumePoint(at("education")))
+    }
+
+    @Test
+    fun `a position this build does not know resumes early, never late`() {
+        // A newer server may store a step this app has no screen for. Showing a screen twice is
+        // recoverable; skipping one silently is the bug the position exists to prevent.
+        assertEquals(ResumePoint.Media, resumePoint(at("interests")))
+        assertEquals(ResumePoint.Media, resumePoint(at("garbage")))
+    }
+
+    @Test
+    fun `an early gap still wins over the saved position`() {
+        // The facts before prompts are stronger evidence than any position.
+        assertEquals(ResumePoint.Photos, resumePoint(at("politics").copy(photoCount = 0)))
     }
 
     // ── the cases that would silently skip a step ───────────────────────────
@@ -110,15 +185,20 @@ class ProfileResumeTest {
     fun `every step in the flow is reachable as a resume point`() {
         // A guard against a future reorder quietly making one unreachable -- which would mean a
         // user could get stuck on a step the resume never returns them to.
-        val reached = listOf(
-            resumePoint(ProfileProgress()),
-            resumePoint(complete.copy(email = null)),
-            resumePoint(complete.copy(emailVerified = false)),
-            resumePoint(complete.copy(hasDateOfBirth = false)),
-            resumePoint(complete.copy(photoCount = 0)),
-            resumePoint(complete.copy(promptCount = 0)),
-            resumePoint(complete),
-        ).toSet()
+        val positions = listOf(
+            null, "media_video", "notifications", "reachability", "location", "height", "gender",
+            "orientation", "dating_language", "education", "religion", "politics",
+        )
+        val reached = (
+            listOf(
+                resumePoint(ProfileProgress()),
+                resumePoint(complete.copy(email = null)),
+                resumePoint(complete.copy(emailVerified = false)),
+                resumePoint(complete.copy(hasDateOfBirth = false)),
+                resumePoint(complete.copy(photoCount = 0)),
+                resumePoint(complete.copy(promptCount = 0)),
+            ) + positions.map { resumePoint(at(it)) }
+            ).toSet()
         assertEquals(ResumePoint.entries.toSet(), reached)
     }
 }
