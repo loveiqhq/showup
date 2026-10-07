@@ -1889,8 +1889,28 @@ check("the bar is 10 segments (kotlin)", "const val SHARE_STEPS_TOTAL = 10" in d
 check("the bar is 10 segments (swift)", "let shareStepsTotal = 10" in det_sw)
 check("167 height is 120-230 (kotlin)", "HEIGHT_CM_MIN = 120" in det_kt and "HEIGHT_CM_MAX = 230" in det_kt)
 check("167 height is 120-230 (swift)", "heightCmMin = 120" in det_sw and "heightCmMax = 230" in det_sw)
-check("only gender and orientation are mandatory (kotlin)", "mandatory = true" in det_kt or
-      "Gender, DetailStep.Orientation" in det_kt or "mandatory" in det_kt)
+# Read per ENTRY: each enum entry names its own `mandatory = ...`, so the flag that follows an
+# entry's name (before the next entry) is that entry's. A bare "mandatory" anywhere in the file is
+# not evidence of which steps it is.
+def kotlin_entry_flags(text, flag):
+    names = ["Height", "Gender", "Orientation", "DatingLanguage", "Education", "Religion", "Politics"]
+    found = {}
+    for i, name in enumerate(names):
+        start = text.find("    %s(" % name)
+        end = text.find("    %s(" % names[i + 1]) if i + 1 < len(names) else len(text)
+        m = re.search(r"%s = (true|false)" % flag, text[start:end]) if start >= 0 else None
+        found[name] = m.group(1) == "true" if m else None
+    return found
+
+
+check("only gender and orientation are mandatory (kotlin)",
+      kotlin_entry_flags(det_kt, "mandatory") == {
+          "Height": False, "Gender": True, "Orientation": True, "DatingLanguage": False,
+          "Education": False, "Religion": False, "Politics": False})
+check("only the skippable three clear on reselect (kotlin)",
+      kotlin_entry_flags(det_kt, "clearsOnReselect") == {
+          "Height": False, "Gender": False, "Orientation": False, "DatingLanguage": False,
+          "Education": True, "Religion": True, "Politics": True})
 check("only gender and orientation are mandatory (swift)",
       "var mandatory: Bool { self == .gender || self == .orientation }" in det_sw)
 check("only the skippable three clear on reselect (swift)",

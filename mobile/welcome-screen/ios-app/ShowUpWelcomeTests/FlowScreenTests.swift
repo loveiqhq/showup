@@ -115,7 +115,8 @@ final class FlowScreenTests: XCTestCase {
         ]
         for (from, to) in zip(walk, walk.dropFirst()) {
             XCTAssertTrue(to > from, "\(from) -> \(to) should travel forward")
-            XCTAssertTrue(from < to, "\(to) -> \(from) should travel back")
+            // A back from `to` lands on `from`; the shell reads its direction as `next > screen`.
+            XCTAssertFalse(from > to, "\(to) -> \(from) should travel back")
         }
     }
 
