@@ -68,7 +68,7 @@ class NotificationRulesTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun build(status: NotificationPermission = NotificationPermission.NotDetermined) =
+    private fun build(status: PermissionStatus = PermissionStatus.NotDetermined) =
         NotificationsViewModel(FixedNotificationAccess(status), push, events)
 
     // ── which statuses show the ask ─────────────────────────────────────────
@@ -76,16 +76,16 @@ class NotificationRulesTest {
     @Test
     fun `only a status with no answer shows the ask`() {
         // The real path, every time, because profile creation runs once on a fresh install.
-        assertTrue(shouldShowAsk(NotificationPermission.NotDetermined))
+        assertTrue(shouldShowAsk(PermissionStatus.NotDetermined))
 
         // The guard: restored from a backup, or killed while the sheet was up. The OS dialog is
         // shown once per install, so the button would be dead.
-        assertFalse(shouldShowAsk(NotificationPermission.Granted))
-        assertFalse(shouldShowAsk(NotificationPermission.Denied))
+        assertFalse(shouldShowAsk(PermissionStatus.Granted))
+        assertFalse(shouldShowAsk(PermissionStatus.Denied))
 
         // Parental controls or MDM. Treated as denied everywhere in the product (enums.json §24),
         // which here means determined: there is nothing a sheet could change.
-        assertFalse(shouldShowAsk(NotificationPermission.Restricted))
+        assertFalse(shouldShowAsk(PermissionStatus.Restricted))
     }
 
     @Test
@@ -94,20 +94,20 @@ class NotificationRulesTest {
         // granted." NOT not_determined -- that would be a lie that raises a sheet which cannot
         // exist. The API-level branch is the one the ticket says actually fires in production.
         val below = notificationPermissionFor(sdkInt = 32, granted = false, hasAsked = false)
-        assertEquals(NotificationPermission.Granted, below)
+        assertEquals(PermissionStatus.Granted, below)
         assertFalse("an ask with nothing to ask for is the bug", shouldShowAsk(below))
 
         // And from 33 the three facts decide it, which is the rest of the table.
         assertEquals(
-            NotificationPermission.NotDetermined,
+            PermissionStatus.NotDetermined,
             notificationPermissionFor(33, granted = false, hasAsked = false),
         )
         assertEquals(
-            NotificationPermission.Denied,
+            PermissionStatus.Denied,
             notificationPermissionFor(33, granted = false, hasAsked = true),
         )
         assertEquals(
-            NotificationPermission.Granted,
+            PermissionStatus.Granted,
             notificationPermissionFor(33, granted = true, hasAsked = true),
         )
     }
@@ -230,16 +230,16 @@ class NotificationRulesTest {
     fun `a status that became determined while mounted advances the screen`() {
         // The user backgrounds the sheet, turns notifications on in Settings by hand, comes back.
         // The screen is never a terminal state: a dead CTA must be unreachable.
-        assertTrue(build(NotificationPermission.Granted).statusIsNowDetermined())
-        assertTrue(build(NotificationPermission.Denied).statusIsNowDetermined())
-        assertFalse(build(NotificationPermission.NotDetermined).statusIsNowDetermined())
+        assertTrue(build(PermissionStatus.Granted).statusIsNowDetermined())
+        assertTrue(build(PermissionStatus.Denied).statusIsNowDetermined())
+        assertFalse(build(PermissionStatus.NotDetermined).statusIsNowDetermined())
     }
 
     @Test
     fun `the reconciler's event is not this screen's to fire`() {
         // `permission_status_changed` belongs to the shared reconciler and must never double up
         // with `permission_result` for one act. The foreground re-read here is navigation only.
-        val vm = build(NotificationPermission.Granted)
+        val vm = build(PermissionStatus.Granted)
         vm.arrived()
         vm.statusIsNowDetermined()
         assertEquals(0, events.count(ProfileAnalytics.PERMISSION_STATUS_CHANGED))

@@ -34,7 +34,7 @@ import Foundation
 import UserNotifications
 
 /// The OS's answer, in `enums.json` §24's vocabulary.
-enum NotificationPermission: String, Sendable {
+enum PermissionStatus: String, Sendable {
     case notDetermined = "not_determined"
     case granted
     case denied
@@ -51,10 +51,10 @@ enum NotificationPermission: String, Sendable {
 ///
 /// The single decision behind the skip case, as a free function so the host can take it before the
 /// screen is pushed and a test can take it with no device.
-func shouldShowAsk(_ status: NotificationPermission) -> Bool { !status.isDetermined }
+func shouldShowAsk(_ status: PermissionStatus) -> Bool { !status.isDetermined }
 
 /// Maps `UNAuthorizationStatus` onto §24. A pure function, so every branch is testable.
-func notificationPermission(for status: UNAuthorizationStatus) -> NotificationPermission {
+func notificationPermission(for status: UNAuthorizationStatus) -> PermissionStatus {
     switch status {
     case .notDetermined: return .notDetermined
     case .denied: return .denied
@@ -73,12 +73,12 @@ func notificationPermission(for status: UNAuthorizationStatus) -> NotificationPe
 /// §24: a permission "is the device's answer and is re-read on every foreground rather than
 /// remembered". A cached value is wrong the moment the user changes it in Settings.
 protocol NotificationAccessReading: Sendable {
-    func read() async -> NotificationPermission
+    func read() async -> PermissionStatus
 }
 
 /// The real reader.
 struct UNNotificationAccess: NotificationAccessReading {
-    func read() async -> NotificationPermission {
+    func read() async -> PermissionStatus {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         return notificationPermission(for: settings.authorizationStatus)
     }
@@ -86,11 +86,11 @@ struct UNNotificationAccess: NotificationAccessReading {
 
 /// Answers from memory. Previews, and every test that is about the rules rather than the device.
 struct FixedNotificationAccess: NotificationAccessReading {
-    let status: NotificationPermission
+    let status: PermissionStatus
 
-    init(_ status: NotificationPermission = .notDetermined) { self.status = status }
+    init(_ status: PermissionStatus = .notDetermined) { self.status = status }
 
-    func read() async -> NotificationPermission { status }
+    func read() async -> PermissionStatus { status }
 }
 
 /// Raises the OS sheet.

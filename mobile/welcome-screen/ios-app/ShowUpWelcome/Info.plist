@@ -74,6 +74,15 @@
 	     are about to say before anything is requested of them. -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record your 15-second voice note, and the sound on your video.</string>
+	<!-- LOCATION, WHEN IN USE ONLY (SHOWUP-165).
+
+	     The one string inside the OS location dialog that is ours; Android's dialog shows no
+	     developer text. The ticket's copy, exactly — `audit/verify-profile.py` quotes it. Without
+	     this key iOS terminates the app on the request, so it is the one part of the location ask
+	     that can never ship hidden. There is deliberately no "Always" key: the app needs location
+	     only while it is open. Asked from the in-app ask's CTA, never on screen entry. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to find people nearby and choose a halfway meeting spot for your date.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

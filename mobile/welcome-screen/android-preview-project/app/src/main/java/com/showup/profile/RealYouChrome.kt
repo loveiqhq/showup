@@ -44,7 +44,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -54,7 +53,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
@@ -66,6 +64,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
+import com.showup.designsystem.ToastShadow
+import com.showup.designsystem.boxShadow
+import androidx.compose.ui.unit.Dp
 import com.showup.designsystem.Motion
 import com.showup.designsystem.rememberMotion
 import com.showup.welcome.BrandIcon
@@ -312,8 +313,20 @@ fun RealYouScaffold(
 @Composable
 fun BoxScope.RefusalToast(
     visible: Boolean,
-    icon: BrandIcon,
+    /**
+     * The 15 leading glyph. Photos and prompts draw one; "Share some details" draws none -- its
+     * `ValidationToast` is the same chip with text alone (SHOWUP-167).
+     */
+    icon: BrandIcon?,
     message: String,
+    /**
+     * How far above the anchor the chip sits.
+     *
+     * 0 on photos and prompts, whose toast is `bottom: 100%` of a footer that already carries its
+     * own top padding. The details group's footer is a bare row, and its `ValidationToast` adds
+     * `paddingBottom: 10` to the same `bottom: 100%` -- so 10 there.
+     */
+    lift: Dp = 0.dp,
 ) {
     val motion = rememberMotion()
     val fade = if (motion.enabled) 200 else 0
@@ -335,7 +348,9 @@ fun BoxScope.RefusalToast(
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
                 // Report nothing, so the footer measures identically in both states.
-                layout(0, 0) { placeable.place(-placeable.width / 2, -placeable.height) }
+                layout(0, 0) {
+                    placeable.place(-placeable.width / 2, -placeable.height - lift.roundToPx())
+                }
             },
     ) {
         Row(
@@ -345,8 +360,16 @@ fun BoxScope.RefusalToast(
                     translationY = rise * density
                 }
                 .widthIn(max = 300.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Fg)
+                // `box-shadow: 0 8px 22px rgba(46,1,71,0.22)` -- in all three reference files
+                // (photos, prompts and the details group), and missing here until SHOWUP-167:
+                // the chip sat flat on the screen. Drawn with its fill, see `boxShadow`.
+                .boxShadow(
+                    fill = Fg,
+                    cornerRadius = 14.dp,
+                    shadow = ToastShadow,
+                    offsetY = 8.dp,
+                    blur = 22.dp,
+                )
                 .padding(horizontal = 14.dp, vertical = Spacing.lg)
                 // Announced when up, and absent from the tree when not. A toast that stays
                 // readable while invisible is a control TalkBack can land on and a sighted user
@@ -361,7 +384,7 @@ fun BoxScope.RefusalToast(
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, 15.dp, tint = Color.White, strokeWidth = 2.2f)
+            if (icon != null) Icon(icon, 15.dp, tint = Color.White, strokeWidth = 2.2f)
             Text(
                 message,
                 color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,

@@ -35,6 +35,15 @@ const PROHIBITED_NORMALISED = new Set<string>([
   'dob',
   'birthdate',
   'dateofbirth',
+  // Special-category profile answers -- sensitivity class 2 in the tracking registry (SHOWUP-168,
+  // 169, 172, 173). They arrive as plain keys on PATCH /me/profile, so a failed save would otherwise
+  // carry someone's religion or orientation into a log line or a Sentry report. Analytics records
+  // these as `field_id` + value under a class stamp, never under these key names, so stripping the
+  // names takes nothing away from it.
+  'gender',
+  'orientation',
+  'religion',
+  'politics',
   // Secrets. Note `code`: our one-time sign-in and email-verification payloads name the secret
   // `code` (VerifyOtpDto.code, VerifyEmailDto.code), so the bare name must be withheld. An API error
   // code is a different thing and must be named `error_code` so it is not caught by this rule.

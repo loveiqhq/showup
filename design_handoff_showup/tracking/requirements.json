@@ -127,7 +127,7 @@
     },
     {
       "rule": "Multi-select eventsnew",
-      "detail": "Fire once per change with a running total — interest_selected carries total_selected — never one event per final set."
+      "detail": "Fire once per change with a running total — interest_selected carries total_selected — never one event per final set. ONE NAMED EXCEPTION, decided 5 Oct 2026 (Profile 17): dating_language sends one detail_answered per accepted Continue carrying the final set (enums.json §1), because it is a closed eight-value attribute stored as one profile field, not a tag collection."
     }
   ],
   "decision_log": [

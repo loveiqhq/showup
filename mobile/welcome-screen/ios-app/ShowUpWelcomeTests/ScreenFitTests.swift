@@ -428,6 +428,61 @@ final class ScreenFitTests: XCTestCase {
                 ("Media both", try render(
                     ProfileMediaView(state: MediaState(video: fitMediaVideo, voice: fitMediaVoice)),
                     on: device), .orange),
+
+                // SHOWUP-165, all three states. A full-width SUNSET primary, probed at its violet
+                // end. B and C are the tall ones: two buttons, and C's iOS sentence names the
+                // Settings path, so the ghost's label is the longest in the flow.
+                ("Location A ask", try render(ProfileLocationView(state: .ask), on: device), .violet),
+                ("Location B denied", try render(ProfileLocationView(state: .denied), on: device), .violet),
+                ("Location C services off", try render(
+                    ProfileLocationView(state: .servicesOff), on: device), .violet),
+
+                // SHOWUP-166, the second bridge. The sunset pill again; the long name is the only
+                // thing that reflows. No confetti here — the harness photographs it at rest.
+                ("Embrace 2 named", try render(
+                    ProfileEmbraceDetailsView(firstName: "Leo"), on: device), .violet),
+                ("Embrace 2 long name", try render(
+                    ProfileEmbraceDetailsView(firstName: "Maximiliana-Rose"), on: device), .violet),
+
+                // SHOWUP-167 to SHOWUP-173. The round ORANGE NextButton, never disabled. The answer
+                // region scrolls, so a finding means something FIXED has overflowed — the header,
+                // the bar, the headline, the visibility band or the footer. Religion's nine rows and
+                // the refusal toast are the tall cases. No keyboard can be drawn here: the keypad
+                // cases are measured by DetailsFitTest on Android.
+                ("Height empty", try render(
+                    ProfileHeightView(autoFocus: false), on: device), .orange),
+                ("Height typed hidden", try render(
+                    ProfileHeightView(state: DetailsUiState(
+                        draft: DetailDraft(heightText: "181", hidden: ["height"])), autoFocus: false),
+                    on: device), .orange),
+                ("Height refusal toast", try render(
+                    ProfileHeightView(state: DetailsUiState(toast: .refusal), autoFocus: false),
+                    on: device), .orange),
+                ("Gender none", try render(ProfileChoiceView(step: .gender), on: device), .orange),
+                ("Gender picked", try render(
+                    ProfileChoiceView(step: .gender, state: DetailsUiState(draft: DetailDraft(gender: "non_binary"))),
+                    on: device), .orange),
+                ("Gender refusal toast", try render(
+                    ProfileChoiceView(step: .gender, state: DetailsUiState(toast: .refusal)),
+                    on: device), .orange),
+                ("Orientation picked", try render(
+                    ProfileChoiceView(step: .orientation, state: DetailsUiState(
+                        draft: DetailDraft(orientation: "other"))), on: device), .orange),
+                ("Dating language all", try render(
+                    ProfileDatingLanguageView(state: DetailsUiState(draft: DetailDraft(
+                        languages: Set(DetailStep.datingLanguage.options.map(\.value))))),
+                    on: device), .orange),
+                ("Education picked", try render(
+                    ProfileChoiceView(step: .education, state: DetailsUiState(
+                        draft: DetailDraft(education: "university_degree"))), on: device), .orange),
+                ("Religion last picked", try render(
+                    ProfileChoiceView(step: .religion, state: DetailsUiState(
+                        draft: DetailDraft(religion: "spiritual_other", hidden: ["religion"]))),
+                    on: device), .orange),
+                ("Politics save failed", try render(
+                    ProfileChoiceView(step: .politics, state: DetailsUiState(
+                        draft: DetailDraft(politics: "apolitical"), toast: .saveFailed)),
+                    on: device), .orange),
             ]
             for (label, image, tint) in screens {
                 guard let rows = ctaRows(in: image, tint: tint) else {

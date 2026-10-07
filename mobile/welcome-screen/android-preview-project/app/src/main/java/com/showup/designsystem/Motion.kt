@@ -17,7 +17,6 @@ object Motion {
     /** Press feedback and fades. */
     const val FAST = 180
 
-    /** Screen-to-screen transition. */
     /**
      * `su-confirm-in` — the age card's entrance (SHOWUP-154). Once, on entering the state.
      *
@@ -26,6 +25,14 @@ object Motion {
      */
     const val CONFIRM = 240
 
+    /**
+     * The step progress bar's segment fill -- `StepProgress` in shared.jsx, `transition: background
+     * 280ms`, on [CssEase]. Its own number, not [SCREEN]'s: the bar is drawn by every step screen
+     * and the reference times it separately from the transition between them.
+     */
+    const val PROGRESS = 280
+
+    /** Screen-to-screen transition. */
     const val SCREEN = 320
 
     /** The one-shot mismatch shake. SHOWUP-143 specifies 480ms exactly. */
@@ -62,3 +69,12 @@ object Motion {
  * home of the easing that the primitive needs, because designsystem must not depend on a screen.
  */
 val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+
+/**
+ * CSS's default `ease`, for the transitions the reference writes with a duration and NO curve.
+ *
+ * The answer rows and the visibility band say `transition: background 180ms` and nothing more, and
+ * a browser runs that on `ease` -- not on [ShowUpEasing], and not on Compose's own default, which is
+ * a different curve again. Both platforms name it, so a selection fades the same way on each.
+ */
+val CssEase = androidx.compose.animation.core.CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)

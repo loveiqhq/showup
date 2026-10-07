@@ -65,7 +65,6 @@ import com.showup.profile.ReachabilityHost
 import com.showup.profile.ReachabilityViewModel
 import android.os.Build
 import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import com.showup.profile.AndroidMediaAccess
 import com.showup.profile.AndroidMediaCaptureFactory
@@ -102,6 +101,25 @@ import com.showup.profile.ProfileScreen
 import com.showup.profile.PromptsViewModel
 import com.showup.profile.UPLOAD_JPEG_QUALITY
 import com.showup.profile.uploadTargetSize
+import com.showup.api.generated.model.FlowPosition
+import com.showup.profile.AndroidLocationAccess
+import com.showup.profile.DetailStep
+import com.showup.profile.DetailsUiState
+import com.showup.profile.FlowPositionReporter
+import com.showup.profile.LOCATION_PERMISSIONS
+import com.showup.profile.LocationArrival
+import com.showup.profile.LocationHost
+import com.showup.profile.LocationState
+import com.showup.profile.LocationViewModel
+import com.showup.profile.ProfileChoiceScreen
+import com.showup.profile.ProfileDatingLanguageScreen
+import com.showup.profile.ProfileDetailsRepository
+import com.showup.profile.ProfileDetailsViewModel
+import com.showup.profile.ProfileEmbraceDetailsScreen
+import com.showup.profile.ProfileHeightScreen
+import com.showup.profile.ProfileLocationScreen
+import androidx.compose.animation.EnterExitState
+import androidx.compose.runtime.Composable
 import com.showup.welcome.PhoneAuthRepository
 import com.showup.welcome.PhoneAuthViewModel
 import com.showup.profile.BasicsViewModel
@@ -113,6 +131,7 @@ import com.showup.profile.ProfileEmailScreen
 import com.showup.profile.ProfileNameScreen
 import com.showup.profile.ProfileVerifyEmailScreen
 import com.showup.profile.rememberDateOrder
+import com.showup.welcome.FlowNavigator
 import com.showup.welcome.FlowScreen
 import com.showup.welcome.SignUpFlow
 import com.showup.welcome.SignUpOutcome
@@ -152,10 +171,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            // rememberSaveable, not remember: a rotation or a process death mid-tutorial should not
-            // silently drop the user back to card 1. A Kotlin enum is Serializable, so this needs
-            // no Saver. The demo opens where a real first run opens: Startup.
-            var screen by rememberSaveable { mutableStateOf(FlowScreen.SignUp) }
+            // IN A VIEW MODEL, not rememberSaveable -- see FlowNavigator. A rotation or a process
+            // death mid-tutorial still does not drop the user back to card 1 (the handle saves
+            // it), and now a save that finishes after an Activity rebuild navigates the screen the
+            // user is looking at rather than a state object nobody reads any more. The demo opens
+            // where a real first run opens: Startup.
+            val nav: FlowNavigator = viewModel(
+                factory = viewModelFactory { initializer { FlowNavigator(createSavedStateHandle()) } },
+            )
+            var screen by nav::screen
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
             var outcome by rememberSaveable { mutableStateOf(SignUpOutcome.NewAccount) }
@@ -227,6 +251,79 @@ class MainActivity : ComponentActivity() {
             // One call, made once, and only when there is a session to make it with. The
             // repository answers null for a 401, which routes to the flow's own entry point.
             val progressRepo = remember(api) { ProfileProgressRepository(api) }
+
+            // ── the saved flow position, Location and "Share some details" (SHOWUP-165 to 173) ──
+            //
+            // One reporter, shared: media, 09, Stay reachable and location advance the position
+            // through it, and the detail steps send theirs inside the answer's own PATCH.
+            val positions = remember(api) { FlowPositionReporter(api) }
+
+            // ONE view model for Embrace 2 and the seven steps: they share one answer sheet, and
+            // each step's back has to show the previous step's saved value. Its draft lives in the
+            // SavedStateHandle, so a process death mid-step keeps what was picked.
+            val details: ProfileDetailsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        ProfileDetailsViewModel(
+                            store = ProfileDetailsRepository(api),
+                            positions = positions,
+                            handle = createSavedStateHandle(),
+                        )
+                    }
+                },
+            )
+            val detailsState by details.state.collectAsStateWithLifecycle()
+
+            val locationAccess = remember(context) { AndroidLocationAccess(context) }
+            val location: LocationViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { LocationViewModel(access = locationAccess, positions = positions) }
+                },
+            )
+            val locationState by location.state.collectAsStateWithLifecycle()
+
+            // WHERE THE USER CAME FROM, for `referrer_screen_id` -- held beside the screen, for the
+            // same reason (FlowNavigator).
+            val cameFrom by nav::cameFrom
+
+            /** Every navigation into and within the new screens goes through here. */
+            fun goTo(next: FlowScreen) = nav.goTo(next)
+
+            /**
+             * Into location, through the arrival matrix: switch off -> C, not determined -> A,
+             * granted -> skipped silently to Embrace 2, denied or restricted -> B.
+             */
+            fun enterLocation() {
+                when (location.decideArrival()) {
+                    LocationArrival.Skip -> goTo(FlowScreen.ProfileEmbraceDetails)
+                    is LocationArrival.Show -> goTo(FlowScreen.ProfileLocation)
+                }
+            }
+
+            /** Past location, by any of its exits: grant, `Not now`, or a grant noticed on return. */
+            fun leaveLocation() {
+                location.left()
+                goTo(FlowScreen.ProfileEmbraceDetails)
+            }
+
+            // THE LOCATION DIALOG. Fine and coarse in ONE request -- Android 12+ requires coarse
+            // alongside fine -- and either one granted is a grant: "precise and approximate are
+            // both accepted". The answer goes to the view model, not to a deferred, so a rebuild
+            // while the dialog is up cannot strand it (see LocationHost).
+            val askLocation = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { result ->
+                // AN EMPTY RESULT IS NO ANSWER: the system cancelled the request. Not a denial --
+                // nothing recorded, and A keeps a working button.
+                if (result.isEmpty()) {
+                    location.permissionCancelled()
+                    return@rememberLauncherForActivityResult
+                }
+                // Recorded when ANSWERED, never before the launch -- the same rule as the
+                // notification dialog, for the same reason.
+                PermissionAskLog.recordAsked(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                location.permissionAnswered(result.values.any { it }) { leaveLocation() }
+            }
 
             val prompts: PromptsViewModel = viewModel(
                 factory = viewModelFactory {
@@ -408,11 +505,12 @@ class MainActivity : ComponentActivity() {
             // IT ANSWERS A SUSPEND FUNCTION. `ReachabilityViewModel.savePressed` has to WAIT for
             // the answer -- the ticket's order is "raise the OS dialog and wait", then register,
             // then commit, then advance -- and a launcher callback cannot be awaited. So the
-            // callback completes a deferred the suspend side is sitting on.
+            // callback completes a deferred the save is sitting on, HELD BY THE VIEW MODEL so an
+            // Activity rebuild while the dialog is up cannot orphan it (see
+            // `ReachabilityViewModel.awaitNotificationAnswer`).
             //
             // The launcher is declared here, above the `when`, so its callback survives the
             // navigation it triggers. That was already the rule when 09 owned it.
-            var permissionAnswer by remember { mutableStateOf<CompletableDeferred<Boolean>?>(null) }
             val askNotifications = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { granted ->
@@ -422,8 +520,7 @@ class MainActivity : ComponentActivity() {
                 // a user who raises the sheet and backgrounds the app without answering would come
                 // back recorded as denied while the OS status is still not determined.
                 PermissionAskLog.recordAsked(context, Manifest.permission.POST_NOTIFICATIONS)
-                permissionAnswer?.complete(granted)
-                permissionAnswer = null
+                reachModel.notificationAnswered(granted)
             }
 
             // The player, held here for the same reason the camera controller is: it owns a
@@ -480,8 +577,12 @@ class MainActivity : ComponentActivity() {
             var resumeChecked by rememberSaveable { mutableStateOf(false) }
             LaunchedEffect(Unit) {
                 if (resumeChecked) return@LaunchedEffect
+                // MARKED ASKED ONCE THE ANSWER IS BACK, not before: a rebuild or a process death
+                // during the fetch cancels it, and a flag already set would forbid the retry and
+                // leave a returning member on Startup.
+                val progress = progressRepo.fetch()
                 resumeChecked = true
-                val progress = progressRepo.fetch() ?: return@LaunchedEffect
+                if (progress == null) return@LaunchedEffect
                 if (screen != FlowScreen.SignUp) return@LaunchedEffect
                 // Everything already entered, still present.
                 firstName = progress.displayName.orEmpty()
@@ -496,9 +597,31 @@ class MainActivity : ComponentActivity() {
                     // bridge" -- it is a beat on the forward walk, not a place to return to.
                     ResumePoint.Photos -> FlowScreen.ProfilePhotos
                     ResumePoint.Prompts -> FlowScreen.ProfilePrompts
+                    // PAST PROMPTS, FROM THE STORED POSITION (SHOWUP-165). Each routes exactly as
+                    // the forward walk does, so resuming and walking land in the same place:
+                    // notifications through `afterMedia`, which owns its skip guard.
+                    ResumePoint.Media -> FlowScreen.ProfileMedia
+                    ResumePoint.Notifications -> afterMedia()
+                    ResumePoint.Reachability -> FlowScreen.ProfileReachability
+                    // Through the arrival matrix, exactly as the forward walk: a kill mid-dialog
+                    // with no answer lands on A, a grant is skipped, a denial shows B.
+                    ResumePoint.Location -> when (location.decideArrival()) {
+                        LocationArrival.Skip -> FlowScreen.ProfileEmbraceDetails
+                        is LocationArrival.Show -> FlowScreen.ProfileLocation
+                    }
+                    ResumePoint.Height -> FlowScreen.ProfileHeight
+                    ResumePoint.Gender -> FlowScreen.ProfileGender
+                    ResumePoint.Orientation -> FlowScreen.ProfileOrientation
+                    ResumePoint.DatingLanguage -> FlowScreen.ProfileDatingLanguage
+                    ResumePoint.Education -> FlowScreen.ProfileEducation
+                    ResumePoint.Religion -> FlowScreen.ProfileReligion
+                    ResumePoint.Politics -> FlowScreen.ProfilePolitics
                     ResumePoint.Done -> FlowScreen.Home
                 }
                 if (screen == FlowScreen.ProfilePrompts) prompts.load()
+                // A resume onto a detail step pre-fills the saved value: start the read now,
+                // before the step's arrival asks for it. Only there -- nothing else reads it.
+                if (DetailStep.entries.any { it.screen == profileScreenOf(screen) }) details.preload()
             }
 
             // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug on the photo
@@ -595,6 +718,13 @@ class MainActivity : ComponentActivity() {
                     }
                 },
             ) { current ->
+                // WHETHER THIS IS THE SCREEN BEING SHOWN, or one sliding away. A back pressed
+                // during the 320 ms transition returns to a screen that is still composed, and
+                // AnimatedContent REUSES that composition rather than building it again -- so an
+                // arrival keyed on `Unit` never runs a second time, and a step whose view model
+                // thinks it was left would ignore every press. Arrivals key on this instead, and
+                // run again the moment the screen is the target once more.
+                val onTop = current == screen
                 // Exhaustive on purpose. ShowUpEveryTime used to be the `else` branch, which meant
                 // any unexpected value rendered card 6; every screen is now named and the compiler
                 // fails if one is added and not handled here.
@@ -793,9 +923,12 @@ class MainActivity : ComponentActivity() {
                         // Reads what the account already holds, and reports the arrival. Both are
                         // idempotent -- the ViewModel keeps the answer and holds the step's start
                         // time -- and arriving from photos or from a resume both land here.
-                        LaunchedEffect(Unit) {
-                            prompts.arrived(referrer = ProfileScreen.Photos)
-                            prompts.load()
+                        // Keyed on `onTop`, like every arrival -- see the note where it is defined.
+                        LaunchedEffect(onTop) {
+                            if (onTop) {
+                                prompts.arrived(referrer = ProfileScreen.Photos)
+                                prompts.load()
+                            }
                         }
                     }
 
@@ -818,7 +951,7 @@ class MainActivity : ComponentActivity() {
                         // Up here the effect belongs to the position in the flow. Returning from a
                         // take does not re-enter the step, and `acceptTake` already reports the new
                         // entry state itself.
-                        LaunchedEffect(Unit) { media.arrived() }
+                        LaunchedEffect(onTop) { if (onTop) media.arrived() }
                         val take = mediaState.take
                         if (take != null) {
                             MediaCaptureScreen(
@@ -881,11 +1014,14 @@ class MainActivity : ComponentActivity() {
                                     // Sound does not follow the user off the screen.
                                     media.stopPlayback()
                                     media.skipPressed()
+                                    // Past media, whichever way: the saved flow position.
+                                    details.record(FlowPosition.media_video)
                                     screen = afterMedia()
                                 },
                                 onContinue = {
                                     media.stopPlayback()
                                     media.continuePressed()
+                                    details.record(FlowPosition.media_video)
                                     screen = afterMedia()
                                 },
                             )
@@ -912,6 +1048,7 @@ class MainActivity : ComponentActivity() {
                             onEnable = {
                                 // False on a second press, and nothing is reported for it.
                                 if (notifyModel.continuePressed()) {
+                                    details.record(FlowPosition.notifications)
                                     screen = FlowScreen.ProfileReachability
                                 }
                             },
@@ -927,48 +1064,45 @@ class MainActivity : ComponentActivity() {
                         // lets every rule on this screen be tested with no device.
                         val reachScope = rememberCoroutineScope()
                         DisposableEffect(reachModel) {
-                            reachModel.attach(
-                                object : ReachabilityHost {
-                                    override suspend fun requestNotificationPermission(): Boolean {
-                                        // Below API 33 there is no runtime permission to ask for
-                                        // and notifications are already on.
-                                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                                            return true
-                                        }
-                                        val answer = CompletableDeferred<Boolean>()
-                                        permissionAnswer = answer
+                            val host = object : ReachabilityHost {
+                                override suspend fun requestNotificationPermission(): Boolean {
+                                    // Below API 33 there is no runtime permission to ask for
+                                    // and notifications are already on.
+                                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                        return true
+                                    }
+                                    return reachModel.awaitNotificationAnswer {
                                         askNotifications.launch(
                                             Manifest.permission.POST_NOTIFICATIONS,
                                         )
-                                        return answer.await()
                                     }
+                                }
 
-                                    override fun openSettingsOrReprompt() {
-                                        // ANDROID CAN SOMETIMES STILL ASK, and when it can, an
-                                        // in-app dialog is a far shorter path than Settings. The
-                                        // ticket allows either and the event is the same.
-                                        val canAsk = Build.VERSION.SDK_INT >=
-                                            Build.VERSION_CODES.TIRAMISU &&
-                                            !PermissionAskLog.hasAsked(
-                                                context, Manifest.permission.POST_NOTIFICATIONS,
-                                            )
-                                        if (canAsk) {
-                                            reachScope.launch {
-                                                val answer = CompletableDeferred<Boolean>()
-                                                permissionAnswer = answer
+                                override fun openSettingsOrReprompt() {
+                                    // ANDROID CAN SOMETIMES STILL ASK, and when it can, an
+                                    // in-app dialog is a far shorter path than Settings. The
+                                    // ticket allows either and the event is the same.
+                                    val canAsk = Build.VERSION.SDK_INT >=
+                                        Build.VERSION_CODES.TIRAMISU &&
+                                        !PermissionAskLog.hasAsked(
+                                            context, Manifest.permission.POST_NOTIFICATIONS,
+                                        )
+                                    if (canAsk) {
+                                        reachScope.launch {
+                                            reachModel.awaitNotificationAnswer {
                                                 askNotifications.launch(
                                                     Manifest.permission.POST_NOTIFICATIONS,
                                                 )
-                                                answer.await()
-                                                reachModel.foregrounded()
                                             }
-                                        } else {
-                                            openAppSettings(context)
+                                            reachModel.foregrounded()
                                         }
+                                    } else {
+                                        openAppSettings(context)
                                     }
-                                },
-                            )
-                            onDispose { }
+                                }
+                            }
+                            reachModel.attach(host)
+                            onDispose { reachModel.detach(host) }
                         }
 
                         LaunchedEffect(Unit) { reachModel.arrived() }
@@ -995,7 +1129,10 @@ class MainActivity : ComponentActivity() {
                             // the save finishing -- see ReachabilityViewModel.confirmDeactivation.
                             // On state C the lambda is never reached.
                             onConfirmDeactivate = {
-                                reachModel.confirmDeactivation { screen = FlowScreen.Home }
+                                reachModel.confirmDeactivation {
+                                    details.record(FlowPosition.reachability)
+                                    enterLocation()
+                                }
                             },
                             onPrivacy = {
                                 reachModel.privacyTapped()
@@ -1006,12 +1143,179 @@ class MainActivity : ComponentActivity() {
                                 // links, not a decision to take on this screen.
                             },
                             onSave = {
-                                // LOCATION (12) DOES NOT EXIST YET, so the one exit ends at Home.
-                                // When 12 is built this is the single line that changes.
-                                reachModel.savePressed { screen = FlowScreen.Home }
+                                // Into Location (12), through its arrival matrix (SHOWUP-165).
+                                reachModel.savePressed {
+                                    details.record(FlowPosition.reachability)
+                                    enterLocation()
+                                }
                             },
                         )
                     }
+
+                    // ── Location (SHOWUP-165) ───────────────────────────────
+                    FlowScreen.ProfileLocation -> {
+                        // THE HOST DOES ONLY WHAT AN ACTIVITY CAN: raise the dialog and open the
+                        // Settings page the platform table names. Every rule is in the view model.
+                        DisposableEffect(location) {
+                            val host = object : LocationHost {
+                                override fun requestLocationPermission() {
+                                    askLocation.launch(LOCATION_PERMISSIONS)
+                                }
+
+                                override fun openSettings(state: LocationState) {
+                                    // B: our app page. C: the system Location page itself --
+                                    // Android can open it, which is why C's Android copy
+                                    // drops the path sentence.
+                                    if (state == LocationState.ServicesOff) {
+                                        openLocationSettings(context)
+                                    } else {
+                                        openAppSettings(context)
+                                    }
+                                }
+                            }
+                            location.attach(host)
+                            onDispose { location.detach(host) }
+                        }
+                        LaunchedEffect(onTop) {
+                            if (onTop) location.arrived(profileScreenOf(cameFrom)) { leaveLocation() }
+                        }
+
+                        // RE-READ ON EVERY FOREGROUND: Location turned on in C shows A; a grant in
+                        // Settings from B or C advances silently. Nothing while our dialog is up.
+                        val locLifecycle = LocalLifecycleOwner.current
+                        DisposableEffect(locLifecycle) {
+                            val observer = LifecycleEventObserver { _, event ->
+                                if (event == Lifecycle.Event.ON_RESUME) {
+                                    location.foregrounded { leaveLocation() }
+                                }
+                            }
+                            locLifecycle.lifecycle.addObserver(observer)
+                            onDispose { locLifecycle.lifecycle.removeObserver(observer) }
+                        }
+
+                        ProfileLocationScreen(
+                            state = locationState.state,
+                            requesting = locationState.requesting,
+                            onAllow = location::allowPressed,
+                            onOpenSettings = location::openSettingsPressed,
+                            onNotNow = { location.notNowPressed { leaveLocation() } },
+                        )
+                    }
+
+                    // ── Embrace 2 (SHOWUP-166) ──────────────────────────────
+                    FlowScreen.ProfileEmbraceDetails -> {
+                        // A back-pop from height is not a push: no `embrace_bridge_viewed`, and
+                        // the confetti does not replay.
+                        // Decided as the screen is built: the Continue that leaves it changes
+                        // `cameFrom`, and the outgoing bridge must not start a rain on its way out.
+                        val pushed = remember { cameFrom != FlowScreen.ProfileHeight }
+                        LaunchedEffect(onTop) {
+                            if (onTop) {
+                                details.embraceArrived(
+                                    profileScreenOf(cameFrom),
+                                    pop = cameFrom == FlowScreen.ProfileHeight,
+                                )
+                            }
+                        }
+                        ProfileEmbraceDetailsScreen(
+                            firstName = firstName,
+                            onContinue = {
+                                details.embraceContinue { goTo(FlowScreen.ProfileHeight) }
+                            },
+                            // `pushed` as built, and never on a pop -- even onto a reused screen whose
+                            // rain had not begun when it was left.
+                            playConfetti = pushed && cameFrom != FlowScreen.ProfileHeight,
+                            // t = 0 is when THIS screen's push transition has settled, not mount --
+                            // and never on the way out, whose first frame also reads as "settled".
+                            transitionSettled = transition.targetState == EnterExitState.Visible &&
+                                transition.currentState == EnterExitState.Visible &&
+                                !transition.isRunning,
+                        )
+                    }
+
+                    // ── "Share some details", steps 1 to 7 (SHOWUP-167 to SHOWUP-173) ─────────
+                    FlowScreen.ProfileHeight -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) details.arrived(DetailStep.Height, profileScreenOf(cameFrom))
+                        }
+                        ProfileHeightScreen(
+                            state = heldWhileLeaving(detailsState, onTop),
+                            // Re-armed on every showing: a back that lands mid-transition reuses the
+                            // screen, and the keypad must open again without a tap.
+                            autoFocus = onTop,
+                            onHeightChange = details::heightChanged,
+                            onToggleVisibility = { details.visibilityToggled(DetailStep.Height) },
+                            onContinue = {
+                                details.continuePressed(DetailStep.Height) {
+                                    goTo(FlowScreen.ProfileGender)
+                                }
+                            },
+                            onSkip = {
+                                details.skipPressed(DetailStep.Height) {
+                                    goTo(FlowScreen.ProfileGender)
+                                }
+                            },
+                            onBack = {
+                                details.backPressed(DetailStep.Height) { goTo(FlowScreen.ProfileEmbraceDetails) }
+                            },
+                        )
+                    }
+                    FlowScreen.ProfileGender -> DetailChoiceHost(
+                        DetailStep.Gender, details, detailsState, profileScreenOf(cameFrom), onTop,
+                        onNext = { goTo(FlowScreen.ProfileOrientation) },
+                        onPrevious = { goTo(FlowScreen.ProfileHeight) },
+                    )
+                    FlowScreen.ProfileOrientation -> DetailChoiceHost(
+                        DetailStep.Orientation, details, detailsState, profileScreenOf(cameFrom), onTop,
+                        onNext = { goTo(FlowScreen.ProfileDatingLanguage) },
+                        onPrevious = { goTo(FlowScreen.ProfileGender) },
+                    )
+                    FlowScreen.ProfileDatingLanguage -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) {
+                                details.arrived(DetailStep.DatingLanguage, profileScreenOf(cameFrom))
+                            }
+                        }
+                        ProfileDatingLanguageScreen(
+                            state = heldWhileLeaving(detailsState, onTop),
+                            onTap = details::languageTapped,
+                            onToggleVisibility = {
+                                details.visibilityToggled(DetailStep.DatingLanguage)
+                            },
+                            onContinue = {
+                                details.continuePressed(DetailStep.DatingLanguage) {
+                                    goTo(FlowScreen.ProfileEducation)
+                                }
+                            },
+                            onSkip = {
+                                details.skipPressed(DetailStep.DatingLanguage) {
+                                    goTo(FlowScreen.ProfileEducation)
+                                }
+                            },
+                            onBack = {
+                                details.backPressed(DetailStep.DatingLanguage) {
+                                    goTo(FlowScreen.ProfileOrientation)
+                                }
+                            },
+                        )
+                    }
+                    FlowScreen.ProfileEducation -> DetailChoiceHost(
+                        DetailStep.Education, details, detailsState, profileScreenOf(cameFrom), onTop,
+                        onNext = { goTo(FlowScreen.ProfileReligion) },
+                        onPrevious = { goTo(FlowScreen.ProfileDatingLanguage) },
+                    )
+                    FlowScreen.ProfileReligion -> DetailChoiceHost(
+                        DetailStep.Religion, details, detailsState, profileScreenOf(cameFrom), onTop,
+                        onNext = { goTo(FlowScreen.ProfilePolitics) },
+                        onPrevious = { goTo(FlowScreen.ProfileEducation) },
+                    )
+                    FlowScreen.ProfilePolitics -> DetailChoiceHost(
+                        DetailStep.Politics, details, detailsState, profileScreenOf(cameFrom), onTop,
+                        // INTERESTS (step 8) IS NOT BUILT, so politics ends at Home for now. When
+                        // it is, this is the single line that changes.
+                        onNext = { goTo(FlowScreen.Home) },
+                        onPrevious = { goTo(FlowScreen.ProfileReligion) },
+                    )
 
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
@@ -1172,6 +1476,79 @@ private fun newCameraTarget(context: Context): Uri {
     val dir = File(context.cacheDir, "camera").apply { mkdirs() }
     val file = File(dir, "capture-" + System.currentTimeMillis() + ".jpg")
     return FileProvider.getUriForFile(context, context.packageName + ".photos", file)
+}
+
+/**
+ * The system Location page -- C's Android destination ("Android opens the Location page directly
+ * and needs no path"). Falls back to the app page on a device that has no such screen.
+ */
+private fun openLocationSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }.onFailure { openAppSettings(context) }
+}
+
+/** The §11 screen a flow position is, for `referrer_screen_id`. Null where none is registered. */
+private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen) {
+    FlowScreen.ProfilePrompts -> ProfileScreen.Prompts
+    FlowScreen.ProfileMedia -> ProfileScreen.Media
+    FlowScreen.ProfileNotifications -> ProfileScreen.Notifications
+    FlowScreen.ProfileReachability -> ProfileScreen.Reachability
+    FlowScreen.ProfileLocation -> ProfileScreen.Location
+    FlowScreen.ProfileEmbraceDetails -> ProfileScreen.EmbraceDetails
+    FlowScreen.ProfileHeight -> ProfileScreen.Height
+    FlowScreen.ProfileGender -> ProfileScreen.Gender
+    FlowScreen.ProfileOrientation -> ProfileScreen.Orientation
+    FlowScreen.ProfileDatingLanguage -> ProfileScreen.DatingLanguage
+    FlowScreen.ProfileEducation -> ProfileScreen.Education
+    FlowScreen.ProfileReligion -> ProfileScreen.Religion
+    FlowScreen.ProfilePolitics -> ProfileScreen.Politics
+    else -> null
+}
+
+/**
+ * What a screen draws: the live [value] while it is the one being shown, and the last value it had
+ * once it starts sliding away.
+ *
+ * The detail steps share one state, and leaving a step puts its part back to the saved value -- so
+ * without this, Back or Skip would visibly clear the height, or the picked row, on the outgoing
+ * screen during its exit. Frozen, the outgoing screen leaves looking as the user left it, and the
+ * incoming one is drawn right from its first frame. A plain remembered slot, not state: it only
+ * caches what the live value already drew.
+ */
+@Composable
+private fun <T> heldWhileLeaving(value: T, onTop: Boolean): T {
+    val held = remember { Held(value) }
+    if (onTop) held.value = value
+    return held.value
+}
+
+private class Held<T>(var value: T)
+
+/**
+ * One single-select detail step, hosted: its arrival, and every press routed to the view model.
+ * Five steps share it because they share every rule -- the differences are on [DetailStep].
+ */
+@Composable
+private fun DetailChoiceHost(
+    step: DetailStep,
+    details: ProfileDetailsViewModel,
+    state: DetailsUiState,
+    referrer: ProfileScreen?,
+    onTop: Boolean,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+) {
+    LaunchedEffect(onTop) { if (onTop) details.arrived(step, referrer) }
+    ProfileChoiceScreen(
+        step = step,
+        state = heldWhileLeaving(state, onTop),
+        onTap = { details.optionTapped(step, it) },
+        onToggleVisibility = { details.visibilityToggled(step) },
+        onContinue = { details.continuePressed(step, onNext) },
+        onSkip = { details.skipPressed(step, onNext) },
+        onBack = { details.backPressed(step, onPrevious) },
+    )
 }
 
 /**

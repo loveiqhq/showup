@@ -7,6 +7,7 @@
 //  because this is SwiftUI.
 //
 
+import Accessibility
 import SwiftUI
 
 /// Copy shared by every screen in the group.
@@ -151,14 +152,30 @@ struct RealYouScaffold<Content: View, Footer: View>: View {
 /// removing it would cut instead.
 struct RefusalToast: View {
     let visible: Bool
-    let icon: BrandIcon
+    /// The 15 leading glyph. Photos and prompts draw one; "Share some details" draws none — its
+    /// `ValidationToast` is the same chip with text alone (SHOWUP-167).
+    let icon: BrandIcon?
     let message: String
+    /// How far above the anchor the chip sits: 0 on photos and prompts, 10 on the details group,
+    /// whose `ValidationToast` adds `paddingBottom: 10` to the same `bottom: 100%`.
+    var lift: CGFloat = 0
+    /// Bumped by callers whose toast can be refused again while it is up (the details group), so the
+    /// repeat is announced too. Zero for the screens that only show and hide.
+    var tick: Int = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The last sentence that was actually up. The fade-out still draws the toast, and by then the
+    /// caller may already be passing a different sentence for "no toast".
+    @State private var lastShown: String?
+
+    private struct Showing: Equatable {
+        let visible: Bool
+        let tick: Int
+    }
 
     var body: some View {
         HStack(spacing: Spacing.md) {
-            BrandIconView(icon: icon, size: 15, stroke: 2.2, tint: .white)
-            Text(message)
+            if let icon { BrandIconView(icon: icon, size: 15, stroke: 2.2, tint: .white) }
+            Text(visible ? message : (lastShown ?? message))
                 .font(F.manrope(13, .semibold))
                 .foregroundColor(.white)
                 .fixedSize(horizontal: false, vertical: true)
@@ -177,6 +194,15 @@ struct RefusalToast: View {
         .accessibilityHidden(!visible)
         .accessibilityAddTraits(.updatesFrequently)
         .allowsHitTesting(false)
+        .onChange(of: visible ? message : nil, initial: true) { _, shown in
+            if let shown { lastShown = shown }
+        }
+        // ANNOUNCED, "aria-live polite": on the way in, and again on a refusal while it is up. A
+        // trait alone announces nothing — iOS posts nothing for a view that merely becomes visible.
+        .onChange(of: Showing(visible: visible, tick: tick)) { old, new in
+            guard new.visible, !old.visible || old.tick != new.tick else { return }
+            AccessibilityNotification.Announcement(message).post()
+        }
     }
 }
 
@@ -184,7 +210,7 @@ struct RefusalToast: View {
 extension View {
     func refusalToast(_ toast: RefusalToast) -> some View {
         overlay(alignment: .top) {
-            toast.alignmentGuide(.top) { $0[.bottom] }
+            toast.alignmentGuide(.top) { $0[.bottom] + toast.lift }
         }
     }
 }

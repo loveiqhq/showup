@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -58,7 +57,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -70,10 +68,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.showup.designsystem.Border
-import com.showup.designsystem.BorderSoft
-import com.showup.designsystem.CheckGlyph
-import com.showup.designsystem.Elevated
+import com.showup.designsystem.ProfileVisibility
 import com.showup.designsystem.Fg
 import com.showup.designsystem.FloatingField
 import com.showup.designsystem.InlineErrorCard
@@ -85,12 +80,9 @@ import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Purple
-import com.showup.designsystem.Subtle
 import com.showup.designsystem.rememberMotion
 import com.showup.tutorial.NextButton
 import com.showup.designsystem.StepProgress
-import com.showup.welcome.BrandIcon
-import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
@@ -190,7 +182,7 @@ fun ProfileDobScreen(
         onBack = onBack,
         cta = {
             Column(Modifier.fillMaxWidth()) {
-                ProfileVisibilityRow(hidden = hideAge, onToggle = { onHideAgeChange(!hideAge) })
+                ProfileVisibility(hidden = hideAge, onToggle = { onHideAgeChange(!hideAge) }, label = DobCopy.VISIBILITY)
                 Spacer(Modifier.height(26.dp))
                 Row(
                     Modifier.fillMaxWidth().padding(bottom = 18.dp),
@@ -384,69 +376,9 @@ private fun AgeCard(age: Int, onEdit: () -> Unit) {
     }
 }
 
-/**
- * The visibility band (callout ⑪).
- *
- * NOT [MarketingOptIn], and the five differences are why: this is transparent under a hairline
- * divider rather than a raised card, the box is on the LEFT, the hit area is capped to the switch
- * and its label instead of the full row, it carries an eye-off mark, and its label is 700/14
- * against that row's 500/13. Forcing them together would need a flag for each.
- *
- * **Checked means the age is not DISPLAYED. It is still used for matching.** The choice hides a
- * value; it never excludes the user. That distinction is the whole reason this control exists on
- * this screen rather than in the later detail steps.
- */
-@Composable
-internal fun ProfileVisibilityRow(
-    hidden: Boolean,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(BorderSoft))
-        Row(
-            Modifier
-                // Capped to the switch and its label, NOT the full row: an edge-to-edge target
-                // above the CTA invites a mis-tap on the control the user actually meant.
-                .clickable(role = Role.Checkbox, onClick = onToggle)
-                .heightIn(min = 56.dp)
-                .padding(vertical = 10.dp)
-                .semantics {
-                    stateDescription = if (hidden) "Hidden" else "Shown"
-                    contentDescription = DobCopy.VISIBILITY
-                },
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier
-                    .size(22.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(if (hidden) Purple else Elevated)
-                    .border(1.5.dp, if (hidden) Purple else Border, RoundedCornerShape(6.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (hidden) CheckGlyph(size = 13.dp, color = Elevated, strokeWidth = 3.dp)
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    BrandIcon.EyeOff,
-                    size = 14.dp,
-                    tint = if (hidden) Purple else Subtle,
-                    strokeWidth = 2.1f,
-                )
-                Text(
-                    DobCopy.VISIBILITY,
-                    color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp, lineHeight = 18.2.sp,
-                )
-            }
-        }
-    }
-}
+// The visibility band (callout ⑪) is `designsystem/ProfileVisibility.kt` since SHOWUP-167, when the
+// seven "Share some details" steps became its second caller. Checked means the age is not DISPLAYED;
+// it is still used for matching.
 
 // ── previews: four states x three frames ────────────────────────────────────
 

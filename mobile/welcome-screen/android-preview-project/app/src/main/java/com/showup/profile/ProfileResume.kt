@@ -43,6 +43,8 @@
  */
 package com.showup.profile
 
+import com.showup.api.generated.model.FlowPosition
+
 /**
  * The facts `GET /me/profile/progress` returns.
  *
@@ -56,6 +58,17 @@ data class ProfileProgress(
     val hasDateOfBirth: Boolean = false,
     val photoCount: Int = 0,
     val promptCount: Int = 0,
+    /**
+     * The two MANDATORY "Share some details" steps (Profiles 15, 16). A mandatory step cannot be
+     * passed without an answer, so the answer is the evidence -- like the name.
+     */
+    val hasGender: Boolean = false,
+    val hasOrientation: Boolean = false,
+    /**
+     * The furthest step completed or skipped after prompts, or null before any -- see
+     * ProfileFlow.kt. The only evidence a SKIPPABLE step was passed, because a skip saves nothing.
+     */
+    val flowPosition: String? = null,
 )
 
 /** Where in profile creation an account has got to. */
@@ -66,6 +79,21 @@ enum class ResumePoint {
     Dob,
     Photos,
     Prompts,
+
+    // After prompts the position is no longer derived from facts alone -- see ProfileFlow.kt.
+    Media,
+    /** The notification ask. Its own skip guard still applies at routing time (`afterMedia`). */
+    Notifications,
+    Reachability,
+    /** The location ask. Its arrival matrix still applies at routing time (SHOWUP-165). */
+    Location,
+    Height,
+    Gender,
+    Orientation,
+    DatingLanguage,
+    Education,
+    Religion,
+    Politics,
 
     /** Everything the flow asks for is on the account. */
     Done,
@@ -96,5 +124,28 @@ fun resumePoint(progress: ProfileProgress): ResumePoint = when {
     !progress.hasDateOfBirth -> ResumePoint.Dob
     progress.photoCount < PHOTOS_REQUIRED -> ResumePoint.Photos
     progress.promptCount < PROMPTS_REQUIRED -> ResumePoint.Prompts
+
+    // ── past prompts: the stored position ────────────────────────────────────
+    //
+    // Until SHOWUP-165 the chain ended here with `Done`, so a relaunch anywhere after prompts went
+    // to Home and silently skipped media, both asks and every detail step. The position is what
+    // tells a skipped step from an unreached one -- see ProfileFlow.kt.
+    hasNotReached(progress.flowPosition, FlowPosition.media_video) -> ResumePoint.Media
+    hasNotReached(progress.flowPosition, FlowPosition.notifications) -> ResumePoint.Notifications
+    hasNotReached(progress.flowPosition, FlowPosition.reachability) -> ResumePoint.Reachability
+    hasNotReached(progress.flowPosition, FlowPosition.location) -> ResumePoint.Location
+    // NO EMBRACE 2. The second bridge is never a resume point, for the reason the first is not:
+    // it holds nothing and no fact says it was seen. Past location, resume lands on height.
+    hasNotReached(progress.flowPosition, FlowPosition.height) -> ResumePoint.Height
+    // MANDATORY STEPS CHECK THE ANSWER TOO. A position past gender with no gender stored -- an
+    // old free-text value the migration could not map, say -- must still come back for it.
+    hasNotReached(progress.flowPosition, FlowPosition.gender) || !progress.hasGender ->
+        ResumePoint.Gender
+    hasNotReached(progress.flowPosition, FlowPosition.orientation) || !progress.hasOrientation ->
+        ResumePoint.Orientation
+    hasNotReached(progress.flowPosition, FlowPosition.dating_language) -> ResumePoint.DatingLanguage
+    hasNotReached(progress.flowPosition, FlowPosition.education) -> ResumePoint.Education
+    hasNotReached(progress.flowPosition, FlowPosition.religion) -> ResumePoint.Religion
+    hasNotReached(progress.flowPosition, FlowPosition.politics) -> ResumePoint.Politics
     else -> ResumePoint.Done
 }

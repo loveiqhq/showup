@@ -97,8 +97,27 @@ final class FlowScreenTests: XCTestCase {
         // while `NoConsentBackend` is the repository: there is no endpoint to read the consent
         // back from, so nothing can say whether the screen was answered. When that endpoint
         // exists, this is the one to revisit.
-        XCTAssertEqual(FlowScreen.allCases.count, 18)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 18)
+        //
+        // SHOWUP-165 to SHOWUP-173 add nine: profileLocation (whose A, B and C are states, not
+        // cases), profileEmbraceDetails (the second bridge, never a resume point), and the seven
+        // "Share some details" steps. Mirrors the 27 in FlowRestorationTest on Android.
+        XCTAssertEqual(FlowScreen.allCases.count, 27)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 27)
+    }
+
+    /// The new positions walk forward in flow order, and every back from a detail step reads as
+    /// backward — the transition takes its direction from this comparison.
+    func testTheDetailStepsWalkForwardAndBackInFlowOrder() {
+        let walk: [FlowScreen] = [
+            .profileReachability, .profileLocation, .profileEmbraceDetails, .profileHeight,
+            .profileGender, .profileOrientation, .profileDatingLanguage, .profileEducation,
+            .profileReligion, .profilePolitics, .home,
+        ]
+        for (from, to) in zip(walk, walk.dropFirst()) {
+            XCTAssertTrue(to > from, "\(from) -> \(to) should travel forward")
+            // A back from `to` lands on `from`; the shell reads its direction as `next > screen`.
+            XCTAssertFalse(from > to, "\(to) -> \(from) should travel back")
+        }
     }
 
     // MARK: - the routing vocabulary a scene stores

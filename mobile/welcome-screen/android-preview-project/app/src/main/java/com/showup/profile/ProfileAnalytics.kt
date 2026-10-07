@@ -49,6 +49,7 @@
 package com.showup.profile
 
 import com.showup.analytics.AnalyticsTracker
+import com.showup.api.generated.model.FlowPosition
 
 /**
  * The §11 screen registry, as constants.
@@ -134,15 +135,40 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
 
     /** The post-Stop review screen (states H and J): play, retake, keep. One row for both media. */
     MediaReview("profile_media_review", "ProfileMediaReview"),
+
+    /**
+     * The location ask (SHOWUP-165). Row added 5 October 2026, before the ticket was written.
+     *
+     * A SCREEN AND NOT A STEP, the same as 09 and 10. §2's `location` id exists for one event
+     * only -- `profile_step_skipped` on `Not now` -- and is "not a licence to fire
+     * profile_step_viewed". Three states, one row: A, B and C are one mount.
+     */
+    Location("profile_location", "ProfileLocation"),
+
+    /**
+     * The second bridge (SHOWUP-166). Registered 9 September 2026 with screen 05; ticketed 5
+     * October 2026. A screen and not a step, like [EmbraceBuild].
+     */
+    EmbraceDetails("profile_embrace_details", "ProfileEmbraceDetails"),
+
+    // ── "Share some details" (SHOWUP-167 to SHOWUP-173). Rows added in registry 1.4.8 for all
+    // eleven steps at once, "so the funnel runs unbroken from this bridge to the end of the flow".
+    // Only the seven with a screen are spelled; the other four join when their screens do.
+    Height("profile_height", "ProfileHeight"),
+    Gender("profile_gender", "ProfileGender"),
+    Orientation("profile_orientation", "ProfileOrientation"),
+    DatingLanguage("profile_dating_language", "ProfileDatingLanguage"),
+    Education("profile_education", "ProfileEducation"),
+    Religion("profile_religion", "ProfileReligion"),
+    Politics("profile_politics", "ProfilePolitics"),
 }
 
 /**
  * `variant` from enums.json §16 — which of the two bridges fired [ProfileAnalytics.embraceBridgeViewed].
  *
  * Two screens, one shell, two copy payloads. The set maps onto §11 one-for-one:
- * `build_profile` -> `profile_embrace_build` · `add_details` -> `profile_embrace_details`.
- * [ADD_DETAILS] is the sibling bridge, registered and not yet ticketed; it is listed here because
- * the value set has one home by design, not because anything calls it yet.
+ * `build_profile` -> `profile_embrace_build` (SHOWUP-155) · `add_details` ->
+ * `profile_embrace_details` (SHOWUP-166).
  */
 object EmbraceVariant {
     const val BUILD_PROFILE = "build_profile"
@@ -206,7 +232,7 @@ enum class SheetDismissMethod(val trackingValue: String) {
  * The `rule` vocabulary shared by the validation events.
  *
  * A closed set in the registry: `required_missing` · `photos_below_minimum` · `nothing_selected` ·
- * `at_char_limit` · `format` · `impossible`. Only the four this flow can produce are named.
+ * `at_char_limit` · `format` · `impossible`. Only the five this flow can produce are named.
  */
 object ValidationRule {
     const val REQUIRED_MISSING = "required_missing"
@@ -223,6 +249,14 @@ object ValidationRule {
      * a chooser where nothing was ticked, not to a screen where nothing was written.
      */
     const val PROMPTS_BELOW_MINIMUM = "prompts_below_minimum"
+
+    /**
+     * A value that cannot be true -- a height outside 120-230 (SHOWUP-167).
+     *
+     * The ticket's own words: "Out of range is `rule: "impossible"`. §8 has no range value. If
+     * analytics wants `out_of_range`, it gets defined in `enums.json` first -- not typed here."
+     */
+    const val IMPOSSIBLE = "impossible"
 }
 
 /**
@@ -276,6 +310,12 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.15 (5 October 2026) closes the nine "Share some details" tickets, one version each:
+     * 1.4.7 location (§26 `location_unavailable_reason`), 1.4.8 the `add_details` bridge, then one
+     * per detail step from height (1.4.9) to politics (1.4.15) -- `muslim` added to religion in
+     * 1.4.14, the politics order made linear in 1.4.15. Read `changed_in_1_4_*` in enums.json for
+     * each step's exact delta.
+     *
      * 1.4.6 (25 September 2026) adds §25 `interest_channel` and the Stay reachable events, and
      * the §11 row for that screen. It sits on 1.4.5 of the same day, which RETIRED §18 prompt
      * `entry_point` -- "which
@@ -288,7 +328,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.6"
+    const val FIELD_REGISTRY_VERSION = "1.4.15"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -369,6 +409,23 @@ object ProfileAnalytics {
     const val CHANNEL_INTEREST_CHANGED = "channel_interest_changed"
     const val REACHABILITY_SAVED = "reachability_saved"
 
+    // ── the location ask, registry 1.4.7 (SHOWUP-165) ───────────────────────
+    //
+    // NEW for this screen. The other permission events above are shared with notifications and
+    // take `type: "location"` here.
+    const val PERMISSION_DENIED_RECOVERY_SHOWN = "permission_denied_recovery_shown"
+
+    /** `permission_*.type` for the location ask. §8's closed set on `permission_prompted`. */
+    const val PERMISSION_LOCATION = "location"
+
+    // ── family F, profile attributes (SHOWUP-167 to SHOWUP-173) ─────────────
+    //
+    // `detail_answered` and `detail_skipped` carry the FIELD's own §1 class, stamped at emit time
+    // -- the registry leaves their class blank because it differs per field.
+    const val DETAIL_ANSWERED = "detail_answered"
+    const val DETAIL_SKIPPED = "detail_skipped"
+    const val FIELD_DISPLAY_OPTED_OUT = "field_display_opted_out"
+
     /**
      * The closed set on `permission_prompted.type`, from `enums.json` §8.
      *
@@ -423,8 +480,8 @@ object ProfileAnalytics {
      * event exists for.
      */
     fun permissionStatusChanged(
-        from: NotificationPermission,
-        to: NotificationPermission,
+        from: PermissionStatus,
+        to: PermissionStatus,
         detectedOn: String,
         inFlow: Boolean,
         type: String = PERMISSION_NOTIFICATIONS,
@@ -440,6 +497,95 @@ object ProfileAnalytics {
     /** Where a status change was noticed. The closed pair on `permission_status_changed`. */
     const val DETECTED_ON_LAUNCH = "launch"
     const val DETECTED_ON_FOREGROUND = "foreground"
+
+    /**
+     * T2, class 1. The location ask's B or C was shown (SHOWUP-165).
+     *
+     * `reason` is `enums.json` §26 `location_unavailable_reason` -- "REQUIRED when type is
+     * location, absent otherwise". It is the only builder that takes the location type, so it
+     * always carries one.
+     */
+    fun permissionDeniedRecoveryShown(reason: LocationUnavailableReason) =
+        PERMISSION_DENIED_RECOVERY_SHOWN to buildMap<String, Any> {
+            put("type", PERMISSION_LOCATION)
+            put("reason", reason.trackingValue)
+            putAll(Stamp.of(1))
+        }
+
+    /**
+     * T2, class 0. `Not now — ask me when I search` on the location ask.
+     *
+     * `step_id: "location"` is the ONE event §2's location id exists for. The same event the detail
+     * steps send on Skip, from the same vocabulary.
+     */
+    fun locationSkipped() = PROFILE_STEP_SKIPPED to buildMap<String, Any> {
+        put("step_id", FlowPosition.location.value)
+        put("screen_id", ProfileScreen.Location.screenId)
+        putAll(Stamp.of(0))
+    }
+
+    // ── "Share some details" ─────────────────────────────────────────────────
+
+    /** T2, class 0. Step [step] was shown. */
+    fun detailStepViewed(step: DetailStep) = PROFILE_STEP_VIEWED to buildMap<String, Any> {
+        put("step_id", step.stepId)
+        put("step_index", step.stepIndex)
+        putAll(Stamp.of(0))
+    }
+
+    /** T2, class 0. Continue was accepted and the answer stored. */
+    fun detailStepCompleted(step: DetailStep, timeOnStepSeconds: Int) =
+        PROFILE_STEP_COMPLETED to buildMap<String, Any> {
+            put("step_id", step.stepId)
+            put("time_on_step_s", timeOnStepSeconds)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. Skip, or a Continue that is a skip. Never from gender or orientation. */
+    fun detailStepSkipped(step: DetailStep) = PROFILE_STEP_SKIPPED to buildMap<String, Any> {
+        put("step_id", step.stepId)
+        put("screen_id", step.screen.screenId)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, the field's class. One per ACCEPTED Continue, carrying the final answer.
+     *
+     * [valueBucketed] is the §1 value -- for height the bucket, never the cm; for dating language
+     * the ticked values in list order, comma-joined. NEVER a display label, and never empty: an
+     * empty answer is a skip and goes through [detailSkipped] instead.
+     */
+    fun detailAnswered(step: DetailStep, valueBucketed: String): Pair<String, Map<String, Any>> {
+        require(valueBucketed.isNotEmpty()) { "an empty answer is a skip, not an answer" }
+        return DETAIL_ANSWERED to buildMap {
+            put("field_id", step.fieldId)
+            put("value_bucketed", valueBucketed)
+            putAll(Stamp.of(step.sensitivityClass))
+        }
+    }
+
+    /** T1, the field's class. Fires with [detailStepSkipped], BEFORE it -- the order the tickets give. */
+    fun detailSkipped(step: DetailStep) = DETAIL_SKIPPED to buildMap<String, Any> {
+        put("field_id", step.fieldId)
+        putAll(Stamp.of(step.sensitivityClass))
+    }
+
+    /** T1, class 0. The visibility box was TICKED. Nothing is sent on untick, by registry rule. */
+    fun fieldDisplayOptedOut(step: DetailStep) =
+        FIELD_DISPLAY_OPTED_OUT to buildMap<String, Any> {
+            put("field_id", step.fieldId)
+            putAll(Stamp.of(0))
+        }
+
+    /** T1, class 0. Continue refused on height, gender or orientation -- on the press, not render. */
+    fun detailValidationFailed(step: DetailStep, rule: String) =
+        FORM_VALIDATION_FAILED to buildMap<String, Any> {
+            put("field_id", step.fieldId)
+            put("rule", rule)
+            put("screen_id", step.screen.screenId)
+            put("step_id", step.stepId)
+            putAll(Stamp.of(0))
+        }
 
     /** T1, class 0. `referrer_screen_id` is B2 and travels as null until Step 3 lands. */
     fun screenViewed(screen: ProfileScreen, referrer: ProfileScreen? = null) =
@@ -911,7 +1057,7 @@ object ProfileAnalytics {
      */
     fun reachabilitySaved(
         pushOn: Boolean,
-        permission: NotificationPermission,
+        permission: PermissionStatus,
         interest: List<String>,
     ) = REACHABILITY_SAVED to buildMap<String, Any> {
         put("push_on", pushOn)

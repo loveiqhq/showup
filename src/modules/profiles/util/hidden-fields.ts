@@ -29,11 +29,21 @@
  * free-form text array and this list is the validation. A value not in here is rejected with 400
  * rather than stored, so a typo cannot become a permanent unreadable row.
  *
- * `age` ships first (SHOWUP-154). The remaining eight are named in the registry but their screens
- * are unbuilt, so they are deliberately absent: accepting a value nothing can yet set would make
- * this list a wish rather than a contract.
+ * `age` shipped first (SHOWUP-154); the seven "Share some details" screens joined it with
+ * SHOWUP-167 to SHOWUP-173, each of which carries its own "show on my profile" control. `habits` is
+ * the one registry entry still absent, because its screen is unbuilt: accepting a value nothing can
+ * yet set would make this list a wish rather than a contract.
  */
-export const HIDEABLE_FIELDS = ['age'] as const;
+export const HIDEABLE_FIELDS = [
+  'age',
+  'height',
+  'gender',
+  'orientation',
+  'dating_language',
+  'education',
+  'religion',
+  'politics',
+] as const;
 
 export type HideableField = (typeof HIDEABLE_FIELDS)[number];
 
@@ -61,6 +71,21 @@ export function isHideableField(value: string): value is HideableField {
  */
 export function normaliseHiddenFields(fields: readonly string[]): string[] {
   return [...new Set(fields)].sort();
+}
+
+/**
+ * Whether [field] is hidden in a stored set -- the check every view shown to SOMEONE ELSE makes
+ * before including a value.
+ *
+ * Typed on [HideableField] rather than `string`, so a view that misspells the field it is guarding
+ * fails to compile instead of quietly hiding nothing. The owner's own view never calls this: they
+ * always see their own answers, hidden or not.
+ */
+export function isFieldHidden(
+  hiddenFields: readonly string[] | null | undefined,
+  field: HideableField,
+): boolean {
+  return (hiddenFields ?? []).includes(field);
 }
 
 /** The unknown values in a submitted set, for the 400 message. */

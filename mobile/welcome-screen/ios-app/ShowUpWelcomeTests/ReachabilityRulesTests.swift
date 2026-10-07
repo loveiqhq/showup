@@ -99,10 +99,10 @@ private final class FakeHost: ReachabilityHosting {
 /// depend on that rather than on the answer we were handed: the toggle a scrim-dismiss leaves
 /// behind, and the permission `reachability_saved` carries.
 private actor MovingAccess: NotificationAccessReading {
-    private var status: NotificationPermission
-    init(_ status: NotificationPermission = .notDetermined) { self.status = status }
-    func set(_ value: NotificationPermission) { status = value }
-    func read() async -> NotificationPermission { status }
+    private var status: PermissionStatus
+    init(_ status: PermissionStatus = .notDetermined) { self.status = status }
+    func set(_ value: PermissionStatus) { status = value }
+    func read() async -> PermissionStatus { status }
 }
 
 @MainActor
@@ -122,7 +122,7 @@ final class ReachabilityRulesTests: XCTestCase {
     }
 
     private func build(
-        _ status: NotificationPermission = .notDetermined
+        _ status: PermissionStatus = .notDetermined
     ) -> ReachabilityModel {
         let model = ReachabilityModel(
             access: FixedNotificationAccess(status),

@@ -1,6 +1,7 @@
 import {
   HIDEABLE_FIELDS,
   MAX_SUBMITTED_HIDDEN_FIELDS,
+  isFieldHidden,
   isHideableField,
   normaliseHiddenFields,
   unknownHiddenFields,
@@ -14,8 +15,21 @@ describe('hidden-fields', () => {
 
     it('rejects a field whose control does not exist yet', () => {
       // Named in the registry, but its screen is unbuilt. Accepting it would let a client store a
-      // preference nothing can honour.
-      expect(isHideableField('height')).toBe(false);
+      // preference nothing can honour. `habits` is the last such field since the seven detail
+      // screens shipped (SHOWUP-167 to SHOWUP-173).
+      expect(isHideableField('habits')).toBe(false);
+    });
+
+    it.each([
+      'height',
+      'gender',
+      'orientation',
+      'dating_language',
+      'education',
+      'religion',
+      'politics',
+    ])('accepts %s, now that its screen carries the control', (field) => {
+      expect(isHideableField(field)).toBe(true);
     });
 
     it('rejects isVisible, which is not a field_id at all', () => {
@@ -65,6 +79,20 @@ describe('hidden-fields', () => {
 
     it('is empty for a fully valid set', () => {
       expect(unknownHiddenFields(['age'])).toEqual([]);
+    });
+  });
+
+  describe('checking one field before showing it to someone else', () => {
+    it('is true only for a field in the stored set', () => {
+      expect(isFieldHidden(['age', 'gender'], 'gender')).toBe(true);
+      expect(isFieldHidden(['age'], 'gender')).toBe(false);
+    });
+
+    it('treats a missing set as nothing hidden', () => {
+      // A profile row from before the column existed reads as null.
+      expect(isFieldHidden(null, 'gender')).toBe(false);
+      expect(isFieldHidden(undefined, 'gender')).toBe(false);
+      expect(isFieldHidden([], 'gender')).toBe(false);
     });
   });
 });

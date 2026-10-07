@@ -1,6 +1,40 @@
 {
-  "registry_version": "1.4.6",
+  "registry_version": "1.4.15",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_15": [
+    "§1 politics — value ORDER changed to linear: left · mid_left · middle · mid_right · right · conservative · libertarian · apolitical (conservative moved after right). Same eight values, no rename. Decided 5 Oct 2026 with the Profile 20 ticket. Nothing had shipped, so nothing migrates.",
+    "§1 politics note — the open question \"whether to log at all\" is settled: log the §1 value, the same as religion and gender (Class 2, closed set, no further bucketing). Decided 5 Oct 2026 (Profile 20).",
+    "§11 profile_politics — ticket set to Profile 20, status ticketed — not built. Notes record that the step is skippable, that an empty Continue is recorded exactly as a Skip (detail_skipped + profile_step_skipped), and that tapping the selected row clears it (no event). 5 Oct 2026."
+  ],
+  "changed_in_1_4_14": [
+    "§1 religion — NEW value muslim, inserted before jewish (list order: protestant · catholic · orthodox · muslim · jewish · buddhist · hindu · atheist · spiritual_other). Decided 5 Oct 2026 with the Profile 19 ticket. Nothing had shipped, so nothing migrates.",
+    "§11 profile_religion — ticket set to Profile 19, status ticketed — not built. Notes record that the step is skippable, that an empty Continue is recorded exactly as a Skip (detail_skipped + profile_step_skipped), and that tapping the selected row clears it (no event). 5 Oct 2026."
+  ],
+  "changed_in_1_4_13": [
+    "§11 profile_education — ticket set to Profile 18, status ticketed — not built. Notes record that the step is skippable, that an empty Continue is recorded exactly as a Skip (detail_skipped + profile_step_skipped), and that tapping the selected row clears it (no event). Row metadata only; the four §1 values are unchanged. 5 Oct 2026."
+  ],
+  "changed_in_1_4_12": [
+    "§1 dating_language — value_bucketed is now ONE string per accepted Continue: the ticked §1 values in LIST order, comma-joined, no spaces (e.g. \"german,english,spanish\"). Replaces \"fires per selection with a running total_selected\". Decided 5 Oct 2026 with the Profile 17 ticket. The eight values are unchanged; nothing had shipped, so nothing migrates.",
+    "§11 profile_dating_language — ticket set to Profile 17, status ticketed — not built. Notes record that the step is skippable, and that an empty Continue is recorded exactly as a Skip (detail_skipped + profile_step_skipped). 5 Oct 2026."
+  ],
+  "changed_in_1_4_11": [
+    "§11 profile_orientation — ticket set to Profile 16, status ticketed — not built. Notes record that the step is mandatory (no Skip CTA), so profile_step_skipped / detail_skipped never carry orientation, and that the six options are never filtered by gender. Row metadata only; no value in any set changed. 5 Oct 2026."
+  ],
+  "changed_in_1_4_10": [
+    "§11 profile_gender — ticket set to Profile 15, status ticketed — not built. Notes record that the step is mandatory (no Skip CTA), so profile_step_skipped / detail_skipped never carry gender. Row metadata only; no value in any set changed. 5 Oct 2026."
+  ],
+  "changed_in_1_4_9": [
+    "§11 profile_height — ticket set to Profile 14, status ticketed — not built. Row metadata only; no value in any set changed. 5 Oct 2026.",
+    "§1 education note — no longer claims to be the first field with a Skip CTA; height has one too. Standing rule (5 Oct 2026): every screen showing Skip for now is skippable, and its skip is recorded with detail_skipped / profile_step_skipped. Note only; no value changed."
+  ],
+  "changed_in_1_4_8": [
+    "§11 — ELEVEN NEW rows for the \"Share some details\" screens: profile_height · profile_gender · profile_orientation · profile_dating_language · profile_education · profile_religion · profile_politics · profile_interests · profile_life_now · profile_life_ahead · profile_habits. Added 5 Oct 2026 with the Profile 13 ticket so screen-to-screen conversion (screen_viewed + referrer_screen_id) runs unbroken from Embrace 2 to the end of profile creation. One row per screen; the step_id (§2) and screen_id are separate keys and both are carried.",
+    "§11 profile_embrace_details — ticket set to Profile 13, status ticketed — not built."
+  ],
+  "changed_in_1_4_7": [
+    "§11 profile_location / ProfileLocation — NEW row, written 5 Oct 2026 before the Profile 12 ticket.",
+    "§26 location_unavailable_reason — NEW: not_determined · denied · services_off. Why location is unavailable. Carried by permission_denied_recovery_shown.reason (Profile 12: denied · services_off) and by location_gate_shown.reason (all three). Replaces the gate's inline undetermined|denied|device_off — neither had shipped, so nothing migrates."
+  ],
   "changed_in_1_4_6": [
     "§25 interest_channel — NEW: ai_call · whatsapp · sms. The MVP demand test on Stay reachable. Not a consent.",
     "§11 profile_reachability / ProfileReachability — NEW row, before the Profile 10 ticket. profile_notifications note: superseded in part — 09 no longer raises the OS sheet.",
@@ -90,7 +124,7 @@
               "value_bucketed": "german · english · spanish · italian · french · turkish · russian · arabic",
               "class": "1",
               "backend": "Not built",
-              "notes": "Multi-select over 8 fixed options — fires per selection with a running total_selected. Not BCP 47; the screen offers a closed list."
+              "notes": "Multi-select over 8 fixed options, no limit. detail_answered fires ONCE, on an accepted Continue with at least one ticked; value_bucketed is the ticked values in list order, comma-joined, no spaces (\"german,english,spanish\"). No per-tap event. Exception to the requirements.json multi-select rule, decided 5 Oct 2026 (Profile 17). Not BCP 47; the screen offers a closed list."
             },
             {
               "field_id": "education",
@@ -98,23 +132,23 @@
               "value_bucketed": "a_levels_abitur · apprenticeship · university_degree · phd",
               "class": "1",
               "backend": "Not built",
-              "notes": "From EDUCATION_OPTIONS. First field with a Skip CTA — pairs with detail_skipped."
+              "notes": "From EDUCATION_OPTIONS. Skippable — pairs with detail_skipped. Not the first skippable field: height (step 1) also carries Skip for now (corrected 5 Oct 2026)."
             },
             {
               "field_id": "religion",
               "step": "6",
-              "value_bucketed": "protestant · catholic · orthodox · jewish · buddhist · hindu · atheist · spiritual_other",
+              "value_bucketed": "protestant · catholic · orthodox · muslim · jewish · buddhist · hindu · atheist · spiritual_other",
               "class": "2",
               "backend": "Not built",
-              "notes": "Logged verbatim rather than bucketed: the screen is a closed 8-option list, so there is no free-text tail to collapse. Class 2 access control does the protecting instead."
+              "notes": "Logged verbatim rather than bucketed: the screen is a closed 9-option list, so there is no free-text tail to collapse. Class 2 access control does the protecting instead. muslim added 5 Oct 2026 (registry 1.4.14, Profile 19). Skippable — pairs with detail_skipped."
             },
             {
               "field_id": "politics",
               "step": "7",
-              "value_bucketed": "left · mid_left · middle · mid_right · conservative · right · libertarian · apolitical",
+              "value_bucketed": "left · mid_left · middle · mid_right · right · conservative · libertarian · apolitical",
               "class": "2",
               "backend": "Not built",
-              "notes": "From POLITICS_OPTIONS, spectrum order preserved. Worth deciding whether to log at all — the value is Class 2 and thin on matching signal."
+              "notes": "From POLITICS_OPTIONS. Linear order since 5 Oct 2026: the left → right spectrum, then conservative, libertarian and apolitical as the off-axis answers. Logged as the §1 value, the same as religion — decided 5 Oct 2026 (registry 1.4.15, Profile 20); Class 2 access control does the protecting. Skippable — pairs with detail_skipped."
             },
             {
               "field_id": "habits",
@@ -803,8 +837,9 @@
               "screen_id": "profile_embrace_details",
               "screen_name": "ProfileEmbraceDetails",
               "flow": "Profile creation · bridge",
-              "ticket": "TBD — sibling bridge, same shell",
-              "status": "registered — not ticketed"
+              "ticket": "Profile 13",
+              "status": "ticketed — not built",
+              "notes": "Second bridge, between location (12) and height (Share some details step 1). One state; one-shot confetti on arrival (decoration — no event). Ticketed 5 Oct 2026."
             },
             {
               "screen_id": "profile_prompts",
@@ -858,6 +893,102 @@
               "ticket": "Profile 10",
               "status": "ticketed — not built",
               "notes": "Stay reachable. MVP scope (25 Sep 2026): one push toggle, three interest checkboxes (§25), and the push deactivation confirm over it — the dialog has no entry point of its own and is not a separate screen. Raises the OS notification sheet on Save preferences (moved from 09). Added 25 Sep 2026, before the Profile 10 ticket was written."
+            },
+            {
+              "screen_id": "profile_location",
+              "screen_name": "ProfileLocation",
+              "flow": "Profile creation · permission ask",
+              "ticket": "Profile 12",
+              "status": "ticketed — not built",
+              "notes": "The location permission ask, between Stay reachable (10) and Embrace 2. THREE states on one screen_id: ask (not_determined), denied (after Don't Allow, or arrived denied/restricted) and services_off (the phone's master Location switch is off). The OS dialog it raises on 'Allow location access' is not a screen and gets no row — it is permission_os_sheet_shown / permission_result. Outside both progress bars and not a step: §2 holds a location step_id, used ONLY by profile_step_skipped on 'Not now — ask me when I search'. NOT the app-wide location gate on Search / Instant, which gets its own row when it is ticketed. Added 5 Oct 2026, before the Profile 12 ticket was written."
+            },
+            {
+              "screen_id": "profile_height",
+              "screen_name": "ProfileHeight",
+              "flow": "Profile creation · Share some details",
+              "ticket": "Profile 14",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 1 · step_id \"height\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion. The only destination of Embrace 2: its screen_viewed carries referrer_screen_id \"profile_embrace_details\"."
+            },
+            {
+              "screen_id": "profile_gender",
+              "screen_name": "ProfileGender",
+              "flow": "Profile creation · Share some details",
+              "ticket": "Profile 15",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 2 · step_id \"gender\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion. MANDATORY — no Skip CTA, so profile_step_skipped and detail_skipped never carry step_id / field_id gender. Origins: profile_height (forward), profile_orientation (back)."
+            },
+            {
+              "screen_id": "profile_orientation",
+              "screen_name": "ProfileOrientation",
+              "flow": "Profile creation · Share some details",
+              "ticket": "Profile 16",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 3 · step_id \"orientation\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion. MANDATORY — no Skip CTA, so profile_step_skipped and detail_skipped never carry step_id / field_id orientation. All six §1 values offered on every account, never filtered by gender. Origins: profile_gender (forward), profile_dating_language (back)."
+            },
+            {
+              "screen_id": "profile_dating_language",
+              "screen_name": "ProfileDatingLanguage",
+              "flow": "Profile creation · Share some details",
+              "ticket": "Profile 17",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 4 · step_id \"dating_language\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion. SKIPPABLE. Continue with nothing ticked is recorded exactly as Skip (detail_skipped + profile_step_skipped); there is no refused state, so form_validation_failed never carries dating_language. Ticketed 5 Oct 2026 (registry 1.4.12)."
+            },
+            {
+              "screen_id": "profile_education",
+              "screen_name": "ProfileEducation",
+              "flow": "Profile creation · Share some details",
+              "ticket": "Profile 18",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 5 · step_id \"education\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion. SKIPPABLE. Single-select; tapping the selected row clears it. Continue with nothing selected is recorded exactly as Skip (detail_skipped + profile_step_skipped); there is no refused state, so form_validation_failed never carries education. Origins: profile_dating_language (forward), profile_religion (back). Ticketed 5 Oct 2026 (registry 1.4.13)."
+            },
+            {
+              "screen_id": "profile_religion",
+              "screen_name": "ProfileReligion",
+              "flow": "Profile creation · Share some details",
+              "ticket": "Profile 19",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 6 · step_id \"religion\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion. SKIPPABLE. Single-select; tapping the selected row clears it. Continue with nothing selected is recorded exactly as Skip (detail_skipped + profile_step_skipped); there is no refused state, so form_validation_failed never carries religion. Origins: profile_education (forward), profile_politics (back). Ticketed 5 Oct 2026 (registry 1.4.14)."
+            },
+            {
+              "screen_id": "profile_politics",
+              "screen_name": "ProfilePolitics",
+              "flow": "Profile creation · Share some details",
+              "ticket": "Profile 20",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 7 · step_id \"politics\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion. SKIPPABLE. Single-select; tapping the selected row clears it. Continue with nothing selected is recorded exactly as Skip (detail_skipped + profile_step_skipped); there is no refused state, so form_validation_failed never carries politics. Origins: profile_religion (forward), profile_interests (back). Ticketed 5 Oct 2026 (registry 1.4.15)."
+            },
+            {
+              "screen_id": "profile_interests",
+              "screen_name": "ProfileInterests",
+              "flow": "Profile creation · Share some details",
+              "ticket": "TBD",
+              "status": "registered — not ticketed",
+              "notes": "Share some details · step 8 · step_id \"interests\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
+            },
+            {
+              "screen_id": "profile_life_now",
+              "screen_name": "ProfileLifeNow",
+              "flow": "Profile creation · Share some details",
+              "ticket": "TBD",
+              "status": "registered — not ticketed",
+              "notes": "Share some details · step 9 · step_id \"life_now\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
+            },
+            {
+              "screen_id": "profile_life_ahead",
+              "screen_name": "ProfileLifeAhead",
+              "flow": "Profile creation · Share some details",
+              "ticket": "TBD",
+              "status": "registered — not ticketed",
+              "notes": "Share some details · step 9 · step_id \"life_ahead\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
+            },
+            {
+              "screen_id": "profile_habits",
+              "screen_name": "ProfileHabits",
+              "flow": "Profile creation · Share some details",
+              "ticket": "TBD",
+              "status": "registered — not ticketed",
+              "notes": "Share some details · step 9 · step_id \"habits\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
             }
           ]
         }
@@ -1264,6 +1395,17 @@
         "ai_call",
         "whatsapp",
         "sms"
+      ]
+    },
+    {
+      "id": "e26",
+      "num": "26",
+      "name": "location_unavailable_reason",
+      "note": "WHY LOCATION IS UNAVAILABLE, one set for every surface that blocks on it. not_determined: never asked (the only reason our ask can raise the OS dialog). denied: the OS permission is denied or restricted (§24 — restricted is treated as denied). services_off: the device-wide Location switch is off, so no app can get location and the OS dialog will not appear; it is NOT a §24 permission status, which is why it needs this set. Profile 12 sends denied · services_off on permission_denied_recovery_shown; the app-wide gate sends all three on location_gate_shown. Created 5 Oct 2026 with the Profile 12 ticket.",
+      "values": [
+        "not_determined",
+        "denied",
+        "services_off"
       ]
     }
   ],

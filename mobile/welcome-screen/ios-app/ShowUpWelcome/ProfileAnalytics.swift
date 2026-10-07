@@ -103,6 +103,23 @@ enum ProfileScreen: String {
     /// Registry row added 25 September 2026, before the Profile 10 ticket was written.
     case reachability = "profile_reachability"
 
+    /// The location ask (SHOWUP-165). A screen and not a step, like 09 and 10: §2's `location` id
+    /// exists only for `profile_step_skipped` on `Not now`. A, B and C are one mount.
+    case location = "profile_location"
+
+    /// The second bridge (SHOWUP-166). A screen and not a step, like `embraceBuild`.
+    case embraceDetails = "profile_embrace_details"
+
+    // "Share some details" (SHOWUP-167 to SHOWUP-173). Rows added in registry 1.4.8 for all eleven
+    // steps at once; only the seven with a screen are spelled, the rest join with their screens.
+    case height = "profile_height"
+    case gender = "profile_gender"
+    case orientation = "profile_orientation"
+    case datingLanguage = "profile_dating_language"
+    case education = "profile_education"
+    case religion = "profile_religion"
+    case politics = "profile_politics"
+
     var screenId: String { rawValue }
 
     var screenName: String {
@@ -119,6 +136,15 @@ enum ProfileScreen: String {
         case .mediaReview: return "ProfileMediaReview"
         case .notifications: return "ProfileNotifications"
         case .reachability: return "ProfileReachability"
+        case .location: return "ProfileLocation"
+        case .embraceDetails: return "ProfileEmbraceDetails"
+        case .height: return "ProfileHeight"
+        case .gender: return "ProfileGender"
+        case .orientation: return "ProfileOrientation"
+        case .datingLanguage: return "ProfileDatingLanguage"
+        case .education: return "ProfileEducation"
+        case .religion: return "ProfileReligion"
+        case .politics: return "ProfilePolitics"
         }
     }
 }
@@ -202,6 +228,10 @@ enum ValidationRule {
     /// This screen previously reported `nothing_selected`, which is a different act - it belongs
     /// to a chooser where nothing was ticked, not to a screen where nothing was written.
     static let promptsBelowMinimum = "prompts_below_minimum"
+
+    /// A value that cannot be true - a height outside 120-230 (SHOWUP-167). "§8 has no range
+    /// value. If analytics wants `out_of_range`, it gets defined in `enums.json` first."
+    static let impossible = "impossible"
 }
 
 /// `channel` from enums.json §8.
@@ -241,6 +271,12 @@ enum ConsentSurface {
 enum Stamp {
     /// enums.json -> registry_version at the time of writing.
     ///
+    /// 1.4.15 (5 October 2026) closes the nine "Share some details" tickets, one version each:
+    /// 1.4.7 location (§26 `location_unavailable_reason`), 1.4.8 the `add_details` bridge, then
+    /// one per detail step from height (1.4.9) to politics (1.4.15) - `muslim` added to religion in
+    /// 1.4.14, the politics order made linear in 1.4.15. Read `changed_in_1_4_*` in enums.json for
+    /// each step's exact delta.
+    ///
     /// 1.4.6 (25 September 2026) added §25 `interest_channel` - the Stay reachable demand test -
     /// and the `profile_reachability` row in §11. It sits on 1.4.5, the same day, which RETIRED
     /// §18 prompt `entry_point`; on 1.4.4 (§24 permission_status, for the notifications ask); and
@@ -254,7 +290,7 @@ enum Stamp {
     ///
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
-    static let fieldRegistryVersion = "1.4.6"
+    static let fieldRegistryVersion = "1.4.15"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
@@ -338,6 +374,22 @@ enum ProfileAnalytics {
     /// The state the user actually leaves Stay reachable in, after the server confirms it.
     static let reachabilitySavedName = "reachability_saved"
 
+    // MARK: family G · the location ask, registry 1.4.7 (SHOWUP-165)
+
+    /// NEW for this screen. The other permission events are shared with notifications and take
+    /// `type: "location"` here.
+    static let permissionDeniedRecoveryShownName = "permission_denied_recovery_shown"
+
+    /// `permission_*.type` for the location ask.
+    static let permissionLocation = "location"
+
+    // MARK: family F · profile attributes (SHOWUP-167 to SHOWUP-173)
+
+    /// `detail_answered` and `detail_skipped` carry the FIELD's own §1 class, stamped at emit time.
+    static let detailAnsweredName = "detail_answered"
+    static let detailSkippedName = "detail_skipped"
+    static let fieldDisplayOptedOutName = "field_display_opted_out"
+
     /// The closed set on `permission_prompted.type`, from `enums.json` §8.
     ///
     /// `permission_os_sheet_shown.type` and `permission_result.type` are typed `str` in the
@@ -348,6 +400,77 @@ enum ProfileAnalytics {
     static let detectedOnLaunch = "launch"
     static let detectedOnForeground = "foreground"
     static let mediaDeletedName = "media_deleted"
+
+    /// T2, class 1. The location ask's B or C was shown. `reason` is §26
+    /// `location_unavailable_reason` - "REQUIRED when type is location, absent otherwise".
+    static func permissionDeniedRecoveryShown(
+        reason: LocationUnavailableReason
+    ) -> (String, [String: any Sendable]) {
+        (permissionDeniedRecoveryShownName, [
+            "type": permissionLocation, "reason": reason.rawValue,
+        ].merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// T2, class 0. `Not now — ask me when I search`: the ONE event §2's location id exists for.
+    static func locationSkipped() -> (String, [String: any Sendable]) {
+        (profileStepSkipped, [
+            "step_id": "location", "screen_id": ProfileScreen.location.screenId,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    // MARK: "Share some details"
+
+    /// T2, class 0.
+    static func detailStepViewed(_ step: DetailStep) -> (String, [String: any Sendable]) {
+        (profileStepViewed, [
+            "step_id": step.stepId, "step_index": step.stepIndex,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Continue accepted and the answer stored.
+    static func detailStepCompleted(_ step: DetailStep,
+                                    timeOnStepSeconds: Int) -> (String, [String: any Sendable]) {
+        (profileStepCompleted, [
+            "step_id": step.stepId, "time_on_step_s": timeOnStepSeconds,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Skip, or a Continue that is a skip. Never from gender or orientation.
+    static func detailStepSkipped(_ step: DetailStep) -> (String, [String: any Sendable]) {
+        (profileStepSkipped, [
+            "step_id": step.stepId, "screen_id": step.screen.screenId,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, the field's class. One per ACCEPTED Continue, carrying the final answer - the §1 value,
+    /// height's bucket, or the ticked languages in list order. Never a label, never empty.
+    static func detailAnswered(_ step: DetailStep,
+                               valueBucketed: String) -> (String, [String: any Sendable]) {
+        precondition(!valueBucketed.isEmpty, "an empty answer is a skip, not an answer")
+        return (detailAnsweredName, [
+            "field_id": step.fieldId, "value_bucketed": valueBucketed,
+        ].merging(Stamp.of(step.sensitivityClass)) { a, _ in a })
+    }
+
+    /// T1, the field's class.
+    static func detailSkipped(_ step: DetailStep) -> (String, [String: any Sendable]) {
+        (detailSkippedName, ["field_id": step.fieldId]
+            .merging(Stamp.of(step.sensitivityClass)) { a, _ in a })
+    }
+
+    /// T1, class 0. The visibility box was TICKED - nothing is sent on untick.
+    static func fieldDisplayOptedOut(_ step: DetailStep) -> (String, [String: any Sendable]) {
+        (fieldDisplayOptedOutName, ["field_id": step.fieldId].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. Continue refused on height, gender or orientation - on the press, not render.
+    static func detailValidationFailed(_ step: DetailStep,
+                                       rule: String) -> (String, [String: any Sendable]) {
+        (formValidationFailed, [
+            "field_id": step.fieldId, "rule": rule,
+            "screen_id": step.screen.screenId, "step_id": step.stepId,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
 
     /// T1, class 0. `referrer_screen_id` is B2 and travels empty until Step 3 lands.
     static func screenViewed(_ screen: ProfileScreen,
@@ -715,7 +838,7 @@ enum ProfileAnalytics {
     /// of them reappears here, the registry is being contradicted rather than extended.
     static func reachabilitySaved(
         pushOn: Bool,
-        permission: NotificationPermission,
+        permission: PermissionStatus,
         interest: [String]
     ) -> (String, [String: any Sendable]) {
         (reachabilitySavedName, [
@@ -960,8 +1083,8 @@ enum ProfileAnalytics {
     /// `from` IS WHAT THE SERVER WAS LAST TOLD, not what the screen last saw: a change the client
     /// never synced is exactly the case the event exists for.
     static func permissionStatusChanged(
-        from: NotificationPermission,
-        to: NotificationPermission,
+        from: PermissionStatus,
+        to: PermissionStatus,
         detectedOn: String,
         inFlow: Bool,
         type: String = permissionNotifications

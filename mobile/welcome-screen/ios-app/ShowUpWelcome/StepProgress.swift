@@ -39,7 +39,7 @@ struct StepProgress: View {
             }
         }
         // Advancing a step should read as progress being made, not as the bar being redrawn.
-        .animation(reduceMotion ? nil : .easeInOut(duration: Motion.screen), value: current)
+        .animation(reduceMotion ? nil : Motion.cssEase(Motion.progress), value: current)
         // Anonymous capsules carry no text: without this VoiceOver announces nothing here.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Step \(current) of \(steps)"))
