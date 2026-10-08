@@ -19,6 +19,11 @@ struct StartupView: View {
     /// appears once enough dates have actually been organised. It defaults OFF -- the minimum has
     /// not been decided, and shipping a number nobody has agreed to would be inventing it.
     var showSocialProof: Bool = false
+    // After `showSocialProof`, so existing call sites keep their argument order.
+    /// Whether to say "Your session ended. Please log in again." — true only when the flow has just
+    /// restarted because the server ended the session. See `SessionEndedNotice`.
+    var sessionEnded: Bool = false
+    var onSessionNoticeDismissed: () -> Void = {}
 
     @Environment(\.verticalSizeClass) private var vSize
 
@@ -75,6 +80,9 @@ struct StartupView: View {
 
             // The three phrases ship as real links with their own hit areas.
             legalLine
+                // On the line itself, before its padding, so the chip's lift is measured from the
+                // text — the same anchor Android's Box gives it.
+                .sessionEndedNotice(visible: sessionEnded, onDismiss: onSessionNoticeDismissed)
                 .padding(.bottom, 14)
 
             PrimaryButton("Create free account", action: onCreateAccount)
@@ -151,3 +159,4 @@ struct StartupView: View {
 #Preview("390 x 844 - reference") { StartupView() }
 #Preview("430 x 932 - Pro Max") { StartupView() }
 #Preview("social proof off") { StartupView(showSocialProof: false) }
+#Preview("session ended") { StartupView(showSocialProof: true, sessionEnded: true) }

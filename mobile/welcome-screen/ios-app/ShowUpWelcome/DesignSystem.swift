@@ -63,6 +63,10 @@ extension Color {
     static let liqSelectedRowWash = Color(hex: 0x812AEC).opacity(0.06)
     /// The location ask's privacy-note fill, rgba(167,139,250,.10).
     static let liqPrivacyNoteWash = Color(hex: 0xA78BFA).opacity(0.10)
+    /// The toast's shadow ink, rgba(46,1,71,.22) — Android's `ToastShadow`. Carried by the refusal
+    /// toast and the "please log in again" notice, one family of dark chips, so it has one
+    /// definition.
+    static let liqToastShadow = Color(hex: 0x2E0147).opacity(0.22)
 
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.

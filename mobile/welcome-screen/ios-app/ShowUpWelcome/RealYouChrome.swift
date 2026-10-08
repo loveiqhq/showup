@@ -184,7 +184,7 @@ struct RefusalToast: View {
         .padding(.vertical, Spacing.lg)
         .frame(maxWidth: 300)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color.liqFg))
-        .shadow(color: Color(hex: 0x2E0147).opacity(0.22), radius: 11, y: 8)
+        .shadow(color: .liqToastShadow, radius: 11, y: 8)
         .opacity(visible ? 1 : 0)
         // 6 up on the way in, from the reference's `translateY(6px)` resting state.
         .offset(y: visible ? 0 : 6)

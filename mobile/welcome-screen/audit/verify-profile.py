@@ -1837,7 +1837,7 @@ check("166 confetti is decorative (swift)", ".allowsHitTesting(false)" in confet
       and ".accessibilityHidden(true)" in confetti_sw)
 check("166 a pop does not replay it (kotlin)", "rememberSaveable" in confetti_kt)
 check("166 a restore does not replay it (swift)", "@Binding var played: Bool" in confetti_sw
-      and 'SceneStorage("embrace2.confettiPlayed")' in app_sw)
+      and 'SceneKey.scoped("embrace2.confettiPlayed"' in app_sw)
 
 # 167 to 173 · the group.
 for label, text in (("kotlin", chrome_kt), ("swift", chrome_sw)):
@@ -1949,6 +1949,35 @@ for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
 # Politics ends the walk at home until interests (step 8) is built -- one line on each side.
 check("173 politics continues home for now (swift)", "choiceScreen(.politics, next: .home" in app_sw)
 check("173 politics continues home for now (kotlin)", "FlowScreen.Home" in app_kt)
+
+# ── the session ended (8 October 2026) ──────────────────────────────────────
+# Not a ticket: the fix for saves that failed forever once the server had ended the session. The
+# sentence is PROPOSED copy, pending Philipp -- this keeps the two platforms saying the same thing.
+se_kt = read(KT, "welcome", "SessionEndedNotice.kt")
+se_sw = read(SW, "SessionEnded.swift")
+SESSION_ENDED = "Your session ended. Please log in again."
+check("session ended: the sentence (kotlin)", '"%s"' % SESSION_ENDED in se_kt)
+check("session ended: the sentence (swift)", '"%s"' % SESSION_ENDED in se_sw)
+check("session ended: it goes on its own (kotlin)", "Motion.NOTICE" in se_kt)
+check("session ended: it goes on its own (swift)", "Motion.notice" in se_sw)
+tr_kt = read(KT, "api", "TokenRefresher.kt")
+tr_sw = read(MOBILE, "ios-app", "ShowUpAPI", "Sources", "ShowUpAPI", "TokenRefresher.swift")
+# Offline, a 5xx, a 408 or a 429 must never sign anyone out -- only the server's "no" does.
+check("session ended: 408 and 429 are not a refusal (kotlin)",
+      "statusCode == 408 || statusCode == 429 -> Unreachable" in tr_kt)
+check("session ended: 408 and 429 are not a refusal (swift)", "case 408, 429: return .unreachable" in tr_sw)
+check("session ended: only a refusal clears (kotlin)", "Outcome.Unreachable -> null" in tr_kt)
+# The branch itself, not just the words somewhere in the file: offline must return nil and clear
+# nothing, and only the refusal branch may announce the end.
+sw_unreachable = re.search(r"case \.unreachable:(.*?)(?=\n\s*case |\n\s*})", tr_sw, re.S)
+sw_refused = re.search(r"case \.refused:(.*?)(?=\n\s*case |\n\s*})", tr_sw, re.S)
+check("session ended: only a refusal clears (swift)",
+      sw_unreachable is not None and "return nil" in sw_unreachable.group(1)
+      and "clear(" not in sw_unreachable.group(1)
+      and sw_refused is not None and "clear()" in sw_refused.group(1)
+      and "onSessionEnded()" in sw_refused.group(1))
+check("session ended: a clean restart (kotlin)", "FLAG_ACTIVITY_CLEAR_TASK" in app_kt)
+check("session ended: a clean restart (swift)", ".id(epoch)" in app_sw)
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)

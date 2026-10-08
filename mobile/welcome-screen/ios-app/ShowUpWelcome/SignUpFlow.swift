@@ -50,6 +50,10 @@ struct SignUpFlowView: View {
     /// inert actions, which is what a preview should be. The app always passes one.
     var auth: PhoneAuthModel? = nil
     var onOpenLegal: (String) -> Void = { _ in }
+    /// True when the flow has just restarted because the server ended the session: Startup then
+    /// says so (see `SessionEndedNotice`). Owned by the host, which clears it on the dismissal.
+    var sessionEnded: Bool = false
+    var onSessionNoticeDismissed: () -> Void = {}
     /// Where events go. NoOp by default, so nothing is sent and the flow behaves identically
     /// whether or not analytics is switched on -- which is also what makes it testable.
     var analytics: any AnalyticsTracking = NoOpAnalytics()
@@ -67,11 +71,11 @@ struct SignUpFlowView: View {
     // Keys are prefixed because SceneStorage is one flat namespace per scene, and two views
     // storing under a bare "step" would silently share a value.
 
-    @SceneStorage("signup.step") private var stepRaw: String = ""
-    @SceneStorage("signup.entry") private var entryRaw: String = ""
-    @SceneStorage("signup.countryISO") private var countryISO: String = ""
-    @SceneStorage("signup.phoneDigits") private var phoneDigits: String = ""
-    @SceneStorage("signup.codeDigits") private var codeDigits: String = ""
+    @SceneStorage private var stepRaw: String
+    @SceneStorage private var entryRaw: String
+    @SceneStorage private var countryISO: String
+    @SceneStorage private var phoneDigits: String
+    @SceneStorage private var codeDigits: String
     // The countdown, the attempt count and the mismatch flag belong to the model now, because
     // every one of them is decided by a server response rather than by this view. They were
     // @SceneStorage until the flow started talking to a backend; scene state that outlives the
@@ -118,14 +122,30 @@ struct SignUpFlowView: View {
     // An explicit initialiser, so `auth` has to be listed here: writing `_account` suppresses
     // the memberwise one, and a property added above without a line here is a parameter the
     // call site cannot pass.
+    /// - Parameter epoch: the signed-in session this flow belongs to; its scene keys are scoped to it
+    ///   (see `SceneKey`), so a flow restarted after the server ended a session opens on Startup
+    ///   rather than on the last step it showed.
     init(remembered: RememberedAccount? = nil,
          onFinished: @escaping (SignUpOutcome) -> Void = { _ in },
          auth: PhoneAuthModel? = nil,
-         onOpenLegal: @escaping (String) -> Void = { _ in }) {
+         onOpenLegal: @escaping (String) -> Void = { _ in },
+         epoch: Int = 0,
+         sessionEnded: Bool = false,
+         onSessionNoticeDismissed: @escaping () -> Void = {}) {
         self.remembered = remembered
         self.onFinished = onFinished
         self.auth = auth
         self.onOpenLegal = onOpenLegal
+        self.sessionEnded = sessionEnded
+        self.onSessionNoticeDismissed = onSessionNoticeDismissed
+        _stepRaw = SceneStorage(wrappedValue: "", SceneKey.scoped("signup.step", epoch: epoch))
+        _entryRaw = SceneStorage(wrappedValue: "", SceneKey.scoped("signup.entry", epoch: epoch))
+        _countryISO = SceneStorage(wrappedValue: "",
+                                   SceneKey.scoped("signup.countryISO", epoch: epoch))
+        _phoneDigits = SceneStorage(wrappedValue: "",
+                                    SceneKey.scoped("signup.phoneDigits", epoch: epoch))
+        _codeDigits = SceneStorage(wrappedValue: "",
+                                   SceneKey.scoped("signup.codeDigits", epoch: epoch))
         // step and entry are no longer seeded here: they are scene-backed, and their fallbacks
         // reproduce exactly what these two lines used to set.
         _account = State(initialValue: remembered)
@@ -203,7 +223,9 @@ struct SignUpFlowView: View {
                     // "234.000" is not a measured number, and the sheet says so. The toggle exists
                     // for exactly that reason: in the real app it stays OFF until the count is real,
                     // because a fabricated statistic on a first-run screen is a claim, not a mock.
-                    showSocialProof: true
+                    showSocialProof: true,
+                    sessionEnded: sessionEnded,
+                    onSessionNoticeDismissed: onSessionNoticeDismissed
                 )
 
             case .welcomeBack:
