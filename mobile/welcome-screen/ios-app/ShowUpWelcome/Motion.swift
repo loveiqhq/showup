@@ -50,6 +50,13 @@ enum Motion {
     /// magnitude longer than everything above it. The fade in and out is `fast` either side.
     static let toast: TimeInterval = 2.6
 
+    /// How long the "please log in again" notice stays up when nobody taps it.
+    ///
+    /// A reading duration like `toast`, and longer on purpose: a toast repeats something the user
+    /// just did, while this tells them something they did not do and did not expect — the app has
+    /// signed them out. Leaving Startup ends it sooner.
+    static let notice: TimeInterval = 6
+
     /// CSS's default `ease`, for the transitions the reference writes with a duration and NO curve
     /// — the answer rows' and the visibility band's `transition: background 180ms`. A browser runs
     /// that on `ease`; `.easeOut` is a different curve. Android names the same one `CssEase`.

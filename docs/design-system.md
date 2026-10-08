@@ -132,6 +132,8 @@ existed, which is worth locking down rather than leaving to coincidence.
 | `SHAKE` / `shake` | 480 | 0.48 | the one-shot mismatch shake. **SHOWUP-143 specifies 480ms** |
 | `PULSE_SLOW` / `pulseSlow` | 900 | 0.9 | in-flight pulse on a provider button |
 | `PULSE_LONG` / `pulseLong` | 1400 | 1.4 | Connect linking animation |
+| `TOAST` / `toast` | 2600 | 2.6 | how long a refusal toast stays up (SHOWUP-156/158) |
+| `NOTICE` / `notice` | 6000 | 6 | how long the "please log in again" notice stays up untapped |
 
 Two curves sit beside the durations. `ShowUpEasing` / the Swift `.timingCurve(0.22, 1, 0.36, 1)` is
 the house curve, `cubic-bezier(.22,1,.36,1)`. `CssEase` / `Motion.cssEase(_:)` is CSS's default

@@ -1,0 +1,5 @@
+serial: 1
+anonymous_user_id: b2b225a0-9ce1-45dd-90b7-ef61f243c7eb
+semgrep:
+    auth_method: oauth
+expiry: 2026-10-05T06:53:55.5487719+02:00

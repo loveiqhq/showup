@@ -32,5 +32,13 @@ enum APIAccess {
     /// choice and the one line to change when there is a staging deployment; it is not a runtime
     /// condition, because a runtime condition can be wrong and then a release build talks to the
     /// wrong server.
-    static let client = ShowUpAPI(environment: .development, tokens: tokens)
+    ///
+    /// A refused session is announced to the scene through `SessionEndedSignal`. The refresh runs
+    /// off the main actor, so it only hops there and raises the flag; the scene root decides what
+    /// happens next.
+    static let client = ShowUpAPI(
+        environment: .development,
+        tokens: tokens,
+        onSessionEnded: { Task { @MainActor in SessionEndedSignal.shared.raise() } }
+    )
 }

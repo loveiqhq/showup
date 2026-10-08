@@ -115,6 +115,12 @@ fun SignUpFlow(
      * whether or not analytics is switched on -- which is also what makes it testable.
      */
     analytics: AnalyticsTracker = NoOpAnalytics,
+    /**
+     * True when the app has just restarted because the server ended the session: Startup then
+     * says so (see [SessionEndedNotice]). Owned by the host, which clears it on [onSessionNoticeDismissed].
+     */
+    sessionEnded: Boolean = false,
+    onSessionNoticeDismissed: () -> Unit = {},
 ) {
     var step by rememberSaveable { mutableStateOf(if (remembered != null) Step.WelcomeBack else Step.Startup) }
     var account by remember { mutableStateOf(remembered) }
@@ -222,6 +228,8 @@ fun SignUpFlow(
                 //
                 // Matches iOS, which passes `true` here for the same reason.
                 showSocialProof = true,
+                sessionEnded = sessionEnded,
+                onSessionNoticeDismissed = onSessionNoticeDismissed,
                 onCreateAccount = {
                     analytics.track(SignUpAnalytics.CREATE_ACCOUNT_TAPPED, emptyMap())
                     entry = Entry.CreateAccount

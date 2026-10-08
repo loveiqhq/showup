@@ -171,6 +171,13 @@ for name in sorted(os.listdir(SRC)):
                 if "var body" not in head:
                     problems.append((path, i, "a View with no `var body`"))
 
+        # EVERY SCENE KEY IS SCOPED TO THE SESSION. A literal key outlives a session the server
+        # ended, and brings the next person to sign in back to the last one's half-typed answers.
+        # The epoch's own key is the one literal; see SceneKey in SessionEnded.swift.
+        if t.startswith('@SceneStorage("') and not t.startswith('@SceneStorage("session.epoch")'):
+            problems.append((path, i, "@SceneStorage with a literal key -- build it with "
+                                      "SceneKey.scoped(_:epoch:) in the view's init"))
+
     print("  %-32s %4d lines" % (name, src.count(chr(10)) + 1))
 
 print()

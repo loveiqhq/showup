@@ -28,7 +28,7 @@ struct ShowUpWelcomeApp: App {
     }
 
     var body: some Scene {
-        WindowGroup { TutorialFlow() }
+        WindowGroup { SessionScope() }
     }
 
     // `static let`, not a computed `static var`. Both would compile, and audit/
@@ -59,7 +59,76 @@ private struct SlideFade: ViewModifier {
     }
 }
 
+/// The scene's root: everything the signed-in session holds lives under it, and goes with it.
+///
+/// WHEN THE SERVER ENDS THE SESSION the auth layer has already cleared the tokens; what is left is
+/// everything the scene still holds for the person who was signed in — a dozen models, the flow
+/// position, half-typed answers. Resetting each by hand is a list that goes stale the day a screen
+/// is added, so the whole flow starts again instead, as Android's restart does: the epoch moves on,
+/// `.id` rebuilds `TutorialFlow` with fresh `@State` models, and every scene key is a new, empty
+/// slot (see `SceneKey`). The user lands on Startup, and the notice says why.
+private struct SessionScope: View {
+    /// The ONE literal scene key: the others are derived from it.
+    @SceneStorage("session.epoch") private var epoch = 0
+    /// Not scene-restored: a notice that came back after the app was killed would describe a
+    /// moment that is long over.
+    @State private var sessionNotice = false
+
+    var body: some View {
+        // The epoch this flow was built for. A flow torn down BY the rebuild that raised the notice
+        // dismisses it on its way out (Startup's `onDisappear`), and that must not take down the
+        // notice its replacement is about to show -- so a dismissal from an older flow is ignored.
+        let builtFor = epoch
+        TutorialFlow(epoch: epoch, sessionNotice: sessionNotice, onSessionNoticeDismissed: {
+            if epoch == builtFor { sessionNotice = false }
+        })
+            .id(epoch)
+            // `initial: true`, so news that landed before this view first drew — during the very
+            // first request of a launch — is acted on, not missed.
+            .onChange(of: SessionEndedSignal.shared.pending, initial: true) { _, pending in
+                guard pending, SessionEndedSignal.shared.consume() else { return }
+                epoch += 1
+                sessionNotice = true
+            }
+    }
+}
+
 private struct TutorialFlow: View {
+    /// Which signed-in session this flow belongs to — every scene key below is scoped to it.
+    let epoch: Int
+    /// The "please log in again" notice, owned by `SessionScope` so it survives the rebuild that
+    /// put the user here. Startup shows it; see `SessionEndedNotice`.
+    let sessionNotice: Bool
+    let onSessionNoticeDismissed: () -> Void
+
+    init(epoch: Int, sessionNotice: Bool, onSessionNoticeDismissed: @escaping () -> Void) {
+        self.epoch = epoch
+        self.sessionNotice = sessionNotice
+        self.onSessionNoticeDismissed = onSessionNoticeDismissed
+        _screenRaw = SceneStorage(wrappedValue: FlowScreen.signUp.rawValue,
+                                  SceneKey.scoped("flow.screen", epoch: epoch))
+        _outcomeRaw = SceneStorage(wrappedValue: SignUpOutcome.newAccount.storageKey,
+                                   SceneKey.scoped("flow.outcome", epoch: epoch))
+        _firstName = SceneStorage(wrappedValue: "",
+                                  SceneKey.scoped("basics.firstName", epoch: epoch))
+        _email = SceneStorage(wrappedValue: "", SceneKey.scoped("basics.email", epoch: epoch))
+        _marketingConsent = SceneStorage(wrappedValue: false,
+                                         SceneKey.scoped("basics.marketingConsent", epoch: epoch))
+        _promptsStored = SceneStorage(wrappedValue: "",
+                                      SceneKey.scoped("profile.prompts", epoch: epoch))
+        _detailsStored = SceneStorage(wrappedValue: "",
+                                      SceneKey.scoped("profile.details", epoch: epoch))
+        _confettiPlayed = SceneStorage(wrappedValue: false,
+                                       SceneKey.scoped("embrace2.confettiPlayed", epoch: epoch))
+        _locationStartRaw = SceneStorage(wrappedValue: LocationState.ask.rawValue,
+                                         SceneKey.scoped("location.start", epoch: epoch))
+        _cameFromRaw = SceneStorage(wrappedValue: "",
+                                    SceneKey.scoped("flow.cameFrom", epoch: epoch))
+        _dobStored = SceneStorage(wrappedValue: "", SceneKey.scoped("basics.dob", epoch: epoch))
+        _hideAgeStored = SceneStorage(wrappedValue: false,
+                                      SceneKey.scoped("basics.hideAge", epoch: epoch))
+    }
+
     // SceneStorage, not State: a process death mid-tutorial should not silently drop the user back
     // to card 1. Android has survived this since it was written, because rememberSaveable is the
     // default idiom there; iOS had no restoration at all.
@@ -67,7 +136,7 @@ private struct TutorialFlow: View {
     // Scene-scoped and NOT @AppStorage on purpose. This is where the user is right now, not a
     // preference -- @AppStorage would still be holding a half-finished tutorial position weeks
     // later, and would restore it into a scene that had been properly closed.
-    @SceneStorage("flow.screen") private var screenRaw: String = FlowScreen.signUp.rawValue
+    @SceneStorage private var screenRaw: String
     private var screen: FlowScreen { FlowScreen(rawValue: screenRaw) ?? .signUp }
 
     // Transition direction only. Deliberately NOT restored: there is no animation on a relaunch,
@@ -77,15 +146,15 @@ private struct TutorialFlow: View {
     // Kept only so the placeholder home screen can name the rule that sent the user there, which
     // is what makes SHOWUP-146 demonstrable. Not product state, but it has to survive with the
     // screen or Home restores describing the wrong route.
-    @SceneStorage("flow.outcome") private var outcomeRaw: String = SignUpOutcome.newAccount.storageKey
+    @SceneStorage private var outcomeRaw: String
     private var outcome: SignUpOutcome { SignUpOutcome(storageKey: outcomeRaw) ?? .newAccount }
 
     // Demo state for "The basics". Scene-scoped like the rest of the flow, but in-memory only:
     // the real flow persists per completed step and resumes onto the last incomplete one, which
     // depends on a profile-progress store that does not exist yet. Walkable, not shipped.
-    @SceneStorage("basics.firstName") private var firstName: String = ""
-    @SceneStorage("basics.email") private var email: String = ""
-    @SceneStorage("basics.marketingConsent") private var marketingConsent: Bool = false
+    @SceneStorage private var firstName: String
+    @SceneStorage private var email: String
+    @SceneStorage private var marketingConsent: Bool
 
     // ── "The basics" now talks to the backend ──────────────────────────────
     //
@@ -132,7 +201,7 @@ private struct TutorialFlow: View {
     /// The scene storage is still here and still does the same job: the SAVED prompts come from
     /// the server, and this holds the half-written DRAFT, which is not a prompt and has nothing to
     /// send. The model writes through to it on every change.
-    @SceneStorage("profile.prompts") private var promptsStored: String = ""
+    @SceneStorage private var promptsStored: String
 
     @State private var prompts = PromptsModel(repo: PromptsRepository(api: APIAccess.client))
 
@@ -179,24 +248,24 @@ private struct TutorialFlow: View {
         store: ProfileDetailsRepository(api: APIAccess.client),
         positions: FlowPositionReporter(api: APIAccess.client)
     )
-    @SceneStorage("profile.details") private var detailsStored: String = ""
+    @SceneStorage private var detailsStored: String
     /// Whether Embrace 2's confetti has started for this showing — so a scene restore onto the
     /// bridge does not replay it. Cleared by the push, never by the way out.
-    @SceneStorage("embrace2.confettiPlayed") private var confettiPlayed = false
+    @SceneStorage private var confettiPlayed: Bool
 
     @State private var location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client))
     /// Held rather than built in `onAppear`, for the reason `reachabilityHost` gives.
     private let locationHost = AppLocationHost()
     /// Which state 12 opens in — decided by the arrival matrix BEFORE the push.
-    @SceneStorage("location.start") private var locationStartRaw: String = LocationState.ask.rawValue
+    @SceneStorage private var locationStartRaw: String
 
     /// Where the user came from, for `referrer_screen_id`: "set by the navigation, never hard-coded
     /// per screen". Scene-scoped like the screen itself, so a restore keeps it.
-    @SceneStorage("flow.cameFrom") private var cameFromRaw: String = ""
+    @SceneStorage private var cameFromRaw: String
     private var cameFrom: FlowScreen? { FlowScreen(rawValue: cameFromRaw) }
 
-    @SceneStorage("basics.dob") private var dobStored: String = ""
-    @SceneStorage("basics.hideAge") private var hideAgeStored: Bool = false
+    @SceneStorage private var dobStored: String
+    @SceneStorage private var hideAgeStored: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Becoming active again is the only moment a permission granted in Settings can be noticed.
@@ -661,7 +730,8 @@ private struct TutorialFlow: View {
                 case .signUp: SignUpFlowView(onFinished: { o in
                     outcomeRaw = o.storageKey
                     go(to: showsTutorial(o) ? .tutorialWelcome : .home)
-                }, auth: phoneAuth)
+                }, auth: phoneAuth, epoch: epoch, sessionEnded: sessionNotice,
+                   onSessionNoticeDismissed: onSessionNoticeDismissed)
                 case .tutorialWelcome: WelcomeView(onContinue: { go(to: .meetInRealLife) })
                 case .meetInRealLife: MeetInRealLifeView(onNext: { go(to: .matchOnAvailability) })
                 case .matchOnAvailability:
@@ -856,6 +926,10 @@ private struct TutorialFlow: View {
             .transition(transition)
 
             emailDevStrip
+        }
+        // Moving past sign-up ends the notice: it describes why the user is HERE.
+        .onChange(of: screenRaw) { _, _ in
+            if screen != .signUp { onSessionNoticeDismissed() }
         }
         // ── resuming a half-finished profile (flow rule 4a) ─────────────────
         //
