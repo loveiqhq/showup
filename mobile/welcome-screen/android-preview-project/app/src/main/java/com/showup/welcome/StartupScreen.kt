@@ -64,6 +64,12 @@ fun StartupScreen(
     onPrivacy: () -> Unit = {},
     onLegalNotice: () -> Unit = {},
     showSocialProof: Boolean = false,
+    /**
+     * Whether to say "Your session ended. Please log in again." -- true only when the app has just
+     * restarted because the server ended the session. See [SessionEndedNotice].
+     */
+    sessionEnded: Boolean = false,
+    onSessionNoticeDismissed: () -> Unit = {},
 ) {
     WelcomeScaffold {
         // Where the gap has to yield. The handoff is explicit that 375 x 667 is NOT one of those
@@ -141,28 +147,33 @@ fun StartupScreen(
         // single laid-out paragraph while giving each phrase its own touch target and its own
         // "link" role for a screen reader.
         val linkStyle = SpanStyle(color = Fg, fontWeight = FontWeight.SemiBold)
-        Text(
-            buildAnnotatedString {
-                append("By creating an account, you agree to our ")
-                withLink(LinkAnnotation.Clickable("terms") { onTerms() }) {
-                    withStyle(linkStyle) { append("Terms & Conditions") }
-                }
-                append(" and acknowledge that you have read our ")
-                withLink(LinkAnnotation.Clickable("privacy") { onPrivacy() }) {
-                    withStyle(linkStyle) { append("Privacy Policy") }
-                }
-                append(". See our ")
-                withLink(LinkAnnotation.Clickable("legal") { onLegalNotice() }) {
-                    withStyle(linkStyle) { append("Legal Notice") }
-                }
-                append(".")
-            },
-            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-            // Muted (62%, 5.03:1), not Subtle (46%, 3.04:1) — Subtle fails WCAG 2.1 AA and this
-            // is the sentence where the user accepts the Terms. See audit finding 7.
-            color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
-            textAlign = TextAlign.Center,
-        )
+        // A Box only so the session notice can anchor to the legal line's top edge; it adds no
+        // size of its own.
+        Box(Modifier.fillMaxWidth()) {
+            Text(
+                buildAnnotatedString {
+                    append("By creating an account, you agree to our ")
+                    withLink(LinkAnnotation.Clickable("terms") { onTerms() }) {
+                        withStyle(linkStyle) { append("Terms & Conditions") }
+                    }
+                    append(" and acknowledge that you have read our ")
+                    withLink(LinkAnnotation.Clickable("privacy") { onPrivacy() }) {
+                        withStyle(linkStyle) { append("Privacy Policy") }
+                    }
+                    append(". See our ")
+                    withLink(LinkAnnotation.Clickable("legal") { onLegalNotice() }) {
+                        withStyle(linkStyle) { append("Legal Notice") }
+                    }
+                    append(".")
+                },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+                // Muted (62%, 5.03:1), not Subtle (46%, 3.04:1) — Subtle fails WCAG 2.1 AA and this
+                // is the sentence where the user accepts the Terms. See audit finding 7.
+                color = Subtle, fontFamily = Manrope, fontSize = 12.sp, lineHeight = 17.4.sp,
+                textAlign = TextAlign.Center,
+            )
+            SessionEndedNotice(visible = sessionEnded, onDismiss = onSessionNoticeDismissed)
+        }
 
         PrimaryButton("Create free account", onCreateAccount)
         Spacer(Modifier.height(Spacing.lg))
@@ -203,6 +214,14 @@ private fun StartupPreviewLarge() { StartupScreen() }
 @Preview(name = "social proof off", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun StartupPreviewNoProof() { StartupScreen(showSocialProof = false) }
+
+@Preview(name = "session ended", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun StartupPreviewSessionEnded() { StartupScreen(showSocialProof = true, sessionEnded = true) }
+
+@Preview(name = "session ended - 320 x 686", showBackground = true, widthDp = 320, heightDp = 686)
+@Composable
+private fun StartupPreviewSessionEndedNarrow() { StartupScreen(showSocialProof = true, sessionEnded = true) }
 
 @Preview(name = "390 x 844 - with system bars", showSystemUi = true, device = "spec:width=390dp,height=844dp")
 @Composable

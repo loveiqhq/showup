@@ -22,10 +22,13 @@ public struct ShowUpAPI: Sendable {
     ///   - environment: chosen at build time by the caller, never by a runtime condition.
     ///   - tokens: where credentials live. Inject ``InMemoryTokenStore`` in tests and
     ///     ``KeychainTokenStore`` in the app.
+    ///   - onSessionEnded: told when the server refuses to renew the session — see
+    ///     ``TokenRefresher``. Runs off the main actor, after the tokens are already gone.
     public init(
         environment: APIEnvironment = .development,
         tokens: any TokenStoring,
-        transport: any ClientTransport = URLSessionTransport()
+        transport: any ClientTransport = URLSessionTransport(),
+        onSessionEnded: @escaping @Sendable () -> Void = {}
     ) {
         self.tokens = tokens
 
@@ -40,27 +43,8 @@ public struct ShowUpAPI: Sendable {
         )
         self.bare = bare
 
-        let refresher = TokenRefresher(tokens: tokens) { refreshToken in
-            let response = try await bare.refreshAuthToken(
-                // Apple's generator renders a hyphen in a header name as `_hyphen_`, so `user-agent`
-                // becomes `user_hyphen_agent`. The Kotlin generator called the same parameter
-                // `userAgent`; the contract is shared but the naming conventions are not.
-                headers: .init(user_hyphen_agent: Self.userAgent),
-                body: .json(.init(refreshToken: refreshToken))
-            )
-            switch response {
-            case .ok(let ok):
-                let payload = try ok.body.json
-                // Both tokens, not just the access token: the backend ROTATES the refresh token on
-                // every successful refresh, so keeping the old one would leave the app holding a
-                // token that is already spent, and the NEXT refresh would sign the user out.
-                return TokenRefresher.TokenPair(
-                    accessToken: payload.accessToken,
-                    refreshToken: payload.refreshToken
-                )
-            default:
-                return nil
-            }
+        let refresher = TokenRefresher(tokens: tokens, onSessionEnded: onSessionEnded) { refreshToken in
+            try await Self.exchangeRefresh(bare, refreshToken: refreshToken, userAgent: Self.userAgent)
         }
 
         self.client = Client(
@@ -107,6 +91,47 @@ public struct ShowUpAPI: Sendable {
     /// platforms read slightly differently in that list -- readable and correct beats matching
     /// and wrong.
     public static let userAgent = "ShowUp-iOS-0.1"
+
+    /// One refresh call, read into a `TokenRefresher.Outcome`.
+    ///
+    /// Here rather than inline so the auth tests run THIS mapping, not a copy of it: the line
+    /// between "the server said no" and "the server was not there" is the line between sending
+    /// someone to sign-in and leaving them signed in, and a test of a copy proves nothing about it.
+    ///
+    /// EXHAUSTIVE, NOT `default`. A response the contract gains later has to be placed on one side
+    /// of that line by somebody deciding, not by a fallthrough.
+    static func exchangeRefresh(
+        _ bare: Client,
+        refreshToken: String,
+        userAgent: String
+    ) async throws -> TokenRefresher.Outcome {
+        let response = try await bare.refreshAuthToken(
+            // Apple's generator renders a hyphen in a header name as `_hyphen_`, so `user-agent`
+            // becomes `user_hyphen_agent`. The Kotlin generator called the same parameter
+            // `userAgent`; the contract is shared but the naming conventions are not.
+            headers: .init(user_hyphen_agent: userAgent),
+            body: .json(.init(refreshToken: refreshToken))
+        )
+        switch response {
+        case .ok(let ok):
+            let payload = try ok.body.json
+            // Both tokens, not just the access token: the backend ROTATES the refresh token on
+            // every successful refresh, so keeping the old one would leave the app holding a token
+            // that is already spent, and the NEXT refresh would sign the user out.
+            return .renewed(TokenRefresher.TokenPair(
+                accessToken: payload.accessToken,
+                refreshToken: payload.refreshToken
+            ))
+        case .badRequest:
+            // A refresh token the server cannot even read. Sending it again cannot help.
+            return .refused
+        case .internalServerError:
+            return .unreachable
+        case .undocumented(let statusCode, _):
+            // Where the server's 401 arrives: the contract documents only 200, 400 and 500.
+            return .ofFailedResponse(statusCode: statusCode)
+        }
+    }
 }
 
 /// Which backend a build talks to.

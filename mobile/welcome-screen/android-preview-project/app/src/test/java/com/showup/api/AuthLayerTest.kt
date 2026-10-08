@@ -13,6 +13,7 @@ import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -41,6 +42,9 @@ class AuthLayerTest {
 
     private val refreshHits = AtomicInteger(0)
     private val protectedHits = AtomicInteger(0)
+
+    /** How many times the app was told the session is over. */
+    private val sessionEndings = AtomicInteger(0)
 
     /**
      * A complete AuthResponseDto.
@@ -83,9 +87,24 @@ class AuthLayerTest {
                 .authenticator(TokenAuthenticator(refresher)),
         ).createService(AuthApi::class.java)
 
-    private fun refresherFor(tokens: TokenStore) = TokenRefresher(tokens) { refreshToken ->
-        val response = bareApi().refreshAuthToken("test-agent", com.showup.api.generated.model.RefreshDto(refreshToken))
-        response.body()?.let { TokenRefresher.TokenPair(it.accessToken, it.refreshToken) }
+    /** The app's own refresh mapping -- not a copy of it -- so these tests cover what ships. */
+    private fun refresherFor(tokens: TokenStore) =
+        TokenRefresher(tokens, onSessionEnded = { sessionEndings.incrementAndGet() }) { refreshToken ->
+            ShowUpApi.exchangeRefresh(bareApi(), refreshToken)
+        }
+
+    /** The refresh endpoint answers [refresh]; every protected call is a 401. */
+    private fun refreshAnswers(refresh: MockResponse) {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) = when {
+                request.path?.endsWith("/auth/refresh") == true -> {
+                    refreshHits.incrementAndGet()
+                    refresh
+                }
+                else -> MockResponse().setResponseCode(401)
+                    .setBody("""{"statusCode":401,"message":"Unauthorized","error":"Unauthorized"}""")
+            }
+        }
     }
 
     /**
@@ -172,15 +191,12 @@ class AuthLayerTest {
     }
 
     @Test
-    fun `a failed refresh clears the session instead of leaving a dead token`() = runTest {
-        // Refresh rejected: the token is spent or revoked.
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest) = when {
-                request.path?.endsWith("/auth/refresh") == true ->
-                    MockResponse().setResponseCode(401).setBody("""{"statusCode":401,"message":"Invalid","error":"Unauthorized"}""")
-                else -> MockResponse().setResponseCode(401).setBody("""{"statusCode":401,"message":"Unauthorized","error":"Unauthorized"}""")
-            }
-        }
+    fun `a refused refresh ends the session - tokens cleared and the app told once`() = runTest {
+        // Refresh rejected: the token is spent, expired, revoked, or the account is gone.
+        refreshAnswers(
+            MockResponse().setResponseCode(401)
+                .setBody("""{"statusCode":401,"message":"Invalid","error":"Unauthorized"}"""),
+        )
         val tokens = staleStore()
 
         val response = withContext(Dispatchers.IO) {
@@ -192,6 +208,81 @@ class AuthLayerTest {
         // Keeping a dead token only produces a second confusing failure on the next request.
         assertNull("access token cleared", tokens.accessToken())
         assertNull("refresh token cleared", tokens.refreshToken())
+        // THE BUG THIS FIXES: the tokens went and nobody was told, so every save after that
+        // failed with "We couldn't save that just now" and no way back to sign-in.
+        assertEquals("the app is told the session is over, once", 1, sessionEndings.get())
+    }
+
+    @Test
+    fun `ten concurrent 401s against a refused session tell the app once`() = runTest {
+        refreshAnswers(MockResponse().setResponseCode(401).setBody("""{"statusCode":401}"""))
+        val tokens = staleStore()
+        val api = authedApi(tokens, refresherFor(tokens))
+
+        withContext(Dispatchers.IO) {
+            (1..10).map {
+                async { api.startPhoneVerification(RequestOtpDto(phone = "+4917612345678")) }
+            }.awaitAll()
+        }
+
+        assertEquals("one refresh", 1, refreshHits.get())
+        assertEquals("one notice, not ten", 1, sessionEndings.get())
+    }
+
+    @Test
+    fun `a server error during refresh keeps the user signed in`() = runTest {
+        // The server is down or restarting. That says nothing about the session.
+        refreshAnswers(MockResponse().setResponseCode(503))
+        val tokens = staleStore()
+
+        val response = withContext(Dispatchers.IO) {
+            authedApi(tokens, refresherFor(tokens))
+                .startPhoneVerification(RequestOtpDto(phone = "+4917612345678"))
+        }
+
+        assertEquals("the request in hand still fails", 401, response.code())
+        assertEquals("tokens kept", "good-refresh", tokens.refreshToken())
+        assertEquals("not told the session ended", 0, sessionEndings.get())
+    }
+
+    @Test
+    fun `no connection during refresh keeps the user signed in`() = runTest {
+        // The refresh call gets no answer at all -- a train in a tunnel.
+        refreshAnswers(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+        val tokens = staleStore()
+
+        val result = withContext(Dispatchers.IO) { refresherFor(tokens).refresh("stale-access") }
+
+        assertNull("no token to give", result)
+        assertEquals("access token kept", "stale-access", tokens.accessToken())
+        assertEquals("refresh token kept", "good-refresh", tokens.refreshToken())
+        assertEquals("not told the session ended", 0, sessionEndings.get())
+    }
+
+    @Test
+    fun `a rate-limited or timed-out refresh is not a refusal`() = runTest {
+        for (code in listOf(408, 429)) {
+            refreshAnswers(MockResponse().setResponseCode(code))
+            val tokens = staleStore()
+
+            withContext(Dispatchers.IO) { refresherFor(tokens).refresh("stale-access") }
+
+            assertEquals("$code keeps the tokens", "good-refresh", tokens.refreshToken())
+        }
+        assertEquals(0, sessionEndings.get())
+    }
+
+    @Test
+    fun `the refusal line - every 4xx but 408 and 429 refuses, nothing else does`() {
+        val refused = TokenRefresher.Outcome.Refused
+        val unreachable = TokenRefresher.Outcome.Unreachable
+        for (code in listOf(400, 401, 403, 404, 410)) {
+            assertEquals("$code", refused, TokenRefresher.Outcome.ofFailedResponse(code))
+        }
+        // 2xx here means a success that came without a body: a broken answer, not a verdict.
+        for (code in listOf(200, 408, 429, 500, 502, 503)) {
+            assertEquals("$code", unreachable, TokenRefresher.Outcome.ofFailedResponse(code))
+        }
     }
 
     @Test
@@ -235,6 +326,8 @@ class AuthLayerTest {
 
         assertNull(result)
         assertEquals(0, refreshHits.get())
+        // Someone who never signed in has no session to end, so no "log in again".
+        assertEquals(0, sessionEndings.get())
     }
 
     @Test

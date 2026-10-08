@@ -28,6 +28,11 @@ import java.util.concurrent.TimeUnit
 class ShowUpApi(
     private val baseUrl: String = BuildConfig.API_BASE_URL,
     private val tokens: TokenStore,
+    /**
+     * Told when the server refuses to renew the session -- see [TokenRefresher]. Called on a
+     * network thread, after the tokens are already gone.
+     */
+    onSessionEnded: () -> Unit = {},
 ) {
     /**
      * A client with NO auth attached, used only to refresh.
@@ -43,20 +48,8 @@ class ShowUpApi(
             .createService(AuthApi::class.java)
     }
 
-    private val refresher = TokenRefresher(tokens) { refreshToken ->
-        val response = bareAuthApi.refreshAuthToken(USER_AGENT, RefreshDto(refreshToken = refreshToken))
-        val body = response.body()
-        if (!response.isSuccessful || body == null) {
-            null
-        } else {
-            // Both tokens, not just the access token: the backend ROTATES the refresh token on
-            // every successful refresh, so storing only the new access token would leave the app
-            // holding a refresh token that is already spent.
-            TokenRefresher.TokenPair(
-                accessToken = body.accessToken,
-                refreshToken = body.refreshToken,
-            )
-        }
+    private val refresher = TokenRefresher(tokens, onSessionEnded) { refreshToken ->
+        exchangeRefresh(bareAuthApi, refreshToken)
     }
 
     private val client = ApiClient(
@@ -126,5 +119,27 @@ class ShowUpApi(
          * itself, the same phone appearing under two names depending on which request made the row.
          */
         const val USER_AGENT = "ShowUp-Android/${BuildConfig.VERSION_NAME}"
+
+        /**
+         * One refresh call, read into a [TokenRefresher.Outcome].
+         *
+         * Here rather than inline so the auth tests run THIS mapping, not a copy of it: the line
+         * between "the server said no" and "the server was not there" is the line between sending
+         * someone to sign-in and leaving them signed in, and a test of a copy proves nothing about
+         * it.
+         */
+        internal suspend fun exchangeRefresh(api: AuthApi, refreshToken: String): TokenRefresher.Outcome {
+            val response = api.refreshAuthToken(USER_AGENT, RefreshDto(refreshToken = refreshToken))
+            val body = response.body()
+            if (!response.isSuccessful || body == null) {
+                return TokenRefresher.Outcome.ofFailedResponse(response.code())
+            }
+            // Both tokens, not just the access token: the backend ROTATES the refresh token on
+            // every successful refresh, so storing only the new access token would leave the app
+            // holding a refresh token that is already spent.
+            return TokenRefresher.Outcome.Renewed(
+                TokenRefresher.TokenPair(accessToken = body.accessToken, refreshToken = body.refreshToken),
+            )
+        }
     }
 }

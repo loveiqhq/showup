@@ -59,6 +59,15 @@ object Motion {
      * magnitude longer than everything above it. The fade in and out is [FAST] either side.
      */
     const val TOAST = 2600
+
+    /**
+     * How long the "please log in again" notice stays up when nobody taps it.
+     *
+     * A reading duration like [TOAST], and longer on purpose: a toast repeats something the user
+     * just did, while this tells them something they did not do and did not expect -- the app has
+     * signed them out. Leaving Startup ends it sooner.
+     */
+    const val NOTICE = 6000
 }
 
 /**

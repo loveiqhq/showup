@@ -57,7 +57,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
+import android.app.ActivityOptions
 import com.showup.api.EncryptedTokenStore
+import com.showup.api.SessionEnded
 import com.showup.api.ShowUpApi
 import com.showup.profile.NoConsentBackend
 import com.showup.profile.ProfileReachabilityScreen
@@ -203,7 +205,30 @@ class MainActivity : ComponentActivity() {
             // One store, two models: the sign-up flow WRITES the tokens and the profile flow
             // reads them through the interceptor. Sharing the instance is what makes that work.
             val tokenStore = remember(context) { EncryptedTokenStore(context) }
-            val api = remember(tokenStore) { ShowUpApi(tokens = tokenStore) }
+            val api = remember(tokenStore) {
+                ShowUpApi(tokens = tokenStore, onSessionEnded = SessionEnded::signal)
+            }
+
+            // ── the server ended the session ─────────────────────────────────
+            //
+            // The auth layer has already cleared the tokens; what is left is everything the app
+            // still holds for the person who was signed in -- a dozen view models, the flow
+            // position, half-typed answers. Resetting each one by hand is a list that goes stale
+            // the day a screen is added, so the whole Activity starts again instead: a cleared
+            // task means new view models, an empty SavedStateHandle and Startup, exactly a first
+            // launch, plus the one extra that says why.
+            //
+            // Collected while STARTED only. News that lands while the app is in the background
+            // waits, and is acted on when the user comes back to it.
+            val sessionEnded by SessionEnded.isPending.collectAsStateWithLifecycle()
+            LaunchedEffect(sessionEnded) {
+                if (sessionEnded && SessionEnded.consume()) restartSignedOut()
+            }
+            // Read from the intent ONCE; after that it is screen state. Saveable, so a rebuild of
+            // this Activity does not bring back a notice that has already gone.
+            var sessionNotice by rememberSaveable {
+                mutableStateOf(intent.getBooleanExtra(EXTRA_SESSION_ENDED, false))
+            }
 
             val phoneAuth: PhoneAuthViewModel = viewModel(
                 factory = viewModelFactory {
@@ -695,6 +720,9 @@ class MainActivity : ComponentActivity() {
                 screen = FlowScreen.entries[screen.ordinal - 1]
             }
 
+            // Moving past sign-up ends the notice: it describes why the user is HERE.
+            LaunchedEffect(screen) { if (screen != FlowScreen.SignUp) sessionNotice = false }
+
             Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = screen,
@@ -734,10 +762,15 @@ class MainActivity : ComponentActivity() {
                     // SignUpFlow owns every step and every piece of state inside it.
                     // SHOWUP-146, the whole ticket in one line: the tutorial for a new
                     // account, straight into the app for a returning member.
-                    FlowScreen.SignUp -> SignUpFlow(auth = phoneAuth, onFinished = {
-                        outcome = it
-                        screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
-                    })
+                    FlowScreen.SignUp -> SignUpFlow(
+                        auth = phoneAuth,
+                        onFinished = {
+                            outcome = it
+                            screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
+                        },
+                        sessionEnded = sessionNotice,
+                        onSessionNoticeDismissed = { sessionNotice = false },
+                    )
                     FlowScreen.TutorialWelcome ->
                         WelcomeScreen(onContinue = { screen = FlowScreen.MeetInRealLife })
                     FlowScreen.MeetInRealLife ->
@@ -1384,6 +1417,25 @@ class MainActivity : ComponentActivity() {
             }
             }
         }
+    }
+
+    /**
+     * Starts the app again from Startup, as a first launch would, saying why.
+     *
+     * NEW_TASK | CLEAR_TASK finishes this Activity and everything under it, so nothing of the
+     * signed-in session survives in memory: not a view model, not the flow position. No animation
+     * -- the notice is the explanation, and a slide would read as the user having gone somewhere.
+     */
+    private fun restartSignedOut() {
+        val fresh = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            .putExtra(EXTRA_SESSION_ENDED, true)
+        startActivity(fresh, ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle())
+    }
+
+    companion object {
+        /** Set on the restart [restartSignedOut] makes, and only there. */
+        const val EXTRA_SESSION_ENDED = "com.showup.SESSION_ENDED"
     }
 }
 
