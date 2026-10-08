@@ -13,6 +13,7 @@ import com.showup.api.SessionEnded
 import com.showup.designsystem.Motion
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,6 +33,15 @@ class SessionEndedNoticeTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    /**
+     * [SessionEnded] is process-wide, and a test that fails before it consumes the flag would leave
+     * it raised for whichever test runs next.
+     */
+    @Before
+    fun clearTheFlag() {
+        SessionEnded.consume()
+    }
 
     @Test
     fun `the news is taken once, however many hands reach for it`() {

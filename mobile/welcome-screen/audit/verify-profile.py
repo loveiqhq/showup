@@ -1967,8 +1967,15 @@ check("session ended: 408 and 429 are not a refusal (kotlin)",
       "statusCode == 408 || statusCode == 429 -> Unreachable" in tr_kt)
 check("session ended: 408 and 429 are not a refusal (swift)", "case 408, 429: return .unreachable" in tr_sw)
 check("session ended: only a refusal clears (kotlin)", "Outcome.Unreachable -> null" in tr_kt)
+# The branch itself, not just the words somewhere in the file: offline must return nil and clear
+# nothing, and only the refusal branch may announce the end.
+sw_unreachable = re.search(r"case \.unreachable:(.*?)(?=\n\s*case |\n\s*})", tr_sw, re.S)
+sw_refused = re.search(r"case \.refused:(.*?)(?=\n\s*case |\n\s*})", tr_sw, re.S)
 check("session ended: only a refusal clears (swift)",
-      "case .unreachable:" in tr_sw and "onSessionEnded()" in tr_sw)
+      sw_unreachable is not None and "return nil" in sw_unreachable.group(1)
+      and "clear(" not in sw_unreachable.group(1)
+      and sw_refused is not None and "clear()" in sw_refused.group(1)
+      and "onSessionEnded()" in sw_refused.group(1))
 check("session ended: a clean restart (kotlin)", "FLAG_ACTIVITY_CLEAR_TASK" in app_kt)
 check("session ended: a clean restart (swift)", ".id(epoch)" in app_sw)
 
