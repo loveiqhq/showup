@@ -24,3 +24,25 @@ export function testDatabaseName(env: NodeJS.ProcessEnv): string {
     ? base
     : `${base}${TEST_DATABASE_SUFFIX}`;
 }
+
+/**
+ * Refuses a test database that IS the development database.
+ *
+ * The suffix rule alone does not cover it: a developer whose own database is already called
+ * `something_test`, or a DB_TEST_NAME copied from DB_NAME, would hand the suite the very database
+ * the app is using, and the reset guard would accept it -- the name does end in `_test`. Checked
+ * once per run, in the global setup, where DB_NAME is still the developer's own value
+ * (`e2e-env.ts` repoints it only inside the test workers).
+ */
+export function assertSeparateFromDevelopment(
+  testDatabase: string,
+  developmentDatabase: string,
+): void {
+  if (testDatabase === developmentDatabase) {
+    throw new Error(
+      `Refusing to run the end-to-end suite: its database "${testDatabase}" is the one DB_NAME ` +
+        `points the app at, and the suite empties every table. Set DB_TEST_NAME to a different ` +
+        `name ending in "${TEST_DATABASE_SUFFIX}".`,
+    );
+  }
+}

@@ -10,13 +10,17 @@ import { execSync } from 'child_process';
 import { config as loadEnv } from 'dotenv';
 import { Client } from 'pg';
 
-import { testDatabaseName } from './e2e-database';
+import {
+  assertSeparateFromDevelopment,
+  testDatabaseName,
+} from './e2e-database';
 import { assertSafeTarget } from './reset-guard';
 
 export default async function globalSetup(): Promise<void> {
   loadEnv({ quiet: true });
   const host = process.env.DB_HOST ?? 'localhost';
   const database = testDatabaseName(process.env);
+  assertSeparateFromDevelopment(database, process.env.DB_NAME ?? 'showup');
   assertSafeTarget(host, database, process.env.NODE_ENV);
 
   // Connect to the maintenance database to create the test one; CREATE DATABASE cannot run inside

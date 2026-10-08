@@ -1,4 +1,7 @@
-import { testDatabaseName } from './e2e-database';
+import {
+  assertSeparateFromDevelopment,
+  testDatabaseName,
+} from './e2e-database';
 import { assertSafeTarget, DISPOSABLE_HOSTS } from './reset-guard';
 
 /**
@@ -49,5 +52,30 @@ describe('End-to-end database name', () => {
 
   it('is idempotent, so a second setup step cannot make showup_test_test', () => {
     expect(testDatabaseName({ DB_NAME: 'showup_test' })).toBe('showup_test');
+  });
+});
+
+describe('End-to-end database versus the development database', () => {
+  it('runs when the two differ', () => {
+    expect(() =>
+      assertSeparateFromDevelopment('showup_test', 'showup'),
+    ).not.toThrow();
+  });
+
+  it('refuses a development database that already ends in _test', () => {
+    // DB_NAME=showup_test: the derived name is kept as is, so it would be the same database.
+    expect(() =>
+      assertSeparateFromDevelopment(
+        testDatabaseName({ DB_NAME: 'showup_test' }),
+        'showup_test',
+      ),
+    ).toThrow(/is the one DB_NAME points the app at/);
+  });
+
+  it('refuses a DB_TEST_NAME copied from DB_NAME', () => {
+    const env = { DB_NAME: 'mine_test', DB_TEST_NAME: 'mine_test' };
+    expect(() =>
+      assertSeparateFromDevelopment(testDatabaseName(env), env.DB_NAME),
+    ).toThrow(/Refusing to run the end-to-end suite/);
   });
 });
