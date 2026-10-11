@@ -131,9 +131,13 @@ check("ios: there is somewhere for a returning member to land",
 # The DESTINATION changed on 9 September 2026 -- profile creation now sits between the tutorial's
 # end and the app, which is the order the profile epic specifies ("entered from the app tutorial").
 # SHOWUP-146's rule is unchanged and is what is asserted: finishing does not restart the tour.
+# Either navigation form: since 8 October 2026 the host moves through `goTo`, which also records
+# where the user came from for `referrer_screen_id`. The claim is the same.
 check("android: finishing the tutorial does not restart it",
-      "onFinish = { screen = FlowScreen.ProfileName }" in kt_host
-      and "onFinish = { screen = FlowScreen.TutorialWelcome }" not in kt_host,
+      ("onFinish = { screen = FlowScreen.ProfileName }" in kt_host
+       or "onFinish = { goTo(FlowScreen.ProfileName) }" in kt_host)
+      and "onFinish = { screen = FlowScreen.TutorialWelcome }" not in kt_host
+      and "onFinish = { goTo(FlowScreen.TutorialWelcome) }" not in kt_host,
       "SHOWUP-146 connects the tutorial forwards, not back to card 1")
 check("ios: finishing the tutorial does not restart it",
       "onFinish: { go(to: .profileName) }" in sw_host

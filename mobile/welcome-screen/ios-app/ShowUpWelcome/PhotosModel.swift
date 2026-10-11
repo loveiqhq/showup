@@ -88,6 +88,21 @@ final class PhotosModel {
     /// what made the refusal look arbitrary.
     ///
     /// ANYTHING PICKED IN THIS SESSION SURVIVES a read that lands while an upload is in flight.
+    /// The photos step is on screen: `screen_viewed` and `profile_step_viewed` (SHOWUP-156). Missing
+    /// until 8 October 2026 — the slot, upload and minimum events fired, but the screen itself was
+    /// never reported. Android: `PhotosViewModel.arrived`.
+    func arrived(referrer: ProfileScreen?) {
+        analytics?.report(ProfileAnalytics.screenViewed(.photos, referrer: referrer))
+        analytics?.report(ProfileAnalytics.realYouStepViewed(.photos))
+    }
+
+    /// Continue pressed below the four-photo minimum — on the REFUSED PRESS, never on render.
+    func continueRefused() {
+        analytics?.report(ProfileAnalytics.realYouValidationFailed(
+            fieldId: ProfileField.photos, rule: ValidationRule.photosBelowMinimum,
+            screen: .photos, step: .photos))
+    }
+
     func load() {
         Task { [weak self] in
             guard let self, let stored = await self.repo.list() else { return }
