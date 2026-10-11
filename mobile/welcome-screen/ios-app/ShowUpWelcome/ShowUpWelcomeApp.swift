@@ -166,7 +166,8 @@ private struct TutorialFlow: View {
     // whole app. This used to construct its own `ShowUpAPI(tokens: KeychainTokenStore())`, which
     // was a second client deciding for itself which environment to talk to.
     @State private var basics = BasicsModel(
-        repo: BasicsRepository(api: APIAccess.client)
+        repo: BasicsRepository(api: APIAccess.client),
+        analytics: AppAnalytics.shared
     )
 
     // ── Signing in ─────────────────────────────────────────────────────────
@@ -570,6 +571,12 @@ private struct TutorialFlow: View {
     /// The §11 screen a flow position is, for `referrer_screen_id`. Nil where none is registered.
     private func profileScreen(of flow: FlowScreen?) -> ProfileScreen? {
         switch flow {
+        case .profileName: return .name
+        case .profileEmail: return .email
+        case .profileVerifyEmail: return .emailVerification
+        case .profileDob: return .dob
+        case .profileEmbrace: return .embraceBuild
+        case .profilePhotos: return .photos
         case .profilePrompts: return .prompts
         case .profileMedia: return .media
         case .profileNotifications: return .notifications
@@ -837,7 +844,13 @@ private struct TutorialFlow: View {
                     analytics: AppAnalytics.shared)
                 // SHOWUP-150. No back: profile creation is mandatory once entered.
                 case .profileName:
-                    ProfileNameView(value: $firstName, onContinue: { _ in go(to: .profileEmail) })
+                    ProfileNameView(value: $firstName,
+                                    onContinue: { name in
+                                        basics.nameAccepted(name)
+                                        go(to: .profileEmail)
+                                    },
+                                    onEmptySubmit: { basics.nameRefused() })
+                        .onAppear { basics.arrived(.name, referrer: profileScreen(of: cameFrom)) }
                 case .profileEmail:
                     // Continue SENDS the code and only advances once the server has accepted it.
                     // Navigating first would put the user on a screen waiting for a code that was
@@ -845,15 +858,23 @@ private struct TutorialFlow: View {
                     // Argument order follows the declaration, which Swift requires and
                     // audit/check-swift-arg-order.py enforces ahead of the compiler.
                     ProfileEmailView(value: $email,
-                                     consent: $marketingConsent,
+                                     // The row reports in BOTH directions; the stored value is the
+                                     // same scene key it always was.
+                                     consent: Binding(get: { marketingConsent },
+                                                      set: {
+                                                          marketingConsent = $0
+                                                          basics.marketingConsentChanged($0)
+                                                      }),
                                      onContinue: { address in
                                          basics.email = address
                                          basics.sendCode { go(to: .profileVerifyEmail) }
                                      },
                                      onBack: { go(to: .profileName) },
+                                     onSubmitRefused: { basics.emailRefused(empty: $0) },
                                      serverError: basics.emailInUse
                                         ? EmailCopy.alreadyInUseProposed
                                         : (basics.transportFailed ? EmailCopy.sendFailedProposed : nil))
+                        .onAppear { basics.arrived(.email, referrer: profileScreen(of: cameFrom)) }
 
                 case .profileVerifyEmail:
                     // Every number on this screen is the server's: the cooldown counts down to
@@ -867,33 +888,39 @@ private struct TutorialFlow: View {
                         cooldownSeconds: basics.cooldownSeconds,
                         busy: basics.busy,
                         onVerify: { basics.verify { go(to: .profileDob) } },
-                        onResend: { basics.sendCode() },
+                        onResend: { basics.resendCode() },
                         // Both exits are the same journey: back to the email step, address kept.
                         onChangeEmail: { go(to: .profileEmail) },
                         onBack: { go(to: .profileEmail) })
+                    .onAppear { basics.arrived(.emailVerify, referrer: profileScreen(of: cameFrom)) }
 
                 case .profileDob:
                     // Continue writes the date AND the visibility choice in one PATCH and only
                     // advances when the server has stored them. Back does not re-send or
                     // re-verify anything — the code screen is already satisfied.
                     ProfileDobView(
+                        // THROUGH THE MODEL'S METHODS, so typing and ticking report; the restore
+                        // below assigns the properties directly and reports nothing.
                         value: Binding(get: { basics.dob },
-                                       set: { basics.dob = $0; dobStored = $0 }),
+                                       set: { basics.dobTyped($0); dobStored = $0 }),
                         hideAge: Binding(get: { basics.hideAge },
-                                         set: { basics.hideAge = $0; hideAgeStored = $0 }),
+                                         set: { basics.hideAgeToggled($0); hideAgeStored = $0 }),
                         attempted: basics.dobAttempted,
                         busy: basics.busy,
                         serverRejectedAge: basics.serverRejectedAge,
-                        onContinue: { _, iso in
-                            basics.saveDateOfBirth(iso: iso) { go(to: .profileEmbrace) }
+                        onContinue: { age, iso in
+                            basics.saveDateOfBirth(iso: iso, age: age) { go(to: .profileEmbrace) }
                         },
-                        onRefused: { basics.dobAttempted = true },
+                        onRefused: { basics.dobRefused() },
                         onEdit: { basics.dob = ""; basics.dobAttempted = false; dobStored = "" },
                         onBack: { go(to: .profileVerifyEmail) })
                     // Restore what a rotation would otherwise have dropped.
                     .onAppear {
                         if basics.dob.isEmpty { basics.dob = dobStored }
                         basics.hideAge = hideAgeStored
+                        // After the restore, so a date already entered is the baseline rather than
+                        // a transition.
+                        basics.arrived(.dob, referrer: profileScreen(of: cameFrom))
                     }
                 case .profileEmbrace:
                     // SHOWUP-155. The bridge out of "The basics". No header, no progress bar, no
@@ -901,6 +928,7 @@ private struct TutorialFlow: View {
                     ProfileEmbraceView(
                         firstName: firstName,
                         onContinue: { go(to: .profilePhotos) })
+                    .onAppear { basics.embraceArrived(referrer: profileScreen(of: cameFrom)) }
 
                 case .profilePhotos:
                     // SHOWUP-156. Every state here is real: uploads run, report their own progress
@@ -923,11 +951,13 @@ private struct TutorialFlow: View {
                         onCameraSettings: { openAppSettings() },
                         onDismissSheet: { photos.dismissSheet() },
                         onOpenSettings: { openAppSettings() },
-                        onContinue: { go(to: .profilePrompts) })
+                        onContinue: { go(to: .profilePrompts) },
+                        onRefused: { photos.continueRefused() })
                         // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug
                         // on this screen is a user who granted access in Settings returning to the
                         // blocked card, and becoming active again is the only moment to notice.
                         .onAppear {
+                            photos.arrived(referrer: profileScreen(of: cameFrom))
                             photos.refreshAccess()
                             // Reads what the account already holds. Without it the grid started
                             // empty on every launch, and an account at the server's six-photo

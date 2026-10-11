@@ -131,6 +131,7 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.runtime.Composable
 import com.showup.welcome.PhoneAuthRepository
 import com.showup.welcome.PhoneAuthViewModel
+import com.showup.profile.BasicsStep
 import com.showup.profile.BasicsViewModel
 import com.showup.profile.EmailCopy
 import com.showup.profile.ProfileDobScreen
@@ -246,7 +247,7 @@ class MainActivity : ComponentActivity() {
             val basics: BasicsViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
-                        BasicsViewModel(BasicsRepository(api))
+                        BasicsViewModel(BasicsRepository(api), analytics = AppAnalytics)
                     }
                 },
             )
@@ -730,7 +731,8 @@ class MainActivity : ComponentActivity() {
             // back exits as usual, and the range stops at 6 so back cannot walk out of the app
             // and into the last tutorial card.
             BackHandler(enabled = screen.hasSystemBack) {
-                screen = FlowScreen.entries[screen.ordinal - 1]
+                // Through goTo, so the screen arrived at knows where it came from.
+                goTo(FlowScreen.entries[screen.ordinal - 1])
             }
 
             // ── the developer menu (debug builds only) ──────────────────────
@@ -857,7 +859,7 @@ class MainActivity : ComponentActivity() {
                     FlowScreen.ShowUpEveryTime -> ShowUpEveryTimeScreen(
                         // SHOWUP-146 sent the tutorial's far end straight to the app. Profile
                         // creation now sits between the two, which is the real order.
-                        onFinish = { screen = FlowScreen.ProfileName },
+                        onFinish = { goTo(FlowScreen.ProfileName) },
                         onBack = { screen = FlowScreen.ThirtyMinutes },
                         analytics = AppAnalytics,
                     )
@@ -868,9 +870,14 @@ class MainActivity : ComponentActivity() {
                         onValueChange = { firstName = it },
                         onContinue = {
                             firstName = it
-                            screen = FlowScreen.ProfileEmail
+                            basics.nameAccepted(it)
+                            goTo(FlowScreen.ProfileEmail)
                         },
-                    )
+                        onEmptySubmit = basics::nameRefused,
+                    ).also {
+                        // Each arrival is a showing; keyed on onTop for the reason above.
+                        LaunchedEffect(onTop) { if (onTop) basics.arrived(BasicsStep.Name, profileScreenOf(cameFrom)) }
+                    }
                     FlowScreen.ProfileEmail -> ProfileEmailScreen(
                         value = email,
                         onValueChange = {
@@ -878,15 +885,19 @@ class MainActivity : ComponentActivity() {
                             basics.setEmail(it)
                         },
                         consent = marketingConsent,
-                        onConsentChange = { marketingConsent = it },
+                        onConsentChange = {
+                            marketingConsent = it
+                            basics.marketingConsentChanged(it)
+                        },
                         // Continue SENDS the code and only advances once the server has accepted
                         // it. Navigating first would put the user on a screen waiting for a code
                         // that was never dispatched.
                         onContinue = {
                             email = it
                             basics.setEmail(it)
-                            basics.sendCode(onSent = { screen = FlowScreen.ProfileVerifyEmail })
+                            basics.sendCode(onSent = { goTo(FlowScreen.ProfileVerifyEmail) })
                         },
+                        onSubmitRefused = basics::emailRefused,
                         serverError = if (basicsState.emailInUse) {
                             EmailCopy.ALREADY_IN_USE_PROPOSED
                         } else if (basicsState.transportFailed) {
@@ -894,8 +905,10 @@ class MainActivity : ComponentActivity() {
                         } else {
                             null
                         },
-                        onBack = { screen = FlowScreen.ProfileName },
-                    )
+                        onBack = { goTo(FlowScreen.ProfileName) },
+                    ).also {
+                        LaunchedEffect(onTop) { if (onTop) basics.arrived(BasicsStep.Email, profileScreenOf(cameFrom)) }
+                    }
 
                     // SHOWUP-153. Every number on this screen is the server's: the cooldown
                     // counts down to `resendAvailableAt`, the expiry compares against
@@ -909,20 +922,26 @@ class MainActivity : ComponentActivity() {
                         shakeKey = basicsState.shakeKey,
                         cooldownSeconds = basicsState.cooldownSeconds,
                         busy = basicsState.busy,
-                        onVerify = { basics.verify(onVerified = { screen = FlowScreen.ProfileDob }) },
-                        onResend = { basics.sendCode() },
+                        onVerify = { basics.verify(onVerified = { goTo(FlowScreen.ProfileDob) }) },
+                        onResend = basics::resendCode,
                         // Both exits are the same journey: back to the email step, address kept.
-                        onChangeEmail = { screen = FlowScreen.ProfileEmail },
-                        onBack = { screen = FlowScreen.ProfileEmail },
-                    )
+                        onChangeEmail = { goTo(FlowScreen.ProfileEmail) },
+                        onBack = { goTo(FlowScreen.ProfileEmail) },
+                    ).also {
+                        LaunchedEffect(onTop) { if (onTop) basics.arrived(BasicsStep.EmailVerify, profileScreenOf(cameFrom)) }
+                    }
 
                     // SHOWUP-154. Continue writes the date AND the visibility choice in one
                     // PATCH and only advances when the server has stored them. Back does not
                     // re-send or re-verify anything -- the code screen is already satisfied.
-                    FlowScreen.ProfileDob -> ProfileDobScreen(
+                    FlowScreen.ProfileDob -> {
+                      // The order the field reads digits in, handed to the view model too, so the
+                      // states it reports are the states the screen shows.
+                      val dobOrder = rememberDateOrder()
+                      ProfileDobScreen(
                         value = basicsState.dob,
-                        onValueChange = basics::setDob,
-                        order = rememberDateOrder(),
+                        onValueChange = { basics.setDob(it, dobOrder) },
+                        order = dobOrder,
                         hideAge = basicsState.hideAge,
                         onHideAgeChange = basics::setHideAge,
                         attempted = basicsState.dobAttempted,
@@ -931,20 +950,25 @@ class MainActivity : ComponentActivity() {
                         onContinue = { valid ->
                             basics.saveDateOfBirth(
                                 valid.iso,
-                                onSaved = { screen = FlowScreen.ProfileEmbrace },
+                                valid.age,
+                                onSaved = { goTo(FlowScreen.ProfileEmbrace) },
                             )
                         },
-                        onRefused = { basics.markDobAttempted() },
+                        onRefused = basics::dobRefused,
                         onEdit = { basics.clearDob() },
-                        onBack = { screen = FlowScreen.ProfileVerifyEmail },
-                    )
+                        onBack = { goTo(FlowScreen.ProfileVerifyEmail) },
+                      )
+                      LaunchedEffect(onTop) { if (onTop) basics.arrived(BasicsStep.Dob, profileScreenOf(cameFrom)) }
+                    }
                     // SHOWUP-155. The bridge out of "The basics". No header, no progress bar,
                     // no back -- the absences are the design, and the screen swallows the system
                     // gesture itself. Its one exit is forward.
                     FlowScreen.ProfileEmbrace -> ProfileEmbraceScreen(
                         firstName = firstName,
-                        onContinue = { screen = FlowScreen.ProfilePhotos },
-                    )
+                        onContinue = { goTo(FlowScreen.ProfilePhotos) },
+                    ).also {
+                        LaunchedEffect(onTop) { if (onTop) basics.embraceArrived(profileScreenOf(cameFrom)) }
+                    }
 
                     // SHOWUP-156. Every state on this screen is real: uploads run, report their
                     // own progress and can fail, and the count only moves when one is confirmed.
@@ -955,7 +979,7 @@ class MainActivity : ComponentActivity() {
                         library = photosState.library,
                         camera = photosState.camera,
                         sheetOpen = photosState.sheetOpen,
-                        onBack = { screen = FlowScreen.ProfileEmbrace },
+                        onBack = { goTo(FlowScreen.ProfileEmbrace) },
                         onSlotTap = photos::tapSlot,
                         onRemove = photos::remove,
                         onRetry = photos::retry,
@@ -981,7 +1005,8 @@ class MainActivity : ComponentActivity() {
                         onCameraSettings = { openAppSettings(context) },
                         onDismissSheet = photos::dismissSheet,
                         onOpenSettings = { openAppSettings(context) },
-                        onContinue = { screen = FlowScreen.ProfilePrompts },
+                        onContinue = { goTo(FlowScreen.ProfilePrompts) },
+                        onRefused = photos::continueRefused,
                     ).also {
                         // Reads what the account already holds. Without it the grid started empty
                         // on every launch, and an account already at the server's six-photo limit
@@ -989,6 +1014,7 @@ class MainActivity : ComponentActivity() {
                         // `Upload failed` -- with a Retry that re-sent the same bytes to the same
                         // full account.
                         LaunchedEffect(Unit) { photos.load() }
+                        LaunchedEffect(onTop) { if (onTop) photos.arrived(profileScreenOf(cameFrom)) }
                     }
 
                     // SHOWUP-158. Two sheets, one screen, and every transition between them is a
@@ -1639,6 +1665,12 @@ private fun openLocationSettings(context: Context) {
 
 /** The §11 screen a flow position is, for `referrer_screen_id`. Null where none is registered. */
 private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen) {
+    FlowScreen.ProfileName -> ProfileScreen.Name
+    FlowScreen.ProfileEmail -> ProfileScreen.Email
+    FlowScreen.ProfileVerifyEmail -> ProfileScreen.EmailVerification
+    FlowScreen.ProfileDob -> ProfileScreen.Dob
+    FlowScreen.ProfileEmbrace -> ProfileScreen.EmbraceBuild
+    FlowScreen.ProfilePhotos -> ProfileScreen.Photos
     FlowScreen.ProfilePrompts -> ProfileScreen.Prompts
     FlowScreen.ProfileMedia -> ProfileScreen.Media
     FlowScreen.ProfileNotifications -> ProfileScreen.Notifications

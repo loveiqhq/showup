@@ -165,6 +165,9 @@ enum ProfileField {
     static let firstName = "first_name"
     static let email = "email"
 
+    /// The date of birth's value AND its visibility control (SHOWUP-154: `field_id` is `age`).
+    static let age = "age"
+
     /// The photo grid, as one field. A refused Continue is about the set, not about a slot.
     static let photos = "photos"
 
@@ -240,6 +243,20 @@ enum ValidationRule {
 /// this box governs marketing mail only; the `email` toggle on the later Stay reachable screen is a
 /// preference about being contacted regarding a match; transactional mail has no consent to
 /// withdraw and is never tracked as one.
+/// `entry_point` on `profile_build_started` — the app-open channel, `cold | push | sms | whatsapp |
+/// email | deeplink` (properties.json). Only `cold` exists today: there is no push, message or deep
+/// link into the profile build yet. When one lands, its value is added here, not typed at a call
+/// site. Android: `AppEntryPoint`.
+enum AppEntryPoint {
+    static let cold = "cold"
+}
+
+/// `result` on `email_code_submitted`.
+enum CodeResult {
+    static let pass = "pass"
+    static let fail = "fail"
+}
+
 enum ConsentChannel {
     static let marketingEmail = "marketing_email"
 
@@ -309,6 +326,11 @@ enum ProfileAnalytics {
     static let profileStepCompleted = "profile_step_completed"
     static let profileStepSkipped = "profile_step_skipped"
     static let nameSubmitted = "name_submitted"
+    static let emailCodeSubmittedName = "email_code_submitted"
+    static let emailCodeResentName = "email_code_resent"
+    static let dobSubmittedName = "dob_submitted"
+    static let dobValidationFailedName = "dob_validation_failed"
+    static let ageGateFailedName = "age_gate_failed"
     static let emailSubmitted = "email_submitted"
     static let emailValidationFailed = "email_validation_failed"
     static let formValidationFailed = "form_validation_failed"
@@ -709,6 +731,46 @@ enum ProfileAnalytics {
                                         step: RealYouStep) -> (String, [String: any Sendable]) {
         (formValidationFailed, ["field_id": fieldId, "rule": rule, "screen_id": screen.screenId,
                                 "step_id": step.stepId].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    // MARK: the code screen and date of birth (SHOWUP-153, SHOWUP-154)
+    //
+    // Builders for these five did not exist until 8 October 2026, and nothing in "The basics" fired
+    // at all. Names and payloads are events.json's, family D. Android: the same five builders.
+
+    /// T2, class 0. One attempt at the current code, and its verdict. THE CODE IS NEVER SENT.
+    /// `attemptNo` counts attempts at THIS code, from 1 — the server's cap is per code.
+    static func emailCodeSubmitted(attemptNo: Int, passed: Bool) -> (String, [String: any Sendable]) {
+        (emailCodeSubmittedName, [
+            "attempt_no": attemptNo, "result": passed ? CodeResult.pass : CodeResult.fail,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. `Send a new code` delivered one; `attemptNo` is which resend this is, from 1.
+    static func emailCodeResent(attemptNo: Int) -> (String, [String: any Sendable]) {
+        (emailCodeResentName, ["attempt_no": attemptNo].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. The step's conversion: a valid, 18+ date, stored. Never the date itself.
+    static func dobSubmitted(age: Int) -> (String, [String: any Sendable]) {
+        (dobSubmittedName, ["age": age].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Eight digits that name no real day (state C) — once per transition INTO it.
+    static func dobValidationFailed(
+        rule: String = ValidationRule.impossible
+    ) -> (String, [String: any Sendable]) {
+        (dobValidationFailedName, ["rule": rule].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. A real date under 18 (state D) — a policy outcome, once per transition into it.
+    static func ageGateFailed(age: Int) -> (String, [String: any Sendable]) {
+        (ageGateFailedName, ["age": age].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. The age's visibility box was TICKED — opt-out only, nothing on untick.
+    static func ageDisplayOptedOut() -> (String, [String: any Sendable]) {
+        (fieldDisplayOptedOutName, ["field_id": ProfileField.age].merging(Stamp.of(0)) { a, _ in a })
     }
 
     /// T2, class 0. Once per profile build, on the first step only.
@@ -1169,5 +1231,17 @@ enum ProfileAnalytics {
 extension AnalyticsTracking {
     func report(_ event: (String, [String: any Sendable])) {
         track(event.0, properties: event.1)
+    }
+}
+
+extension BasicsStep {
+    /// The §11 screen each step of "The basics" is reported as.
+    var trackedScreen: ProfileScreen {
+        switch self {
+        case .name: return .name
+        case .email: return .email
+        case .emailVerify: return .emailVerification
+        case .dob: return .dob
+        }
     }
 }

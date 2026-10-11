@@ -180,6 +180,9 @@ object ProfileField {
     const val FIRST_NAME = "first_name"
     const val EMAIL = "email"
 
+    /** The date of birth's value AND its visibility control (SHOWUP-154: `field_id` is `age`). */
+    const val AGE = "age"
+
     /** The photo grid, as one field. A refused Continue is about the set, not about a slot. */
     const val PHOTOS = "photos"
 
@@ -268,6 +271,22 @@ object ValidationRule {
  * password resets, a support reply) has no consent to withdraw and is never tracked as one.
  * Sending "email" here would file a marketing opt-in against the wrong channel.
  */
+/**
+ * `entry_point` on `profile_build_started` -- the app-open channel, `cold | push | sms | whatsapp |
+ * email | deeplink` (properties.json). Only [COLD] exists today: there is no push, message or deep
+ * link into the profile build yet, so every build starts from an app the user opened. When one of
+ * those lands, its value is added here, not typed at a call site.
+ */
+object AppEntryPoint {
+    const val COLD = "cold"
+}
+
+/** `result` on `email_code_submitted`. */
+object CodeResult {
+    const val PASS = "pass"
+    const val FAIL = "fail"
+}
+
 object ConsentChannel {
     const val MARKETING_EMAIL = "marketing_email"
 
@@ -351,6 +370,11 @@ object ProfileAnalytics {
     const val PROFILE_STEP_COMPLETED = "profile_step_completed"
     const val PROFILE_STEP_SKIPPED = "profile_step_skipped"
     const val NAME_SUBMITTED = "name_submitted"
+    const val EMAIL_CODE_SUBMITTED = "email_code_submitted"
+    const val EMAIL_CODE_RESENT = "email_code_resent"
+    const val DOB_SUBMITTED = "dob_submitted"
+    const val DOB_VALIDATION_FAILED = "dob_validation_failed"
+    const val AGE_GATE_FAILED = "age_gate_failed"
     const val EMAIL_SUBMITTED = "email_submitted"
     const val EMAIL_VALIDATION_FAILED = "email_validation_failed"
     const val FORM_VALIDATION_FAILED = "form_validation_failed"
@@ -669,6 +693,64 @@ object ProfileAnalytics {
             put("step_id", step.stepId)
             putAll(Stamp.of(0))
         }
+
+    // ── the code screen and date of birth (SHOWUP-153, SHOWUP-154) ───────────────
+    //
+    // Builders for these five did not exist until 8 October 2026, and nothing in "The basics"
+    // fired at all: the screens were built, the events were specified, and the call sites were
+    // never written. Names and payloads are events.json's, family D.
+
+    /**
+     * T2, class 0. One attempt at the current code, and its verdict. THE CODE IS NEVER SENT.
+     *
+     * [attemptNo] counts attempts at THIS code, from 1 -- the server's cap is per code, and a new
+     * send starts the count again. The distribution across attempts is what tells a bad template
+     * from bad copy from codes that are hard to read.
+     */
+    fun emailCodeSubmitted(attemptNo: Int, passed: Boolean) =
+        EMAIL_CODE_SUBMITTED to buildMap<String, Any> {
+            put("attempt_no", attemptNo)
+            put("result", if (passed) CodeResult.PASS else CodeResult.FAIL)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. `Send a new code` delivered one; [attemptNo] is which resend this is, from 1. */
+    fun emailCodeResent(attemptNo: Int) = EMAIL_CODE_RESENT to buildMap<String, Any> {
+        put("attempt_no", attemptNo)
+        putAll(Stamp.of(0))
+    }
+
+    /** T2, class 0. The step's conversion: a valid, 18+ date, stored. Never the date itself. */
+    fun dobSubmitted(age: Int) = DOB_SUBMITTED to buildMap<String, Any> {
+        put("age", age)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T2, class 0. Eight digits that name no real day (state C) -- once per transition INTO the
+     * state, not per keystroke while it holds. [ValidationRule.IMPOSSIBLE]; `format` is for a parse
+     * that fails outright, which a digits-only field cannot produce.
+     */
+    fun dobValidationFailed(rule: String = ValidationRule.IMPOSSIBLE) =
+        DOB_VALIDATION_FAILED to buildMap<String, Any> {
+            put("rule", rule)
+            putAll(Stamp.of(0))
+        }
+
+    /**
+     * T2, class 0. A real date under 18 (state D) -- a POLICY outcome, not a format problem, which is
+     * why it is not [dobValidationFailed]. Once per transition into the state.
+     */
+    fun ageGateFailed(age: Int) = AGE_GATE_FAILED to buildMap<String, Any> {
+        put("age", age)
+        putAll(Stamp.of(0))
+    }
+
+    /** T1, class 0. The age's visibility box was TICKED -- opt-out only, nothing on untick. */
+    fun ageDisplayOptedOut() = FIELD_DISPLAY_OPTED_OUT to buildMap<String, Any> {
+        put("field_id", ProfileField.AGE)
+        putAll(Stamp.of(0))
+    }
 
     // ── family E · Profile Photos/Media (SHOWUP-156) ─────────────────────────
     //
@@ -1351,3 +1433,12 @@ object ProfileAnalytics {
 
 /** Reports a catalogue-built event. Mirrors the welcome flow's helper exactly. */
 fun AnalyticsTracker.report(pair: Pair<String, Map<String, Any>>) = track(pair.first, pair.second)
+
+/** The §11 screen each step of "The basics" is reported as. */
+val BasicsStep.trackedScreen: ProfileScreen
+    get() = when (this) {
+        BasicsStep.Name -> ProfileScreen.Name
+        BasicsStep.Email -> ProfileScreen.Email
+        BasicsStep.EmailVerify -> ProfileScreen.EmailVerification
+        BasicsStep.Dob -> ProfileScreen.Dob
+    }

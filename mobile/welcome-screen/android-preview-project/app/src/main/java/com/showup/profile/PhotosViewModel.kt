@@ -112,6 +112,31 @@ class PhotosViewModel(
      * ANYTHING PICKED IN THIS SESSION SURVIVES. A read that landed while an upload was in flight
      * would otherwise throw away the slot the user is watching.
      */
+    /**
+     * The photos step is on screen: `screen_viewed` and `profile_step_viewed` (SHOWUP-156). Missing
+     * until 8 October 2026 -- the slot, upload and minimum events fired, but the screen itself was
+     * never reported, so the funnel step out of the Embrace bridge could not be measured.
+     */
+    fun arrived(referrer: ProfileScreen?) {
+        analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.Photos, referrer))
+        analytics?.report(ProfileAnalytics.realYouStepViewed(RealYouStep.Photos))
+    }
+
+    /**
+     * Continue pressed below the four-photo minimum -- on the REFUSED PRESS, never on render.
+     * `photos_below_minimum`, the registry's rule for exactly this; the screen shows its toast.
+     */
+    fun continueRefused() {
+        analytics?.report(
+            ProfileAnalytics.realYouValidationFailed(
+                fieldId = ProfileField.PHOTOS,
+                rule = ValidationRule.PHOTOS_BELOW_MINIMUM,
+                screen = ProfileScreen.Photos,
+                step = RealYouStep.Photos,
+            ),
+        )
+    }
+
     fun load() {
         viewModelScope.launch {
             val stored = repo.list() ?: return@launch

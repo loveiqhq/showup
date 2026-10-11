@@ -22,6 +22,7 @@
 package com.showup.profile
 
 import androidx.lifecycle.ViewModel
+import com.showup.analytics.AnalyticsTracker
 import com.showup.api.MAX_VERIFY_ATTEMPTS
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -94,10 +95,114 @@ data class BasicsUiState(
     )
 }
 
-class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
+class BasicsViewModel(
+    private val repo: BasicsRepository,
+    /**
+     * Where "The basics" reports (family D, SHOWUP-150 to 155). Null in a test that does not care.
+     *
+     * Until 8 October 2026 this view model took no tracker and nothing in the basics fired: the
+     * events were specified and their builders written, and no call site existed. The whole top
+     * of the profile funnel -- `profile_build_started` included -- was invisible.
+     */
+    private val analytics: AnalyticsTracker? = null,
+    /** For `time_on_step_s`. Injected so a test can step through time. */
+    private val clock: () -> Long = System::currentTimeMillis,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(BasicsUiState())
     val state: StateFlow<BasicsUiState> = _state.asStateFlow()
+
+    // ── tracking ─────────────────────────────────────────────────────────────────
+    //
+    // Every decision the events report is made here or reported here by the host: arrivals,
+    // accepted and refused presses, the code's verdict, the date's states. The payloads are the
+    // builders' (ProfileAnalytics), so nothing typed at a call site can drift from events.json.
+
+    /** When each step was last arrived at, for `time_on_step_s`. */
+    private val arrivedAt = mutableMapOf<BasicsStep, Long>()
+
+    /** `profile_build_started` fires once per build, on the first arrival at the name step. */
+    private var buildStarted = false
+
+    /** How many times `Send a new code` delivered one, for `email_code_resent.attempt_no`. */
+    private var resends = 0
+
+    /**
+     * The date-of-birth state last shown. `dob_validation_failed` and `age_gate_failed` fire on the
+     * TRANSITION into C or D -- "once per transition, not per keystroke while the state holds".
+     */
+    private var dobShown = DobShown.Open
+
+    /** How the field last read its digits -- handed in with every keystroke by the host. */
+    private var dobOrder = DateOrder.MonthFirst
+
+    private enum class DobShown { Open, Valid, Impossible, UnderAge }
+
+    private fun dobShownFor(parsed: DobResult) = when (parsed) {
+        DobResult.Incomplete -> DobShown.Open
+        DobResult.Impossible -> DobShown.Impossible
+        is DobResult.Valid -> if (parsed.age < MINIMUM_AGE) DobShown.UnderAge else DobShown.Valid
+    }
+
+    private fun report(event: Pair<String, Map<String, Any>>) {
+        analytics?.report(event)
+    }
+
+    private fun secondsOn(step: BasicsStep): Int =
+        (((clock() - (arrivedAt[step] ?: clock())) / 1000L).toInt()).coerceAtLeast(0)
+
+    /**
+     * A step of the basics is on screen. `screen_viewed` and `profile_step_viewed` -- two events,
+     * and not duplicates: one answers which screen, the other where in the flow. The name step
+     * also starts the build, once.
+     */
+    fun arrived(step: BasicsStep, referrer: ProfileScreen?) {
+        arrivedAt[step] = clock()
+        report(ProfileAnalytics.screenViewed(step.trackedScreen, referrer))
+        report(ProfileAnalytics.stepViewed(step))
+        if (step == BasicsStep.Name && !buildStarted) {
+            buildStarted = true
+            report(ProfileAnalytics.buildStarted(AppEntryPoint.COLD))
+        }
+        // The state already on screen is the baseline: arriving with it is not a transition.
+        if (step == BasicsStep.Dob) dobShown = dobShownFor(parseDob(_state.value.dob, dobOrder))
+    }
+
+    /**
+     * The bridge out of the basics (SHOWUP-155): `screen_viewed` and `embrace_bridge_viewed`, and
+     * NOTHING else -- not a step, so no step events, and the build started four screens ago.
+     */
+    fun embraceArrived(referrer: ProfileScreen?) {
+        report(ProfileAnalytics.screenViewed(ProfileScreen.EmbraceBuild, referrer))
+        report(ProfileAnalytics.embraceBridgeViewed(EmbraceVariant.BUILD_PROFILE))
+    }
+
+    /** Continue with a valid name. `char_count` only -- the name itself is never sent. */
+    fun nameAccepted(name: String) {
+        report(ProfileAnalytics.nameSubmitted(name.trim().length))
+        report(ProfileAnalytics.stepCompleted(BasicsStep.Name, secondsOn(BasicsStep.Name)))
+    }
+
+    /** Continue pressed with no name -- on the refused press, never on render. */
+    fun nameRefused() {
+        report(ProfileAnalytics.formValidationFailed(ProfileField.FIRST_NAME, ProfileScreen.Name, BasicsStep.Name))
+    }
+
+    /** Continue refused on the email step: empty is `required_missing`, malformed is `format`. */
+    fun emailRefused(empty: Boolean) {
+        report(
+            if (empty) {
+                ProfileAnalytics.formValidationFailed(ProfileField.EMAIL, ProfileScreen.Email, BasicsStep.Email)
+            } else {
+                ProfileAnalytics.emailValidationFailed()
+            },
+        )
+    }
+
+    /** The marketing row toggled -- in BOTH directions, never opt-out only. */
+    fun marketingConsentChanged(on: Boolean) {
+        report(ProfileAnalytics.consentChanged(on))
+    }
 
     /** Held so a resend can cancel the previous countdown rather than race it. */
     private var ticker: Job? = null
@@ -105,15 +210,47 @@ class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
     fun setEmail(value: String) = _state.update { it.copy(email = value, emailInUse = false) }
     fun setDigits(value: String) =
         _state.update { it.copy(codeDigits = value, lastSubmitRefused = false) }
-    fun setDob(value: String) = _state.update {
-        it.copy(
-            dob = value,
-            serverRejectedAge = false,
-            // The incomplete error clears the moment the eighth digit lands.
-            dobAttempted = if (dobDigits(value).length == 8) false else it.dobAttempted,
-        )
+    /**
+     * @param order how the field reads the eight digits -- the same order the screen parses with, so
+     *   the states reported are the states shown.
+     */
+    fun setDob(value: String, order: DateOrder = DateOrder.MonthFirst) {
+        _state.update {
+            it.copy(
+                dob = value,
+                serverRejectedAge = false,
+                // The incomplete error clears the moment the eighth digit lands.
+                dobAttempted = if (dobDigits(value).length == 8) false else it.dobAttempted,
+            )
+        }
+        dobOrder = order
+        val parsed = parseDob(value, order)
+        val shown = dobShownFor(parsed)
+        if (shown != dobShown) {
+            when (shown) {
+                DobShown.Impossible -> report(ProfileAnalytics.dobValidationFailed())
+                DobShown.UnderAge -> report(ProfileAnalytics.ageGateFailed((parsed as DobResult.Valid).age))
+                DobShown.Open, DobShown.Valid -> Unit
+            }
+            dobShown = shown
+        }
     }
-    fun setHideAge(value: Boolean) = _state.update { it.copy(hideAge = value) }
+    fun setHideAge(value: Boolean) {
+        // Opt-out only: the TICK reports, the untick does not -- absence means displayed.
+        if (value && !_state.value.hideAge) report(ProfileAnalytics.ageDisplayOptedOut())
+        _state.update { it.copy(hideAge = value) }
+    }
+
+    /**
+     * Continue refused on the date step. Only an INCOMPLETE date reports here: an impossible or
+     * under-18 date already reported on the way into that state, and the press adds nothing.
+     */
+    fun dobRefused(result: DobResult) {
+        markDobAttempted()
+        if (result == DobResult.Incomplete) {
+            report(ProfileAnalytics.formValidationFailed(ProfileField.AGE, ProfileScreen.Dob, BasicsStep.Dob))
+        }
+    }
     fun markDobAttempted() = _state.update { it.copy(dobAttempted = true) }
     fun clearDob() = _state.update { it.copy(dob = "", dobAttempted = false) }
 
@@ -124,7 +261,12 @@ class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
      * arriving at the code screen — which is also what stops a relaunch from silently issuing a
      * new code while the one in the user's inbox is still good.
      */
-    fun sendCode(onSent: () -> Unit = {}) {
+    fun sendCode(onSent: () -> Unit = {}) = send(resend = false, onSent = onSent)
+
+    /** `Send a new code` on the code screen -- the same send, reported as a resend. */
+    fun resendCode() = send(resend = true, onSent = {})
+
+    private fun send(resend: Boolean, onSent: () -> Unit) {
         if (_state.value.busy) return
         _state.update { it.copy(busy = true, transportFailed = false, emailInUse = false) }
         viewModelScope.launch {
@@ -142,6 +284,16 @@ class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
                         )
                     }
                     startTicker()
+                    // Reported on DELIVERY, not on the press: a press the server refused or the
+                    // network lost sent nothing, and a retry would otherwise count twice.
+                    if (resend) {
+                        resends += 1
+                        report(ProfileAnalytics.emailCodeResent(resends))
+                    } else {
+                        // The domain only -- never the address.
+                        report(ProfileAnalytics.emailSubmitted(_state.value.email.substringAfterLast('@').trim().lowercase()))
+                        report(ProfileAnalytics.stepCompleted(BasicsStep.Email, secondsOn(BasicsStep.Email)))
+                    }
                     onSent()
                 }
                 // The server refused because its own cooldown has not elapsed. The client's
@@ -159,10 +311,18 @@ class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
         val s = _state.value
         if (s.busy || !canSubmitCode(s.codeDigits, s.failure(now()))) return
         _state.update { it.copy(busy = true, transportFailed = false) }
+        // Which attempt at THIS code -- the count a new send resets, and the server caps.
+        val attemptNo = s.attempts + 1
         viewModelScope.launch {
-            when (repo.verifyCode(_state.value.codeDigits)) {
+            val result = repo.verifyCode(_state.value.codeDigits)
+            // A verdict either way; a transport failure is no verdict and reports nothing.
+            if (result !is VerifyCodeResult.Failed) {
+                report(ProfileAnalytics.emailCodeSubmitted(attemptNo, passed = result == VerifyCodeResult.Verified))
+            }
+            when (result) {
                 VerifyCodeResult.Verified -> {
                     _state.update { it.copy(busy = false, lastSubmitRefused = false) }
+                    report(ProfileAnalytics.stepCompleted(BasicsStep.EmailVerify, secondsOn(BasicsStep.EmailVerify)))
                     onVerified()
                 }
                 VerifyCodeResult.Refused -> _state.update {
@@ -209,13 +369,20 @@ class BasicsViewModel(private val repo: BasicsRepository) : ViewModel() {
     }
 
     /** Writes the date and the visibility choice together. Only a valid, 18+ date gets here. */
-    fun saveDateOfBirth(iso: String, onSaved: () -> Unit) {
+    /**
+     * @param age whole years, as the screen computed it -- reported on `dob_submitted` when the
+     *   server's answer carries none.
+     */
+    fun saveDateOfBirth(iso: String, age: Int, onSaved: () -> Unit) {
         if (_state.value.busy) return
         _state.update { it.copy(busy = true, transportFailed = false, serverRejectedAge = false) }
         viewModelScope.launch {
-            when (repo.saveDateOfBirth(iso, _state.value.hideAge)) {
+            when (val result = repo.saveDateOfBirth(iso, _state.value.hideAge)) {
                 is SaveBasicsResult.Saved -> {
                     _state.update { it.copy(busy = false) }
+                    // The conversion, with the age the server computed and stored.
+                    report(ProfileAnalytics.dobSubmitted(result.age ?: age))
+                    report(ProfileAnalytics.stepCompleted(BasicsStep.Dob, secondsOn(BasicsStep.Dob)))
                     onSaved()
                 }
                 SaveBasicsResult.UnderAge ->
