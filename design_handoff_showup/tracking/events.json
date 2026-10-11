@@ -1,8 +1,8 @@
 {
   "taxonomy_version": "1.4.6",
-  "reconciled_against": "loveiqhq/showup main @ c195089",
-  "generated": "2026-09-25",
-  "event_count": 297,
+  "reconciled_against": "loveiqhq/showup development @ cbfd9d1",
+  "generated": "2026-10-11",
+  "event_count": 298,
   "changed_in_1_4_6": [
     "Profile 12 (location ask), 5 Oct 2026: permission_prompted / permission_os_sheet_shown / permission_result triggers name the location case.",
     "permission_denied_recovery_shown — NEW optional payload reason (enums.json §26), required when type is location.",
@@ -460,7 +460,8 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Submitted code is wrong; attempt is the 1-based try count within the session",
-          "implemented": true
+          "implemented": false,
+          "code_delta": "Not fired since commit 256b420 (10 Sep 2026), when code verification moved to the server: the builder remains on both platforms, no call site does. Re-add the call on a refused code, or retire the event."
         },
         {
           "name": "connect_provider_tapped",
@@ -986,7 +987,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "User starts basic details intake",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "name_submitted",
@@ -1002,7 +1003,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "First name form submitted",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "email_submitted",
@@ -1018,7 +1019,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Email address form submitted",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "email_validation_failed",
@@ -1034,7 +1035,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Client/API rejects email string",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "email_code_sent",
@@ -1066,7 +1067,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "User requests secondary email code",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "email_code_submitted",
@@ -1086,7 +1087,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Email verification code entered",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "dob_submitted",
@@ -1102,7 +1103,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "Date of birth submitted — the conversion signal for the step. A refused Continue (no date entered) fires form_validation_failed rule:\"required_missing\"; the inline age-confirm card itself is no longer tracked v1.1 had age_confirm_shown / age_confirm_accepted",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "dob_validation_failed",
@@ -1118,7 +1119,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Invalid date entered in DOB screen",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "age_gate_failed",
@@ -1134,7 +1135,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "System calculates age < 18",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "embrace_bridge_viewed",
@@ -1150,7 +1151,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Bridge view displayed",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "profile_step_viewed",
@@ -1170,7 +1171,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Specific profile step screen rendered",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "profile_step_completed",
@@ -1199,7 +1200,7 @@
           "backend_status": "Client only",
           "required_payload": "step_id and time_on_step_s, always. prompt_count only on step_id: \"prompts\" — and required there (v1.4.1).",
           "trigger": "Step form validated and submitted",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "profile_step_skipped",
@@ -1235,7 +1236,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Optional step bypassed via the \"Skip\" CTA. On the Media screen, Skip sits beside an always-enabled Continue and the step carries two ids (media_video, media_voice) for one screen, so step_id says which card the skip is recorded against and screen_id says where it happened.",
-          "implemented": false,
+          "implemented": true,
           "required_payload": "step_id and screen_id, always. \"Skip\" exists on several optional steps and a skip with no screen reference cannot be funnelled — added in v1.4. has_video / has_voice only on profile_media."
         },
         {
@@ -1286,7 +1287,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Photo slot tapped, or the “Add more” control revealing optional slots 5–6 (action: \"reveal_optional\")",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "photo_added",
@@ -1314,7 +1315,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "Image selected and set in slot",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "photo_removed",
@@ -1334,7 +1335,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "Image deleted from slot",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "photo_reordered",
@@ -1354,7 +1355,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "Photo drag-and-drop position changed",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "photos_minimum_met",
@@ -1374,7 +1375,7 @@
           "sensitivity_class": 0,
           "backend_status": "Partial",
           "trigger": "Minimum required photos (4 of 6) uploaded — fires once, on the first crossing",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_topic_list_opened",
@@ -1394,7 +1395,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The “Browse all 15 topics” control tapped, opening the topic sheet. Read against screen views of the step, this is how often the three suggestions were not enough.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_topic_list_dismissed",
@@ -1422,7 +1423,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The topic sheet closed WITHOUT a topic being picked — the X, the scrim, a swipe-down or the system back gesture. Picking a topic replaces the sheet with the write sheet and fires prompt_topic_selected instead, so this event and that one are mutually exclusive and together they close the browse sheet's funnel: opened (prompt_topic_list_opened) → picked or cancelled. Added 16 Sep 2026: the write sheet had an abandonment event and the browse sheet did not, so a user who opened all fifteen topics and closed the sheet was invisible. Read against prompt_topic_list_opened, a high rate means the fifteen are not the problem the suggestion cards were solving.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_topic_selected",
@@ -1446,7 +1447,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "A topic chosen — a suggestion card on the screen or a row in the browse sheet. The two are deliberately NOT distinguished: entry_point and position were removed on 25 Sep 2026 (taxonomy 1.4.4), because the question is which topics are chosen, not where. DOES NOT FIRE ON EDIT from v1.4.1: reopening a saved prompt is not a fresh choice of topic; prompt_editor_opened{is_edit:true} covers that. THE event that answers which topics people choose, and with selection_index, which one they tried first. topic_id from enums §17.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_editor_opened",
@@ -1470,7 +1471,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The write sheet mounted — on a suggestion card, on a row of the browse sheet, or on the pencil pip of a saved prompt. THIS IS THE EDIT EVENT: is_edit: true is the pencil being tapped, and from v1.4.1 it is the only event an edit fires at open (prompt_topic_selected no longer does). Paired with prompt_saved / prompt_editor_dismissed, this is the per-topic completion rate: how many people open a topic and how many finish it.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_example_dismissed",
@@ -1486,7 +1487,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The worked example hidden with its X. Low volume by design; if it is high, the example is in the way rather than helping.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_char_limit_reached",
@@ -1502,7 +1503,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The answer first reached 160 characters in this editor session. Fires once per session, not per keystroke. Says whether the cap is the right number — it is currently unvalidated.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_saved",
@@ -1534,7 +1535,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Save pressed with a non-empty answer. NEVER send the answer text — length_bucket only (enums §19). prompt_count is the number of prompts the user holds after this save.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_editor_dismissed",
@@ -1566,7 +1567,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The write sheet closed without saving. THE abandonment event this screen is designed against: a user who opened a topic, typed something and left is the drop-off that was previously invisible. had_draft is what separates “changed their mind” from “could not finish”. is_edit (added 25 Sep 2026, replacing entry_point: \"edit\") separates backing out of an edit from abandoning a new prompt.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "prompt_deleted",
@@ -1606,7 +1607,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The first prompt was saved, so the step can be completed — fires once, on the first crossing. The prompts sibling of photos_minimum_met, and the single number that says whether this screen works.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "photo_verification_prompt_shown",
@@ -1710,7 +1711,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The Media screen (\"Show your face\") finishes rendering. has_video / has_voice carry the entry state of BOTH slots, which is what makes every later retake or delete on this screen attributable to a user who already had an artefact — the question the two booleans exist to answer. Fires on every mount, including the return from an accepted recording, so the state change is visible as two consecutive views. Was type: \"voice\"|\"video\" until v1.4: one screen carries both cards, so the screen view is not per medium — the medium belongs on the acts below. The two preview ids record which prompt each empty card displayed, because from v1.4 that is server-ranked rather than fixed (decision 33) — without them the ranking cannot be evaluated against the behaviour it produced.",
-          "implemented": false,
+          "implemented": true,
           "required_payload": "screen_id, has_video, has_voice, and both preview_*_prompt_id + preview_source — every mount. WHAT WAS SHOWN IS NOT DERIVABLE AFTER THE FACT: the ranking changes, so a view that does not record the two prompts it displayed cannot be attributed later."
         },
         {
@@ -1739,7 +1740,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "\"See the prompts\" tapped, opening the prompt list for one medium. Replaces media_inspiration_opened (v1.4): the \"Show me what works\" inspiration sheet was removed from the kit on 16 Sep 2026 and the eleven-prompt list took its place, so topic_id no longer applies — the chosen prompt is carried by media_prompt_selected instead. has_existing separates opening the list with an empty card from reopening it over something already recorded.",
-          "implemented": false,
+          "implemented": true,
           "required_payload": "type is REQUIRED. One screen carries the video card and the voice card, and an event without type cannot be attributed to either."
         },
         {
@@ -1748,7 +1749,7 @@
           "tier": "T2",
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "implemented": false,
+          "implemented": true,
           "name": "media_prompt_selected",
           "payload": [
             {
@@ -1784,7 +1785,7 @@
           "tier": "T2",
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "implemented": false,
+          "implemented": true,
           "name": "media_prompt_list_dismissed",
           "payload": [
             {
@@ -1832,7 +1833,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Video capture actually begins on the recording screen — permission already granted, timer running. Was prompt_id: str until v1.4; renamed media_prompt_id because prompt_id is already the written-prompt key (§6, §17) and the two registries are unrelated. attempt counts takes of the same prompt, starting at 1, so a retake loop is readable without diffing timestamps.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "video_prompt_recorded",
@@ -1864,7 +1865,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "\"Use this clip\" accepted on the review screen — NOT on Stop. Stopping produces a take; accepting produces the artefact, and only this event means the profile gained something. A take that is stopped and then retaken never fires it. The user returns to the Media screen, where the next media_screen_viewed carries has_video: true.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "voice_recording_started",
@@ -1892,7 +1893,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Voice capture actually begins on the recording screen — permission already granted, timer running. Was prompt_id: str until v1.4; renamed media_prompt_id because prompt_id is already the written-prompt key (§6, §17) and the two registries are unrelated. attempt counts takes of the same prompt, starting at 1, so a retake loop is readable without diffing timestamps.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "voice_prompt_recorded",
@@ -1924,7 +1925,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "\"Use this recording\" accepted on the review screen — NOT on Stop. Stopping produces a take; accepting produces the artefact, and only this event means the profile gained something. A take that is stopped and then retaken never fires it. The user returns to the Media screen, where the next media_screen_viewed carries has_voice: true.",
-          "implemented": false
+          "implemented": true
         },
         {
           "code_anchor": null,
@@ -1932,7 +1933,7 @@
           "tier": "T2",
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "implemented": false,
+          "implemented": true,
           "name": "media_review_shown",
           "payload": [
             {
@@ -1964,7 +1965,7 @@
           "tier": "T2",
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "implemented": false,
+          "implemented": true,
           "name": "media_preview_played",
           "payload": [
             {
@@ -2060,7 +2061,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Retake tapped — either on the review screen, discarding the take just made, or on a filled card on the Media screen, replacing something already saved to the profile. had_video / had_voice carry what the profile held at that moment, so a retake by a user who already has both media is distinguishable from a first-time loop.",
-          "implemented": false,
+          "implemented": true,
           "required_payload": "type and from are both REQUIRED. from is what separates a discarded draft from a replaced artefact; without it the two collapse into one number that means neither."
         },
         {
@@ -2093,7 +2094,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "Delete tapped on a filled card on the Media screen — the artefact is removed from the profile and the card returns to empty. Deleting is not retaking: there is no replacement take, and collapsing the two would read a user giving up as a user trying again. had_video / had_voice are the state BEFORE the deletion.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "caption_added",
@@ -2155,7 +2156,7 @@
           "sensitivity_class": null,
           "backend_status": "Partial",
           "trigger": "Detail dropdown selected (Values bucketed)",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "detail_skipped",
@@ -2171,7 +2172,7 @@
           "sensitivity_class": null,
           "backend_status": "Partial",
           "trigger": "Attribute field explicitly skipped",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "field_display_opted_out",
@@ -2187,7 +2188,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "“Don't show on my profile” switched on was: opt-out checkbox ticked — opt-out only, no event on untick. Absence for a field_id = displayed, so this answers which fields people hide but never how many hide it right now — that reads off the hidden_fields user property (Properties §P3). Nine controls: the seven Share some details screens, plus habits (one switch, fires once for the whole screen) and age on the DoB step v1.2",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "interest_selected",
@@ -2389,7 +2390,7 @@
           "sensitivity_class": 1,
           "backend_status": "Client only",
           "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. From 25 Sep 2026 the notifications case is Stay reachable (Profile 10, profile_reachability): fires on view with type: \"notifications\" when the OS status is not_determined. Profile 09 NO LONGER fires it — 09 raises no sheet any more. Location (from 5 Oct 2026): Profile 12 (profile_location) fires it on view of the ask state with type: \"location\" — never on the denied or services_off states.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "permission_os_sheet_shown",
@@ -2405,7 +2406,7 @@
           "sensitivity_class": 1,
           "backend_status": "Client only",
           "trigger": "System permission dialog triggers. Notifications: raised by Save preferences on Stay reachable (Profile 10), only when the push toggle is on and the status is not_determined — moved from Profile 09 on 25 Sep 2026. Location: raised by 'Allow location access' on Profile 12, type: \"location\".",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "permission_result",
@@ -2425,7 +2426,7 @@
           "sensitivity_class": 1,
           "backend_status": "Client only",
           "trigger": "User responds to OS permission dialog. Location: precise and approximate are both granted, and so is iOS Allow Once / Android Only this time; limited never applies.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "permission_denied_recovery_shown",
@@ -2446,7 +2447,7 @@
           "sensitivity_class": 1,
           "backend_status": "Client only",
           "trigger": "Recovery banner shown after denial. Location: Profile 12's denied and services_off states, with reason.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "permission_settings_opened",
@@ -2462,7 +2463,7 @@
           "sensitivity_class": 1,
           "backend_status": "Client only",
           "trigger": "Deep-link to OS App Settings tapped",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "permission_status_changed",
@@ -2519,7 +2520,7 @@
           "sensitivity_class": 1,
           "backend_status": "Not built",
           "trigger": "A consent toggle changed, in either direction — on:false is the opt-out, on:true the opt-in. TWO PLACES FIRE THIS. (1) The marketing checkbox on the profile Email screen: channel:\"marketing_email\", surface:\"profile_creation\". The address itself is not a consent — it is used for password resets and support replies regardless; the checkbox governs marketing mail alone, so an unchecked box means no marketing, not no email (decision 28). (2) The six Stay reachable toggles: channel is one of the other six values. surface is required on both — a consent record that cannot be traced to where it was given cannot be honoured. MVP (25 Sep 2026): Stay reachable fires this for channel:\"push\" ONLY. An interest checkbox is not a consent and fires channel_interest_changed instead — never consent_changed.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "channel_interest_changed",
@@ -2543,7 +2544,7 @@
           "sensitivity_class": 1,
           "backend_status": "Not built",
           "trigger": "An interest checkbox on Stay reachable (Profile 10) checked or unchecked — every flip, in order. The MVP demand test for channels that do not exist yet. NOT a consent: never fire consent_changed for it, never collect contact data for it, never send on it. The final state is reachability_saved.interest. NEW 25 Sep 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "reachability_saved",
@@ -2567,7 +2568,7 @@
           "sensitivity_class": 1,
           "backend_status": "Not built",
           "trigger": "“Save preferences” tapped and the save confirmed by the server — the state the user actually leaves the screen in, which per-toggle events cannot reconstruct. THE DENOMINATOR-SIDE ROW OF THE DEMAND TEST: share of screen_viewed{profile_reachability} whose reachability_saved.interest contains a channel. Payload changed 25 Sep 2026 for the MVP scope: channels_on, count and has_phone removed (no phone field, one consent channel). Stay reachable has no skip, so profile_step_skipped does not fire here.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "consent_deactivation_confirm_shown",
@@ -2583,7 +2584,7 @@
           "sensitivity_class": 1,
           "backend_status": "Not built",
           "trigger": "Confirmation modal shown for opt-out",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "consent_deactivation_confirmed",
@@ -2599,7 +2600,7 @@
           "sensitivity_class": 1,
           "backend_status": "Not built",
           "trigger": "Opt-out confirmed in dialog",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "consent_deactivation_abandoned",
@@ -2615,7 +2616,7 @@
           "sensitivity_class": 1,
           "backend_status": "Not built",
           "trigger": "Opt-out canceled in dialog",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "concierge_contact_prompt_shown",
@@ -5809,7 +5810,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Fires on the refused action, not on render: the primary CTA was pressed while the screen’s requirement was unmet — Continue under four photos, Continue with no prompt written (field_id: \"prompts\", rule: \"prompts_below_minimum\", v1.4.1), an empty DoB, nothing selected. This is the intent-to-proceed signal for every gated step in profile creation v1.2, and on screens whose CTA is never disabled it is the ONLY record that the user tried.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "error_shown",
@@ -5958,8 +5959,8 @@
       ]
     }
   ],
-  "reconciled_with_code": "ShowUp app + server tracking catalogue, 7 September 2026 (35 events). Names for the built flows follow the code; unbuilt events keep their spec names.",
-  "implemented_count": 35,
-  "code_delta_count": 31,
+  "reconciled_with_code": "Reconciled against both apps' shipped code, 11 October 2026: 88 events implemented -- 80 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names.",
+  "implemented_count": 88,
+  "code_delta_count": 32,
   "screen_identity_note": "Two properties, on purpose. screen_id is the stable machine key and never changes. screen_name is the human label and is what a person searches for in the analytics tool. Only screen_viewed carries both; every other event carries screen_id alone and joins to it. Both values come from the enums.json §11 registry — never typed at a call site."
 }
