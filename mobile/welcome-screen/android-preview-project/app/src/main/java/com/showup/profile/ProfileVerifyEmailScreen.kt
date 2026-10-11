@@ -62,6 +62,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.CodeSlotRow
 import com.showup.designsystem.Fg
@@ -165,6 +166,13 @@ fun ProfileVerifyEmailScreen(
             WashHeadline(
                 parts = listOf("Please verify your " to false, "email" to true, "." to false),
                 fontSize = 32.sp,
+                // The reference's -0.015em, as Email passes it; WashHeadline's default -0.02 sat
+                // tighter than its siblings. The reference's 1.1 LINE HEIGHT is not taken here:
+                // at 360 x 640 with a long address this screen is already full, and the extra
+                // height came out of "Change email address", whose tap area fell to 41.5dp
+                // (ScreenFitTest, 11 October 2026). So 1.05 stays, on Android only -- iOS has no
+                // 360 x 640 and takes the reference's 1.1.
+                letterSpacing = (-0.015).em,
             )
             Spacer(Modifier.height(8.dp))
 
