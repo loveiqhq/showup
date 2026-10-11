@@ -50,6 +50,7 @@ import com.showup.profile.DetailToast
 import com.showup.profile.DetailsUiState
 import com.showup.profile.LOCATION_BOTTOM_TAG
 import com.showup.profile.LOCATION_RADAR_TAG
+import com.showup.profile.locationRowTag
 import com.showup.profile.LocationState
 import com.showup.profile.ProfileChoiceScreen
 import com.showup.profile.ProfileDatingLanguageScreen
@@ -59,6 +60,7 @@ import com.showup.profile.ProfileLocationScreen
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -127,7 +129,11 @@ class DetailsFitTest {
                 if (n.size.height > 0 && !scrolled) lowest = maxOf(lowest, r.bottom)
                 if (n.size.height > 0 && scrolled) inner = maxOf(inner, r.bottom)
                 val tag = n.config.getOrNull(SemanticsProperties.TestTag)
-                tag?.let { tags[it] = r }
+                // PLACED NODES ONLY. Location picks its fit level by composing a candidate per
+                // level and placing just the one that fits; the others stay composed, unplaced, at
+                // the origin. Recording those let a discarded candidate's tag overwrite the drawn
+                // one, and the first test to tag something inside the rows read nonsense.
+                tag?.let { if (n.layoutInfo.isPlaced) tags[it] = r }
                 if (n.config.getOrNull(SemanticsProperties.CollectionItemInfo) != null) rows += r
                 val inside = scrolled || tag == DETAILS_REGION_TAG
                 n.children.forEach { walk(it, inside) }
@@ -344,6 +350,38 @@ class DetailsFitTest {
             if (scale == 2f && tops.max() - tops.min() > 0.5f) println("DIAG location $d @2.0 label wraps: tops $tops")
         }
         println(if (failures.isEmpty()) "OK   location: CTA same Y and on screen everywhere" else failures.joinToString("\n"))
+        assertTrue(failures.joinToString("\n"), failures.isEmpty())
+    }
+
+    /**
+     * Philipp, 8 October 2026: the map pin sat a line below "We pick a fair halfway venue for you
+     * both", centred on the title AND its grey sub-line, and the three paragraphs were unevenly
+     * spaced. Every pip is now centred on its own title, and the gap between paragraphs is the same
+     * -- held here on every phone at every type size, not just the frame it was fixed on.
+     */
+    @Test
+    fun `location's pips sit level with their titles, and its three paragraphs are evenly spaced`() {
+        val failures = mutableListOf<String>()
+        for (d in DEVICES) for (scale in SCALES) {
+            val s = shoot(d.width, d.safeHeight, scale) { ProfileLocationScreen(LocationState.Ask) }
+            val pips = (0..2).map { s.tag(locationRowTag(it, "pip")) }
+            val titles = (0..2).map { s.tag(locationRowTag(it, "title")) }
+            val sub = s.tag(locationRowTag(1, "sub"))
+            for (i in 0..2) {
+                val off = abs((pips[i].top + pips[i].bottom) / 2 - (titles[i].top + titles[i].bottom) / 2)
+                if (off > 0.5f) failures += "$d @$scale  row ${i + 1}: pip centre is $off off its title's"
+            }
+            val gapAboveRow2 = titles[1].top - titles[0].bottom
+            val gapAboveRow3 = titles[2].top - sub.bottom
+            if (abs(gapAboveRow2 - gapAboveRow3) > 0.5f) {
+                failures += "$d @$scale  paragraph gaps differ: $gapAboveRow2 above row 2, $gapAboveRow3 above row 3"
+            }
+            // Taking no height must never mean overlapping: each pip clears the next.
+            for (i in 0..1) {
+                if (pips[i + 1].top - pips[i].bottom < 4f) failures += "$d @$scale  pips ${i + 1} and ${i + 2} crowd"
+            }
+        }
+        println(if (failures.isEmpty()) "OK   location: pips level with titles, paragraphs evenly spaced" else failures.joinToString("\n"))
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
 

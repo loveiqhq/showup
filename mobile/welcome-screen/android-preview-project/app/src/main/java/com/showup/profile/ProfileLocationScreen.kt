@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
@@ -106,6 +107,9 @@ internal const val LOCATION_PRIMARY_TAG = "location-primary"
 internal const val LOCATION_BOTTOM_TAG = "location-bottom"
 internal const val LOCATION_CONTENT_TAG = "location-content"
 internal const val LOCATION_RADAR_TAG = "location-radar"
+
+/** A benefit row's parts, for the fit test that holds each pip level with its title. */
+internal fun locationRowTag(index: Int, part: String) = "location-row-$index-$part"
 
 /**
  * Every string on the screen, verbatim from the ticket -- the Android column of its platform table.
@@ -292,11 +296,18 @@ private fun LocationColumn(state: LocationState, fit: LocationFit) {
 
         if (state == LocationState.Ask) {
             // Body block 4, rows 22 below it.
+            //
+            // THE GAP IS BETWEEN PARAGRAPHS, NOT BETWEEN PIPS (Philipp, 8 October 2026). The pip
+            // no longer sets a row's height (see BenefitRow), so the reference's gap -- which sat
+            // between 40-tall rows -- is widened by the overhang a one-line row used to add. All
+            // three paragraphs now sit the same distance apart: the larger of the two gaps the
+            // reference produced. The bottom padding keeps row 3's overhanging pip as far from the
+            // privacy note as it was.
             Column(
-                Modifier.padding(top = Spacing.xs + 22.dp),
-                verticalArrangement = Arrangement.spacedBy(fit.rowGap),
+                Modifier.padding(top = Spacing.xs + 22.dp, bottom = PipOverhang),
+                verticalArrangement = Arrangement.spacedBy(fit.rowGap + PipOverhang),
             ) {
-                LOCATION_BENEFITS.forEach { BenefitRow(it) }
+                LOCATION_BENEFITS.forEachIndexed { index, benefit -> BenefitRow(index, benefit) }
             }
             PrivacyNote(Modifier.padding(top = 22.dp))
         } else {
@@ -323,44 +334,73 @@ private fun recoveryBody(state: LocationState) = buildAnnotatedString {
     }
 }
 
+/** The lilac pip's side, and the gap between it and the title. */
+private val Pip = 40.dp
+private val PipGap = 14.dp
+
+/**
+ * How far a pip reaches past a ONE-line title, above and below: the pip is 40, a title line is
+ * 17 x 1.25. A two-line title is taller than the pip, and then nothing overhangs.
+ */
+private val PipOverhang = (Pip - (17f * 1.25f).dp) / 2
+
 /**
  * One benefit row. ONE GROUP for a screen reader -- title and sub read together -- and the pip is
- * decorative. Centre-aligned, unlike 09's top-aligned rows: the reference sets `alignItems: center`.
+ * decorative.
+ *
+ * THE PIP IS CENTRED ON THE TITLE, NOT ON THE ROW (Philipp, 8 October 2026). The reference sets
+ * `alignItems: center` on the whole row, which on row 2 -- the only one with a sub-line -- put the
+ * map pin halfway down the grey text, a line below the bold title it belongs to. Now the pip sits
+ * level with the title on every row, and the sub-line runs beneath the title, aligned to its text.
+ *
+ * And the pip TAKES NO HEIGHT: the title sets the row. A 40-tall pip beside a 21-tall one-line
+ * title used to add invisible space above and below that row, so the paragraphs sat unevenly apart
+ * (15 above row 2 and 25 above row 3 in Philipp's screenshot). With the text setting the height,
+ * the gap the column puts between rows is the gap the eye sees between paragraphs.
  */
 @Composable
-private fun BenefitRow(benefit: LocationBenefit) {
-    Row(
-        Modifier.semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(LilacWash)
-                .clearAndSetSemantics {},
-            contentAlignment = Alignment.Center,
+private fun BenefitRow(index: Int, benefit: LocationBenefit) {
+    Column(Modifier.semantics(mergeDescendants = true) {}) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(PipGap),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(benefit.icon, IconSizes.sm, tint = Purple, strokeWidth = 1.8f)
-        }
-        Column(Modifier.weight(1f)) {
+            Box(
+                Modifier
+                    // Measured at its full 40, reported as no height, drawn centred on the point
+                    // the row aligns it to -- the middle of the title.
+                    .layout { measurable, constraints ->
+                        val pip = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                        layout(pip.width, 0) { pip.place(0, -pip.height / 2) }
+                    }
+                    // Inside the zero-height report, so the tag measures the pip as drawn.
+                    .testTag(locationRowTag(index, "pip"))
+                    .size(Pip)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(LilacWash)
+                    .clearAndSetSemantics {},
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(benefit.icon, IconSizes.sm, tint = Purple, strokeWidth = 1.8f)
+            }
             // Lora 700 / 17 / 1.25, -0.005em, `text-wrap: balance`.
             WashHeadline(
                 parts = listOf(benefit.title to false),
                 fontSize = 17.sp,
+                modifier = Modifier.weight(1f).testTag(locationRowTag(index, "title")),
                 lineHeight = (17f * 1.25f).sp,
                 letterSpacing = (-0.005).em,
                 balance = true,
             )
-            if (benefit.sub != null) {
-                Text(
-                    benefit.sub,
-                    modifier = Modifier.padding(top = 3.dp),
-                    color = SubLine, fontFamily = Manrope, fontWeight = FontWeight.Normal,
-                    fontSize = 13.5.sp, lineHeight = (13.5f * 1.35f).sp,
-                )
-            }
+        }
+        if (benefit.sub != null) {
+            Text(
+                benefit.sub,
+                // Under the title's text, not under the pip.
+                modifier = Modifier.padding(start = Pip + PipGap, top = 3.dp).testTag(locationRowTag(index, "sub")),
+                color = SubLine, fontFamily = Manrope, fontWeight = FontWeight.Normal,
+                fontSize = 13.5.sp, lineHeight = (13.5f * 1.35f).sp,
+            )
         }
     }
 }
