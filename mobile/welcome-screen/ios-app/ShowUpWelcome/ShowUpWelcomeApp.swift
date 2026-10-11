@@ -768,7 +768,11 @@ private struct TutorialFlow: View {
         // basics: the name and email come from the account, as on a relaunch.
         if target.devSection == .basics, let progress = await progressRepo.fetch() {
             if firstName.isEmpty { firstName = progress.displayName ?? "" }
-            if basics.email.isEmpty { basics.email = progress.email ?? "" }
+            // Both copies, as the resume sets them: the field reads `email`, the send `basics.email`.
+            if email.isEmpty {
+                email = progress.email ?? ""
+                basics.email = email
+            }
         }
     }
     #endif
@@ -1036,6 +1040,10 @@ private struct TutorialFlow: View {
             guard screen == .signUp else { return }
             // Everything already entered, still present.
             firstName = progress.displayName ?? ""
+            // BOTH copies: the email field reads the scene-stored `email`, the code send reads
+            // `basics.email`. Until 11 October 2026 only the second was set, so a resume onto the
+            // email step showed an empty field on iOS while Android filled it.
+            email = progress.email ?? ""
             basics.email = progress.email ?? ""
             switch resumePoint(progress) {
             case .name: go(to: .profileName)

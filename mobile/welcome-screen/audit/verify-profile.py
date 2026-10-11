@@ -1978,6 +1978,8 @@ check("session ended: only a refusal clears (swift)",
       and "onSessionEnded()" in sw_refused.group(1))
 check("session ended: a clean restart (kotlin)", "FLAG_ACTIVITY_CLEAR_TASK" in app_kt)
 check("session ended: a clean restart (swift)", ".id(epoch)" in app_sw)
+# The resume fills the email FIELD on iOS too: it reads the scene-stored `email`, not `basics.email`.
+check("resume fills the email field (swift)", 'email = progress.email ?? ""' in app_sw)
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)
