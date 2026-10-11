@@ -202,7 +202,9 @@ final class MediaRulesTests: XCTestCase {
     /// being waited for never happens, and then the assertion after it says so.
     private func settle(until condition: () -> Bool, timeout: Duration = .seconds(5)) async {
         let deadline = ContinuousClock.now + timeout
-        while !condition(), ContinuousClock.now < deadline {
+        // Stops on cancellation too: a cancelled sleep throws at once, and without the check the
+        // loop would spin on the main actor until the deadline.
+        while !condition(), ContinuousClock.now < deadline, !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(10))
         }
     }
