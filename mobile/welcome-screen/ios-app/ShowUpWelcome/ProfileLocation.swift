@@ -116,10 +116,15 @@ struct ProfileLocationView: View {
                 .padding(.top, state == .ask ? Spacing.xl : 56)
 
             if state == .ask {
-                VStack(alignment: .leading, spacing: fit.rowGap) {
+                // THE GAP IS BETWEEN PARAGRAPHS, NOT BETWEEN PIPS (Philipp, 8 October 2026). The
+                // pip no longer sets a row's height (see LocationBenefitRow), so the reference's gap
+                // is widened by the overhang a one-line row used to add: all three paragraphs sit
+                // the same distance apart. The bottom padding keeps row 3's pip clear of the note.
+                VStack(alignment: .leading, spacing: fit.rowGap + LocationBenefitRow.pipOverhang) {
                     ForEach(locationBenefits) { LocationBenefitRow(benefit: $0) }
                 }
                 .padding(.top, Spacing.xs + 22)
+                .padding(.bottom, LocationBenefitRow.pipOverhang)
                 PrivacyNote().padding(.top, 22)
             } else {
                 recoveryBody
@@ -158,34 +163,58 @@ struct ProfileLocationView: View {
 }
 
 /// One benefit row, centre-aligned as the reference sets it. One group for VoiceOver.
+/// One benefit row: the title and its sub-line read as one element; the pip is decorative.
+///
+/// THE PIP IS CENTRED ON THE TITLE, NOT ON THE ROW (Philipp, 8 October 2026). The reference sets
+/// `alignItems: center` on the whole row, which on row 2 — the only one with a sub-line — put the
+/// map pin halfway down the grey text, a line below the bold title it belongs to. Now the pip sits
+/// level with the title on every row, and the sub-line runs beneath the title, aligned to its text.
+///
+/// And the pip TAKES NO HEIGHT: the title sets the row. A 40-tall pip beside a 21-tall one-line
+/// title used to add invisible space above and below that row, so the paragraphs sat unevenly
+/// apart. With the text setting the height, the stack's spacing is the gap the eye sees.
 private struct LocationBenefitRow: View {
     let benefit: LocationBenefit
 
-    var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Gradients.lilac())
-                BrandIconView(icon: benefit.icon, size: IconSizes.sm, stroke: 1.8, tint: .liqPurple)
-            }
-            .frame(width: 40, height: 40)
-            .accessibilityHidden(true)
+    static let pip: CGFloat = 40
+    static let pipGap: CGFloat = 14
+    /// How far a pip reaches past a ONE-line title, above and below: the pip is 40, a title line is
+    /// 17 x 1.25. A two-line title is taller than the pip, and then nothing overhangs.
+    static let pipOverhang: CGFloat = (pip - 17 * 1.25) / 2
 
-            VStack(alignment: .leading, spacing: 0) {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: Self.pipGap) {
+                // A zero-height slot the stack centres on the title; the pip hangs from it at its
+                // full size, overflowing the slot rather than setting the row's height.
+                Color.clear
+                    .frame(width: Self.pip, height: 0)
+                    .overlay {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Gradients.lilac())
+                            BrandIconView(icon: benefit.icon, size: IconSizes.sm, stroke: 1.8, tint: .liqPurple)
+                        }
+                        .frame(width: Self.pip, height: Self.pip)
+                    }
+                    .accessibilityHidden(true)
+
                 // Lora 700 / 17 / 1.25, -0.005em, `text-wrap: balance`.
                 WashHeadline(parts: [(benefit.title, false)], fontSize: 17, lineHeightMultiple: 1.25,
                              trackingEm: -0.005, balance: true)
-                if let sub = benefit.sub {
-                    Text(sub)
-                        // 400 in the reference; the bundle carries no Regular cut, so this resolves
-                        // to Medium, as Compose's nearest-weight match does on Android.
-                        .font(F.manrope(13.5, .regular))
-                        .lineSpacing(13.5 * 0.35)
-                        // `rgba(0,0,0,0.62)` in the reference, carried as the warm ink at the same
-                        // weight — "no pure black" is a brand rule.
-                        .foregroundColor(.liqMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 3)
-                }
+            }
+            if let sub = benefit.sub {
+                Text(sub)
+                    // 400 in the reference; the bundle carries no Regular cut, so this resolves
+                    // to Medium, as Compose's nearest-weight match does on Android.
+                    .font(F.manrope(13.5, .regular))
+                    .lineSpacing(13.5 * 0.35)
+                    // `rgba(0,0,0,0.62)` in the reference, carried as the warm ink at the same
+                    // weight — "no pure black" is a brand rule.
+                    .foregroundColor(.liqMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    // Under the title's text, not under the pip.
+                    .padding(.leading, Self.pip + Self.pipGap)
+                    .padding(.top, 3)
             }
         }
         .accessibilityElement(children: .combine)

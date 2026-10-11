@@ -193,6 +193,22 @@ final class MediaRulesTests: XCTestCase {
         for _ in 0..<times { await Task.yield() }
     }
 
+    /// Waits until `condition` holds, up to a generous bound.
+    ///
+    /// For a result that arrives through several actor hops — an upload confirming — a fixed
+    /// number of yields is a guess, and a loaded CI runner outlasted it: on 11 October 2026 the
+    /// staging run failed `testTheCardFillsOptimisticallyAndConfirms` with the card still in flight,
+    /// while the same commit passed in the run beside it. The bound only matters when the thing
+    /// being waited for never happens, and then the assertion after it says so.
+    private func settle(until condition: () -> Bool, timeout: Duration = .seconds(5)) async {
+        let deadline = ContinuousClock.now + timeout
+        // Stops on cancellation too: a cancelled sleep throws at once, and without the check the
+        // loop would spin on the main actor until the deadline.
+        while !condition(), ContinuousClock.now < deadline, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     /// Records one take to the cap and keeps it. The whole happy path in one helper.
     private func record(_ model: MediaModel, _ kind: MediaKind,
                         promptId: String = prompt) async {
@@ -341,7 +357,7 @@ final class MediaRulesTests: XCTestCase {
         // Filled before anything has been sent -- that is what optimistic means.
         XCTAssertNotNil(model.state.video)
 
-        await settle()
+        await settle(until: { model.state.video?.status == .confirmed })
         XCTAssertEqual(.confirmed, model.state.video?.status)
         XCTAssertEqual("remote-1", model.state.video?.remoteId)
     }
