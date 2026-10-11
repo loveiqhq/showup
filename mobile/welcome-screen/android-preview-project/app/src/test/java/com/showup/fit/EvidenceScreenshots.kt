@@ -57,6 +57,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import java.util.concurrent.TimeUnit
 import com.showup.profile.CameraAccess
+import com.showup.profile.LocationState
+import com.showup.profile.ProfileLocationScreen
 import com.showup.profile.LibraryAccess
 import com.showup.profile.PhotoGridState
 import com.showup.profile.PickedPhoto
@@ -319,6 +321,19 @@ class EvidenceScreenshots {
      * pictures are what found them, and the Definition of Done ends with somebody looking at the
      * screen for exactly this reason. These are the frames to look at.
      */
+    /**
+     * Location's state A (SHOWUP-165), after Philipp's 8 October change to the benefit rows: each
+     * pip level with its bold title, the three paragraphs evenly spaced. The ticket frames, and the
+     * narrowest phone at the largest system font, where a layout change bites first.
+     */
+    @Test
+    fun `location's benefit rows, at the ticket frames and the tight case`() {
+        shoot("165", "location-ask") { ProfileLocationScreen(LocationState.Ask) }
+        shoot("TIGHT", "location-ask", fontScale = 2f, devices = listOf(DEVICES.first { it.width == 320 })) {
+            ProfileLocationScreen(LocationState.Ask)
+        }
+    }
+
     @Test
     fun `the tight states, at the narrowest phone and the largest system font`() {
         val tight = listOf(DEVICES.first { it.width == 320 })
