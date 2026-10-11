@@ -67,6 +67,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.ProfileVisibility
 import com.showup.designsystem.Fg
@@ -202,6 +203,10 @@ fun ProfileDobScreen(
             WashHeadline(
                 parts = listOf("What's your " to false, "date of birth" to true, "?" to false),
                 fontSize = 32.sp,
+                // The reference's 1.1 and -0.015em, as Email passes them -- left to WashHeadline's
+                // defaults (1.05, -0.02), this headline sat tighter than its siblings.
+                lineHeight = (32f * 1.1f).sp,
+                letterSpacing = (-0.015).em,
             )
             Spacer(Modifier.height(8.dp))
             Text(
