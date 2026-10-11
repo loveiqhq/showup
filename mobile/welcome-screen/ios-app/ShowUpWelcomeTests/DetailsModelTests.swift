@@ -129,6 +129,22 @@ final class DetailsModelTests: XCTestCase {
         XCTAssertEqual(analytics.of("embrace_bridge_viewed")[0]["variant"] as? String, "add_details")
     }
 
+    func testAJumpAwayAndBackOntoTheSameStepArrivesAgainAsDoesTheBridge() async {
+        // The developer menu leaves by a route the walk never takes. Without `leftElsewhere`, the
+        // second arrival looked like a redraw of a step never left, and did nothing at all.
+        await arrive(.gender)
+        model.embraceArrived(referrer: .location, pop: false)
+        let before = analytics.names.count
+
+        model.leftElsewhere()
+        await arrive(.gender)
+        model.embraceArrived(referrer: .location, pop: false)
+
+        let after = Array(analytics.names.dropFirst(before))
+        XCTAssertEqual(after.filter { $0 == "profile_step_viewed" }.count, 1)
+        XCTAssertEqual(after.filter { $0 == "embrace_bridge_viewed" }.count, 1)
+    }
+
     func testABackPopOntoEmbrace2FiresScreenViewedThereAndNothingElse() {
         model.embraceArrived(referrer: .height, pop: true)
         XCTAssertEqual(analytics.names, ["screen_viewed"])

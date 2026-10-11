@@ -66,6 +66,14 @@ open class NotificationsViewModel(
      * "does not fire when the screen is skipped because the OS status is already determined". The
      * skip cases never construct this, so the guarantee is structural rather than a condition.
      */
+    /**
+     * The screen was left by a route the walk does not take -- a developer-menu jump. The next
+     * showing is a new view and reports again. The walk never needs this: it passes 09 once.
+     */
+    fun left() {
+        announced = false
+    }
+
     fun arrived() {
         if (announced) return
         announced = true

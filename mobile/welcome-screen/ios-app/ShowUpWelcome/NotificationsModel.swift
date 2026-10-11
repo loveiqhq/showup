@@ -60,6 +60,10 @@ final class NotificationsModel {
     /// "From 25 Sep 2026 the notifications case is Stay reachable (Profile 10) ... Profile 09 NO
     /// LONGER fires it — 09 raises no sheet any more." A pre-permission event on a screen that
     /// pre-permissions nothing would double-count the ask against Stay reachable's own.
+    /// The screen was left by a route the walk does not take — a developer-menu jump. The next
+    /// showing is a new view and reports again. The walk never needs this: it passes 09 once.
+    func left() { announced = false }
+
     func arrived() {
         guard !announced else { return }
         announced = true

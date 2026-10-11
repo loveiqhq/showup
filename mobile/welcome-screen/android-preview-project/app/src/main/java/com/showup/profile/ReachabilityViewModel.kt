@@ -128,6 +128,14 @@ open class ReachabilityViewModel(
      * ON and is forced OFF only when the OS has already said no: an opt-out cannot default to a
      * state the system will not honour.
      */
+    /**
+     * The screen was left by a route the walk does not take -- a developer-menu jump. The next
+     * showing is a new view and reports again. The walk never needs this: it passes 10 once.
+     */
+    fun left() {
+        announced = false
+    }
+
     fun arrived(referrer: ProfileScreen? = ProfileScreen.Notifications) {
         val status = access.read()
         _state.update { it.copy(pushOn = status != PermissionStatus.Denied &&

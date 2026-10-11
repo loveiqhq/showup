@@ -131,9 +131,13 @@ struct SignUpFlowView: View {
          onOpenLegal: @escaping (String) -> Void = { _ in },
          epoch: Int = 0,
          sessionEnded: Bool = false,
-         onSessionNoticeDismissed: @escaping () -> Void = {}) {
+         onSessionNoticeDismissed: @escaping () -> Void = {},
+         analytics: any AnalyticsTracking = NoOpAnalytics()) {
         self.remembered = remembered
         self.onFinished = onFinished
+        // Missing from this initialiser until 8 October 2026: `analytics` was a stored property
+        // with a default and no parameter, so no caller could hand the flow a tracker at all.
+        self.analytics = analytics
         self.auth = auth
         self.onOpenLegal = onOpenLegal
         self.sessionEnded = sessionEnded

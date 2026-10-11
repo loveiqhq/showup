@@ -180,6 +180,10 @@ final class ReachabilityModel {
     /// `permission_prompted` fires ONLY WHEN THE STATUS IS NOT DETERMINED. The registry qualifies
     /// it that way — this is our own pre-permission surface, and somebody whose answer is already
     /// on file is not being pre-permissioned. It moved here from 09 on 25 September 2026.
+    /// The screen was left by a route the walk does not take — a developer-menu jump. The next
+    /// showing is a new view and reports again. The walk never needs this: it passes 10 once.
+    func left() { announced = false }
+
     func arrived(referrer: ProfileScreen? = .notifications) async {
         let status = await access.read()
         // An opt-out cannot promise what the OS has refused. The arrival matrix: denied and

@@ -16,7 +16,9 @@ public protocol AnalyticsTracking {
     func track(_ event: String, properties: [String: any Sendable])
 }
 
-public struct NoOpAnalytics: AnalyticsTracking {
+/// `Sendable` spelled out: a public struct is not inferred Sendable, and `AppAnalytics` holds one
+/// as its destination in a `static let`.
+public struct NoOpAnalytics: AnalyticsTracking, Sendable {
     public init() {}
     public func track(_ event: String, properties: [String: any Sendable]) {}
 }
