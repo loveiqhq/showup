@@ -202,7 +202,8 @@ open class BasicsRepository(
      * `hiddenFields` REPLACES the whole set, which is safe here because this is profile creation
      * and the set starts empty. A later screen editing one field has to read-modify-write.
      */
-    suspend fun saveDateOfBirth(iso: String, hideAge: Boolean): SaveBasicsResult = runCatching {
+    // Open like `sendCode` and `verifyCode`, so a view model test can script the answer.
+    open suspend fun saveDateOfBirth(iso: String, hideAge: Boolean): SaveBasicsResult = runCatching {
         val response = api.profiles.updateProfile(
             UpsertProfileDto(
                 dateOfBirth = iso,

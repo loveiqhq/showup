@@ -623,4 +623,33 @@ class PhotosUploadStateTest {
         assertTrue(grid().photos.isEmpty())
         assertNull(grid().at(0))
     }
+
+    // ── the screen itself, and the refused Continue (SHOWUP-156, 8 October 2026) ───────
+
+    private fun Recorder.props(name: String) = events.single { it.first == name }.second
+
+    @Test
+    fun `arriving reports the screen and the step`() = runTest(dispatcher) {
+        analytics.events.clear()
+        vm.arrived(ProfileScreen.EmbraceBuild)
+
+        assertEquals(listOf("screen_viewed", "profile_step_viewed"), analytics.names())
+        val view = analytics.props("screen_viewed")
+        assertEquals("profile_photos", view["screen_id"])
+        assertEquals("ProfilePhotos", view["screen_name"])
+        assertEquals("profile_embrace_build", view["referrer_screen_id"])
+        assertEquals("photos", analytics.props("profile_step_viewed")["step_id"])
+    }
+
+    @Test
+    fun `continue below four reports photos_below_minimum on the press`() = runTest(dispatcher) {
+        analytics.events.clear()
+        vm.continueRefused()
+
+        val failed = analytics.props("form_validation_failed")
+        assertEquals("photos", failed["field_id"])
+        assertEquals("photos_below_minimum", failed["rule"])
+        assertEquals("profile_photos", failed["screen_id"])
+        assertEquals("photos", failed["step_id"])
+    }
 }
