@@ -117,6 +117,22 @@ class ProfileDetailsViewModelTest {
     }
 
     @Test
+    fun `a jump away and back onto the same step arrives again, as does the bridge`() = runTest(dispatcher) {
+        // The developer menu leaves by a route the walk never takes. Without `leftElsewhere`, the
+        // second arrival looked like a redraw of a step never left, and did nothing at all.
+        arrive(DetailStep.Gender)
+        model.embraceArrived(ProfileScreen.Location, pop = false)
+        analytics.clear()
+
+        model.leftElsewhere()
+        arrive(DetailStep.Gender)
+        model.embraceArrived(ProfileScreen.Location, pop = false)
+
+        assertEquals(1, analytics.of("profile_step_viewed").size)
+        assertEquals(1, analytics.of("embrace_bridge_viewed").size)
+    }
+
+    @Test
     fun `a back-pop onto embrace 2 fires screen_viewed there and nothing else`() = runTest(dispatcher) {
         model.embraceArrived(ProfileScreen.Height, pop = true)
         assertEquals(listOf("screen_viewed"), analytics.names())
