@@ -197,6 +197,17 @@ open class ProfileDetailsViewModel(
         analytics?.report(ProfileAnalytics.detailStepViewed(step))
     }
 
+    /**
+     * The group was left by a route the walk does not take -- a developer-menu jump. Whatever step
+     * was on screen is left as a back would leave it (its unsaved choice discarded), and the
+     * bridge's next showing reports again. Without this, a jump back onto the same step would be
+     * mistaken for a recomposition of a step never left, and do nothing.
+     */
+    fun leftElsewhere() {
+        leave()
+        embraceAnnounced = false
+    }
+
     /** Height's field. Digits only, at most three, paste included. */
     fun heightChanged(text: String) {
         // Every input, like every press, answers only the step on screen: the outgoing screen

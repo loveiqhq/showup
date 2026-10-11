@@ -141,6 +141,16 @@ final class DetailsModel {
         }
     }
 
+    /// The group was left by a route the walk does not take — a developer-menu jump. Whatever step
+    /// was on screen is left as a back would leave it (its unsaved choice discarded), and the
+    /// bridge's next showing reports again. Without this, a jump back onto the same step would be
+    /// mistaken for a redraw of a step never left, and do nothing.
+    func leftElsewhere() {
+        leave()
+        embraceAnnounced = false
+        write()
+    }
+
     /// `Add profile details`: re-states `location` best-effort, and advances to height.
     func embraceContinue(onAdvance: () -> Void) {
         // Only from a showing of the bridge — a second tap during the exit must not navigate again.

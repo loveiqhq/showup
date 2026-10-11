@@ -188,7 +188,8 @@ private struct TutorialFlow: View {
     // several uploads at once, each of which has to be cancellable on its own.
     @State private var photos = PhotosModel(
         repo: PhotosRepository(api: APIAccess.client),
-        access: SystemPhotoAccess()
+        access: SystemPhotoAccess(),
+        analytics: AppAnalytics.shared
     )
 
     /// Which OS surface is up, if any. Never both, and never one without the source sheet having
@@ -203,7 +204,8 @@ private struct TutorialFlow: View {
     /// send. The model writes through to it on every change.
     @SceneStorage private var promptsStored: String
 
-    @State private var prompts = PromptsModel(repo: PromptsRepository(api: APIAccess.client))
+    @State private var prompts = PromptsModel(repo: PromptsRepository(api: APIAccess.client),
+                                              analytics: AppAnalytics.shared)
 
     /// The media step (SHOWUP-161).
     ///
@@ -216,11 +218,12 @@ private struct TutorialFlow: View {
     /// exists — the skip is decided on the way out of media.
     private let notificationAccess = UNNotificationAccess()
 
-    @State private var notifications = NotificationsModel()
+    @State private var notifications = NotificationsModel(analytics: AppAnalytics.shared)
 
     @State private var reachability = ReachabilityModel(
         // No endpoint for the push consent yet -- see ReachabilityRepository.
-        consent: NoConsentBackend()
+        consent: NoConsentBackend(),
+        analytics: AppAnalytics.shared
     )
 
     /// Held rather than built in `onAppear`: a new host every redraw would be a new object for
@@ -232,7 +235,8 @@ private struct TutorialFlow: View {
         repo: MediaRepository(api: APIAccess.client),
         access: AVMediaAccess(),
         capture: AVMediaCaptureFactory(),
-        player: sharedMediaPlayer
+        player: sharedMediaPlayer,
+        analytics: AppAnalytics.shared
     )
 
     /// Read once per launch to decide where a half-finished profile picks up (flow rule 4a).
@@ -246,14 +250,16 @@ private struct TutorialFlow: View {
     // scene restore mid-step keeps what was picked.
     @State private var details = DetailsModel(
         store: ProfileDetailsRepository(api: APIAccess.client),
-        positions: FlowPositionReporter(api: APIAccess.client)
+        positions: FlowPositionReporter(api: APIAccess.client),
+        analytics: AppAnalytics.shared
     )
     @SceneStorage private var detailsStored: String
     /// Whether Embrace 2's confetti has started for this showing — so a scene restore onto the
     /// bridge does not replay it. Cleared by the push, never by the way out.
     @SceneStorage private var confettiPlayed: Bool
 
-    @State private var location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client))
+    @State private var location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client),
+                                                analytics: AppAnalytics.shared)
     /// Held rather than built in `onAppear`, for the reason `reachabilityHost` gives.
     private let locationHost = AppLocationHost()
     /// Which state 12 opens in — decided by the arrival matrix BEFORE the push.
@@ -697,6 +703,80 @@ private struct TutorialFlow: View {
     /// THREE conditions, each closing a different leak: the nil check keeps it absent when a
     /// server chooses not to expose it, the screen check keeps it off every other screen, and
     /// `showDevStrip` is false in any release build.
+    #if DEBUG
+    // ── the developer menu (debug builds only) ──────────────────────────────
+    //
+    // Jump to any screen, and watch every event as it fires (DevMenu.swift). All of it is inside
+    // `#if DEBUG`, so a release build compiles none of it.
+    @State private var devMenuOpen = false
+    /// For this launch only: hidden so a screenshot for design review is clean.
+    @State private var devTabHidden = false
+    @State private var devFacts: DevMenuFacts?
+
+    @ViewBuilder private var devOverlay: some View {
+        if devMenuOpen {
+            DevMenu(
+                facts: devFacts ?? DevMenuFacts(current: screen, signedIn: nil, notificationsAsk: true,
+                                                location: .show(.ask)),
+                events: EventLog.shared.entries,
+                onJump: { target in
+                    devMenuOpen = false
+                    Task { await jumpFromDevMenu(to: target) }
+                },
+                onClearEvents: { EventLog.shared.clear() },
+                onHideTab: {
+                    devTabHidden = true
+                    devMenuOpen = false
+                },
+                onClose: { devMenuOpen = false }
+            )
+            // Read each time the menu opens: a sign-in or a session end since last time changes
+            // which screens can be reached, and a permission answered changes which are skipped.
+            .task { await readDevFacts() }
+        } else if !devTabHidden {
+            DevTab { devMenuOpen = true }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func readDevFacts() async {
+        let signedIn = await APIAccess.tokens.refreshToken() != nil
+        let notificationStatus = await notificationAccess.read()
+        let locationStatus = await CLLocationAccess().read()
+        devFacts = DevMenuFacts(current: screen, signedIn: signedIn,
+                                notificationsAsk: shouldShowAsk(notificationStatus),
+                                location: locationArrival(locationStatus))
+    }
+
+    /// A jump, through the SAME ways in the walk and the resume use — "behave like real":
+    /// notifications through `afterMedia`'s skip guard, location through its arrival matrix,
+    /// Embrace 2 through its push (which is what may play the confetti).
+    private func jumpFromDevMenu(to target: FlowScreen) async {
+        // Leave whatever is on screen the way the walk would, so the next showing of any screen is
+        // a new view: a jump back onto the same step must arrive again.
+        location.left()
+        details.leftElsewhere()
+        notifications.left()
+        reachability.left()
+        switch target {
+        case .profileNotifications: go(to: await afterMedia())
+        case .profileLocation: await enterLocation()
+        case .profileEmbraceDetails: pushEmbraceDetails()
+        default: go(to: target)
+        }
+        // "Everything already entered, still present" — the resume's rule, for a jump into the
+        // basics: the name and email come from the account, as on a relaunch.
+        if target.devSection == .basics, let progress = await progressRepo.fetch() {
+            if firstName.isEmpty { firstName = progress.displayName ?? "" }
+            // Both copies, as the resume sets them: the field reads `email`, the send `basics.email`.
+            if email.isEmpty {
+                email = progress.email ?? ""
+                basics.email = email
+            }
+        }
+    }
+    #endif
+
     @ViewBuilder private var emailDevStrip: some View {
         if showDevStrip, let devCode = basics.devCode, screen == .profileVerifyEmail {
             HStack(spacing: Spacing.sm) {
@@ -731,23 +811,30 @@ private struct TutorialFlow: View {
                     outcomeRaw = o.storageKey
                     go(to: showsTutorial(o) ? .tutorialWelcome : .home)
                 }, auth: phoneAuth, epoch: epoch, sessionEnded: sessionNotice,
-                   onSessionNoticeDismissed: onSessionNoticeDismissed)
-                case .tutorialWelcome: WelcomeView(onContinue: { go(to: .meetInRealLife) })
-                case .meetInRealLife: MeetInRealLifeView(onNext: { go(to: .matchOnAvailability) })
+                   onSessionNoticeDismissed: onSessionNoticeDismissed,
+                   analytics: AppAnalytics.shared)
+                case .tutorialWelcome:
+                    WelcomeView(onContinue: { go(to: .meetInRealLife) }, analytics: AppAnalytics.shared)
+                case .meetInRealLife:
+                    MeetInRealLifeView(onNext: { go(to: .matchOnAvailability) }, analytics: AppAnalytics.shared)
                 case .matchOnAvailability:
                     MatchOnAvailabilityView(onNext: { go(to: .matchMeansMeet) },
-                                            onBack: { go(to: .meetInRealLife) })
+                                            onBack: { go(to: .meetInRealLife) },
+                                            analytics: AppAnalytics.shared)
                 case .matchMeansMeet:
                     MatchMeansMeetView(onNext: { go(to: .thirtyMinutes) },
-                                       onBack: { go(to: .matchOnAvailability) })
+                                       onBack: { go(to: .matchOnAvailability) },
+                                       analytics: AppAnalytics.shared)
                 case .thirtyMinutes:
                     ThirtyMinutesView(onNext: { go(to: .showUpEveryTime) },
-                                      onBack: { go(to: .matchMeansMeet) })
+                                      onBack: { go(to: .matchMeansMeet) },
+                                      analytics: AppAnalytics.shared)
                 case .showUpEveryTime: ShowUpEveryTimeView(
                     // SHOWUP-146 sent the tutorial's far end straight to the app. Profile creation
                     // now sits between the two, which is the real order.
                     onFinish: { go(to: .profileName) },
-                    onBack: { go(to: .thirtyMinutes) })
+                    onBack: { go(to: .thirtyMinutes) },
+                    analytics: AppAnalytics.shared)
                 // SHOWUP-150. No back: profile creation is mandatory once entered.
                 case .profileName:
                     ProfileNameView(value: $firstName, onContinue: { _ in go(to: .profileEmail) })
@@ -926,6 +1013,10 @@ private struct TutorialFlow: View {
             .transition(transition)
 
             emailDevStrip
+
+            #if DEBUG
+            devOverlay
+            #endif
         }
         // Moving past sign-up ends the notice: it describes why the user is HERE.
         .onChange(of: screenRaw) { _, _ in
@@ -949,6 +1040,10 @@ private struct TutorialFlow: View {
             guard screen == .signUp else { return }
             // Everything already entered, still present.
             firstName = progress.displayName ?? ""
+            // BOTH copies: the email field reads the scene-stored `email`, the code send reads
+            // `basics.email`. Until 11 October 2026 only the second was set, so a resume onto the
+            // email step showed an empty field on iOS while Android filled it.
+            email = progress.email ?? ""
             basics.email = progress.email ?? ""
             switch resumePoint(progress) {
             case .name: go(to: .profileName)

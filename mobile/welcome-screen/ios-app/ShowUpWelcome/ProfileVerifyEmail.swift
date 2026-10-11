@@ -94,7 +94,9 @@ struct ProfileVerifyEmailView: View {
             // the only headline in the group that does, because the user has nothing to decide
             // here, only something to do.
             WashHeadline(parts: [("Please verify your ", false), ("email", true), (".", false)],
-                         fontSize: 32, lineHeightMultiple: 1.1)
+                         fontSize: 32, lineHeightMultiple: 1.1,
+                         // The reference's -0.015em; the default -0.02 sat tighter than Email.
+                         trackingEm: -0.015)
                 .padding(.bottom, 8)
 
             (Text(VerifyEmailCopy.subLead)

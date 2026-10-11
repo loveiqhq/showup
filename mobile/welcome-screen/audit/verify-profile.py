@@ -1978,6 +1978,16 @@ check("session ended: only a refusal clears (swift)",
       and "onSessionEnded()" in sw_refused.group(1))
 check("session ended: a clean restart (kotlin)", "FLAG_ACTIVITY_CLEAR_TASK" in app_kt)
 check("session ended: a clean restart (swift)", ".id(epoch)" in app_sw)
+# The resume fills the email FIELD on iOS too: it reads the scene-stored `email`, not `basics.email`.
+# Scoped to the resume task itself -- the developer menu's jump sets the same thing, and a whole-file
+# search would pass on that alone.
+_resume_start = app_sw.find("guard !resumeChecked else { return }")
+_resume_end = app_sw.find("switch resumePoint(progress)", _resume_start)
+resume_sw = app_sw[_resume_start:_resume_end] if 0 <= _resume_start < _resume_end else ""
+# Anchored to the line start: `basics.email = progress.email` contains the same text, and an
+# unanchored search passed with the field's own assignment deleted.
+check("resume fills the email field (swift)",
+      re.search(r'^\s*email = progress\.email \?\? ""', resume_sw, re.M) is not None)
 
 # ── report ──────────────────────────────────────────────────────────────────
 print("profile creation conformance: %d checks" % count)

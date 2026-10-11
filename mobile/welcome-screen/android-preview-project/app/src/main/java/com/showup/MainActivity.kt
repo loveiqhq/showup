@@ -58,7 +58,14 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import android.app.ActivityOptions
+import com.showup.analytics.AppAnalytics
 import com.showup.api.EncryptedTokenStore
+import com.showup.dev.DevMenu
+import com.showup.dev.DevMenuFacts
+import com.showup.dev.DevSection
+import com.showup.dev.DevTab
+import com.showup.dev.devSection
+import com.showup.profile.locationArrival
 import com.showup.api.SessionEnded
 import com.showup.api.ShowUpApi
 import com.showup.profile.NoConsentBackend
@@ -261,6 +268,7 @@ class MainActivity : ComponentActivity() {
                             repo = PhotosRepository(api),
                             access = AndroidPhotoAccess(context),
                             readBytes = { uri -> readPickedImage(context, uri) },
+                            analytics = AppAnalytics,
                         )
                     }
                 },
@@ -293,6 +301,7 @@ class MainActivity : ComponentActivity() {
                             store = ProfileDetailsRepository(api),
                             positions = positions,
                             handle = createSavedStateHandle(),
+                            analytics = AppAnalytics,
                         )
                     }
                 },
@@ -302,7 +311,9 @@ class MainActivity : ComponentActivity() {
             val locationAccess = remember(context) { AndroidLocationAccess(context) }
             val location: LocationViewModel = viewModel(
                 factory = viewModelFactory {
-                    initializer { LocationViewModel(access = locationAccess, positions = positions) }
+                    initializer {
+                        LocationViewModel(access = locationAccess, positions = positions, analytics = AppAnalytics)
+                    }
                 },
             )
             val locationState by location.state.collectAsStateWithLifecycle()
@@ -356,6 +367,7 @@ class MainActivity : ComponentActivity() {
                         PromptsViewModel(
                             repo = PromptsRepository(api),
                             saved = createSavedStateHandle(),
+                            analytics = AppAnalytics,
                         )
                     }
                 },
@@ -481,9 +493,8 @@ class MainActivity : ComponentActivity() {
                             access = notifications,
                             push = PushRegistration(api),
                             // No endpoint for the push consent yet -- see ReachabilityRepository.
-                            // No sink is wired in this host yet: every profile view model
-                            // here reports to nothing, which is brief Step 2 and its own ticket.
                             consent = NoConsentBackend,
+                            analytics = AppAnalytics,
                         )
                     }
                 },
@@ -495,6 +506,7 @@ class MainActivity : ComponentActivity() {
                         NotificationsViewModel(
                             access = notifications,
                             push = PushRegistration(api),
+                            analytics = AppAnalytics,
                         )
                     }
                 },
@@ -562,6 +574,7 @@ class MainActivity : ComponentActivity() {
                             access = AndroidMediaAccess(context),
                             capture = AndroidMediaCaptureFactory(context) { cameraController },
                             player = mediaPlayer,
+                            analytics = AppAnalytics,
                         )
                     }
                 },
@@ -720,6 +733,56 @@ class MainActivity : ComponentActivity() {
                 screen = FlowScreen.entries[screen.ordinal - 1]
             }
 
+            // ── the developer menu (debug builds only) ──────────────────────
+            //
+            // Jump to any screen, and watch every event as it fires (dev/DevMenu.kt). Everything
+            // that touches it sits behind `BuildConfig.DEBUG`, a compile-time constant, so a
+            // release build carries none of it.
+            var devMenuOpen by rememberSaveable { mutableStateOf(false) }
+            // For this launch only: hidden so a screenshot for design review is clean.
+            var devTabHidden by remember { mutableStateOf(false) }
+            var devSignedIn by remember { mutableStateOf<Boolean?>(null) }
+            val devScope = rememberCoroutineScope()
+            if (BuildConfig.DEBUG) {
+                // Read each time the menu opens: a sign-in or a session end since last time
+                // changes which screens can be reached.
+                LaunchedEffect(devMenuOpen) {
+                    if (devMenuOpen) devSignedIn = tokenStore.refreshToken() != null
+                }
+            }
+
+            /**
+             * A jump, through the SAME ways in the walk and the resume use -- "behave like real":
+             * notifications through `afterMedia`'s skip guard, location through its arrival
+             * matrix, prompts loading what the account holds.
+             */
+            fun devJumpTo(target: FlowScreen) {
+                // Leave whatever is on screen the way the walk would, so the next showing of any
+                // screen is a new view: a jump back onto the same step must arrive again.
+                location.left()
+                details.leftElsewhere()
+                notifyModel.left()
+                reachModel.left()
+                when (target) {
+                    FlowScreen.ProfileNotifications -> goTo(afterMedia())
+                    FlowScreen.ProfileLocation -> enterLocation()
+                    else -> goTo(target)
+                }
+                if (screen == FlowScreen.ProfilePrompts) prompts.load()
+                // "Everything already entered, still present" -- the resume's rule, for a jump
+                // into the basics: the name and email come from the account, as on a relaunch.
+                if (target.devSection() == DevSection.Basics) {
+                    devScope.launch {
+                        val progress = progressRepo.fetch() ?: return@launch
+                        if (firstName.isEmpty()) firstName = progress.displayName.orEmpty()
+                        if (email.isEmpty()) {
+                            email = progress.email.orEmpty()
+                            basics.setEmail(email)
+                        }
+                    }
+                }
+            }
+
             // Moving past sign-up ends the notice: it describes why the user is HERE.
             LaunchedEffect(screen) { if (screen != FlowScreen.SignUp) sessionNotice = false }
 
@@ -764,6 +827,7 @@ class MainActivity : ComponentActivity() {
                     // account, straight into the app for a returning member.
                     FlowScreen.SignUp -> SignUpFlow(
                         auth = phoneAuth,
+                        analytics = AppAnalytics,
                         onFinished = {
                             outcome = it
                             screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
@@ -772,26 +836,30 @@ class MainActivity : ComponentActivity() {
                         onSessionNoticeDismissed = { sessionNotice = false },
                     )
                     FlowScreen.TutorialWelcome ->
-                        WelcomeScreen(onContinue = { screen = FlowScreen.MeetInRealLife })
+                        WelcomeScreen(onContinue = { screen = FlowScreen.MeetInRealLife }, analytics = AppAnalytics)
                     FlowScreen.MeetInRealLife ->
-                        MeetInRealLifeScreen(onNext = { screen = FlowScreen.MatchOnAvailability })
+                        MeetInRealLifeScreen(onNext = { screen = FlowScreen.MatchOnAvailability }, analytics = AppAnalytics)
                     FlowScreen.MatchOnAvailability -> MatchOnAvailabilityScreen(
                         onNext = { screen = FlowScreen.MatchMeansMeet },
                         onBack = { screen = FlowScreen.MeetInRealLife },
+                        analytics = AppAnalytics,
                     )
                     FlowScreen.MatchMeansMeet -> MatchMeansMeetScreen(
                         onNext = { screen = FlowScreen.ThirtyMinutes },
                         onBack = { screen = FlowScreen.MatchOnAvailability },
+                        analytics = AppAnalytics,
                     )
                     FlowScreen.ThirtyMinutes -> ThirtyMinutesScreen(
                         onNext = { screen = FlowScreen.ShowUpEveryTime },
                         onBack = { screen = FlowScreen.MatchMeansMeet },
+                        analytics = AppAnalytics,
                     )
                     FlowScreen.ShowUpEveryTime -> ShowUpEveryTimeScreen(
                         // SHOWUP-146 sent the tutorial's far end straight to the app. Profile
                         // creation now sits between the two, which is the real order.
                         onFinish = { screen = FlowScreen.ProfileName },
                         onBack = { screen = FlowScreen.ThirtyMinutes },
+                        analytics = AppAnalytics,
                     )
                     // SHOWUP-150. No back: profile creation is mandatory once entered, and the
                     // screen swallows the system gesture itself.
@@ -1413,6 +1481,35 @@ class MainActivity : ComponentActivity() {
                         color = Color.White, fontFamily = Manrope,
                         fontWeight = FontWeight.Medium, fontSize = 11.sp,
                     )
+                }
+            }
+
+            if (BuildConfig.DEBUG) {
+                if (!devTabHidden && !devMenuOpen) DevTab(onOpen = { devMenuOpen = true })
+                if (devMenuOpen) {
+                    val devEvents by AppAnalytics.log.entries.collectAsStateWithLifecycle()
+                    DevMenu(
+                        facts = DevMenuFacts(
+                            current = screen,
+                            signedIn = devSignedIn,
+                            notificationsAsk = shouldShowAsk(notifications.read()),
+                            oldAndroid = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU,
+                            location = locationArrival(locationAccess.read()),
+                        ),
+                        events = devEvents,
+                        onJump = {
+                            devMenuOpen = false
+                            devJumpTo(it)
+                        },
+                        onClearEvents = AppAnalytics.log::clear,
+                        onHideTab = {
+                            devTabHidden = true
+                            devMenuOpen = false
+                        },
+                        onClose = { devMenuOpen = false },
+                    )
+                    // Back closes the menu, never the screen under it.
+                    BackHandler { devMenuOpen = false }
                 }
             }
             }
