@@ -21,6 +21,7 @@ profile/
   screen-education-reference.jsx   ← screen 18, education — consumes OptionRow, builds nothing
   screen-religion-reference.jsx    ← screen 19, religion — consumes OptionRow, builds nothing, list scrolls on every device
   screen-politics-reference.jsx    ← screen 20, politics — consumes OptionRow, builds nothing, linear order
+  screen-interests-reference.jsx   ← screen 21, interests — own column (not DetailsScaffold), builds InterestChip + counter, no visibility band
   tickets/00-epic.md               ← the epic: flow shape, story list, what is built once
   tickets/01-name.md               ← scope, copy strings, AC
   spec-sheets/01-name.png          ← annotated visual spec, keyed ①–⑮
@@ -39,6 +40,7 @@ profile/
   spec-sheets/18-education.png     ← keyed ①–⑱, 2 frames, no refused state, one violet exception callout
   spec-sheets/19-religion.png      ← keyed ①–⑲, 3 frames (2 states + scrolled), violet scroll callouts
   spec-sheets/20-politics.png      ← keyed ①–⑲, 3 frames (2 states + scrolled), violet scroll callouts
+  spec-sheets/21-interests.png     ← keyed ①–㉓, 4 frames (3 states + expanded), violet scroll callout
   ../components/shared.jsx         ← StatusBar, AppHeader, StepProgress, NextButton, HomeIndicator, Icon
   ../tokens/colors_and_type.css    ← authoritative token values
 ```
@@ -103,6 +105,9 @@ Never measure the PNG. Every number in it is in the reference file.
 | 18 | Education — empty · University selected · **consumes `OptionRow`**, builds nothing · **skippable** · **tapping the selected row clears it** (named exception to gender's "a radio never clears") · **Continue with nothing selected = Skip**, no refused state · sub copy `Select one.` · ≈ 6 px scroll at 375 × 667 only | speccd + ticketed 5 Oct 2026 |
 | 19 | Religion — empty · Buddhist selected · **consumes `OptionRow`** (standard 16 / 4 — **not `OptionRowCompact`**) · **nine options, `Muslim` added** before `Jewish` · **skippable** · tapping the selected row clears it · **Continue with nothing selected = Skip** · sub copy `Select one.` · **list scrolls on every device** (≈ 104 short at 390 × 844) · Class 2 · Art. 9 consent open, owned by legal | speccd + ticketed 5 Oct 2026 |
 | 20 | Politics — empty · Middle selected · **consumes `OptionRow`** (standard 16 / 4; **`OptionRowCompact` deleted from the kit**) · **linear order** — `Conservative` moved after `Right` · **skippable** · tapping the selected row clears it · **Continue with nothing selected = Skip** · sub copy `Select one.` · list scrolls at 390 and 375, **fits at 430** · Class 2, §1 value logged (settled) · Art. 9 consent open, owned by legal | speccd + ticketed 5 Oct 2026 |
+| 21 | Interests — empty · 2 lifestyle + 6 interests · 10 of 10 (cap) · **How I live** (6 single-select groups, uncapped, incl. alcohol + smoking from the cut habits screen) + **What I'm into** (51 chips, multi-select, **capped at 10**, 4 + Show more) · **skippable** · **Continue never disabled, empty = Skip** · **no visibility band — fully public** · headline 30 · region scrolls on every device · own column, not `DetailsScaffold` | speccd + ticketed 8 Oct 2026 |
+| 22 | Life — empty · all three answered · three questions (Partnership · Family · Living), **multi-select per question**, `No children` exclusive · **builds `LifePill`, `CategoryHeader`, `toggleLifePick`** (consumed by Future) · **skippable** · **Continue never disabled, empty = Skip** · **never shown on the profile — matching only**, no visibility band · headline 30 · region fits at 390 (≈ 12 slack), scrolls at 375 · partnership Class 2, Art. 9 consent open · `life_question_answered` per answered question | speccd + ticketed 8 Oct 2026 |
+| 23 | Future — empty · all three answered · scrolled frame · **last step of profile creation**, exits to the **48hrs Check-In intro** · Family · Partnership · Living vision, multi-select except Family (one answer at most) · `I want to find out together` exclusive · **consumes Life's `LifePill` / `CategoryHeader` / `toggleLifePick`** · **skippable**, empty Continue = Skip · **never shown on the profile** · region **scrolls at 390** (≈ 30) and 375, fits at 430 · partnership_ahead Class 2 · `future_question_answered` per answered question · §11 `checkin_intro` registered | speccd + ticketed 8 Oct 2026 |
 
 **⚠ Decided 25 Sep 2026: the OS notification dialog moved from 09 to 10's Save preferences.** Where the paragraph below says 09's CTA raises the sheet, read "navigates to 10". The skip guard is unchanged. Push is the only live channel in the MVP; see the epic's *MVP scope for the asks*.
 
@@ -124,7 +129,7 @@ Never measure the PNG. Every number in it is in the reference file.
 
 **The progress bar does not advance on screen 03.** Both the email step and its verification carry `current={2}` — the user is on the email step until the code is confirmed. Verification is not a fourth step; do not add a segment.
 
-The nine **detail** steps after "The basics" — photos, prompts, interests, lifestyle, living status, embrace — are a separate group with their own progress and their own rules, and are not part of this three-screen sequence.
+The **detail** steps after "The basics" — are a separate group with their own progress and their own rules, and are not part of this three-screen sequence.
 
 ## The rules that break everything if ignored
 
@@ -191,6 +196,10 @@ Screens 09 and 10 together have to leave the app knowing **where it is allowed t
 **Screen 10 does not exit optimistically.** Consent is committed to the server and confirmed **before** the flow position advances. A save failure keeps the user on 10; a crash mid-10 resumes onto 10 by the flow's ordinary resume rule (rule 4a) — no special mechanism, and it is what guarantees that a user who is past 10 has a consent record that exists.
 
 **Recovering a permission change mid-app is NOT a replay of screen 10.** 10 is a consent screen; the permission is the device's. When the status changes later, the user is asked again **where they are** — a prompt at the moment it bites — and never by pushing an onboarding screen back at them. **How that prompt looks and when it fires is deliberately not decided yet** (21 Sep 2026); `permission_status_changed` exists so the size of the problem is measurable before it is designed.
+
+## Decided 8 Oct 2026 — habits cut, bar back to 10
+
+The habits screen is **deleted**: alcohol and smoking moved into Interests (21) as How I live groups; cannabis and other drugs are no longer asked. The "Share some details" bar is **10 segments — Interests 8 · Life 9 · Future 10** (the 6 Oct count of 9 is superseded). Tracking: registry 1.4.16 / taxonomy 1.4.7 (`habit_answered`, §5 and the `habits` rows retired). Tickets 14–20 carry the corrected count in their *Open* notes.
 
 ## Backlog — tickets still to write
 

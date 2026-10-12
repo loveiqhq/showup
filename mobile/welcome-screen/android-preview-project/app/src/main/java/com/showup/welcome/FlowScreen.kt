@@ -146,7 +146,20 @@ enum class FlowScreen {
     ProfileReligion,
     ProfilePolitics,
 
-    /** Where the flow ends, for both the tutorial and a returning member. */
+    // ── "Share some details", steps 8 to 10 (SHOWUP-174 to SHOWUP-176) ──────
+    //
+    // Their own column, not the detail scaffold, and still the same walk: each one's back pops to
+    // the one above it, and Future's Continue and Skip end profile creation.
+    ProfileInterests,
+    ProfileLifeNow,
+    ProfileLifeAhead,
+
+    /**
+     * Where the flow ends, for both the tutorial and a returning member.
+     *
+     * Also where Future exits FOR NOW: its destination is the 48hrs Check-In intro (Profile 23),
+     * which is not built. When it is, Future's two exits are the lines that change.
+     */
     Home,
     ;
 

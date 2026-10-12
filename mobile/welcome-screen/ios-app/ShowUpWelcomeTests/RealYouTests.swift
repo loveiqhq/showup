@@ -538,11 +538,21 @@ final class ProfileResumeTests: XCTestCase {
             ("dating_language", .education),
             ("education", .religion),
             ("religion", .politics),
-            ("politics", .done),
+            ("politics", .interests),
+            ("interests", .lifeNow),
+            ("life_now", .lifeAhead),
+            // Future reports life_ahead on Continue AND Skip: profile creation is complete.
+            ("life_ahead", .done),
         ]
         for (position, expected) in walk {
             XCTAssertEqual(resumePoint(at(position)), expected, "at \(position ?? "nil")")
         }
+    }
+
+    func testAKillOnFutureResumesOnFutureNeverOnTheCheckInIntro() {
+        // Profile 23: "A user who killed the app on this screen resumes here." Life's own Continue
+        // left the position at life_now, which is short of complete.
+        XCTAssertEqual(resumePoint(at("life_now")), .lifeAhead)
     }
 
     func testTheMediaScreensOtherIdIsTheSameStep() {
@@ -576,7 +586,7 @@ final class ProfileResumeTests: XCTestCase {
     func testAPositionThisBuildDoesNotKnowResumesEarlyNeverLate() {
         // A newer server may store a step this app has no screen for. Showing a screen twice is
         // recoverable; skipping one silently is the bug the position exists to prevent.
-        XCTAssertEqual(resumePoint(at("interests")), .media)
+        XCTAssertEqual(resumePoint(at("habits")), .media)
         XCTAssertEqual(resumePoint(at("garbage")), .media)
     }
 

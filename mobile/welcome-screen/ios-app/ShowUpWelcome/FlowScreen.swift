@@ -114,7 +114,15 @@ enum FlowScreen: String, CaseIterable, Comparable {
     case profileReligion
     case profilePolitics
 
-    /// Where the flow ends, for both the tutorial and a returning member.
+    // "Share some details", steps 8 to 10 (SHOWUP-174 to SHOWUP-176): their own column, not the
+    // detail scaffold, and still the same walk — each back pops to the one above, and Future's
+    // Continue and Skip end profile creation.
+    case profileInterests
+    case profileLifeNow
+    case profileLifeAhead
+
+    /// Where the flow ends, for both the tutorial and a returning member — and where Future exits
+    /// FOR NOW: its destination is the 48hrs Check-In intro (Profile 23), which is not built.
     case home
 
     private var order: Int { Self.allCases.firstIndex(of: self) ?? 0 }

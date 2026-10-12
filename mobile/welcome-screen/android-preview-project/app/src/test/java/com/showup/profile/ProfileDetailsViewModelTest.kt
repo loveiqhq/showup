@@ -502,7 +502,7 @@ class ProfileDetailsViewModelTest {
         advanceUntilIdle()
         assertEquals("mid_right", store.bodies.single().politics?.value)
         assertEquals(2, analytics.of("detail_answered").single().properties["sensitivity_class"])
-        assertEquals("1.4.15", analytics.of("detail_answered").single().properties["field_registry_version"])
+        assertEquals("1.4.18", analytics.of("detail_answered").single().properties["field_registry_version"])
     }
 
     // ── failures ──────────────────────────────────────────────────────────────

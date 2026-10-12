@@ -12,12 +12,51 @@ import { Profile, ProfileVerificationStatus } from './entities/profile.entity';
 import { isAtLeast18 } from './util/age';
 import { isProfileComplete } from './util/completion';
 import { advanceFlowPosition } from './util/flow-position';
-import { canonicalDatingLanguages } from './util/profile-details';
+import {
+  canonicalDatingLanguages,
+  canonicalInterests,
+  canonicalLifeAnswer,
+  isContradictoryLifeAnswer,
+  LIFE_QUESTIONS,
+} from './util/profile-details';
+import type { LifeQuestionId } from './util/profile-details';
 import {
   normaliseHiddenFields,
   unknownHiddenFields,
 } from './util/hidden-fields';
 import { VISIBLE_PHOTO_STATUSES } from './util/photo-visibility';
+
+/** The six §4 answers: the DTO and entity property, and its registry `question_id`. */
+type LifeAnswerField =
+  | 'partnership'
+  | 'family'
+  | 'living'
+  | 'familyAhead'
+  | 'partnershipAhead'
+  | 'livingAhead';
+const LIFE_ANSWER_FIELDS: readonly (readonly [
+  LifeAnswerField,
+  LifeQuestionId,
+])[] = [
+  ['partnership', 'partnership'],
+  ['family', 'family'],
+  ['living', 'living'],
+  ['familyAhead', 'family_ahead'],
+  ['partnershipAhead', 'partnership_ahead'],
+  ['livingAhead', 'living_ahead'],
+];
+
+/**
+ * Stores a canonical answer. The cast is sound because `canonicalLifeAnswer` returns only values of
+ * that question's own list, which is the element type of the column it is written to.
+ */
+function setLifeAnswer(
+  profile: Profile,
+  field: LifeAnswerField,
+  values: string[],
+): void {
+  (profile as unknown as Record<LifeAnswerField, string[]>)[field] = values;
+}
 
 @Injectable()
 export class ProfilesService {
@@ -51,6 +90,18 @@ export class ProfilesService {
     // away should not wait in the queue for the lock just to be told so.
     if (dto.dateOfBirth !== undefined && !isAtLeast18(dto.dateOfBirth)) {
       throw new BadRequestException('You must be at least 18 years old');
+    }
+    const contradictory = LIFE_ANSWER_FIELDS.filter(([field, questionId]) => {
+      const values = dto[field];
+      return (
+        values != null &&
+        isContradictoryLifeAnswer(LIFE_QUESTIONS[questionId], values)
+      );
+    }).map(([, questionId]) => questionId);
+    if (contradictory.length > 0) {
+      throw new BadRequestException(
+        `Contradictory answer(s): ${contradictory.join(', ')}`,
+      );
     }
     if (dto.hiddenFields != null) {
       const unknown = unknownHiddenFields(dto.hiddenFields);
@@ -99,6 +150,29 @@ export class ProfilesService {
       if (dto.education != null) profile.education = dto.education;
       if (dto.religion != null) profile.religion = dto.religion;
       if (dto.politics != null) profile.politics = dto.politics;
+      // Interests (SHOWUP-174). Same `!= null` rule: an unanswered "How I live" group is simply not
+      // sent, and keeps whatever was saved before.
+      if (dto.activity != null) profile.activity = dto.activity;
+      if (dto.diet != null) profile.diet = dto.diet;
+      if (dto.alcohol != null) profile.alcohol = dto.alcohol;
+      if (dto.smoking != null) profile.smoking = dto.smoking;
+      if (dto.rhythm != null) profile.rhythm = dto.rhythm;
+      if (dto.social != null) profile.social = dto.social;
+      if (dto.interests != null) {
+        profile.interests = canonicalInterests(dto.interests);
+      }
+      // Life and Future (SHOWUP-175/176). `[]` is NOT null, so it is stored: "an unanswered
+      // question is saved as empty". Only a field left out keeps its earlier value.
+      for (const [field, questionId] of LIFE_ANSWER_FIELDS) {
+        const values = dto[field];
+        if (values != null) {
+          setLifeAnswer(
+            profile,
+            field,
+            canonicalLifeAnswer(LIFE_QUESTIONS[questionId], values),
+          );
+        }
+      }
       if (dto.lookingFor !== undefined) profile.lookingFor = dto.lookingFor;
       // `!= null` for the same reason as hiddenFields below: @IsOptional() lets an explicit null
       // through, and is_visible is NOT NULL, so assigning it would fail at the database rather

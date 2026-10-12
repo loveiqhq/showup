@@ -68,6 +68,17 @@ extension Color {
     /// definition.
     static let liqToastShadow = Color(hex: 0x2E0147).opacity(0.22)
 
+    // Added for SHOWUP-174 to SHOWUP-176: the chip and pill glows Interests and Life set inline,
+    // and the counter's meter. Android's `ChipGlow`, `ChipRest`, `PillGlow`, `MeterTrack`.
+    /// The picked interest chip's glow, rgba(129,42,236,.18) — `0 4px 10px`.
+    static let liqChipGlow = Color(hex: 0x812AEC).opacity(0.18)
+    /// The resting interest chip's hairline lift, rgba(46,1,71,.03) — `0 1px 2px`.
+    static let liqChipRest = Color(hex: 0x2E0147).opacity(0.03)
+    /// The picked life pill's glow, rgba(129,42,236,.22) — `0 2px 8px`.
+    static let liqPillGlow = Color(hex: 0x812AEC).opacity(0.22)
+    /// The interests counter's empty bar, rgba(29,17,41,.08) — lighter than the step bar's track.
+    static let liqMeterTrack = Color(hex: 0x1D1129).opacity(0.08)
+
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
     ///

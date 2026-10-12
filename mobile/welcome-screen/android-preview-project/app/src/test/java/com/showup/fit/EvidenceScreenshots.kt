@@ -57,6 +57,15 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import java.util.concurrent.TimeUnit
 import com.showup.profile.CameraAccess
+import com.showup.profile.FUTURE_B
+import com.showup.profile.INTERESTS_B
+import com.showup.profile.INTERESTS_C
+import com.showup.profile.INTERESTS_D
+import com.showup.profile.LIFE_B
+import com.showup.profile.PickUiState
+import com.showup.profile.ProfileInterestsScreen
+import com.showup.profile.ProfileLifeAheadScreen
+import com.showup.profile.ProfileLifeNowScreen
 import com.showup.profile.LocationState
 import com.showup.profile.ProfileLocationScreen
 import com.showup.profile.LibraryAccess
@@ -679,5 +688,59 @@ class EvidenceScreenshots {
             assertTrue("${it.name} is too small to be a rendered screen", it.length() > 5_000)
         }
         println("EVIDENCE: ${produced.size} images in ${out.absolutePath}")
+    }
+
+    /**
+     * Interests, Life and Future (SHOWUP-174 to SHOWUP-176), each ticket's own "Evidence of done":
+     *
+     *   174 -- A, B and C at the three frames, plus 375 x 667 scrolled to the bottom with one group
+     *          expanded (frame D): ten images.
+     *   175 -- A and B at the three frames, plus 375 x 667 scrolled to the bottom: seven.
+     *   176 -- A and B at the three frames, plus 390 x 844 scrolled to the bottom (frame C): seven.
+     *
+     * Its own test, so its counts are its own: the sweep above counts every other ticket's images.
+     */
+    @Test
+    fun `interests, life and future, the evidence each ticket names`() {
+        val se = DEVICES.filter { it.width == 375 && it.height == 667 }
+        val mid = DEVICES.filter { it.width == 390 && it.height == 844 }
+
+        shoot("SHOWUP-174", "A-empty") { ProfileInterestsScreen() }
+        shoot("SHOWUP-174", "B-two-and-six") { ProfileInterestsScreen(INTERESTS_B) }
+        shoot("SHOWUP-174", "C-cap") { ProfileInterestsScreen(INTERESTS_C) }
+        val interestsBottom = ScrollState(0)
+        shoot("SHOWUP-174", "D-move-open-scrolled-bottom", devices = se, scrolled = interestsBottom) {
+            ProfileInterestsScreen(INTERESTS_D, scrollState = interestsBottom)
+        }
+
+        shoot("SHOWUP-175", "A-empty") { ProfileLifeNowScreen() }
+        shoot("SHOWUP-175", "B-all-answered") { ProfileLifeNowScreen(LIFE_B) }
+        val lifeBottom = ScrollState(0)
+        shoot("SHOWUP-175", "B-scrolled-bottom", devices = se, scrolled = lifeBottom) {
+            ProfileLifeNowScreen(LIFE_B, scrollState = lifeBottom)
+        }
+
+        shoot("SHOWUP-176", "A-empty") { ProfileLifeAheadScreen() }
+        shoot("SHOWUP-176", "B-all-answered") { ProfileLifeAheadScreen(FUTURE_B) }
+        val futureBottom = ScrollState(0)
+        shoot("SHOWUP-176", "C-scrolled-bottom", devices = mid, scrolled = futureBottom) {
+            ProfileLifeAheadScreen(FUTURE_B, scrollState = futureBottom)
+        }
+
+        // The narrowest phone at the largest system font, where every layout defect in this flow
+        // has been found: the frames to look at, not counted against the tickets.
+        val tightest = DEVICES.filter { it.width == 320 }
+        shoot("SHOWUP-174", "C-cap-tight", fontScale = 2f, devices = tightest) { ProfileInterestsScreen(INTERESTS_C) }
+        shoot("SHOWUP-175", "B-tight", fontScale = 2f, devices = tightest) { ProfileLifeNowScreen(LIFE_B) }
+        shoot("SHOWUP-176", "B-tight", fontScale = 2f, devices = tightest) { ProfileLifeAheadScreen(FUTURE_B) }
+
+        val atTicketSize = written.filter { !it.contains("fontScale") }
+        assertEquals("SHOWUP-174 asks for 10 images", 10, atTicketSize.count { it.startsWith("SHOWUP-174") })
+        assertEquals("SHOWUP-175 asks for 7 images", 7, atTicketSize.count { it.startsWith("SHOWUP-175") })
+        assertEquals("SHOWUP-176 asks for 7 images", 7, atTicketSize.count { it.startsWith("SHOWUP-176") })
+        written.forEach { name ->
+            assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000)
+        }
+        println("EVIDENCE 174-176: ${written.size} images in ${out.absolutePath}")
     }
 }

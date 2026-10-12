@@ -49,6 +49,12 @@ internal object ProhibitedFields {
         "orientation",
         "religion",
         "politics",
+        // Substance use and relationship structure, Class 2 since SHOWUP-174 to 176 (registry 1.4.16-18):
+        // the How I live alcohol and smoking answers, and the Life / Future partnership sets.
+        "alcohol",
+        "smoking",
+        "partnership",
+        "partnershipahead",
         // Secrets. Note `code`: the one-time sign-in and email-verification payloads name the
         // secret `code`, so the bare name is withheld. An API error code is a different thing and
         // must be named `error_code` so it is not caught by this rule.

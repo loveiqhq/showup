@@ -1946,9 +1946,160 @@ check("the accepted answer is the one saved (swift)", "await answer(step, draft:
 for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
     for name in ("detail_answered", "detail_skipped", "field_display_opted_out"):
         check("the %s event is registry-backed (%s)" % (name, label), '"%s"' % name in text)
-# Politics ends the walk at home until interests (step 8) is built -- one line on each side.
-check("173 politics continues home for now (swift)", "choiceScreen(.politics, next: .home" in app_sw)
-check("173 politics continues home for now (kotlin)", "FlowScreen.Home" in app_kt)
+# Politics continues to Interests (step 8) since SHOWUP-174 -- one line on each side.
+check("173 politics continues to interests (swift)",
+      "choiceScreen(.politics, next: .profileInterests" in app_sw)
+check("173 politics continues to interests (kotlin)",
+      re.search(r"DetailStep\.Politics, details, detailsState, profileScreenOf\(cameFrom\), onTop,\s*"
+                r"onNext = \{ goTo\(FlowScreen\.ProfileInterests\) \}", app_kt) is not None)
+
+# ── SHOWUP-174 to SHOWUP-176 · Interests, Life, Future ───────────────────────
+#
+# Quoted from the tickets (saved verbatim with the handoff, tickets/21-23), both platforms. The
+# Jira descriptions are the source of truth and match these files word for word.
+picks_rules_kt = joined(code_only(read(KT, "profile", "ProfileInterests.kt")))
+picks_rules_sw = joined(code_only(read(SW, "ProfileInterests.swift")))
+life_rules_kt = joined(code_only(read(KT, "profile", "ProfileLife.kt")))
+life_rules_sw = joined(code_only(read(SW, "ProfileLife.swift")))
+pchrome_kt = joined(code_only(read(KT, "profile", "PickChrome.kt")))
+pchrome_sw = joined(code_only(read(SW, "PickChrome.swift")))
+ichrome_kt = joined(code_only(read(KT, "profile", "InterestsChrome.kt")))
+ichrome_sw = joined(code_only(read(SW, "InterestsChrome.swift")))
+lchrome_kt = joined(code_only(read(KT, "profile", "LifeChrome.kt")))
+lchrome_sw = joined(code_only(read(SW, "LifeChrome.swift")))
+iscreen_kt = code_only(read(KT, "profile", "ProfileInterestsScreen.kt"))
+iscreen_sw = code_only(read(SW, "ProfileInterestsView.swift"))
+lscreen_kt = code_only(read(KT, "profile", "ProfileLifeScreen.kt"))
+pvm_kt = code_only(read(KT, "profile", "PickStepsViewModel.kt"))
+pvm_sw = code_only(read(SW, "PickModel.swift"))
+
+for label, text in (("kotlin", pchrome_kt), ("swift", pchrome_sw)):
+    for s_ in ["How I live", "What I'm into", "Show more", "Show less",
+               "Select all that apply. Never shown on your profile. Used to find the right matches."]:
+        check("174-176 copy (%s): %s" % (label, s_[:40]), '"%s"' % s_ in text)
+# Headlines as runs: the one italic em, and the typographic apostrophe in `you’d`.
+check("174 headline (kotlin)",
+      '"Show how you live and what you love, so others know if you’d " to false, "click" to true' in pchrome_kt)
+check("174 headline (swift)",
+      '("Show how you live and what you love, so others know if you\\u{2019}d ", false), ("click", true)'
+      in pchrome_sw)
+for lead in ("What fits your current ", "What do you imagine for your future "):
+    check("175/176 headline (kotlin): %s" % lead,
+          '"%s" to false, "life" to true, "?" to false' % lead in pchrome_kt)
+    check("175/176 headline (swift): %s" % lead, '("%s", false), ("life", true), ("?", false)' % lead in pchrome_sw)
+# The counter's two sentences.
+check("174 counter (kotlin)", '"$picked picked · ${INTERESTS_MAX - picked} left"' in picks_rules_kt
+      and '"$INTERESTS_MAX of $INTERESTS_MAX picked"' in picks_rules_kt)
+check("174 counter (swift)", '"\\(picked) picked \\u{00B7} \\(interestsMax - picked) left"' in picks_rules_sw
+      and '"\\(interestsMax) of \\(interestsMax) picked"' in picks_rules_sw)
+
+PICK_OPTIONS = {
+    "174 how I live groups": ["Activity level", "Diet", "Alcohol", "Smoking", "Rhythm", "Social battery"],
+    "174 activity": ["Couch-lover", "Moderately active", "Active", "Sport is my life"],
+    "174 diet": ["Everything", "Flexitarian", "Vegetarian", "Vegan"],
+    "174 alcohol": ["Never", "Rarely", "Socially", "Regularly"],
+    "174 smoking": ["No", "Sometimes", "Yes"],
+    "174 rhythm": ["Early bird", "Night owl"],
+    "174 social": ["Cozy at home", "Balanced", "Always out"],
+    "174 what I'm into groups": ["Move", "Food & Drink", "Culture", "Cozy at home", "Going out", "Travel style"],
+    "174 move": ["Gym", "Running", "Hyrox/CrossFit", "Yoga/Pilates", "Bouldering", "Cycling", "Swimming",
+                 "Hiking", "Team sports", "Tennis/Padel", "Martial arts", "Winter sports"],
+    "174 food": ["Cooking", "Baking", "Trying new restaurants", "Brunch", "Street food & markets", "Wine",
+                 "Craft beer", "Coffee spots", "Cocktail bars"],
+    "174 culture": ["Live music", "Museums & exhibitions", "Theatre", "Cinema", "Reading", "Comedy",
+                    "Festivals", "Making art/music"],
+    "174 home": ["TV series", "Movie nights", "Gaming", "Board games", "Podcasts", "Plants & gardening"],
+    "174 out": ["Bars", "Clubbing", "Dinner parties", "Quiz nights", "Karaoke", "Concerts with friends",
+                "Volunteering"],
+    "174 travel": ["City breaks", "Road trips", "Beach & relax", "All-inclusive", "Backpacking",
+                   "Surf & adventure", "Wellness & spa", "Camping", "Cruises"],
+}
+for name, labels in PICK_OPTIONS.items():
+    check("%s in order (kotlin)" % name, in_order(picks_rules_kt, labels))
+    check("%s in order (swift)" % name, in_order(picks_rules_sw, labels))
+
+LIFE_OPTIONS = {
+    "175 categories": ["Partnership situation", "Family situation", "Living situation"],
+    "175 partnership": ["Single", "Open relationship", "Ethically non-monogamous", "Divorced"],
+    "175 family": ["No children", "I have children", "Single parent", "Co-parenting", "Empty nester"],
+    "175 living": ["Living alone", "Living with roommates", "Living with family", "Living with children"],
+    "176 categories": ["Family vision", "Partnership vision", "Living style vision"],
+    "176 family": ["I want kids", "I don't want kids", "I want to find out together"],
+    "176 partnership": ["Monogamous relationship", "Open relationship", "Ethically non-monogamous",
+                        "I want to find out together"],
+    "176 living": ["Stay local", "Expat life", "Move abroad", "I want to find out together"],
+}
+for name, labels in LIFE_OPTIONS.items():
+    check("%s in order (kotlin)" % name, in_order(life_rules_kt, labels))
+    check("%s in order (swift)" % name, in_order(life_rules_sw, labels))
+
+# The numbers and the rules.
+check("174 capped at 10, four visible (kotlin)", "const val INTERESTS_MAX = 10" in picks_rules_kt
+      and "const val INTERESTS_VISIBLE = 4" in picks_rules_kt)
+check("174 capped at 10, four visible (swift)", "let interestsMax = 10" in picks_rules_sw
+      and "let interestsVisible = 4" in picks_rules_sw)
+check("174-176 steps 8, 9, 10 (kotlin)", 'Interests("interests", 8,' in picks_rules_kt
+      and 'LifeNow("life_now", 9,' in picks_rules_kt and 'LifeAhead("life_ahead", 10,' in picks_rules_kt)
+check("174-176 steps 8, 9, 10 (swift)", "case .interests: return 8" in picks_rules_sw
+      and "case .lifeNow: return 9" in picks_rules_sw and "case .lifeAhead: return 10" in picks_rules_sw)
+check("175 no children is exclusive (kotlin)", "exclusive = setOf(com.showup.api.generated.model.LifeFamily.no_children.value)" in life_rules_kt)
+check("175 no children is exclusive (swift)", "case .family: return [Components.Schemas.LifeFamily.no_children.rawValue]" in life_rules_sw)
+check("176 every family vision is exclusive (kotlin)", "exclusive = com.showup.api.generated.model.FutureFamily.entries" in life_rules_kt)
+check("176 every family vision is exclusive (swift)", "case .familyAhead: return Set(options.map(\\.value))" in life_rules_sw)
+# ONE toggle, consumed by both screens -- "no copy, no fork".
+check("175/176 one toggleLifePick (kotlin)", life_rules_kt.count("fun toggleLifePick(") == 1
+      and "toggleLifePick(" in pvm_kt)
+check("175/176 one toggleLifePick (swift)", life_rules_sw.count("func toggleLifePick(") == 1
+      and "toggleLifePick(" in pvm_sw)
+check("176 consumes Life's column (kotlin)", "LifeScreen(PickStep.LifeAhead" in lscreen_kt
+      and "LifeScreen(PickStep.LifeNow" in lscreen_kt)
+check("176 consumes Life's column (swift)", "lifeScreen(.lifeAhead" in app_sw and "lifeScreen(.lifeNow" in app_sw
+      and "LifeView(" in app_sw and "struct LifeView" in lchrome_sw)
+# Not DetailsScaffold, no visibility band, no refusal.
+for label, text in (("kotlin", pchrome_kt + ichrome_kt + lchrome_kt + iscreen_kt),
+                    ("swift", pchrome_sw + ichrome_sw + lchrome_sw + iscreen_sw)):
+    check("174-176 not the detail scaffold (%s)" % label, "DetailsScaffold" not in text)
+    check("174-176 no visibility band (%s)" % label, "ProfileVisibility" not in text)
+check("174-176 the bar is the shell's (kotlin)", "StepProgress(steps = SHARE_STEPS_TOTAL, current = step.stepIndex)" in pchrome_kt)
+check("174-176 the bar is the shell's (swift)", "StepProgress(steps: shareStepsTotal, current: step.stepIndex)" in pchrome_sw)
+check("174-176 the CTA stays Continue (kotlin)", "ctaLabel = DetailsCopy.CTA" in pchrome_kt)
+check("174-176 the CTA stays Continue (swift)", "ctaLabel: DetailsCopy.cta" in pchrome_sw)
+# Skip and Continue share one measured row with the detail steps and media -- side by side when they
+# fit, stacked when they do not -- so Continue's circle is never crushed at the largest text size.
+skiprow_kt = code_only(read(KT, "profile", "SkipContinueRow.kt"))
+skiprow_sw = code_only(read(SW, "SkipContinueRow.swift"))
+check("skip and continue share one row (kotlin)", all(
+    "SkipContinueRow(" in t for t in (pchrome_kt, chrome_kt, code_only(read(KT, "profile", "ProfileMediaScreen.kt")))))
+check("skip and continue share one row (swift)", all(
+    "SkipContinueRow(" in t for t in (pchrome_sw, chrome_sw, code_only(read(SW, "ProfileMedia.swift")))))
+check("the row stacks when it does not fit (kotlin)", "if (fits)" in skiprow_kt and "Column(" in skiprow_kt)
+check("the row stacks when it does not fit (swift)", "ViewThatFits(in: .horizontal)" in skiprow_sw)
+check("174-176 back works, with the swipe (kotlin)", "BackHandler(enabled = true, onBack = onBack)" in pchrome_kt)
+check("174-176 back works, with the swipe (swift)", "EdgeSwipeBack(onBack: onBack)" in pchrome_sw)
+# Chip and pill numbers from the references.
+check("174 chip 38, pad 15 (kotlin)", "CHIP_HEIGHT = 38.dp" in ichrome_kt and "CHIP_PAD = 15.dp" in ichrome_kt)
+check("174 chip 38, pad 15 (swift)", "chipHeight: CGFloat = 38" in ichrome_sw and ".padding(.horizontal, 15 + border)" in ichrome_sw)
+check("175 pill 34 (kotlin)", "PILL_HEIGHT = 34.dp" in lchrome_kt)
+check("175 pill 34 (swift)", "pillHeight: CGFloat = 34" in lchrome_sw)
+check("174 chevron turns in 220 (kotlin)", "Motion.DISCLOSURE" in ichrome_kt)
+check("174 chevron turns in 220 (swift)", "Motion.disclosure" in ichrome_sw)
+# The saves: one PATCH with the position; life sends empty for unanswered.
+check("174-176 one PATCH carries the position (kotlin)", "UpsertProfileDto(flowPosition = step.position)" in pvm_kt)
+check("174-176 one PATCH carries the position (swift)", "Dto.flowPositionPayload(value1: step.position)" in pvm_sw)
+check("174 an empty interest list is not sent (kotlin)", "interests.takeIf { it.isNotEmpty() }" in pvm_kt)
+check("174 an empty interest list is not sent (swift)", "interests: tags.isEmpty ? nil : tags" in pvm_sw)
+# Tracking names, registry-backed, both sides.
+for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
+    for name in ("interest_selected", "interest_deselected", "interest_cap_reached", "show_more_expanded",
+                 "life_question_answered", "future_question_answered", "profile_interests",
+                 "profile_life_now", "profile_life_ahead"):
+        check("174-176 %s is registry-backed (%s)" % (name, label), '"%s"' % name in text)
+check("registry 1.4.18 stamped (kotlin)", 'FIELD_REGISTRY_VERSION = "1.4.18"' in pa_kt)
+check("registry 1.4.18 stamped (swift)", 'fieldRegistryVersion = "1.4.18"' in pa_sw)
+# Future exits home until the Check-In intro is built -- both exits, both platforms.
+check("176 exits home for now (kotlin)", "picks.continuePressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) }" in app_kt
+      and "picks.skipPressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) }" in app_kt)
+check("176 exits home for now (swift)", "lifeScreen(.lifeAhead, next: .home, previous: .profileLifeNow)" in app_sw)
 
 # ── the session ended (8 October 2026) ──────────────────────────────────────
 # Not a ticket: the fix for saves that failed forever once the server had ended the session. The

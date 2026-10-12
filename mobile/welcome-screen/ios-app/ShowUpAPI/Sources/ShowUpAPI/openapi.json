@@ -1,6 +1,15 @@
 {
   "components": {
     "schemas": {
+      "Activity": {
+        "enum": [
+          "couch_lover",
+          "moderately_active",
+          "active",
+          "sport_is_my_life"
+        ],
+        "type": "string"
+      },
       "AdminUserRowDto": {
         "properties": {
           "accountStatus": {
@@ -39,6 +48,15 @@
           "createdAt"
         ],
         "type": "object"
+      },
+      "Alcohol": {
+        "enum": [
+          "never",
+          "rarely",
+          "socially",
+          "regularly"
+        ],
+        "type": "string"
       },
       "ApiErrorDto": {
         "properties": {
@@ -438,6 +456,15 @@
         ],
         "type": "object"
       },
+      "Diet": {
+        "enum": [
+          "everything",
+          "flexitarian",
+          "vegetarian",
+          "vegan"
+        ],
+        "type": "string"
+      },
       "DiscoveryProfileDto": {
         "properties": {
           "displayName": {
@@ -498,7 +525,39 @@
           "dating_language",
           "education",
           "religion",
-          "politics"
+          "politics",
+          "interests",
+          "life_now",
+          "life_ahead"
+        ],
+        "type": "string"
+      },
+      "FutureFamily": {
+        "description": "Registry §4 family_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "want_kids",
+          "dont_want_kids",
+          "find_out_together"
+        ],
+        "type": "string"
+      },
+      "FutureLiving": {
+        "description": "Registry §4 living_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "stay_local",
+          "expat_life",
+          "move_abroad",
+          "find_out_together"
+        ],
+        "type": "string"
+      },
+      "FuturePartnership": {
+        "description": "Registry §4 partnership_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "monogamous_relationship",
+          "open_relationship",
+          "ethically_non_monogamous",
+          "find_out_together"
         ],
         "type": "string"
       },
@@ -525,6 +584,94 @@
           "idToken"
         ],
         "type": "object"
+      },
+      "InterestTag": {
+        "description": "Registry §3 interest tags, the \"What I am into\" chips. Between one and ten; stored de-duplicated and in list order, whatever order is sent.",
+        "enum": [
+          "gym",
+          "running",
+          "hyrox_crossfit",
+          "yoga_pilates",
+          "bouldering",
+          "cycling",
+          "swimming",
+          "hiking",
+          "team_sports",
+          "tennis_padel",
+          "martial_arts",
+          "winter_sports",
+          "cooking",
+          "baking",
+          "trying_new_restaurants",
+          "brunch",
+          "street_food_markets",
+          "wine",
+          "craft_beer",
+          "coffee_spots",
+          "cocktail_bars",
+          "live_music",
+          "museums_exhibitions",
+          "theatre",
+          "cinema",
+          "reading",
+          "comedy",
+          "festivals",
+          "making_art_music",
+          "tv_series",
+          "movie_nights",
+          "gaming",
+          "board_games",
+          "podcasts",
+          "plants_gardening",
+          "bars",
+          "clubbing",
+          "dinner_parties",
+          "quiz_nights",
+          "karaoke",
+          "concerts_with_friends",
+          "volunteering",
+          "city_breaks",
+          "road_trips",
+          "beach_relax",
+          "all_inclusive",
+          "backpacking",
+          "surf_adventure",
+          "wellness_spa",
+          "camping",
+          "cruises"
+        ],
+        "type": "string"
+      },
+      "LifeFamily": {
+        "description": "Registry §4 family. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "no_children",
+          "has_children",
+          "single_parent",
+          "co_parenting",
+          "empty_nester"
+        ],
+        "type": "string"
+      },
+      "LifeLiving": {
+        "description": "Registry §4 living. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "living_alone",
+          "living_with_roommates",
+          "living_with_family",
+          "living_with_children"
+        ],
+        "type": "string"
+      },
+      "LifePartnership": {
+        "description": "Registry §4 partnership. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "single",
+          "open_relationship",
+          "ethically_non_monogamous",
+          "divorced"
+        ],
+        "type": "string"
       },
       "LikeResultDto": {
         "properties": {
@@ -725,9 +872,19 @@
       },
       "OwnProfileDto": {
         "properties": {
+          "activity": {
+            "description": "One of: couch_lover, moderately_active, active, sport_is_my_life. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
           "age": {
             "nullable": true,
             "type": "integer"
+          },
+          "alcohol": {
+            "description": "One of: never, rarely, socially, regularly. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
           },
           "datingLanguages": {
             "description": "In list order; null when never answered. Each: One of: german, english, spanish, italian, french, turkish, russian, arabic. Read tolerantly: a newer server may add values.",
@@ -737,6 +894,11 @@
             "nullable": true,
             "type": "array"
           },
+          "diet": {
+            "description": "One of: everything, flexitarian, vegetarian, vegan. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
           "displayName": {
             "nullable": true,
             "type": "string"
@@ -745,6 +907,22 @@
             "description": "One of: a_levels_abitur, apprenticeship, university_degree, phd. Read tolerantly: a newer server may add values.",
             "nullable": true,
             "type": "string"
+          },
+          "family": {
+            "description": "Each: One of: no_children, has_children, single_parent, co_parenting, empty_nester. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "familyAhead": {
+            "description": "At most one. Each: One of: want_kids, dont_want_kids, find_out_together. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
           },
           "gender": {
             "description": "One of: woman, man, non_binary, other. Read tolerantly: a newer server may add values.",
@@ -768,11 +946,35 @@
           "id": {
             "type": "string"
           },
+          "interests": {
+            "description": "Up to ten, in list order; null when never answered. Each: One of: gym, running, hyrox_crossfit, yoga_pilates, bouldering, cycling, swimming, hiking, team_sports, tennis_padel, martial_arts, winter_sports, cooking, baking, trying_new_restaurants, brunch, street_food_markets, wine, craft_beer, coffee_spots, cocktail_bars, live_music, museums_exhibitions, theatre, cinema, reading, comedy, festivals, making_art_music, tv_series, movie_nights, gaming, board_games, podcasts, plants_gardening, bars, clubbing, dinner_parties, quiz_nights, karaoke, concerts_with_friends, volunteering, city_breaks, road_trips, beach_relax, all_inclusive, backpacking, surf_adventure, wellness_spa, camping, cruises. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
           "isComplete": {
             "type": "boolean"
           },
           "isVisible": {
             "type": "boolean"
+          },
+          "living": {
+            "description": "Each: One of: living_alone, living_with_roommates, living_with_family, living_with_children. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "livingAhead": {
+            "description": "Each: One of: stay_local, expat_life, move_abroad, find_out_together. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
           },
           "lookingFor": {
             "nullable": true,
@@ -783,6 +985,22 @@
             "nullable": true,
             "type": "string"
           },
+          "partnership": {
+            "description": "Class 2. Each: One of: single, open_relationship, ethically_non_monogamous, divorced. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "partnershipAhead": {
+            "description": "Class 2. Each: One of: monogamous_relationship, open_relationship, ethically_non_monogamous, find_out_together. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
           "politics": {
             "description": "One of: left, mid_left, middle, mid_right, right, conservative, libertarian, apolitical. Read tolerantly: a newer server may add values.",
             "nullable": true,
@@ -790,6 +1008,21 @@
           },
           "religion": {
             "description": "One of: protestant, catholic, orthodox, muslim, jewish, buddhist, hindu, atheist, spiritual_other. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "rhythm": {
+            "description": "One of: early_bird, night_owl. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "smoking": {
+            "description": "One of: no, sometimes, yes. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "social": {
+            "description": "One of: cozy_at_home, balanced, always_out. Read tolerantly: a newer server may add values.",
             "nullable": true,
             "type": "string"
           },
@@ -818,7 +1051,20 @@
           "datingLanguages",
           "education",
           "religion",
-          "politics"
+          "politics",
+          "activity",
+          "diet",
+          "alcohol",
+          "smoking",
+          "rhythm",
+          "social",
+          "interests",
+          "partnership",
+          "family",
+          "living",
+          "familyAhead",
+          "partnershipAhead",
+          "livingAhead"
         ],
         "type": "object"
       },
@@ -1194,6 +1440,13 @@
         ],
         "type": "object"
       },
+      "Rhythm": {
+        "enum": [
+          "early_bird",
+          "night_owl"
+        ],
+        "type": "string"
+      },
       "SendChatMessageDto": {
         "properties": {
           "body": {
@@ -1270,6 +1523,22 @@
           "status"
         ],
         "type": "object"
+      },
+      "Smoking": {
+        "enum": [
+          "no",
+          "sometimes",
+          "yes"
+        ],
+        "type": "string"
+      },
+      "SocialBattery": {
+        "enum": [
+          "cozy_at_home",
+          "balanced",
+          "always_out"
+        ],
+        "type": "string"
       },
       "StaffReportDto": {
         "properties": {
@@ -1416,6 +1685,20 @@
       },
       "UpsertProfileDto": {
         "properties": {
+          "activity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Activity"
+              }
+            ]
+          },
+          "alcohol": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Alcohol"
+              }
+            ]
+          },
           "dateOfBirth": {
             "description": "YYYY-MM-DD; must be 18+",
             "example": "1998-04-23",
@@ -1428,6 +1711,13 @@
             },
             "type": "array"
           },
+          "diet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Diet"
+              }
+            ]
+          },
           "displayName": {
             "example": "Leo",
             "type": "string"
@@ -1438,6 +1728,20 @@
                 "$ref": "#/components/schemas/Education"
               }
             ]
+          },
+          "family": {
+            "description": "Registry §4 family. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/LifeFamily"
+            },
+            "type": "array"
+          },
+          "familyAhead": {
+            "description": "Registry §4 family_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/FutureFamily"
+            },
+            "type": "array"
           },
           "flowPosition": {
             "allOf": [
@@ -1470,9 +1774,31 @@
             },
             "type": "array"
           },
+          "interests": {
+            "description": "Registry §3 interest tags, the \"What I am into\" chips. Between one and ten; stored de-duplicated and in list order, whatever order is sent.",
+            "items": {
+              "$ref": "#/components/schemas/InterestTag"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
           "isVisible": {
             "description": "Whether the profile is visible in discovery",
             "type": "boolean"
+          },
+          "living": {
+            "description": "Registry §4 living. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/LifeLiving"
+            },
+            "type": "array"
+          },
+          "livingAhead": {
+            "description": "Registry §4 living_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/FutureLiving"
+            },
+            "type": "array"
           },
           "lookingFor": {
             "type": "string"
@@ -1483,6 +1809,20 @@
                 "$ref": "#/components/schemas/Orientation"
               }
             ]
+          },
+          "partnership": {
+            "description": "Registry §4 partnership. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/LifePartnership"
+            },
+            "type": "array"
+          },
+          "partnershipAhead": {
+            "description": "Registry §4 partnership_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/FuturePartnership"
+            },
+            "type": "array"
           },
           "politics": {
             "allOf": [
@@ -1495,6 +1835,27 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Religion"
+              }
+            ]
+          },
+          "rhythm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rhythm"
+              }
+            ]
+          },
+          "smoking": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Smoking"
+              }
+            ]
+          },
+          "social": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SocialBattery"
               }
             ]
           }

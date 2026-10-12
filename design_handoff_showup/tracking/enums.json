@@ -1,6 +1,25 @@
 {
-  "registry_version": "1.4.15",
+  "registry_version": "1.4.18",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_18": [
+    "§4 family_ahead · partnership_ahead · living_ahead — CONFIRMED with the Profile 23 ticket (values as re-slugged in 1.4.17, unchanged). Multi-select per question; family_ahead's three values are all exclusive (one answer at most); find_out_together is exclusive in partnership_ahead and living_ahead. 8 Oct 2026.",
+    "§11 profile_life_ahead — ticket set to Profile 23, status ticketed — not built. Last step of profile creation; exits to the Check-In intro.",
+    "§11 checkin_intro / CheckinIntro — NEW row, written before any Check-In ticket so the Future → Check-In edge (the end of profile creation) is measurable. Registered — not ticketed."
+  ],
+  "changed_in_1_4_17": [
+    "§4 question_id — values and event columns RE-SLUGGED from the kit (LIFE_CATEGORIES in screens-profile-life.jsx, FUTURE_CATEGORIES in screens-profile-future.jsx); the 16 Sep 2026 DAMAGED flag is cleared. Old values (in_a_relationship · married · separated · its_complicated · one_child · two_children · three_or_more · not_saying · living_with_partner · long_term_partner · something_casual · cohabiting · undecided …) are gone. Nothing had shipped, so nothing migrates. Decided 8 Oct 2026 with the Profile 22 ticket.",
+    "§4 — Life and Future are MULTI-select per question. value_bucketed is ONE string per answered question per accepted Continue: the picked §4 values in LIST order, comma-joined, no spaces (the dating_language format, §1). New column exclusive names the values that clear the rest of their question.",
+    "§4 partnership and partnership_ahead — Class 2 (special-category: reveals sexual life). family, living, family_ahead, living_ahead stay Class 1. Art. 9 consent basis open, owned by legal.",
+    "§11 profile_life_now — ticket set to Profile 22, status ticketed — not built. Notes record: skippable, empty Continue recorded exactly as Skip (profile_step_skipped only), never shown on the profile, no visibility switch."
+  ],
+  "changed_in_1_4_16": [
+    "§1 habits — RETIRED. Six NEW field_ids at step 8, the Interests screen's \"How I live\" block: activity · diet · alcohol (Class 2) · smoking (Class 2) · rhythm · social, each with its own value set. Decided 8 Oct 2026 with the Profile 21 ticket.",
+    "§2 habits — RETIRED. life_now stays 9, life_ahead 9 → 10. The Share some details bar is 10 segments: interests 8 · life_now 9 · life_ahead 10.",
+    "§3 tag_id — REWRITTEN from the kit: six sections (move · food · culture · home · out · travel), 51 tag_ids. evenings / weekends / workfree retired. Nothing had shipped, so nothing migrates.",
+    "§5 habit_id & frequency — RETIRED (cannabis and drugs no longer asked; alcohol and smoking moved to §1).",
+    "§11 profile_habits — REMOVED. profile_interests — ticket set to Profile 21, status ticketed — not built.",
+    "section (profile accordion) loses habits; filter_id lifestyle_habits renamed lifestyle."
+  ],
   "changed_in_1_4_15": [
     "§1 politics — value ORDER changed to linear: left · mid_left · middle · mid_right · right · conservative · libertarian · apolitical (conservative moved after right). Same eight values, no rename. Decided 5 Oct 2026 with the Profile 20 ticket. Nothing had shipped, so nothing migrates.",
     "§1 politics note — the open question \"whether to log at all\" is settled: log the §1 value, the same as religion and gender (Class 2, closed set, no further bucketing). Decided 5 Oct 2026 (Profile 20).",
@@ -151,12 +170,52 @@
               "notes": "From POLITICS_OPTIONS. Linear order since 5 Oct 2026: the left → right spectrum, then conservative, libertarian and apolitical as the off-axis answers. Logged as the §1 value, the same as religion — decided 5 Oct 2026 (registry 1.4.15, Profile 20); Class 2 access control does the protecting. Skippable — pairs with detail_skipped."
             },
             {
-              "field_id": "habits",
-              "step": "9",
-              "value_bucketed": "—",
+              "field_id": "activity",
+              "step": "8",
+              "value_bucketed": "couch_lover · moderately_active · active · sport_is_my_life",
+              "class": "1",
+              "backend": "Not built",
+              "notes": "Interests screen (Profile 21), \"How I live\" → Activity level. Single-select chip row, optional, tapping the selected chip clears it. detail_answered fires once per ANSWERED group on an accepted Continue; an unanswered group sends nothing (no detail_skipped). Does NOT count toward the 10-interest cap. No visibility switch — shown on the profile (decided 8 Oct 2026)."
+            },
+            {
+              "field_id": "diet",
+              "step": "8",
+              "value_bucketed": "everything · flexitarian · vegetarian · vegan",
+              "class": "1",
+              "backend": "Not built",
+              "notes": "Interests screen (Profile 21), \"How I live\" → Diet. Single-select chip row, optional, tapping the selected chip clears it. detail_answered fires once per ANSWERED group on an accepted Continue; an unanswered group sends nothing (no detail_skipped). Does NOT count toward the 10-interest cap. No visibility switch — shown on the profile (decided 8 Oct 2026)."
+            },
+            {
+              "field_id": "alcohol",
+              "step": "8",
+              "value_bucketed": "never · rarely · socially · regularly",
               "class": "2",
               "backend": "Not built",
-              "notes": "Opt-out only, and screen-level: one switch covers all four habit questions, so field_display_opted_out fires once with field_id=\"habits\" rather than four times. The answers themselves travel on habit_answered per habit_id (§5) — this row never carries a value_bucketed."
+              "notes": "Interests screen (Profile 21), \"How I live\" → Alcohol. Single-select chip row, optional, tapping the selected chip clears it. detail_answered fires once per ANSWERED group on an accepted Continue; an unanswered group sends nothing (no detail_skipped). Does NOT count toward the 10-interest cap. No visibility switch — shown on the profile (decided 8 Oct 2026). Class 2 kept from the retired habits row: lifestyle health data, logged as the §1 value, access-controlled."
+            },
+            {
+              "field_id": "smoking",
+              "step": "8",
+              "value_bucketed": "no · sometimes · yes",
+              "class": "2",
+              "backend": "Not built",
+              "notes": "Interests screen (Profile 21), \"How I live\" → Smoking. Single-select chip row, optional, tapping the selected chip clears it. detail_answered fires once per ANSWERED group on an accepted Continue; an unanswered group sends nothing (no detail_skipped). Does NOT count toward the 10-interest cap. No visibility switch — shown on the profile (decided 8 Oct 2026). Class 2 kept from the retired habits row: lifestyle health data, logged as the §1 value, access-controlled."
+            },
+            {
+              "field_id": "rhythm",
+              "step": "8",
+              "value_bucketed": "early_bird · night_owl",
+              "class": "0",
+              "backend": "Not built",
+              "notes": "Interests screen (Profile 21), \"How I live\" → Rhythm. Single-select chip row, optional, tapping the selected chip clears it. detail_answered fires once per ANSWERED group on an accepted Continue; an unanswered group sends nothing (no detail_skipped). Does NOT count toward the 10-interest cap. No visibility switch — shown on the profile (decided 8 Oct 2026)."
+            },
+            {
+              "field_id": "social",
+              "step": "8",
+              "value_bucketed": "cozy_at_home · balanced · always_out",
+              "class": "0",
+              "backend": "Not built",
+              "notes": "Interests screen (Profile 21), \"How I live\" → Social battery. Single-select chip row, optional, tapping the selected chip clears it. detail_answered fires once per ANSWERED group on an accepted Continue; an unanswered group sends nothing (no detail_skipped). Does NOT count toward the 10-interest cap. No visibility switch — shown on the profile (decided 8 Oct 2026)."
             },
             {
               "field_id": "age",
@@ -240,7 +299,7 @@
             {
               "step_id": "interests",
               "step_index": "8",
-              "screen": "Share some details · step 8"
+              "screen": "Share some details · step 8 · interests + \"How I live\" (absorbed the habits step, 8 Oct 2026)"
             },
             {
               "step_id": "life_now",
@@ -249,13 +308,8 @@
             },
             {
               "step_id": "life_ahead",
-              "step_index": "9",
-              "screen": "Share some details · step 9"
-            },
-            {
-              "step_id": "habits",
-              "step_index": "9",
-              "screen": "Share some details · step 9"
+              "step_index": "10",
+              "screen": "Share some details · step 10 of 10, the last segment"
             },
             {
               "step_id": "prompts",
@@ -314,20 +368,33 @@
           ],
           "rows": [
             {
-              "section": "evenings",
-              "tag_id": "gymcookingtv_seriesreadinggoing_for_a_walkgaminglive_musicyogaboard_gamesmovie_nights"
+              "section": "move",
+              "tag_id": "gym · running · hyrox_crossfit · yoga_pilates · bouldering · cycling · swimming · hiking · team_sports · tennis_padel · martial_arts · winter_sports"
             },
             {
-              "section": "weekends",
-              "tag_id": "weekend_tripsbrunchsportslocal_marketshikingcyclingcity_breaksmuseumsbrewery_hopsbouldering"
+              "section": "food",
+              "tag_id": "cooking · baking · trying_new_restaurants · brunch · street_food_markets · wine · craft_beer · coffee_spots · cocktail_bars"
             },
             {
-              "section": "workfree",
-              "tag_id": "beachall_inclusivewellnessfestivalsretreatscruise_shipsroad_tripscampingsurf_tripsbackpacking"
+              "section": "culture",
+              "tag_id": "live_music · museums_exhibitions · theatre · cinema · reading · comedy · festivals · making_art_music"
+            },
+            {
+              "section": "home",
+              "tag_id": "tv_series · movie_nights · gaming · board_games · podcasts · plants_gardening"
+            },
+            {
+              "section": "out",
+              "tag_id": "bars · clubbing · dinner_parties · quiz_nights · karaoke · concerts_with_friends · volunteering"
+            },
+            {
+              "section": "travel",
+              "tag_id": "city_breaks · road_trips · beach_relax · all_inclusive · backpacking · surf_adventure · wellness_spa · camping · cruises"
             }
           ]
         }
-      ]
+      ],
+      "note": "Rewritten 8 Oct 2026 for Profile 21 from INTEREST_GROUPS in ui_kits/show-up/screens-profile-interests.jsx: six sections (move · food · culture · home · out · travel), 51 tag_ids, unique across sections. Replaces evenings / weekends / workfree. section is also the section_id on show_more_expanded. Display labels: move = \"Move\", food = \"Food & Drink\", culture = \"Culture\", home = \"Cozy at home\", out = \"Going out\", travel = \"Travel style\". Tag ids are the slugged chip labels; the label is never sent."
     },
     {
       "id": "e4",
@@ -337,56 +404,70 @@
         {
           "columns": [
             "question_id",
+            "screen",
             "event",
             "class",
-            "values"
+            "values",
+            "exclusive"
           ],
           "rows": [
             {
               "question_id": "partnership",
-              "event": "life_",
-              "class": "1",
-              "values": "singleopen_relationshipin_a_relationshipmarriedseparatedits_complicated"
+              "screen": "Life (Profile 22)",
+              "event": "life_question_answered",
+              "class": "2",
+              "values": "single · open_relationship · ethically_non_monogamous · divorced",
+              "exclusive": "—"
             },
             {
               "question_id": "family",
-              "event": "life_",
+              "screen": "Life (Profile 22)",
+              "event": "life_question_answered",
               "class": "1",
-              "values": "no_childrenone_childtwo_childrenthree_or_morenot_saying"
+              "values": "no_children · has_children · single_parent · co_parenting · empty_nester",
+              "exclusive": "no_children"
             },
             {
               "question_id": "living",
-              "event": "life_",
+              "screen": "Life (Profile 22)",
+              "event": "life_question_answered",
               "class": "1",
-              "values": "living_aloneliving_with_roommatesliving_with_familyliving_with_partner"
-            },
-            {
-              "question_id": "partnership_ahead",
-              "event": "future_",
-              "class": "1",
-              "values": "long_term_partnermonogamous_relationshipopensomething_casualundecided"
+              "values": "living_alone · living_with_roommates · living_with_family · living_with_children",
+              "exclusive": "—"
             },
             {
               "question_id": "family_ahead",
-              "event": "future_",
+              "screen": "Future (Profile 23)",
+              "event": "future_question_answered",
               "class": "1",
-              "values": "want_kidsopen_to_childrenno_kidsundecided"
+              "values": "want_kids · dont_want_kids · find_out_together",
+              "exclusive": "want_kids · dont_want_kids · find_out_together (all three — one answer at most)"
+            },
+            {
+              "question_id": "partnership_ahead",
+              "screen": "Future (Profile 23)",
+              "event": "future_question_answered",
+              "class": "2",
+              "values": "monogamous_relationship · open_relationship · ethically_non_monogamous · find_out_together",
+              "exclusive": "find_out_together"
             },
             {
               "question_id": "living_ahead",
-              "event": "future_",
+              "screen": "Future (Profile 23)",
+              "event": "future_question_answered",
               "class": "1",
-              "values": "cohabitingliving_aloneundecided"
+              "values": "stay_local · expat_life · move_abroad · find_out_together",
+              "exclusive": "find_out_together"
             }
           ]
         }
       ],
-      "note": "KNOWN DAMAGED BY THE RETIRED EXTRACTOR, flagged 16 Sep 2026: the values column is a run-together concatenation of what were separate chips (single + open_relationship + in_a_relationship + married + separated + its_complicated reads as one string), and the event column was cut to a prefix. Do NOT codegen from this section. Re-slug both columns from the option arrays in ui_kits/show-up/ and the event names in events.json family F before this section is used, then delete this flag. The question ids themselves are intact."
+      "note": "Re-slugged 8 Oct 2026 (registry 1.4.17) from LIFE_CATEGORIES / FUTURE_CATEGORIES in ui_kits/show-up/, list order = kit order; the DAMAGED flag of 16 Sep 2026 is cleared. Values are the slugged labels; the label is never sent. MULTI-select per question: value_bucketed carries the picked values in LIST order, comma-joined, no spaces, e.g. \"single,divorced\". An exclusive value clears the rest of its question and is cleared by any other pick, so it only ever appears alone. Future rows are re-slugged here so §4 is one consistent list; they are confirmed with the Profile 23 ticket. Neither screen is ever shown on the profile — matching only. Class 2 rows follow the Class 2 storage and emit rules in design_handoff_showup/CLAUDE.md."
     },
     {
       "id": "e5",
       "num": "5",
-      "name": "habit_id & frequency",
+      "name": "RETIRED — habit_id & frequency",
       "tables": [
         {
           "columns": [
@@ -394,31 +475,10 @@
             "frequency",
             "screen_question"
           ],
-          "rows": [
-            {
-              "habit_id": "alcohol",
-              "frequency": "yesnooccasionally",
-              "screen_question": "Do you drink alcohol?"
-            },
-            {
-              "habit_id": "smoke",
-              "frequency": "yesnooccasionally",
-              "screen_question": "Do you smoke?"
-            },
-            {
-              "habit_id": "cannabis",
-              "frequency": "yesnooccasionally",
-              "screen_question": "Do you use cannabis?"
-            },
-            {
-              "habit_id": "drugs",
-              "frequency": "yesnooccasionally",
-              "screen_question": "Do you use other drugs?"
-            }
-          ]
+          "rows": []
         }
       ],
-      "note": "KNOWN DAMAGED BY THE RETIRED EXTRACTOR, flagged 16 Sep 2026: the frequency column is three chips run together (yes + no + occasionally). The habit ids and the screen questions are intact; re-slug the frequency set from the kit before codegen."
+      "note": "RETIRED 8 Oct 2026 (registry 1.4.16): the habits screen was cut. Alcohol and smoking moved to the Interests screen as §1 field_ids alcohol and smoking (new value sets); cannabis and other drugs are no longer asked. Section number kept so later § references do not shift. Do not reuse."
     },
     {
       "id": "e6",
@@ -547,7 +607,7 @@
             },
             {
               "key": "section",
-              "values": "prompts · interests · habits · essentials",
+              "values": "prompts · interests · essentials",
               "notes": "Profile accordion in I. A different section vocabulary exists in P — namespace them."
             },
             {
@@ -712,10 +772,10 @@
               "notes": "Premium."
             },
             {
-              "filter_id": "lifestyle_habits",
-              "values": "Per habit_id",
+              "filter_id": "lifestyle",
+              "values": "Per How-I-live field_id (§1: activity · diet · alcohol · smoking · rhythm · social)",
               "class": "2",
-              "notes": "Premium. Class 2 by inheritance from habits."
+              "notes": "Premium. Class 2 by inheritance from alcohol and smoking. Renamed from lifestyle_habits 8 Oct 2026 (habits cut); not shipped, nothing migrates."
             },
             {
               "filter_id": "showup_band",
@@ -962,33 +1022,33 @@
               "screen_id": "profile_interests",
               "screen_name": "ProfileInterests",
               "flow": "Profile creation · Share some details",
-              "ticket": "TBD",
-              "status": "registered — not ticketed",
-              "notes": "Share some details · step 8 · step_id \"interests\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
+              "ticket": "Profile 21",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 8 · step_id \"interests\" (§2). Added 5 Oct 2026 (registry 1.4.8). SKIPPABLE. Two blocks: \"How I live\" (six single-select groups, §1 activity · diet · alcohol · smoking · rhythm · social, uncapped) and \"What I'm into\" (multi-select §3 tag_ids, capped at 10). No visibility switch. Continue with nothing picked is recorded exactly as Skip (profile_step_skipped only — there is no single field_id for detail_skipped). Origins: profile_politics (forward), profile_life_now (back). Ticketed 8 Oct 2026 (registry 1.4.16)."
             },
             {
               "screen_id": "profile_life_now",
               "screen_name": "ProfileLifeNow",
               "flow": "Profile creation · Share some details",
-              "ticket": "TBD",
-              "status": "registered — not ticketed",
-              "notes": "Share some details · step 9 · step_id \"life_now\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
+              "ticket": "Profile 22",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 9 · step_id \"life_now\" (§2). Added 5 Oct 2026 (registry 1.4.8). SKIPPABLE. Three multi-select questions (§4 partnership · family · living); never shown on the profile, no visibility switch. One life_question_answered per answered question on an accepted Continue. Continue with nothing picked is recorded exactly as Skip (profile_step_skipped only — no detail_skipped). Origins: profile_interests (forward), profile_life_ahead (back). Ticketed 8 Oct 2026 (registry 1.4.17)."
             },
             {
               "screen_id": "profile_life_ahead",
               "screen_name": "ProfileLifeAhead",
               "flow": "Profile creation · Share some details",
-              "ticket": "TBD",
-              "status": "registered — not ticketed",
-              "notes": "Share some details · step 9 · step_id \"life_ahead\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
+              "ticket": "Profile 23",
+              "status": "ticketed — not built",
+              "notes": "Share some details · step 10 of 10 · step_id \"life_ahead\" (§2). Added 5 Oct 2026 (registry 1.4.8). The LAST step of profile creation. SKIPPABLE. Three multi-select questions (§4 family_ahead · partnership_ahead · living_ahead); never shown on the profile, no visibility switch. One future_question_answered per answered question on an accepted Continue. Continue with nothing picked is recorded exactly as Skip (profile_step_skipped only). Origin: profile_life_now (forward only — the Check-In intro has no back). Exit: checkin_intro. Ticketed 8 Oct 2026 (registry 1.4.18)."
             },
             {
-              "screen_id": "profile_habits",
-              "screen_name": "ProfileHabits",
-              "flow": "Profile creation · Share some details",
+              "screen_id": "checkin_intro",
+              "screen_name": "CheckinIntro",
+              "flow": "48hrs Check-In",
               "ticket": "TBD",
               "status": "registered — not ticketed",
-              "notes": "Share some details · step 9 · step_id \"habits\" (§2). Added 5 Oct 2026 (registry 1.4.8) with Profile 13 for screen-to-screen conversion."
+              "notes": "Step 1 of the 48hrs Check-In (ScreenCheckIn step 1, CheckInIntro). Added 8 Oct 2026 (registry 1.4.18) with the Profile 23 ticket: the first screen after profile creation, entered from profile_life_ahead by Continue or Skip. No back control. Registered so the end-of-profile edge is measurable; its own events are defined with its ticket."
             }
           ]
         }

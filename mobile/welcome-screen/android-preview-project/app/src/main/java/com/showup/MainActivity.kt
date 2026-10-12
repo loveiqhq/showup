@@ -124,6 +124,11 @@ import com.showup.profile.ProfileChoiceScreen
 import com.showup.profile.ProfileDatingLanguageScreen
 import com.showup.profile.ProfileDetailsRepository
 import com.showup.profile.ProfileDetailsViewModel
+import com.showup.profile.PickStep
+import com.showup.profile.PickStepsViewModel
+import com.showup.profile.ProfileInterestsScreen
+import com.showup.profile.ProfileLifeAheadScreen
+import com.showup.profile.ProfileLifeNowScreen
 import com.showup.profile.ProfileEmbraceDetailsScreen
 import com.showup.profile.ProfileHeightScreen
 import com.showup.profile.ProfileLocationScreen
@@ -308,6 +313,23 @@ class MainActivity : ComponentActivity() {
                 },
             )
             val detailsState by details.state.collectAsStateWithLifecycle()
+
+            // Interests, Life and Future (SHOWUP-174 to 176): one view model for the three, for the
+            // detail group's reason -- one answer sheet, and each step's back shows the previous
+            // step's saved picks. Same store, same position sink, drafts in the SavedStateHandle.
+            val picks: PickStepsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        PickStepsViewModel(
+                            store = ProfileDetailsRepository(api),
+                            positions = positions,
+                            handle = createSavedStateHandle(),
+                            analytics = AppAnalytics,
+                        )
+                    }
+                },
+            )
+            val picksState by picks.state.collectAsStateWithLifecycle()
 
             val locationAccess = remember(context) { AndroidLocationAccess(context) }
             val location: LocationViewModel = viewModel(
@@ -655,12 +677,16 @@ class MainActivity : ComponentActivity() {
                     ResumePoint.Education -> FlowScreen.ProfileEducation
                     ResumePoint.Religion -> FlowScreen.ProfileReligion
                     ResumePoint.Politics -> FlowScreen.ProfilePolitics
+                    ResumePoint.Interests -> FlowScreen.ProfileInterests
+                    ResumePoint.LifeNow -> FlowScreen.ProfileLifeNow
+                    ResumePoint.LifeAhead -> FlowScreen.ProfileLifeAhead
                     ResumePoint.Done -> FlowScreen.Home
                 }
                 if (screen == FlowScreen.ProfilePrompts) prompts.load()
                 // A resume onto a detail step pre-fills the saved value: start the read now,
                 // before the step's arrival asks for it. Only there -- nothing else reads it.
                 if (DetailStep.entries.any { it.screen == profileScreenOf(screen) }) details.preload()
+                if (PickStep.entries.any { it.screen == profileScreenOf(screen) }) picks.preload()
             }
 
             // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug on the photo
@@ -763,6 +789,7 @@ class MainActivity : ComponentActivity() {
                 // screen is a new view: a jump back onto the same step must arrive again.
                 location.left()
                 details.leftElsewhere()
+                picks.leftElsewhere()
                 notifyModel.left()
                 reachModel.left()
                 when (target) {
@@ -1438,11 +1465,55 @@ class MainActivity : ComponentActivity() {
                     )
                     FlowScreen.ProfilePolitics -> DetailChoiceHost(
                         DetailStep.Politics, details, detailsState, profileScreenOf(cameFrom), onTop,
-                        // INTERESTS (step 8) IS NOT BUILT, so politics ends at Home for now. When
-                        // it is, this is the single line that changes.
-                        onNext = { goTo(FlowScreen.Home) },
+                        onNext = { goTo(FlowScreen.ProfileInterests) },
                         onPrevious = { goTo(FlowScreen.ProfileReligion) },
                     )
+
+                    // ── steps 8 to 10 (SHOWUP-174 to SHOWUP-176) ─────────────────────
+                    FlowScreen.ProfileInterests -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) picks.arrived(PickStep.Interests, profileScreenOf(cameFrom))
+                        }
+                        ProfileInterestsScreen(
+                            state = heldWhileLeaving(picksState, onTop),
+                            onLifestyle = picks::lifestyleTapped,
+                            onInterest = picks::interestTapped,
+                            onShowMore = picks::showMoreTapped,
+                            onContinue = {
+                                picks.continuePressed(PickStep.Interests) { goTo(FlowScreen.ProfileLifeNow) }
+                            },
+                            onSkip = { picks.skipPressed(PickStep.Interests) { goTo(FlowScreen.ProfileLifeNow) } },
+                            onBack = { picks.backPressed(PickStep.Interests) { goTo(FlowScreen.ProfilePolitics) } },
+                        )
+                    }
+                    FlowScreen.ProfileLifeNow -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) picks.arrived(PickStep.LifeNow, profileScreenOf(cameFrom))
+                        }
+                        ProfileLifeNowScreen(
+                            state = heldWhileLeaving(picksState, onTop),
+                            onTap = { question, value -> picks.pillTapped(PickStep.LifeNow, question, value) },
+                            onContinue = {
+                                picks.continuePressed(PickStep.LifeNow) { goTo(FlowScreen.ProfileLifeAhead) }
+                            },
+                            onSkip = { picks.skipPressed(PickStep.LifeNow) { goTo(FlowScreen.ProfileLifeAhead) } },
+                            onBack = { picks.backPressed(PickStep.LifeNow) { goTo(FlowScreen.ProfileInterests) } },
+                        )
+                    }
+                    FlowScreen.ProfileLifeAhead -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) picks.arrived(PickStep.LifeAhead, profileScreenOf(cameFrom))
+                        }
+                        ProfileLifeAheadScreen(
+                            state = heldWhileLeaving(picksState, onTop),
+                            onTap = { question, value -> picks.pillTapped(PickStep.LifeAhead, question, value) },
+                            // THE CHECK-IN INTRO IS NOT BUILT, so the end of profile creation lands on
+                            // Home for now. Both exits change together when it is.
+                            onContinue = { picks.continuePressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) } },
+                            onSkip = { picks.skipPressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) } },
+                            onBack = { picks.backPressed(PickStep.LifeAhead) { goTo(FlowScreen.ProfileLifeNow) } },
+                        )
+                    }
 
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
@@ -1684,6 +1755,9 @@ private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen)
     FlowScreen.ProfileEducation -> ProfileScreen.Education
     FlowScreen.ProfileReligion -> ProfileScreen.Religion
     FlowScreen.ProfilePolitics -> ProfileScreen.Politics
+    FlowScreen.ProfileInterests -> ProfileScreen.Interests
+    FlowScreen.ProfileLifeNow -> ProfileScreen.LifeNow
+    FlowScreen.ProfileLifeAhead -> ProfileScreen.LifeAhead
     else -> null
 }
 

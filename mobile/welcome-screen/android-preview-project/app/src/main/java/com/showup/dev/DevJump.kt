@@ -61,6 +61,9 @@ fun FlowScreen.devSection(): DevSection = when (this) {
     FlowScreen.ProfileEducation,
     FlowScreen.ProfileReligion,
     FlowScreen.ProfilePolitics,
+    FlowScreen.ProfileInterests,
+    FlowScreen.ProfileLifeNow,
+    FlowScreen.ProfileLifeAhead,
     -> DevSection.Details
     FlowScreen.Home -> DevSection.Home
 }
@@ -93,6 +96,9 @@ fun FlowScreen.devLabel(): String = when (this) {
     FlowScreen.ProfileEducation -> "Education"
     FlowScreen.ProfileReligion -> "Religion"
     FlowScreen.ProfilePolitics -> "Politics"
+    FlowScreen.ProfileInterests -> "Interests"
+    FlowScreen.ProfileLifeNow -> "Life (current)"
+    FlowScreen.ProfileLifeAhead -> "Future (last step)"
     FlowScreen.Home -> "Home (placeholder)"
 }
 

@@ -1,6 +1,6 @@
 /*
  * ProfileDetailsRepository.kt
- * ShowUp · the "Share some details" answers, read and written (SHOWUP-167 to SHOWUP-173)
+ * ShowUp · the "Share some details" answers, read and written (SHOWUP-167 to SHOWUP-176)
  *
  * Two calls, both on the owner's own profile: `GET /me/profile` to pre-fill a step on a resume or a
  * back navigation, and `PATCH /me/profile` to store an answer, its visibility and the flow position
@@ -53,4 +53,21 @@ internal fun OwnProfileDto.toSavedDetails() = SavedDetails(
     religion = religion,
     politics = politics,
     hiddenFields = hiddenFields.toSet(),
+    lifestyle = listOf(
+        LifestyleField.Activity.fieldId to activity,
+        LifestyleField.Diet.fieldId to diet,
+        LifestyleField.Alcohol.fieldId to alcohol,
+        LifestyleField.Smoking.fieldId to smoking,
+        LifestyleField.Rhythm.fieldId to rhythm,
+        LifestyleField.Social.fieldId to social,
+    ).mapNotNull { (field, value) -> value?.let { field to it } }.toMap(),
+    interests = interests.orEmpty(),
+    life = listOf(
+        LifeQuestion.Partnership.questionId to partnership,
+        LifeQuestion.Family.questionId to family,
+        LifeQuestion.Living.questionId to living,
+        LifeQuestion.FamilyAhead.questionId to familyAhead,
+        LifeQuestion.PartnershipAhead.questionId to partnershipAhead,
+        LifeQuestion.LivingAhead.questionId to livingAhead,
+    ).mapNotNull { (question, values) -> values?.let { question to it } }.toMap(),
 )

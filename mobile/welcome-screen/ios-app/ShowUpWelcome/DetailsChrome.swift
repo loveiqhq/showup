@@ -85,8 +85,8 @@ let answerRegionFloor: CGFloat = 80
 /// A fixed part above a flexible one: the flexible part gets what `available` leaves, never less
 /// than `floor`, and the layout reports its TRUE height so a surrounding scroll engages only when
 /// the floor does. The Kotlin twin is `FlexWithFloor`, for the same reason: a flexible frame with a
-/// minimum cannot ask its parent to grow.
-private struct FlexWithFloorLayout: Layout {
+/// minimum cannot ask its parent to grow. Shared with Interests, Life and Future (`PickChrome`).
+struct FlexWithFloorLayout: Layout {
     let available: CGFloat
     let floor: CGFloat
 
@@ -112,7 +112,7 @@ private struct FlexWithFloorLayout: Layout {
 /// swipe-back, Android back) pops". This flow routes with a `FlowScreen` switch rather than a
 /// navigation stack, so the system gesture does not exist here; this is it, calling the same
 /// `onBack` the chevron does.
-private struct EdgeSwipeBack: ViewModifier {
+struct EdgeSwipeBack: ViewModifier {
     let onBack: () -> Void
 
     func body(content: Content) -> some View {
@@ -230,11 +230,9 @@ struct DetailsFooter: View {
     var toastTick: Int = 0
 
     var body: some View {
-        HStack {
-            if let onSkip { SkipLink(label: DetailsCopy.skip, action: onSkip) }
-            Spacer(minLength: 0)
-            NextButton(label: DetailsCopy.cta, arrowSize: 22, action: onContinue)
-        }
+        // Side by side when the two fit, stacked when they do not (SkipContinueRow).
+        SkipContinueRow(skipLabel: DetailsCopy.skip, ctaLabel: DetailsCopy.cta,
+                        onSkip: onSkip, onContinue: onContinue)
         .refusalToast(RefusalToast(visible: toastVisible, icon: nil, message: toastMessage, lift: 10,
                                    tick: toastTick))
     }

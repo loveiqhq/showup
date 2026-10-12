@@ -40,3 +40,23 @@ extension View {
             .contentShape(Rectangle())
     }
 }
+
+extension View {
+    /// A control DRAWN smaller than the tap floor that still ANSWERS at it, without moving anything:
+    /// the hit area is padded out to `ComponentSizes.minTapTarget`, and the same padding is taken
+    /// back from the LAYOUT with a negative one, so the slot stays `drawnHeight` and the touch area
+    /// overflows it symmetrically.
+    ///
+    /// NOT `minTapTarget`, which GROWS the frame to 44 — right for a lone pill, wrong for Interests'
+    /// 38 chips and Life's 34 pills in rows 8 apart, where a 44 frame would open every row by 6 or
+    /// 10 and move every chip below the first. The Kotlin twin is `OverflowTapTarget`.
+    ///
+    /// Computed from the DRAWN height the design gives, so a chip grown by Dynamic Type keeps the
+    /// same margin and still answers at least at 44.
+    func overflowTapTarget(drawnHeight: CGFloat) -> some View {
+        let extra = Swift.max((ComponentSizes.minTapTarget - drawnHeight) / 2, 0)
+        return padding(.vertical, extra)
+            .contentShape(Rectangle())
+            .padding(.vertical, -extra)
+    }
+}

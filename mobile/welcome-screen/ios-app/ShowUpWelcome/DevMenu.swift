@@ -42,7 +42,8 @@ extension FlowScreen {
         case .profileNotifications, .profileReachability, .profileLocation:
             return .reachable
         case .profileEmbraceDetails, .profileHeight, .profileGender, .profileOrientation,
-             .profileDatingLanguage, .profileEducation, .profileReligion, .profilePolitics:
+             .profileDatingLanguage, .profileEducation, .profileReligion, .profilePolitics,
+             .profileInterests, .profileLifeNow, .profileLifeAhead:
             return .details
         case .home: return .home
         }
@@ -77,6 +78,9 @@ extension FlowScreen {
         case .profileEducation: return "Education"
         case .profileReligion: return "Religion"
         case .profilePolitics: return "Politics"
+        case .profileInterests: return "Interests"
+        case .profileLifeNow: return "Life (current)"
+        case .profileLifeAhead: return "Future (last step)"
         case .home: return "Home (placeholder)"
         }
     }

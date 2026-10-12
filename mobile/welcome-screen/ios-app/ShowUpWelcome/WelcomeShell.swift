@@ -618,7 +618,10 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  bell, phoneCall, whatsApp, alertCircle,
                  // The location ask (SHOWUP-165): `compass · map-pin · navigation`, at the kit's
                  // exact 24-grid geometry. `lock`, for its privacy note, already existed.
-                 compass, mapPin, navigation }
+                 compass, mapPin, navigation,
+                 // Life and Future (SHOWUP-175 / 176): the medallions name `heart · users · home`
+                 // and `users · heart · compass`; these two are new, at the kit's geometry.
+                 users, home }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -1130,6 +1133,45 @@ struct BrandIconView: View {
                     b.addLine(to: .init(x: 13, y: 21))
                     b.addLine(to: .init(x: 11, y: 13))
                     b.closeSubpath()
+                }
+            case .users:
+                // `M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2` + `circle 9,7 r4` +
+                // `M23 21v-2a4 4 0 0 0-3-3.87` + `M16 3.13a4 4 0 0 1 0 7.75`.
+                //
+                // SVG names an arc by its end, SwiftUI by its centre; each centre is the one the SVG
+                // flags pick (the Kotlin twin shows the working). `clockwise` is in SwiftUI's
+                // flipped sense: `true` runs the angle DOWN on a y-down canvas, which is SVG's
+                // sweep 0; `false` runs it up, which is sweep 1.
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 17, y: 21))
+                    b.addLine(to: .init(x: 17, y: 19))
+                    b.addArc(center: .init(x: 13, y: 19), radius: 4,
+                             startAngle: .degrees(0), endAngle: .degrees(-90), clockwise: true)
+                    b.addLine(to: .init(x: 5, y: 15))
+                    b.addArc(center: .init(x: 5, y: 19), radius: 4,
+                             startAngle: .degrees(270), endAngle: .degrees(180), clockwise: true)
+                    b.addLine(to: .init(x: 1, y: 21))
+                    b.addEllipse(in: .init(x: 5, y: 3, width: 8, height: 8))
+                    b.move(to: .init(x: 23, y: 21))
+                    b.addLine(to: .init(x: 23, y: 19))
+                    b.addArc(center: .init(x: 19, y: 19), radius: 4,
+                             startAngle: .degrees(0), endAngle: .degrees(-75.51), clockwise: true)
+                    b.move(to: .init(x: 16, y: 3.13))
+                    b.addArc(center: .init(x: 15.0078, y: 7.005), radius: 4,
+                             startAngle: .degrees(-75.64), endAngle: .degrees(75.64), clockwise: false)
+                }
+            case .home:
+                // `M3 12 12 3l9 9` + `M5 10v10h14V10` — the roof, then the open-topped walls.
+                filled = false
+                p = Path { b in
+                    b.move(to: .init(x: 3, y: 12))
+                    b.addLine(to: .init(x: 12, y: 3))
+                    b.addLine(to: .init(x: 21, y: 12))
+                    b.move(to: .init(x: 5, y: 10))
+                    b.addLine(to: .init(x: 5, y: 20))
+                    b.addLine(to: .init(x: 19, y: 20))
+                    b.addLine(to: .init(x: 19, y: 10))
                 }
             case .phone:
                 filled = false

@@ -14,7 +14,7 @@
 export type SensitivityClass = 0 | 1 | 2 | 3;
 
 /** Bumped whenever the field_id registry vocabulary changes; stamped as field_registry_version. */
-export const FIELD_REGISTRY_VERSION = '1.4.15';
+export const FIELD_REGISTRY_VERSION = '1.4.18';
 
 /** Fail-closed default for a field not present in the registry. */
 export const SENSITIVITY_UNKNOWN_DEFAULT: SensitivityClass = 2;
@@ -28,7 +28,14 @@ export const SENSITIVITY_BY_FIELD: Record<string, SensitivityClass> = {
   education: 1,
   religion: 2,
   politics: 2,
-  habits: 2,
+  // "How I live" on the Interests screen (SHOWUP-174, registry 1.4.16). Alcohol and smoking keep
+  // the Class 2 of the habits screen they came from, though the screen shows them publicly.
+  activity: 1,
+  diet: 1,
+  alcohol: 2,
+  smoking: 2,
+  rhythm: 0,
+  social: 0,
   age: 0,
 };
 

@@ -206,7 +206,10 @@ class FlowRestorationTest {
         // and C are states of one position, never three), ProfileEmbraceDetails (the second
         // bridge, never a resume point), and the seven "Share some details" steps in walk order.
         // Media, 09 and 10 became resume points with them, through the saved flow position.
-        assertEquals(27, FlowScreen.entries.size)
+        //
+        // Three more with SHOWUP-174 to SHOWUP-176, for thirty: ProfileInterests, ProfileLifeNow and
+        // ProfileLifeAhead, steps 8 to 10, all resume points.
+        assertEquals(30, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

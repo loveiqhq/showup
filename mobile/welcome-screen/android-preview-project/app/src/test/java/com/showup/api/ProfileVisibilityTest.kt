@@ -63,7 +63,8 @@ class ProfileVisibilityTest {
         {"id":"p1","displayName":"Leo","age":28,"gender":null,"lookingFor":null,
          "isVisible":$isVisible,"hiddenFields":$hidden,"isComplete":false,
          "verificationStatus":"none","heightCm":null,"orientation":null,
-         "datingLanguages":null,"education":null,"religion":null,"politics":null}
+         "datingLanguages":null,"education":null,"religion":null,"politics":null,
+         "activity":null,"diet":null,"alcohol":null,"smoking":null,"rhythm":null,"social":null,"interests":null,"partnership":null,"family":null,"living":null,"familyAhead":null,"partnershipAhead":null,"livingAhead":null}
     """.trimIndent()
 
     private fun json(body: String, code: Int = 200) = MockResponse()

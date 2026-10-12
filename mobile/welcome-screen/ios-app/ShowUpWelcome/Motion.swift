@@ -27,6 +27,10 @@ enum Motion {
     static let progress: TimeInterval = 0.28
 
     /// Screen-to-screen transition.
+    /// A disclosure chevron turning over — `Show more` / `Show less` on Interests (SHOWUP-174),
+    /// `transform 220ms` on the brand curve. Android's `Motion.DISCLOSURE`.
+    static let disclosure: TimeInterval = 0.22
+
     static let screen: TimeInterval = 0.32
 
     /// The one-shot mismatch shake. SHOWUP-143 specifies 480ms exactly.
