@@ -147,6 +147,14 @@ android {
         // be absent from a test. Robolectric tests provide the real implementations regardless;
         // this only affects the plain JVM ones.
         unitTests.isReturnDefaultValues = true
+        unitTests.all {
+            // 2 GB FOR THE TEST JVM, where Gradle's default is 512 MB. The fit harnesses render
+            // every screen state at 17 phone sizes and three type sizes under Robolectric -- about
+            // 1,300 compositions in PickFitTest alone (SHOWUP-174 to 176) -- and the suite ran out
+            // of heap on CI at 512 the day those landed, failing every test after it. The CI runner
+            // has 16 GB; locally, run the fit classes narrowly (`--tests`), as before.
+            it.maxHeapSize = "2g"
+        }
     }
 }
 

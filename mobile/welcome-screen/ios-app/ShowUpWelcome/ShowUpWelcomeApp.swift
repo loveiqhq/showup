@@ -572,6 +572,45 @@ private struct TutorialFlow: View {
         go(to: .profileEmbraceDetails)
     }
 
+    /// A sign-up or log-in just completed, possibly as a different account: nothing the profile
+    /// screens hold may carry over.
+    ///
+    /// Until 13 October 2026 the models below were built once per scene and read the account
+    /// once, so "Start over" or the developer menu's Startup followed by a NEW account showed the
+    /// previous account's answers, photos and prompts on its first visit to each screen — and
+    /// Continue saved them into the new account. Each account-scoped model is replaced with a fresh
+    /// one, and the drafts and copies kept in scene storage are cleared. The Android twin keys its
+    /// view models on an account generation for the same reason. The sign-in model stays: it is
+    /// the session that just began.
+    private func beginNewAccount() {
+        basics = BasicsModel(repo: BasicsRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        photos = PhotosModel(repo: PhotosRepository(api: APIAccess.client), access: SystemPhotoAccess(),
+                             analytics: AppAnalytics.shared)
+        prompts = PromptsModel(repo: PromptsRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        notifications = NotificationsModel(analytics: AppAnalytics.shared)
+        reachability = ReachabilityModel(consent: NoConsentBackend(), analytics: AppAnalytics.shared)
+        media = MediaModel(repo: MediaRepository(api: APIAccess.client), access: AVMediaAccess(),
+                           capture: AVMediaCaptureFactory(), player: sharedMediaPlayer,
+                           analytics: AppAnalytics.shared)
+        details = DetailsModel(store: ProfileDetailsRepository(api: APIAccess.client),
+                               positions: FlowPositionReporter(api: APIAccess.client),
+                               analytics: AppAnalytics.shared)
+        picks = PickModel(store: ProfileDetailsRepository(api: APIAccess.client),
+                          positions: FlowPositionReporter(api: APIAccess.client),
+                          analytics: AppAnalytics.shared)
+        location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client),
+                                 analytics: AppAnalytics.shared)
+        firstName = ""
+        email = ""
+        marketingConsent = false
+        promptsStored = ""
+        detailsStored = ""
+        picksStored = ""
+        confettiPlayed = false
+        dobStored = ""
+        hideAgeStored = false
+    }
+
     /// Binds the details model to scene storage — idempotent, so every step can call it.
     private func attachDetails() {
         let stored = $detailsStored
@@ -867,6 +906,7 @@ private struct TutorialFlow: View {
                 // SHOWUP-146, the whole ticket in one line: the tutorial for a new account,
                 // straight into the app for a returning member.
                 case .signUp: SignUpFlowView(onFinished: { o in
+                    beginNewAccount()
                     outcomeRaw = o.storageKey
                     go(to: showsTutorial(o) ? .tutorialWelcome : .home)
                 }, auth: phoneAuth, epoch: epoch, sessionEnded: sessionNotice,

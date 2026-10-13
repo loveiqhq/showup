@@ -44,6 +44,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.showup.tutorial.MatchMeansMeetScreen
@@ -195,6 +196,19 @@ class MainActivity : ComponentActivity() {
                 factory = viewModelFactory { initializer { FlowNavigator(createSavedStateHandle()) } },
             )
             var screen by nav::screen
+
+            // WHICH ACCOUNT THE PROFILE SCREENS ARE HOLDING, as a generation number.
+            //
+            // Every view model below that caches what an account has saved -- the answers, the
+            // photos, the prompts, the media, the drafts in their SavedStateHandles -- is KEYED on
+            // it, and a completed sign-up or log-in bumps it (SignUpFlow's `onFinished`). Until 13
+            // October 2026 they were built once per Activity and read the account once, so "Start
+            // over" or the developer menu's Startup followed by a NEW account showed the previous
+            // account's answers on its first visit to each screen -- and Continue saved them into
+            // the new account. A new generation is a new instance with nothing in it; the old ones
+            // hold no references anything still reads. Saveable, so a process death keeps the
+            // generation and therefore the drafts that belong to it.
+            var account by rememberSaveable { mutableIntStateOf(0) }
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
             var outcome by rememberSaveable { mutableStateOf(SignUpOutcome.NewAccount) }
@@ -250,6 +264,7 @@ class MainActivity : ComponentActivity() {
             )
 
             val basics: BasicsViewModel = viewModel(
+                key = "basics-$account",
                 factory = viewModelFactory {
                     initializer {
                         BasicsViewModel(BasicsRepository(api), analytics = AppAnalytics)
@@ -268,6 +283,7 @@ class MainActivity : ComponentActivity() {
             // own. `readBytes` is a lambda so the ViewModel knows nothing about ContentResolver
             // and can be driven from a JVM test.
             val photos: PhotosViewModel = viewModel(
+                key = "photos-$account",
                 factory = viewModelFactory {
                     initializer {
                         PhotosViewModel(
@@ -301,6 +317,7 @@ class MainActivity : ComponentActivity() {
             // each step's back has to show the previous step's saved value. Its draft lives in the
             // SavedStateHandle, so a process death mid-step keeps what was picked.
             val details: ProfileDetailsViewModel = viewModel(
+                key = "details-$account",
                 factory = viewModelFactory {
                     initializer {
                         ProfileDetailsViewModel(
@@ -318,6 +335,7 @@ class MainActivity : ComponentActivity() {
             // detail group's reason -- one answer sheet, and each step's back shows the previous
             // step's saved picks. Same store, same position sink, drafts in the SavedStateHandle.
             val picks: PickStepsViewModel = viewModel(
+                key = "picks-$account",
                 factory = viewModelFactory {
                     initializer {
                         PickStepsViewModel(
@@ -333,6 +351,7 @@ class MainActivity : ComponentActivity() {
 
             val locationAccess = remember(context) { AndroidLocationAccess(context) }
             val location: LocationViewModel = viewModel(
+                key = "location-$account",
                 factory = viewModelFactory {
                     initializer {
                         LocationViewModel(access = locationAccess, positions = positions, analytics = AppAnalytics)
@@ -385,6 +404,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val prompts: PromptsViewModel = viewModel(
+                key = "prompts-$account",
                 factory = viewModelFactory {
                     initializer {
                         PromptsViewModel(
@@ -510,6 +530,7 @@ class MainActivity : ComponentActivity() {
             val notifications = remember(context) { AndroidNotificationAccess(context) }
 
             val reachModel: ReachabilityViewModel = viewModel(
+                key = "reachModel-$account",
                 factory = viewModelFactory {
                     initializer {
                         ReachabilityViewModel(
@@ -524,6 +545,7 @@ class MainActivity : ComponentActivity() {
             )
 
             val notifyModel: NotificationsViewModel = viewModel(
+                key = "notifyModel-$account",
                 factory = viewModelFactory {
                     initializer {
                         NotificationsViewModel(
@@ -590,6 +612,7 @@ class MainActivity : ComponentActivity() {
             DisposableEffect(mediaPlayer) { onDispose { mediaPlayer.release() } }
 
             val media: MediaViewModel = viewModel(
+                key = "media-$account",
                 factory = viewModelFactory {
                     initializer {
                         MediaViewModel(
@@ -698,7 +721,9 @@ class MainActivity : ComponentActivity() {
             // blocked row" -- and a second observer for the second screen would be a second place
             // to forget. Neither call touches the network and both are cheap.
             val lifecycleOwner = LocalLifecycleOwner.current
-            DisposableEffect(lifecycleOwner) {
+            // Keyed on the two models too: after a new sign-in they are new instances, and an
+            // observer that captured the old ones would refresh models nothing draws any more.
+            DisposableEffect(lifecycleOwner, photos, media) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
                         photos.refreshAccess()
@@ -858,6 +883,14 @@ class MainActivity : ComponentActivity() {
                         auth = phoneAuth,
                         analytics = AppAnalytics,
                         onFinished = {
+                            // A SESSION BEGAN, possibly a different account's: nothing the
+                            // screens hold may carry over. A fresh generation of every
+                            // account-scoped view model, and the host's own copy of the name, the
+                            // address and the consent box.
+                            account += 1
+                            firstName = ""
+                            email = ""
+                            marketingConsent = false
                             outcome = it
                             screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
                         },

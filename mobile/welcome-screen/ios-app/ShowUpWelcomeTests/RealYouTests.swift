@@ -620,7 +620,8 @@ final class ProfileResumeTests: XCTestCase {
         var noPrompts = complete; noPrompts.promptCount = 0
         let positions: [String?] = [
             nil, "media_video", "notifications", "reachability", "location", "height", "gender",
-            "orientation", "dating_language", "education", "religion", "politics",
+            "orientation", "dating_language", "education", "religion", "politics", "interests",
+            "life_now", "life_ahead",
         ]
         let reached = Set([
             resumePoint(ProfileProgress()),

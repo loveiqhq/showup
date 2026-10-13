@@ -2101,6 +2101,30 @@ check("176 exits home for now (kotlin)", "picks.continuePressed(PickStep.LifeAhe
       and "picks.skipPressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) }" in app_kt)
 check("176 exits home for now (swift)", "lifeScreen(.lifeAhead, next: .home, previous: .profileLifeNow)" in app_sw)
 
+# ── a new sign-in starts with nothing from the last account (13 October 2026) ──
+# Found on the emulator: "Start over" (or the developer menu's Startup) and a NEW account showed the
+# previous account's saved answers on Interests and Continue saved them into the new account. Every
+# view model that caches account data is keyed on an account generation the completed sign-in bumps
+# (Android), or replaced with a fresh one by `beginNewAccount` (iOS).
+ACCOUNT_SCOPED_KT = ["basics", "photos", "details", "picks", "location", "prompts", "reachModel",
+                     "notifyModel", "media"]
+for name in ACCOUNT_SCOPED_KT:
+    check("account-scoped view model is keyed on the account (kotlin): %s" % name,
+          'key = "%s-$account"' % name in app_kt)
+check("a completed sign-in starts a new account generation (kotlin)",
+      re.search(r"onFinished = \{[^}]*account \+= 1", app_kt, re.S) is not None)
+check("a completed sign-in clears the host's name and address (kotlin)",
+      re.search(r"account \+= 1\s*firstName = \"\"\s*email = \"\"", app_kt) is not None)
+check("a completed sign-in replaces the account's models (swift)",
+      re.search(r"SignUpFlowView\(onFinished: \{ o in\s*beginNewAccount\(\)", app_sw) is not None)
+_begin = app_sw[app_sw.find("private func beginNewAccount()"):]
+_begin = _begin[:_begin.find("\n    }\n")]
+for name in ["basics", "photos", "prompts", "notifications", "reachability", "media", "details", "picks",
+             "location"]:
+    check("beginNewAccount replaces %s (swift)" % name, ("%s = " % name) in _begin)
+for stored in ["firstName", "email", "promptsStored", "detailsStored", "picksStored", "dobStored"]:
+    check("beginNewAccount clears %s (swift)" % stored, ("%s = " % stored) in _begin)
+
 # ── the session ended (8 October 2026) ──────────────────────────────────────
 # Not a ticket: the fix for saves that failed forever once the server had ended the session. The
 # sentence is PROPOSED copy, pending Philipp -- this keeps the two platforms saying the same thing.
