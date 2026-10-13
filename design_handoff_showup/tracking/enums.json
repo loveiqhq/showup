@@ -1,6 +1,46 @@
 {
-  "registry_version": "1.4.18",
+  "registry_version": "1.4.25",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_25": [
+    "§11 checkin_uplift / CheckinUplift — NEW row, Check-In 06. 13 Oct 2026.",
+    "§28 check_in_step — uplift CONFIRMED by Check-In 06. Values unchanged.",
+    "§32 check_in_commit_failure — NEW: network · server · contact_info. The reason a Find my date commit did not save (check_in_commit_failed)."
+  ],
+  "changed_in_1_4_24": [
+    "§10 meet_gender — values string REPAIRED: was the run-together \"womanmannon_binaryother\"; now woman · man · non_binary · other (the §1 gender set, unchanged). MANDATORY on the Check-In (≥ 1). First Check-In pre-fill from the profile is defined in the row notes. 13 Oct 2026, Check-In 05.",
+    "§10 meet_orientation — RETIRED. The Check-In sexuality filter is removed (13 Oct 2026, Check-In 05): matching is two-way on gender, so a gender filter already means people who want to meet that gender. Orientation stays a profile field (§1) and is used by matching, never as a filter. Never shipped; nothing migrates. Its run-together values string (\"straightgaylesbian…\") is gone with it.",
+    "§10 age_range — values now min_age 18–65 + max_age 18–65 or null; the top stop (65+) means no upper limit. Optional; default full range (\"Any age\"). Was \"18–99\".",
+    "§10 distance_km — values now an integer 1–50 km, 1 km steps, default 10. Measured from the device location when the search runs. Was \"Integer, bucketed\".",
+    "§11 checkin_filters / CheckinFilters — NEW row, Check-In 05.",
+    "§28 check_in_step — filters CONFIRMED by Check-In 05. Values unchanged."
+  ],
+  "changed_in_1_4_23": [
+    "§31 check_in_vibe — NEW: 20 values in three groups, in list order. activity: coffee_chat · casual_drink · grab_food · nature_walk · bouldering_table_tennis · workout · sunset · drinks_music. headspace: calm · deep_talk · playful · cozy · spontaneous · curious. pacing: quick_hello · low_key · high_energy · no_rush · early_night · meet_now. MULTI-select, 1–5 per accepted Continue (decided 13 Oct 2026 with Check-In 04). Re-slugged from the kit's punctuation-stripped ids (funplayful …) — nothing had shipped, so nothing migrates. Class 0. ONE vocabulary: Search's “vibe today” card and Instant show these labels and no others.",
+    "§11 checkin_vibe / CheckinVibe — NEW row, Check-In 04.",
+    "§28 check_in_step — vibe CONFIRMED by Check-In 04. Values unchanged.",
+    "§9 vibe — status set: defined as §31."
+  ],
+  "changed_in_1_4_22": [
+    "§30 check_in_motivation — NEW: long_term · non_monogamy · short_term · casual · friends, in list order. SINGLE value per Check-In (single-select, decided 13 Oct 2026 with Check-In 03). Re-slugged from the kit ids (long-term · enm · short) — nothing had shipped, so nothing migrates. Class 1. One vocabulary for the Check-In step, Instant and the dating_intent filter (§10).",
+    "§11 checkin_motivation / CheckinMotivation — NEW row, Check-In 03.",
+    "§28 check_in_step — motivation CONFIRMED by Check-In 03. Values unchanged.",
+    "§9 motivation — status set: defined as §30. §10 dating_intent — values now §30 check_in_motivation (was “per the check-in screens”)."
+  ],
+  "changed_in_1_4_21": [
+    "§11 checkin_today / CheckinToday and checkin_tomorrow / CheckinTomorrow — NEW rows, Check-In 02 (availability, one story for both screens). 13 Oct 2026.",
+    "§28 check_in_step — today and tomorrow CONFIRMED by Check-In 02. Values unchanged.",
+    "§29 check_in_no_hours_today_action — NEW: continue_tomorrow · pick_today · dismissed. The answer to the “No hours today?” confirm on an empty Today.",
+    "§11 checkin_search_unavailable and checkin_today notes — the Check-In draft is removed (13 Oct 2026): the gate reopens at Today once the intro has been passed, availability always starts empty. No value set changed."
+  ],
+  "changed_in_1_4_20": [
+    "§28 check_in_step — prep REMOVED: the heads-up time step was cut from the Check-In, 13 Oct 2026. Uplift is now the last step and carries Find my date. Never shipped."
+  ],
+  "changed_in_1_4_19": [
+    "§11 checkin_intro — ticket set to Check-In 01, status ticketed — not built. Gains a close ✕. 12 Oct 2026.",
+    "§11 checkin_search_unavailable / CheckinSearchUnavailable — NEW row: the Search tab with no Check-In, where the ✕ lands.",
+    "§27 check_in_gate_target — NEW: cta · search_tab · instant_tab.",
+    "§28 check_in_step — NEW: intro · today · tomorrow · motivation · vibe · filters · uplift · prep. prep is LAST (moved from after tomorrow, 12 Oct 2026) — order only, same value set."
+  ],
   "changed_in_1_4_18": [
     "§4 family_ahead · partnership_ahead · living_ahead — CONFIRMED with the Profile 23 ticket (values as re-slugged in 1.4.17, unchanged). Multi-select per question; family_ahead's three values are all exclusive (one answer at most); find_out_together is exclusive in partnership_ahead and living_ahead. 8 Oct 2026.",
     "§11 profile_life_ahead — ticket set to Profile 23, status ticketed — not built. Last step of profile creation; exits to the Check-In intro.",
@@ -710,13 +750,13 @@
               "key": "motivation",
               "covers": "Check-in dating motivation",
               "owner": "Design",
-              "status": "Derivable from the check-in screens now."
+              "status": "Defined: §30 check_in_motivation (registry 1.4.22, Check-In 03)."
             },
             {
               "key": "vibe",
               "covers": "Check-in vibe tags",
               "owner": "Design",
-              "status": "Three groups exist in the check-in kit — activities and two more."
+              "status": "Defined: §31 check_in_vibe (registry 1.4.23, Check-In 04)."
             }
           ]
         }
@@ -737,33 +777,33 @@
           "rows": [
             {
               "filter_id": "meet_gender",
-              "values": "womanmannon_binaryother",
+              "values": "woman · man · non_binary · other",
               "class": "2",
-              "notes": "Multi-select over the same enum as the profile field — one vocabulary, no mapping table. The UI renders the plural (“Women”, “Men”) because the filter selects people; the stored value is identical. other is included so users who selected it are matchable rather than invisible."
+              "notes": "Multi-select over the same enum as the profile field (§1 gender) — one vocabulary, no mapping table. The UI renders the plural (“Women”, “Men”) because the filter selects people; the stored value is identical. other is included so users who selected it are matchable rather than invisible. MANDATORY on the Check-In (≥ 1, Check-In 05). Matching is TWO-WAY: a user is shown only to people whose own meet_gender includes the user’s gender. First Check-In pre-fill from the profile: straight → the other of woman/man · gay or lesbian → own gender · bisexual or pansexual → woman + man · non_binary or other gender, or orientation other → all four. Repaired 13 Oct 2026 (was \"womanmannon_binaryother\")."
             },
             {
               "filter_id": "meet_orientation",
-              "values": "straightgaylesbianbisexualpansexualother",
+              "values": "RETIRED 13 Oct 2026",
               "class": "2",
-              "notes": "Multi-select over the step-3 option set — the same enum, no mapping."
+              "notes": "RETIRED with Check-In 05: the sexuality filter is removed from the Check-In and from Search. Two-way gender matching already restricts results to people who want to meet the user’s gender; an orientation filter could only hide bisexual and pansexual people (and returned nothing for straight users). Orientation stays a profile field. Never shipped."
             },
             {
               "filter_id": "age_range",
-              "values": "min_age + max_age, 18–99",
+              "values": "min_age 18–65 + max_age 18–65 or null (65+ = no upper limit)",
               "class": "0",
-              "notes": "From the premium filter list."
+              "notes": "Optional. Default the full range, shown as “Any age”. Thumbs may meet (one age). Free filter, on the Check-In step (Check-In 05) and in Search — one store."
             },
             {
               "filter_id": "distance_km",
-              "values": "Integer, bucketed",
+              "values": "Integer 1–50, 1 km steps, default 10",
               "class": "0",
-              "notes": "Pairs with radius_widened in Family I."
+              "notes": "Measured from the device location when the search runs. Free filter, on the Check-In step (Check-In 05) and in Search — one store. Pairs with radius_widened in Family I."
             },
             {
               "filter_id": "dating_intent",
-              "values": "Per the check-in screens",
+              "values": "§30 check_in_motivation — long_term · non_monogamy · short_term · casual · friends",
               "class": "1",
-              "notes": "Listed in LockedFiltersUnderlay."
+              "notes": "Listed in LockedFiltersUnderlay. Same vocabulary as the Check-In motivation step (Check-In 03) — no mapping. The filter may be multi-select (who you want to meet); the user’s own motivation is one value."
             },
             {
               "filter_id": "height_range",
@@ -1046,9 +1086,65 @@
               "screen_id": "checkin_intro",
               "screen_name": "CheckinIntro",
               "flow": "48hrs Check-In",
-              "ticket": "TBD",
-              "status": "registered — not ticketed",
-              "notes": "Step 1 of the 48hrs Check-In (ScreenCheckIn step 1, CheckInIntro). Added 8 Oct 2026 (registry 1.4.18) with the Profile 23 ticket: the first screen after profile creation, entered from profile_life_ahead by Continue or Skip. No back control. Registered so the end-of-profile edge is measurable; its own events are defined with its ticket."
+              "ticket": "Check-In 01",
+              "status": "ticketed — not built",
+              "notes": "Step 1 of the 48hrs Check-In (ScreenCheckIn step 1, CheckInIntro). Added 8 Oct 2026 (registry 1.4.18). Ticketed 12 Oct 2026 (registry 1.4.19). A bridge, not a step: no step_id, no StepProgress. Origins: profile_life_ahead (end of profile creation) and checkin_search_unavailable (gate, no draft). No back. A close ✕ (check_in_closed · step_id intro) exits to checkin_search_unavailable. CTA fires check_in_started."
+            },
+            {
+              "screen_id": "checkin_search_unavailable",
+              "screen_name": "CheckinSearchUnavailable",
+              "flow": "48hrs Check-In",
+              "ticket": "Check-In 01",
+              "status": "ticketed — not built",
+              "notes": "The Search tab for a user with no Check-In (ScreenCheckInNeeded): \"date search not available\". Added 12 Oct 2026 (registry 1.4.19). Reached by the ✕ on any Check-In screen, and on any later app open until a Check-In completes. CTA, Search tab and Instant tab all reopen the Check-In (check_in_gate_tapped): to checkin_intro until the user has passed the intro once, to the today step (empty) after that. Changed 13 Oct 2026 (registry 1.4.21): was “with a draft”; there is no draft. Settings works normally. Origins: any Check-In screen (✕), app launch."
+            },
+            {
+              "screen_id": "checkin_today",
+              "screen_name": "CheckinToday",
+              "flow": "48hrs Check-In",
+              "ticket": "Check-In 02",
+              "status": "ticketed — not built",
+              "notes": "Check-In step today (§28), StepProgress 1 of 6 (ScreenCheckIn step 2, AvailabilityStep day=\"today\"). Added 13 Oct 2026 (registry 1.4.21). Grid starts at the next full hour and ends at the 6am slot — a Check-In day runs 7am → 7am. OPTIONAL: Continue on an empty grid raises the “No hours today?” confirm (check_in_no_hours_today_resolved, §29). Origins: checkin_intro (CTA), checkin_search_unavailable (gate reopen once the intro has been passed — the intro is skipped), checkin_tomorrow (back). Always starts EMPTY, as does checkin_tomorrow: availability is never kept across a ✕ (13 Oct 2026)."
+            },
+            {
+              "screen_id": "checkin_tomorrow",
+              "screen_name": "CheckinTomorrow",
+              "flow": "48hrs Check-In",
+              "ticket": "Check-In 02",
+              "status": "ticketed — not built",
+              "notes": "Check-In step tomorrow (§28), StepProgress 2 of 6 (ScreenCheckIn step 3, AvailabilityStep day=\"tomorrow\"). Added 13 Oct 2026 (registry 1.4.21). Grid runs 7am → the 6am slot (24 slots). REQUIRED: ≥ 1 hour; Continue dims and a tap raises the toast. Origins: checkin_today (Continue, or Continue to tomorrow on the confirm), the Motivation step (back)."
+            },
+            {
+              "screen_id": "checkin_motivation",
+              "screen_name": "CheckinMotivation",
+              "flow": "48hrs Check-In",
+              "ticket": "Check-In 03",
+              "status": "ticketed — not built",
+              "notes": "Check-In step motivation (§28), StepProgress 3 of 6 (ScreenCheckIn step 4, IntentStep). Added 13 Oct 2026 (registry 1.4.22). SINGLE-SELECT over §30; REQUIRED: Continue dims until one row is picked and a tap raises the toast. A first Check-In starts empty; every later one pre-selects the last accepted answer. Origins: checkin_tomorrow (Continue), the Vibe step (back)."
+            },
+            {
+              "screen_id": "checkin_vibe",
+              "screen_name": "CheckinVibe",
+              "flow": "48hrs Check-In",
+              "ticket": "Check-In 04",
+              "status": "ticketed — not built",
+              "notes": "Check-In step vibe (§28), StepProgress 4 of 6 (ScreenCheckIn step 5, VibeStep). Added 13 Oct 2026 (registry 1.4.23). MULTI-SELECT over §31, 1–5; REQUIRED: Continue dims until one chip is picked and a tap raises the toast; a tap on a sixth chip selects nothing and raises the max toast. A first Check-In starts empty; every later one pre-selects the last accepted answer. Chips are LifePill (Profile 22). Origins: checkin_motivation (Continue), the Filters step (back)."
+            },
+            {
+              "screen_id": "checkin_filters",
+              "screen_name": "CheckinFilters",
+              "flow": "48hrs Check-In",
+              "ticket": "Check-In 05",
+              "status": "ticketed — not built",
+              "notes": "Check-In step filters (§28), StepProgress 5 of 6 (ScreenCheckIn step 6, FiltersStep). Added 13 Oct 2026 (registry 1.4.24). Three filters: meet_gender (MANDATORY, ≥ 1; Continue dims and a tap raises the toast), age_range (optional), distance_km (default 10). The sexuality filter is removed. ONE STORE with Search’s filter sheet: a first Check-In pre-fills gender from the profile; every later one shows the current settings. Origins: checkin_vibe (Continue), the Uplift step (back)."
+            },
+            {
+              "screen_id": "checkin_uplift",
+              "screen_name": "CheckinUplift",
+              "flow": "48hrs Check-In",
+              "ticket": "Check-In 06",
+              "status": "ticketed — not built",
+              "notes": "Check-In step uplift (§28), StepProgress 6 of 6 (ScreenCheckIn step 7, UpliftStep). Added 13 Oct 2026 (registry 1.4.25). The LAST step: carries Find my date, which commits the Check-In. OPTIONAL free text, 100 characters, return = new line, always empty on entry (never pre-filled, never kept). Emails, phone numbers and links are blocked live with one string. The text is never in a tracking payload. Inspirations are not tappable. Success → Search (date search unlocked). Origins: checkin_filters (Continue). Exits: Search (commit), checkin_filters (back), checkin_search_unavailable (✕)."
             }
           ]
         }
@@ -1466,6 +1562,123 @@
         "not_determined",
         "denied",
         "services_off"
+      ]
+    },
+    {
+      "id": "e27",
+      "num": "27",
+      "name": "check_in_gate_target",
+      "note": "WHAT REOPENED THE CHECK-IN from checkin_search_unavailable. cta: the screen's \"Check-in for a date\" button. search_tab / instant_tab: the bottom tabs — both lead to the Check-In, because a search needs stated availability first. Settings is not a value: it does not reopen anything. Created 12 Oct 2026 with the Check-In 01 ticket.",
+      "values": [
+        "cta",
+        "search_tab",
+        "instant_tab"
+      ]
+    },
+    {
+      "id": "e28",
+      "num": "28",
+      "name": "check_in_step",
+      "note": "THE 48hrs CHECK-IN SCREENS, in flow order. intro is a bridge (no StepProgress) but IS a value here, because check_in_closed can fire on it; check_in_step_answered never carries intro. Kit: ScreenCheckIn steps 1–7. prep removed 13 Oct 2026 (registry 1.4.20) with the heads-up time step. Created 12 Oct 2026 with the Check-In 01 ticket; each step ticket confirms its own value. today and tomorrow confirmed by Check-In 02, 13 Oct 2026 (registry 1.4.21). motivation confirmed by Check-In 03, 13 Oct 2026 (registry 1.4.22). vibe confirmed by Check-In 04, 13 Oct 2026 (registry 1.4.23). filters confirmed by Check-In 05, 13 Oct 2026 (registry 1.4.24). uplift CONFIRMED by Check-In 06 (13 Oct 2026): the last step; check_in_step_answered on uplift fires once, on a SUCCESSFUL commit.",
+      "values": [
+        "intro",
+        "today",
+        "tomorrow",
+        "motivation",
+        "vibe",
+        "filters",
+        "uplift"
+      ]
+    },
+    {
+      "id": "e29",
+      "num": "29",
+      "name": "check_in_no_hours_today_action",
+      "note": "HOW THE “No hours today?” CONFIRM WAS ANSWERED, on checkin_today with an empty grid. continue_tomorrow: the sunset “Continue to tomorrow” button — the user goes on with no hours today. pick_today: “Cancel, pick hours today”. dismissed: scrim tap or Android back — the same outcome as pick_today (stays on Today) but not the same act, so it is kept apart. Created 13 Oct 2026 with the Check-In 02 ticket.",
+      "values": [
+        "continue_tomorrow",
+        "pick_today",
+        "dismissed"
+      ]
+    },
+    {
+      "id": "e30",
+      "num": "30",
+      "name": "check_in_motivation",
+      "note": "THE ONE MOTIVATION A USER STATES FOR A CHECK-IN, on checkin_motivation (Check-In 03). SINGLE-SELECT: exactly one value per accepted Continue, never a list. In the kit's list order. Kit: CHECKIN_MOTIVATIONS in screens-checkin.jsx; Instant's INSTANT_MOTIVES uses the same ids. The same vocabulary is the dating_intent filter (§10) — no mapping table. Class 1: non_monogamy discloses a relationship practice. Shown on the profile (one MotivationPill) only while a Check-In is active. Created 13 Oct 2026 with the Check-In 03 ticket.",
+      "values": [
+        "long_term",
+        "non_monogamy",
+        "short_term",
+        "casual",
+        "friends"
+      ]
+    },
+    {
+      "id": "e31",
+      "num": "31",
+      "name": "check_in_vibe",
+      "note": "THE VIBES A USER STATES FOR A CHECK-IN, on checkin_vibe (Check-In 04). MULTI-SELECT: 1–5 values per accepted Continue, across all three groups. In the kit's list order (CHECKIN_VIBE_GROUPS in screens-checkin.jsx); a list of picks is always sent in this order, never in tap order. The group is a property of the value, not a second id — never send it separately. Class 0: none of the values discloses a special category. ONE vocabulary: Search's “vibe today” card and Instant show these labels (CHECKIN_VIBE_LABEL) and no others. Shown on the profile only while a Check-In is active. Created 13 Oct 2026 with the Check-In 04 ticket.",
+      "groups": {
+        "activity": [
+          "coffee_chat",
+          "casual_drink",
+          "grab_food",
+          "nature_walk",
+          "bouldering_table_tennis",
+          "workout",
+          "sunset",
+          "drinks_music"
+        ],
+        "headspace": [
+          "calm",
+          "deep_talk",
+          "playful",
+          "cozy",
+          "spontaneous",
+          "curious"
+        ],
+        "pacing": [
+          "quick_hello",
+          "low_key",
+          "high_energy",
+          "no_rush",
+          "early_night",
+          "meet_now"
+        ]
+      },
+      "values": [
+        "coffee_chat",
+        "casual_drink",
+        "grab_food",
+        "nature_walk",
+        "bouldering_table_tennis",
+        "workout",
+        "sunset",
+        "drinks_music",
+        "calm",
+        "deep_talk",
+        "playful",
+        "cozy",
+        "spontaneous",
+        "curious",
+        "quick_hello",
+        "low_key",
+        "high_energy",
+        "no_rush",
+        "early_night",
+        "meet_now"
+      ]
+    },
+    {
+      "id": "e32",
+      "num": "32",
+      "name": "check_in_commit_failure",
+      "note": "WHY A CHECK-IN COMMIT (Find my date on checkin_uplift, Check-In 06) DID NOT SAVE. network = no response / timeout · server = any 5xx or unexpected error · contact_info = the server rejected the uplift text for an email, phone number or link the client detector let through (the client then shows the contact-info state, not the save-failed card). Closed set; one value per check_in_commit_failed. Created 13 Oct 2026 with the Check-In 06 ticket.",
+      "values": [
+        "network",
+        "server",
+        "contact_info"
       ]
     }
   ],

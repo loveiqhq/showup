@@ -11,7 +11,11 @@ import { ProfilePhoto } from './entities/profile-photo.entity';
 import { Profile, ProfileVerificationStatus } from './entities/profile.entity';
 import { isAtLeast18 } from './util/age';
 import { isProfileComplete } from './util/completion';
-import { advanceFlowPosition } from './util/flow-position';
+import { ensureCheckInWindow } from '../check-ins/util/check-in-window';
+import {
+  advanceFlowPosition,
+  FLOW_POSITION_COMPLETE,
+} from './util/flow-position';
 import {
   canonicalDatingLanguages,
   canonicalInterests,
@@ -192,10 +196,20 @@ export class ProfilesService {
       }
 
       if (dto.flowPosition != null) {
+        const before = profile.flowPosition;
         profile.flowPosition = advanceFlowPosition(
           profile.flowPosition,
           dto.flowPosition,
         );
+        // PROFILE CREATION JUST COMPLETED: open the first Check-In window, in the same transaction
+        // and under the same row lock -- "Server: open a Check-In window when the profile-creation-
+        // complete flag is set" (Check-In 01), so `window_id` is never null on the intro.
+        if (
+          before !== FLOW_POSITION_COMPLETE &&
+          profile.flowPosition === FLOW_POSITION_COMPLETE
+        ) {
+          await ensureCheckInWindow(em, userId, profile.flowPosition);
+        }
       }
 
       profile.isComplete = await this.computeComplete(em, userId, profile);

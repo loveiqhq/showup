@@ -76,6 +76,12 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/me/check-ins' },
   { method: 'get', path: '/me/check-ins/active' },
   { method: 'post', path: `/me/check-ins/${ID}/cancel` },
+  // The 48hrs Check-In flow (SHOWUP-177).
+  { method: 'get', path: '/me/check-in' },
+  { method: 'post', path: '/me/check-in/intro-passed' },
+  { method: 'put', path: '/me/check-in/answers' },
+  { method: 'post', path: '/me/check-in/commit' },
+  { method: 'put', path: '/me/filter-settings' },
   // dates.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/me/dates' },
   { method: 'post', path: `/dates/${ID}/cancel` },
@@ -164,6 +170,9 @@ describe('API authorization contract (e2e)', () => {
     if (r.method === 'get') return req.get(r.path);
     if (r.method === 'post') return req.post(r.path);
     if (r.method === 'patch') return req.patch(r.path);
+    // PUT was missing, so every PUT went out as a DELETE: `put /me/prompts/:id` passed only because
+    // the same path also has a DELETE route. Found adding the Check-In routes (13 Oct 2026).
+    if (r.method === 'put') return req.put(r.path);
     return req.delete(r.path);
   };
 

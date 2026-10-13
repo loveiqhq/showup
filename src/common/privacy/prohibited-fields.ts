@@ -50,6 +50,10 @@ const PROHIBITED_NORMALISED = new Set<string>([
   'smoking',
   'partnership',
   'partnershipahead',
+  // The 48hrs Check-In (SHOWUP-177): the gender filter is Class 2 (registry §10 meet_gender), and
+  // the uplift is the user's own words, which "appear in no tracking payload" (story 06).
+  'meetgender',
+  'uplift',
   // Secrets. Note `code`: our one-time sign-in and email-verification payloads name the secret
   // `code` (VerifyOtpDto.code, VerifyEmailDto.code), so the bare name must be withheld. An API error
   // code is a different thing and must be named `error_code` so it is not caught by this rule.
