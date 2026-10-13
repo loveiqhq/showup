@@ -173,6 +173,19 @@ enum TypeMetrics {
         UIFont(name: name, size: size) ?? fallback
     }
 
+    /// The `.lineSpacing` that sets lines of the font `name` at `size` exactly `size * multiple`
+    /// apart, for a line height LOOSER than the font's own.
+    ///
+    /// `.lineSpacing` ADDS to the font's own line height, and Manrope's is 1.366 em, not 1.0. The
+    /// `size * (multiple - 1)` written at many call sites therefore spaces lines `size * 0.366` too
+    /// far apart: Life's sub copy ran 26.3 apart where the spec's 14.5 / 1.45 is 21.0, and Android's
+    /// `lineHeight` was right (found 13 October 2026). Never negative; a line TIGHTER than the font's
+    /// own needs `attributed(...)` below.
+    static func lineSpacing(_ name: String, size: CGFloat, multiple: CGFloat) -> CGFloat {
+        let font = UIFont(name: name, size: size) ?? .systemFont(ofSize: size)
+        return max(0, size * multiple - font.lineHeight)
+    }
+
     /// A synthesised oblique, for a family that ships no italic of its own.
     ///
     /// Manrope has no italic cut -- the bundle carries Medium, SemiBold and Bold and nothing else --

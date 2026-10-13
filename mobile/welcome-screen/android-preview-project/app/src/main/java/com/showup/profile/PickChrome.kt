@@ -77,10 +77,10 @@ internal const val PICK_ABOVE_TAG = "pick-above"
  * Every string the three screens share or headline with, verbatim from the tickets.
  * `audit/verify-profile.py` quotes each back against the ticket text.
  *
- * THE HEADLINE APOSTROPHE IS TYPOGRAPHIC (`you’d`), for the rule the detail group's `What’s`
- * headlines follow -- "the headline uses a typographic apostrophe if the platform font renders one",
- * and Lora does. The Manrope labels keep the ticket's straight one (`What I'm into`, `I don't want
- * kids`), as `Don't display on my profile` does on the band.
+ * EVERY APOSTROPHE IS THE TICKET'S STRAIGHT ONE, the headline's `you'd` included. The detail group's
+ * "typographic apostrophe if the platform font renders one" is written into Profiles 16 to 18 only;
+ * Profile 21 says "copy matches the strings above exactly", and its Jira text, spec sheet and
+ * reference all have `you'd`. Until 13 October 2026 this headline had `you’d`.
  */
 internal object PickCopy {
     const val HOW_I_LIVE = "How I live"
@@ -94,7 +94,7 @@ internal object PickCopy {
     /** The headline as runs: text, and whether it is the one italic em with the orange wash. */
     fun headline(step: PickStep): List<Pair<String, Boolean>> = when (step) {
         PickStep.Interests ->
-            listOf("Show how you live and what you love, so others know if you’d " to false, "click" to true)
+            listOf("Show how you live and what you love, so others know if you'd " to false, "click" to true)
         PickStep.LifeNow -> listOf("What fits your current " to false, "life" to true, "?" to false)
         PickStep.LifeAhead ->
             listOf("What do you imagine for your future " to false, "life" to true, "?" to false)

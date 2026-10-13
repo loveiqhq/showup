@@ -4,7 +4,8 @@
  *
  * Every row of the three tracking tables and the order they fire in, every event that must NOT
  * fire, what Continue saves and what Skip does not, "persist before navigating", and the arrival
- * rules: back discards, a resume pre-fills, a recomposition is not an arrival.
+ * rules: back discards, a resume pre-fills, a recomposition is not an arrival -- and that no
+ * Continue ever saves over answers the screen has not shown (a slow or failed first read).
  */
 package com.showup.profile
 
@@ -33,14 +34,21 @@ import org.junit.Test
 class PickStepsViewModelTest {
 
     /** A store that remembers every body, applies it the way the server does, and can fail. */
-    private class FakeStore(var held: SavedDetails = SavedDetails(), var saves: Boolean = true) : ProfileDetailsStore {
+    private class FakeStore(
+        var held: SavedDetails = SavedDetails(),
+        var saves: Boolean = true,
+        var reads: Boolean = true,
+    ) : ProfileDetailsStore {
         val bodies = mutableListOf<UpsertProfileDto>()
         val readDelays = ArrayDeque<Long>()
+        var loads = 0
 
         override suspend fun load(): SavedDetails? {
+            loads++
             val snapshot = held
+            val ok = reads
             readDelays.removeFirstOrNull()?.let { delay(it) }
-            return snapshot
+            return snapshot.takeIf { ok }
         }
 
         override suspend fun save(body: UpsertProfileDto): SavedDetails? {
@@ -163,6 +171,124 @@ class PickStepsViewModelTest {
         model.lifestyleTapped(LifestyleField.Diet, "everything")
         advanceUntilIdle()
         assertEquals(mapOf("diet" to "everything"), state.interests.lifestyle)
+    }
+
+    // ── a slow or failed first read never costs a saved answer ─────────────────
+    //
+    // Found by the 13 October 2026 review: a touched screen ignored a late read entirely, so one tap
+    // before it landed and Continue saved `[]` over Life's untouched questions, or a one-tag list
+    // over a saved ten.
+
+    @Test
+    fun `a late read fills every How I live group and interest the user has not touched`() = runTest(dispatcher) {
+        store.held = SavedDetails(
+            lifestyle = mapOf("diet" to "vegan", "rhythm" to "night_owl"),
+            interests = listOf("wine", "gym"),
+        )
+        store.readDelays += 5_000L
+        model.arrived(PickStep.Interests, null)
+        model.lifestyleTapped(LifestyleField.Diet, "everything")
+        model.interestTapped("cooking")
+        advanceUntilIdle()
+        assertEquals(mapOf("diet" to "everything", "rhythm" to "night_owl"), state.interests.lifestyle)
+        assertEquals(setOf("cooking", "wine", "gym"), state.interests.interests)
+        model.continuePressed(PickStep.Interests) {}
+        advanceUntilIdle()
+        assertEquals(
+            listOf("gym", "cooking", "wine"),
+            store.bodies.single().interests?.map { it.value },
+        )
+    }
+
+    @Test
+    fun `a late read that runs the list past ten keeps the user's own picks first`() = runTest(dispatcher) {
+        val order = INTEREST_ORDER
+        store.held = SavedDetails(interests = order.take(10))
+        store.readDelays += 5_000L
+        model.arrived(PickStep.Interests, null)
+        model.interestTapped(order[20])
+        model.interestTapped(order[21])
+        advanceUntilIdle()
+        assertEquals(setOf(order[20], order[21]) + order.take(8), state.interests.interests)
+    }
+
+    @Test
+    fun `a late read leaves a tag the user unpicked unpicked, and open groups open`() = runTest(dispatcher) {
+        store.held = SavedDetails(interests = listOf("gym", "wine"))
+        store.readDelays += 5_000L
+        model.arrived(PickStep.Interests, null)
+        model.interestTapped("gym")
+        model.interestTapped("gym")
+        model.showMoreTapped(InterestSection.Culture)
+        advanceUntilIdle()
+        assertEquals(setOf("wine"), state.interests.interests)
+        assertEquals(setOf("culture"), state.interests.expanded)
+    }
+
+    @Test
+    fun `a late read on an untouched Interests keeps the groups the user opened`() = runTest(dispatcher) {
+        store.held = SavedDetails(interests = listOf("wine"))
+        store.readDelays += 5_000L
+        model.arrived(PickStep.Interests, null)
+        model.showMoreTapped(InterestSection.Food)
+        advanceUntilIdle()
+        assertEquals(setOf("wine"), state.interests.interests)
+        assertEquals(setOf("food"), state.interests.expanded)
+    }
+
+    @Test
+    fun `a late read on Life fills the untouched questions, so Continue keeps them`() = runTest(dispatcher) {
+        store.held = SavedDetails(life = mapOf("family" to listOf("has_children"), "living" to listOf("living_alone")))
+        store.readDelays += 5_000L
+        model.arrived(PickStep.LifeNow, null)
+        model.pillTapped(PickStep.LifeNow, LifeQuestion.Partnership, "single")
+        advanceUntilIdle()
+        model.continuePressed(PickStep.LifeNow) {}
+        advanceUntilIdle()
+        val body = store.bodies.single()
+        assertEquals(listOf("single"), body.partnership?.map { it.value })
+        assertEquals(listOf("has_children"), body.family?.map { it.value })
+        assertEquals(listOf("living_alone"), body.living?.map { it.value })
+    }
+
+    @Test
+    fun `Continue with no read yet reads first and saves what the screen would have shown`() = runTest(dispatcher) {
+        store.reads = false
+        store.held = SavedDetails(life = mapOf("family" to listOf("has_children")))
+        arrive(PickStep.LifeNow)
+        model.pillTapped(PickStep.LifeNow, LifeQuestion.Partnership, "single")
+        store.reads = true
+        var advanced = false
+        model.continuePressed(PickStep.LifeNow) { advanced = true }
+        advanceUntilIdle()
+        assertTrue(advanced)
+        val body = store.bodies.single()
+        assertEquals(listOf("single"), body.partnership?.map { it.value })
+        assertEquals(listOf("has_children"), body.family?.map { it.value })
+    }
+
+    @Test
+    fun `Continue whose read fails is a failed save -- nothing written, the picks kept, the toast`() = runTest(dispatcher) {
+        store.reads = false
+        arrive(PickStep.Interests)
+        model.interestTapped("gym")
+        analytics.clear()
+        var advanced = false
+        model.continuePressed(PickStep.Interests) { advanced = true }
+        dispatcher.scheduler.runCurrent()
+        assertTrue(state.saveFailed)
+        advanceUntilIdle()
+        assertFalse(advanced)
+        assertTrue(store.bodies.isEmpty())
+        assertEquals(setOf("gym"), state.interests.interests)
+        assertFalse(state.saving)
+        assertTrue(analytics.names().isEmpty())
+        // Once the account can be read, the same Continue goes through.
+        store.reads = true
+        model.continuePressed(PickStep.Interests) { advanced = true }
+        advanceUntilIdle()
+        assertTrue(advanced)
+        assertEquals(listOf("gym"), store.bodies.single().interests?.map { it.value })
     }
 
     // ── Interests: the taps ────────────────────────────────────────────────────
@@ -470,9 +596,22 @@ class PickStepsViewModelTest {
         val body = store.bodies.single()
         assertEquals(FlowPosition.life_ahead, body.flowPosition)
         assertEquals(listOf("want_kids"), body.familyAhead?.map { it.value })
-        assertEquals(emptyList<String>(), body.partnershipAhead?.map { it.value })
+        // "Persist each answered question": an unanswered one is not sent, so it keeps its value.
+        assertNull(body.partnershipAhead)
         assertEquals(listOf("stay_local", "move_abroad"), body.livingAhead?.map { it.value })
         assertNull(body.partnership)
+    }
+
+    @Test
+    fun `Future keeps a saved answer the user left unanswered`() = runTest(dispatcher) {
+        store.held = SavedDetails(life = mapOf("partnership_ahead" to listOf("monogamous_relationship")))
+        arrive(PickStep.LifeAhead)
+        model.pillTapped(PickStep.LifeAhead, LifeQuestion.PartnershipAhead, "monogamous_relationship")
+        model.pillTapped(PickStep.LifeAhead, LifeQuestion.FamilyAhead, "want_kids")
+        model.continuePressed(PickStep.LifeAhead) {}
+        advanceUntilIdle()
+        assertNull(store.bodies.single().partnershipAhead)
+        assertEquals(listOf("monogamous_relationship"), store.held.life["partnership_ahead"])
     }
 
     @Test
@@ -527,13 +666,16 @@ class PickStepsViewModelTest {
     }
 
     @Test
-    fun `a process death keeps a life question answered with nothing as answered`() = runTest(dispatcher) {
-        arrive(PickStep.LifeNow)
-        model.pillTapped(PickStep.LifeNow, LifeQuestion.Partnership, "single")
-        model.pillTapped(PickStep.LifeNow, LifeQuestion.Partnership, "single")
-        model.pillTapped(PickStep.LifeNow, LifeQuestion.Family, "no_children")
-        val revived = PickStepsViewModel(store, positions, handle, analytics) { clock }
-        assertEquals(setOf("no_children"), revived.state.value.life.picked(LifeQuestion.Family))
-        assertTrue(revived.state.value.life.picked(LifeQuestion.Partnership).isEmpty())
-    }
+    fun `a process death keeps which questions were touched, so the read that follows fills only the rest`() =
+        runTest(dispatcher) {
+            store.held = SavedDetails(life = mapOf("partnership" to listOf("divorced"), "family" to listOf("has_children")))
+            arrive(PickStep.LifeNow)
+            model.pillTapped(PickStep.LifeNow, LifeQuestion.Partnership, "divorced")
+            // The revived model has never read the account; its first read must not undo the clear.
+            val revived = PickStepsViewModel(store, positions, handle, analytics) { clock }
+            revived.arrived(PickStep.LifeNow, null)
+            advanceUntilIdle()
+            assertTrue(revived.state.value.life.picked(LifeQuestion.Partnership).isEmpty())
+            assertEquals(setOf("has_children"), revived.state.value.life.picked(LifeQuestion.Family))
+        }
 }

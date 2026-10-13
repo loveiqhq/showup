@@ -55,12 +55,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Border
@@ -89,6 +91,9 @@ private val CHIP_HEIGHT = 38.dp
 /** `padding: 0 15px` inside a CSS border-box, so the border is inside this width too. */
 private val CHIP_PAD = 15.dp
 
+/** The picked border -- the wider of the two, reserved in both states (see [InterestChip]). */
+private val CHIP_BORDER_PICKED = 1.5.dp
+
 /** Fit-harness anchor for one chip, by its stored value. */
 internal fun interestChipTag(value: String) = "interest-chip-$value"
 
@@ -109,7 +114,13 @@ enum class ChipRole { Radio, Toggle }
  * cubic-bezier(.22,1,.36,1), box-shadow 180ms` -- so the colours and the glow run on CSS's `ease`
  * and only the press scale runs on the brand curve.
  *
- * @param faded drawn at .4 and announced as disabled, but STILL TAPPABLE: a tap on a faded chip is
+ * ALWAYS AS WIDE AS IT IS PICKED. "No element changes Y on selection" (ticket 21), and the picked
+ * weight and border make a chip up to 5 wider, which re-wrapped a row on 14 of 17 phones (measured
+ * 13 October 2026, `PickFitTest`). So the chip lays out an invisible 700 copy of its label under the
+ * visible one and reserves the picked border's width: the drawn chip is the picked size in both
+ * states, and a pick moves nothing. Still sized by its own label -- not a fixed box.
+ *
+ * @param faded drawn at .4 and spoken as dimmed, but STILL TAPPABLE: a tap on a faded chip is
  *   reported (`interest_cap_reached`) and changes nothing. The caller decides that, not the chip.
  */
 @Composable
@@ -132,15 +143,17 @@ fun InterestChip(
     val glowBlur by animateDpAsState(if (selected) 10.dp else 2.dp, tween(ms, easing = CssEase), label = "chipBlur")
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    // `scale(0.97)` on press, never on a faded chip ("if (!disabled)").
+    // `scale(0.97)` on press, never on a faded chip ("if (!disabled)"), and not at all when motion
+    // is reduced -- a scale that only stops animating still jumps, which NextButton and the iOS
+    // twin both avoid.
     val scale by animateFloatAsState(
-        if (pressed && !faded) 0.97f else 1f,
+        if (pressed && !faded && motion.enabled) 0.97f else 1f,
         tween(ms, easing = ShowUpEasing),
         label = "chipPress",
     )
-    // The border is inside the box, as CSS draws it, so the picked chip is a hair wider: 1.5 where
-    // the resting one has 1. Not animated -- the reference transitions the colour, not the width.
-    val borderWidth = if (selected) 1.5.dp else 1.dp
+    // The border is inside the box, as CSS draws it: 1.5 picked, 1 resting. Not animated -- the
+    // reference transitions the colour, not the width. The padding reserves the picked one.
+    val borderWidth = if (selected) CHIP_BORDER_PICKED else 1.dp
     val shape = RoundedCornerShape(percent = 50)
 
     // THE SLOT IS THE DRAWING; the touch area is laid over it and overflows. See the file header.
@@ -171,8 +184,11 @@ fun InterestChip(
             )
             .semantics {
                 contentDescription = label
-                // `aria-disabled`, but STILL TAPPABLE: the tap is reported and changes nothing.
-                if (faded) disabled()
+                // `aria-disabled`, but STILL TAPPABLE: the tap is reported (`interest_cap_reached`)
+                // and changes nothing. SPOKEN, not `disabled()`: TalkBack will not activate a disabled
+                // node, so the cap event could never fire for its users while VoiceOver's did -- the
+                // web's `aria-disabled` announces without blocking. The iOS twin's words.
+                if (faded) stateDescription = "Not checked, dimmed"
             },
     ) {
         Box(
@@ -186,22 +202,39 @@ fun InterestChip(
                 }
                 .pillShadow(fill = fill, shadow = glow, offsetY = glowY, blur = glowBlur)
                 .border(borderWidth, stroke, shape)
-                .padding(horizontal = CHIP_PAD + borderWidth),
+                // `sm` above and below keeps a label that grew past 38 (a second line, or the largest
+                // font) off the stroke; at the default font it is inside the 38 and changes nothing.
+                .padding(horizontal = CHIP_PAD + CHIP_BORDER_PICKED, vertical = Spacing.sm),
             contentAlignment = Alignment.Center,
         ) {
+            // `white-space: nowrap` in practice: every label is one line on every phone at the default
+            // font, and the row wraps around whole chips. A SECOND LINE IS ALLOWED only for a label
+            // wider than the whole column -- the largest system font on a 320 phone -- because the
+            // alternative there is clipped text; centred, and ellipsised past two. Two, not one, for
+            // `ControlPip`'s reason: FlowRow measures twice, and `maxLines = 1` latches
+            // `didExceedMaxLines` on the first, tighter pass.
+            //
+            // The picked width, reserved in both states: drawn in no colour, read by nobody (the Box
+            // clears its semantics).
+            Text(
+                label,
+                color = Color.Transparent,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(
                 label,
                 color = ink,
                 fontFamily = Manrope,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
                 fontSize = 14.sp,
-                // `white-space: nowrap` in practice: every label is one line on every phone at the
-                // default font, and the row wraps around whole chips. A SECOND LINE IS ALLOWED only
-                // for a label wider than the whole column -- the largest system font on a 320 phone
-                // -- because the alternative there is clipped text. Two, not one, for `ControlPip`'s
-                // reason: FlowRow measures twice, and `maxLines = 1` latches `didExceedMaxLines` on
-                // the first, tighter pass.
+                textAlign = TextAlign.Center,
                 maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -255,11 +288,11 @@ fun InterestsCounter(picked: Int, modifier: Modifier = Modifier) {
                 .clip(RoundedCornerShape(percent = 50))
                 .background(MeterTrack),
         ) {
+            // A plain bar the track clips (`overflow: hidden`): its leading edge is square, as drawn.
             Box(
                 Modifier
                     .fillMaxWidth(fill)
                     .height(4.dp)
-                    .clip(RoundedCornerShape(percent = 50))
                     .background(tone),
             )
         }

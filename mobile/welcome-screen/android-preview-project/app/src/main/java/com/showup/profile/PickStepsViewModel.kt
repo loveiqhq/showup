@@ -21,6 +21,10 @@
  *     says so; the CTA works again. A skip saves nothing and is best-effort.
  *   - EVERY PRESS ANSWERS ONLY THE STEP ON SCREEN. The outgoing screen still takes taps while it
  *     slides away; a tap there would land on a step already left.
+ *   - NEVER SAVE OVER ANSWERS THE SCREEN HAS NOT SHOWN. Life saves an unanswered question as `[]`
+ *     and Interests saves the interest list whole, so a Continue before the account was read would
+ *     erase what the user never saw. A late read fills every part the user has not touched, and a
+ *     Continue with no read yet reads first -- and if that read fails, it is a failed save.
  *
  * WHAT IS DIFFERENT HERE: there is no refusal. Continue with nothing picked IS a skip, on all three
  * ("no toast, advances, saves nothing"), so the only toast is the failed save.
@@ -81,10 +85,14 @@ open class PickStepsViewModel(
         get() = handle.get<String>(KEY_STEP)?.let { name -> PickStep.entries.firstOrNull { it.name == name } }
         set(value) { handle[KEY_STEP] = value?.name }
 
-    /** Whether the step on screen has been touched since arriving, so a late read cannot overwrite it. */
-    private var touched: Boolean
-        get() = handle[KEY_TOUCHED] ?: false
-        set(value) { handle[KEY_TOUCHED] = value }
+    /**
+     * What the user changed on the step on screen since arriving: How I live field ids, life question
+     * ids and [interestTouchKey]s. A late read fills every OTHER part. Saved, so a process death
+     * cannot turn a touched part back into one a read may overwrite.
+     */
+    private var touched: Set<String>
+        get() = handle.get<ArrayList<String>>(KEY_TOUCHED)?.toSet().orEmpty()
+        set(value) { handle[KEY_TOUCHED] = ArrayList(value) }
 
     /** When the step on screen was arrived at -- saved with it, or a restore would time from 1970. */
     private var stepStartedAt: Long
@@ -100,13 +108,26 @@ open class PickStepsViewModel(
             val read = store.load() ?: return@launch
             // A SAVE MAY HAVE LANDED FIRST, and its answers are newer than this read.
             if (saved != null) return@launch
-            saved = read
-            // Every step off screen takes the server's answers now, so arriving at it later draws the
-            // right thing on its first frame. The one on screen too -- unless the user has started.
-            val onScreen = currentStep
-            PickStep.entries.filter { it != onScreen || !touched }.forEach { reset(it, read) }
-            if (onScreen != null && !touched) bumpPrefill()
+            land(read)
         }
+    }
+
+    /**
+     * The account's answers arrived. Every step off screen takes them, so arriving at it later draws
+     * the right thing on its first frame. The one on screen takes them in every part the user has
+     * not touched -- and is redrawn as a pre-fill (no 180 ms) only if they have touched nothing.
+     */
+    private fun land(read: SavedDetails) {
+        saved = read
+        val onScreen = currentStep
+        PickStep.entries.filter { it != onScreen }.forEach { reset(it, read) }
+        if (onScreen == null) return
+        val parts = touched
+        when (onScreen) {
+            PickStep.Interests -> setInterests(interestsOnLateRead(_state.value.interests, read, parts))
+            PickStep.LifeNow, PickStep.LifeAhead -> setLife(lifeOnLateRead(onScreen, _state.value.life, read, parts))
+        }
+        if (parts.isEmpty()) bumpPrefill()
     }
 
     /**
@@ -117,7 +138,7 @@ open class PickStepsViewModel(
         preload()
         if (currentStep == step) return
         currentStep = step
-        touched = false
+        touched = emptySet()
         stepStartedAt = now()
         clearToast()
         reset(step, saved ?: SavedDetails())
@@ -135,7 +156,7 @@ open class PickStepsViewModel(
     /** A How I live chip. One answer per group; the chosen chip clears it. Nothing is reported yet. */
     fun lifestyleTapped(field: LifestyleField, value: String) {
         if (!onScreen(PickStep.Interests)) return
-        touched = true
+        touched = touched + field.fieldId
         val draft = _state.value.interests
         val next = pickLifestyle(draft.lifestyle[field.fieldId], value)
         setInterests(
@@ -151,12 +172,12 @@ open class PickStepsViewModel(
         val draft = _state.value.interests
         when (val tap = tapInterest(draft.interests, tagId)) {
             is InterestTap.Selected -> {
-                touched = true
+                touched = touched + interestTouchKey(tagId)
                 setInterests(draft.copy(interests = tap.interests))
                 analytics?.report(ProfileAnalytics.interestSelected(tagId, tap.interests.size))
             }
             is InterestTap.Deselected -> {
-                touched = true
+                touched = touched + interestTouchKey(tagId)
                 setInterests(draft.copy(interests = tap.interests))
                 analytics?.report(ProfileAnalytics.interestDeselected(tagId, tap.interests.size))
             }
@@ -182,7 +203,7 @@ open class PickStepsViewModel(
     /** A pill on Life or Future. The question's exclusive rule applies; nothing is reported per tap. */
     fun pillTapped(step: PickStep, question: LifeQuestion, value: String) {
         if (!onScreen(step) || question !in step.questions) return
-        touched = true
+        touched = touched + question.questionId
         val draft = _state.value.life
         setLife(draft.with(question, toggleLifePick(question, draft.picked(question), value)))
     }
@@ -194,7 +215,11 @@ open class PickStepsViewModel(
         if (!onScreen(step)) return
         val state = _state.value
         val anything = if (step == PickStep.Interests) state.interests.anything else state.life.anything(step)
-        if (anything) answer(step, state, onAdvance) else skip(step, onAdvance)
+        when {
+            !anything -> skip(step, onAdvance)
+            saved != null -> answer(step, state, onAdvance)
+            else -> readThenAnswer(step, onAdvance)
+        }
     }
 
     /** `Skip for now`. Saves nothing and keeps whatever was saved before. */
@@ -223,6 +248,29 @@ open class PickStepsViewModel(
         viewModelScope.launch { positions.report(step.position) }
         leave()
         onAdvance()
+    }
+
+    /**
+     * Continue before the account was ever read -- a slow or failed first read. Reads it now and
+     * fills every untouched part, so what is saved is what the screen would have shown plus what
+     * the user did. A read that fails is a failed save: the user stays, with their picks, and the
+     * CTA works again. Saving blind would write `[]` over answers nobody has seen.
+     */
+    private fun readThenAnswer(step: PickStep, onAdvance: () -> Unit) {
+        _state.update { it.copy(saving = true) }
+        clearToast()
+        // One read, not two racing to land.
+        loading?.cancel()
+        viewModelScope.launch {
+            val read = store.load()
+            if (read == null) {
+                _state.update { it.copy(saving = false) }
+                showSaveFailed()
+                return@launch
+            }
+            land(read)
+            answer(step, _state.value, onAdvance)
+        }
     }
 
     /**
@@ -267,8 +315,10 @@ open class PickStepsViewModel(
      * it: an unanswered group is "not supplied" and keeps its earlier value (rule 0), and an empty
      * list is a skip of that block, which the server refuses to store as an answer.
      *
-     * LIFE AND FUTURE send all three questions, an unanswered one as `[]`: "an unanswered question
-     * is saved as empty". Values go in LIST order whatever order they were tapped in.
+     * LIFE sends all three questions, an unanswered one as `[]`: "an unanswered question is saved as
+     * empty". FUTURE sends only the questions answered -- its ticket says "persist each answered
+     * question" and nothing about empty ones, so rule 0 applies and an unanswered one keeps its
+     * earlier value. Values go in LIST order whatever order they were tapped in.
      */
     private fun bodyFor(step: PickStep, state: PickUiState): UpsertProfileDto {
         val base = UpsertProfileDto(flowPosition = step.position)
@@ -309,13 +359,12 @@ open class PickStepsViewModel(
                     .map { v -> com.showup.api.generated.model.LifeLiving.entries.first { it.value == v } },
             )
             PickStep.LifeAhead -> base.copy(
-                familyAhead = lifeInListOrder(LifeQuestion.FamilyAhead, state.life.picked(LifeQuestion.FamilyAhead))
-                    .map { v -> com.showup.api.generated.model.FutureFamily.entries.first { it.value == v } },
-                partnershipAhead = lifeInListOrder(
-                    LifeQuestion.PartnershipAhead, state.life.picked(LifeQuestion.PartnershipAhead),
-                ).map { v -> com.showup.api.generated.model.FuturePartnership.entries.first { it.value == v } },
-                livingAhead = lifeInListOrder(LifeQuestion.LivingAhead, state.life.picked(LifeQuestion.LivingAhead))
-                    .map { v -> com.showup.api.generated.model.FutureLiving.entries.first { it.value == v } },
+                familyAhead = state.life.answered(LifeQuestion.FamilyAhead)
+                    ?.map { v -> com.showup.api.generated.model.FutureFamily.entries.first { it.value == v } },
+                partnershipAhead = state.life.answered(LifeQuestion.PartnershipAhead)
+                    ?.map { v -> com.showup.api.generated.model.FuturePartnership.entries.first { it.value == v } },
+                livingAhead = state.life.answered(LifeQuestion.LivingAhead)
+                    ?.map { v -> com.showup.api.generated.model.FutureLiving.entries.first { it.value == v } },
             )
         }
     }
@@ -370,8 +419,6 @@ open class PickStepsViewModel(
     private fun setLife(draft: LifeDraft) {
         _state.update { it.copy(life = draft) }
         handle[KEY_LIFE] = ArrayList(draft.answers.flatMap { (q, values) -> values.map { "$q=$it" } })
-        // A question answered with nothing still has to come back as answered-with-nothing.
-        handle[KEY_LIFE_TOUCHED] = ArrayList(draft.answers.keys)
     }
 
     private fun restoreInterests() = InterestsDraft(
@@ -382,23 +429,23 @@ open class PickStepsViewModel(
         expanded = handle.get<ArrayList<String>>(KEY_EXPANDED)?.toSet().orEmpty(),
     )
 
-    private fun restoreLife(): LifeDraft {
-        val pairs = handle.get<ArrayList<String>>(KEY_LIFE).orEmpty().mapNotNull { entry ->
-            entry.split('=', limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] }
-        }
-        val keys = handle.get<ArrayList<String>>(KEY_LIFE_TOUCHED).orEmpty()
-        return LifeDraft(keys.associateWith { q -> pairs.filter { it.first == q }.map { it.second }.toSet() })
-    }
+    private fun restoreLife(): LifeDraft = LifeDraft(
+        handle.get<ArrayList<String>>(KEY_LIFE).orEmpty()
+            .mapNotNull { entry -> entry.split('=', limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] } }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, values) -> values.toSet() },
+    )
 
     private companion object {
         const val KEY_STEP = "picks.step"
-        const val KEY_TOUCHED = "picks.touched"
+        // A new name, not "picks.touched": that one held a Boolean, and a bundle written by the older
+        // build must not be read back as a list.
+        const val KEY_TOUCHED = "picks.touchedParts"
         const val KEY_STARTED = "picks.startedAt"
         const val KEY_PREFILL = "picks.prefill"
         const val KEY_LIFESTYLE = "picks.lifestyle"
         const val KEY_INTERESTS = "picks.interests"
         const val KEY_EXPANDED = "picks.expanded"
         const val KEY_LIFE = "picks.life"
-        const val KEY_LIFE_TOUCHED = "picks.lifeQuestions"
     }
 }

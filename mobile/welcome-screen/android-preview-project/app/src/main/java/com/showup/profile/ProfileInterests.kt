@@ -314,3 +314,34 @@ fun interestsOnArrival(saved: SavedDetails): InterestsDraft = InterestsDraft(
     interests = saved.interests.filter { it in INTEREST_ORDER }.take(INTERESTS_MAX).toSet(),
     expanded = emptySet(),
 )
+
+/** How a What I'm into chip is recorded among the touched parts of the step on screen. */
+fun interestTouchKey(tagId: String): String = "tag:$tagId"
+
+/**
+ * [draft] once the account's answers land LATE -- after the user started on the screen.
+ *
+ * Until 13 October 2026 a touched screen ignored a late read entirely, and Continue then saved a
+ * screen that had never shown what the account held: one tap on a chip replaced a saved list of
+ * ten. Now every part the user has not touched takes the saved answer, and a touched one keeps
+ * what they did. A How I live group is one part; the interest list is merged CHIP BY CHIP -- saved
+ * tags nobody touched come back beside the ones just picked, and if that runs past ten, the user's
+ * own picks are kept first. The open groups stay open: opening one picks nothing, and closing it
+ * under the user's finger would be a second, unasked-for change.
+ *
+ * @param touched what the user changed since arriving: field ids, and [interestTouchKey]s.
+ */
+fun interestsOnLateRead(draft: InterestsDraft, saved: SavedDetails, touched: Set<String>): InterestsDraft {
+    val fresh = interestsOnArrival(saved)
+    val lifestyle = LifestyleField.entries.mapNotNull { field ->
+        val id = field.fieldId
+        (if (id in touched) draft.lifestyle[id] else fresh.lifestyle[id])?.let { id to it }
+    }.toMap()
+    val mine = interestsInListOrder(draft.interests.filterTo(mutableSetOf()) { interestTouchKey(it) in touched })
+    val kept = interestsInListOrder(fresh.interests).filter { interestTouchKey(it) !in touched }
+    return InterestsDraft(
+        lifestyle = lifestyle,
+        interests = (mine + kept).take(INTERESTS_MAX).toSet(),
+        expanded = draft.expanded,
+    )
+}

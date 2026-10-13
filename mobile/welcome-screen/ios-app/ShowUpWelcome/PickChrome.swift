@@ -19,8 +19,9 @@ import SwiftUI
 
 /// Every string the three screens share or headline with, verbatim from the tickets.
 ///
-/// THE HEADLINE APOSTROPHE IS TYPOGRAPHIC (`you’d`), the detail group's rule for its `What’s`
-/// headlines. The Manrope labels keep the ticket's straight one (`What I'm into`).
+/// EVERY APOSTROPHE IS THE TICKET'S STRAIGHT ONE, the headline's `you'd` included: Profile 21 says
+/// "copy matches the strings above exactly", and only Profiles 16 to 18 carry the typographic rule
+/// (the Kotlin twin's comment has the detail).
 enum PickCopy {
     static let howILive = "How I live"
     static let whatImInto = "What I'm into"
@@ -34,7 +35,7 @@ enum PickCopy {
     static func headline(_ step: PickStep) -> [(String, Bool)] {
         switch step {
         case .interests:
-            return [("Show how you live and what you love, so others know if you\u{2019}d ", false), ("click", true)]
+            return [("Show how you live and what you love, so others know if you'd ", false), ("click", true)]
         case .lifeNow: return [("What fits your current ", false), ("life", true), ("?", false)]
         case .lifeAhead: return [("What do you imagine for your future ", false), ("life", true), ("?", false)]
         }
@@ -76,6 +77,11 @@ struct PickScaffold<Above: View, Content: View, Footer: View>: View {
                         }
                         .scrollBounceBehavior(.basedOnSize)
                     }
+                    // `margin-right: -4`, taken HERE, by the outer scroll: a ScrollView clips to its
+                    // own bounds, so a region overhanging it lost the 4 its indicator draws in. The
+                    // column above the region is held back by the same 4 (`topFixed`), and the
+                    // region's content by its own padding, so nothing else moves.
+                    .padding(.trailing, -indicatorGutter)
 
                     footer()
                 }
@@ -97,6 +103,8 @@ struct PickScaffold<Above: View, Content: View, Footer: View>: View {
             above()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Back inside the column: the outer scroll reaches into the gutter only for the region.
+        .padding(.trailing, indicatorGutter)
     }
 
     /// The answer region: `flex: 1; min-height: 0; overflow-y: auto`, with the platform's own
@@ -112,8 +120,6 @@ struct PickScaffold<Above: View, Content: View, Footer: View>: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicatorsFlash(onAppear: true)
-        // `margin-right: -4`: the scroll view overhangs the column by the gutter it gave its content.
-        .padding(.trailing, -indicatorGutter)
     }
 }
 

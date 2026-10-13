@@ -11,8 +11,8 @@
  *     states ("only the answer region moves between frames")
  *   · Interests' region scrolls on every device; Life fits at 390 and 430 and scrolls at 375;
  *     Future scrolls at 390 and 375 and fits at 430
- *   · a chip is 38 and a pill 34 on every device, never shortened to fit, and selecting a How I
- *     live chip moves no chip ("no element changes Y on selection")
+ *   · a chip is 38 and a pill 34 on every device, never shortened to fit, and picking any chip --
+ *     or every chip -- re-wraps no row on any device ("no element changes Y on selection")
  *
  * THE TICKETS' FRAMES ARE THE DEVICES' CONTENT COLUMNS, as in DetailsFitTest: 375 x 667 with the
  * SE's 20 status bar (647), and 390 x 844 / 430 x 932 at their devices' safe heights (763, 839).
@@ -45,6 +45,8 @@ import com.showup.profile.ProfileHeightScreen
 import com.showup.profile.INTERESTS_B
 import com.showup.profile.INTERESTS_C
 import com.showup.profile.INTERESTS_D
+import com.showup.profile.InterestSection
+import com.showup.profile.InterestsDraft
 import com.showup.profile.LIFE_B
 import com.showup.profile.LifeQuestion
 import com.showup.profile.LifestyleField
@@ -74,7 +76,7 @@ import kotlin.math.abs
 @Config(sdk = [34], qualifiers = "w600dp-h1200dp-xhdpi")
 class PickFitTest {
 
-    private data class Rect(val top: Float, val bottom: Float) {
+    private data class Rect(val top: Float, val bottom: Float, val left: Float = 0f, val width: Float = 0f) {
         val height: Float get() = bottom - top
     }
 
@@ -141,7 +143,11 @@ class PickFitTest {
                     ctaWidth = n.size.width / density
                 }
                 val top = (n.positionInRoot.y - origin) / density
-                val r = Rect(top, top + n.size.height / density)
+                val r = Rect(
+                    top, top + n.size.height / density,
+                    left = (n.positionInRoot.x - root.positionInRoot.x) / density,
+                    width = n.size.width / density,
+                )
                 if (n.size.height > 0 && !scrolled) lowest = maxOf(lowest, r.bottom)
                 if (n.size.height > 0 && scrolled) inner = maxOf(inner, r.bottom)
                 val tag = n.config.getOrNull(SemanticsProperties.TestTag)
@@ -354,6 +360,67 @@ class PickFitTest {
         }
         println(if (failures.isEmpty()) "OK   picks: How I live selection moves nothing" else failures.joinToString("\n"))
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
+    }
+
+    /**
+     * "NO ELEMENT CHANGES Y ON SELECTION" (ticket 21), for every chip on every phone at two type sizes.
+     *
+     * Found 13 October 2026: the picked weight and border widened a chip by up to 5, and a single pick
+     * re-wrapped a row on 14 of 17 phones. The chip now reserves its picked width in both states, so
+     * this measures every chip resting and picked, then lays each group out the way FlowRow does (a
+     * chip goes on the line if it fits with the 8 gap) -- once per single pick, and once with every
+     * chip picked at the same time, which covers any combination. The simulation is first checked
+     * against the real resting layout, so a mismatch fails as the harness, not as a finding.
+     */
+    @Test
+    fun `picking any chip, or every chip, re-wraps no row on any phone`() {
+        val allTags = InterestSection.entries.flatMap { it.options }.map { it.value }.toSet()
+        val open = InterestSection.entries.map { it.sectionId }.toSet()
+        val groups: List<List<String>> =
+            LifestyleField.entries.map { f -> f.options.map { it.value } } +
+                InterestSection.entries.map { sec -> sec.options.map { it.value } }
+        val maxOpts = LifestyleField.entries.maxOf { it.options.size }
+        val findings = mutableListOf<String>()
+        for (d in DEVICES) for (scale in listOf(1f, 1.3f)) {
+            val rest = shoot(d.width, d.safeHeight, scale) {
+                ProfileInterestsScreen(PickUiState(interests = InterestsDraft(expanded = open)))
+            }
+            val picked = mutableMapOf<String, Float>()
+            for (i in 0 until maxOpts) {
+                val life = LifestyleField.entries.mapNotNull { f -> f.options.getOrNull(i)?.let { f.fieldId to it.value } }.toMap()
+                val shot = shoot(d.width, d.safeHeight, scale) {
+                    ProfileInterestsScreen(PickUiState(interests = InterestsDraft(life, if (i == 0) allTags else emptySet(), open)))
+                }
+                life.values.forEach { v -> picked[v] = shot.tag(interestChipTag(v)).width }
+                if (i == 0) allTags.forEach { v -> picked[v] = shot.tag(interestChipTag(v)).width }
+            }
+            val firstLeft = rest.tag(interestChipTag(groups[0][0])).left
+            val maxWidth = d.width - 2 * firstLeft
+            fun rows(widths: List<Float>): List<Int> {
+                var row = 0
+                var x = -1f
+                return widths.map { w ->
+                    if (x < 0f) { x = w } else if (x + 8f + w <= maxWidth + 0.01f) { x += 8f + w } else { row++; x = w }
+                    row
+                }
+            }
+            for (g in groups) {
+                val restW = g.map { rest.tag(interestChipTag(it)).width }
+                val base = rows(restW)
+                // The harness must reproduce the real resting rows first.
+                val realTops = g.map { rest.tag(interestChipTag(it)).top }
+                val realRows = realTops.map { t -> realTops.distinct().sorted().indexOfFirst { abs(it - t) < 0.5f } }
+                if (base != realRows) { findings += "HARNESS $d @$scale ${g.first()}: sim $base real $realRows"; continue }
+                val allMax = rows(g.map { picked.getValue(it) })
+                if (allMax.last() != base.last()) findings += "ALLMAX $d @$scale ${g.first()}: ${base.last() + 1} rows -> ${allMax.last() + 1}"
+                g.forEachIndexed { i, v ->
+                    val w = restW.toMutableList().also { it[i] = picked.getValue(v) }
+                    if (rows(w) != base) findings += "$d @$scale  picking $v re-wraps (+${picked.getValue(v) - restW[i]}dp)"
+                }
+            }
+        }
+        println(if (findings.isEmpty()) "OK   picks: no pick re-wraps a row anywhere" else findings.joinToString("\n"))
+        assertTrue(findings.joinToString("\n"), findings.isEmpty())
     }
 
     /**

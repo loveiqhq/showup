@@ -1977,12 +1977,19 @@ for label, text in (("kotlin", pchrome_kt), ("swift", pchrome_sw)):
     for s_ in ["How I live", "What I'm into", "Show more", "Show less",
                "Select all that apply. Never shown on your profile. Used to find the right matches."]:
         check("174-176 copy (%s): %s" % (label, s_[:40]), '"%s"' % s_ in text)
-# Headlines as runs: the one italic em, and the typographic apostrophe in `you’d`.
+# Headlines as runs: the one italic em, and the ticket's STRAIGHT apostrophe in `you'd` -- Profile 21
+# says "copy matches the strings above exactly" and has no typographic-apostrophe rule (13 October 2026).
 check("174 headline (kotlin)",
-      '"Show how you live and what you love, so others know if you’d " to false, "click" to true' in pchrome_kt)
+      '"Show how you live and what you love, so others know if you\'d " to false, "click" to true' in pchrome_kt)
 check("174 headline (swift)",
-      '("Show how you live and what you love, so others know if you\\u{2019}d ", false), ("click", true)'
+      '("Show how you live and what you love, so others know if you\'d ", false), ("click", true)'
       in pchrome_sw)
+t21 = read(os.path.dirname(os.path.dirname(MOBILE)), "design_handoff_showup", "profile", "tickets", "21-interests.md")
+check("174 headline is the ticket's own string",
+      "Show how you live and what you love, so others know if you'd click" in t21)
+for label, text in (("kotlin", pchrome_kt), ("swift", pchrome_sw)):
+    check("174 headline has no typographic apostrophe (%s)" % label,
+          "you\u2019d" not in text and "you\\u{2019}d" not in text)
 for lead in ("What fits your current ", "What do you imagine for your future "):
     check("175/176 headline (kotlin): %s" % lead,
           '"%s" to false, "life" to true, "?" to false' % lead in pchrome_kt)
@@ -2078,11 +2085,51 @@ check("174-176 back works, with the swipe (kotlin)", "BackHandler(enabled = true
 check("174-176 back works, with the swipe (swift)", "EdgeSwipeBack(onBack: onBack)" in pchrome_sw)
 # Chip and pill numbers from the references.
 check("174 chip 38, pad 15 (kotlin)", "CHIP_HEIGHT = 38.dp" in ichrome_kt and "CHIP_PAD = 15.dp" in ichrome_kt)
-check("174 chip 38, pad 15 (swift)", "chipHeight: CGFloat = 38" in ichrome_sw and ".padding(.horizontal, 15 + border)" in ichrome_sw)
+check("174 chip 38, pad 15 (swift)", "chipHeight: CGFloat = 38" in ichrome_sw and ".padding(.horizontal, 15 + 1.5)" in ichrome_sw)
+# "No element changes Y on selection" (13 October 2026): a chip is ALWAYS its picked width -- an
+# invisible 700 copy of the label and the picked border's padding, in both states, on both platforms.
+check("174 chip reserves the picked border (kotlin)",
+      "padding(horizontal = CHIP_PAD + CHIP_BORDER_PICKED" in ichrome_kt)
+check("174 chip reserves the picked weight (kotlin)",
+      "color = Color.Transparent," in ichrome_kt and ichrome_kt.count("fontWeight = FontWeight.Bold,") >= 1)
+check("174 chip reserves the picked weight (swift)",
+      re.search(r"\.font\(F\.manrope\(14, \.bold\)\)\s*\.hidden\(\)", ichrome_sw) is not None)
+# Only the colours and the glow animate; the weight and border width change at once, as in CSS.
+check("174 chip animates colours only (swift)",
+      "value: selected)" not in ichrome_sw.split("struct InterestsCounter")[0])
+check("175 pill animates colours only (swift)",
+      "value: selected)" not in lchrome_sw.split("struct CategoryHeader")[0])
+# Accessibility roles: a What I'm into chip and a life pill are toggles, as CheckRow is.
+check("174 What I'm into chip is a toggle (swift)", "role == .toggle ? .isToggle : .isButton" in ichrome_sw)
+check("175 pill is a toggle (swift)", ".accessibilityAddTraits(.isToggle)" in lchrome_sw)
+# The counter: a square fill end clipped by the track, and no growth or announcement on pre-fill.
+check("174 counter fill is square-ended (kotlin)",
+      re.search(r"\.fillMaxWidth\(fill\)\s*\.height\(4\.dp\)\s*\.background\(tone\)", ichrome_kt) is not None)
+check("174 counter fill is square-ended (swift)", ".clipShape(Capsule())" in ichrome_sw)
+check("174 counter is drawn at once on a pre-fill (kotlin)",
+      "key(state.prefill) { InterestsCounter(" in joined(iscreen_kt))
+check("174 counter is drawn at once on a pre-fill (swift)",
+      re.search(r"InterestsCounter\(picked: draft\.interests\.count\)\s*\.id\(state\.prefill\)", iscreen_sw)
+      is not None)
+check("174 counter announces at low priority (swift)",
+      "accessibilitySpeechAnnouncementPriority = .low" in ichrome_sw)
 check("175 pill 34 (kotlin)", "PILL_HEIGHT = 34.dp" in lchrome_kt)
 check("175 pill 34 (swift)", "pillHeight: CGFloat = 34" in lchrome_sw)
 check("174 chevron turns in 220 (kotlin)", "Motion.DISCLOSURE" in ichrome_kt)
 check("174 chevron turns in 220 (swift)", "Motion.disclosure" in ichrome_sw)
+# NEVER SAVE OVER ANSWERS THE SCREEN HAS NOT SHOWN (13 October 2026): a late read fills every
+# untouched part, and a Continue with no read yet reads first.
+check("174-176 a late read merges the untouched parts (kotlin)",
+      "interestsOnLateRead(" in joined(pvm_kt) and "lifeOnLateRead(" in joined(pvm_kt))
+check("174-176 a late read merges the untouched parts (swift)",
+      "interestsOnLateRead(" in joined(pvm_sw) and "lifeOnLateRead(" in joined(pvm_sw))
+check("174-176 a Continue with no read reads first (kotlin)", "readThenAnswer(step, onAdvance)" in joined(pvm_kt))
+check("174-176 a Continue with no read reads first (swift)",
+      "await readThenAnswer(step, onAdvance: onAdvance)" in joined(pvm_sw))
+check("176 Future sends only the questions answered (kotlin)",
+      "familyAhead = state.life.answered(LifeQuestion.FamilyAhead)" in joined(pvm_kt))
+check("176 Future sends only the questions answered (swift)",
+      "familyAhead: life.answered(.familyAhead)?" in joined(pvm_sw))
 # The saves: one PATCH with the position; life sends empty for unanswered.
 check("174-176 one PATCH carries the position (kotlin)", "UpsertProfileDto(flowPosition = step.position)" in pvm_kt)
 check("174-176 one PATCH carries the position (swift)", "Dto.flowPositionPayload(value1: step.position)" in pvm_sw)

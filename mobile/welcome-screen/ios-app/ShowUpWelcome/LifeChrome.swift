@@ -22,7 +22,8 @@ private let pillHeight: CGFloat = 34
 /// Picked: violet fill and border, white 700, `0 2 8` violet glow. Resting: white, 1px
 /// `--liq-border`, 500. `transition: background 180ms cubic-bezier(.22,1,.36,1), color 180ms,
 /// border-color 180ms` — the fill on the brand curve, ink and border on `ease`, and the glow NOT AT
-/// ALL: `box-shadow` is not in the list, so it arrives with the tap, as on the web.
+/// ALL: `box-shadow` is not in the list, so it arrives with the tap, as on the web. Nor the weight:
+/// 500 to 700 changes at once, as in CSS, so only the three colours are inside an animation.
 struct LifePill: View {
     let label: String
     let selected: Bool
@@ -30,37 +31,41 @@ struct LifePill: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        let ease = reduceMotion ? nil : Motion.cssEase(Motion.fast)
+        let brand = reduceMotion ? nil : Animation.timingCurve(0.22, 1, 0.36, 1, duration: Motion.fast)
         Button(action: action) {
             Text(label)
                 .font(F.manrope(13.5, selected ? .bold : .medium))
-                .foregroundColor(selected ? .white : .liqFg)
-                .animation(reduceMotion ? nil : Motion.cssEase(Motion.fast), value: selected)
+                .animation(ease) { $0.foregroundStyle(selected ? Color.white : Color.liqFg) }
+                // One line on every phone at the default size; a second only past the column's width
+                // at the largest Dynamic Type — centred, at the font's own line pitch (CSS never wraps
+                // a pill, so `line-height: 1` has no two-line meaning), and kept off the stroke by
+                // `sm` above and below once it grows past 34.
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 // `padding: 0 14px` plus the 1px border CSS draws inside the same border-box.
                 .padding(.horizontal, 15)
+                .padding(.vertical, Spacing.sm)
                 .frame(minHeight: pillHeight)
                 .background(
                     Capsule()
-                        .fill(selected ? Color.liqPurple : Color.liqElevated)
-                        .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.fast),
-                                   value: selected)
+                        .animation(brand) { $0.foregroundStyle(selected ? Color.liqPurple : Color.liqElevated) }
                         .shadow(color: selected ? .liqPillGlow : .clear, radius: 4, y: 2)
                 )
                 .overlay(
                     Capsule()
-                        .strokeBorder(selected ? Color.liqPurple : Color.liqBorder, lineWidth: 1)
-                        .animation(reduceMotion ? nil : Motion.cssEase(Motion.fast), value: selected)
+                        .strokeBorder(lineWidth: 1)
+                        .animation(ease) { $0.foregroundStyle(selected ? Color.liqPurple : Color.liqBorder) }
                 )
-                .overflowTapTarget(drawnHeight: pillHeight)
+                .overflowTapTarget()
         }
         // No press scale: the reference's pill transitions `transform` and never sets one.
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
-        .accessibilityAddTraits(.isButton)
-        // "Single, checkbox, checked" — iOS has no checkbox trait, so the state is spoken.
+        // A checkbox, as CheckRow is: "Single, checked".
+        .accessibilityAddTraits(.isToggle)
         .accessibilityValue(selected ? "Checked" : "Not checked")
     }
 }
@@ -132,7 +137,8 @@ struct LifeView: View {
             above: {
                 Text(PickCopy.lifeSub)
                     .font(F.manrope(14.5, .medium))
-                    .lineSpacing(14.5 * 0.45)
+                    // 14.5 / 1.45: lines 21.0 apart, as Android's `lineHeight` sets them.
+                    .lineSpacing(TypeMetrics.lineSpacing(PS.manropeMedium, size: 14.5, multiple: 1.45))
                     .foregroundColor(.liqNeutral)
                     .frame(maxWidth: 320, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)

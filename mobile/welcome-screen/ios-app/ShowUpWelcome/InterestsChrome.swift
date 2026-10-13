@@ -37,7 +37,14 @@ private struct ChipPress: ButtonStyle {
 /// Picked: violet fill, 1.5 violet border, white 700, `0 4 10` violet glow. Resting: white, 1px
 /// `--liq-border`, 600, a `0 1 2` hairline lift. Faded (at the cap, not picked): opacity .4, NOT
 /// animated — the reference's transition list does not name opacity. The colours and the glow run
-/// 180 on CSS's `ease`; the press scale on the brand curve.
+/// 180 on CSS's `ease`; the press scale on the brand curve. ONLY THOSE animate: the weight and the
+/// border width are not in the reference's transition list, so they change at once, as in CSS.
+///
+/// ALWAYS AS WIDE AS IT IS PICKED. "No element changes Y on selection" (ticket 21), and the picked
+/// weight and border make a chip up to 5 wider, which re-wrapped a row on 14 of 17 phones (measured
+/// 13 October 2026, `PickFitTest`). So the chip lays out an invisible 700 copy of its label beside
+/// the visible one and reserves the picked border's width; the drawn chip is the picked size in
+/// both states and a pick moves nothing. Still sized by its own label — not a fixed box.
 struct InterestChip: View {
     let label: String
     let selected: Bool
@@ -48,42 +55,64 @@ struct InterestChip: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        // The border is inside the box, as CSS draws it, so the picked chip is a hair wider.
+        // The border is inside the box, as CSS draws it.
         let border: CGFloat = selected ? 1.5 : 1
+        let ease = reduceMotion ? nil : Motion.cssEase(Motion.fast)
         Button(action: action) {
-            Text(label)
-                .font(F.manrope(14, selected ? .bold : .semibold))
-                .foregroundColor(selected ? .white : .liqFg)
-                // One line on every phone at the default size; a second only for a label wider than
-                // the whole column at the largest Dynamic Type, where the alternative is clipping.
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 15 + border)
-                .frame(minHeight: chipHeight)
-                .background(
-                    Capsule()
-                        .fill(selected ? Color.liqPurple : Color.liqElevated)
-                        .shadow(color: selected ? .liqChipGlow : .liqChipRest,
-                                radius: selected ? 5 : 1, y: selected ? 4 : 1)
-                )
-                .overlay(Capsule().strokeBorder(selected ? Color.liqPurple : Color.liqBorder, lineWidth: border))
-                .animation(reduceMotion ? nil : Motion.cssEase(Motion.fast), value: selected)
-                .opacity(faded ? 0.4 : 1)
-                .overflowTapTarget(drawnHeight: chipHeight)
+            ZStack {
+                // The picked width, reserved in both states. Hidden, so VoiceOver never reads it.
+                Text(label)
+                    .font(F.manrope(14, .bold))
+                    .hidden()
+                Text(label)
+                    .font(F.manrope(14, selected ? .bold : .semibold))
+                    .animation(ease) { $0.foregroundStyle(selected ? Color.white : Color.liqFg) }
+            }
+            // One line on every phone at the default size; a second only for a label wider than the
+            // whole column at the largest Dynamic Type, where the alternative is clipping. Centred,
+            // and kept off the stroke by `sm` above and below once it grows past 38.
+            .lineLimit(2)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 15 + 1.5)
+            .padding(.vertical, Spacing.sm)
+            .frame(minHeight: chipHeight)
+            .background(
+                Capsule()
+                    .animation(ease) {
+                        $0.foregroundStyle(selected ? Color.liqPurple : Color.liqElevated)
+                            .shadow(color: selected ? .liqChipGlow : .liqChipRest,
+                                    radius: selected ? 5 : 1, y: selected ? 4 : 1)
+                    }
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(lineWidth: border)
+                    .animation(ease) { $0.foregroundStyle(selected ? Color.liqPurple : Color.liqBorder) }
+            )
+            .opacity(faded ? 0.4 : 1)
+            .overflowTapTarget()
         }
         .buttonStyle(ChipPress(enabled: !faded))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
-        .accessibilityAddTraits(.isButton)
-        // iOS has no radio or toggle-button trait, so the state is SPOKEN, both ways, in the words
-        // OptionRow and CheckRow use; a faded chip says it is dimmed, as `aria-disabled` would.
+        // A How I live chip is a radio: iOS has none, so it is a button that SPEAKS its state, as
+        // OptionRow does. A What I'm into chip is a toggle button (`aria-pressed`), as CheckRow is.
+        // Both in the same words; a faded chip says it is dimmed, as `aria-disabled` would.
+        .accessibilityAddTraits(role == .toggle ? .isToggle : .isButton)
         .accessibilityValue(faded ? "Not checked, dimmed" : (selected ? "Checked" : "Not checked"))
     }
 }
 
 /// `{N} picked · {M} left`, and `10 of 10 picked` at the cap, beside a 4-tall meter. Orange at the
-/// cap (`color 180ms`); the bar's width runs 280 on the brand curve. A POLITE LIVE REGION.
+/// cap (`color 180ms`, CSS `ease`); the bar's width runs 280 on the brand curve. The text itself
+/// changes at once, as CSS swaps it — only its colour runs. A POLITE LIVE REGION.
+///
+/// The fill is a plain bar inside a capsule track that clips it (`overflow: hidden`), so its
+/// leading edge is square, as drawn — not a capsule of its own.
+///
+/// The caller gives it an IDENTITY PER PRE-FILL (`.id(prefill)`): a count filled from the server is
+/// drawn at once, never grown from 0 and never announced ("pre-fill without animation").
 struct InterestsCounter: View {
     let picked: Int
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -92,31 +121,35 @@ struct InterestsCounter: View {
         let full = picked >= interestsMax
         let tone: Color = full ? .liqOrange : .liqPurple
         let label = interestsCounterLabel(picked)
+        let ease = reduceMotion ? nil : Motion.cssEase(Motion.fast)
         HStack(spacing: Spacing.lg) {
             Text(label)
                 .font(F.manrope(13.5, .bold))
-                .foregroundColor(tone)
                 .lineLimit(1)
                 .fixedSize()
-                .animation(reduceMotion ? nil : Motion.cssEase(Motion.fast), value: full)
+                .animation(ease) { $0.foregroundStyle(tone) }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.liqMeterTrack)
-                    Capsule().fill(tone)
+                    Rectangle().fill(Color.liqMeterTrack)
+                    Rectangle()
+                        .animation(ease) { $0.foregroundStyle(tone) }
                         .frame(width: geo.size.width * interestsFill(picked))
                         .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.progress),
                                    value: picked)
-                        .animation(reduceMotion ? nil : Motion.cssEase(Motion.fast), value: full)
                 }
+                .clipShape(Capsule())
             }
             .frame(height: 4)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityAddTraits(.updatesFrequently)
-        // "aria-live polite": announced after each change, without taking focus from the chip.
+        // "aria-live polite": announced after each change at LOW priority, so it waits for VoiceOver
+        // to finish reading the chip just tapped instead of cutting it off.
         .onChange(of: picked) { _, now in
-            AccessibilityNotification.Announcement(interestsCounterLabel(now)).post()
+            var announcement = AttributedString(interestsCounterLabel(now))
+            announcement.accessibilitySpeechAnnouncementPriority = .low
+            AccessibilityNotification.Announcement(announcement).post()
         }
     }
 }
@@ -142,7 +175,7 @@ struct ShowMoreToggle: View {
             }
             .padding(.vertical, Spacing.xs)
             .padding(.horizontal, 2)
-            .overflowTapTarget(drawnHeight: 26)
+            .overflowTapTarget()
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)

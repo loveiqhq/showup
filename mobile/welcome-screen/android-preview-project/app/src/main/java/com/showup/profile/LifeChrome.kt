@@ -52,6 +52,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -131,7 +133,9 @@ fun LifePill(
                     blur = 8.dp,
                 )
                 .border(1.dp, stroke, shape)
-                .padding(horizontal = PILL_PAD),
+                // `sm` above and below keeps a label that grew past 34 off the stroke; at the default
+                // font it is inside the 34 and changes nothing.
+                .padding(horizontal = PILL_PAD, vertical = Spacing.sm),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -140,12 +144,15 @@ fun LifePill(
                 fontFamily = Manrope,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 fontSize = 13.5.sp,
-                // `line-height: 1` -- the pill centres the run in its 34, so the line box is the em
-                // and nothing else.
-                lineHeight = 13.5.sp,
+                // NO `lineHeight`. The reference's `line-height: 1` only centres one line in the 34,
+                // and one line centres identically at the font's own height (the half-leading is
+                // symmetric). CSS never wraps a pill, so for the second line the largest font can
+                // force, the font's own pitch is used -- on both platforms -- where 1.0 em is cramped.
+                textAlign = TextAlign.Center,
                 // One line on every phone at the default font; a second only for a label wider than
                 // the column at the largest font -- see the interest chip.
                 maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

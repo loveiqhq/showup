@@ -11,6 +11,8 @@
 //      redraw (a Dynamic Type change, a scene restore), and it and the drafts live in scene storage.
 //    · NOT OPTIMISTIC. A failed save keeps the user on the step with the picks showing and says so.
 //    · EVERY PRESS ANSWERS ONLY THE STEP ON SCREEN.
+//    · NEVER SAVE OVER ANSWERS THE SCREEN HAS NOT SHOWN. A late read fills every part the user has
+//      not touched, and a Continue with no read yet reads first; a read that fails is a failed save.
 //
 //  No refusal: Continue with nothing picked IS a skip on all three, so the only toast is a failed
 //  save.
@@ -35,18 +37,21 @@ struct PickUiState: Equatable, Sendable {
 }
 
 /// What survives in scene storage. Every field after `life` decodes as absent from older values.
+///
+/// `touchedParts` is a new key, not `touched`: that one held a Bool, and a value written by the
+/// older build must not be read back as a list — it is simply ignored.
 private struct StoredPicks: Codable {
     var step: String?
     var interests: InterestsDraft
     var life: LifeDraft
-    var touched: Bool = false
+    var touchedParts: [String] = []
     var startedAt: Double?
 
-    init(step: String?, interests: InterestsDraft, life: LifeDraft, touched: Bool, startedAt: Double?) {
+    init(step: String?, interests: InterestsDraft, life: LifeDraft, touchedParts: [String], startedAt: Double?) {
         self.step = step
         self.interests = interests
         self.life = life
-        self.touched = touched
+        self.touchedParts = touchedParts
         self.startedAt = startedAt
     }
 
@@ -55,7 +60,7 @@ private struct StoredPicks: Codable {
         step = try c.decodeIfPresent(String.self, forKey: .step)
         interests = try c.decode(InterestsDraft.self, forKey: .interests)
         life = try c.decode(LifeDraft.self, forKey: .life)
-        touched = try c.decodeIfPresent(Bool.self, forKey: .touched) ?? false
+        touchedParts = try c.decodeIfPresent([String].self, forKey: .touchedParts) ?? []
         startedAt = try c.decodeIfPresent(Double.self, forKey: .startedAt)
     }
 }
@@ -81,8 +86,9 @@ final class PickModel {
 
     /// The step the user is on, or nil between steps.
     private var currentStep: PickStep?
-    /// Whether the step on screen has been touched since arriving, so a late read cannot overwrite it.
-    private var touched = false
+    /// What the user changed on the step on screen since arriving: How I live field ids, life
+    /// question ids and `interestTouchKey`s. A late read fills every OTHER part.
+    private var touched: Set<String> = []
     private var stepStartedAt: Double = 0
     private var toastTask: Task<Void, Never>?
 
@@ -108,7 +114,7 @@ final class PickModel {
         state.interests = restored.interests
         state.life = restored.life
         currentStep = restored.step.flatMap(PickStep.init(rawValue:))
-        touched = restored.touched
+        touched = Set(restored.touchedParts)
         if currentStep != nil { stepStartedAt = restored.startedAt ?? now() }
     }
 
@@ -120,19 +126,33 @@ final class PickModel {
         loading = Task { [weak self] in
             guard let self else { return }
             let read = await self.store.load()
+            // Cancelled by a Continue that reads for itself: that read lands, not this one.
+            guard !Task.isCancelled else { return }
             self.loading = nil
             // A SAVE MAY HAVE LANDED FIRST, and its answers are newer than this read.
             guard let read, self.saved == nil else { return }
-            self.saved = read
-            // Every step off screen takes the server's answers now; the one on screen too, unless
-            // the user has started on it.
-            let onScreen = self.currentStep
-            for step in PickStep.allCases where step != onScreen || !self.touched {
-                self.reset(step, from: read)
-            }
-            if onScreen != nil, !self.touched { self.state.prefill += 1 }
-            self.write()
+            self.land(read)
         }
+    }
+
+    /// The account's answers arrived. Every step off screen takes them; the one on screen takes them
+    /// in every part the user has not touched, and is redrawn as a pre-fill only if untouched.
+    private func land(_ read: SavedDetails) {
+        saved = read
+        let onScreen = currentStep
+        for step in PickStep.allCases where step != onScreen {
+            reset(step, from: read)
+        }
+        if let onScreen {
+            switch onScreen {
+            case .interests:
+                state.interests = interestsOnLateRead(state.interests, saved: read, touched: touched)
+            case .lifeNow, .lifeAhead:
+                state.life = lifeOnLateRead(onScreen, current: state.life, saved: read, touched: touched)
+            }
+            if touched.isEmpty { state.prefill += 1 }
+        }
+        write()
     }
 
     /// A REAL arrival resets the step from the server and reports the view; a redraw does neither.
@@ -140,7 +160,7 @@ final class PickModel {
         preload()
         guard currentStep != step else { return }
         currentStep = step
-        touched = false
+        touched = []
         stepStartedAt = now()
         clearToast()
         reset(step, from: saved ?? SavedDetails())
@@ -159,7 +179,7 @@ final class PickModel {
     /// A How I live chip. One answer per group; the chosen chip clears it. Nothing is reported yet.
     func lifestyleTapped(_ field: LifestyleField, _ value: String) {
         guard onScreen(.interests) else { return }
-        touched = true
+        touched.insert(field.fieldId)
         var draft = state.interests
         draft.lifestyle[field.fieldId] = pickLifestyle(current: draft.lifestyle[field.fieldId], tapped: value)
         state.interests = draft
@@ -172,13 +192,13 @@ final class PickModel {
         var draft = state.interests
         switch tapInterest(draft.interests, tapped: tagId) {
         case .selected(let next):
-            touched = true
+            touched.insert(interestTouchKey(tagId))
             draft.interests = next
             state.interests = draft
             write()
             analytics?.report(ProfileAnalytics.interestSelected(tagId, total: next.count))
         case .deselected(let next):
-            touched = true
+            touched.insert(interestTouchKey(tagId))
             draft.interests = next
             state.interests = draft
             write()
@@ -206,7 +226,7 @@ final class PickModel {
     /// A pill. The question's exclusive rule applies; nothing is reported per tap.
     func pillTapped(_ step: PickStep, _ question: LifeQuestion, _ value: String) {
         guard onScreen(step), step.questions.contains(question) else { return }
-        touched = true
+        touched.insert(question.questionId)
         let draft = state.life
         state.life = draft.with(question, toggleLifePick(question, current: draft.picked(question), tapped: value))
         write()
@@ -219,10 +239,12 @@ final class PickModel {
         guard onScreen(step) else { return }
         let snapshot = state
         let anything = step == .interests ? snapshot.interests.anything : snapshot.life.anything(step)
-        if anything {
+        if !anything {
+            skip(step, onAdvance: onAdvance)
+        } else if saved != nil {
             await answer(step, snapshot: snapshot, onAdvance: onAdvance)
         } else {
-            skip(step, onAdvance: onAdvance)
+            await readThenAnswer(step, onAdvance: onAdvance)
         }
     }
 
@@ -251,6 +273,24 @@ final class PickModel {
         Task { _ = await positions.report(position) }
         leave()
         onAdvance()
+    }
+
+    /// Continue before the account was ever read — a slow or failed first read. Reads it now and fills
+    /// every untouched part, so what is saved is what the screen would have shown plus what the user
+    /// did. A read that fails is a failed save; saving blind would write `[]` over unseen answers.
+    private func readThenAnswer(_ step: PickStep, onAdvance: () -> Void) async {
+        state.saving = true
+        clearToast()
+        // One read, not two racing to land.
+        loading?.cancel()
+        loading = nil
+        guard let read = await store.load() else {
+            state.saving = false
+            showSaveFailed()
+            return
+        }
+        land(read)
+        await answer(step, snapshot: state, onAdvance: onAdvance)
     }
 
     /// Saves the picks AS THEY WERE WHEN CONTINUE WAS ACCEPTED, with the position, in one PATCH.
@@ -288,8 +328,9 @@ final class PickModel {
     ///
     /// INTERESTS sends only the groups answered, and the interest list only when it holds something:
     /// an unanswered group keeps its earlier value (rule 0), and an empty list is a skip of that
-    /// block, which the server refuses to store. LIFE AND FUTURE send all three questions, an
-    /// unanswered one as `[]` — "an unanswered question is saved as empty".
+    /// block, which the server refuses to store. LIFE sends all three questions, an unanswered one as
+    /// `[]` — "an unanswered question is saved as empty". FUTURE sends only the questions answered:
+    /// its ticket says "persist each answered question", so rule 0 keeps an unanswered one's value.
     private func body(for step: PickStep, snapshot: PickUiState) -> Components.Schemas.UpsertProfileDto {
         typealias Dto = Components.Schemas.UpsertProfileDto
         let position = Dto.flowPositionPayload(value1: step.position)
@@ -332,12 +373,12 @@ final class PickModel {
         case .lifeAhead:
             let life = snapshot.life
             return .init(
-                familyAhead: lifeInListOrder(.familyAhead, life.picked(.familyAhead))
+                familyAhead: life.answered(.familyAhead)?
                     .compactMap(Components.Schemas.FutureFamily.init(rawValue:)),
                 flowPosition: position,
-                livingAhead: lifeInListOrder(.livingAhead, life.picked(.livingAhead))
+                livingAhead: life.answered(.livingAhead)?
                     .compactMap(Components.Schemas.FutureLiving.init(rawValue:)),
-                partnershipAhead: lifeInListOrder(.partnershipAhead, life.picked(.partnershipAhead))
+                partnershipAhead: life.answered(.partnershipAhead)?
                     .compactMap(Components.Schemas.FuturePartnership.init(rawValue:)))
         }
     }
@@ -379,7 +420,8 @@ final class PickModel {
 
     private func write() {
         let stored = StoredPicks(step: currentStep?.rawValue, interests: state.interests, life: state.life,
-                                 touched: touched, startedAt: currentStep == nil ? nil : stepStartedAt)
+                                 touchedParts: touched.sorted(),
+                                 startedAt: currentStep == nil ? nil : stepStartedAt)
         guard let data = try? JSONEncoder().encode(stored),
               let text = String(data: data, encoding: .utf8) else { return }
         persist(text)

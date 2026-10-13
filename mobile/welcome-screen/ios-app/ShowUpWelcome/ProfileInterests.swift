@@ -305,3 +305,27 @@ func interestsOnArrival(_ saved: SavedDetails) -> InterestsDraft {
     let known = saved.interests.filter { interestOrder.contains($0) }
     return InterestsDraft(lifestyle: lifestyle, interests: Set(known.prefix(interestsMax)), expanded: [])
 }
+
+/// How a What I'm into chip is recorded among the touched parts of the step on screen.
+func interestTouchKey(_ tagId: String) -> String { "tag:\(tagId)" }
+
+/// `draft` once the account's answers land LATE — after the user started on the screen. The
+/// Kotlin twin's comment (`interestsOnLateRead`) is the long form: every untouched part takes the
+/// saved answer, a touched one keeps what the user did, the interest list is merged chip by chip
+/// with the user's own picks kept first, and the open groups stay open.
+///
+/// - Parameter touched: what the user changed since arriving: field ids, and `interestTouchKey`s.
+func interestsOnLateRead(_ draft: InterestsDraft, saved: SavedDetails, touched: Set<String>) -> InterestsDraft {
+    let fresh = interestsOnArrival(saved)
+    var lifestyle: [String: String] = [:]
+    for field in LifestyleField.allCases {
+        let id = field.fieldId
+        lifestyle[id] = touched.contains(id) ? draft.lifestyle[id] : fresh.lifestyle[id]
+    }
+    let mine = interestsInListOrder(draft.interests.filter { touched.contains(interestTouchKey($0)) })
+    let kept = interestsInListOrder(fresh.interests).filter { !touched.contains(interestTouchKey($0)) }
+    return InterestsDraft(
+        lifestyle: lifestyle,
+        interests: Set((mine + kept).prefix(interestsMax)),
+        expanded: draft.expanded)
+}

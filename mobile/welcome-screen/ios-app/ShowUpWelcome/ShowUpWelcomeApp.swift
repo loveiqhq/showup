@@ -583,6 +583,13 @@ private struct TutorialFlow: View {
     /// view models on an account generation for the same reason. The sign-in model stays: it is
     /// the session that just began.
     private func beginNewAccount() {
+        // THE OLD MODELS LET GO OF SCENE STORAGE FIRST. A read still in flight on one of them ends
+        // in a write through its `persist`, which would put the previous account's draft back into
+        // the storage cleared below -- and the new model's first `attach` would restore it. `attach`
+        // always rebinds `persist`, so binding it to nothing is enough.
+        prompts.attach(stored: "") { _ in }
+        details.attach(stored: "") { _ in }
+        picks.attach(stored: "") { _ in }
         basics = BasicsModel(repo: BasicsRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
         photos = PhotosModel(repo: PhotosRepository(api: APIAccess.client), access: SystemPhotoAccess(),
                              analytics: AppAnalytics.shared)

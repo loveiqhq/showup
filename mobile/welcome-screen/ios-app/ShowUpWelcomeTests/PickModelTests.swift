@@ -3,7 +3,8 @@
 //  ShowUp · Interests, Life and Future, with no device and no network (SHOWUP-174 to SHOWUP-176)
 //
 //  The Swift half of `PickStepsViewModelTest.kt`: every tracking row and its order, the events that
-//  must NOT fire, what Continue saves and what Skip does not, and the arrival rules.
+//  must NOT fire, what Continue saves and what Skip does not, and the arrival rules -- and that no
+//  Continue ever saves over answers the screen has not shown (a slow or failed first read).
 //
 
 import ShowUpAPI
@@ -23,16 +24,28 @@ private final class Recorder: AnalyticsTracking {
     func clear() { events.removeAll() }
 }
 
-/// A store that remembers every body and applies it the way the server does.
+/// A store that remembers every body and applies it the way the server does, and can fail.
 private actor FakeStore: ProfileDetailsStoring {
     private(set) var held = SavedDetails()
     private(set) var bodies: [Components.Schemas.UpsertProfileDto] = []
     private var saves = true
+    private var reads = true
+    /// Nanoseconds the NEXT read takes, once.
+    private var nextReadDelay: UInt64 = 0
 
     func setHeld(_ value: SavedDetails) { held = value }
     func setSaves(_ value: Bool) { saves = value }
+    func setReads(_ value: Bool) { reads = value }
+    func slowNextRead(_ nanoseconds: UInt64) { nextReadDelay = nanoseconds }
 
-    func load() async -> SavedDetails? { held }
+    func load() async -> SavedDetails? {
+        let snapshot = held
+        let ok = reads
+        let wait = nextReadDelay
+        nextReadDelay = 0
+        if wait > 0 { try? await Task.sleep(nanoseconds: wait) }
+        return ok ? snapshot : nil
+    }
 
     func save(_ body: Components.Schemas.UpsertProfileDto) async -> SavedDetails? {
         bodies.append(body)
@@ -269,6 +282,109 @@ final class PickModelTests: XCTestCase {
         XCTAssertTrue(analytics.names.isEmpty)
     }
 
+    // MARK: - a slow or failed first read never costs a saved answer
+
+    /// The read is slowed past `settle()`; this waits it out.
+    private func waitOutSlowRead() async {
+        try? await Task.sleep(nanoseconds: 400_000_000)
+    }
+
+    func testALateReadFillsEveryHowILiveGroupAndInterestTheUserHasNotTouched() async {
+        await store.setHeld(SavedDetails(lifestyle: ["diet": "vegan", "rhythm": "night_owl"], interests: ["wine", "gym"]))
+        await store.slowNextRead(200_000_000)
+        model.arrived(.interests, referrer: nil)
+        model.lifestyleTapped(.diet, "everything")
+        model.interestTapped("cooking")
+        await waitOutSlowRead()
+        XCTAssertEqual(model.state.interests.lifestyle, ["diet": "everything", "rhythm": "night_owl"])
+        XCTAssertEqual(model.state.interests.interests, ["cooking", "wine", "gym"])
+        await model.continuePressed(.interests) {}
+        let body = await store.bodies[0]
+        XCTAssertEqual(body.interests?.map(\.rawValue), ["gym", "cooking", "wine"])
+    }
+
+    func testALateReadThatRunsTheListPastTenKeepsTheUsersOwnPicksFirst() async {
+        await store.setHeld(SavedDetails(interests: Array(interestOrder.prefix(10))))
+        await store.slowNextRead(200_000_000)
+        model.arrived(.interests, referrer: nil)
+        model.interestTapped(interestOrder[20])
+        model.interestTapped(interestOrder[21])
+        await waitOutSlowRead()
+        XCTAssertEqual(model.state.interests.interests,
+                       Set([interestOrder[20], interestOrder[21]] + interestOrder.prefix(8)))
+    }
+
+    func testALateReadLeavesAnUnpickedTagUnpickedAndOpenGroupsOpen() async {
+        await store.setHeld(SavedDetails(interests: ["gym", "wine"]))
+        await store.slowNextRead(200_000_000)
+        model.arrived(.interests, referrer: nil)
+        model.interestTapped("gym")
+        model.interestTapped("gym")
+        model.showMoreTapped(.culture)
+        await waitOutSlowRead()
+        XCTAssertEqual(model.state.interests.interests, ["wine"])
+        XCTAssertEqual(model.state.interests.expanded, ["culture"])
+    }
+
+    func testALateReadOnAnUntouchedInterestsKeepsTheGroupsTheUserOpened() async {
+        await store.setHeld(SavedDetails(interests: ["wine"]))
+        await store.slowNextRead(200_000_000)
+        model.arrived(.interests, referrer: nil)
+        model.showMoreTapped(.food)
+        await waitOutSlowRead()
+        XCTAssertEqual(model.state.interests.interests, ["wine"])
+        XCTAssertEqual(model.state.interests.expanded, ["food"])
+    }
+
+    func testALateReadOnLifeFillsTheUntouchedQuestionsSoContinueKeepsThem() async {
+        await store.setHeld(SavedDetails(life: ["family": ["has_children"], "living": ["living_alone"]]))
+        await store.slowNextRead(200_000_000)
+        model.arrived(.lifeNow, referrer: nil)
+        model.pillTapped(.lifeNow, .partnership, "single")
+        await waitOutSlowRead()
+        await model.continuePressed(.lifeNow) {}
+        let body = await store.bodies[0]
+        XCTAssertEqual(body.partnership?.map(\.rawValue), ["single"])
+        XCTAssertEqual(body.family?.map(\.rawValue), ["has_children"])
+        XCTAssertEqual(body.living?.map(\.rawValue), ["living_alone"])
+    }
+
+    func testContinueWithNoReadYetReadsFirstAndSavesWhatTheScreenWouldHaveShown() async {
+        await store.setReads(false)
+        await store.setHeld(SavedDetails(life: ["family": ["has_children"]]))
+        await arrive(.lifeNow)
+        model.pillTapped(.lifeNow, .partnership, "single")
+        await store.setReads(true)
+        var advanced = false
+        await model.continuePressed(.lifeNow) { advanced = true }
+        XCTAssertTrue(advanced)
+        let body = await store.bodies[0]
+        XCTAssertEqual(body.partnership?.map(\.rawValue), ["single"])
+        XCTAssertEqual(body.family?.map(\.rawValue), ["has_children"])
+    }
+
+    func testContinueWhoseReadFailsIsAFailedSave() async {
+        await store.setReads(false)
+        await arrive(.interests)
+        model.interestTapped("gym")
+        analytics.clear()
+        var advanced = false
+        await model.continuePressed(.interests) { advanced = true }
+        XCTAssertFalse(advanced)
+        XCTAssertTrue(model.state.saveFailed)
+        XCTAssertFalse(model.state.saving)
+        XCTAssertEqual(model.state.interests.interests, ["gym"])
+        XCTAssertTrue(analytics.names.isEmpty)
+        let none = await store.bodies
+        XCTAssertTrue(none.isEmpty)
+        // Once the account can be read, the same Continue goes through.
+        await store.setReads(true)
+        await model.continuePressed(.interests) { advanced = true }
+        XCTAssertTrue(advanced)
+        let body = await store.bodies[0]
+        XCTAssertEqual(body.interests?.map(\.rawValue), ["gym"])
+    }
+
     // MARK: - Life and Future
 
     func testLifeSavesAllThreeAnUnansweredQuestionAsEmpty() async {
@@ -306,6 +422,20 @@ final class PickModelTests: XCTestCase {
         XCTAssertTrue(analytics.of("life_question_answered").isEmpty)
     }
 
+    func testFutureSendsOnlyTheQuestionsAnsweredSoASavedOneIsKept() async {
+        await store.setHeld(SavedDetails(life: ["partnership_ahead": ["monogamous_relationship"]]))
+        await arrive(.lifeAhead)
+        model.pillTapped(.lifeAhead, .partnershipAhead, "monogamous_relationship")
+        model.pillTapped(.lifeAhead, .familyAhead, "want_kids")
+        await model.continuePressed(.lifeAhead) {}
+        let body = await store.bodies[0]
+        XCTAssertNil(body.partnershipAhead)
+        XCTAssertNil(body.livingAhead)
+        XCTAssertEqual(body.familyAhead?.map(\.rawValue), ["want_kids"])
+        let held = await store.held
+        XCTAssertEqual(held.life["partnership_ahead"], ["monogamous_relationship"])
+    }
+
     func testFuturesSkipMarksProfileCreationCompleteAndSavesNothing() async {
         await arrive(.lifeAhead)
         analytics.clear()
@@ -337,5 +467,20 @@ final class PickModelTests: XCTestCase {
         XCTAssertEqual(revived.state.interests.lifestyle, ["rhythm": "early_bird"])
         XCTAssertEqual(revived.state.interests.interests, ["gym"])
         XCTAssertEqual(revived.state.interests.expanded, ["culture"])
+    }
+
+    func testASceneRestoreKeepsWhichQuestionsWereTouchedSoTheNextReadFillsOnlyTheRest() async {
+        await store.setHeld(SavedDetails(life: ["partnership": ["divorced"], "family": ["has_children"]]))
+        var scene = ""
+        model.attach(stored: scene) { scene = $0 }
+        await arrive(.lifeNow)
+        model.pillTapped(.lifeNow, .partnership, "divorced")
+        // The revived model has never read the account; its first read must not undo the clear.
+        let revived = build()
+        revived.attach(stored: scene) { scene = $0 }
+        revived.arrived(.lifeNow, referrer: nil)
+        await settle()
+        XCTAssertTrue(revived.state.life.picked(.partnership).isEmpty)
+        XCTAssertEqual(revived.state.life.picked(.family), ["has_children"])
     }
 }

@@ -166,6 +166,22 @@ struct LifeDraft: Equatable, Sendable, Codable {
 
     /// Whether Continue on `step` saves anything: a pick in any of its questions.
     func anything(_ step: PickStep) -> Bool { step.questions.contains { !picked($0).isEmpty } }
+
+    /// `question`'s picks in list order, or nil when it has none — "not supplied" on the wire.
+    func answered(_ question: LifeQuestion) -> [String]? {
+        let values = lifeInListOrder(question, picked(question))
+        return values.isEmpty ? nil : values
+    }
+}
+
+/// `current` once the account's answers land LATE — after the user started on `step`. Each
+/// question is one part: a touched one keeps the user's answer, every other one takes the saved
+/// answer (the Kotlin twin, `lifeOnLateRead`).
+func lifeOnLateRead(_ step: PickStep, current: LifeDraft, saved: SavedDetails, touched: Set<String>) -> LifeDraft {
+    let fresh = lifeOnArrival(step, current: current, saved: saved)
+    return step.questions.reduce(current) { draft, question in
+        touched.contains(question.questionId) ? draft : draft.with(question, fresh.picked(question))
+    }
 }
 
 /// `current` with `step`'s questions reset from what the account holds — values this build knows,

@@ -27,10 +27,13 @@ struct SkipContinueRow: View {
     var body: some View {
         if let onSkip {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: Spacing.xl) {
+                // ONE 12 between the link and the button, as Android's sum counts it (the link's own
+                // end padding there). `HStack(spacing: 12)` with a Spacer in the middle put 12 on
+                // each side of it, so this row needed 24 and stacked 12 earlier than Android's.
+                HStack(spacing: 0) {
                     SkipLink(label: skipLabel, action: onSkip)
                         .fixedSize()
-                    Spacer(minLength: 0)
+                    Spacer(minLength: Spacing.xl)
                     cta.fixedSize()
                 }
                 VStack(alignment: .trailing, spacing: Spacing.md) {

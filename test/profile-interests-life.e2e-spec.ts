@@ -288,6 +288,21 @@ describe('Interests, Life and Future (e2e)', () => {
         await attempt(`living_ahead = '{find_out_together,move_abroad}'`),
       ).toBe(CHECK_VIOLATION);
       expect(await attempt(`living = '{}'`)).toBe('accepted');
+      // A NULL member counts towards every cardinality above, so each set refuses one outright
+      // (1717000022000) -- including the one-element sets it would otherwise have slipped into.
+      for (const set of [
+        `interests = '{NULL}'`,
+        `interests = '{gym,NULL}'`,
+        `family_ahead = '{NULL}'`,
+        `partnership = '{NULL}'`,
+        `family = '{NULL}'`,
+        `living = '{NULL}'`,
+        `partnership_ahead = '{NULL}'`,
+        `living_ahead = '{NULL}'`,
+        `dating_languages = '{NULL}'`,
+      ]) {
+        expect([set, await attempt(set)]).toEqual([set, CHECK_VIOLATION]);
+      }
     } finally {
       await runner.release();
     }

@@ -182,7 +182,8 @@ struct DetailsScaffold<Content: View, Footer: View>: View {
                 .padding(.bottom, Spacing.md)
             Text(DetailsCopy.sub(step))
                 .font(F.manrope(14.5, .medium))
-                .lineSpacing(14.5 * 0.45)
+                // 14.5 / 1.45: lines 21.0 apart, as on Life and Future and as Android sets them.
+                .lineSpacing(TypeMetrics.lineSpacing(PS.manropeMedium, size: 14.5, multiple: 1.45))
                 .foregroundColor(.liqNeutral)
                 .frame(maxWidth: 320, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)

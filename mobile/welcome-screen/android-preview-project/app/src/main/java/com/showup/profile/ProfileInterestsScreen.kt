@@ -53,7 +53,8 @@ fun ProfileInterestsScreen(
             // `margin: 4px 0 18px`.
             Column {
                 Spacer(Modifier.height(Spacing.xs))
-                InterestsCounter(picked = draft.interests.size)
+                // A count filled from the server is drawn at once, never grown from 0.
+                key(state.prefill) { InterestsCounter(picked = draft.interests.size) }
                 Spacer(Modifier.height(18.dp))
             }
         },

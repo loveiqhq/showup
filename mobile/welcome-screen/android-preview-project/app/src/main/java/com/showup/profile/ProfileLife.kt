@@ -166,6 +166,10 @@ data class LifeDraft(val answers: Map<String, Set<String>> = emptyMap()) {
 
     /** Whether Continue on [step] saves anything: a pick in any of its questions. */
     fun anything(step: PickStep): Boolean = step.questions.any { picked(it).isNotEmpty() }
+
+    /** [question]'s picks in list order, or null when it has none -- "not supplied" on the wire. */
+    fun answered(question: LifeQuestion): List<String>? =
+        lifeInListOrder(question, picked(question)).takeIf { it.isNotEmpty() }
 }
 
 /**
@@ -181,3 +185,19 @@ fun lifeOnArrival(step: PickStep, current: LifeDraft, saved: SavedDetails): Life
             .filter { v -> question.options.any { it.value == v } }
         draft.with(question, known.fold(emptySet()) { picked, v -> toggleLifePick(question, picked, v) })
     }
+
+/**
+ * [current] once the account's answers land LATE -- after the user started on [step].
+ *
+ * Each question is one part: a question the user touched keeps their answer, every other one takes
+ * the saved answer. Without this, Life's Continue saved an untouched question as `[]` over an
+ * answer the screen had never shown (see `interestsOnLateRead`).
+ *
+ * @param touched the question ids the user changed since arriving.
+ */
+fun lifeOnLateRead(step: PickStep, current: LifeDraft, saved: SavedDetails, touched: Set<String>): LifeDraft {
+    val fresh = lifeOnArrival(step, current, saved)
+    return step.questions.fold(current) { draft, question ->
+        if (question.questionId in touched) draft else draft.with(question, fresh.picked(question))
+    }
+}

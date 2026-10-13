@@ -30,6 +30,8 @@ struct ProfileInterestsView: View {
             above: {
                 // `margin: 4px 0 18px`.
                 InterestsCounter(picked: draft.interests.count)
+                    // A count filled from the server is drawn at once, never grown or announced.
+                    .id(state.prefill)
                     .padding(.top, Spacing.xs)
                     .padding(.bottom, 18)
             },
