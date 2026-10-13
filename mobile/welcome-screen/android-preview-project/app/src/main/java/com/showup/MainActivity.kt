@@ -44,6 +44,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.showup.tutorial.MatchMeansMeetScreen
@@ -124,6 +125,11 @@ import com.showup.profile.ProfileChoiceScreen
 import com.showup.profile.ProfileDatingLanguageScreen
 import com.showup.profile.ProfileDetailsRepository
 import com.showup.profile.ProfileDetailsViewModel
+import com.showup.profile.PickStep
+import com.showup.profile.PickStepsViewModel
+import com.showup.profile.ProfileInterestsScreen
+import com.showup.profile.ProfileLifeAheadScreen
+import com.showup.profile.ProfileLifeNowScreen
 import com.showup.profile.ProfileEmbraceDetailsScreen
 import com.showup.profile.ProfileHeightScreen
 import com.showup.profile.ProfileLocationScreen
@@ -190,6 +196,19 @@ class MainActivity : ComponentActivity() {
                 factory = viewModelFactory { initializer { FlowNavigator(createSavedStateHandle()) } },
             )
             var screen by nav::screen
+
+            // WHICH ACCOUNT THE PROFILE SCREENS ARE HOLDING, as a generation number.
+            //
+            // Every view model below that caches what an account has saved -- the answers, the
+            // photos, the prompts, the media, the drafts in their SavedStateHandles -- is KEYED on
+            // it, and a completed sign-up or log-in bumps it (SignUpFlow's `onFinished`). Until 13
+            // October 2026 they were built once per Activity and read the account once, so "Start
+            // over" or the developer menu's Startup followed by a NEW account showed the previous
+            // account's answers on its first visit to each screen -- and Continue saved them into
+            // the new account. A new generation is a new instance with nothing in it; the old ones
+            // hold no references anything still reads. Saveable, so a process death keeps the
+            // generation and therefore the drafts that belong to it.
+            var account by rememberSaveable { mutableIntStateOf(0) }
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
             var outcome by rememberSaveable { mutableStateOf(SignUpOutcome.NewAccount) }
@@ -245,6 +264,7 @@ class MainActivity : ComponentActivity() {
             )
 
             val basics: BasicsViewModel = viewModel(
+                key = "basics-$account",
                 factory = viewModelFactory {
                     initializer {
                         BasicsViewModel(BasicsRepository(api), analytics = AppAnalytics)
@@ -263,6 +283,7 @@ class MainActivity : ComponentActivity() {
             // own. `readBytes` is a lambda so the ViewModel knows nothing about ContentResolver
             // and can be driven from a JVM test.
             val photos: PhotosViewModel = viewModel(
+                key = "photos-$account",
                 factory = viewModelFactory {
                     initializer {
                         PhotosViewModel(
@@ -296,6 +317,7 @@ class MainActivity : ComponentActivity() {
             // each step's back has to show the previous step's saved value. Its draft lives in the
             // SavedStateHandle, so a process death mid-step keeps what was picked.
             val details: ProfileDetailsViewModel = viewModel(
+                key = "details-$account",
                 factory = viewModelFactory {
                     initializer {
                         ProfileDetailsViewModel(
@@ -309,8 +331,27 @@ class MainActivity : ComponentActivity() {
             )
             val detailsState by details.state.collectAsStateWithLifecycle()
 
+            // Interests, Life and Future (SHOWUP-174 to 176): one view model for the three, for the
+            // detail group's reason -- one answer sheet, and each step's back shows the previous
+            // step's saved picks. Same store, same position sink, drafts in the SavedStateHandle.
+            val picks: PickStepsViewModel = viewModel(
+                key = "picks-$account",
+                factory = viewModelFactory {
+                    initializer {
+                        PickStepsViewModel(
+                            store = ProfileDetailsRepository(api),
+                            positions = positions,
+                            handle = createSavedStateHandle(),
+                            analytics = AppAnalytics,
+                        )
+                    }
+                },
+            )
+            val picksState by picks.state.collectAsStateWithLifecycle()
+
             val locationAccess = remember(context) { AndroidLocationAccess(context) }
             val location: LocationViewModel = viewModel(
+                key = "location-$account",
                 factory = viewModelFactory {
                     initializer {
                         LocationViewModel(access = locationAccess, positions = positions, analytics = AppAnalytics)
@@ -363,6 +404,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val prompts: PromptsViewModel = viewModel(
+                key = "prompts-$account",
                 factory = viewModelFactory {
                     initializer {
                         PromptsViewModel(
@@ -488,6 +530,7 @@ class MainActivity : ComponentActivity() {
             val notifications = remember(context) { AndroidNotificationAccess(context) }
 
             val reachModel: ReachabilityViewModel = viewModel(
+                key = "reachModel-$account",
                 factory = viewModelFactory {
                     initializer {
                         ReachabilityViewModel(
@@ -502,6 +545,7 @@ class MainActivity : ComponentActivity() {
             )
 
             val notifyModel: NotificationsViewModel = viewModel(
+                key = "notifyModel-$account",
                 factory = viewModelFactory {
                     initializer {
                         NotificationsViewModel(
@@ -568,6 +612,7 @@ class MainActivity : ComponentActivity() {
             DisposableEffect(mediaPlayer) { onDispose { mediaPlayer.release() } }
 
             val media: MediaViewModel = viewModel(
+                key = "media-$account",
                 factory = viewModelFactory {
                     initializer {
                         MediaViewModel(
@@ -655,12 +700,16 @@ class MainActivity : ComponentActivity() {
                     ResumePoint.Education -> FlowScreen.ProfileEducation
                     ResumePoint.Religion -> FlowScreen.ProfileReligion
                     ResumePoint.Politics -> FlowScreen.ProfilePolitics
+                    ResumePoint.Interests -> FlowScreen.ProfileInterests
+                    ResumePoint.LifeNow -> FlowScreen.ProfileLifeNow
+                    ResumePoint.LifeAhead -> FlowScreen.ProfileLifeAhead
                     ResumePoint.Done -> FlowScreen.Home
                 }
                 if (screen == FlowScreen.ProfilePrompts) prompts.load()
                 // A resume onto a detail step pre-fills the saved value: start the read now,
                 // before the step's arrival asks for it. Only there -- nothing else reads it.
                 if (DetailStep.entries.any { it.screen == profileScreenOf(screen) }) details.preload()
+                if (PickStep.entries.any { it.screen == profileScreenOf(screen) }) picks.preload()
             }
 
             // RE-READ THE PERMISSION STATUS ON EVERY FOREGROUND. The most common bug on the photo
@@ -672,7 +721,9 @@ class MainActivity : ComponentActivity() {
             // blocked row" -- and a second observer for the second screen would be a second place
             // to forget. Neither call touches the network and both are cheap.
             val lifecycleOwner = LocalLifecycleOwner.current
-            DisposableEffect(lifecycleOwner) {
+            // Keyed on the two models too: after a new sign-in they are new instances, and an
+            // observer that captured the old ones would refresh models nothing draws any more.
+            DisposableEffect(lifecycleOwner, photos, media) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
                         photos.refreshAccess()
@@ -763,6 +814,7 @@ class MainActivity : ComponentActivity() {
                 // screen is a new view: a jump back onto the same step must arrive again.
                 location.left()
                 details.leftElsewhere()
+                picks.leftElsewhere()
                 notifyModel.left()
                 reachModel.left()
                 when (target) {
@@ -831,6 +883,14 @@ class MainActivity : ComponentActivity() {
                         auth = phoneAuth,
                         analytics = AppAnalytics,
                         onFinished = {
+                            // A SESSION BEGAN, possibly a different account's: nothing the
+                            // screens hold may carry over. A fresh generation of every
+                            // account-scoped view model, and the host's own copy of the name, the
+                            // address and the consent box.
+                            account += 1
+                            firstName = ""
+                            email = ""
+                            marketingConsent = false
                             outcome = it
                             screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
                         },
@@ -1438,11 +1498,55 @@ class MainActivity : ComponentActivity() {
                     )
                     FlowScreen.ProfilePolitics -> DetailChoiceHost(
                         DetailStep.Politics, details, detailsState, profileScreenOf(cameFrom), onTop,
-                        // INTERESTS (step 8) IS NOT BUILT, so politics ends at Home for now. When
-                        // it is, this is the single line that changes.
-                        onNext = { goTo(FlowScreen.Home) },
+                        onNext = { goTo(FlowScreen.ProfileInterests) },
                         onPrevious = { goTo(FlowScreen.ProfileReligion) },
                     )
+
+                    // ── steps 8 to 10 (SHOWUP-174 to SHOWUP-176) ─────────────────────
+                    FlowScreen.ProfileInterests -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) picks.arrived(PickStep.Interests, profileScreenOf(cameFrom))
+                        }
+                        ProfileInterestsScreen(
+                            state = heldWhileLeaving(picksState, onTop),
+                            onLifestyle = picks::lifestyleTapped,
+                            onInterest = picks::interestTapped,
+                            onShowMore = picks::showMoreTapped,
+                            onContinue = {
+                                picks.continuePressed(PickStep.Interests) { goTo(FlowScreen.ProfileLifeNow) }
+                            },
+                            onSkip = { picks.skipPressed(PickStep.Interests) { goTo(FlowScreen.ProfileLifeNow) } },
+                            onBack = { picks.backPressed(PickStep.Interests) { goTo(FlowScreen.ProfilePolitics) } },
+                        )
+                    }
+                    FlowScreen.ProfileLifeNow -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) picks.arrived(PickStep.LifeNow, profileScreenOf(cameFrom))
+                        }
+                        ProfileLifeNowScreen(
+                            state = heldWhileLeaving(picksState, onTop),
+                            onTap = { question, value -> picks.pillTapped(PickStep.LifeNow, question, value) },
+                            onContinue = {
+                                picks.continuePressed(PickStep.LifeNow) { goTo(FlowScreen.ProfileLifeAhead) }
+                            },
+                            onSkip = { picks.skipPressed(PickStep.LifeNow) { goTo(FlowScreen.ProfileLifeAhead) } },
+                            onBack = { picks.backPressed(PickStep.LifeNow) { goTo(FlowScreen.ProfileInterests) } },
+                        )
+                    }
+                    FlowScreen.ProfileLifeAhead -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) picks.arrived(PickStep.LifeAhead, profileScreenOf(cameFrom))
+                        }
+                        ProfileLifeAheadScreen(
+                            state = heldWhileLeaving(picksState, onTop),
+                            onTap = { question, value -> picks.pillTapped(PickStep.LifeAhead, question, value) },
+                            // THE CHECK-IN INTRO IS NOT BUILT, so the end of profile creation lands on
+                            // Home for now. Both exits change together when it is.
+                            onContinue = { picks.continuePressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) } },
+                            onSkip = { picks.skipPressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) } },
+                            onBack = { picks.backPressed(PickStep.LifeAhead) { goTo(FlowScreen.ProfileLifeNow) } },
+                        )
+                    }
 
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
@@ -1684,6 +1788,9 @@ private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen)
     FlowScreen.ProfileEducation -> ProfileScreen.Education
     FlowScreen.ProfileReligion -> ProfileScreen.Religion
     FlowScreen.ProfilePolitics -> ProfileScreen.Politics
+    FlowScreen.ProfileInterests -> ProfileScreen.Interests
+    FlowScreen.ProfileLifeNow -> ProfileScreen.LifeNow
+    FlowScreen.ProfileLifeAhead -> ProfileScreen.LifeAhead
     else -> null
 }
 

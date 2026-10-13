@@ -39,7 +39,30 @@ fun Modifier.boxShadow(
     shadow: Color,
     offsetY: Dp,
     blur: Dp,
-): Modifier = drawBehind {
+): Modifier = drawBehind { drawShadowed(fill, cornerRadius.toPx(), shadow, offsetY, blur) }
+
+/**
+ * [boxShadow] on a fully round pill -- CSS `border-radius: 9999px` -- whatever height the node
+ * turns out to be.
+ *
+ * A fixed radius is right only at the height it was chosen for: a chip that grows at the largest
+ * system font would keep a 19 radius on a taller box while its border, drawn with a 50% shape,
+ * stayed round, and the glow and the outline would disagree. Half the measured height cannot.
+ */
+fun Modifier.pillShadow(
+    fill: Color,
+    shadow: Color,
+    offsetY: Dp,
+    blur: Dp,
+): Modifier = drawBehind { drawShadowed(fill, size.height / 2f, shadow, offsetY, blur) }
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShadowed(
+    fill: Color,
+    r: Float,
+    shadow: Color,
+    offsetY: Dp,
+    blur: Dp,
+) {
     val sigma = blur.toPx() / 2f
     val radius = ((sigma - 0.5f) / 0.57735f).coerceAtLeast(0.1f)
     val paint = android.graphics.Paint().apply {
@@ -47,6 +70,5 @@ fun Modifier.boxShadow(
         color = fill.toArgb()
         setShadowLayer(radius, 0f, offsetY.toPx(), shadow.toArgb())
     }
-    val r = cornerRadius.toPx()
     drawIntoCanvas { it.nativeCanvas.drawRoundRect(0f, 0f, size.width, size.height, r, r, paint) }
 }

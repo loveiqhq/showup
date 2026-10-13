@@ -100,9 +100,10 @@ final class FlowScreenTests: XCTestCase {
         //
         // SHOWUP-165 to SHOWUP-173 add nine: profileLocation (whose A, B and C are states, not
         // cases), profileEmbraceDetails (the second bridge, never a resume point), and the seven
-        // "Share some details" steps. Mirrors the 27 in FlowRestorationTest on Android.
-        XCTAssertEqual(FlowScreen.allCases.count, 27)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 27)
+        // "Share some details" steps.
+        // SHOWUP-174 to 176 add Interests, Life and Future, for thirty -- the 30 in FlowRestorationTest.
+        XCTAssertEqual(FlowScreen.allCases.count, 30)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 30)
     }
 
     /// The new positions walk forward in flow order, and every back from a detail step reads as

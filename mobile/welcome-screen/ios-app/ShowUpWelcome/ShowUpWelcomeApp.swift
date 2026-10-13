@@ -118,6 +118,7 @@ private struct TutorialFlow: View {
                                       SceneKey.scoped("profile.prompts", epoch: epoch))
         _detailsStored = SceneStorage(wrappedValue: "",
                                       SceneKey.scoped("profile.details", epoch: epoch))
+        _picksStored = SceneStorage(wrappedValue: "", SceneKey.scoped("profile.picks", epoch: epoch))
         _confettiPlayed = SceneStorage(wrappedValue: false,
                                        SceneKey.scoped("embrace2.confettiPlayed", epoch: epoch))
         _locationStartRaw = SceneStorage(wrappedValue: LocationState.ask.rawValue,
@@ -255,6 +256,15 @@ private struct TutorialFlow: View {
         analytics: AppAnalytics.shared
     )
     @SceneStorage private var detailsStored: String
+
+    // Interests, Life and Future (SHOWUP-174 to 176): one model for the three, for the detail
+    // group's reason — one answer sheet, and each step's back shows the previous step's saved picks.
+    @State private var picks = PickModel(
+        store: ProfileDetailsRepository(api: APIAccess.client),
+        positions: FlowPositionReporter(api: APIAccess.client),
+        analytics: AppAnalytics.shared
+    )
+    @SceneStorage private var picksStored: String
     /// Whether Embrace 2's confetti has started for this showing — so a scene restore onto the
     /// bridge does not replay it. Cleared by the push, never by the way out.
     @SceneStorage private var confettiPlayed: Bool
@@ -562,10 +572,62 @@ private struct TutorialFlow: View {
         go(to: .profileEmbraceDetails)
     }
 
+    /// A sign-up or log-in just completed, possibly as a different account: nothing the profile
+    /// screens hold may carry over.
+    ///
+    /// Until 13 October 2026 the models below were built once per scene and read the account
+    /// once, so "Start over" or the developer menu's Startup followed by a NEW account showed the
+    /// previous account's answers, photos and prompts on its first visit to each screen — and
+    /// Continue saved them into the new account. Each account-scoped model is replaced with a fresh
+    /// one, and the drafts and copies kept in scene storage are cleared. The Android twin keys its
+    /// view models on an account generation for the same reason. The sign-in model stays: it is
+    /// the session that just began.
+    private func beginNewAccount() {
+        // THE OLD MODELS LET GO OF SCENE STORAGE FIRST. A read still in flight on one of them ends
+        // in a write through its `persist`, which would put the previous account's draft back into
+        // the storage cleared below -- and the new model's first `attach` would restore it. `attach`
+        // always rebinds `persist`, so binding it to nothing is enough.
+        prompts.attach(stored: "") { _ in }
+        details.attach(stored: "") { _ in }
+        picks.attach(stored: "") { _ in }
+        basics = BasicsModel(repo: BasicsRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        photos = PhotosModel(repo: PhotosRepository(api: APIAccess.client), access: SystemPhotoAccess(),
+                             analytics: AppAnalytics.shared)
+        prompts = PromptsModel(repo: PromptsRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        notifications = NotificationsModel(analytics: AppAnalytics.shared)
+        reachability = ReachabilityModel(consent: NoConsentBackend(), analytics: AppAnalytics.shared)
+        media = MediaModel(repo: MediaRepository(api: APIAccess.client), access: AVMediaAccess(),
+                           capture: AVMediaCaptureFactory(), player: sharedMediaPlayer,
+                           analytics: AppAnalytics.shared)
+        details = DetailsModel(store: ProfileDetailsRepository(api: APIAccess.client),
+                               positions: FlowPositionReporter(api: APIAccess.client),
+                               analytics: AppAnalytics.shared)
+        picks = PickModel(store: ProfileDetailsRepository(api: APIAccess.client),
+                          positions: FlowPositionReporter(api: APIAccess.client),
+                          analytics: AppAnalytics.shared)
+        location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client),
+                                 analytics: AppAnalytics.shared)
+        firstName = ""
+        email = ""
+        marketingConsent = false
+        promptsStored = ""
+        detailsStored = ""
+        picksStored = ""
+        confettiPlayed = false
+        dobStored = ""
+        hideAgeStored = false
+    }
+
     /// Binds the details model to scene storage — idempotent, so every step can call it.
     private func attachDetails() {
         let stored = $detailsStored
         details.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
+    }
+
+    /// The same for Interests, Life and Future.
+    private func attachPicks() {
+        let stored = $picksStored
+        picks.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
     }
 
     /// The §11 screen a flow position is, for `referrer_screen_id`. Nil where none is registered.
@@ -590,6 +652,9 @@ private struct TutorialFlow: View {
         case .profileEducation: return .education
         case .profileReligion: return .religion
         case .profilePolitics: return .politics
+        case .profileInterests: return .interests
+        case .profileLifeNow: return .lifeNow
+        case .profileLifeAhead: return .lifeAhead
         default: return nil
         }
     }
@@ -684,6 +749,38 @@ private struct TutorialFlow: View {
         }
     }
 
+    @ViewBuilder private var interestsScreen: some View {
+        ProfileInterestsView(
+            state: picks.state,
+            onLifestyle: { picks.lifestyleTapped($0, $1) },
+            onInterest: { picks.interestTapped($0) },
+            onShowMore: { picks.showMoreTapped($0) },
+            onContinue: { Task { await picks.continuePressed(.interests) { go(to: .profileLifeNow) } } },
+            onSkip: { picks.skipPressed(.interests) { go(to: .profileLifeNow) } },
+            onBack: { picks.backPressed(.interests) { go(to: .profilePolitics) } }
+        )
+        .onAppear {
+            attachPicks()
+            picks.arrived(.interests, referrer: profileScreen(of: cameFrom))
+        }
+    }
+
+    /// Life or Future: the same column with its own step (Profile 23 consumes Profile 22's).
+    private func lifeScreen(_ step: PickStep, next: FlowScreen, previous: FlowScreen) -> some View {
+        LifeView(
+            step: step,
+            state: picks.state,
+            onTap: { picks.pillTapped(step, $0, $1) },
+            onContinue: { Task { await picks.continuePressed(step) { go(to: next) } } },
+            onSkip: { picks.skipPressed(step) { go(to: next) } },
+            onBack: { picks.backPressed(step) { go(to: previous) } }
+        )
+        .onAppear {
+            attachPicks()
+            picks.arrived(step, referrer: profileScreen(of: cameFrom))
+        }
+    }
+
     /// False in any release build.
     ///
     /// A computed constant rather than an `#if` wrapped around the ViewBuilder branch: a
@@ -763,6 +860,7 @@ private struct TutorialFlow: View {
         // a new view: a jump back onto the same step must arrive again.
         location.left()
         details.leftElsewhere()
+        picks.leftElsewhere()
         notifications.left()
         reachability.left()
         switch target {
@@ -815,6 +913,7 @@ private struct TutorialFlow: View {
                 // SHOWUP-146, the whole ticket in one line: the tutorial for a new account,
                 // straight into the app for a returning member.
                 case .signUp: SignUpFlowView(onFinished: { o in
+                    beginNewAccount()
                     outcomeRaw = o.storageKey
                     go(to: showsTutorial(o) ? .tutorialWelcome : .home)
                 }, auth: phoneAuth, epoch: epoch, sessionEnded: sessionNotice,
@@ -1028,9 +1127,16 @@ private struct TutorialFlow: View {
                 case .profileReligion:
                     choiceScreen(.religion, next: .profilePolitics, previous: .profileEducation)
                 case .profilePolitics:
-                    // INTERESTS (step 8) IS NOT BUILT, so politics ends at home for now. When it is,
-                    // this is the single line that changes.
-                    choiceScreen(.politics, next: .home, previous: .profileReligion)
+                    choiceScreen(.politics, next: .profileInterests, previous: .profileReligion)
+
+                // "Share some details", steps 8 to 10 (SHOWUP-174 to SHOWUP-176).
+                case .profileInterests: interestsScreen
+                case .profileLifeNow:
+                    lifeScreen(.lifeNow, next: .profileLifeAhead, previous: .profileInterests)
+                case .profileLifeAhead:
+                    // THE CHECK-IN INTRO IS NOT BUILT, so the end of profile creation lands on home
+                    // for now. Both exits change together when it is.
+                    lifeScreen(.lifeAhead, next: .home, previous: .profileLifeNow)
 
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
@@ -1097,6 +1203,10 @@ private struct TutorialFlow: View {
             case .education: go(to: .profileEducation)
             case .religion: go(to: .profileReligion)
             case .politics: go(to: .profilePolitics)
+            // Steps 8 to 10 pre-fill from the same read, started now, before the arrival asks.
+            case .interests: go(to: .profileInterests); picks.preload()
+            case .lifeNow: go(to: .profileLifeNow); picks.preload()
+            case .lifeAhead: go(to: .profileLifeAhead); picks.preload()
             case .done: go(to: .home)
             }
             // A resume onto a detail step pre-fills the saved value: start the read now.

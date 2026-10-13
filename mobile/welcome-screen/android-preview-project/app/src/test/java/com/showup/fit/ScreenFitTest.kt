@@ -69,6 +69,14 @@ import com.showup.profile.DetailToast
 import com.showup.profile.DetailsUiState
 import com.showup.profile.LocationState
 import com.showup.profile.ProfileChoiceScreen
+import com.showup.profile.FUTURE_B
+import com.showup.profile.INTERESTS_B
+import com.showup.profile.INTERESTS_C
+import com.showup.profile.INTERESTS_D
+import com.showup.profile.LIFE_B
+import com.showup.profile.ProfileInterestsScreen
+import com.showup.profile.ProfileLifeAheadScreen
+import com.showup.profile.ProfileLifeNowScreen
 import com.showup.profile.ProfileDatingLanguageScreen
 import com.showup.profile.ProfileEmbraceDetailsScreen
 import com.showup.profile.ProfileHeightScreen
@@ -863,6 +871,24 @@ class ScreenFitTest {
                 }
             sweep("Details/save failed @$scale", fontScale = scale) {
                 ProfileChoiceScreen(DetailStep.Religion, DetailsUiState(toast = DetailToast.SaveFailed, toastTick = 1))
+            }
+        }
+        assertClean()
+    }
+
+    @Test
+    fun `interests, life and future, every state, at three type sizes`() {
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            sweep("Interests/A @$scale", fontScale = scale) { ProfileInterestsScreen() }
+            sweep("Interests/B @$scale", fontScale = scale) { ProfileInterestsScreen(INTERESTS_B) }
+            sweep("Interests/C cap @$scale", fontScale = scale) { ProfileInterestsScreen(INTERESTS_C) }
+            sweep("Interests/D open @$scale", fontScale = scale) { ProfileInterestsScreen(INTERESTS_D) }
+            sweep("Life/A @$scale", fontScale = scale) { ProfileLifeNowScreen() }
+            sweep("Life/B @$scale", fontScale = scale) { ProfileLifeNowScreen(LIFE_B) }
+            sweep("Future/A @$scale", fontScale = scale) { ProfileLifeAheadScreen() }
+            sweep("Future/B @$scale", fontScale = scale) { ProfileLifeAheadScreen(FUTURE_B) }
+            sweep("Picks/save failed @$scale", fontScale = scale) {
+                ProfileLifeNowScreen(LIFE_B.copy(saveFailed = true))
             }
         }
         assertClean()

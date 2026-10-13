@@ -483,6 +483,19 @@ final class ScreenFitTests: XCTestCase {
                     ProfileChoiceView(step: .politics, state: DetailsUiState(
                         draft: DetailDraft(politics: "apolitical"), toast: .saveFailed)),
                     on: device), .orange),
+
+                // SHOWUP-174 to SHOWUP-176. The round ORANGE NextButton, never disabled. Only the
+                // answer region scrolls, so a finding means something FIXED overflowed. At the cap
+                // the counter's meter turns orange too; it sits far above the footer, so the CTA is
+                // still the lowest orange run this probe reads.
+                ("Interests empty", try render(ProfileInterestsView(), on: device), .orange),
+                ("Interests two and six", try render(ProfileInterestsView(state: .interestsB), on: device), .orange),
+                ("Interests cap", try render(ProfileInterestsView(state: .interestsC), on: device), .orange),
+                ("Interests Move open", try render(ProfileInterestsView(state: .interestsD), on: device), .orange),
+                ("Life empty", try render(LifeView(step: .lifeNow), on: device), .orange),
+                ("Life answered", try render(LifeView(step: .lifeNow, state: .lifeB), on: device), .orange),
+                ("Future empty", try render(LifeView(step: .lifeAhead), on: device), .orange),
+                ("Future answered", try render(LifeView(step: .lifeAhead, state: .futureB), on: device), .orange),
             ]
             for (label, image, tint) in screens {
                 guard let rows = ctaRows(in: image, tint: tint) else {

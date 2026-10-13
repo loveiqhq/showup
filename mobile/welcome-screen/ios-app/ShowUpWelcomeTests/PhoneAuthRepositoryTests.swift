@@ -113,7 +113,8 @@ final class PhoneAuthRepositoryTests: XCTestCase {
         {"id":"p1","displayName":"Leo","age":31,"gender":null,"lookingFor":null,\
         "isVisible":true,"hiddenFields":[],"isComplete":\(isComplete),\
         "verificationStatus":"none","heightCm":null,"orientation":null,\
-        "datingLanguages":null,"education":null,"religion":null,"politics":null}
+        "datingLanguages":null,"education":null,"religion":null,"politics":null,\
+        "activity":null,"diet":null,"alcohol":null,"smoking":null,"rhythm":null,"social":null,"interests":null,"partnership":null,"family":null,"living":null,"familyAhead":null,"partnershipAhead":null,"livingAhead":null}
         """
     }
 

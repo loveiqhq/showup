@@ -1946,9 +1946,242 @@ check("the accepted answer is the one saved (swift)", "await answer(step, draft:
 for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
     for name in ("detail_answered", "detail_skipped", "field_display_opted_out"):
         check("the %s event is registry-backed (%s)" % (name, label), '"%s"' % name in text)
-# Politics ends the walk at home until interests (step 8) is built -- one line on each side.
-check("173 politics continues home for now (swift)", "choiceScreen(.politics, next: .home" in app_sw)
-check("173 politics continues home for now (kotlin)", "FlowScreen.Home" in app_kt)
+# Politics continues to Interests (step 8) since SHOWUP-174 -- one line on each side.
+check("173 politics continues to interests (swift)",
+      "choiceScreen(.politics, next: .profileInterests" in app_sw)
+check("173 politics continues to interests (kotlin)",
+      re.search(r"DetailStep\.Politics, details, detailsState, profileScreenOf\(cameFrom\), onTop,\s*"
+                r"onNext = \{ goTo\(FlowScreen\.ProfileInterests\) \}", app_kt) is not None)
+
+# ── SHOWUP-174 to SHOWUP-176 · Interests, Life, Future ───────────────────────
+#
+# Quoted from the tickets (saved verbatim with the handoff, tickets/21-23), both platforms. The
+# Jira descriptions are the source of truth and match these files word for word.
+picks_rules_kt = joined(code_only(read(KT, "profile", "ProfileInterests.kt")))
+picks_rules_sw = joined(code_only(read(SW, "ProfileInterests.swift")))
+life_rules_kt = joined(code_only(read(KT, "profile", "ProfileLife.kt")))
+life_rules_sw = joined(code_only(read(SW, "ProfileLife.swift")))
+pchrome_kt = joined(code_only(read(KT, "profile", "PickChrome.kt")))
+pchrome_sw = joined(code_only(read(SW, "PickChrome.swift")))
+ichrome_kt = joined(code_only(read(KT, "profile", "InterestsChrome.kt")))
+ichrome_sw = joined(code_only(read(SW, "InterestsChrome.swift")))
+lchrome_kt = joined(code_only(read(KT, "profile", "LifeChrome.kt")))
+lchrome_sw = joined(code_only(read(SW, "LifeChrome.swift")))
+iscreen_kt = code_only(read(KT, "profile", "ProfileInterestsScreen.kt"))
+iscreen_sw = code_only(read(SW, "ProfileInterestsView.swift"))
+lscreen_kt = code_only(read(KT, "profile", "ProfileLifeScreen.kt"))
+pvm_kt = code_only(read(KT, "profile", "PickStepsViewModel.kt"))
+pvm_sw = code_only(read(SW, "PickModel.swift"))
+
+for label, text in (("kotlin", pchrome_kt), ("swift", pchrome_sw)):
+    for s_ in ["How I live", "What I'm into", "Show more", "Show less",
+               "Select all that apply. Never shown on your profile. Used to find the right matches."]:
+        check("174-176 copy (%s): %s" % (label, s_[:40]), '"%s"' % s_ in text)
+# Headlines as runs: the one italic em, and the ticket's STRAIGHT apostrophe in `you'd` -- Profile 21
+# says "copy matches the strings above exactly" and has no typographic-apostrophe rule (13 October 2026).
+check("174 headline (kotlin)",
+      '"Show how you live and what you love, so others know if you\'d " to false, "click" to true' in pchrome_kt)
+check("174 headline (swift)",
+      '("Show how you live and what you love, so others know if you\'d ", false), ("click", true)'
+      in pchrome_sw)
+t21 = read(os.path.dirname(os.path.dirname(MOBILE)), "design_handoff_showup", "profile", "tickets", "21-interests.md")
+check("174 headline is the ticket's own string",
+      "Show how you live and what you love, so others know if you'd click" in t21)
+for label, text in (("kotlin", pchrome_kt), ("swift", pchrome_sw)):
+    check("174 headline has no typographic apostrophe (%s)" % label,
+          "you\u2019d" not in text and "you\\u{2019}d" not in text)
+for lead in ("What fits your current ", "What do you imagine for your future "):
+    check("175/176 headline (kotlin): %s" % lead,
+          '"%s" to false, "life" to true, "?" to false' % lead in pchrome_kt)
+    check("175/176 headline (swift): %s" % lead, '("%s", false), ("life", true), ("?", false)' % lead in pchrome_sw)
+# The counter's two sentences.
+check("174 counter (kotlin)", '"$picked picked · ${INTERESTS_MAX - picked} left"' in picks_rules_kt
+      and '"$INTERESTS_MAX of $INTERESTS_MAX picked"' in picks_rules_kt)
+check("174 counter (swift)", '"\\(picked) picked \\u{00B7} \\(interestsMax - picked) left"' in picks_rules_sw
+      and '"\\(interestsMax) of \\(interestsMax) picked"' in picks_rules_sw)
+
+PICK_OPTIONS = {
+    "174 how I live groups": ["Activity level", "Diet", "Alcohol", "Smoking", "Rhythm", "Social battery"],
+    "174 activity": ["Couch-lover", "Moderately active", "Active", "Sport is my life"],
+    "174 diet": ["Everything", "Flexitarian", "Vegetarian", "Vegan"],
+    "174 alcohol": ["Never", "Rarely", "Socially", "Regularly"],
+    "174 smoking": ["No", "Sometimes", "Yes"],
+    "174 rhythm": ["Early bird", "Night owl"],
+    "174 social": ["Cozy at home", "Balanced", "Always out"],
+    "174 what I'm into groups": ["Move", "Food & Drink", "Culture", "Cozy at home", "Going out", "Travel style"],
+    "174 move": ["Gym", "Running", "Hyrox/CrossFit", "Yoga/Pilates", "Bouldering", "Cycling", "Swimming",
+                 "Hiking", "Team sports", "Tennis/Padel", "Martial arts", "Winter sports"],
+    "174 food": ["Cooking", "Baking", "Trying new restaurants", "Brunch", "Street food & markets", "Wine",
+                 "Craft beer", "Coffee spots", "Cocktail bars"],
+    "174 culture": ["Live music", "Museums & exhibitions", "Theatre", "Cinema", "Reading", "Comedy",
+                    "Festivals", "Making art/music"],
+    "174 home": ["TV series", "Movie nights", "Gaming", "Board games", "Podcasts", "Plants & gardening"],
+    "174 out": ["Bars", "Clubbing", "Dinner parties", "Quiz nights", "Karaoke", "Concerts with friends",
+                "Volunteering"],
+    "174 travel": ["City breaks", "Road trips", "Beach & relax", "All-inclusive", "Backpacking",
+                   "Surf & adventure", "Wellness & spa", "Camping", "Cruises"],
+}
+for name, labels in PICK_OPTIONS.items():
+    check("%s in order (kotlin)" % name, in_order(picks_rules_kt, labels))
+    check("%s in order (swift)" % name, in_order(picks_rules_sw, labels))
+
+LIFE_OPTIONS = {
+    "175 categories": ["Partnership situation", "Family situation", "Living situation"],
+    "175 partnership": ["Single", "Open relationship", "Ethically non-monogamous", "Divorced"],
+    "175 family": ["No children", "I have children", "Single parent", "Co-parenting", "Empty nester"],
+    "175 living": ["Living alone", "Living with roommates", "Living with family", "Living with children"],
+    "176 categories": ["Family vision", "Partnership vision", "Living style vision"],
+    "176 family": ["I want kids", "I don't want kids", "I want to find out together"],
+    "176 partnership": ["Monogamous relationship", "Open relationship", "Ethically non-monogamous",
+                        "I want to find out together"],
+    "176 living": ["Stay local", "Expat life", "Move abroad", "I want to find out together"],
+}
+for name, labels in LIFE_OPTIONS.items():
+    check("%s in order (kotlin)" % name, in_order(life_rules_kt, labels))
+    check("%s in order (swift)" % name, in_order(life_rules_sw, labels))
+
+# The numbers and the rules.
+check("174 capped at 10, four visible (kotlin)", "const val INTERESTS_MAX = 10" in picks_rules_kt
+      and "const val INTERESTS_VISIBLE = 4" in picks_rules_kt)
+check("174 capped at 10, four visible (swift)", "let interestsMax = 10" in picks_rules_sw
+      and "let interestsVisible = 4" in picks_rules_sw)
+check("174-176 steps 8, 9, 10 (kotlin)", 'Interests("interests", 8,' in picks_rules_kt
+      and 'LifeNow("life_now", 9,' in picks_rules_kt and 'LifeAhead("life_ahead", 10,' in picks_rules_kt)
+check("174-176 steps 8, 9, 10 (swift)", "case .interests: return 8" in picks_rules_sw
+      and "case .lifeNow: return 9" in picks_rules_sw and "case .lifeAhead: return 10" in picks_rules_sw)
+check("175 no children is exclusive (kotlin)", "exclusive = setOf(com.showup.api.generated.model.LifeFamily.no_children.value)" in life_rules_kt)
+check("175 no children is exclusive (swift)", "case .family: return [Components.Schemas.LifeFamily.no_children.rawValue]" in life_rules_sw)
+check("176 every family vision is exclusive (kotlin)", "exclusive = com.showup.api.generated.model.FutureFamily.entries" in life_rules_kt)
+check("176 every family vision is exclusive (swift)", "case .familyAhead: return Set(options.map(\\.value))" in life_rules_sw)
+# ONE toggle, consumed by both screens -- "no copy, no fork".
+check("175/176 one toggleLifePick (kotlin)", life_rules_kt.count("fun toggleLifePick(") == 1
+      and "toggleLifePick(" in pvm_kt)
+check("175/176 one toggleLifePick (swift)", life_rules_sw.count("func toggleLifePick(") == 1
+      and "toggleLifePick(" in pvm_sw)
+check("176 consumes Life's column (kotlin)", "LifeScreen(PickStep.LifeAhead" in lscreen_kt
+      and "LifeScreen(PickStep.LifeNow" in lscreen_kt)
+check("176 consumes Life's column (swift)", "lifeScreen(.lifeAhead" in app_sw and "lifeScreen(.lifeNow" in app_sw
+      and "LifeView(" in app_sw and "struct LifeView" in lchrome_sw)
+# Not DetailsScaffold, no visibility band, no refusal.
+for label, text in (("kotlin", pchrome_kt + ichrome_kt + lchrome_kt + iscreen_kt),
+                    ("swift", pchrome_sw + ichrome_sw + lchrome_sw + iscreen_sw)):
+    check("174-176 not the detail scaffold (%s)" % label, "DetailsScaffold" not in text)
+    check("174-176 no visibility band (%s)" % label, "ProfileVisibility" not in text)
+check("174-176 the bar is the shell's (kotlin)", "StepProgress(steps = SHARE_STEPS_TOTAL, current = step.stepIndex)" in pchrome_kt)
+check("174-176 the bar is the shell's (swift)", "StepProgress(steps: shareStepsTotal, current: step.stepIndex)" in pchrome_sw)
+check("174-176 the CTA stays Continue (kotlin)", "ctaLabel = DetailsCopy.CTA" in pchrome_kt)
+check("174-176 the CTA stays Continue (swift)", "ctaLabel: DetailsCopy.cta" in pchrome_sw)
+# Skip and Continue share one measured row with the detail steps and media -- side by side when they
+# fit, stacked when they do not -- so Continue's circle is never crushed at the largest text size.
+skiprow_kt = code_only(read(KT, "profile", "SkipContinueRow.kt"))
+skiprow_sw = code_only(read(SW, "SkipContinueRow.swift"))
+check("skip and continue share one row (kotlin)", all(
+    "SkipContinueRow(" in t for t in (pchrome_kt, chrome_kt, code_only(read(KT, "profile", "ProfileMediaScreen.kt")))))
+check("skip and continue share one row (swift)", all(
+    "SkipContinueRow(" in t for t in (pchrome_sw, chrome_sw, code_only(read(SW, "ProfileMedia.swift")))))
+check("the row stacks when it does not fit (kotlin)", "if (fits)" in skiprow_kt and "Column(" in skiprow_kt)
+check("the row stacks when it does not fit (swift)", "ViewThatFits(in: .horizontal)" in skiprow_sw)
+check("174-176 back works, with the swipe (kotlin)", "BackHandler(enabled = true, onBack = onBack)" in pchrome_kt)
+check("174-176 back works, with the swipe (swift)", "EdgeSwipeBack(onBack: onBack)" in pchrome_sw)
+# Chip and pill numbers from the references.
+check("174 chip 38, pad 15 (kotlin)", "CHIP_HEIGHT = 38.dp" in ichrome_kt and "CHIP_PAD = 15.dp" in ichrome_kt)
+check("174 chip 38, pad 15 (swift)", "chipHeight: CGFloat = 38" in ichrome_sw and ".padding(.horizontal, 15 + 1.5)" in ichrome_sw)
+# "No element changes Y on selection" (13 October 2026): a chip is ALWAYS its picked width -- an
+# invisible 700 copy of the label and the picked border's padding, in both states, on both platforms.
+check("174 chip reserves the picked border (kotlin)",
+      "padding(horizontal = CHIP_PAD + CHIP_BORDER_PICKED" in ichrome_kt)
+check("174 chip reserves the picked weight (kotlin)",
+      "color = Color.Transparent," in ichrome_kt and ichrome_kt.count("fontWeight = FontWeight.Bold,") >= 1)
+check("174 chip reserves the picked weight (swift)",
+      re.search(r"\.font\(F\.manrope\(14, \.bold\)\)\s*\.hidden\(\)", ichrome_sw) is not None)
+# Only the colours and the glow animate; the weight and border width change at once, as in CSS.
+check("174 chip animates colours only (swift)",
+      "value: selected)" not in ichrome_sw.split("struct InterestsCounter")[0])
+check("175 pill animates colours only (swift)",
+      "value: selected)" not in lchrome_sw.split("struct CategoryHeader")[0])
+# Accessibility roles: a What I'm into chip and a life pill are toggles, as CheckRow is.
+check("174 What I'm into chip is a toggle (swift)", "role == .toggle ? .isToggle : .isButton" in ichrome_sw)
+check("175 pill is a toggle (swift)", ".accessibilityAddTraits(.isToggle)" in lchrome_sw)
+# The counter: a square fill end clipped by the track, and no growth or announcement on pre-fill.
+check("174 counter fill is square-ended (kotlin)",
+      re.search(r"\.fillMaxWidth\(fill\)\s*\.height\(4\.dp\)\s*\.background\(tone\)", ichrome_kt) is not None)
+check("174 counter fill is square-ended (swift)", ".clipShape(Capsule())" in ichrome_sw)
+check("174 counter is drawn at once on a pre-fill (kotlin)",
+      "key(state.prefill) { InterestsCounter(" in joined(iscreen_kt))
+check("174 counter is drawn at once on a pre-fill (swift)",
+      re.search(r"InterestsCounter\(picked: draft\.interests\.count\)\s*\.id\(state\.prefill\)", iscreen_sw)
+      is not None)
+check("174 counter announces at low priority (swift)",
+      "accessibilitySpeechAnnouncementPriority = .low" in ichrome_sw)
+check("175 pill 34 (kotlin)", "PILL_HEIGHT = 34.dp" in lchrome_kt)
+check("175 pill 34 (swift)", "pillHeight: CGFloat = 34" in lchrome_sw)
+check("174 chevron turns in 220 (kotlin)", "Motion.DISCLOSURE" in ichrome_kt)
+check("174 chevron turns in 220 (swift)", "Motion.disclosure" in ichrome_sw)
+# NEVER SAVE OVER ANSWERS THE SCREEN HAS NOT SHOWN (13 October 2026): a late read fills every
+# untouched part, and a Continue with no read yet reads first.
+check("174-176 a late read merges the untouched parts (kotlin)",
+      "interestsOnLateRead(" in joined(pvm_kt) and "lifeOnLateRead(" in joined(pvm_kt))
+check("174-176 a late read merges the untouched parts (swift)",
+      "interestsOnLateRead(" in joined(pvm_sw) and "lifeOnLateRead(" in joined(pvm_sw))
+check("174-176 a Continue with no read reads first (kotlin)", "readThenAnswer(step, onAdvance)" in joined(pvm_kt))
+check("174-176 a Continue with no read reads first (swift)",
+      "await readThenAnswer(step, onAdvance: onAdvance)" in joined(pvm_sw))
+check("176 Future sends only the questions answered (kotlin)",
+      "familyAhead = state.life.answered(LifeQuestion.FamilyAhead)" in joined(pvm_kt))
+check("176 Future sends only the questions answered (swift)",
+      "? life.answered(.familyAhead)?.compactMap(" in joined(pvm_sw))
+# The saves: one PATCH with the position; life sends empty for unanswered.
+check("174-176 one PATCH carries the position (kotlin)", "UpsertProfileDto(flowPosition = step.position)" in pvm_kt)
+check("174-176 one PATCH carries the position (swift)", "Dto.flowPositionPayload(value1: step.position)" in pvm_sw)
+check("174 an empty interest list is not sent (kotlin)", "takeIf { it.isNotEmpty() && (interestsTouched(touched)" in pvm_kt)
+check("174 an empty interest list is not sent (swift)", "interests: tags.isEmpty ||" in pvm_sw)
+# Second audit round (13 October 2026): an untouched part holding a value this build cannot draw is
+# not sent; a merge that cut a saved interest stops before saving; a save that lands after the step
+# was left another way does not move the flow.
+check("174-176 an untouched part with an unknown value is not sent (kotlin)",
+      "!interestsHoldUnknown(account)" in pvm_kt and "!lifeHoldsUnknown(question, account)" in pvm_kt)
+check("174-176 an untouched part with an unknown value is not sent (swift)",
+      "!interestsHoldUnknown(account)" in pvm_sw and "!lifeHoldsUnknown(question, saved: account)" in pvm_sw)
+check("174 a merge that cut a saved interest stops before saving (kotlin)", "interestsCutOnLateRead(read," in pvm_kt)
+check("174 a merge that cut a saved interest stops before saving (swift)", "interestsCutOnLateRead(read," in pvm_sw)
+check("174-176 a save after the step was left does not advance (kotlin)", pvm_kt.count("visit != pressedOn") == 2)
+check("174-176 a save after the step was left does not advance (swift)", pvm_sw.count("visit == pressedOn") == 2)
+# Tracking names, registry-backed, both sides.
+for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
+    for name in ("interest_selected", "interest_deselected", "interest_cap_reached", "show_more_expanded",
+                 "life_question_answered", "future_question_answered", "profile_interests",
+                 "profile_life_now", "profile_life_ahead"):
+        check("174-176 %s is registry-backed (%s)" % (name, label), '"%s"' % name in text)
+check("registry 1.4.18 stamped (kotlin)", 'FIELD_REGISTRY_VERSION = "1.4.18"' in pa_kt)
+check("registry 1.4.18 stamped (swift)", 'fieldRegistryVersion = "1.4.18"' in pa_sw)
+# Future exits home until the Check-In intro is built -- both exits, both platforms.
+check("176 exits home for now (kotlin)", "picks.continuePressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) }" in app_kt
+      and "picks.skipPressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) }" in app_kt)
+check("176 exits home for now (swift)", "lifeScreen(.lifeAhead, next: .home, previous: .profileLifeNow)" in app_sw)
+
+# ── a new sign-in starts with nothing from the last account (13 October 2026) ──
+# Found on the emulator: "Start over" (or the developer menu's Startup) and a NEW account showed the
+# previous account's saved answers on Interests and Continue saved them into the new account. Every
+# view model that caches account data is keyed on an account generation the completed sign-in bumps
+# (Android), or replaced with a fresh one by `beginNewAccount` (iOS).
+ACCOUNT_SCOPED_KT = ["basics", "photos", "details", "picks", "location", "prompts", "reachModel",
+                     "notifyModel", "media"]
+for name in ACCOUNT_SCOPED_KT:
+    check("account-scoped view model is keyed on the account (kotlin): %s" % name,
+          'key = "%s-$account"' % name in app_kt)
+check("a completed sign-in starts a new account generation (kotlin)",
+      re.search(r"onFinished = \{[^}]*account \+= 1", app_kt, re.S) is not None)
+check("a completed sign-in clears the host's name and address (kotlin)",
+      re.search(r"account \+= 1\s*firstName = \"\"\s*email = \"\"", app_kt) is not None)
+check("a completed sign-in replaces the account's models (swift)",
+      re.search(r"SignUpFlowView\(onFinished: \{ o in\s*beginNewAccount\(\)", app_sw) is not None)
+_begin = app_sw[app_sw.find("private func beginNewAccount()"):]
+_begin = _begin[:_begin.find("\n    }\n")]
+for name in ["basics", "photos", "prompts", "notifications", "reachability", "media", "details", "picks",
+             "location"]:
+    check("beginNewAccount replaces %s (swift)" % name, ("%s = " % name) in _begin)
+for stored in ["firstName", "email", "promptsStored", "detailsStored", "picksStored", "dobStored"]:
+    check("beginNewAccount clears %s (swift)" % stored, ("%s = " % stored) in _begin)
 
 # ── the session ended (8 October 2026) ──────────────────────────────────────
 # Not a ticket: the fix for saves that failed forever once the server had ended the session. The

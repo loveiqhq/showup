@@ -48,7 +48,11 @@ class ProfileDetailsWireTest {
         {"id":"p1","displayName":"Leo","age":28,"gender":"man","lookingFor":null,
          "isVisible":true,"hiddenFields":["age"],"isComplete":true,"verificationStatus":"none",
          "heightCm":181,"orientation":"gay","datingLanguages":["german","spanish"],
-         "education":"phd","religion":"muslim","politics":"middle"$extra}
+         "education":"phd","religion":"muslim","politics":"middle",
+         "activity":"active","diet":null,"alcohol":"socially","smoking":null,"rhythm":null,
+         "social":"balanced","interests":["gym","wine"],"partnership":["single","divorced"],
+         "family":[],"living":null,"familyAhead":["want_kids"],"partnershipAhead":null,
+         "livingAhead":null$extra}
     """.trimIndent()
 
     private fun json(body: String, code: Int = 200) = MockResponse()
@@ -115,9 +119,70 @@ class ProfileDetailsWireTest {
                 heightCm = 181, gender = "man", orientation = "gay",
                 datingLanguages = listOf("german", "spanish"), education = "phd", religion = "muslim",
                 politics = "middle", hiddenFields = setOf("age"),
+                // Answered groups only: a null is "never answered" and has no entry.
+                lifestyle = mapOf("activity" to "active", "alcohol" to "socially", "social" to "balanced"),
+                interests = listOf("gym", "wine"),
+                // An EMPTY family is an answer ("walked past it") and is kept; a null is not.
+                life = mapOf(
+                    "partnership" to listOf("single", "divorced"),
+                    "family" to emptyList(),
+                    "family_ahead" to listOf("want_kids"),
+                ),
             ),
             saved,
         )
+    }
+
+    @Test
+    fun `Interests sends the answered groups and the tags, and nothing it was not given`() = runTest {
+        server.enqueue(json(own()))
+        api().profiles.updateProfile(
+            UpsertProfileDto(
+                alcohol = com.showup.api.generated.model.Alcohol.socially,
+                interests = listOf(
+                    com.showup.api.generated.model.InterestTag.gym,
+                    com.showup.api.generated.model.InterestTag.wine,
+                ),
+                flowPosition = FlowPosition.interests,
+            ),
+        )
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body, body.contains("\"alcohol\":\"socially\""))
+        assertTrue(body, body.contains("\"interests\":[\"gym\",\"wine\"]"))
+        assertTrue(body, body.contains("\"flowPosition\":\"interests\""))
+        // An unanswered group is NOT SENT -- not even as null -- so it keeps its earlier value.
+        listOf("activity", "diet", "smoking", "rhythm", "social", "partnership").forEach {
+            assertFalse("$it leaked into $body", body.contains("\"$it\""))
+        }
+    }
+
+    @Test
+    fun `Life sends an unanswered question as an empty list -- it is not dropped as a default`() = runTest {
+        server.enqueue(json(own()))
+        api().profiles.updateProfile(
+            UpsertProfileDto(
+                partnership = listOf(com.showup.api.generated.model.LifePartnership.single),
+                family = emptyList(),
+                living = emptyList(),
+                flowPosition = FlowPosition.life_now,
+            ),
+        )
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body, body.contains("\"partnership\":[\"single\"]"))
+        assertTrue(body, body.contains("\"family\":[]"))
+        assertTrue(body, body.contains("\"living\":[]"))
+        assertTrue(body, body.contains("\"flowPosition\":\"life_now\""))
+    }
+
+    @Test
+    fun `the living values travel as their full registry strings`() = runTest {
+        // The generator strips the shared `living_` prefix from the CONSTANT names; the wire value
+        // must still be the §4 string, or the server refuses it.
+        server.enqueue(json(own()))
+        api().profiles.updateProfile(
+            UpsertProfileDto(living = listOf(com.showup.api.generated.model.LifeLiving.alone)),
+        )
+        assertTrue(server.takeRequest().body.readUtf8().contains("\"living\":[\"living_alone\"]"))
     }
 
     @Test

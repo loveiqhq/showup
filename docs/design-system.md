@@ -25,6 +25,13 @@ token named in a comment on nearly every line. One was added on 9 September 2026
 `BorderSoft` · `Success` / `SuccessFg` · `Danger` / `DangerFg` / `DangerDigit` · `Lavender` ·
 `EyebrowBg` / `EyebrowOrangeBg` · plus the `SunsetStops` and `WordmarkStops` gradients.
 
+**Four added on 12 October 2026 for Interests and Life (SHOWUP-174 to 176):** `ChipGlow`
+rgba(129,42,236,.18) and `ChipRest` rgba(46,1,71,.03), the picked and resting interest chip's
+shadows; `PillGlow` rgba(129,42,236,.22), the picked life pill's; `MeterTrack` rgba(29,17,41,.08),
+the interests counter's empty bar — lighter than `Track` (.12) so the meter never reads as the step
+bar. iOS names them `liqChipGlow`, `liqChipRest`, `liqPillGlow`, `liqMeterTrack`. Life's 28 category
+medallion reuses `EyebrowBg`, which is the same lavender-400 at 16%.
+
 **`Success` and `SuccessFg` are two different values, not a shade of one another.** `--liq-success`
 `#00AB55` is the badge fill; `--liq-success-fg` `#0A7A47` is the darker ink a success glyph needs on
 a light ground. Only the badge one had been ported until the profile email screen's helper tick
@@ -127,7 +134,8 @@ existed, which is worth locking down rather than leaving to coincidence.
 | Token | Android | iOS | Meaning |
 |---|---|---|---|
 | `FAST` / `fast` | 180 | 0.18 | press feedback and fades |
-| `PROGRESS` / `progress` | 280 | 0.28 | the step progress bar's segment fill (`StepProgress`, `transition: background 280ms`) |
+| `PROGRESS` / `progress` | 280 | 0.28 | the step progress bar's segment fill (`StepProgress`, `transition: background 280ms`), and the interests counter's meter, the same act |
+| `DISCLOSURE` / `disclosure` | 220 | 0.22 | a disclosure chevron turning over — Interests' `Show more` (SHOWUP-174) |
 | `SCREEN` / `screen` | 320 | 0.32 | screen-to-screen transition |
 | `SHAKE` / `shake` | 480 | 0.48 | the one-shot mismatch shake. **SHOWUP-143 specifies 480ms** |
 | `PULSE_SLOW` / `pulseSlow` | 900 | 0.9 | in-flight pulse on a provider button |
@@ -496,6 +504,24 @@ with it.
 That change grows two Android hit areas from 44 to 48. Both are invisible — neither control has a
 fill — but it needs measuring at 17 sizes, because `heightIn` on a link inside a row can push a
 column. Hence a separate task.
+
+### Drawn smaller, answering at 44 — `OverflowTapTarget` / `overflowTapTarget(drawnHeight:)`
+
+Added 12 October 2026 for Interests' 38 chips and Life's 34 pills (SHOWUP-174 to 176), which sit in
+wrapping rows 8 apart. `minTapTarget` GROWS the frame to 44, which there would open every row by 6
+or 10 and move every chip below the first — Life's whole "fits at 390" budget. These keep the slot
+at the drawn height and lay the touch area over it, overflowing symmetrically.
+
+Android's is a two-child `Layout`, not `requiredHeightIn` inside a `heightIn` box: that older
+pattern only overflows under a FIXED parent height, and under a minimum the parent wraps the 44 child
+and the slot becomes 44 — which the fit harness caught on the first run. iOS pads the hit area out
+and takes the same padding back from the layout with a negative one.
+
+### `WrapLayout` (iOS)
+
+SwiftUI has no `FlowRow`. `WrapLayout` is CSS `flex-wrap: wrap` with a gap: each child at its ideal
+width, the row wrapping around whole children, and only a child wider than the row offered the
+row's width.
 
 ## Reusable primitives — the state of play
 

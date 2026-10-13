@@ -628,6 +628,12 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
     // The three benefit rows name `compass · map-pin · navigation` (`Lock` already existed, for the
     // privacy note). Copied from `components/shared.jsx` at its exact 24-grid geometry.
     Compass, MapPin, Navigation,
+
+    // ── added for Life and Future (SHOWUP-175 / 176) ────────────────────────
+    //
+    // The category medallions name `heart · users · home` and `users · heart · compass`. `heart` and
+    // `compass` already existed; these two are copied from `components/shared.jsx` at its geometry.
+    Users, Home,
     /**
      * The kit's `heart-filled`, which is what Connect's button has always drawn.
      *
@@ -1012,6 +1018,48 @@ fun Icon(
                     path(listOf(3f to 11f, 22f to 2f, 13f to 21f, 11f to 13f), close = true),
                     tint, style = stroke,
                 )
+                // `M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2` + `circle 9,7 r4` +
+                // `M23 21v-2a4 4 0 0 0-3-3.87` + `M16 3.13a4 4 0 0 1 0 7.75`.
+                //
+                // THE ARCS ARE SOLVED, NOT EYEBALLED. SVG names an arc by its end point and Compose by
+                // its centre, so each centre below is the one the SVG flags pick out: sweep 0 runs
+                // counter-clockwise on screen (a negative sweep here), sweep 1 clockwise. The back
+                // shoulder's arc ends 3.87 up, which puts its centre at (19, 19) and its end at
+                // -75.5 degrees; the back head's chord is 7.75, so its centre sits 0.99 left of x = 16.
+                BrandIcon.Users -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(17f, 21f)
+                            lineTo(17f, 19f)
+                            arcTo(Rect(9f, 15f, 17f, 23f), 0f, -90f, false)
+                            lineTo(5f, 15f)
+                            arcTo(Rect(1f, 15f, 9f, 23f), 270f, -90f, false)
+                            lineTo(1f, 21f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawCircle(tint, radius = 4f, center = Offset(9f, 7f), style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(23f, 21f)
+                            lineTo(23f, 19f)
+                            arcTo(Rect(15f, 15f, 23f, 23f), 0f, -75.51f, false)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(16f, 3.13f)
+                            arcTo(Rect(11.0078f, 3.005f, 19.0078f, 11.005f), -75.64f, 151.28f, false)
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                // `M3 12 12 3l9 9` + `M5 10v10h14V10` -- the roof, then the open-topped walls.
+                BrandIcon.Home -> {
+                    drawPath(path(listOf(3f to 12f, 12f to 3f, 21f to 12f)), tint, style = stroke)
+                    drawPath(path(listOf(5f to 10f, 5f to 20f, 19f to 20f, 19f to 10f)), tint, style = stroke)
+                }
                 // ── added for the media step (SHOWUP-161) ───────────────────────────
                 //
                 // All five copied from `components/shared.jsx` at its exact 24-grid geometry,

@@ -1,7 +1,11 @@
 package com.showup.designsystem
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 
 /**
@@ -48,4 +52,40 @@ import androidx.compose.ui.unit.Dp
 fun Modifier.minTapTarget(min: Dp = ComponentSizes.minTapTarget): Modifier {
     val floor = if (min > ComponentSizes.minTapTarget) min else ComponentSizes.minTapTarget
     return defaultMinSize(minWidth = floor, minHeight = floor)
+}
+
+/**
+ * A control DRAWN smaller than the tap floor that still ANSWERS at it: [content] is laid out and
+ * drawn at its own size, and a touch area of at least [ComponentSizes.minTapTarget] each way is laid
+ * over it, centred, overflowing the slot instead of growing it.
+ *
+ * WHY A LAYOUT AND NOT `requiredHeightIn` INSIDE A `heightIn` BOX. That pattern (the photo screen's
+ * retry pill) works only under a FIXED parent height: a `requiredHeightIn(min = 44)` child under a
+ * parent that merely has a minimum is measured at 44 and the parent wraps it, so the slot becomes 44
+ * and the overflow never happens. Interests' 38 chips and Life's 34 pills sit in wrapping rows whose
+ * height must come from the drawn chip -- and grow with it at the largest font -- so neither a fixed
+ * height nor a minimum would do. Measuring the two parts here is the one way to say "the slot is the
+ * drawing; the touch area is the drawing or 44, whichever is bigger".
+ *
+ * The touch area is the SECOND child, so it is on top and takes the press; [content] should carry no
+ * semantics of its own (`clearAndSetSemantics {}`), and [touch] carries the role, the state and the
+ * label for both.
+ */
+@Composable
+fun OverflowTapTarget(
+    touch: Modifier,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Layout(contents = listOf(content, { Box(touch) }), modifier = modifier) { (drawn, hit), constraints ->
+        val drawing = drawn.first().measure(constraints)
+        val floor = ComponentSizes.minTapTarget.roundToPx()
+        val w = maxOf(drawing.width, floor)
+        val h = maxOf(drawing.height, floor)
+        val area = hit.first().measure(Constraints.fixed(w, h))
+        layout(drawing.width, drawing.height) {
+            drawing.place(0, 0)
+            area.place((drawing.width - w) / 2, (drawing.height - h) / 2)
+        }
+    }
 }

@@ -98,6 +98,26 @@ val PrivacyNoteWash = Color(0x1AA78BFA)
  */
 val ToastShadow = Color(0x382E0147)
 
+// ── added for SHOWUP-174 to SHOWUP-176 ─────────────────────────────────────
+//
+// The chip and pill glows Interests and Life set inline. Tokens because each is drawn by a shared
+// component two screens consume (Future draws Life's pill), and a glow retyped per screen drifts.
+
+/** The picked interest chip's glow, rgba(129,42,236,.18) -- `0 4px 10px` (Profile 21). */
+val ChipGlow = Color(0x2E812AEC)
+
+/** The resting interest chip's hairline lift, rgba(46,1,71,.03) -- `0 1px 2px` (Profile 21). */
+val ChipRest = Color(0x082E0147)
+
+/** The picked life pill's glow, rgba(129,42,236,.22) -- `0 2px 8px` (Profile 22, used by 23). */
+val PillGlow = Color(0x38812AEC)
+
+/**
+ * The interests counter's empty bar, rgba(29,17,41,.08). Not [Track] (.12): the counter's bar is a
+ * meter beside a sentence, drawn lighter than the step bar so the two never read as one control.
+ */
+val MeterTrack = Color(0x141D1129)
+
 /** --su-grad-sunset · 135°, midpoint at 38%. Not an even three-stop ramp. */
 val SunsetStops = listOf(0.00f to Color(0xFFFE6839), 0.38f to Color(0xFFD05976), 1.00f to Color(0xFF812AEC))
 

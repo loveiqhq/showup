@@ -68,6 +68,17 @@ extension Color {
     /// definition.
     static let liqToastShadow = Color(hex: 0x2E0147).opacity(0.22)
 
+    // Added for SHOWUP-174 to SHOWUP-176: the chip and pill glows Interests and Life set inline,
+    // and the counter's meter. Android's `ChipGlow`, `ChipRest`, `PillGlow`, `MeterTrack`.
+    /// The picked interest chip's glow, rgba(129,42,236,.18) — `0 4px 10px`.
+    static let liqChipGlow = Color(hex: 0x812AEC).opacity(0.18)
+    /// The resting interest chip's hairline lift, rgba(46,1,71,.03) — `0 1px 2px`.
+    static let liqChipRest = Color(hex: 0x2E0147).opacity(0.03)
+    /// The picked life pill's glow, rgba(129,42,236,.22) — `0 2px 8px`.
+    static let liqPillGlow = Color(hex: 0x812AEC).opacity(0.22)
+    /// The interests counter's empty bar, rgba(29,17,41,.08) — lighter than the step bar's track.
+    static let liqMeterTrack = Color(hex: 0x1D1129).opacity(0.08)
+
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
     ///
@@ -160,6 +171,19 @@ enum F {
 enum TypeMetrics {
     static func uiFont(_ name: String, _ size: CGFloat, fallback: UIFont) -> UIFont {
         UIFont(name: name, size: size) ?? fallback
+    }
+
+    /// The `.lineSpacing` that sets lines of the font `name` at `size` exactly `size * multiple`
+    /// apart, for a line height LOOSER than the font's own.
+    ///
+    /// `.lineSpacing` ADDS to the font's own line height, and Manrope's is 1.366 em, not 1.0. The
+    /// `size * (multiple - 1)` written at many call sites therefore spaces lines `size * 0.366` too
+    /// far apart: Life's sub copy ran 26.3 apart where the spec's 14.5 / 1.45 is 21.0, and Android's
+    /// `lineHeight` was right (found 13 October 2026). Never negative; a line TIGHTER than the font's
+    /// own needs `attributed(...)` below.
+    static func lineSpacing(_ name: String, size: CGFloat, multiple: CGFloat) -> CGFloat {
+        let font = UIFont(name: name, size: size) ?? .systemFont(ofSize: size)
+        return max(0, size * multiple - font.lineHeight)
     }
 
     /// A synthesised oblique, for a family that ships no italic of its own.
