@@ -1709,6 +1709,7 @@
             "items": {
               "$ref": "#/components/schemas/DatingLanguage"
             },
+            "minItems": 1,
             "type": "array"
           },
           "diet": {
@@ -1780,6 +1781,7 @@
               "$ref": "#/components/schemas/InterestTag"
             },
             "maxItems": 10,
+            "minItems": 1,
             "type": "array"
           },
           "isVisible": {

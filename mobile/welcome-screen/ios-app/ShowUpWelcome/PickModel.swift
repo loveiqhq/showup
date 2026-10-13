@@ -89,6 +89,10 @@ final class PickModel {
     /// What the user changed on the step on screen since arriving: How I live field ids, life
     /// question ids and `interestTouchKey`s. A late read fills every OTHER part.
     private var touched: Set<String> = []
+    /// Bumped on every real arrival and every leave, so a read or save that lands after the step was
+    /// left some other way (a developer-menu jump mid-save) neither advances nor touches the step now
+    /// on screen — the Kotlin twin's `visit`.
+    private var visit = 0
     private var stepStartedAt: Double = 0
     private var toastTask: Task<Void, Never>?
 
@@ -160,6 +164,7 @@ final class PickModel {
         preload()
         guard currentStep != step else { return }
         currentStep = step
+        visit += 1
         touched = []
         stepStartedAt = now()
         clearToast()
@@ -284,12 +289,26 @@ final class PickModel {
         // One read, not two racing to land.
         loading?.cancel()
         loading = nil
-        guard let read = await store.load() else {
+        let pressedOn = visit
+        let fetched = await store.load()
+        guard visit == pressedOn else {
+            // Left mid-read: the read is still the account's, so it lands like any late read.
+            state.saving = false
+            if let fetched, saved == nil { land(fetched) }
+            return
+        }
+        guard let read = fetched else {
             state.saving = false
             showSaveFailed()
             return
         }
         land(read)
+        // THE MERGE MAY HAVE CUT A SAVED INTEREST (the user's picks first, ten at most). Saving now
+        // would delete a tag never on screen: stop, and let the next Continue save what is shown.
+        if step == .interests, interestsCutOnLateRead(read, merged: state.interests, touched: touched) {
+            state.saving = false
+            return
+        }
         await answer(step, snapshot: state, onAdvance: onAdvance)
     }
 
@@ -297,7 +316,15 @@ final class PickModel {
     private func answer(_ step: PickStep, snapshot: PickUiState, onAdvance: () -> Void) async {
         state.saving = true
         clearToast()
-        guard let stored = await store.save(body(for: step, snapshot: snapshot)) else {
+        let pressedOn = visit
+        let result = await store.save(body(for: step, snapshot: snapshot))
+        guard visit == pressedOn else {
+            // Left mid-save: what was saved is the account's now, but the flow has moved on.
+            state.saving = false
+            if let result { saved = result }
+            return
+        }
+        guard let stored = result else {
             state.saving = false
             showSaveFailed()
             return
@@ -331,9 +358,19 @@ final class PickModel {
     /// block, which the server refuses to store. LIFE sends all three questions, an unanswered one as
     /// `[]` — "an unanswered question is saved as empty". FUTURE sends only the questions answered:
     /// its ticket says "persist each answered question", so rule 0 keeps an unanswered one's value.
+    ///
+    /// A PART THE USER DID NOT TOUCH IS NOT SENT IF IT HOLDS A VALUE THIS BUILD CANNOT DRAW: the
+    /// screen shows only the values it knows, so re-sending the part would delete the others from a
+    /// question nobody touched. Left out, the server keeps it (the Kotlin twin has the long form).
     private func body(for step: PickStep, snapshot: PickUiState) -> Components.Schemas.UpsertProfileDto {
         typealias Dto = Components.Schemas.UpsertProfileDto
         let position = Dto.flowPositionPayload(value1: step.position)
+        // Never nil here: a save only runs once the account has been read (`readThenAnswer`).
+        let account = saved ?? SavedDetails()
+        let touched = self.touched
+        func sendable(_ question: LifeQuestion) -> Bool {
+            touched.contains(question.questionId) || !lifeHoldsUnknown(question, saved: account)
+        }
         switch step {
         case .interests:
             let answers = snapshot.interests.lifestyle
@@ -350,7 +387,8 @@ final class PickModel {
                     .flatMap(Components.Schemas.Diet.init(rawValue:))
                     .map { Dto.dietPayload(value1: $0) },
                 flowPosition: position,
-                interests: tags.isEmpty ? nil : tags,
+                interests: tags.isEmpty || !(interestsTouched(touched) || !interestsHoldUnknown(account))
+                    ? nil : tags,
                 rhythm: answers[LifestyleField.rhythm.fieldId]
                     .flatMap(Components.Schemas.Rhythm.init(rawValue:))
                     .map { Dto.rhythmPayload(value1: $0) },
@@ -363,23 +401,32 @@ final class PickModel {
         case .lifeNow:
             let life = snapshot.life
             return .init(
-                family: lifeInListOrder(.family, life.picked(.family))
-                    .compactMap(Components.Schemas.LifeFamily.init(rawValue:)),
+                family: sendable(.family)
+                    ? lifeInListOrder(.family, life.picked(.family))
+                        .compactMap(Components.Schemas.LifeFamily.init(rawValue:))
+                    : nil,
                 flowPosition: position,
-                living: lifeInListOrder(.living, life.picked(.living))
-                    .compactMap(Components.Schemas.LifeLiving.init(rawValue:)),
-                partnership: lifeInListOrder(.partnership, life.picked(.partnership))
-                    .compactMap(Components.Schemas.LifePartnership.init(rawValue:)))
+                living: sendable(.living)
+                    ? lifeInListOrder(.living, life.picked(.living))
+                        .compactMap(Components.Schemas.LifeLiving.init(rawValue:))
+                    : nil,
+                partnership: sendable(.partnership)
+                    ? lifeInListOrder(.partnership, life.picked(.partnership))
+                        .compactMap(Components.Schemas.LifePartnership.init(rawValue:))
+                    : nil)
         case .lifeAhead:
             let life = snapshot.life
             return .init(
-                familyAhead: life.answered(.familyAhead)?
-                    .compactMap(Components.Schemas.FutureFamily.init(rawValue:)),
+                familyAhead: sendable(.familyAhead)
+                    ? life.answered(.familyAhead)?.compactMap(Components.Schemas.FutureFamily.init(rawValue:))
+                    : nil,
                 flowPosition: position,
-                livingAhead: life.answered(.livingAhead)?
-                    .compactMap(Components.Schemas.FutureLiving.init(rawValue:)),
-                partnershipAhead: life.answered(.partnershipAhead)?
-                    .compactMap(Components.Schemas.FuturePartnership.init(rawValue:)))
+                livingAhead: sendable(.livingAhead)
+                    ? life.answered(.livingAhead)?.compactMap(Components.Schemas.FutureLiving.init(rawValue:))
+                    : nil,
+                partnershipAhead: sendable(.partnershipAhead)
+                    ? life.answered(.partnershipAhead)?.compactMap(Components.Schemas.FuturePartnership.init(rawValue:))
+                    : nil)
         }
     }
 
@@ -388,6 +435,7 @@ final class PickModel {
     private func leave() {
         let step = currentStep
         currentStep = nil
+        visit += 1
         clearToast()
         if let step { reset(step, from: saved ?? SavedDetails()) }
         write()

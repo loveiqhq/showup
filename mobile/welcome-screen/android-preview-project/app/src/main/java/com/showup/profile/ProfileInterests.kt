@@ -316,7 +316,19 @@ fun interestsOnArrival(saved: SavedDetails): InterestsDraft = InterestsDraft(
 )
 
 /** How a What I'm into chip is recorded among the touched parts of the step on screen. */
-fun interestTouchKey(tagId: String): String = "tag:$tagId"
+fun interestTouchKey(tagId: String): String = "$INTEREST_TOUCH_PREFIX$tagId"
+
+private const val INTEREST_TOUCH_PREFIX = "tag:"
+
+/** Whether any What I'm into chip was touched since arriving. */
+fun interestsTouched(touched: Set<String>): Boolean = touched.any { it.startsWith(INTEREST_TOUCH_PREFIX) }
+
+/**
+ * Whether the account holds an interest this build cannot draw -- one a newer server added. The read
+ * keeps it (`profile.dto.ts`: "read tolerantly"), the screen cannot show it, and the list is saved
+ * whole: so an UNTOUCHED list holding one is not sent at all, or Continue would delete it.
+ */
+fun interestsHoldUnknown(saved: SavedDetails): Boolean = saved.interests.any { it !in INTEREST_ORDER }
 
 /**
  * [draft] once the account's answers land LATE -- after the user started on the screen.
@@ -345,3 +357,12 @@ fun interestsOnLateRead(draft: InterestsDraft, saved: SavedDetails, touched: Set
         expanded = draft.expanded,
     )
 }
+
+/**
+ * Whether [interestsOnLateRead] had to CUT a saved interest to stay at ten -- a saved tag nobody
+ * touched that is not in [merged]. Saving such a draft deletes that tag from the account, and when
+ * the read landed only because Continue asked for it, the user has never seen the list. The caller
+ * then stops and lets the screen show the merged ten before anything is saved.
+ */
+fun interestsCutOnLateRead(saved: SavedDetails, merged: InterestsDraft, touched: Set<String>): Boolean =
+    interestsOnArrival(saved).interests.any { interestTouchKey(it) !in touched && it !in merged.interests }

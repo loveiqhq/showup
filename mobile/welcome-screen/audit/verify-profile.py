@@ -2129,12 +2129,23 @@ check("174-176 a Continue with no read reads first (swift)",
 check("176 Future sends only the questions answered (kotlin)",
       "familyAhead = state.life.answered(LifeQuestion.FamilyAhead)" in joined(pvm_kt))
 check("176 Future sends only the questions answered (swift)",
-      "familyAhead: life.answered(.familyAhead)?" in joined(pvm_sw))
+      "? life.answered(.familyAhead)?.compactMap(" in joined(pvm_sw))
 # The saves: one PATCH with the position; life sends empty for unanswered.
 check("174-176 one PATCH carries the position (kotlin)", "UpsertProfileDto(flowPosition = step.position)" in pvm_kt)
 check("174-176 one PATCH carries the position (swift)", "Dto.flowPositionPayload(value1: step.position)" in pvm_sw)
-check("174 an empty interest list is not sent (kotlin)", "interests.takeIf { it.isNotEmpty() }" in pvm_kt)
-check("174 an empty interest list is not sent (swift)", "interests: tags.isEmpty ? nil : tags" in pvm_sw)
+check("174 an empty interest list is not sent (kotlin)", "takeIf { it.isNotEmpty() && (interestsTouched(touched)" in pvm_kt)
+check("174 an empty interest list is not sent (swift)", "interests: tags.isEmpty ||" in pvm_sw)
+# Second audit round (13 October 2026): an untouched part holding a value this build cannot draw is
+# not sent; a merge that cut a saved interest stops before saving; a save that lands after the step
+# was left another way does not move the flow.
+check("174-176 an untouched part with an unknown value is not sent (kotlin)",
+      "!interestsHoldUnknown(account)" in pvm_kt and "!lifeHoldsUnknown(question, account)" in pvm_kt)
+check("174-176 an untouched part with an unknown value is not sent (swift)",
+      "!interestsHoldUnknown(account)" in pvm_sw and "!lifeHoldsUnknown(question, saved: account)" in pvm_sw)
+check("174 a merge that cut a saved interest stops before saving (kotlin)", "interestsCutOnLateRead(read," in pvm_kt)
+check("174 a merge that cut a saved interest stops before saving (swift)", "interestsCutOnLateRead(read," in pvm_sw)
+check("174-176 a save after the step was left does not advance (kotlin)", pvm_kt.count("visit != pressedOn") == 2)
+check("174-176 a save after the step was left does not advance (swift)", pvm_sw.count("visit == pressedOn") == 2)
 # Tracking names, registry-backed, both sides.
 for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
     for name in ("interest_selected", "interest_deselected", "interest_cap_reached", "show_more_expanded",

@@ -307,7 +307,18 @@ func interestsOnArrival(_ saved: SavedDetails) -> InterestsDraft {
 }
 
 /// How a What I'm into chip is recorded among the touched parts of the step on screen.
-func interestTouchKey(_ tagId: String) -> String { "tag:\(tagId)" }
+func interestTouchKey(_ tagId: String) -> String { interestTouchPrefix + tagId }
+
+private let interestTouchPrefix = "tag:"
+
+/// Whether any What I'm into chip was touched since arriving.
+func interestsTouched(_ touched: Set<String>) -> Bool { touched.contains { $0.hasPrefix(interestTouchPrefix) } }
+
+/// Whether the account holds an interest this build cannot draw — one a newer server added. An
+/// UNTOUCHED list holding one is not sent, or Continue would delete it (the Kotlin twin's comment).
+func interestsHoldUnknown(_ saved: SavedDetails) -> Bool {
+    saved.interests.contains { !interestOrder.contains($0) }
+}
 
 /// `draft` once the account's answers land LATE — after the user started on the screen. The
 /// Kotlin twin's comment (`interestsOnLateRead`) is the long form: every untouched part takes the
@@ -328,4 +339,13 @@ func interestsOnLateRead(_ draft: InterestsDraft, saved: SavedDetails, touched: 
         lifestyle: lifestyle,
         interests: Set((mine + kept).prefix(interestsMax)),
         expanded: draft.expanded)
+}
+
+/// Whether `interestsOnLateRead` had to CUT a saved interest to stay at ten — a saved tag nobody
+/// touched that is not in `merged`. Saving it would delete that tag unseen, so the caller stops and
+/// lets the screen show the merged ten first (the Kotlin twin, `interestsCutOnLateRead`).
+func interestsCutOnLateRead(_ saved: SavedDetails, merged: InterestsDraft, touched: Set<String>) -> Bool {
+    interestsOnArrival(saved).interests.contains {
+        !touched.contains(interestTouchKey($0)) && !merged.interests.contains($0)
+    }
 }

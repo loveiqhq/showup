@@ -174,6 +174,12 @@ struct LifeDraft: Equatable, Sendable, Codable {
     }
 }
 
+/// Whether `question`'s saved answer holds a value this build cannot draw — one a newer server
+/// added. An untouched question holding one is not sent (`interestsHoldUnknown`'s rule).
+func lifeHoldsUnknown(_ question: LifeQuestion, saved: SavedDetails) -> Bool {
+    (saved.life[question.questionId] ?? []).contains { v in !question.options.contains { $0.value == v } }
+}
+
 /// `current` once the account's answers land LATE — after the user started on `step`. Each
 /// question is one part: a touched one keeps the user's answer, every other one takes the saved
 /// answer (the Kotlin twin, `lifeOnLateRead`).

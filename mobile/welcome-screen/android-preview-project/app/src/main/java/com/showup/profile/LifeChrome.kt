@@ -133,9 +133,9 @@ fun LifePill(
                     blur = 8.dp,
                 )
                 .border(1.dp, stroke, shape)
-                // `sm` above and below keeps a label that grew past 34 off the stroke; at the default
-                // font it is inside the 34 and changes nothing.
-                .padding(horizontal = PILL_PAD, vertical = Spacing.sm),
+                // `xs` above and below keeps a label that grew past 34 off the stroke. Inside the 34
+                // until about 1.4x type; `sm` grew the pill from 1.19x, where Life still has to fit.
+                .padding(horizontal = PILL_PAD, vertical = Spacing.xs),
             contentAlignment = Alignment.Center,
         ) {
             Text(

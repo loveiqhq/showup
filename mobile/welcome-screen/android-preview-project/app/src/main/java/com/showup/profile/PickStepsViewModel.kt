@@ -94,6 +94,13 @@ open class PickStepsViewModel(
         get() = handle.get<ArrayList<String>>(KEY_TOUCHED)?.toSet().orEmpty()
         set(value) { handle[KEY_TOUCHED] = ArrayList(value) }
 
+    /**
+     * Bumped on every real arrival and every leave. A read or save that lands after the step was
+     * left some other way -- a developer-menu jump mid-save -- sees it changed and neither advances
+     * the flow nor touches the step now on screen. Not saved: an in-flight save dies with the process.
+     */
+    private var visit = 0
+
     /** When the step on screen was arrived at -- saved with it, or a restore would time from 1970. */
     private var stepStartedAt: Long
         get() = handle[KEY_STARTED] ?: now()
@@ -138,6 +145,7 @@ open class PickStepsViewModel(
         preload()
         if (currentStep == step) return
         currentStep = step
+        visit++
         touched = emptySet()
         stepStartedAt = now()
         clearToast()
@@ -261,14 +269,28 @@ open class PickStepsViewModel(
         clearToast()
         // One read, not two racing to land.
         loading?.cancel()
+        val pressedOn = visit
         viewModelScope.launch {
             val read = store.load()
+            if (visit != pressedOn) {
+                // Left mid-read: the read is still the account's, so it lands like any late read.
+                _state.update { it.copy(saving = false) }
+                if (read != null && saved == null) land(read)
+                return@launch
+            }
             if (read == null) {
                 _state.update { it.copy(saving = false) }
                 showSaveFailed()
                 return@launch
             }
             land(read)
+            // THE MERGE MAY HAVE CUT A SAVED INTEREST: the user's picks first, ten at most. Saving
+            // now would delete a saved tag that has never been on screen, so stop here -- the screen
+            // now shows the merged ten, and the next Continue saves what the user has seen.
+            if (step == PickStep.Interests && interestsCutOnLateRead(read, _state.value.interests, touched)) {
+                _state.update { it.copy(saving = false) }
+                return@launch
+            }
             answer(step, _state.value, onAdvance)
         }
     }
@@ -281,8 +303,15 @@ open class PickStepsViewModel(
     private fun answer(step: PickStep, state: PickUiState, onAdvance: () -> Unit) {
         _state.update { it.copy(saving = true) }
         clearToast()
+        val pressedOn = visit
         viewModelScope.launch {
             val stored = store.save(bodyFor(step, state))
+            if (visit != pressedOn) {
+                // Left mid-save: what was saved is the account's now, but the flow has moved on.
+                _state.update { it.copy(saving = false) }
+                if (stored != null) saved = stored
+                return@launch
+            }
             if (stored == null) {
                 _state.update { it.copy(saving = false) }
                 showSaveFailed()
@@ -319,9 +348,19 @@ open class PickStepsViewModel(
      * empty". FUTURE sends only the questions answered -- its ticket says "persist each answered
      * question" and nothing about empty ones, so rule 0 applies and an unanswered one keeps its
      * earlier value. Values go in LIST order whatever order they were tapped in.
+     *
+     * A PART THE USER DID NOT TOUCH IS NOT SENT IF IT HOLDS A VALUE THIS BUILD CANNOT DRAW. The read
+     * is tolerant of values a newer server added, the screen shows only the ones it knows, and the
+     * generated client cannot even encode the others -- so re-sending such a part would delete them
+     * from a question the user never touched. Left out, the server keeps it (rule 0). Touched, the
+     * user's answer replaces it, as any answer does.
      */
     private fun bodyFor(step: PickStep, state: PickUiState): UpsertProfileDto {
         val base = UpsertProfileDto(flowPosition = step.position)
+        // Never null here: a save only runs once the account has been read (`readThenAnswer`).
+        val account = saved ?: SavedDetails()
+        fun sendable(question: LifeQuestion) =
+            question.questionId in touched || !lifeHoldsUnknown(question, account)
         return when (step) {
             PickStep.Interests -> {
                 val lifestyle = state.interests.lifestyle
@@ -345,25 +384,31 @@ open class PickStepsViewModel(
                     social = lifestyle[LifestyleField.Social.fieldId]?.let { v ->
                         com.showup.api.generated.model.SocialBattery.entries.first { it.value == v }
                     },
-                    interests = interests.takeIf { it.isNotEmpty() }?.map { v ->
-                        com.showup.api.generated.model.InterestTag.entries.first { it.value == v }
-                    },
+                    interests = interests
+                        .takeIf { it.isNotEmpty() && (interestsTouched(touched) || !interestsHoldUnknown(account)) }
+                        ?.map { v -> com.showup.api.generated.model.InterestTag.entries.first { it.value == v } },
                 )
             }
             PickStep.LifeNow -> base.copy(
                 partnership = lifeInListOrder(LifeQuestion.Partnership, state.life.picked(LifeQuestion.Partnership))
-                    .map { v -> com.showup.api.generated.model.LifePartnership.entries.first { it.value == v } },
+                    .takeIf { sendable(LifeQuestion.Partnership) }
+                    ?.map { v -> com.showup.api.generated.model.LifePartnership.entries.first { it.value == v } },
                 family = lifeInListOrder(LifeQuestion.Family, state.life.picked(LifeQuestion.Family))
-                    .map { v -> com.showup.api.generated.model.LifeFamily.entries.first { it.value == v } },
+                    .takeIf { sendable(LifeQuestion.Family) }
+                    ?.map { v -> com.showup.api.generated.model.LifeFamily.entries.first { it.value == v } },
                 living = lifeInListOrder(LifeQuestion.Living, state.life.picked(LifeQuestion.Living))
-                    .map { v -> com.showup.api.generated.model.LifeLiving.entries.first { it.value == v } },
+                    .takeIf { sendable(LifeQuestion.Living) }
+                    ?.map { v -> com.showup.api.generated.model.LifeLiving.entries.first { it.value == v } },
             )
             PickStep.LifeAhead -> base.copy(
                 familyAhead = state.life.answered(LifeQuestion.FamilyAhead)
+                    ?.takeIf { sendable(LifeQuestion.FamilyAhead) }
                     ?.map { v -> com.showup.api.generated.model.FutureFamily.entries.first { it.value == v } },
                 partnershipAhead = state.life.answered(LifeQuestion.PartnershipAhead)
+                    ?.takeIf { sendable(LifeQuestion.PartnershipAhead) }
                     ?.map { v -> com.showup.api.generated.model.FuturePartnership.entries.first { it.value == v } },
                 livingAhead = state.life.answered(LifeQuestion.LivingAhead)
+                    ?.takeIf { sendable(LifeQuestion.LivingAhead) }
                     ?.map { v -> com.showup.api.generated.model.FutureLiving.entries.first { it.value == v } },
             )
         }
@@ -377,6 +422,7 @@ open class PickStepsViewModel(
     private fun leave() {
         val step = currentStep
         currentStep = null
+        visit++
         clearToast()
         if (step != null) reset(step, saved ?: SavedDetails())
     }

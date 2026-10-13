@@ -32,11 +32,14 @@ private actor FakeStore: ProfileDetailsStoring {
     private var reads = true
     /// Nanoseconds the NEXT read takes, once.
     private var nextReadDelay: UInt64 = 0
+    /// Nanoseconds the NEXT save takes, once.
+    private var nextSaveDelay: UInt64 = 0
 
     func setHeld(_ value: SavedDetails) { held = value }
     func setSaves(_ value: Bool) { saves = value }
     func setReads(_ value: Bool) { reads = value }
     func slowNextRead(_ nanoseconds: UInt64) { nextReadDelay = nanoseconds }
+    func slowNextSave(_ nanoseconds: UInt64) { nextSaveDelay = nanoseconds }
 
     func load() async -> SavedDetails? {
         let snapshot = held
@@ -49,6 +52,9 @@ private actor FakeStore: ProfileDetailsStoring {
 
     func save(_ body: Components.Schemas.UpsertProfileDto) async -> SavedDetails? {
         bodies.append(body)
+        let wait = nextSaveDelay
+        nextSaveDelay = 0
+        if wait > 0 { try? await Task.sleep(nanoseconds: wait) }
         guard saves else { return nil }
         if let v = body.activity { held.lifestyle["activity"] = v.value1.rawValue }
         if let v = body.diet { held.lifestyle["diet"] = v.value1.rawValue }
@@ -82,6 +88,7 @@ final class PickModelTests: XCTestCase {
     private var positions = FakePositions()
     private var analytics = Recorder()
     private var clock: Double = 1_000
+    private var advancedAfterJump = false
     private var model: PickModel!
 
     override func setUp() {
@@ -361,6 +368,76 @@ final class PickModelTests: XCTestCase {
         let body = await store.bodies[0]
         XCTAssertEqual(body.partnership?.map(\.rawValue), ["single"])
         XCTAssertEqual(body.family?.map(\.rawValue), ["has_children"])
+    }
+
+    func testAContinueWhoseFirstReadCutsASavedInterestStopsSoTheNextOneSavesWhatWasShown() async {
+        await store.setReads(false)
+        await store.setHeld(SavedDetails(interests: Array(interestOrder.prefix(10))))
+        await arrive(.interests)
+        model.interestTapped(interestOrder[20])
+        await store.setReads(true)
+        var advanced = false
+        await model.continuePressed(.interests) { advanced = true }
+        // Nothing saved: the tenth saved tag would have been deleted without ever being shown.
+        XCTAssertFalse(advanced)
+        let none = await store.bodies
+        XCTAssertTrue(none.isEmpty)
+        XCTAssertFalse(model.state.saving)
+        XCTAssertFalse(model.state.saveFailed)
+        let merged = Set([interestOrder[20]] + interestOrder.prefix(9))
+        XCTAssertEqual(model.state.interests.interests, merged)
+        // Now on screen, the merged ten save on the next Continue.
+        await model.continuePressed(.interests) { advanced = true }
+        XCTAssertTrue(advanced)
+        let body = await store.bodies[0]
+        XCTAssertEqual(body.interests?.map(\.rawValue), interestsInListOrder(merged))
+    }
+
+    // MARK: - values this build cannot draw, and a jump mid-save
+
+    func testALifeQuestionHoldingAValueThisBuildCannotDrawIsNotSentUnlessTouched() async {
+        await store.setHeld(SavedDetails(life: ["partnership": ["widowed"], "living": ["living_alone", "van_life"]]))
+        await arrive(.lifeNow)
+        model.pillTapped(.lifeNow, .family, "no_children")
+        await model.continuePressed(.lifeNow) {}
+        let body = await store.bodies[0]
+        XCTAssertNil(body.partnership)
+        XCTAssertNil(body.living)
+        XCTAssertEqual(body.family?.map(\.rawValue), ["no_children"])
+        let held = await store.held
+        XCTAssertEqual(held.life["partnership"], ["widowed"])
+        XCTAssertEqual(held.life["living"], ["living_alone", "van_life"])
+    }
+
+    func testAnUntouchedInterestListHoldingAnUnknownTagIsNotSentATouchedOneIs() async {
+        await store.setHeld(SavedDetails(interests: ["gym", "skydiving"]))
+        await arrive(.interests)
+        model.lifestyleTapped(.rhythm, "early_bird")
+        await model.continuePressed(.interests) {}
+        let first = await store.bodies[0]
+        XCTAssertNil(first.interests)
+        // Touched, the user's list is their answer, as any answer is.
+        await arrive(.interests)
+        model.interestTapped("wine")
+        await model.continuePressed(.interests) {}
+        let second = await store.bodies[1]
+        XCTAssertEqual(second.interests?.map(\.rawValue), ["gym", "wine"])
+    }
+
+    func testASaveThatLandsAfterADeveloperMenuJumpDoesNotMoveTheFlow() async {
+        await arrive(.interests)
+        model.interestTapped("gym")
+        await store.slowNextSave(200_000_000)
+        // A property, not a captured local: the press runs in its own Task.
+        advancedAfterJump = false
+        let pressing = Task { await self.model.continuePressed(.interests) { self.advancedAfterJump = true } }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        model.leftElsewhere()
+        await pressing.value
+        XCTAssertFalse(advancedAfterJump)
+        XCTAssertFalse(model.state.saving)
+        let held = await store.held
+        XCTAssertEqual(held.interests, ["gym"])
     }
 
     func testContinueWhoseReadFailsIsAFailedSave() async {

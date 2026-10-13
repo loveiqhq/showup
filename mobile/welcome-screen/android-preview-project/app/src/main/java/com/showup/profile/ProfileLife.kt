@@ -187,6 +187,14 @@ fun lifeOnArrival(step: PickStep, current: LifeDraft, saved: SavedDetails): Life
     }
 
 /**
+ * Whether [question]'s saved answer holds a value this build cannot draw -- one a newer server added.
+ * An untouched question holding one is not sent, so Continue cannot replace it with the part the
+ * screen could show (the same rule as `interestsHoldUnknown`).
+ */
+fun lifeHoldsUnknown(question: LifeQuestion, saved: SavedDetails): Boolean =
+    saved.life[question.questionId].orEmpty().any { v -> question.options.none { it.value == v } }
+
+/**
  * [current] once the account's answers land LATE -- after the user started on [step].
  *
  * Each question is one part: a question the user touched keeps their answer, every other one takes

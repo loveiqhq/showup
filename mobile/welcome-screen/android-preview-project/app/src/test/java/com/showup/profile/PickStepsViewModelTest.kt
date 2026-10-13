@@ -41,6 +41,7 @@ class PickStepsViewModelTest {
     ) : ProfileDetailsStore {
         val bodies = mutableListOf<UpsertProfileDto>()
         val readDelays = ArrayDeque<Long>()
+        val saveDelays = ArrayDeque<Long>()
         var loads = 0
 
         override suspend fun load(): SavedDetails? {
@@ -53,6 +54,7 @@ class PickStepsViewModelTest {
 
         override suspend fun save(body: UpsertProfileDto): SavedDetails? {
             bodies += body
+            saveDelays.removeFirstOrNull()?.let { delay(it) }
             if (!saves) return null
             val lifestyle = held.lifestyle.toMutableMap()
             body.activity?.let { lifestyle["activity"] = it.value }
@@ -265,6 +267,88 @@ class PickStepsViewModelTest {
         val body = store.bodies.single()
         assertEquals(listOf("single"), body.partnership?.map { it.value })
         assertEquals(listOf("has_children"), body.family?.map { it.value })
+    }
+
+    @Test
+    fun `a Continue whose first read cuts a saved interest stops, so the next one saves what was shown`() =
+        runTest(dispatcher) {
+            val order = INTEREST_ORDER
+            store.reads = false
+            store.held = SavedDetails(interests = order.take(10))
+            arrive(PickStep.Interests)
+            model.interestTapped(order[20])
+            store.reads = true
+            var advanced = false
+            model.continuePressed(PickStep.Interests) { advanced = true }
+            advanceUntilIdle()
+            // Nothing saved: the tenth saved tag would have been deleted without ever being shown.
+            assertFalse(advanced)
+            assertTrue(store.bodies.isEmpty())
+            assertFalse(state.saving)
+            assertFalse(state.saveFailed)
+            assertEquals(setOf(order[20]) + order.take(9), state.interests.interests)
+            // Now on screen, the merged ten save on the next Continue.
+            model.continuePressed(PickStep.Interests) { advanced = true }
+            advanceUntilIdle()
+            assertTrue(advanced)
+            assertEquals(
+                interestsInListOrder(setOf(order[20]) + order.take(9)),
+                store.bodies.single().interests?.map { it.value },
+            )
+        }
+
+    // ── values this build cannot draw, and a jump mid-save ────────────────────────
+    //
+    // Found by the second audit round (13 October 2026). A newer server may add a value; the read
+    // keeps it, the screen cannot show it, and re-sending an untouched part would delete it.
+
+    @Test
+    fun `a life question holding a value this build cannot draw is not sent unless touched`() = runTest(dispatcher) {
+        store.held = SavedDetails(
+            life = mapOf("partnership" to listOf("widowed"), "living" to listOf("living_alone", "van_life")),
+        )
+        arrive(PickStep.LifeNow)
+        model.pillTapped(PickStep.LifeNow, LifeQuestion.Family, "no_children")
+        model.continuePressed(PickStep.LifeNow) {}
+        advanceUntilIdle()
+        val body = store.bodies.single()
+        assertNull(body.partnership)
+        assertNull(body.living)
+        assertEquals(listOf("no_children"), body.family?.map { it.value })
+        assertEquals(listOf("widowed"), store.held.life["partnership"])
+        assertEquals(listOf("living_alone", "van_life"), store.held.life["living"])
+    }
+
+    @Test
+    fun `an untouched interest list holding an unknown tag is not sent, a touched one is`() = runTest(dispatcher) {
+        store.held = SavedDetails(interests = listOf("gym", "skydiving"))
+        arrive(PickStep.Interests)
+        model.lifestyleTapped(LifestyleField.Rhythm, "early_bird")
+        model.continuePressed(PickStep.Interests) {}
+        advanceUntilIdle()
+        assertNull(store.bodies.single().interests)
+        assertEquals(listOf("gym", "skydiving"), store.held.interests)
+        // Touched, the user's list is their answer, as any answer is.
+        arrive(PickStep.Interests)
+        model.interestTapped("wine")
+        model.continuePressed(PickStep.Interests) {}
+        advanceUntilIdle()
+        assertEquals(listOf("gym", "wine"), store.bodies.last().interests?.map { it.value })
+    }
+
+    @Test
+    fun `a save that lands after a developer-menu jump does not move the flow`() = runTest(dispatcher) {
+        arrive(PickStep.Interests)
+        model.interestTapped("gym")
+        store.saveDelays += 5_000L
+        var advanced = false
+        model.continuePressed(PickStep.Interests) { advanced = true }
+        dispatcher.scheduler.runCurrent()
+        model.leftElsewhere()
+        advanceUntilIdle()
+        assertFalse(advanced)
+        assertFalse(state.saving)
+        assertEquals(listOf("gym"), store.held.interests)
     }
 
     @Test

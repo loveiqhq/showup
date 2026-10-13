@@ -40,13 +40,14 @@ struct LifePill: View {
                 // One line on every phone at the default size; a second only past the column's width
                 // at the largest Dynamic Type — centred, at the font's own line pitch (CSS never wraps
                 // a pill, so `line-height: 1` has no two-line meaning), and kept off the stroke by
-                // `sm` above and below once it grows past 34.
+                // `xs` above and below once it grows past 34 (about 1.4x type; `sm` grew it from
+                // 1.19x, where Life still has to fit).
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 // `padding: 0 14px` plus the 1px border CSS draws inside the same border-box.
                 .padding(.horizontal, 15)
-                .padding(.vertical, Spacing.sm)
+                .padding(.vertical, Spacing.xs)
                 .frame(minHeight: pillHeight)
                 .background(
                     Capsule()

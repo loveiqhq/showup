@@ -139,6 +139,7 @@ export class UpsertProfileDto {
     enum: DATING_LANGUAGES,
     enumName: 'DatingLanguage',
     isArray: true,
+    minItems: 1,
     // Worded to read true on the DatingLanguage schema as well: @nestjs/swagger copies the first
     // property description onto the enum component it creates, and `enumSchema` cannot override it.
     description:
@@ -204,6 +205,9 @@ export class UpsertProfileDto {
     enum: INTEREST_TAGS,
     enumName: 'InterestTag',
     isArray: true,
+    // Both bounds in the contract, so a generated client can know `[]` is refused (400), not only
+    // the validator below.
+    minItems: 1,
     maxItems: MAX_INTERESTS,
     // Lands on the InterestTag schema too (see datingLanguages), and is true there.
     description:
@@ -218,7 +222,9 @@ export class UpsertProfileDto {
   interests?: InterestTag[];
 
   // LIFE (SHOWUP-175) and FUTURE (SHOWUP-176). Matching only: returned to the owner and to no one
-  // else. Continue sends all three of a screen's questions, an unanswered one as [].
+  // else. Life's Continue sends all three questions, an unanswered one as []; Future's sends only
+  // the questions answered. Either may leave out a question it cannot fully draw, and the server
+  // then keeps it, as for any field not supplied.
 
   @LifeAnswer(LIFE_PARTNERSHIP, 'LifePartnership', 'partnership')
   partnership?: LifePartnership[];

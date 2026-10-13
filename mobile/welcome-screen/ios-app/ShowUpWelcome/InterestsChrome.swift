@@ -25,10 +25,13 @@ private struct ChipPress: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
+        // SCOPED TO THE SCALE. `.animation(_, value: isPressed)` on the whole label also caught the
+        // pick itself -- the press ends and `selected` changes in the same update -- so the border
+        // width and the weight tweened 180 ms where the reference changes them at once.
         configuration.label
-            .scaleEffect(configuration.isPressed && enabled && !reduceMotion ? 0.97 : 1)
-            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.fast),
-                       value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.fast)) {
+                $0.scaleEffect(configuration.isPressed && enabled && !reduceMotion ? 0.97 : 1)
+            }
     }
 }
 
@@ -70,12 +73,13 @@ struct InterestChip: View {
             }
             // One line on every phone at the default size; a second only for a label wider than the
             // whole column at the largest Dynamic Type, where the alternative is clipping. Centred,
-            // and kept off the stroke by `sm` above and below once it grows past 38.
+            // and kept off the stroke by `xs` above and below once it grows past 38 (about 1.6x
+            // type; `sm` grew it from 1.36x).
             .lineLimit(2)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 15 + 1.5)
-            .padding(.vertical, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
             .frame(minHeight: chipHeight)
             .background(
                 Capsule()

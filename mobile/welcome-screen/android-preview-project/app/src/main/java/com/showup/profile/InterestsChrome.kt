@@ -202,9 +202,10 @@ fun InterestChip(
                 }
                 .pillShadow(fill = fill, shadow = glow, offsetY = glowY, blur = glowBlur)
                 .border(borderWidth, stroke, shape)
-                // `sm` above and below keeps a label that grew past 38 (a second line, or the largest
-                // font) off the stroke; at the default font it is inside the 38 and changes nothing.
-                .padding(horizontal = CHIP_PAD + CHIP_BORDER_PICKED, vertical = Spacing.sm),
+                // `xs` above and below keeps a label that grew past 38 (a second line, or the largest
+                // font) off the stroke. Inside the 38 until about 1.6x type, so it changes nothing
+                // at the default size or the common larger ones; `sm` grew the chip from 1.36x.
+                .padding(horizontal = CHIP_PAD + CHIP_BORDER_PICKED, vertical = Spacing.xs),
             contentAlignment = Alignment.Center,
         ) {
             // `white-space: nowrap` in practice: every label is one line on every phone at the default
