@@ -240,6 +240,13 @@ struct CheckInFooter: View {
                 Color.clear.frame(height: Spacing.xl)
             } else if let error {
                 InlineErrorCard(message: Text(error))
+                    // `role="alert"`: announced the moment it appears, ahead of anything queued --
+                    // Android's assertive live region. The card itself announces nothing.
+                    .onAppear {
+                        var alert = AttributedString(error)
+                        alert.accessibilitySpeechAnnouncementPriority = .high
+                        AccessibilityNotification.Announcement(alert).post()
+                    }
                 Color.clear.frame(height: Spacing.xl)
             } else {
                 EmptyView()

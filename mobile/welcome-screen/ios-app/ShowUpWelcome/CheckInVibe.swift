@@ -69,6 +69,13 @@ struct CheckInVibeView: View {
                 .foregroundColor(picked.count >= vibeMax ? .liqPurple : .liqSubtle)
                 .accessibilityAddTraits(.updatesFrequently)
         }
+        // "A polite live region", as Android's: announced after each change at LOW priority, so it
+        // waits for VoiceOver to finish reading the chip just tapped instead of cutting it off.
+        .onChange(of: picked.count) { _, count in
+            var announcement = AttributedString("\(count)/\(vibeMax)")
+            announcement.accessibilitySpeechAnnouncementPriority = .low
+            AccessibilityNotification.Announcement(announcement).post()
+        }
     }
 
     private func groupView(_ group: VibeGroup) -> some View {
