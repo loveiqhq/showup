@@ -443,6 +443,25 @@ func filtersChanged(_ entry: CheckInFilters, _ now: CheckInFilters) -> String {
     return changed.isEmpty ? "none" : changed.joined(separator: ",")
 }
 
+/// What Filters sets, one per §10 filter_id.
+enum FilterField: Sendable { case genders, ages, distance }
+
+/// Filters the user set on the offline stand-in, once the server's own settings arrive. What they
+/// changed on the stand-in stays; everything they left alone is the server's. The stand-in shows
+/// 18 - 65+ and 10 km because nothing better is known, not because the user chose them: ticking a
+/// gender and continuing must not replace a saved 25 - 35 the user never saw -- the record is
+/// shared with Search. Android's `filtersOverStandIn`.
+func filtersOverStandIn(_ local: CheckInFilters, server: CheckInFilters, edited: Set<FilterField>) -> CheckInFilters {
+    var out = server
+    if edited.contains(.genders) { out.genders = local.genders }
+    if edited.contains(.ages) {
+        out.minAge = local.minAge
+        out.maxAge = local.maxAge
+    }
+    if edited.contains(.distance) { out.distanceKm = local.distanceKm }
+    return out
+}
+
 // MARK: - uplift (Check-In 06)
 
 /// "100 characters, counted as graphemes, so an emoji is one."

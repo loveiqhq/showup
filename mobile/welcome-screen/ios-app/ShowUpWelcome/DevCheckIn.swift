@@ -41,9 +41,9 @@ actor DevCheckInStore: CheckInStoring {
             filters: CheckInFilters(genders: ["woman"]))
     }
 
-    func load() async -> CheckInState? {
+    func load() async -> Result<CheckInState, CallFailure> {
         try? await Task.sleep(nanoseconds: latency / 3)
-        return state
+        return .success(state)
     }
 
     func markIntroPassed() async -> Bool {
@@ -57,9 +57,9 @@ actor DevCheckInStore: CheckInStoring {
         return true
     }
 
-    func saveFilters(_ filters: CheckInFilters) async -> Bool {
+    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure> {
         state.filters = filters
-        return true
+        return .success(())
     }
 
     func commit(_ request: CommitRequest) async -> CommitResult {

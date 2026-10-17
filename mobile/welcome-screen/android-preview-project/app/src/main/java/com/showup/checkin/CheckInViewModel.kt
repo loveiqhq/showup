@@ -118,8 +118,24 @@ open class CheckInViewModel(
     private var vibesOnEntry: Set<String> = emptySet()
     private var filtersOnEntry: CheckInFilters? = null
 
-    /** The filter settings' last save failed: the commit saves them first. */
-    private var filtersUnsaved = false
+    /**
+     * Filter saves run one after another, so the server applies them in the order they were made: a
+     * slow first save can never land after a second and leave the server on the older settings.
+     */
+    private var filtersSave: Job? = null
+
+    /**
+     * The settings the last save that LANDED sent -- what the server holds, as far as this device
+     * knows. The commit sends the filters again unless they are exactly these: a save that failed,
+     * or was overtaken by a change, is never mistaken for one that landed.
+     */
+    private var filtersConfirmed: CheckInFilters? = null
+
+    /** The intro-passed write in flight, so a resend never doubles it. */
+    private var marking: Job? = null
+
+    /** This device passed the intro: no read can un-pass it, and one that disagrees resends the flag. */
+    private var introPassedHere = false
 
     /** `attempt` on `check_in_commit_failed`: 1 for the first tap on this screen view. */
     private var commitAttempt = 0
@@ -145,9 +161,14 @@ open class CheckInViewModel(
 
     /**
      * Filters showed the offline stand-in -- no gender ticked, ages and distance at their defaults --
-     * because no read had landed. A read that lands before the user touches it replaces it.
+     * because no read had landed, and still none has. Nothing built on it is sent: the server's own
+     * settings are unknown. The read that lands resolves it -- what the user set stays, the rest is
+     * the server's (`filtersOverStandIn`) -- and the commit reads first if none has.
      */
     private var filtersStandIn = false
+
+    /** What the user changed on the stand-in. */
+    private var standInEdits: Set<FilterField> = emptySet()
 
     /** The gate's three ways in may fire once per showing: a second tap during the push does nothing. */
     private var gateArmed = false
@@ -181,36 +202,61 @@ open class CheckInViewModel(
      */
     suspend fun read(): CheckInState? = readAt(writeSeq)
 
-    private suspend fun readAt(seq: Int): CheckInState? {
-        val loaded = store.load() ?: return null
-        // Stale: both flags only ever move forward between reads, so keep what was set locally.
+    private suspend fun readAt(seq: Int): CheckInState? = (readOutcome(seq) as? Outcome.Ok)?.value
+
+    private suspend fun readOutcome(seq: Int): Outcome<CheckInState> {
+        val loaded = when (val out = store.load()) {
+            is Outcome.Ok -> out.value
+            is Outcome.Failed -> return out
+        }
         val prior = _state.value.server
-        val read = if (seq == writeSeq || prior == null) loaded else loaded.copy(
-            introPassed = loaded.introPassed || prior.introPassed,
-            active = loaded.active || prior.active,
+        // The intro flag never goes back: the server only ever sets it. A read saying "not passed"
+        // after this device passed it beat the write to the server -- or the write never landed, so
+        // it is sent again.
+        val passed = introPassedHere || prior?.introPassed == true
+        if (passed && !loaded.introPassed) markIntroPassed()
+        // Stale: `active` only moves forward between reads, so a read that started before a commit
+        // keeps what the commit set.
+        val stale = seq != writeSeq && prior != null
+        val read = loaded.copy(
+            introPassed = loaded.introPassed || passed,
+            active = loaded.active || (stale && prior?.active == true),
         )
         applyRead(read)
-        return read
+        return Outcome.Ok(read)
     }
 
     /** A read landed: it is the server's state, and it pays an owed pre-fill on untouched steps. */
     private fun applyRead(read: CheckInState) {
         val prefill = prefillPending && flowAlive
         if (prefill) prefillPending = false
+        val standIn = filtersStandIn
+        val before = _state.value
         _state.update { s ->
-            if (!prefill) return@update s.copy(server = read)
             s.copy(
                 server = read,
-                motivation = if (motivationTouched) s.motivation else s.motivation ?: read.lastMotivation,
-                vibes = if (vibesTouched) s.vibes else s.vibes.ifEmpty { read.lastVibes },
+                motivation = if (!prefill || motivationTouched) s.motivation else s.motivation ?: read.lastMotivation,
+                vibes = if (!prefill || vibesTouched) s.vibes else s.vibes.ifEmpty { read.lastVibes },
                 filters = when {
-                    filtersTouched -> s.filters
-                    filtersStandIn || s.filters == null -> read.filters
-                    else -> s.filters
+                    standIn -> s.filters?.let { filtersOverStandIn(it, read.filters, standInEdits) } ?: read.filters
+                    !prefill || filtersTouched -> s.filters
+                    else -> s.filters ?: read.filters
                 },
             )
         }
-        if (prefill && !filtersTouched) filtersStandIn = false
+        if (standIn) {
+            filtersStandIn = false
+            standInEdits = emptySet()
+        }
+        // A pre-fill landing on the step on screen is what that step showed: Continue on it unchanged
+        // is `prefilled`, not `picked` against the empty step it replaced.
+        val after = _state.value
+        when (currentStep) {
+            CheckInStep.Motivation -> if (after.motivation != before.motivation) motivationOnEntry = after.motivation
+            CheckInStep.Vibe -> if (after.vibes != before.vibes) vibesOnEntry = after.vibes
+            CheckInStep.Filters -> if (standIn) filtersOnEntry = read.filters
+            else -> Unit
+        }
     }
 
     /**
@@ -238,6 +284,8 @@ open class CheckInViewModel(
         vibesTouched = false
         filtersTouched = false
         filtersStandIn = false
+        standInEdits = emptySet()
+        filtersConfirmed = null
         clearToast()
         val server = _state.value.server
         _state.update {
@@ -327,14 +375,21 @@ open class CheckInViewModel(
         currentStep = null
         analytics?.report(CheckInAnalytics.started(windowId))
         writeSeq++
+        introPassedHere = true
         _state.update { s -> s.copy(server = s.server?.copy(introPassed = true)) }
-        viewModelScope.launch { store.markIntroPassed() }
+        markIntroPassed()
         onAdvance()
+    }
+
+    /** The intro-passed write, unless one is already in flight. Its result shows in the next read. */
+    private fun markIntroPassed() {
+        if (marking?.isActive == true) return
+        marking = viewModelScope.launch { store.markIntroPassed() }
     }
 
     /** Where the gate reopens: Today once the intro has been passed, the intro before that. */
     fun gateDestination(): CheckInStep =
-        if (_state.value.server?.introPassed == true) CheckInStep.Today else CheckInStep.Intro
+        if (introPassedHere || _state.value.server?.introPassed == true) CheckInStep.Today else CheckInStep.Intro
 
     /** The gate's CTA, Search tab or Instant tab: reopens the Check-In. */
     fun gateTapped(target: CheckInAnalytics.GateTarget, onReopen: (CheckInStep) -> Unit) {
@@ -486,6 +541,7 @@ open class CheckInViewModel(
     fun genderTapped(id: String) {
         if (!onScreen(CheckInStep.Filters)) return
         filtersTouched = true
+        if (filtersStandIn) standInEdits += FilterField.Genders
         _state.update { s -> s.copy(filters = s.filters?.let { it.copy(genders = toggleGender(it.genders, id)) }) }
     }
 
@@ -493,12 +549,14 @@ open class CheckInViewModel(
     fun ageMoved(thumb: Int, value: Int) {
         if (!onScreen(CheckInStep.Filters)) return
         filtersTouched = true
+        if (filtersStandIn) standInEdits += FilterField.Ages
         _state.update { s -> s.copy(filters = s.filters?.let { moveAgeThumb(it, thumb, value) }) }
     }
 
     fun distanceMoved(km: Int) {
         if (!onScreen(CheckInStep.Filters)) return
         filtersTouched = true
+        if (filtersStandIn) standInEdits += FilterField.Distance
         _state.update { s -> s.copy(filters = s.filters?.copy(distanceKm = km.coerceIn(DISTANCE_MIN, DISTANCE_MAX))) }
     }
 
@@ -514,12 +572,24 @@ open class CheckInViewModel(
         analytics?.report(CheckInAnalytics.stepAnswered(CheckInStep.Filters, answer, millis() - viewedAt))
         analytics?.report(CheckInAnalytics.filtersChanged(entry, filters, windowId))
         filtersTouched = true
-        filtersStandIn = false
-        _state.update { s -> s.copy(server = s.server?.copy(filters = filters)) }
-        filtersUnsaved = true
-        viewModelScope.launch { if (store.saveFilters(filters)) filtersUnsaved = false }
+        // Built on the stand-in, nothing is sent yet: the commit reads, resolves and sends it.
+        if (!filtersStandIn) saveFilters(filters)
         leaveStep()
         onAdvance()
+    }
+
+    /** One filter save, after any still in flight. The server's copy changes only when it lands. */
+    private fun saveFilters(filters: CheckInFilters) {
+        val previous = filtersSave
+        filtersSave = viewModelScope.launch {
+            previous?.join()
+            if (store.saveFilters(filters) is Outcome.Ok) filtersLanded(filters)
+        }
+    }
+
+    private fun filtersLanded(filters: CheckInFilters) {
+        filtersConfirmed = filters
+        _state.update { s -> s.copy(server = s.server?.copy(filters = filters)) }
     }
 
     // ── uplift and the commit (Check-In 06) ────────────────────────────────────────────────────
@@ -577,18 +647,28 @@ open class CheckInViewModel(
     }
 
     /**
-     * The commit itself: a window id first if none was ever read, the filter settings first if their
-     * last save did not land, then every upcoming picked hour with its instant on the device's zone.
+     * The commit itself: a read first if none has landed (the window id, and the server's filters
+     * under a stand-in), the filter settings first unless a save of exactly these landed, then every
+     * upcoming picked hour with its instant on the device's zone. A failure on the way is reported
+     * as what it was -- no response, or the server's.
      */
     private suspend fun commit(motivation: String): CommitResult {
-        val server = _state.value.server ?: store.load()?.also { read -> _state.update { it.copy(server = read) } }
-        val windowId = server?.windowId ?: return CommitResult.Network
-        val s = _state.value
-        val filters = s.filters
-        if (filtersUnsaved && filters != null) {
-            if (!store.saveFilters(filters)) return CommitResult.Network
-            filtersUnsaved = false
+        val server = _state.value.server.takeUnless { filtersStandIn } ?: when (val read = readOutcome(writeSeq)) {
+            is Outcome.Ok -> read.value
+            is Outcome.Failed -> return read.why.asCommitResult()
         }
+        // No window: profile creation is not complete on the server. Its state, not the network.
+        val windowId = server.windowId ?: return CommitResult.Server
+        // Saves still in flight finish first, so the one compared with is the last.
+        filtersSave?.join()
+        val filters = _state.value.filters
+        if (filters != null && filters != filtersConfirmed) {
+            when (val saved = store.saveFilters(filters)) {
+                is Outcome.Ok -> filtersLanded(filters)
+                is Outcome.Failed -> return saved.why.asCommitResult()
+            }
+        }
+        val s = _state.value
         evaluateClock()
         val zone = zone()
         val slots = _state.value.picks.entries
@@ -640,9 +720,9 @@ open class CheckInViewModel(
     /** Availability and the uplift are gone; the answers return to the server's on the next flow. */
     private fun discard() {
         flowAlive = false
-        filtersUnsaved = false
         prefillPending = false
         filtersStandIn = false
+        standInEdits = emptySet()
         _state.update {
             it.copy(
                 picks = emptyMap(),
@@ -658,3 +738,6 @@ open class CheckInViewModel(
         }
     }
 }
+
+private fun CallFailure.asCommitResult(): CommitResult =
+    if (this == CallFailure.Network) CommitResult.Network else CommitResult.Server

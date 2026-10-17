@@ -68,20 +68,31 @@ sealed interface CommitResult {
     data object Server : CommitResult
 }
 
+/** Why a call did not land: no response (§32 `network`), or one that is not a success (`server`). */
+enum class CallFailure { Network, Server }
+
+/**
+ * A read, or a write the commit depends on: its value, or why it failed. The commit reports which
+ * of the two it was, so a 500 on the filter save is never logged as the user being offline.
+ */
+sealed interface Outcome<out T> {
+    data class Ok<out T>(val value: T) : Outcome<T>
+    data class Failed(val why: CallFailure) : Outcome<Nothing>
+}
+
 interface CheckInStore {
-    /** Null when the server could not be reached or refused. */
-    suspend fun load(): CheckInState?
+    suspend fun load(): Outcome<CheckInState>
     suspend fun markIntroPassed(): Boolean
     suspend fun saveAnswers(motivation: String?, vibes: Set<String>?): Boolean
-    suspend fun saveFilters(filters: CheckInFilters): Boolean
+    suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit>
     suspend fun commit(request: CommitRequest): CommitResult
 }
 
 class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
-    override suspend fun load(): CheckInState? = callCatching {
+    override suspend fun load(): Outcome<CheckInState> = outcome {
         val response = api.checkIn.getCheckInState()
         response.body()?.takeIf { response.isSuccessful }?.toState()
-    }.getOrNull()
+    }
 
     override suspend fun markIntroPassed(): Boolean = callCatching {
         api.checkIn.markCheckInIntroPassed().isSuccessful
@@ -96,7 +107,7 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
         ).isSuccessful
     }.getOrDefault(false)
 
-    override suspend fun saveFilters(filters: CheckInFilters): Boolean = callCatching {
+    override suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit> = outcome {
         api.checkIn.saveFilterSettings(
             SaveFilterSettingsDto(
                 meetGender = CheckInGender.entries.filter { it.id in filters.genders }
@@ -105,8 +116,8 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
                 maxAge = filters.maxAgeOrNull,
                 distanceKm = filters.distanceKm,
             ),
-        ).isSuccessful
-    }.getOrDefault(false)
+        ).takeIf { it.isSuccessful }?.let { }
+    }
 
     override suspend fun commit(request: CommitRequest): CommitResult {
         val response = try {
@@ -157,6 +168,17 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
         throw e
     } catch (e: Exception) {
         Result.failure(e)
+    }
+
+    /** [block]'s value; null from it is a response that was not a success. */
+    private inline fun <T : Any> outcome(block: () -> T?): Outcome<T> = try {
+        block()?.let { Outcome.Ok(it) } ?: Outcome.Failed(CallFailure.Server)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: IOException) {
+        Outcome.Failed(CallFailure.Network)
+    } catch (e: Exception) {
+        Outcome.Failed(CallFailure.Server)
     }
 
     private companion object {

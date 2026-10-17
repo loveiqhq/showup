@@ -38,7 +38,11 @@ private actor FakeStore: CheckInStoring {
         windowId: window, introPassed: false, active: false, firstCheckIn: true,
         lastMotivation: nil, lastVibes: [], filters: CheckInFilters(genders: ["woman"]))
     private var reads = true
+    private var readFailure: CallFailure = .network
     private var filterSaves = true
+    private var filterFailure: CallFailure = .network
+    /// Per filter save, in order: how long it takes and whether it lands. Empty: instant, `filterSaves`.
+    private var filterScript: [(UInt64, Bool)] = []
     /// Whether marking the intro passed reaches what later reads return.
     private var marksStick = true
     private var commitAnswers: [CommitResult] = []
@@ -52,15 +56,18 @@ private actor FakeStore: CheckInStoring {
     func setHeld(_ value: CheckInState) { held = value }
     func setReads(_ value: Bool) { reads = value }
     func setFilterSaves(_ value: Bool) { filterSaves = value }
+    func setReadFailure(_ value: CallFailure) { readFailure = value }
+    func setFilterFailure(_ value: CallFailure) { filterFailure = value }
+    func scriptFilterSaves(_ script: [(UInt64, Bool)]) { filterScript.append(contentsOf: script) }
     func setMarksStick(_ value: Bool) { marksStick = value }
     func answerCommits(_ results: [CommitResult]) { commitAnswers.append(contentsOf: results) }
     func slowCommits(_ nanoseconds: UInt64) { commitDelay = nanoseconds }
     func slowLoads(_ nanoseconds: UInt64) { loadDelay = nanoseconds }
 
-    func load() async -> CheckInState? {
+    func load() async -> Result<CheckInState, CallFailure> {
         let snapshot = held
         if loadDelay > 0 { try? await Task.sleep(nanoseconds: loadDelay) }
-        return reads ? snapshot : nil
+        return reads ? .success(snapshot) : .failure(readFailure)
     }
 
     func markIntroPassed() async -> Bool {
@@ -74,9 +81,12 @@ private actor FakeStore: CheckInStoring {
         return true
     }
 
-    func saveFilters(_ filters: CheckInFilters) async -> Bool {
+    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure> {
         filterBodies.append(filters)
-        return filterSaves
+        let (delay, lands) = filterScript.isEmpty ? (UInt64(0), filterSaves) : filterScript.removeFirst()
+        if delay > 0 { try? await Task.sleep(nanoseconds: delay) }
+        if lands { held.filters = filters }
+        return lands ? .success(()) : .failure(filterFailure)
     }
 
     func commit(_ request: CommitRequest) async -> CommitResult {
@@ -204,6 +214,35 @@ final class CheckInModelTests: XCTestCase {
         model.introStarted {}                                        // before it lands
         await settle(0.3)
         XCTAssertEqual(model.gateDestination(), .today)
+    }
+
+    func testAReadThatBeatsTheIntroWriteToTheServerCannotSendTheGateBackToTheIntro() async {
+        await begin()
+        await arrive(.intro)
+        await store.setMarksStick(false)                             // not on the server yet
+        model.introStarted {}
+        await arrive(.today, referrer: .checkinIntro)                // reads at the NEW sequence
+        XCTAssertEqual(state.server?.introPassed, true)
+        XCTAssertEqual(model.gateDestination(), .today)
+    }
+
+    func testAnIntroWriteThatDidNotLandIsSentAgainOnTheNextReadAndOnlyUntilItLands() async {
+        await begin()
+        await arrive(.intro)
+        await store.setMarksStick(false)
+        model.introStarted {}
+        await settle()
+        var marks = await store.introMarks
+        XCTAssertEqual(marks, 1)
+        await store.setMarksStick(true)
+        model.refresh()
+        await settle(0.15)
+        marks = await store.introMarks
+        XCTAssertEqual(marks, 2, "the read disagreed, so the flag was sent again")
+        model.refresh()
+        await settle(0.15)
+        marks = await store.introMarks
+        XCTAssertEqual(marks, 2, "landed: nothing more is sent")
     }
 
     func testAReadThatStartedBeforeACommitCannotLockSearchAgain() async {
@@ -607,6 +646,48 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(state.filters?.genders, ["other"])
     }
 
+    func testAReadThatLandsOnTheStandInKeepsWhatTheUserSetAndTakesTheRestFromTheServer() async {
+        await store.setReads(false)
+        await walkTo(.vibe)
+        model.vibeContinue {}
+        await arrive(.filters)
+        model.distanceMoved(30)
+        await store.setReads(true)
+        var held = await store.held
+        held.filters = CheckInFilters(genders: ["man"], minAge: 25, maxAge: 35, distanceKm: 20)
+        await store.setHeld(held)
+        model.refresh()
+        await settle()
+        XCTAssertEqual(state.filters, CheckInFilters(genders: ["man"], minAge: 25, maxAge: 35, distanceKm: 30))
+        analytics.clear()
+        model.filtersContinue {}
+        XCTAssertEqual(props("check_in_filters_changed")["filters_changed"] as? String, "distance_km",
+                       "measured against what the read showed, not the stand-in it replaced")
+    }
+
+    func testFiltersSetOnTheStandInNeverReplaceSavedSettingsTheUserDidNotTouch() async {
+        await store.setReads(false)
+        var held = await store.held
+        held.filters = CheckInFilters(genders: ["man"], minAge: 25, maxAge: 35, distanceKm: 20)
+        await store.setHeld(held)
+        await walkTo(.vibe)
+        model.vibeContinue {}
+        await arrive(.filters)
+        model.genderTapped("woman")
+        model.filtersContinue {}
+        await settle()
+        var bodies = await store.filterBodies
+        XCTAssertTrue(bodies.isEmpty, "nothing built on the stand-in is sent before the server's settings are known")
+        await arrive(.uplift, referrer: .checkinFilters)
+        await store.setReads(true)
+        await model.findMyDate {}
+        bodies = await store.filterBodies
+        XCTAssertEqual(bodies, [CheckInFilters(genders: ["woman"], minAge: 25, maxAge: 35, distanceKm: 20)],
+                       "the gender the user ticked, the ages and distance they never saw")
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 1)
+    }
+
     // MARK: - 06: uplift and the commit
 
     func testTheFieldIsEmptyOnEveryEntryCutAt100GraphemesAndBackKeepsIt() async {
@@ -752,6 +833,65 @@ final class CheckInModelTests: XCTestCase {
         let commits = await store.commits
         XCTAssertEqual(after, before + 1)
         XCTAssertEqual(commits.count, 1)
+    }
+
+    func testASlowFilterSaveCannotLandAfterALaterOneAndTheCommitSendsTheLastSettings() async {
+        await walkTo(.filters)
+        await store.scriptFilterSaves([(300_000_000, true), (0, false)])   // A: slow, lands. B: fast, fails.
+        model.genderTapped("man")
+        model.filtersContinue {}                                          // A
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        model.backPressed(.uplift) {}
+        model.arrived(.filters, screen: CheckInStep.filters.screen, referrer: CheckInStep.uplift.screen)
+        model.genderTapped("non_binary")
+        model.filtersContinue {}                                          // B, after A
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        await settle(0.1)
+        await model.findMyDate {}
+        let a = CheckInFilters(genders: ["woman", "man"])
+        let b = CheckInFilters(genders: ["woman", "man", "non_binary"])
+        let bodies = await store.filterBodies
+        XCTAssertEqual(bodies, [a, b, b], "A, then B after it, then B again: A landing never stood in for B")
+        let held = await store.held
+        XCTAssertEqual(held.filters, b)
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 1)
+    }
+
+    func testAFilterSaveThatFailedDoesNotBecomeTheSettingsTheNextFlowStartsFrom() async {
+        await walkTo(.filters)
+        await store.setFilterSaves(false)
+        model.genderTapped("man")
+        model.filtersContinue {}
+        await settle()
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        model.closePressed(.uplift) {}
+        XCTAssertEqual(state.server?.filters.genders, ["woman"])
+        await begin()
+        XCTAssertEqual(state.filters?.genders, ["woman"])
+    }
+
+    func testAFilterSaveTheServerRefusesIsReportedAsServerNotAsOffline() async {
+        await store.setFilterSaves(false)
+        await store.setFilterFailure(.server)
+        await walkTo(.uplift)
+        await model.findMyDate {}
+        XCTAssertEqual(props("check_in_commit_failed")["reason"] as? String, "server")
+        XCTAssertTrue(state.saveFailed)
+        let commits = await store.commits
+        XCTAssertTrue(commits.isEmpty, "nothing is committed over settings that did not save")
+    }
+
+    func testAReadTheCommitNeedsThatFailsIsReportedAsWhatItWas() async {
+        await store.setReads(false)
+        await store.setReadFailure(.server)
+        await walkTo(.uplift)
+        await model.findMyDate {}
+        await store.setReadFailure(.network)
+        await model.findMyDate {}
+        XCTAssertEqual(analytics.of("check_in_commit_failed").map { $0["reason"] as? String }, ["server", "network"])
+        let commits = await store.commits
+        XCTAssertTrue(commits.isEmpty)
     }
 
     func testTheUpliftCloseDiscardsTheTextAndFiresClosedUplift() async {

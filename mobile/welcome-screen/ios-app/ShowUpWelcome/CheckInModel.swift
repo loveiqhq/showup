@@ -108,8 +108,20 @@ final class CheckInModel {
     private var vibesOnEntry: Set<String> = []
     private var filtersOnEntry: CheckInFilters?
 
-    /// The filter settings' last save failed: the commit saves them first.
-    private var filtersUnsaved = false
+    /// Filter saves run one after another, so the server applies them in the order they were made:
+    /// a slow first save can never land after a second and leave the server on the older settings.
+    private var filtersSave: Task<Void, Never>?
+
+    /// The settings the last save that LANDED sent -- what the server holds, as far as this device
+    /// knows. The commit sends the filters again unless they are exactly these: a save that failed,
+    /// or was overtaken by a change, is never mistaken for one that landed.
+    private var filtersConfirmed: CheckInFilters?
+
+    /// An intro-passed write is in flight, so a resend never doubles it.
+    private var marking = false
+
+    /// This device passed the intro: no read can un-pass it, and one that disagrees resends the flag.
+    private var introPassedHere = false
 
     /// `attempt` on `check_in_commit_failed`: 1 for the first tap on this screen view.
     private var commitAttempt = 0
@@ -132,8 +144,13 @@ final class CheckInModel {
     private var filtersTouched = false
 
     /// Filters showed the offline stand-in -- no gender ticked, ages and distance at their defaults
-    /// -- because no read had landed. A read that lands before the user touches it replaces it.
+    /// -- because no read had landed, and still none has. Nothing built on it is sent: the server's
+    /// own settings are unknown. The read that lands resolves it -- what the user set stays, the
+    /// rest is the server's (`filtersOverStandIn`) -- and the commit reads first if none has.
     private var filtersStandIn = false
+
+    /// What the user changed on the stand-in.
+    private var standInEdits: Set<FilterField> = []
 
     /// The gate's three ways in may fire once per showing: a second tap during the push does nothing.
     private var gateArmed = false
@@ -182,30 +199,69 @@ final class CheckInModel {
     }
 
     private func readAt(_ seq: Int) async -> CheckInState? {
-        guard let loaded = await store.load(), !Task.isCancelled else { return nil }
-        // Stale: both flags only ever move forward between reads, so keep what was set locally.
-        var read = loaded
-        if seq != writeSeq, let prior = state.server {
-            read.introPassed = loaded.introPassed || prior.introPassed
-            read.active = loaded.active || prior.active
+        if case .success(let read) = await readOutcome(seq) { return read }
+        return nil
+    }
+
+    private func readOutcome(_ seq: Int) async -> Result<CheckInState, CallFailure> {
+        let loaded: CheckInState
+        switch await store.load() {
+        case .success(let read): loaded = read
+        case .failure(let why): return .failure(why)
         }
+        // Cancelled: the caller checks `Task.isCancelled` and reports nothing, whatever this says.
+        guard !Task.isCancelled else { return .failure(.network) }
+        let prior = state.server
+        // The intro flag never goes back: the server only ever sets it. A read saying "not passed"
+        // after this device passed it beat the write to the server -- or the write never landed, so
+        // it is sent again.
+        let passed = introPassedHere || prior?.introPassed == true
+        if passed && !loaded.introPassed { markIntroPassed() }
+        // Stale: `active` only moves forward between reads, so a read that started before a commit
+        // keeps what the commit set.
+        let stale = seq != writeSeq && prior != nil
+        var read = loaded
+        read.introPassed = loaded.introPassed || passed
+        read.active = loaded.active || (stale && prior?.active == true)
         applyRead(read)
-        return read
+        return .success(read)
     }
 
     /// A read landed: it is the server's state, and it pays an owed pre-fill on untouched steps.
     private func applyRead(_ read: CheckInState) {
         let prefill = prefillPending && flowAlive
         if prefill { prefillPending = false }
+        let standIn = filtersStandIn
+        let before = state
         var s = state
         s.server = read
         if prefill {
             if !motivationTouched { s.motivation = s.motivation ?? read.lastMotivation }
             if !vibesTouched { s.vibes = s.vibes.isEmpty ? read.lastVibes : s.vibes }
-            if !filtersTouched && (filtersStandIn || s.filters == nil) { s.filters = read.filters }
+        }
+        if standIn {
+            s.filters = s.filters.map { filtersOverStandIn($0, server: read.filters, edited: standInEdits) }
+                ?? read.filters
+        } else if prefill && !filtersTouched && s.filters == nil {
+            s.filters = read.filters
         }
         state = s
-        if prefill && !filtersTouched { filtersStandIn = false }
+        if standIn {
+            filtersStandIn = false
+            standInEdits = []
+        }
+        // A pre-fill landing on the step on screen is what that step showed: Continue on it
+        // unchanged is `prefilled`, not `picked` against the empty step it replaced.
+        switch currentStep {
+        case .some(.motivation):
+            if s.motivation != before.motivation { motivationOnEntry = s.motivation }
+        case .some(.vibe):
+            if s.vibes != before.vibes { vibesOnEntry = s.vibes }
+        case .some(.filters):
+            if standIn { filtersOnEntry = read.filters }
+        default:
+            break
+        }
     }
 
     /// The device clock, re-read: "re-evaluated on every foreground, and at minimum when the screen
@@ -230,6 +286,8 @@ final class CheckInModel {
         vibesTouched = false
         filtersTouched = false
         filtersStandIn = false
+        standInEdits = []
+        filtersConfirmed = nil
         clearToast()
         let server = state.server
         var s = state
@@ -316,15 +374,26 @@ final class CheckInModel {
         currentStep = nil
         analytics?.report(CheckInAnalytics.started(windowId: windowId))
         writeSeq += 1
+        introPassedHere = true
         state.server?.introPassed = true
-        let store = self.store
-        Task { _ = await store.markIntroPassed() }
+        markIntroPassed()
         onAdvance()
+    }
+
+    /// The intro-passed write, unless one is already in flight. Its result shows in the next read.
+    private func markIntroPassed() {
+        guard !marking else { return }
+        marking = true
+        let store = self.store
+        Task { [weak self] in
+            _ = await store.markIntroPassed()
+            self?.marking = false
+        }
     }
 
     /// Where the gate reopens: Today once the intro has been passed, the intro before that.
     func gateDestination() -> CheckInStep {
-        state.server?.introPassed == true ? .today : .intro
+        (introPassedHere || state.server?.introPassed == true) ? .today : .intro
     }
 
     /// The gate's CTA, Search tab or Instant tab: reopens the Check-In.
@@ -476,6 +545,7 @@ final class CheckInModel {
     func genderTapped(_ id: String) {
         guard onScreen(.filters) else { return }
         filtersTouched = true
+        if filtersStandIn { standInEdits.insert(.genders) }
         if let filters = state.filters {
             var next = filters
             next.genders = toggleGender(filters.genders, id)
@@ -487,12 +557,14 @@ final class CheckInModel {
     func ageMoved(thumb: Int, value: Int) {
         guard onScreen(.filters) else { return }
         filtersTouched = true
+        if filtersStandIn { standInEdits.insert(.ages) }
         state.filters = state.filters.map { moveAgeThumb($0, thumb: thumb, value: value) }
     }
 
     func distanceMoved(_ km: Int) {
         guard onScreen(.filters) else { return }
         filtersTouched = true
+        if filtersStandIn { standInEdits.insert(.distance) }
         state.filters?.distanceKm = min(max(km, distanceMin), distanceMax)
     }
 
@@ -507,15 +579,25 @@ final class CheckInModel {
         analytics?.report(CheckInAnalytics.stepAnswered(.filters, answerValue: answer, timeToAnswerMs: millis() - viewedAt))
         analytics?.report(CheckInAnalytics.filtersChanged(entry: entry, now: filters, windowId: windowId))
         filtersTouched = true
-        filtersStandIn = false
-        state.server?.filters = filters
-        filtersUnsaved = true
-        let store = self.store
-        Task { [weak self] in
-            if await store.saveFilters(filters) { self?.filtersUnsaved = false }
-        }
+        // Built on the stand-in, nothing is sent yet: the commit reads, resolves and sends it.
+        if !filtersStandIn { saveFilters(filters) }
         leaveStep()
         onAdvance()
+    }
+
+    /// One filter save, after any still in flight. The server's copy changes only when it lands.
+    private func saveFilters(_ filters: CheckInFilters) {
+        let previous = filtersSave
+        let store = self.store
+        filtersSave = Task { [weak self] in
+            await previous?.value
+            if case .success = await store.saveFilters(filters) { self?.filtersLanded(filters) }
+        }
+    }
+
+    private func filtersLanded(_ filters: CheckInFilters) {
+        filtersConfirmed = filters
+        state.server?.filters = filters
     }
 
     // MARK: uplift and the commit (Check-In 06)
@@ -579,21 +661,31 @@ final class CheckInModel {
         }
     }
 
-    /// The commit itself: a window id first if none was ever read, the filter settings first if
-    /// their last save did not land, then every upcoming picked hour with its instant on the
-    /// device's zone.
+    /// The commit itself: a read first if none has landed (the window id, and the server's filters
+    /// under a stand-in), the filter settings first unless a save of exactly these landed, then
+    /// every upcoming picked hour with its instant on the device's zone. A failure on the way is
+    /// reported as what it was -- no response, or the server's.
     private func commit(_ motivation: String) async -> CommitResult {
-        var server = state.server
+        var server = filtersStandIn ? nil : state.server
         if server == nil {
-            server = await store.load()
-            if let read = server, !Task.isCancelled { state.server = read }
+            switch await readOutcome(writeSeq) {
+            case .success(let read): server = read
+            case .failure(let why): return why.commitResult
+            }
         }
-        guard let windowId = server?.windowId, !Task.isCancelled else { return .network }
+        guard !Task.isCancelled else { return .network }
+        // No window: profile creation is not complete on the server. Its state, not the network.
+        guard let windowId = server?.windowId else { return .server }
+        // Saves still in flight finish first, so the one compared with is the last.
+        await filtersSave?.value
+        if let filters = state.filters, filters != filtersConfirmed {
+            switch await store.saveFilters(filters) {
+            case .success: filtersLanded(filters)
+            case .failure(let why): return why.commitResult
+            }
+            guard !Task.isCancelled else { return .network }
+        }
         let s = state
-        if filtersUnsaved, let filters = s.filters {
-            guard await store.saveFilters(filters), !Task.isCancelled else { return .network }
-            filtersUnsaved = false
-        }
         evaluateClock()
         let zone = self.zone()
         let slots = state.picks
@@ -652,9 +744,9 @@ final class CheckInModel {
     /// Availability and the uplift are gone; the answers return to the server's on the next flow.
     private func discard() {
         flowAlive = false
-        filtersUnsaved = false
         prefillPending = false
         filtersStandIn = false
+        standInEdits = []
         var s = state
         s.picks = [:]
         s.uplift = ""
@@ -667,4 +759,8 @@ final class CheckInModel {
         s.serverContactError = false
         state = s
     }
+}
+
+private extension CallFailure {
+    var commitResult: CommitResult { self == .network ? .network : .server }
 }

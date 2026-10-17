@@ -19,6 +19,7 @@ import com.showup.checkin.CheckInState
 import com.showup.checkin.CheckInStore
 import com.showup.checkin.CommitRequest
 import com.showup.checkin.CommitResult
+import com.showup.checkin.Outcome
 import com.showup.checkin.upliftHasContact
 import kotlinx.coroutines.delay
 import java.util.UUID
@@ -45,9 +46,9 @@ class DevCheckInStore(
     )
     private var committedWindow: String? = null
 
-    override suspend fun load(): CheckInState {
+    override suspend fun load(): Outcome<CheckInState> {
         delay(latencyMs / 3)
-        return state
+        return Outcome.Ok(state)
     }
 
     override suspend fun markIntroPassed(): Boolean {
@@ -63,9 +64,9 @@ class DevCheckInStore(
         return true
     }
 
-    override suspend fun saveFilters(filters: CheckInFilters): Boolean {
+    override suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit> {
         state = state.copy(filters = filters)
-        return true
+        return Outcome.Ok(Unit)
     }
 
     override suspend fun commit(request: CommitRequest): CommitResult {

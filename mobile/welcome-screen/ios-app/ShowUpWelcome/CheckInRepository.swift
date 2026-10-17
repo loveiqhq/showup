@@ -58,12 +58,15 @@ enum CommitResult: Equatable, Sendable {
     case server
 }
 
+/// Why a call did not land: no response (§32 `network`), or one that is not a success (`server`).
+/// The commit reports which, so a 500 on the filter save is never logged as the user being offline.
+enum CallFailure: Error, Equatable, Sendable { case network, server }
+
 protocol CheckInStoring: Sendable {
-    /// Nil when the server could not be reached or refused.
-    func load() async -> CheckInState?
+    func load() async -> Result<CheckInState, CallFailure>
     func markIntroPassed() async -> Bool
     func saveAnswers(motivation: String?, vibes: Set<String>?) async -> Bool
-    func saveFilters(_ filters: CheckInFilters) async -> Bool
+    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure>
     func commit(_ request: CommitRequest) async -> CommitResult
 }
 
@@ -73,14 +76,14 @@ struct CheckInRepository: CheckInStoring {
     /// The API's error code for an uplift refused for contact info (`check-in-flow.ts`).
     private static let contactInfoError = "uplift_contact_info"
 
-    func load() async -> CheckInState? {
+    func load() async -> Result<CheckInState, CallFailure> {
         do {
             if case .ok(let ok) = try await api.client.getCheckInState() {
-                return CheckInState(try ok.body.json)
+                return .success(CheckInState(try ok.body.json))
             }
-            return nil
+            return .failure(.server)
         } catch {
-            return nil
+            return .failure(Self.failure(error))
         }
     }
 
@@ -94,11 +97,21 @@ struct CheckInRepository: CheckInStoring {
     }
 
     func saveAnswers(motivation: String?, vibes: Set<String>?) async -> Bool {
+        // A value the contract cannot carry fails, as Android's `first {}` does -- never a smaller
+        // save that answers 204 for something that was not stored.
+        var wireMotivation: Components.Schemas.CheckInMotivation?
+        if let motivation {
+            guard let m = Components.Schemas.CheckInMotivation(rawValue: motivation) else { return false }
+            wireMotivation = m
+        }
+        var wireVibes: [Components.Schemas.CheckInVibe]?
+        if let vibes {
+            guard let w = Self.wireVibes(vibes) else { return false }
+            wireVibes = w
+        }
         let body = Components.Schemas.SaveCheckInAnswersDto(
-            motivation: motivation
-                .flatMap(Components.Schemas.CheckInMotivation.init(rawValue:))
-                .map { Components.Schemas.SaveCheckInAnswersDto.motivationPayload(value1: $0) },
-            vibes: vibes.map(Self.wireVibes))
+            motivation: wireMotivation.map { Components.Schemas.SaveCheckInAnswersDto.motivationPayload(value1: $0) },
+            vibes: wireVibes)
         do {
             if case .noContent = try await api.client.saveCheckInAnswers(body: .json(body)) { return true }
             return false
@@ -107,20 +120,22 @@ struct CheckInRepository: CheckInStoring {
         }
     }
 
-    func saveFilters(_ filters: CheckInFilters) async -> Bool {
+    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure> {
+        let genders = CheckInGender.allCases.filter { filters.genders.contains($0.id) }
+        let wireGenders = genders.compactMap { Components.Schemas.MeetGender(rawValue: $0.id) }
+        // Every gender or none: a save of fewer genders than the user picked is not their settings.
+        guard wireGenders.count == genders.count else { return .failure(.server) }
         // Arguments in the schema's declared order, which Swift requires.
         let body = Components.Schemas.SaveFilterSettingsDto(
             distanceKm: filters.distanceKm,
             maxAge: filters.maxAgeOrNil,
-            meetGender: CheckInGender.allCases
-                .filter { filters.genders.contains($0.id) }
-                .compactMap { Components.Schemas.MeetGender(rawValue: $0.id) },
+            meetGender: wireGenders,
             minAge: filters.minAge)
         do {
-            if case .ok = try await api.client.saveFilterSettings(body: .json(body)) { return true }
-            return false
+            if case .ok = try await api.client.saveFilterSettings(body: .json(body)) { return .success(()) }
+            return .failure(.server)
         } catch {
-            return false
+            return .failure(Self.failure(error))
         }
     }
 
@@ -128,7 +143,8 @@ struct CheckInRepository: CheckInStoring {
         // Kotlin's `UUID.fromString` and `entries.first` throw on a value the wire cannot carry, and
         // that lands in its `Server` catch; the same values end the same way here.
         guard let window = UUID(uuidString: request.windowId),
-              let motivation = Components.Schemas.CheckInMotivation(rawValue: request.motivation) else {
+              let motivation = Components.Schemas.CheckInMotivation(rawValue: request.motivation),
+              let vibes = Self.wireVibes(request.vibes) else {
             return .server
         }
         let body = Components.Schemas.CommitCheckInDto(
@@ -140,7 +156,7 @@ struct CheckInRepository: CheckInStoring {
                         value1: slot.tier == .preferred ? .preferred : .available))
             },
             uplift: request.uplift,
-            vibes: Self.wireVibes(request.vibes),
+            vibes: vibes,
             windowId: Self.wire(request.windowId, window))
         do {
             switch try await api.client.commitCheckIn(body: .json(body)) {
@@ -158,9 +174,17 @@ struct CheckInRepository: CheckInStoring {
         }
     }
 
-    /// §31 in list order, de-duplicated by being a set -- what the server stores.
-    private static func wireVibes(_ vibes: Set<String>) -> [Components.Schemas.CheckInVibe] {
-        vibeOrder.filter { vibes.contains($0) }.compactMap(Components.Schemas.CheckInVibe.init(rawValue:))
+    /// §31 in list order, de-duplicated by being a set -- what the server stores. Nil when a vibe
+    /// has no wire value: the call fails rather than sending fewer vibes than were picked.
+    private static func wireVibes(_ vibes: Set<String>) -> [Components.Schemas.CheckInVibe]? {
+        let ordered = vibeOrder.filter { vibes.contains($0) }
+        let wire = ordered.compactMap(Components.Schemas.CheckInVibe.init(rawValue:))
+        return wire.count == ordered.count ? wire : nil
+    }
+
+    /// No response is `network`; a response that could not be read is the server's.
+    private static func failure(_ error: any Error) -> CallFailure {
+        ShowUpAPI.isNoResponse(error) ? .network : .server
     }
 
     /// `windowId` as the generated request types it. The contract says `format: uuid`; the

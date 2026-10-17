@@ -52,7 +52,12 @@ class CheckInViewModelTest {
             lastMotivation = null, lastVibes = emptySet(), filters = CheckInFilters(setOf("woman")),
         )
         var reads = true
+        var readFailure = CallFailure.Network
         var filterSaves = true
+        var filterFailure = CallFailure.Network
+        /** Per filter save, in order: how long it takes and whether it lands. Empty: instant, [filterSaves]. */
+        val filterScript = ArrayDeque<Pair<Long, Boolean>>()
+        var introMarksLand = true
         var commitAnswers = ArrayDeque<CommitResult>()
         var commitDelayMs = 0L
         var loadDelayMs = 0L
@@ -62,20 +67,27 @@ class CheckInViewModelTest {
         var introMarks = 0
         var loads = 0
 
-        override suspend fun load(): CheckInState? {
+        override suspend fun load(): Outcome<CheckInState> {
             loads++
             val snapshot = held
             if (loadDelayMs > 0) delay(loadDelayMs)
-            return snapshot.takeIf { reads }
+            return if (reads) Outcome.Ok(snapshot) else Outcome.Failed(readFailure)
         }
-        override suspend fun markIntroPassed(): Boolean { introMarks++; held = held.copy(introPassed = true); return true }
+        override suspend fun markIntroPassed(): Boolean {
+            introMarks++
+            if (introMarksLand) held = held.copy(introPassed = true)
+            return introMarksLand
+        }
         override suspend fun saveAnswers(motivation: String?, vibes: Set<String>?): Boolean {
             answers += motivation to vibes
             return true
         }
-        override suspend fun saveFilters(filters: CheckInFilters): Boolean {
+        override suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit> {
             this.filters += filters
-            return filterSaves
+            val (delayMs, lands) = filterScript.removeFirstOrNull() ?: (0L to filterSaves)
+            if (delayMs > 0) delay(delayMs)
+            if (lands) held = held.copy(filters = filters)
+            return if (lands) Outcome.Ok(Unit) else Outcome.Failed(filterFailure)
         }
         override suspend fun commit(request: CommitRequest): CommitResult {
             commits += request
@@ -180,6 +192,33 @@ class CheckInViewModelTest {
         store.held = store.held.copy(introPassed = false)                    // the read says "not yet"
         advanceUntilIdle()
         assertEquals(CheckInStep.Today, model.gateDestination())
+    }
+
+    @Test
+    fun `a read that beats the intro write to the server cannot send the gate back to the intro`() = runTest(dispatcher) {
+        begin()
+        arrive(CheckInStep.Intro)
+        store.introMarksLand = false                                         // not on the server yet
+        model.introStarted {}
+        arrive(CheckInStep.Today, ProfileScreen.CheckinIntro)                // reads at the NEW sequence
+        assertEquals(true, state.server?.introPassed)
+        assertEquals(CheckInStep.Today, model.gateDestination())
+    }
+
+    @Test
+    fun `an intro write that did not land is sent again on the next read, and only until it lands`() = runTest(dispatcher) {
+        begin()
+        arrive(CheckInStep.Intro)
+        store.introMarksLand = false
+        model.introStarted {}
+        advanceUntilIdle()
+        assertEquals(1, store.introMarks)
+        store.introMarksLand = true
+        model.refresh(); advanceUntilIdle()
+        assertEquals("the read disagreed, so the flag was sent again", 2, store.introMarks)
+        assertTrue(store.held.introPassed)
+        model.refresh(); advanceUntilIdle()
+        assertEquals("landed: nothing more is sent", 2, store.introMarks)
     }
 
     @Test
@@ -584,6 +623,47 @@ class CheckInViewModelTest {
         assertEquals(setOf("other"), state.filters!!.genders)
     }
 
+    @Test
+    fun `a read that lands on the stand-in keeps what the user set and takes the rest from the server`() = runTest(dispatcher) {
+        store.reads = false
+        walkTo(CheckInStep.Vibe)
+        model.vibeContinue {}
+        arrive(CheckInStep.Filters)
+        model.distanceMoved(30)
+        store.reads = true
+        store.held = store.held.copy(filters = CheckInFilters(setOf("man"), minAge = 25, maxAge = 35, distanceKm = 20))
+        model.refresh(); advanceUntilIdle()
+        assertEquals(CheckInFilters(setOf("man"), minAge = 25, maxAge = 35, distanceKm = 30), state.filters)
+        analytics.clear()
+        model.filtersContinue {}
+        assertEquals(
+            "measured against what the read showed, not the stand-in it replaced",
+            "distance_km", props("check_in_filters_changed")["filters_changed"],
+        )
+    }
+
+    @Test
+    fun `filters set on the stand-in never replace saved settings the user did not touch`() = runTest(dispatcher) {
+        store.reads = false
+        store.held = store.held.copy(filters = CheckInFilters(setOf("man"), minAge = 25, maxAge = 35, distanceKm = 20))
+        walkTo(CheckInStep.Vibe)
+        model.vibeContinue {}
+        arrive(CheckInStep.Filters)
+        model.genderTapped("woman")
+        model.filtersContinue {}
+        advanceUntilIdle()
+        assertTrue("nothing built on the stand-in is sent before the server's settings are known", store.filters.isEmpty())
+        arrive(CheckInStep.Uplift, ProfileScreen.CheckinFilters)
+        store.reads = true
+        model.findMyDate {}
+        advanceUntilIdle()
+        assertEquals(
+            "the gender the user ticked, the ages and distance they never saw",
+            listOf(CheckInFilters(setOf("woman"), minAge = 25, maxAge = 35, distanceKm = 20)), store.filters,
+        )
+        assertEquals(1, store.commits.size)
+    }
+
     // ── 06: uplift and the commit ───────────────────────────────────────────────────────────────
 
     @Test
@@ -737,6 +817,68 @@ class CheckInViewModelTest {
         advanceUntilIdle()
         assertEquals(before + 1, store.filters.size)
         assertEquals(1, store.commits.size)
+    }
+
+    @Test
+    fun `a slow filter save cannot land after a later one, and the commit sends the last settings`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Filters)
+        store.filterScript.addAll(listOf(1_000L to true, 0L to false))       // A: slow, lands. B: fast, fails.
+        model.genderTapped("man")
+        model.filtersContinue {}                                              // A
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        model.backPressed(CheckInStep.Uplift) {}
+        model.arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, ProfileScreen.CheckinUplift)
+        model.genderTapped("non_binary")
+        model.filtersContinue {}                                              // B, after A
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        advanceTimeBy(500)
+        model.findMyDate {}
+        advanceUntilIdle()
+        val a = CheckInFilters(setOf("woman", "man"))
+        val b = CheckInFilters(setOf("woman", "man", "non_binary"))
+        assertEquals("A, then B after it, then B again: A landing never stood in for B", listOf(a, b, b), store.filters)
+        assertEquals(b, store.held.filters)
+        assertEquals(1, store.commits.size)
+    }
+
+    @Test
+    fun `a filter save that failed does not become the settings the next flow starts from`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Filters)
+        store.filterSaves = false
+        model.genderTapped("man")
+        model.filtersContinue {}
+        advanceUntilIdle()
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        model.closePressed(CheckInStep.Uplift) {}
+        assertEquals(setOf("woman"), state.server!!.filters.genders)
+        begin()
+        assertEquals(setOf("woman"), state.filters!!.genders)
+    }
+
+    @Test
+    fun `a filter save the server refuses is reported as server, not as offline`() = runTest(dispatcher) {
+        store.filterSaves = false
+        store.filterFailure = CallFailure.Server
+        walkTo(CheckInStep.Uplift)
+        model.findMyDate {}
+        advanceUntilIdle()
+        assertEquals("server", props("check_in_commit_failed")["reason"])
+        assertTrue(state.saveFailed)
+        assertTrue("nothing is committed over settings that did not save", store.commits.isEmpty())
+    }
+
+    @Test
+    fun `a read the commit needs that fails is reported as what it was`() = runTest(dispatcher) {
+        store.reads = false
+        store.readFailure = CallFailure.Server
+        walkTo(CheckInStep.Uplift)
+        model.findMyDate {}
+        advanceUntilIdle()
+        store.readFailure = CallFailure.Network
+        model.findMyDate {}
+        advanceUntilIdle()
+        assertEquals(listOf("server", "network"), analytics.of("check_in_commit_failed").map { it.properties["reason"] })
+        assertTrue(store.commits.isEmpty())
     }
 
     @Test

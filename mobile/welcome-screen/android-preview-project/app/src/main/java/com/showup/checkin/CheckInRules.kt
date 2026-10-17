@@ -303,6 +303,24 @@ fun filtersChanged(entry: CheckInFilters, now: CheckInFilters): String {
     return if (changed.isEmpty()) "none" else changed.joinToString(",")
 }
 
+/** What Filters sets, one per §10 filter_id. */
+enum class FilterField { Genders, Ages, Distance }
+
+/**
+ * Filters the user set on the offline stand-in, once the server's own settings arrive. What they
+ * changed on the stand-in stays; everything they left alone is the server's. The stand-in shows
+ * 18 - 65+ and 10 km because nothing better is known, not because the user chose them: ticking a
+ * gender and continuing must not replace a saved 25 - 35 the user never saw -- the record is shared
+ * with Search.
+ */
+fun filtersOverStandIn(local: CheckInFilters, server: CheckInFilters, edited: Set<FilterField>): CheckInFilters =
+    CheckInFilters(
+        genders = if (FilterField.Genders in edited) local.genders else server.genders,
+        minAge = if (FilterField.Ages in edited) local.minAge else server.minAge,
+        maxAge = if (FilterField.Ages in edited) local.maxAge else server.maxAge,
+        distanceKm = if (FilterField.Distance in edited) local.distanceKm else server.distanceKm,
+    )
+
 // ── uplift (Check-In 06) ────────────────────────────────────────────────────────────────────────
 
 /** "100 characters, counted as graphemes, so an emoji is one." */
