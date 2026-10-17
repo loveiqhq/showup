@@ -643,5 +643,41 @@ describe('CheckInFlowService', () => {
       expect(checkIns()).toHaveLength(0);
       expect(track).not.toHaveBeenCalled();
     });
+
+    it('refuses a Check-In whose every hour has started, and writes nothing', async () => {
+      // The flow sat open past every pick: committing would unlock Search with no hours at all.
+      profile();
+      openWindow();
+      await expect(
+        service.commit(
+          USER,
+          commitDto({
+            slots: [
+              { startsAt: '2026-10-13T14:00:00.000Z', tier: 'preferred' },
+              { startsAt: '2026-10-13T16:00:00.000Z', tier: 'available' },
+            ],
+          }),
+          NOW,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.commit(USER, commitDto({ slots: [] }), NOW),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(windows()[0].committedAt).toBeNull();
+      expect(checkIns()).toHaveLength(0);
+      expect(db.queries).toHaveLength(0);
+      expect(track).not.toHaveBeenCalled();
+    });
+
+    it('still answers a replay after every hour has started', async () => {
+      // A retry of a Check-In that saved answers with it, however late it arrives.
+      profile();
+      openWindow();
+      await service.commit(USER, commitDto(), NOW);
+      const later = new Date(NOW.getTime() + 6 * HOUR);
+      const again = await service.commit(USER, commitDto(), later);
+      expect(again.created).toBe(false);
+      expect(again.state.active).toBe(true);
+    });
   });
 });

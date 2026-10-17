@@ -200,7 +200,20 @@ export class CheckInFlowService {
           )) ?? window;
       }
       if (window.committedAt) {
-        return { window, created: false };
+        return {
+          state: await this.currentState(em, userId, profile, now),
+          created: false,
+        };
+      }
+
+      // EVERY PICKED HOUR HAS STARTED -- the flow sat open past them. Committing would unlock Search
+      // with no hours at all, so it is refused. After the replay above: a retry of a Check-In that
+      // saved still answers with it, however late it arrives.
+      const upcoming = upcomingSlots(slots, now);
+      if (upcoming.length === 0) {
+        throw new BadRequestException(
+          'Every picked hour has started. Pick an hour that is still ahead.',
+        );
       }
 
       // One active Check-In at a time: the hours of an earlier one that are still live end here.
@@ -218,7 +231,7 @@ export class CheckInFlowService {
       );
 
       const checkIns = em.getRepository(CheckIn);
-      for (const span of slotsToWindows(upcomingSlots(slots, now))) {
+      for (const span of slotsToWindows(upcoming)) {
         await checkIns.save(
           checkIns.create({
             userId,
@@ -255,7 +268,10 @@ export class CheckInFlowService {
                "updated_at" = now()`,
         [userId, window.motivation, window.vibes],
       );
-      return { window, created: true };
+      return {
+        state: await this.currentState(em, userId, profile, now),
+        created: true,
+      };
     });
 
     // `check_in_created` -- THE one commit event (story 06) -- once per Check-In, never on a replay.
@@ -266,10 +282,28 @@ export class CheckInFlowService {
       });
     }
 
-    // The answer is the state as a GET would read it now: `active` always describes the CURRENT
-    // window. Built from `result.window` instead, a replay of a Check-In whose window has since
-    // closed would claim a live Check-In.
-    return { state: await this.state(userId, now), created: result.created };
+    return result;
+  }
+
+  /**
+   * The commit's answer: the state as a GET would read it now, so `active` always describes the
+   * CURRENT window -- built from the committed window instead, a replay of a Check-In whose window
+   * has since closed would claim a live Check-In. Read inside the commit's transaction: read after
+   * it, a failure there answered 500 for a Check-In that had saved.
+   */
+  private async currentState(
+    em: EntityManager,
+    userId: string,
+    profile: Profile | null,
+    now: Date,
+  ): Promise<CheckInStateDto> {
+    const window = await ensureCheckInWindow(
+      em,
+      userId,
+      profile?.flowPosition ?? null,
+      now,
+    );
+    return this.stateOf(em, userId, profile, window);
   }
 
   /** The user's profile, row-locked for the rest of the transaction (see `ensureCheckInWindow`). */
