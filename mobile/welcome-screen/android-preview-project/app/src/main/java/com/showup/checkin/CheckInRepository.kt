@@ -66,6 +66,13 @@ sealed interface CommitResult {
 
     /** A response that is not a save -- §32 `server`. */
     data object Server : CommitResult
+
+    /**
+     * Every picked hour has started -- the flow sat open past them -- so there is nothing to commit.
+     * Found on the device before sending, or refused by the server when its clock is ahead of the
+     * device's. Not a failed save: the user picks again.
+     */
+    data object NoHours : CommitResult
 }
 
 /** Why a call did not land: no response (§32 `network`), or one that is not a success (`server`). */
@@ -151,8 +158,11 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
             Json.parseToJsonElement(response.errorBody()?.string().orEmpty())
                 .jsonObject["error"]?.jsonPrimitive?.content
         }.getOrNull()
-        return if (response.code() == 422 && error == CONTACT_INFO_ERROR) CommitResult.ContactInfo
-        else CommitResult.Server
+        return when {
+            response.code() == 422 && error == CONTACT_INFO_ERROR -> CommitResult.ContactInfo
+            response.code() == 400 && error == NO_HOURS_ERROR -> CommitResult.NoHours
+            else -> CommitResult.Server
+        }
     }
 
     private fun wireVibe(id: String) = WireVibe.entries.first { it.value == id }
@@ -184,6 +194,9 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
     private companion object {
         /** The API's error code for an uplift refused for contact info (`check-in-flow.ts`). */
         const val CONTACT_INFO_ERROR = "uplift_contact_info"
+
+        /** The API's error code for a commit whose every hour has started (`check-in-flow.ts`). */
+        const val NO_HOURS_ERROR = "check_in_no_hours"
     }
 }
 

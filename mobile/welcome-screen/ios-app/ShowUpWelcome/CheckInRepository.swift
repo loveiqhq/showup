@@ -56,6 +56,10 @@ enum CommitResult: Equatable, Sendable {
     case network
     /// A response that is not a save -- §32 `server`.
     case server
+    /// Every picked hour has started -- the flow sat open past them -- so there is nothing to
+    /// commit. Found on the device before sending, or refused by the server when its clock is ahead
+    /// of the device's. Not a failed save: the user picks again.
+    case noHours
 }
 
 /// Why a call did not land: no response (§32 `network`), or one that is not a success (`server`).
@@ -75,6 +79,8 @@ struct CheckInRepository: CheckInStoring {
 
     /// The API's error code for an uplift refused for contact info (`check-in-flow.ts`).
     private static let contactInfoError = "uplift_contact_info"
+    /// The API's error code for a commit whose every hour has started (`check-in-flow.ts`).
+    private static let noHoursError = "check_in_no_hours"
 
     func load() async -> Result<CheckInState, CallFailure> {
         do {
@@ -166,6 +172,10 @@ struct CheckInRepository: CheckInStoring {
                 // A 422 naming `uplift_contact_info` is the server's contact-info check, not a
                 // failed save.
                 return (try? refused.body.json)?.error == Self.contactInfoError ? .contactInfo : .server
+            case .badRequest(let refused):
+                // A 400 naming `check_in_no_hours`: every picked hour has started, by the
+                // server's clock.
+                return (try? refused.body.json)?.error == Self.noHoursError ? .noHours : .server
             default:
                 return .server
             }

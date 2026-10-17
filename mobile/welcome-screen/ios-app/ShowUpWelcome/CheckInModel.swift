@@ -117,6 +117,20 @@ final class CheckInModel {
     /// or was overtaken by a change, is never mistaken for one that landed.
     private var filtersConfirmed: CheckInFilters?
 
+    /// The newest settings handed to a save that has not answered yet. A flow begun while one is in
+    /// flight starts from them, not from the older copy the server is about to replace -- or
+    /// Continue on that older copy would undo the choice just made.
+    private var filtersInFlight: CheckInFilters?
+
+    /// Filter saves that have not answered yet.
+    private var filtersSaving = 0
+
+    /// The last filter save that answered: what it sent, and why it failed (nil when it landed).
+    private var lastFiltersSave: (filters: CheckInFilters, failure: CallFailure?)?
+
+    /// Continue was accepted on the stand-in, so the settings it resolves to are saved when it does.
+    private var standInAccepted = false
+
     /// An intro-passed write is in flight, so a resend never doubles it.
     private var marking = false
 
@@ -249,6 +263,10 @@ final class CheckInModel {
         if standIn {
             filtersStandIn = false
             standInEdits = []
+            // Continue was accepted on it: the settings it resolved to are what the user accepted,
+            // saved now as any accepted Continue is -- not lost to a later close.
+            if standInAccepted, let resolved = state.filters { saveFilters(resolved) }
+            standInAccepted = false
         }
         // A pre-fill landing on the step on screen is what that step showed: Continue on it
         // unchanged is `prefilled`, not `picked` against the empty step it replaced.
@@ -287,6 +305,7 @@ final class CheckInModel {
         filtersTouched = false
         filtersStandIn = false
         standInEdits = []
+        standInAccepted = false
         filtersConfirmed = nil
         clearToast()
         let server = state.server
@@ -295,7 +314,7 @@ final class CheckInModel {
         s.uplift = ""
         s.motivation = server?.lastMotivation
         s.vibes = server?.lastVibes ?? []
-        s.filters = server?.filters
+        s.filters = filtersInFlight ?? server?.filters
         s.saving = false
         s.saveFailed = false
         s.serverContactError = false
@@ -579,8 +598,9 @@ final class CheckInModel {
         analytics?.report(CheckInAnalytics.stepAnswered(.filters, answerValue: answer, timeToAnswerMs: millis() - viewedAt))
         analytics?.report(CheckInAnalytics.filtersChanged(entry: entry, now: filters, windowId: windowId))
         filtersTouched = true
-        // Built on the stand-in, nothing is sent yet: the commit reads, resolves and sends it.
-        if !filtersStandIn { saveFilters(filters) }
+        // Built on the stand-in, nothing is sent yet: the read that lands resolves and sends it, or
+        // the commit reads first.
+        if filtersStandIn { standInAccepted = true } else { saveFilters(filters) }
         leaveStep()
         onAdvance()
     }
@@ -589,9 +609,21 @@ final class CheckInModel {
     private func saveFilters(_ filters: CheckInFilters) {
         let previous = filtersSave
         let store = self.store
+        filtersInFlight = filters
+        filtersSaving += 1
         filtersSave = Task { [weak self] in
             await previous?.value
-            if case .success = await store.saveFilters(filters) { self?.filtersLanded(filters) }
+            let outcome = await store.saveFilters(filters)
+            guard let self else { return }
+            self.filtersSaving -= 1
+            if self.filtersInFlight == filters { self.filtersInFlight = nil }
+            switch outcome {
+            case .success:
+                self.lastFiltersSave = (filters, nil)
+                self.filtersLanded(filters)
+            case .failure(let why):
+                self.lastFiltersSave = (filters, why)
+            }
         }
     }
 
@@ -653,6 +685,11 @@ final class CheckInModel {
             analytics?.report(CheckInAnalytics.commitFailed(.contactInfo, attempt: attempt, windowId: window))
             state.saving = false
             state.serverContactError = true
+        case .noHours:
+            // Every picked hour has started: not a failed save and not the network -- the user
+            // needs to pick again, which is what Tomorrow's own toast says.
+            state.saving = false
+            showToast(CheckInCopy.tomorrowToast)
         case .network, .server:
             analytics?.report(CheckInAnalytics.commitFailed(
                 result == .network ? .network : .server, attempt: attempt, windowId: window))
@@ -666,6 +703,9 @@ final class CheckInModel {
     /// every upcoming picked hour with its instant on the device's zone. A failure on the way is
     /// reported as what it was -- no response, or the server's.
     private func commit(_ motivation: String) async -> CommitResult {
+        // Nothing left to commit -- known before any call is made.
+        evaluateClock()
+        if state.picks.isEmpty { return .noHours }
         var server = filtersStandIn ? nil : state.server
         if server == nil {
             switch await readOutcome(writeSeq) {
@@ -677,8 +717,14 @@ final class CheckInModel {
         // No window: profile creation is not complete on the server. Its state, not the network.
         guard let windowId = server?.windowId else { return .server }
         // Saves still in flight finish first, so the one compared with is the last.
+        let waited = filtersSaving > 0
         await filtersSave?.value
         if let filters = state.filters, filters != filtersConfirmed {
+            // The save just waited for sent exactly these and found no network: sending them again
+            // now would only double the wait. The next tap tries again.
+            if waited, let last = lastFiltersSave, last.filters == filters, last.failure == .network {
+                return .network
+            }
             switch await store.saveFilters(filters) {
             case .success: filtersLanded(filters)
             case .failure(let why): return why.commitResult
@@ -691,6 +737,8 @@ final class CheckInModel {
         let slots = state.picks
             .sorted { $0.key < $1.key }
             .map { CommitSlot(startsAt: $0.key.instant(in: zone), tier: $0.value) }
+        // The last hour may have started while the calls above were out.
+        if slots.isEmpty { return .noHours }
         let trimmed = s.uplift.trimmingCharacters(in: .whitespacesAndNewlines)
         return await store.commit(CommitRequest(
             windowId: windowId, slots: slots, motivation: motivation, vibes: s.vibes,
@@ -747,6 +795,7 @@ final class CheckInModel {
         prefillPending = false
         filtersStandIn = false
         standInEdits = []
+        standInAccepted = false
         var s = state
         s.picks = [:]
         s.uplift = ""

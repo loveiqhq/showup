@@ -131,6 +131,19 @@ open class CheckInViewModel(
      */
     private var filtersConfirmed: CheckInFilters? = null
 
+    /**
+     * The newest settings handed to a save that has not answered yet. A flow begun while one is in
+     * flight starts from them, not from the older copy the server is about to replace -- or
+     * Continue on that older copy would undo the choice just made.
+     */
+    private var filtersInFlight: CheckInFilters? = null
+
+    /** The last filter save that answered: what it sent, and why it failed (null when it landed). */
+    private var lastFiltersSave: Pair<CheckInFilters, CallFailure?>? = null
+
+    /** Continue was accepted on the stand-in, so the settings it resolves to are saved when it does. */
+    private var standInAccepted = false
+
     /** The intro-passed write in flight, so a resend never doubles it. */
     private var marking: Job? = null
 
@@ -247,6 +260,10 @@ open class CheckInViewModel(
         if (standIn) {
             filtersStandIn = false
             standInEdits = emptySet()
+            // Continue was accepted on it: the settings it resolved to are what the user accepted,
+            // saved now as any accepted Continue is -- not lost to a later close.
+            if (standInAccepted) _state.value.filters?.let { saveFilters(it) }
+            standInAccepted = false
         }
         // A pre-fill landing on the step on screen is what that step showed: Continue on it unchanged
         // is `prefilled`, not `picked` against the empty step it replaced.
@@ -285,6 +302,7 @@ open class CheckInViewModel(
         filtersTouched = false
         filtersStandIn = false
         standInEdits = emptySet()
+        standInAccepted = false
         filtersConfirmed = null
         clearToast()
         val server = _state.value.server
@@ -294,7 +312,7 @@ open class CheckInViewModel(
                 uplift = "",
                 motivation = server?.lastMotivation,
                 vibes = server?.lastVibes.orEmpty(),
-                filters = server?.filters,
+                filters = filtersInFlight ?: server?.filters,
                 saving = false,
                 saveFailed = false,
                 serverContactError = false,
@@ -572,8 +590,9 @@ open class CheckInViewModel(
         analytics?.report(CheckInAnalytics.stepAnswered(CheckInStep.Filters, answer, millis() - viewedAt))
         analytics?.report(CheckInAnalytics.filtersChanged(entry, filters, windowId))
         filtersTouched = true
-        // Built on the stand-in, nothing is sent yet: the commit reads, resolves and sends it.
-        if (!filtersStandIn) saveFilters(filters)
+        // Built on the stand-in, nothing is sent yet: the read that lands resolves and sends it, or
+        // the commit reads first.
+        if (filtersStandIn) standInAccepted = true else saveFilters(filters)
         leaveStep()
         onAdvance()
     }
@@ -581,9 +600,13 @@ open class CheckInViewModel(
     /** One filter save, after any still in flight. The server's copy changes only when it lands. */
     private fun saveFilters(filters: CheckInFilters) {
         val previous = filtersSave
+        filtersInFlight = filters
         filtersSave = viewModelScope.launch {
             previous?.join()
-            if (store.saveFilters(filters) is Outcome.Ok) filtersLanded(filters)
+            val outcome = store.saveFilters(filters)
+            if (filtersInFlight == filters) filtersInFlight = null
+            lastFiltersSave = filters to (outcome as? Outcome.Failed)?.why
+            if (outcome is Outcome.Ok) filtersLanded(filters)
         }
     }
 
@@ -636,6 +659,12 @@ open class CheckInViewModel(
                     analytics?.report(CheckInAnalytics.commitFailed(CheckInAnalytics.CommitFailure.ContactInfo, attempt, window))
                     _state.update { it.copy(saving = false, serverContactError = true) }
                 }
+                CommitResult.NoHours -> {
+                    // Every picked hour has started: not a failed save and not the network -- the
+                    // user needs to pick again, which is what Tomorrow's own toast says.
+                    _state.update { it.copy(saving = false) }
+                    showToast(CheckInCopy.TOMORROW_TOAST)
+                }
                 CommitResult.Network, CommitResult.Server -> {
                     val reason = if (result == CommitResult.Network) CheckInAnalytics.CommitFailure.Network
                     else CheckInAnalytics.CommitFailure.Server
@@ -653,6 +682,9 @@ open class CheckInViewModel(
      * as what it was -- no response, or the server's.
      */
     private suspend fun commit(motivation: String): CommitResult {
+        // Nothing left to commit -- known before any call is made.
+        evaluateClock()
+        if (_state.value.picks.isEmpty()) return CommitResult.NoHours
         val server = _state.value.server.takeUnless { filtersStandIn } ?: when (val read = readOutcome(writeSeq)) {
             is Outcome.Ok -> read.value
             is Outcome.Failed -> return read.why.asCommitResult()
@@ -660,9 +692,16 @@ open class CheckInViewModel(
         // No window: profile creation is not complete on the server. Its state, not the network.
         val windowId = server.windowId ?: return CommitResult.Server
         // Saves still in flight finish first, so the one compared with is the last.
+        val waited = filtersSave?.isActive == true
         filtersSave?.join()
         val filters = _state.value.filters
         if (filters != null && filters != filtersConfirmed) {
+            // The save just waited for sent exactly these and found no network: sending them again
+            // now would only double the wait. The next tap tries again.
+            val last = lastFiltersSave
+            if (waited && last != null && last.first == filters && last.second == CallFailure.Network) {
+                return CommitResult.Network
+            }
             when (val saved = store.saveFilters(filters)) {
                 is Outcome.Ok -> filtersLanded(filters)
                 is Outcome.Failed -> return saved.why.asCommitResult()
@@ -674,6 +713,8 @@ open class CheckInViewModel(
         val slots = _state.value.picks.entries
             .sortedBy { it.key }
             .map { (start, tier) -> CommitSlot(start.atZone(zone).toInstant(), tier) }
+        // The last hour may have started while the calls above were out.
+        if (slots.isEmpty()) return CommitResult.NoHours
         val uplift = s.uplift.trim().ifEmpty { null }
         return store.commit(CommitRequest(windowId, slots, motivation, s.vibes, uplift))
     }
@@ -723,6 +764,7 @@ open class CheckInViewModel(
         prefillPending = false
         filtersStandIn = false
         standInEdits = emptySet()
+        standInAccepted = false
         _state.update {
             it.copy(
                 picks = emptyMap(),

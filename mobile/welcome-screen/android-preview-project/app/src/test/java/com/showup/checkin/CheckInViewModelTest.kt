@@ -823,6 +823,7 @@ class CheckInViewModelTest {
     fun `a slow filter save cannot land after a later one, and the commit sends the last settings`() = runTest(dispatcher) {
         walkTo(CheckInStep.Filters)
         store.filterScript.addAll(listOf(1_000L to true, 0L to false))       // A: slow, lands. B: fast, fails.
+        store.filterFailure = CallFailure.Server                              // so the commit sends B again
         model.genderTapped("man")
         model.filtersContinue {}                                              // A
         model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
@@ -879,6 +880,82 @@ class CheckInViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("server", "network"), analytics.of("check_in_commit_failed").map { it.properties["reason"] })
         assertTrue(store.commits.isEmpty())
+    }
+
+    @Test
+    fun `a flow left open past every picked hour asks for hours again and sends nothing`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Uplift)
+        now = LocalDateTime.of(2026, 10, 14, 13, 30)                        // both picks have started
+        model.findMyDate {}
+        advanceTimeBy(500)                                                    // inside the toast's 2.6 s
+        assertEquals(CheckInCopy.TOMORROW_TOAST, state.toast)
+        assertFalse("not a failed save", state.saveFailed)
+        assertFalse(state.saving)
+        assertTrue("nothing is sent", store.commits.isEmpty())
+        assertTrue("not a commit failure either", analytics.of("check_in_commit_failed").isEmpty())
+    }
+
+    @Test
+    fun `a server that finds every hour started asks for hours again, not for a connection`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Uplift)
+        store.commitAnswers.add(CommitResult.NoHours)
+        model.findMyDate {}
+        advanceTimeBy(500)                                                    // inside the toast's 2.6 s
+        assertEquals(CheckInCopy.TOMORROW_TOAST, state.toast)
+        assertFalse(state.saveFailed)
+        assertTrue(analytics.of("check_in_commit_failed").isEmpty())
+    }
+
+    @Test
+    fun `a filter save still in flight when the flow is reopened is what the new flow starts from`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Filters)
+        store.filterScript.add(1_000L to true)
+        model.genderTapped("man")
+        model.filtersContinue {}
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        model.closePressed(CheckInStep.Uplift) {}
+        model.beginFlow()                                                     // before the save answers
+        val chosen = CheckInFilters(setOf("woman", "man"))
+        assertEquals(chosen, state.filters)
+        advanceUntilIdle()
+        arrive(CheckInStep.Filters)
+        model.filtersContinue {}
+        advanceUntilIdle()
+        assertEquals("Continue never sends the older settings back", listOf(chosen, chosen), store.filters)
+        assertEquals(chosen, store.held.filters)
+    }
+
+    @Test
+    fun `filters accepted on the stand-in are saved once the server's arrive, even if the flow is then closed`() = runTest(dispatcher) {
+        store.reads = false
+        store.held = store.held.copy(filters = CheckInFilters(setOf("man"), minAge = 25, maxAge = 35, distanceKm = 20))
+        walkTo(CheckInStep.Vibe)
+        model.vibeContinue {}
+        arrive(CheckInStep.Filters)
+        model.genderTapped("woman")
+        model.filtersContinue {}
+        store.reads = true
+        arrive(CheckInStep.Uplift, ProfileScreen.CheckinFilters)              // its read resolves the stand-in
+        val resolved = CheckInFilters(setOf("woman"), minAge = 25, maxAge = 35, distanceKm = 20)
+        assertEquals(listOf(resolved), store.filters)
+        model.closePressed(CheckInStep.Uplift) {}
+        assertEquals(resolved, store.held.filters)
+    }
+
+    @Test
+    fun `a commit does not resend filters the save it waited for just failed to send`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Filters)
+        store.filterScript.add(500L to false)                                 // no network, after a wait
+        model.filtersContinue {}
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        model.findMyDate {}
+        advanceUntilIdle()
+        assertEquals("one wait, not two", 1, store.filters.size)
+        assertEquals("network", props("check_in_commit_failed")["reason"])
+        model.findMyDate {}
+        advanceUntilIdle()
+        assertEquals("the next tap tries again", 2, store.filters.size)
+        assertEquals(1, store.commits.size)
     }
 
     @Test

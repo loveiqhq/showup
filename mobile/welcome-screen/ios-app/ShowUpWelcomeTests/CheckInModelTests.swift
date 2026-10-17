@@ -838,6 +838,7 @@ final class CheckInModelTests: XCTestCase {
     func testASlowFilterSaveCannotLandAfterALaterOneAndTheCommitSendsTheLastSettings() async {
         await walkTo(.filters)
         await store.scriptFilterSaves([(300_000_000, true), (0, false)])   // A: slow, lands. B: fast, fails.
+        await store.setFilterFailure(.server)                             // so the commit sends B again
         model.genderTapped("man")
         model.filtersContinue {}                                          // A
         model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
@@ -892,6 +893,84 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(analytics.of("check_in_commit_failed").map { $0["reason"] as? String }, ["server", "network"])
         let commits = await store.commits
         XCTAssertTrue(commits.isEmpty)
+    }
+
+    func testAFlowLeftOpenPastEveryPickedHourAsksForHoursAgainAndSendsNothing() async {
+        await walkTo(.uplift)
+        now = at(13, 30, day: 14)                                    // both picks have started
+        await model.findMyDate {}
+        XCTAssertEqual(state.toast, CheckInCopy.tomorrowToast)
+        XCTAssertFalse(state.saveFailed, "not a failed save")
+        XCTAssertFalse(state.saving)
+        let commits = await store.commits
+        XCTAssertTrue(commits.isEmpty, "nothing is sent")
+        XCTAssertTrue(analytics.of("check_in_commit_failed").isEmpty, "not a commit failure either")
+    }
+
+    func testAServerThatFindsEveryHourStartedAsksForHoursAgainNotForAConnection() async {
+        await walkTo(.uplift)
+        await store.answerCommits([.noHours])
+        await model.findMyDate {}
+        XCTAssertEqual(state.toast, CheckInCopy.tomorrowToast)
+        XCTAssertFalse(state.saveFailed)
+        XCTAssertTrue(analytics.of("check_in_commit_failed").isEmpty)
+    }
+
+    func testAFilterSaveStillInFlightWhenTheFlowIsReopenedIsWhatTheNewFlowStartsFrom() async {
+        await walkTo(.filters)
+        await store.scriptFilterSaves([(300_000_000, true)])
+        model.genderTapped("man")
+        model.filtersContinue {}
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        model.closePressed(.uplift) {}
+        model.beginFlow()                                             // before the save answers
+        let chosen = CheckInFilters(genders: ["woman", "man"])
+        XCTAssertEqual(state.filters, chosen)
+        await settle(0.4)
+        await arrive(.filters)
+        model.filtersContinue {}
+        await settle()
+        let bodies = await store.filterBodies
+        XCTAssertEqual(bodies, [chosen, chosen], "Continue never sends the older settings back")
+        let held = await store.held
+        XCTAssertEqual(held.filters, chosen)
+    }
+
+    func testFiltersAcceptedOnTheStandInAreSavedOnceTheServersArriveEvenIfTheFlowIsThenClosed() async {
+        await store.setReads(false)
+        var held = await store.held
+        held.filters = CheckInFilters(genders: ["man"], minAge: 25, maxAge: 35, distanceKm: 20)
+        await store.setHeld(held)
+        await walkTo(.vibe)
+        model.vibeContinue {}
+        await arrive(.filters)
+        model.genderTapped("woman")
+        model.filtersContinue {}
+        await store.setReads(true)
+        await arrive(.uplift, referrer: .checkinFilters)             // its read resolves the stand-in
+        await settle()
+        let resolved = CheckInFilters(genders: ["woman"], minAge: 25, maxAge: 35, distanceKm: 20)
+        let bodies = await store.filterBodies
+        XCTAssertEqual(bodies, [resolved])
+        model.closePressed(.uplift) {}
+        let after = await store.held
+        XCTAssertEqual(after.filters, resolved)
+    }
+
+    func testACommitDoesNotResendFiltersTheSaveItWaitedForJustFailedToSend() async {
+        await walkTo(.filters)
+        await store.scriptFilterSaves([(200_000_000, false)])         // no network, after a wait
+        model.filtersContinue {}
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        await model.findMyDate {}
+        var count = await store.filterBodies.count
+        XCTAssertEqual(count, 1, "one wait, not two")
+        XCTAssertEqual(props("check_in_commit_failed")["reason"] as? String, "network")
+        await model.findMyDate {}
+        count = await store.filterBodies.count
+        XCTAssertEqual(count, 2, "the next tap tries again")
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 1)
     }
 
     func testTheUpliftCloseDiscardsTheTextAndFiresClosedUplift() async {
