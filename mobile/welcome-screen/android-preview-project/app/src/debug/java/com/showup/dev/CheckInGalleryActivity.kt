@@ -43,7 +43,9 @@ class CheckInGalleryActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val state = intent.getStringExtra("state") ?: "178A"
-        setContent { CheckInGalleryFrame(state) }
+        // Back, the ✕ and a dialog's dismiss all close the frame: each screen registers its own back
+        // handler, and left as no-ops here they swallowed back, so the frame could not be left.
+        setContent { CheckInGalleryFrame(state, leave = ::finish) }
     }
 }
 
@@ -56,37 +58,37 @@ private const val WRITTEN = "I'll take you on a rafting tour on Wannsee — picn
 
 /** The frame for one [DEV_STATES] id. Internal so DevStatesTest can prove every menu entry draws its own. */
 @Composable
-internal fun CheckInGalleryFrame(state: String) {
+internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
     val today = gridOf(CheckInStep.Today, KIT_DAYS)
     val tomorrow = gridOf(CheckInStep.Tomorrow, KIT_DAYS)
     when (state) {
-        "178A" -> CheckInIntroScreen()
+        "178A" -> CheckInIntroScreen(onClose = leave)
         "178B" -> CheckInGateScreen()
-        "179A" -> CheckInAvailabilityScreen(today, mapOf(18 to SlotTier.Preferred, 19 to SlotTier.Preferred, 20 to SlotTier.Available), false)
-        "179B" -> CheckInAvailabilityScreen(today, emptyMap(), false, dialogOpen = true)
-        "179C" -> CheckInAvailabilityScreen(tomorrow, emptyMap(), false, toast = CheckInCopy.TOMORROW_TOAST, toastTick = 1)
-        "179D" -> CheckInAvailabilityScreen(tomorrow, mapOf(12 to SlotTier.Preferred, 13 to SlotTier.Preferred, 19 to SlotTier.Available), false)
-        "179HIW" -> CheckInAvailabilityScreen(today, mapOf(18 to SlotTier.Preferred), true)
-        "180A" -> CheckInMotivationScreen(selected = null)
-        "180B" -> CheckInMotivationScreen(selected = null, toast = CheckInCopy.MOTIVATION_TOAST, toastTick = 1)
-        "180C" -> CheckInMotivationScreen(selected = "long_term")
-        "181A" -> CheckInVibeScreen(picked = emptySet())
-        "181B" -> CheckInVibeScreen(picked = emptySet(), toast = CheckInCopy.VIBE_TOAST_EMPTY, toastTick = 1)
-        "181C" -> CheckInVibeScreen(picked = setOf("coffee_chat", "playful", "no_rush"))
-        "181D" -> CheckInVibeScreen(picked = FIVE, toast = CheckInCopy.VIBE_TOAST_MAX, toastTick = 1)
+        "179A" -> CheckInAvailabilityScreen(today, mapOf(18 to SlotTier.Preferred, 19 to SlotTier.Preferred, 20 to SlotTier.Available), false, onBack = leave, onClose = leave, onCancelNoToday = leave, onDismissNoToday = leave)
+        "179B" -> CheckInAvailabilityScreen(today, emptyMap(), false, dialogOpen = true, onBack = leave, onClose = leave, onCancelNoToday = leave, onDismissNoToday = leave)
+        "179C" -> CheckInAvailabilityScreen(tomorrow, emptyMap(), false, toast = CheckInCopy.TOMORROW_TOAST, toastTick = 1, onBack = leave, onClose = leave, onCancelNoToday = leave, onDismissNoToday = leave)
+        "179D" -> CheckInAvailabilityScreen(tomorrow, mapOf(12 to SlotTier.Preferred, 13 to SlotTier.Preferred, 19 to SlotTier.Available), false, onBack = leave, onClose = leave, onCancelNoToday = leave, onDismissNoToday = leave)
+        "179HIW" -> CheckInAvailabilityScreen(today, mapOf(18 to SlotTier.Preferred), true, onBack = leave, onClose = leave, onCancelNoToday = leave, onDismissNoToday = leave)
+        "180A" -> CheckInMotivationScreen(selected = null, onBack = leave, onClose = leave)
+        "180B" -> CheckInMotivationScreen(selected = null, toast = CheckInCopy.MOTIVATION_TOAST, toastTick = 1, onBack = leave, onClose = leave)
+        "180C" -> CheckInMotivationScreen(selected = "long_term", onBack = leave, onClose = leave)
+        "181A" -> CheckInVibeScreen(picked = emptySet(), onBack = leave, onClose = leave)
+        "181B" -> CheckInVibeScreen(picked = emptySet(), toast = CheckInCopy.VIBE_TOAST_EMPTY, toastTick = 1, onBack = leave, onClose = leave)
+        "181C" -> CheckInVibeScreen(picked = setOf("coffee_chat", "playful", "no_rush"), onBack = leave, onClose = leave)
+        "181D" -> CheckInVibeScreen(picked = FIVE, toast = CheckInCopy.VIBE_TOAST_MAX, toastTick = 1, onBack = leave, onClose = leave)
         "181D-end" -> {
             val scroll = remember { ScrollState(0) }
             LaunchedEffect(Unit) { scroll.scrollTo(scroll.maxValue) }
-            CheckInVibeScreen(picked = FIVE, toast = CheckInCopy.VIBE_TOAST_MAX, toastTick = 1, groupsScroll = scroll)
+            CheckInVibeScreen(picked = FIVE, toast = CheckInCopy.VIBE_TOAST_MAX, toastTick = 1, groupsScroll = scroll, onBack = leave, onClose = leave)
         }
-        "182A" -> CheckInFiltersScreen(CheckInFilters(genders = setOf("woman")))
-        "182B" -> CheckInFiltersScreen(CheckInFilters(genders = emptySet()), toast = CheckInCopy.FILTERS_TOAST, toastTick = 1)
-        "182C" -> CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), minAge = 25, maxAge = 35, distanceKm = 15))
-        "183A" -> CheckInUpliftScreen(text = "")
-        "183B" -> CheckInUpliftScreen(text = TYPING)
-        "183C" -> CheckInUpliftScreen(text = CONTACT, blocked = true, toast = CheckInCopy.CONTACT_ERROR, toastTick = 1)
-        "183D" -> CheckInUpliftScreen(text = WRITTEN, saving = true)
-        "183E" -> CheckInUpliftScreen(text = WRITTEN, saveFailed = true)
+        "182A" -> CheckInFiltersScreen(CheckInFilters(genders = setOf("woman")), onBack = leave, onClose = leave)
+        "182B" -> CheckInFiltersScreen(CheckInFilters(genders = emptySet()), toast = CheckInCopy.FILTERS_TOAST, toastTick = 1, onBack = leave, onClose = leave)
+        "182C" -> CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), minAge = 25, maxAge = 35, distanceKm = 15), onBack = leave, onClose = leave)
+        "183A" -> CheckInUpliftScreen(text = "", onBack = leave, onClose = leave)
+        "183B" -> CheckInUpliftScreen(text = TYPING, onBack = leave, onClose = leave)
+        "183C" -> CheckInUpliftScreen(text = CONTACT, blocked = true, toast = CheckInCopy.CONTACT_ERROR, toastTick = 1, onBack = leave, onClose = leave)
+        "183D" -> CheckInUpliftScreen(text = WRITTEN, saving = true, onBack = leave, onClose = leave)
+        "183E" -> CheckInUpliftScreen(text = WRITTEN, saveFailed = true, onBack = leave, onClose = leave)
         // Loud, never a quiet fallback: a menu entry with no frame must be seen, not shown as the intro.
         else -> Text("Unknown state $state")
     }

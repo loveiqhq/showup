@@ -1012,10 +1012,9 @@ private struct TutorialFlow: View {
                     devMenuOpen = false
                     startDevCheckIn(at: target)
                 },
-                onOpenState: { state in
-                    devMenuOpen = false
-                    devState = state
-                },
+                // The menu stays open under the cover: closing a frame returns to the States list, so
+                // frame after frame can be looked at without reopening it. Android does the same.
+                onOpenState: { state in devState = state },
                 onClearEvents: { EventLog.shared.clear() },
                 onHideTab: {
                     devTabHidden = true

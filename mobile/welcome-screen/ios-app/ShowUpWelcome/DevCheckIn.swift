@@ -173,42 +173,45 @@ private let writtenText = "I'll take you on a rafting tour on Wannsee — picnic
 /// The frame for one `devStates` id.
 struct CheckInGalleryFrame: View {
     let state: String
+    /// The back, the close and a dialog's dismiss all leave the frame, as on Android: left as the
+    /// views' no-op defaults they were dead controls in a frame meant to be looked at.
+    var leave: () -> Void = {}
 
     var body: some View {
         let today = gridOf(.today, kitDays)
         let tomorrow = gridOf(.tomorrow, kitDays)
         switch DevFrame.of(state) {
-        case .intro?: CheckInIntroView()
+        case .intro?: CheckInIntroView(onClose: leave)
         case .gate?: CheckInGateView()
         case .todayPicked?:
-            CheckInAvailabilityView(grid: today, picked: [18: .preferred, 19: .preferred, 20: .available], howItWorksOpen: false)
-        case .todayConfirm?: CheckInAvailabilityView(grid: today, picked: [:], howItWorksOpen: false, dialogOpen: true)
+            CheckInAvailabilityView(grid: today, picked: [18: .preferred, 19: .preferred, 20: .available], howItWorksOpen: false, onCancelNoToday: leave, onDismissNoToday: leave, onBack: leave, onClose: leave)
+        case .todayConfirm?: CheckInAvailabilityView(grid: today, picked: [:], howItWorksOpen: false, dialogOpen: true, onCancelNoToday: leave, onDismissNoToday: leave, onBack: leave, onClose: leave)
         case .tomorrowToast?:
             CheckInAvailabilityView(grid: tomorrow, picked: [:], howItWorksOpen: false,
-                                    toast: CheckInCopy.tomorrowToast, toastTick: 1)
+                                    toast: CheckInCopy.tomorrowToast, toastTick: 1, onCancelNoToday: leave, onDismissNoToday: leave, onBack: leave, onClose: leave)
         case .tomorrowPicked?:
-            CheckInAvailabilityView(grid: tomorrow, picked: [12: .preferred, 13: .preferred, 19: .available], howItWorksOpen: false)
-        case .howItWorksOpen?: CheckInAvailabilityView(grid: today, picked: [18: .preferred], howItWorksOpen: true)
-        case .motivationEmpty?: CheckInMotivationView(selected: nil)
-        case .motivationToast?: CheckInMotivationView(selected: nil, toast: CheckInCopy.motivationToast, toastTick: 1)
-        case .motivationPicked?: CheckInMotivationView(selected: "long_term")
-        case .vibeEmpty?: CheckInVibeView(picked: [])
-        case .vibeToast?: CheckInVibeView(picked: [], toast: CheckInCopy.vibeToastEmpty, toastTick: 1)
-        case .vibeThree?: CheckInVibeView(picked: ["coffee_chat", "playful", "no_rush"])
-        case .vibeFive?: CheckInVibeView(picked: fiveVibes, toast: CheckInCopy.vibeToastMax, toastTick: 1)
+            CheckInAvailabilityView(grid: tomorrow, picked: [12: .preferred, 13: .preferred, 19: .available], howItWorksOpen: false, onCancelNoToday: leave, onDismissNoToday: leave, onBack: leave, onClose: leave)
+        case .howItWorksOpen?: CheckInAvailabilityView(grid: today, picked: [18: .preferred], howItWorksOpen: true, onCancelNoToday: leave, onDismissNoToday: leave, onBack: leave, onClose: leave)
+        case .motivationEmpty?: CheckInMotivationView(selected: nil, onBack: leave, onClose: leave)
+        case .motivationToast?: CheckInMotivationView(selected: nil, toast: CheckInCopy.motivationToast, toastTick: 1, onBack: leave, onClose: leave)
+        case .motivationPicked?: CheckInMotivationView(selected: "long_term", onBack: leave, onClose: leave)
+        case .vibeEmpty?: CheckInVibeView(picked: [], onBack: leave, onClose: leave)
+        case .vibeToast?: CheckInVibeView(picked: [], toast: CheckInCopy.vibeToastEmpty, toastTick: 1, onBack: leave, onClose: leave)
+        case .vibeThree?: CheckInVibeView(picked: ["coffee_chat", "playful", "no_rush"], onBack: leave, onClose: leave)
+        case .vibeFive?: CheckInVibeView(picked: fiveVibes, toast: CheckInCopy.vibeToastMax, toastTick: 1, onBack: leave, onClose: leave)
         case .vibeFiveEnd?:
-            CheckInVibeView(picked: fiveVibes, toast: CheckInCopy.vibeToastMax, toastTick: 1, groupsStartAtEnd: true)
-        case .filtersPrefilled?: CheckInFiltersView(filters: CheckInFilters(genders: ["woman"]))
+            CheckInVibeView(picked: fiveVibes, toast: CheckInCopy.vibeToastMax, toastTick: 1, groupsStartAtEnd: true, onBack: leave, onClose: leave)
+        case .filtersPrefilled?: CheckInFiltersView(filters: CheckInFilters(genders: ["woman"]), onBack: leave, onClose: leave)
         case .filtersNoGender?:
-            CheckInFiltersView(filters: CheckInFilters(genders: []), toast: CheckInCopy.filtersToast, toastTick: 1)
+            CheckInFiltersView(filters: CheckInFilters(genders: []), toast: CheckInCopy.filtersToast, toastTick: 1, onBack: leave, onClose: leave)
         case .filtersNarrowed?:
-            CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "non_binary"], minAge: 25, maxAge: 35, distanceKm: 15))
-        case .upliftEmpty?: CheckInUpliftView(text: "")
-        case .upliftTyping?: CheckInUpliftView(text: typingText)
+            CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "non_binary"], minAge: 25, maxAge: 35, distanceKm: 15), onBack: leave, onClose: leave)
+        case .upliftEmpty?: CheckInUpliftView(text: "", onBack: leave, onClose: leave)
+        case .upliftTyping?: CheckInUpliftView(text: typingText, onBack: leave, onClose: leave)
         case .upliftBlocked?:
-            CheckInUpliftView(text: contactText, blocked: true, toast: CheckInCopy.contactError, toastTick: 1)
-        case .upliftSaving?: CheckInUpliftView(text: writtenText, saving: true)
-        case .upliftFailed?: CheckInUpliftView(text: writtenText, saveFailed: true)
+            CheckInUpliftView(text: contactText, blocked: true, toast: CheckInCopy.contactError, toastTick: 1, onBack: leave, onClose: leave)
+        case .upliftSaving?: CheckInUpliftView(text: writtenText, saving: true, onBack: leave, onClose: leave)
+        case .upliftFailed?: CheckInUpliftView(text: writtenText, saveFailed: true, onBack: leave, onClose: leave)
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
             Text("Unknown state \(state)")
@@ -227,7 +230,7 @@ struct DevStateCover: View {
         // The close sits where the DEV tab does -- on the right edge, inside the gutter -- so it
         // covers no control of the frame.
         ZStack(alignment: .trailing) {
-            CheckInGalleryFrame(state: state.id)
+            CheckInGalleryFrame(state: state.id, leave: onClose)
             Button(action: onClose) {
                 Text("C\nL\nO\nS\nE")
                     .font(F.manrope(9, .bold))

@@ -1914,10 +1914,9 @@ class MainActivity : ComponentActivity() {
                             devMenuOpen = false
                             restartOnDevCheckIn(it)
                         },
-                        onOpenState = { state ->
-                            devMenuOpen = false
-                            openDevState(state)
-                        },
+                        // The menu stays open behind the frame: back returns to the States list, so
+                        // frame after frame can be looked at without reopening it.
+                        onOpenState = { state -> openDevState(state) },
                     )
                     // Back closes the menu, never the screen under it.
                     BackHandler { devMenuOpen = false }
