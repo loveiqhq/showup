@@ -20,6 +20,7 @@ enum DevSection: String, CaseIterable {
     case realYou = "The real you"
     case reachable = "Reachability and location"
     case details = "Share some details"
+    case checkIn = "48hrs Check-In"
     case home = "Home"
 }
 
@@ -45,6 +46,9 @@ extension FlowScreen {
              .profileDatingLanguage, .profileEducation, .profileReligion, .profilePolitics,
              .profileInterests, .profileLifeNow, .profileLifeAhead:
             return .details
+        case .checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
+             .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings:
+            return .checkIn
         case .home: return .home
         }
     }
@@ -81,6 +85,16 @@ extension FlowScreen {
         case .profileInterests: return "Interests"
         case .profileLifeNow: return "Life (current)"
         case .profileLifeAhead: return "Future (last step)"
+        case .checkInGate: return "Date search not available (gate)"
+        case .checkInIntro: return "Intro"
+        case .checkInToday: return "1 · Today"
+        case .checkInTomorrow: return "2 · Tomorrow"
+        case .checkInMotivation: return "3 · Motivation"
+        case .checkInVibe: return "4 · Vibe"
+        case .checkInFilters: return "5 · Filters"
+        case .checkInUplift: return "6 · Uplift + Find my date"
+        case .checkInSearch: return "Search, unlocked (placeholder)"
+        case .checkInSettings: return "Settings (placeholder)"
         case .home: return "Home (placeholder)"
         }
     }
@@ -88,7 +102,7 @@ extension FlowScreen {
     /// Whether the screen reads or writes the account. Signed out, every save on it fails.
     var needsAccount: Bool {
         switch devSection {
-        case .basics, .realYou, .reachable, .details: return true
+        case .basics, .realYou, .reachable, .details, .checkIn: return true
         case .signUp, .tutorial, .home: return false
         }
     }
@@ -103,12 +117,17 @@ enum DevJump: Equatable {
     case skipped(lands: FlowScreen, why: String)
     /// Signed out, and the screen needs an account.
     case needsLogIn
+    /// A Check-In screen, signed out: it opens on the in-memory test server (`DevCheckInStore`)
+    /// instead of refusing, so the whole flow can be looked at and walked with no backend and no
+    /// account.
+    case testServer(FlowScreen)
 }
 
 /// Where a jump to `target` lands, from the same facts the walk decides on: `shouldShowAsk` for the
 /// notification ask, and the location arrival matrix. iOS has no "older OS never asks" case.
 func devJump(_ target: FlowScreen, signedIn: Bool, notificationsAsk: Bool,
              location: LocationArrival) -> DevJump {
+    if target.devSection == .checkIn && !signedIn { return .testServer(target) }
     if target.needsAccount && !signedIn { return .needsLogIn }
     switch target {
     case .profileNotifications:
@@ -175,11 +194,16 @@ struct DevMenu: View {
     let facts: DevMenuFacts
     let events: [EventLog.Entry]
     let onJump: (FlowScreen) -> Void
+    /// A Check-In screen opened on the in-memory test server -- signed out, see `DevJump.testServer`.
+    let onTestServer: (FlowScreen) -> Void
+    /// One ticket frame, opened in its exact state -- the States page.
+    let onOpenState: (DevState) -> Void
     let onClearEvents: () -> Void
     let onHideTab: () -> Void
     let onClose: () -> Void
 
-    @State private var showingEvents = false
+    private enum Page { case screens, states, events }
+    @State private var page = Page.screens
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -196,11 +220,16 @@ struct DevMenu: View {
             Text("Only in builds run from Xcode. App Store builds do not contain it.")
                 .font(F.manrope(12, .regular)).foregroundColor(.liqMuted)
             HStack(spacing: Spacing.md) {
-                pageTab("Screens", selected: !showingEvents) { showingEvents = false }
-                pageTab("Events (\(events.count))", selected: showingEvents) { showingEvents = true }
+                pageTab("Screens", selected: page == .screens) { page = .screens }
+                pageTab("States", selected: page == .states) { page = .states }
+                pageTab("Events (\(events.count))", selected: page == .events) { page = .events }
             }
             .padding(.vertical, Spacing.lg)
-            if showingEvents { eventsPage } else { screensPage }
+            switch page {
+            case .screens: screensPage
+            case .states: statesPage
+            case .events: eventsPage
+            }
         }
         .padding(.horizontal, Spacing.screenGutter)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -251,11 +280,14 @@ struct DevMenu: View {
             case nil: return "Checking sign-in..."
             case .needsLogIn?: return "Log in first"
             case .skipped(_, let why)?: return why
+            case .testServer?: return "Opens on a test server -- no account, nothing saved"
             case .lands?: return nil
             }
         }()
         let enabled = !here && jump != nil && jump != .needsLogIn
-        return Button { onJump(screen) } label: {
+        return Button {
+            if case .testServer? = jump { onTestServer(screen) } else { onJump(screen) }
+        } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(screen.devLabel)
                     .font(F.manrope(15, .semibold))
@@ -273,6 +305,36 @@ struct DevMenu: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+
+    /// Every ticket frame, grouped by ticket, each opened in its exact state over the app.
+    private var statesPage: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                Text("Open any ticket frame in its exact state. Close returns here.")
+                    .font(F.manrope(14, .semibold)).foregroundColor(.liqFg)
+                ForEach(devStateTickets, id: \.self) { ticket in
+                    Text(ticket.uppercased())
+                        .font(F.manrope(11, .bold)).foregroundColor(.liqSubtle)
+                        .padding(.top, Spacing.xl).padding(.bottom, Spacing.sm)
+                        .accessibilityAddTraits(.isHeader)
+                    ForEach(devStates.filter { $0.ticket == ticket }) { state in
+                        Button { onOpenState(state) } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(state.label).font(F.manrope(15, .semibold)).foregroundColor(.liqFg)
+                                Text(state.id).font(F.manrope(12, .regular)).foregroundColor(.liqMuted)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: ComponentSizes.minTapTarget, alignment: .leading)
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, Spacing.md)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.bottom, Spacing.xxl)
+        }
     }
 
     private var eventsPage: some View {

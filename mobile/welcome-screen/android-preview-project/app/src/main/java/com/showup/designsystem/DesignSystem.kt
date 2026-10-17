@@ -118,6 +118,41 @@ val PillGlow = Color(0x38812AEC)
  */
 val MeterTrack = Color(0x141D1129)
 
+// ── added for the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ────────────────
+//
+// Values the six Check-In references set inline and that a built-once component draws (the step
+// footer's toast, the availability tiers, the coach note, the dialog, the gate's tab bar). Each
+// names the reference that sets it. Tints of an existing token (the danger field, the focus ring,
+// the number disc's shadow) are written as `Danger.copy(alpha = ...)` where they are drawn, the way
+// InlineErrorCard already draws its own, rather than as tokens of their own.
+
+/** --liq-primary-600, #6B1D8F -- the availability summary's ranges (Check-In 02). */
+val Primary600 = Color(0xFF6B1D8F)
+
+/** The 2nd-tap "Available" tier and its legend pill: fill, ink and border (Check-In 02). */
+val TierAvailableFill = Color(0xFFF1ECF9)
+val TierAvailableInk = Color(0xFF7C6BA0)
+val TierAvailableBorder = Color(0xFFE3DBF0)
+
+/** CoachNote, lilac -- and How it works' panel, which matches it (Check-In 02, 03, 06). */
+val CoachLilacFill = Color(0xFFEFE6FF)
+val CoachLilacInk = Color(0xFF4F2B8C)
+
+/** CoachNote, warm -- Motivation, Vibe and Filters (Check-In 03 to 05). */
+val CoachWarmFill = Color(0xFFFFF6CF)
+val CoachWarmInk = Color(0xFF73510B)
+
+/** CheckInFooter's toast, rgba(29,17,41,.92), and its `0 6px 20px` shadow at .18. */
+val CheckInToastFill = Color(0xEB1D1129)
+val CheckInToastShadow = Color(0x2E1D1129)
+
+/** The No hours today? dialog: scrim rgba(29,17,41,.44), card shadow rgba(20,12,28,.34). */
+val DialogScrim = Color(0x701D1129)
+val DialogShadow = Color(0x57140C1C)
+
+/** The tab bar's glass, rgba(255,251,247,.92) (`components/shared.jsx` TabBar). */
+val TabBarGlass = Color(0xEBFFFBF7)
+
 /** --su-grad-sunset · 135°, midpoint at 38%. Not an even three-stop ramp. */
 val SunsetStops = listOf(0.00f to Color(0xFFFE6839), 0.38f to Color(0xFFD05976), 1.00f to Color(0xFF812AEC))
 
@@ -205,6 +240,9 @@ val Lora = FontFamily(
  * lineGap and cap height, and the same 742 glyphs, so nothing above a line of text moves.
  */
 val Manrope = FontFamily(
+    // 400 since 14 Oct 2026: the specs set body copy at 400, and with no Regular in the family
+    // every such run resolved to Medium -- a step heavy and ~3% wide. See fonts/README-manrope-regular.md.
+    Font(R.font.manrope_regular,   FontWeight.Normal),
     Font(R.font.manrope_medium,    FontWeight.Medium),
     Font(R.font.manrope_semibold,  FontWeight.SemiBold),
     Font(R.font.manrope_bold,      FontWeight.Bold),

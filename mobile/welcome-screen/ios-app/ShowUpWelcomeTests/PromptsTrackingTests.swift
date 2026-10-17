@@ -455,7 +455,7 @@ final class PromptsTrackingTests: XCTestCase {
         await write("An answer.")
         XCTAssertFalse(analytics.events.isEmpty)
         for (name, payload) in analytics.events {
-            XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.18",
+            XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.25",
                            "\(name) was stamped with the wrong registry")
         }
     }

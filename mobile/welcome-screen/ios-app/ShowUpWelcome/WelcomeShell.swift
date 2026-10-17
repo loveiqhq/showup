@@ -404,15 +404,33 @@ struct WashHeadline: UIViewRepresentable {
     var trailingSize: CGFloat = 30
     var trailingTint: Color = .liqOrange
     var trailingGap: CGFloat = 12
+    /// The run's weight: 700 on every headline. The Check-In intro's closing line (SHOWUP-178) is
+    /// the same `.su-underlined` rule on Lora 400. Android's `fontWeight`.
+    var bold: Bool = true
+    /// The run's ink: `liqFg` on every headline; the intro's closing line is `--liq-fg-muted`.
+    var color: Color = .liqFg
+    /// Centred lines -- the Check-In gate's statement and the No hours today? title.
+    var centered: Bool = false
+    /// Whether the em carries the orange wash, i.e. the text is `.su-underlined`. The No hours
+    /// today? title (SHOWUP-179) is a plain `<em>`: italic in the run's own weight, no wash.
+    var wash: Bool = true
+    /// `text-wrap: pretty`, Chrome's rule, measured -- see `CSSTextLayout.swift`. The Check-In step
+    /// headlines set it: `When can you` over `date today?`, never `When can you date` over a lone
+    /// `today?`. OFF BY DEFAULT, like `balance`, for the same reason; `balance` wins when both are on.
+    var pretty: Bool = false
+    /// Lay the block out as CSS does -- n lines of the line height, the first baseline where CSS
+    /// puts it (`CSSTextLayout.swift`), and the wash anchored at the em's baseline plus the font's
+    /// descent plus 0.08em, as CSS anchors it to the em's content box. OFF BY DEFAULT: turning it on
+    /// moves every headline that has not asked for it, on screens reviewed with the offset in them.
+    var cssLineBox: Bool = false
+    /// A heading for VoiceOver, ON THE TEXT ITSELF. The headline is one accessibility element --
+    /// the host below, labelled with the text -- so the trait cannot land on an empty container,
+    /// which is what Android's merged semantics fixed on its side.
+    var heading: Bool = false
 
-    func makeUIView(context: Context) -> WashLabel {
-        let v = WashLabel()
-        v.numberOfLines = 0
-        v.setContentCompressionResistancePriority(.required, for: .vertical)
-        v.setContentHuggingPriority(.required, for: .vertical)
-        return v
+    func makeUIView(context: Context) -> WashHost {
+        WashHost()
     }
-
 
     /// The trailing mark as a bitmap, so it can travel inside an attributed string.
     ///
@@ -436,47 +454,39 @@ struct WashHeadline: UIViewRepresentable {
     /// that is. On its own in a VStack nothing goes wrong, because the full width is offered
     /// anyway. Inside an HStack next to the heart on Connect, the label claims the whole row, the
     /// heart gets pushed past the edge and the text is clipped.
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView v: WashLabel, context: Context) -> CGSize? {
+    ///
+    /// Under `pretty` or `cssLineBox` the headline takes the whole width offered and the host
+    /// places the label inside it at the width it breaks at -- so no rounding of a reported width
+    /// can re-wrap the last word.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView host: WashHost, context: Context) -> CGSize? {
         guard let width = proposal.width, width > 0, width < .infinity else {
             // No width offered yet: this is the "how big would you like to be" pass, and the
             // honest answer is one line. SwiftUI then offers a real width and asks again.
             return nil
         }
-        let used = balance ? balancedWidth(for: v, within: width) : width
+        let v = host.label
+        let used = host.lineWidth(within: width)
         v.preferredMaxLayoutWidth = used
         let fit = v.sizeThatFits(CGSize(width: used, height: .greatestFiniteMagnitude))
-        return CGSize(width: min(fit.width, width), height: fit.height)
-    }
-
-    /// The narrowest width that still fits in the same number of lines. See `balance`.
-    ///
-    /// Searched over HEIGHT rather than line count, because the label reports height and height is
-    /// a faithful proxy: one more line is one more line's worth of points, and nothing else here
-    /// changes it. Binary search over whole points, so eight probes settle a 400-point range.
-    private func balancedWidth(for v: WashLabel, within full: CGFloat) -> CGFloat {
-        let tallest = v.sizeThatFits(
-            CGSize(width: full, height: .greatestFiniteMagnitude)
-        ).height
-        var low: CGFloat = 1
-        var high = full
-        while high - low > 1 {
-            let mid = ((low + high) / 2).rounded()
-            let h = v.sizeThatFits(
-                CGSize(width: mid, height: .greatestFiniteMagnitude)
-            ).height
-            if h <= tallest { high = mid } else { low = mid }
+        guard host.managesLayout else {
+            return CGSize(width: min(fit.width, width), height: fit.height)
         }
-        return high
+        if let line = host.cssLineHeight, let text = v.attributedText {
+            return CGSize(width: width, height: CGFloat(CSSTextLayout.lines(text, width: used).count) * line)
+        }
+        return CGSize(width: width, height: fit.height)
     }
 
-    func updateUIView(_ v: WashLabel, context: Context) {
-        let regular = TypeMetrics.uiFont(PS.loraBold, fontSize,
-                                         fallback: .systemFont(ofSize: fontSize, weight: .bold))
-        // Weight 500, as the token file specifies. The handoff shipped 400 and 700 only, so this
-        // cut was interpolated from those two masters — a real 500, not a synthetic embolden.
-        // See fonts/README-medium-italic.md.
-        let italic = TypeMetrics.uiFont(PS.loraMediumItalic, fontSize,
-                                        fallback: TypeMetrics.italicSystem(fontSize))
+    func updateUIView(_ host: WashHost, context: Context) {
+        let v = host.label
+        let regular = TypeMetrics.uiFont(bold ? PS.loraBold : PS.loraRegular, fontSize,
+                                         fallback: .systemFont(ofSize: fontSize, weight: bold ? .bold : .regular))
+        // Weight 500 under the wash, as the token file specifies. The handoff shipped 400 and 700
+        // only, so this cut was interpolated from those two masters — a real 500, not a synthetic
+        // embolden. See fonts/README-medium-italic.md. A plain `<em>` (no wash) keeps the run's own
+        // weight, as a browser draws it.
+        let italicName = wash ? PS.loraMediumItalic : (bold ? PS.loraBoldItalic : PS.loraItalic)
+        let italic = TypeMetrics.uiFont(italicName, fontSize, fallback: TypeMetrics.italicSystem(fontSize))
         let para = NSMutableParagraphStyle()
         // The spec's 1.05 is a CSS line-height: a multiple of the FONT SIZE. NSParagraphStyle's
         // lineHeightMultiple is a multiple of the FONT'S OWN line height, which for Lora is about
@@ -487,6 +497,7 @@ struct WashHeadline: UIViewRepresentable {
         // TypeMetrics.attributed already did this conversion; this is the same arithmetic, and the
         // Compose twin never needed it because Compose's lineHeight is absolute to begin with.
         para.lineHeightMultiple = (fontSize * lineHeightMultiple) / regular.lineHeight
+        if centered { para.alignment = .center }
 
         let out = NSMutableAttributedString()
         var italicRange = NSRange(location: NSNotFound, length: 0)
@@ -498,12 +509,12 @@ struct WashHeadline: UIViewRepresentable {
             let start = out.length
             out.append(NSAttributedString(string: text, attributes: [
                 .font: isItalic ? italic : regular,
-                .foregroundColor: UIColor(Color.liqFg),
+                .foregroundColor: UIColor(color),
                 .kern: trackingEm * fontSize,
                 .paragraphStyle: para,
             ]))
             if isItalic && italicRange.location == NSNotFound {
-                italicRange = NSRange(location: start, length: text.count)
+                italicRange = NSRange(location: start, length: (text as NSString).length)
             }
         }
         // The trailing icon rides in the string as an attachment, so the line breaker treats
@@ -523,7 +534,109 @@ struct WashHeadline: UIViewRepresentable {
         v.attributedText = out
         v.italicRange = italicRange
         v.emSize = fontSize
+        v.washEnabled = wash
+        v.cssWashAnchor = cssLineBox
+        v.descentEm = -regular.descender / fontSize
+        host.balance = balance
+        host.pretty = pretty
+        host.centered = centered
+        host.cssLineHeight = cssLineBox ? fontSize * lineHeightMultiple : nil
+        host.cssFont = regular
+        // One element for VoiceOver, read as the words: the no-break spaces of the em run are
+        // spaces to a listener.
+        host.accessibilityLabel = parts.map(\.0).joined()
+        host.accessibilityTraits = heading ? [.staticText, .header] : .staticText
+        host.invalidateIntrinsicContentSize()
+        host.setNeedsLayout()
         v.setNeedsDisplay()
+    }
+}
+
+/// `WashHeadline`'s view: the label, placed inside the box SwiftUI gives the headline.
+///
+/// A HOST RATHER THAN THE LABEL ITSELF since the Check-In (SHOWUP-178), for the CSS line box: CSS
+/// puts the first baseline lower than TextKit does, so the label is offset inside a box that reports
+/// n lines of line height, and the host does not clip -- glyphs may overhang the box, as they do in
+/// CSS. With neither `pretty` nor `cssLineBox` the label fills the host exactly: the old layout,
+/// unchanged. The host is the one accessibility element, so a trait set on the headline lands on
+/// its text.
+final class WashHost: UIView {
+    let label = WashLabel()
+    var balance = false
+    var pretty = false
+    var centered = false
+    /// The CSS line height, when the block is laid out as a CSS line box.
+    var cssLineHeight: CGFloat?
+    /// The run's font, whose ascent and descent CSS centres in each line.
+    var cssFont: UIFont?
+
+    /// Whether this host places the label itself rather than letting it fill the box.
+    var managesLayout: Bool { pretty || cssLineHeight != nil }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        clipsToBounds = false
+        backgroundColor = .clear
+        isOpaque = false
+        label.numberOfLines = 0
+        label.isAccessibilityElement = false
+        addSubview(label)
+        isAccessibilityElement = true
+        setContentCompressionResistancePriority(.required, for: .vertical)
+        setContentHuggingPriority(.required, for: .vertical)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override var intrinsicContentSize: CGSize { label.intrinsicContentSize }
+
+    /// The width the text breaks at inside `full`: balanced, pretty, or all of it.
+    func lineWidth(within full: CGFloat) -> CGFloat {
+        if balance { return balancedWidth(within: full) }
+        if pretty, let text = label.attributedText { return CSSTextLayout.prettyWidth(text, within: full) }
+        return full
+    }
+
+    /// The narrowest width that still fits in the same number of lines. See `balance`.
+    ///
+    /// Searched over HEIGHT rather than line count, because the label reports height and height is
+    /// a faithful proxy: one more line is one more line's worth of points, and nothing else here
+    /// changes it. Binary search over whole points, so eight probes settle a 400-point range.
+    private func balancedWidth(within full: CGFloat) -> CGFloat {
+        let tallest = label.sizeThatFits(CGSize(width: full, height: .greatestFiniteMagnitude)).height
+        var low: CGFloat = 1
+        var high = full
+        while high - low > 1 {
+            let mid = ((low + high) / 2).rounded()
+            let h = label.sizeThatFits(CGSize(width: mid, height: .greatestFiniteMagnitude)).height
+            if h <= tallest { high = mid } else { low = mid }
+        }
+        return high
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard managesLayout else {
+            label.bottomRoom = 0
+            label.frame = bounds
+            return
+        }
+        let used = min(lineWidth(within: bounds.width), bounds.width)
+        let natural = label.sizeThatFits(CGSize(width: used, height: .greatestFiniteMagnitude)).height
+        var shift: CGFloat = 0
+        var room: CGFloat = 0
+        if let line = cssLineHeight, let font = cssFont, let text = label.attributedText {
+            // Read off the laid-out text's own first baseline, so nothing about the font is assumed
+            // beyond the ascent and descent CSS itself centres.
+            let laid = CSSTextLayout.lines(text, width: used)
+            shift = CSSTextLayout.cssFirstBaseline(lineHeight: line, font: font) - laid.firstBaseline
+            // The wash under a last-line em reaches 0.08em past the descent; the label's bounds
+            // include room for it, kept empty of text, so the bounds do not cut it off.
+            room = label.emSize * 0.2
+        }
+        label.bottomRoom = room
+        let x = centered ? (bounds.width - used) / 2 : 0
+        label.frame = CGRect(x: x, y: shift, width: used, height: natural + room)
     }
 }
 
@@ -531,14 +644,31 @@ struct WashHeadline: UIViewRepresentable {
 final class WashLabel: UILabel {
     var italicRange = NSRange(location: NSNotFound, length: 0)
     var emSize: CGFloat = 44
+    /// False for a plain `<em>`: italic, no wash.
+    var washEnabled = true
+    /// Anchor the wash as CSS does under the line box: the em's baseline, plus the font's descent,
+    /// plus 0.08em. Off, the old anchor stays -- the line fragment's bottom plus 0.08em -- until the
+    /// screens drawn with it are reviewed against their sheets.
+    var cssWashAnchor = false
+    /// The run font's descent in ems. Lora's is 0.274.
+    var descentEm: CGFloat = 0.274
+    /// Points at the bottom of the bounds kept free of text, for the wash -- see `WashHost`.
+    var bottomRoom: CGFloat = 0
 
     override func draw(_ rect: CGRect) {
         drawWash()
         super.draw(rect)     // text paints over the wash, matching z-index: -1
     }
 
+    override func drawText(in rect: CGRect) {
+        guard bottomRoom > 0 else { return super.drawText(in: rect) }
+        super.drawText(in: CGRect(x: rect.minX, y: rect.minY, width: rect.width,
+                                  height: max(0, rect.height - bottomRoom)))
+    }
+
     private func drawWash() {
-        guard italicRange.location != NSNotFound,
+        guard washEnabled,
+              italicRange.location != NSNotFound,
               let attributed = attributedText,
               let ctx = UIGraphicsGetCurrentContext() else { return }
 
@@ -560,12 +690,22 @@ final class WashLabel: UILabel {
                                         in: container) { r, _ in
             box = box.isNull ? r : box.union(r)
         }
-        guard !box.isNull, box.width > 0 else { return }
+        guard !box.isNull, box.width > 0, glyphRange.length > 0 else { return }
 
         // left/right -2 · bottom -0.08em · height 0.32em
         let left = box.minX - 2
         let right = box.maxX + 2
-        let bottom = box.maxY + emSize * 0.08
+        let bottom: CGFloat
+        if cssWashAnchor {
+            // From the bottom of the em's CONTENT BOX, which in CSS is the font's descent below
+            // the baseline whatever the line height -- the line fragment's bottom moves with it.
+            let last = NSMaxRange(glyphRange) - 1
+            let line = manager.lineFragmentRect(forGlyphAt: last, effectiveRange: nil)
+            let baseline = line.minY + manager.location(forGlyphAt: last).y
+            bottom = baseline + emSize * (descentEm + 0.08)
+        } else {
+            bottom = box.maxY + emSize * 0.08
+        }
         let h = emSize * 0.32
         let w = right - left
         let rx = w / 2
@@ -621,7 +761,10 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  compass, mapPin, navigation,
                  // Life and Future (SHOWUP-175 / 176): the medallions name `heart · users · home`
                  // and `users · heart · compass`; these two are new, at the kit's geometry.
-                 users, home }
+                 users, home,
+                 // The 48hrs Check-In (SHOWUP-178 to 183): the tab bar's `search · zap · settings`
+                 // and Motivation's `flame`, read from the kit's own `d` strings (SVGPath.swift).
+                 search, zap, settings, flame }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -1173,6 +1316,26 @@ struct BrandIconView: View {
                     b.addLine(to: .init(x: 19, y: 20))
                     b.addLine(to: .init(x: 19, y: 10))
                 }
+            case .search:
+                // `circle 11,11 r7` + `line 21,21 16.65,16.65`.
+                filled = false
+                p = Path { b in
+                    b.addEllipse(in: CGRect(x: 4, y: 4, width: 14, height: 14))
+                    b.move(to: .init(x: 16.65, y: 16.65))
+                    b.addLine(to: .init(x: 21, y: 21))
+                }
+            case .zap:
+                filled = false
+                p = Self.zapPath
+            case .settings:
+                // `circle 12,12 r3` + the gear's outline.
+                filled = false
+                var gear = Self.gearPath
+                gear.addEllipse(in: CGRect(x: 9, y: 9, width: 6, height: 6))
+                p = gear
+            case .flame:
+                filled = false
+                p = Self.flamePath
             case .phone:
                 filled = false
                 p = Self.phonePath
@@ -1202,6 +1365,26 @@ struct BrandIconView: View {
     /// On the same 24-unit grid as every other icon here. Hoisted to a static because the
     /// headline's trailing mark rasterises it through UIKit -- one copy of the geometry, drawn two
     /// ways, so the two cannot drift.
+    /// `polygon 13 2 3 14 12 14 11 22 21 10 12 10 13 2` -- the Instant tab's `zap`.
+    static let zapPath = SVGPath.parse("M13 2L3 14L12 14L11 22L21 10L12 10L13 2Z")
+
+    /// The Settings tab's gear outline; its centre is the `circle 12,12 r3` drawn beside it.
+    static let gearPath = SVGPath.parse(
+        "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 " +
+        "1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06" +
+        "a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09" +
+        "A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 " +
+        "1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 " +
+        "1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.42.88.74.22.32" +
+        ".34.7.34 1.09 0 .39-.12.77-.34 1.09-.22.32-.52.58-.88.74z"
+    )
+
+    /// Motivation's `flame` (Short-term fun).
+    static let flamePath = SVGPath.parse(
+        "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 " +
+        "1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+    )
+
     /// How far a mark's ink is from the centre of its artboard, in 24-grid units.
     ///
     /// Only the provider logos are handled: they are the only marks ever shown standing alone.

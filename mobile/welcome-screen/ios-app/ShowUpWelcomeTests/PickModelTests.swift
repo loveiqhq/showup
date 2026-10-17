@@ -126,7 +126,7 @@ final class PickModelTests: XCTestCase {
         let step = analytics.of("profile_step_viewed")[0]
         XCTAssertEqual(step["step_id"] as? String, "interests")
         XCTAssertEqual(step["step_index"] as? Int, 8)
-        XCTAssertEqual(step["field_registry_version"] as? String, "1.4.18")
+        XCTAssertEqual(step["field_registry_version"] as? String, "1.4.25")
     }
 
     func testLifeAndFutureReportSteps9And10() async {

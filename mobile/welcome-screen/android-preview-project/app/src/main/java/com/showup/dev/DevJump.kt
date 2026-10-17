@@ -20,6 +20,7 @@ enum class DevSection(val title: String) {
     RealYou("The real you"),
     Reachable("Reachability and location"),
     Details("Share some details"),
+    CheckIn("48hrs Check-In"),
     Home("Home"),
 }
 
@@ -65,6 +66,17 @@ fun FlowScreen.devSection(): DevSection = when (this) {
     FlowScreen.ProfileLifeNow,
     FlowScreen.ProfileLifeAhead,
     -> DevSection.Details
+    FlowScreen.CheckInGate,
+    FlowScreen.CheckInIntro,
+    FlowScreen.CheckInToday,
+    FlowScreen.CheckInTomorrow,
+    FlowScreen.CheckInMotivation,
+    FlowScreen.CheckInVibe,
+    FlowScreen.CheckInFilters,
+    FlowScreen.CheckInUplift,
+    FlowScreen.CheckInSearch,
+    FlowScreen.CheckInSettings,
+    -> DevSection.CheckIn
     FlowScreen.Home -> DevSection.Home
 }
 
@@ -99,6 +111,16 @@ fun FlowScreen.devLabel(): String = when (this) {
     FlowScreen.ProfileInterests -> "Interests"
     FlowScreen.ProfileLifeNow -> "Life (current)"
     FlowScreen.ProfileLifeAhead -> "Future (last step)"
+    FlowScreen.CheckInGate -> "Date search not available (gate)"
+    FlowScreen.CheckInIntro -> "Intro"
+    FlowScreen.CheckInToday -> "1 · Today"
+    FlowScreen.CheckInTomorrow -> "2 · Tomorrow"
+    FlowScreen.CheckInMotivation -> "3 · Motivation"
+    FlowScreen.CheckInVibe -> "4 · Vibe"
+    FlowScreen.CheckInFilters -> "5 · Filters"
+    FlowScreen.CheckInUplift -> "6 · Uplift + Find my date"
+    FlowScreen.CheckInSearch -> "Search, unlocked (placeholder)"
+    FlowScreen.CheckInSettings -> "Settings (placeholder)"
     FlowScreen.Home -> "Home (placeholder)"
 }
 
@@ -108,7 +130,7 @@ fun FlowScreen.devLabel(): String = when (this) {
  */
 val FlowScreen.needsAccount: Boolean
     get() = when (devSection()) {
-        DevSection.Basics, DevSection.RealYou, DevSection.Reachable, DevSection.Details -> true
+        DevSection.Basics, DevSection.RealYou, DevSection.Reachable, DevSection.Details, DevSection.CheckIn -> true
         DevSection.SignUp, DevSection.Tutorial, DevSection.Home -> false
     }
 
@@ -125,6 +147,12 @@ sealed interface DevJump {
 
     /** Signed out, and the screen needs an account. */
     data object NeedsLogIn : DevJump
+
+    /**
+     * A Check-In screen, signed out: it opens on the in-memory test server (DevCheckInStore) instead
+     * of refusing, so the whole flow can be looked at and walked with no backend and no account.
+     */
+    data class TestServer(val screen: FlowScreen) : DevJump
 }
 
 /**
@@ -142,6 +170,7 @@ fun devJump(
     oldAndroid: Boolean,
     location: LocationArrival,
 ): DevJump {
+    if (target.devSection() == DevSection.CheckIn && !signedIn) return DevJump.TestServer(target)
     if (target.needsAccount && !signedIn) return DevJump.NeedsLogIn
     return when (target) {
         FlowScreen.ProfileNotifications ->
@@ -160,3 +189,41 @@ fun devJump(
         else -> DevJump.Lands(target)
     }
 }
+
+/**
+ * One frame a ticket names, opened directly in that exact state -- the menu's States page. No walk,
+ * no account, no backend: what the fixture shows is what the spec sheet shows.
+ *
+ * [id] is what `CheckInGalleryActivity` (debug source set) draws; [ticket] groups the list.
+ */
+data class DevState(val id: String, val ticket: String, val label: String)
+
+/** Every frame of SHOWUP-178 to 183's evidence, in ticket order -- plus How it works open. */
+val DEV_STATES: List<DevState> = listOf(
+    DevState("178A", "SHOWUP-178 Intro + gate", "A · Intro"),
+    DevState("178B", "SHOWUP-178 Intro + gate", "B · Date search not available"),
+    DevState("179A", "SHOWUP-179 Availability", "A · Today, hours picked"),
+    DevState("179B", "SHOWUP-179 Availability", "B · Today empty, No hours today?"),
+    DevState("179C", "SHOWUP-179 Availability", "C · Tomorrow empty, toast"),
+    DevState("179D", "SHOWUP-179 Availability", "D · Tomorrow, hours picked"),
+    DevState("179HIW", "SHOWUP-179 Availability", "How it works open"),
+    DevState("180A", "SHOWUP-180 Motivation", "A · Nothing selected"),
+    DevState("180B", "SHOWUP-180 Motivation", "B · Empty, toast"),
+    DevState("180C", "SHOWUP-180 Motivation", "C · One picked"),
+    DevState("181A", "SHOWUP-181 Vibe", "A · Nothing selected"),
+    DevState("181B", "SHOWUP-181 Vibe", "B · Empty, toast"),
+    DevState("181C", "SHOWUP-181 Vibe", "C · Three picked"),
+    DevState("181D", "SHOWUP-181 Vibe", "D · Five picked, max toast"),
+    DevState("181D-end", "SHOWUP-181 Vibe", "D · Scrolled to the end"),
+    DevState("182A", "SHOWUP-182 Filters", "A · Pre-filled"),
+    DevState("182B", "SHOWUP-182 Filters", "B · No gender, toast"),
+    DevState("182C", "SHOWUP-182 Filters", "C · Narrowed"),
+    DevState("183A", "SHOWUP-183 Uplift", "A · On entry, empty"),
+    DevState("183B", "SHOWUP-183 Uplift", "B · Typing"),
+    DevState("183C", "SHOWUP-183 Uplift", "C · Contact info, blocked"),
+    DevState("183D", "SHOWUP-183 Uplift", "D · Saving"),
+    DevState("183E", "SHOWUP-183 Uplift", "E · Save failed"),
+)
+
+/** The gallery activity, named by string: it exists in debug builds only, so main code cannot import it. */
+const val DEV_GALLERY_ACTIVITY = "com.showup.dev.CheckInGalleryActivity"

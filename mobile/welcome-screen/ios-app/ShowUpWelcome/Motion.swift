@@ -61,6 +61,22 @@ enum Motion {
     /// signed them out. Leaving Startup ends it sooner.
     static let notice: TimeInterval = 6
 
+    /// `su-toast-in` and `su-reveal` — a toast, or a panel that opens inline: 200 ms, up 6, on the
+    /// brand curve (the 48hrs Check-In, SHOWUP-179). Android's `Motion.REVEAL`.
+    static let reveal: TimeInterval = 0.2
+
+    /// `su-checkin-pop` — the No hours today? card arriving: 260 ms, up 10, from .97 (SHOWUP-179).
+    static let pop: TimeInterval = 0.26
+
+    /// One turn of the commit spinner, linear (SHOWUP-183). Android's `Motion.SPIN`.
+    static let spin: TimeInterval = 0.8
+
+    /// The brand curve, `cubic-bezier(.22,1,.36,1)` — Android's `ShowUpEasing`. Written inline at
+    /// several older call sites; the Check-In reads it from here.
+    static func brand(_ duration: TimeInterval) -> Animation {
+        .timingCurve(0.22, 1, 0.36, 1, duration: duration)
+    }
+
     /// CSS's default `ease`, for the transitions the reference writes with a duration and NO curve
     /// — the answer rows' and the visibility band's `transition: background 180ms`. A browser runs
     /// that on `ease`; `.easeOut` is a different curve. Android names the same one `CssEase`.

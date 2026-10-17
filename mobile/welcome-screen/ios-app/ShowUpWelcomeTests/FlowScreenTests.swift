@@ -101,9 +101,52 @@ final class FlowScreenTests: XCTestCase {
         // SHOWUP-165 to SHOWUP-173 add nine: profileLocation (whose A, B and C are states, not
         // cases), profileEmbraceDetails (the second bridge, never a resume point), and the seven
         // "Share some details" steps.
-        // SHOWUP-174 to 176 add Interests, Life and Future, for thirty -- the 30 in FlowRestorationTest.
-        XCTAssertEqual(FlowScreen.allCases.count, 30)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 30)
+        // SHOWUP-174 to 176 add Interests, Life and Future, for thirty.
+        //
+        // The 48hrs Check-In (SHOWUP-178 to 183) adds ten, for forty: the gate, the intro, the six
+        // steps, and the two tab placeholders Search and Settings. The No hours today? confirm and
+        // How it works are states of Today, not positions.
+        XCTAssertEqual(FlowScreen.allCases.count, 40)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 40)
+    }
+
+    /// The Check-In walks forward in step order and every back reads backward; the gate sits
+    /// before the intro, so the intro's close reads as a close and a reopen reads forward.
+    func testTheCheckInWalksForwardAndItsCloseReadsBackward() {
+        let walk: [FlowScreen] = [
+            .profileLifeAhead, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
+            .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch,
+        ]
+        for (from, to) in zip(walk, walk.dropFirst()) {
+            XCTAssertTrue(to > from, "\(from) -> \(to) should travel forward")
+        }
+        XCTAssertTrue(FlowScreen.checkInGate < .checkInIntro, "the intro's close lands backward on the gate")
+        XCTAssertTrue(FlowScreen.checkInToday > .checkInGate, "a reopen from the gate reads forward")
+    }
+
+    func testWhichScreensAreTheCheckInAndWhichAreItsSteps() {
+        let checkIn = FlowScreen.allCases.filter(\.isCheckIn)
+        XCTAssertEqual(checkIn, [.checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
+                                 .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings])
+        XCTAssertEqual(FlowScreen.allCases.filter(\.isCheckInStep),
+                       [.checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation, .checkInVibe,
+                        .checkInFilters, .checkInUplift])
+        for step in CheckInStep.allCases {
+            XCTAssertEqual(step.flowScreen.checkInStep, step)
+        }
+        XCTAssertNil(FlowScreen.checkInGate.checkInStep)
+    }
+
+    /// "B is the Search tab whenever the user has no completed Check-In" -- and only between those
+    /// two screens: never out of the middle of a Check-In, never before the first read.
+    func testTheSearchTabFollowsTheServerBetweenTheGateAndSearchOnly() {
+        XCTAssertEqual(checkInTabTarget(screen: .checkInGate, active: true), .checkInSearch)
+        XCTAssertEqual(checkInTabTarget(screen: .checkInSearch, active: false), .checkInGate)
+        XCTAssertNil(checkInTabTarget(screen: .checkInGate, active: false))
+        XCTAssertNil(checkInTabTarget(screen: .checkInSearch, active: true))
+        XCTAssertNil(checkInTabTarget(screen: .checkInGate, active: nil))
+        XCTAssertNil(checkInTabTarget(screen: .checkInUplift, active: true))
+        XCTAssertNil(checkInTabTarget(screen: .checkInToday, active: false))
     }
 
     /// The new positions walk forward in flow order, and every back from a detail step reads as

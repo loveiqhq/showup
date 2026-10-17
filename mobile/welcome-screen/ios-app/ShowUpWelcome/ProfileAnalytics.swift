@@ -121,8 +121,21 @@ enum ProfileScreen: String {
     case politics = "profile_politics"
     case interests = "profile_interests"
     case lifeNow = "profile_life_now"
-    /// The last step of profile creation (SHOWUP-176). Its exit, `checkin_intro`, is not built yet.
+    /// The last step of profile creation (SHOWUP-176). Its exit is the Check-In intro.
     case lifeAhead = "profile_life_ahead"
+
+    // The 48hrs Check-In (SHOWUP-178 to 183), §11 rows from registry 1.4.19 to 1.4.25. Here with the
+    // profile's screens because `referrer_screen_id` crosses the two: the intro's referrer is
+    // `profile_life_ahead`. Not steps of profile creation -- nothing here fires profile_step_*.
+    case checkinIntro = "checkin_intro"
+    /// The Search tab for a user with no committed Check-In -- "date search not available".
+    case checkinSearchUnavailable = "checkin_search_unavailable"
+    case checkinToday = "checkin_today"
+    case checkinTomorrow = "checkin_tomorrow"
+    case checkinMotivation = "checkin_motivation"
+    case checkinVibe = "checkin_vibe"
+    case checkinFilters = "checkin_filters"
+    case checkinUplift = "checkin_uplift"
 
     var screenId: String { rawValue }
 
@@ -152,6 +165,14 @@ enum ProfileScreen: String {
         case .interests: return "ProfileInterests"
         case .lifeNow: return "ProfileLifeNow"
         case .lifeAhead: return "ProfileLifeAhead"
+        case .checkinIntro: return "CheckinIntro"
+        case .checkinSearchUnavailable: return "CheckinSearchUnavailable"
+        case .checkinToday: return "CheckinToday"
+        case .checkinTomorrow: return "CheckinTomorrow"
+        case .checkinMotivation: return "CheckinMotivation"
+        case .checkinVibe: return "CheckinVibe"
+        case .checkinFilters: return "CheckinFilters"
+        case .checkinUplift: return "CheckinUplift"
         }
     }
 }
@@ -319,7 +340,7 @@ enum Stamp {
     ///
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
-    static let fieldRegistryVersion = "1.4.18"
+    static let fieldRegistryVersion = "1.4.25"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]

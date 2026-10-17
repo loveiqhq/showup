@@ -100,6 +100,19 @@ import com.showup.profile.PromptSheet
 import com.showup.profile.PromptsState
 import com.showup.profile.SavedPrompt
 import com.showup.profile.UploadStatus
+import com.showup.checkin.CheckInAvailabilityScreen
+import com.showup.checkin.CheckInCopy
+import com.showup.checkin.CheckInFilters
+import com.showup.checkin.CheckInFiltersScreen
+import com.showup.checkin.CheckInGateScreen
+import com.showup.checkin.CheckInIntroScreen
+import com.showup.checkin.CheckInMotivationScreen
+import com.showup.checkin.CheckInStep
+import com.showup.checkin.CheckInUpliftScreen
+import com.showup.checkin.CheckInVibeScreen
+import com.showup.checkin.SlotTier
+import com.showup.checkin.checkInDays
+import com.showup.checkin.gridOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -199,7 +212,8 @@ class EvidenceScreenshots {
             0f,
         )
         devices.forEach { device ->
-            val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+            val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+            val activity = controller.get()
             val view = ComposeView(activity)
             activity.setContentView(view)
             var widthPx = 0
@@ -251,6 +265,14 @@ class EvidenceScreenshots {
             File(out, name).outputStream().use {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
             }
+            bitmap.recycle()
+            // DESTROYED, every render. Left alive, each Activity kept its composition running on the
+            // shared main looper -- and one with an animation that never ends (the media step's REC
+            // chip) kept that looper busy for whatever ran next in the same JVM: HarnessSelfTest's
+            // `waitForIdle` spun for sixty seconds and failed whenever the test forks grouped it after
+            // this class (14 Oct 2026, when CheckInFitTest shifted the grouping). It also returns the
+            // memory each render held.
+            controller.pause().stop().destroy()
         }
     }
 
@@ -742,5 +764,110 @@ class EvidenceScreenshots {
             assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000)
         }
         println("EVIDENCE 174-176: ${written.size} images in ${out.absolutePath}")
+    }
+
+    // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ──────────────────────────────────────────
+
+    /** The kit's clock: every sheet reads 4:20pm, so Today starts at 5pm. */
+    private val kitDays = checkInDays(java.time.LocalDateTime.of(2026, 10, 13, 16, 20))
+
+    /** The sheets' own sample text, frame by frame (06's B, C and D/E). */
+    private val upliftTyping = "I have 2 tickets for the Berghain garden tonight and nobody to go with"
+    private val upliftContact = "Text me on 0176 2345 6789 and we'll grab a drink tonight"
+    private val upliftWritten = "I'll take you on a rafting tour on Wannsee \u2014 picnic included"
+
+    @Test
+    fun `the check-in, every frame each ticket names`() {
+        val se = DEVICES.filter { it.width == 375 && it.height == 667 }
+
+        // 01: A and B.
+        shoot("SHOWUP-178", "A-intro") { CheckInIntroScreen() }
+        shoot("SHOWUP-178", "B-gate") { CheckInGateScreen() }
+
+        // 02: A Today picked, B Today empty + the confirm, C Tomorrow empty + toast, D Tomorrow picked.
+        val today = gridOf(CheckInStep.Today, kitDays)
+        val tomorrow = gridOf(CheckInStep.Tomorrow, kitDays)
+        shoot("SHOWUP-179", "A-today-picked") {
+            CheckInAvailabilityScreen(
+                today, mapOf(18 to SlotTier.Preferred, 19 to SlotTier.Preferred, 20 to SlotTier.Available), false,
+            )
+        }
+        shoot("SHOWUP-179", "B-today-confirm") { CheckInAvailabilityScreen(today, emptyMap(), false, dialogOpen = true) }
+        shoot("SHOWUP-179", "C-tomorrow-toast") {
+            CheckInAvailabilityScreen(tomorrow, emptyMap(), false, toast = CheckInCopy.TOMORROW_TOAST)
+        }
+        shoot("SHOWUP-179", "D-tomorrow-picked") {
+            CheckInAvailabilityScreen(
+                tomorrow, mapOf(12 to SlotTier.Preferred, 13 to SlotTier.Preferred, 19 to SlotTier.Available), false,
+            )
+        }
+
+        // 03: A nothing selected, B the toast, C one picked.
+        shoot("SHOWUP-180", "A-empty") { CheckInMotivationScreen(selected = null) }
+        shoot("SHOWUP-180", "B-toast") { CheckInMotivationScreen(selected = null, toast = CheckInCopy.MOTIVATION_TOAST) }
+        shoot("SHOWUP-180", "C-picked") { CheckInMotivationScreen(selected = "long_term") }
+
+        // 04: A empty, B the toast, C three picked, D five picked + the max toast, and D scrolled.
+        // The sheet's D: Deep conversation, Fun & playful and Free evening picked, Calm idle; the
+        // other two are activities scrolled out of view.
+        val five = setOf("coffee_chat", "sunset", "deep_talk", "playful", "no_rush")
+        shoot("SHOWUP-181", "A-empty") { CheckInVibeScreen(picked = emptySet()) }
+        shoot("SHOWUP-181", "B-toast") { CheckInVibeScreen(picked = emptySet(), toast = CheckInCopy.VIBE_TOAST_EMPTY) }
+        shoot("SHOWUP-181", "C-three") { CheckInVibeScreen(picked = setOf("coffee_chat", "playful", "no_rush")) }
+        shoot("SHOWUP-181", "D-five-max") { CheckInVibeScreen(picked = five, toast = CheckInCopy.VIBE_TOAST_MAX) }
+        val vibeBottom = ScrollState(0)
+        shoot("SHOWUP-181", "D-scrolled-end", devices = se, scrolled = vibeBottom) {
+            CheckInVibeScreen(picked = five, toast = CheckInCopy.VIBE_TOAST_MAX, groupsScroll = vibeBottom)
+        }
+
+        // 05: A pre-filled (both age thumbs at the ends), B no gender + toast, C narrowed.
+        shoot("SHOWUP-182", "A-prefilled") { CheckInFiltersScreen(CheckInFilters(genders = setOf("woman"))) }
+        shoot("SHOWUP-182", "B-no-gender") {
+            CheckInFiltersScreen(CheckInFilters(genders = emptySet()), toast = CheckInCopy.FILTERS_TOAST)
+        }
+        shoot("SHOWUP-182", "C-narrowed") {
+            CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), minAge = 25, maxAge = 35, distanceKm = 15))
+        }
+
+        // 06: A empty, B typing (the keyboard is the OS's -- a device recording shows it), C blocked
+        // + toast, D saving, E save failed.
+        shoot("SHOWUP-183", "A-empty") { CheckInUpliftScreen(text = "") }
+        shoot("SHOWUP-183", "B-typing") { CheckInUpliftScreen(text = upliftTyping) }
+        shoot("SHOWUP-183", "C-blocked") {
+            CheckInUpliftScreen(text = upliftContact, blocked = true, toast = CheckInCopy.CONTACT_ERROR)
+        }
+        shoot("SHOWUP-183", "D-saving") { CheckInUpliftScreen(text = upliftWritten, saving = true) }
+        shoot("SHOWUP-183", "E-failed") { CheckInUpliftScreen(text = upliftWritten, saveFailed = true) }
+
+        // The narrowest phone at the largest system font, where every layout defect has been found.
+        val tightest = DEVICES.filter { it.width == 320 }
+        shoot("CHECKIN", "intro-tight", fontScale = 2f, devices = tightest) { CheckInIntroScreen() }
+        shoot("CHECKIN", "gate-tight", fontScale = 2f, devices = tightest) { CheckInGateScreen() }
+        shoot("CHECKIN", "today-tight", fontScale = 2f, devices = tightest) {
+            CheckInAvailabilityScreen(today, mapOf(18 to SlotTier.Preferred), false)
+        }
+        shoot("CHECKIN", "confirm-tight", fontScale = 2f, devices = tightest) {
+            CheckInAvailabilityScreen(today, emptyMap(), false, dialogOpen = true)
+        }
+        shoot("CHECKIN", "motivation-tight", fontScale = 2f, devices = tightest) { CheckInMotivationScreen(selected = "long_term") }
+        shoot("CHECKIN", "vibe-tight", fontScale = 2f, devices = tightest) { CheckInVibeScreen(picked = five) }
+        shoot("CHECKIN", "filters-tight", fontScale = 2f, devices = tightest) {
+            CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), minAge = 25, maxAge = 35, distanceKm = 15))
+        }
+        shoot("CHECKIN", "uplift-tight", fontScale = 2f, devices = tightest) {
+            CheckInUpliftScreen(text = upliftContact, blocked = true)
+        }
+
+        val atTicketSize = written.filter { !it.contains("fontScale") }
+        assertEquals("SHOWUP-178 asks for 6 images", 6, atTicketSize.count { it.startsWith("SHOWUP-178") })
+        assertEquals("SHOWUP-179 asks for 12 images", 12, atTicketSize.count { it.startsWith("SHOWUP-179") })
+        assertEquals("SHOWUP-180 asks for 9 images", 9, atTicketSize.count { it.startsWith("SHOWUP-180") })
+        assertEquals("SHOWUP-181 asks for 12 images and D scrolled", 13, atTicketSize.count { it.startsWith("SHOWUP-181") })
+        assertEquals("SHOWUP-182 asks for 9 images", 9, atTicketSize.count { it.startsWith("SHOWUP-182") })
+        assertEquals("SHOWUP-183 asks for 15 images", 15, atTicketSize.count { it.startsWith("SHOWUP-183") })
+        written.forEach { name ->
+            assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000)
+        }
+        println("EVIDENCE 178-183: ${written.size} images in ${out.absolutePath}")
     }
 }

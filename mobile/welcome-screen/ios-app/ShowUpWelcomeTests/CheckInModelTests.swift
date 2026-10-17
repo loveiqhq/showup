@@ -1,0 +1,851 @@
+//
+//  CheckInModelTests.swift
+//  ShowUp · the 48hrs Check-In's state machine, driven with no device (SHOWUP-178 to SHOWUP-183)
+//
+//  The Swift half of `CheckInViewModelTest.kt`, case for case: every row of the six tickets'
+//  tracking tables with its payload, the order they fire in ("the act's event, then navigation,
+//  then the next screen_viewed"), every event that must NOT fire, and the behaviour the acceptance
+//  criteria name -- single-fire CTAs, inert controls while saving, what close discards and what back
+//  keeps, the pre-fills, the clock, the commit body, retries and failures, and the two stale-read
+//  races. Kotlin advances a virtual clock; here the model's tasks run for real and `settle()` waits
+//  for them, with the toast's 2600 ms injected short.
+//
+//  The payload field sets are written out verbatim from `events.json` (the Kotlin twin reads the
+//  file itself, so a registry change fails there and here).
+//
+
+import XCTest
+@testable import ShowUpWelcome
+
+private let window = "8a1f2c44-0b6e-4f0a-9d2b-3c7e5a1b9f00"
+
+@MainActor
+private final class Recorder: AnalyticsTracking {
+    var events: [(String, [String: any Sendable])] = []
+
+    nonisolated func track(_ name: String, properties: [String: any Sendable]) {
+        MainActor.assumeIsolated { events.append((name, properties)) }
+    }
+
+    var names: [String] { events.map(\.0) }
+    func of(_ name: String) -> [[String: any Sendable]] { events.filter { $0.0 == name }.map(\.1) }
+    func clear() { events.removeAll() }
+}
+
+/// A server that records every call, answers from what it holds, and can be made to fail or wait.
+private actor FakeStore: CheckInStoring {
+    private(set) var held = CheckInState(
+        windowId: window, introPassed: false, active: false, firstCheckIn: true,
+        lastMotivation: nil, lastVibes: [], filters: CheckInFilters(genders: ["woman"]))
+    private var reads = true
+    private var filterSaves = true
+    /// Whether marking the intro passed reaches what later reads return.
+    private var marksStick = true
+    private var commitAnswers: [CommitResult] = []
+    private var commitDelay: UInt64 = 0
+    private var loadDelay: UInt64 = 0
+    private(set) var commits: [CommitRequest] = []
+    private(set) var answers: [(String?, Set<String>?)] = []
+    private(set) var filterBodies: [CheckInFilters] = []
+    private(set) var introMarks = 0
+
+    func setHeld(_ value: CheckInState) { held = value }
+    func setReads(_ value: Bool) { reads = value }
+    func setFilterSaves(_ value: Bool) { filterSaves = value }
+    func setMarksStick(_ value: Bool) { marksStick = value }
+    func answerCommits(_ results: [CommitResult]) { commitAnswers.append(contentsOf: results) }
+    func slowCommits(_ nanoseconds: UInt64) { commitDelay = nanoseconds }
+    func slowLoads(_ nanoseconds: UInt64) { loadDelay = nanoseconds }
+
+    func load() async -> CheckInState? {
+        let snapshot = held
+        if loadDelay > 0 { try? await Task.sleep(nanoseconds: loadDelay) }
+        return reads ? snapshot : nil
+    }
+
+    func markIntroPassed() async -> Bool {
+        introMarks += 1
+        if marksStick { held.introPassed = true }
+        return true
+    }
+
+    func saveAnswers(motivation: String?, vibes: Set<String>?) async -> Bool {
+        answers.append((motivation, vibes))
+        return true
+    }
+
+    func saveFilters(_ filters: CheckInFilters) async -> Bool {
+        filterBodies.append(filters)
+        return filterSaves
+    }
+
+    func commit(_ request: CommitRequest) async -> CommitResult {
+        commits.append(request)
+        if commitDelay > 0 { try? await Task.sleep(nanoseconds: commitDelay) }
+        if !commitAnswers.isEmpty { return commitAnswers.removeFirst() }
+        var saved = held
+        saved.active = true
+        return .saved(saved)
+    }
+}
+
+@MainActor
+final class CheckInModelTests: XCTestCase {
+
+    private var store = FakeStore()
+    private var analytics = Recorder()
+    private var now = CivilDateTime(date: CivilDate(year: 2026, month: 10, day: 13), hour: 16, minute: 20)
+    private var ms = 1_000
+    /// How many times a commit navigated -- a property, so a task's closure can count it.
+    private var landed = 0
+    private var model: CheckInModel!
+
+    override func setUp() {
+        super.setUp()
+        store = FakeStore()
+        analytics = Recorder()
+        now = at(16, 20)
+        ms = 1_000
+        landed = 0
+        model = CheckInModel(
+            store: store, analytics: analytics,
+            clock: { [unowned self] in self.now },
+            zone: { TimeZone(secondsFromGMT: 0) ?? .current },
+            millis: { [unowned self] in self.ms },
+            toastSeconds: 0.5)
+    }
+
+    private func at(_ h: Int, _ m: Int, day: Int = 13) -> CivilDateTime {
+        CivilDateTime(date: CivilDate(year: 2026, month: 10, day: day), hour: h, minute: m)
+    }
+
+    private var state: CheckInUiState { model.state }
+
+    /// Lets the model's own tasks -- a read, a save -- run to the end.
+    private func settle(_ seconds: Double = 0.05) async {
+        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    }
+
+    private func begin() async {
+        model.beginFlow()
+        await settle()
+    }
+
+    private func arrive(_ step: CheckInStep, referrer: ProfileScreen? = nil) async {
+        model.arrived(step, screen: step.screen, referrer: referrer)
+        await settle()
+    }
+
+    /// Drives the flow from the intro to `to`, answering each step the simplest valid way.
+    private func walkTo(_ to: CheckInStep) async {
+        await begin()
+        await arrive(.today)
+        if to == .today { return }
+        model.slotTapped(.today, start: state.todayGrid!.starts[1])
+        model.availabilityContinue(.today) {}
+        await arrive(.tomorrow, referrer: .checkinToday)
+        if to == .tomorrow { return }
+        model.slotTapped(.tomorrow, start: state.tomorrowGrid!.starts[5])
+        model.availabilityContinue(.tomorrow) {}
+        await arrive(.motivation, referrer: .checkinTomorrow)
+        if to == .motivation { return }
+        model.motivationTapped("long_term")
+        model.motivationContinue {}
+        await arrive(.vibe, referrer: .checkinMotivation)
+        if to == .vibe { return }
+        model.vibeTapped("calm")
+        model.vibeContinue {}
+        await arrive(.filters, referrer: .checkinVibe)
+        if to == .filters { return }
+        model.filtersContinue {}
+        await arrive(.uplift, referrer: .checkinFilters)
+    }
+
+    /// The one event of that name -- fails if it fired more or less than once.
+    private func props(_ event: String, file: StaticString = #filePath, line: UInt = #line) -> [String: any Sendable] {
+        let all = analytics.of(event)
+        XCTAssertEqual(all.count, 1, "\(event) fired \(all.count) times", file: file, line: line)
+        return all.first ?? [:]
+    }
+
+    // MARK: - 01: the intro and the gate
+
+    func testTheIntroReportsItsViewWithTheNavigationsReferrer() async {
+        await begin()
+        model.arrived(.intro, screen: .checkinIntro, referrer: .lifeAhead)
+        let viewed = props("screen_viewed")
+        XCTAssertEqual(viewed["screen_id"] as? String, "checkin_intro")
+        XCTAssertEqual(viewed["screen_name"] as? String, "CheckinIntro")
+        XCTAssertEqual(viewed["referrer_screen_id"] as? String, "profile_life_ahead")
+    }
+
+    func testTheIntroCtaFiresCheckInStartedOnceMarksTheIntroPassedAndAdvances() async {
+        await begin()
+        model.arrived(.intro, screen: .checkinIntro, referrer: nil)
+        analytics.clear()
+        var advanced = 0
+        model.introStarted { advanced += 1 }
+        model.introStarted { advanced += 1 }
+        await settle()
+        XCTAssertEqual(advanced, 1, "single-fire: a second tap during the push does nothing")
+        XCTAssertEqual(analytics.names, ["check_in_started"])
+        XCTAssertEqual(props("check_in_started")["window_id"] as? String, window)
+        let marks = await store.introMarks
+        XCTAssertEqual(marks, 1)
+        XCTAssertEqual(model.gateDestination(), .today)
+    }
+
+    func testAReadAlreadyInFlightWhenTheIntroIsPassedCannotUnPassIt() async {
+        await begin()
+        // The server keeps saying "not yet" to every read, as one that began before the tap does.
+        await store.setMarksStick(false)
+        await store.slowLoads(100_000_000)
+        model.arrived(.intro, screen: .checkinIntro, referrer: nil)   // starts a read
+        model.introStarted {}                                        // before it lands
+        await settle(0.3)
+        XCTAssertEqual(model.gateDestination(), .today)
+    }
+
+    func testAReadThatStartedBeforeACommitCannotLockSearchAgain() async {
+        await walkTo(.uplift)
+        await store.slowLoads(400_000_000)
+        await store.slowCommits(100_000_000)
+        model.refresh()                                              // reads "not active", lands at 0.4s
+        let commit = Task { await self.model.findMyDate {} }              // saves at 0.1s
+        await settle(0.25)
+        XCTAssertEqual(state.server?.active, true)
+        await commit.value
+        await settle(0.35)
+        XCTAssertEqual(state.server?.active, true, "the stale read cannot lock Search again")
+    }
+
+    func testTheIntrosCloseLandsOnTheGateWithCheckInClosedIntroAndKeepsNothing() async {
+        await begin()
+        model.arrived(.intro, screen: .checkinIntro, referrer: nil)
+        var closed = false
+        model.closePressed(.intro) { closed = true }
+        XCTAssertTrue(closed)
+        XCTAssertEqual(props("check_in_closed")["step_id"] as? String, "intro")
+        XCTAssertEqual(props("check_in_closed")["window_id"] as? String, window)
+        XCTAssertFalse(model.flowAlive)
+    }
+
+    func testTheGateReopensAtTheIntroUntilItHasBeenPassedThenAtToday() async {
+        await begin()
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: .checkinIntro)
+        var to: CheckInStep?
+        model.gateTapped(.cta) { to = $0 }
+        XCTAssertEqual(to, .intro)
+        XCTAssertEqual(analytics.of("check_in_gate_tapped").last?["intro_passed"] as? Bool, false)
+        XCTAssertEqual(analytics.of("check_in_gate_tapped").last?["target"] as? String, "cta")
+
+        // The real walk: the intro, its CTA never tapped, closed back to the gate -- then the intro
+        // is passed on another device, and the next read says so.
+        model.arrived(.intro, screen: .checkinIntro, referrer: .checkinSearchUnavailable)
+        model.closePressed(.intro) {}
+        var held = await store.held
+        held.introPassed = true
+        await store.setHeld(held)
+        await settle()
+        model.refresh()
+        await settle()
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: .checkinIntro)
+        model.gateTapped(.instantTab) { to = $0 }
+        XCTAssertEqual(to, .today)
+        let last = analytics.of("check_in_gate_tapped").last
+        XCTAssertEqual(last?["intro_passed"] as? Bool, true)
+        XCTAssertEqual(last?["target"] as? String, "instant_tab")
+        XCTAssertTrue(analytics.of("check_in_started").isEmpty, "check_in_started is the intro CTA's alone")
+    }
+
+    func testTheGateFiresOncePerShowingAndSettingsInstantTabIsStillTheGate() async {
+        await begin()
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: nil)
+        var opened = 0
+        model.gateTapped(.searchTab) { _ in opened += 1 }
+        model.gateTapped(.cta) { _ in opened += 1 }
+        XCTAssertEqual(opened, 1)
+        XCTAssertEqual(analytics.of("check_in_gate_tapped").count, 1)
+        model.atTabs()
+        model.gateTapped(.instantTab) { _ in opened += 1 }
+        XCTAssertEqual(opened, 2)
+        XCTAssertEqual(analytics.of("check_in_gate_tapped").last?["target"] as? String, "instant_tab")
+    }
+
+    func testTheGatesViewCarriesItsOwnScreenIdAndIsReportedAgainAfterSettings() {
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: .checkinIntro)
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: .checkinIntro)
+        XCTAssertEqual(analytics.of("screen_viewed").count, 1, "a redraw is not an arrival")
+        XCTAssertEqual(analytics.of("screen_viewed").first?["screen_id"] as? String, "checkin_search_unavailable")
+        model.atTabs()
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: nil)
+        XCTAssertEqual(analytics.of("screen_viewed").count, 2)
+    }
+
+    // MARK: - 02: availability
+
+    func testTodayStartsEmptyOnEveryEntryAndItsGridBeginsAtTheNextFullHour() async {
+        await begin()
+        await arrive(.today)
+        XCTAssertTrue(state.picks.isEmpty)
+        XCTAssertEqual(state.todayGrid?.hours.first, 17)
+        XCTAssertEqual(state.tomorrowGrid?.hours.count, 24)
+    }
+
+    func testSlotTapsCycleAndFireNothing() async {
+        await begin()
+        await arrive(.today)
+        analytics.clear()
+        let six = state.todayGrid!.starts[1]
+        model.slotTapped(.today, start: six)
+        XCTAssertEqual(state.picks[six], .preferred)
+        model.slotTapped(.today, start: six)
+        XCTAssertEqual(state.picks[six], .available)
+        model.slotTapped(.today, start: six)
+        XCTAssertNil(state.picks[six])
+        model.slotTapped(.today, start: six)
+        model.clearAll(.today)
+        model.toggleHowItWorks()
+        XCTAssertTrue(state.picks.isEmpty)
+        XCTAssertTrue(analytics.names.isEmpty, "no per-tap, Clear all or How it works event")
+    }
+
+    func testTodaysContinueWithHoursFiresStepAnsweredThenSlotsSetThenAdvances() async {
+        await begin()
+        await arrive(.today)
+        analytics.clear()
+        let g = state.todayGrid!
+        model.slotTapped(.today, start: g.starts[1])
+        model.slotTapped(.today, start: g.starts[2])
+        model.slotTapped(.today, start: g.starts[3])
+        model.slotTapped(.today, start: g.starts[3])
+        ms += 4_000
+        var order: [String] = []
+        model.availabilityContinue(.today) { order.append("navigate") }
+        order.insert(contentsOf: analytics.names, at: 0)
+        XCTAssertEqual(order, ["check_in_step_answered", "availability_slots_set", "navigate"])
+        let answered = props("check_in_step_answered")
+        XCTAssertEqual(answered["step_id"] as? String, "today")
+        XCTAssertEqual(answered["answer_value"] as? String, "hours")
+        XCTAssertEqual(answered["time_to_answer_ms"] as? Int, 4_000)
+        let slots = props("availability_slots_set")
+        XCTAssertEqual(slots["day"] as? String, "today")
+        XCTAssertEqual(slots["preferred_hours"] as? Int, 2)
+        XCTAssertEqual(slots["available_hours"] as? Int, 1)
+        XCTAssertEqual(slots["window_id"] as? String, window)
+    }
+
+    func testAnEmptyTodayRaisesTheConfirmNeverAnErrorAndFiresNothingUntilAnswered() async {
+        await begin()
+        await arrive(.today)
+        analytics.clear()
+        var moved = false
+        model.availabilityContinue(.today) { moved = true }
+        XCTAssertTrue(state.noHoursDialog)
+        XCTAssertFalse(moved)
+        XCTAssertNil(state.toast)
+        XCTAssertTrue(analytics.names.isEmpty)
+    }
+
+    func testContinueToTomorrowRecordsAnEmptyTodayResolutionFirst() async {
+        await begin()
+        await arrive(.today)
+        analytics.clear()
+        model.availabilityContinue(.today) {}
+        var moved = false
+        model.noHoursConfirmed { moved = true }
+        XCTAssertTrue(moved)
+        XCTAssertEqual(analytics.names,
+                       ["check_in_no_hours_today_resolved", "check_in_step_answered", "availability_slots_set"])
+        XCTAssertEqual(props("check_in_no_hours_today_resolved")["action"] as? String, "continue_tomorrow")
+        XCTAssertEqual(props("check_in_step_answered")["answer_value"] as? String, "none")
+        XCTAssertEqual(props("availability_slots_set")["preferred_hours"] as? Int, 0)
+        XCTAssertEqual(props("availability_slots_set")["available_hours"] as? Int, 0)
+        XCTAssertFalse(state.noHoursDialog)
+    }
+
+    func testCancelAndDismissStayOnTodayWithTheirOwnActions() async {
+        await begin()
+        await arrive(.today)
+        model.availabilityContinue(.today) {}
+        model.noHoursCancelled(dismissed: false)
+        XCTAssertFalse(state.noHoursDialog)
+        model.availabilityContinue(.today) {}
+        model.noHoursCancelled(dismissed: true)
+        XCTAssertEqual(analytics.of("check_in_no_hours_today_resolved").map { $0["action"] as? String },
+                       ["pick_today", "dismissed"])
+        XCTAssertTrue(analytics.of("check_in_step_answered").isEmpty)
+        model.noHoursCancelled(dismissed: true)
+        XCTAssertEqual(analytics.of("check_in_no_hours_today_resolved").count, 2, "no dialog, no event")
+    }
+
+    func testAnEmptyTomorrowRaisesTheToastARepeatRestartsItAndFiresNothing() async {
+        await walkTo(.tomorrow)
+        analytics.clear()
+        XCTAssertTrue(state.tomorrowGrid!.picked(state.picks).isEmpty)
+        var moved = false
+        model.availabilityContinue(.tomorrow) { moved = true }
+        XCTAssertFalse(moved)
+        XCTAssertEqual(state.toast, CheckInCopy.tomorrowToast)
+        let tick = state.toastTick
+        await settle(0.3)
+        model.availabilityContinue(.tomorrow) {}
+        XCTAssertEqual(state.toastTick, tick + 1)
+        await settle(0.3)
+        XCTAssertNotNil(state.toast, "restarted, so still up after the first tap's time ran out")
+        await settle(0.45)
+        XCTAssertNil(state.toast)
+        XCTAssertTrue(analytics.names.isEmpty)
+    }
+
+    func testBackAndForwardKeepBothDaysPicksAndACloseDiscardsThem() async {
+        await walkTo(.tomorrow)
+        model.slotTapped(.tomorrow, start: state.tomorrowGrid!.starts[0])
+        var back = false
+        model.backPressed(.tomorrow) { back = true }
+        XCTAssertTrue(back)
+        await arrive(.today, referrer: .checkinTomorrow)
+        XCTAssertEqual(state.todayGrid!.picked(state.picks).count, 1)
+        XCTAssertEqual(state.tomorrowGrid!.picked(state.picks).count, 1)
+        XCTAssertEqual(analytics.of("screen_viewed").last?["referrer_screen_id"] as? String, "checkin_tomorrow")
+        model.closePressed(.today) {}
+        XCTAssertTrue(state.picks.isEmpty)
+        XCTAssertEqual(analytics.of("check_in_closed").map { $0["step_id"] as? String }, ["today"])
+    }
+
+    func testAnHourThatStartsWhileTheFlowIsOpenFallsOutOfTheGridAndTheSelection() async {
+        await begin()
+        await arrive(.today)
+        let five = state.todayGrid!.starts[0]
+        let six = state.todayGrid!.starts[1]
+        model.slotTapped(.today, start: five)
+        model.slotTapped(.today, start: six)
+        now = at(17, 5)
+        model.evaluateClock()
+        XCTAssertEqual(state.todayGrid?.hours.first, 18)
+        XCTAssertNil(state.picks[five])
+        XCTAssertEqual(state.picks[six], .preferred)
+    }
+
+    func testAcross7amTheDayThatWasTomorrowBecomesTodayAndKeepsItsPicks() async {
+        now = at(5, 20)
+        model.evaluateClock()
+        await begin()
+        await arrive(.tomorrow)
+        let eight = state.tomorrowGrid!.starts[1]
+        model.slotTapped(.tomorrow, start: eight)
+        now = at(6, 30)
+        model.evaluateClock()
+        XCTAssertEqual(state.todayGrid?.starts[1], eight)
+        XCTAssertEqual(state.todayGrid?.picked(state.picks)[8], .preferred)
+    }
+
+    // MARK: - 03: motivation
+
+    func testAFirstCheckInStartsWithNothingSelectedAndAnEmptyContinueToasts() async {
+        await walkTo(.motivation)
+        XCTAssertNil(state.motivation)
+        analytics.clear()
+        var moved = false
+        model.motivationContinue { moved = true }
+        XCTAssertFalse(moved)
+        XCTAssertEqual(state.toast, CheckInCopy.motivationToast)
+        XCTAssertTrue(analytics.names.isEmpty)
+    }
+
+    func testContinueFiresStepAnsweredThenMotivationSelectedAtClass1AndSavesTheAnswer() async {
+        await walkTo(.motivation)
+        analytics.clear()
+        model.motivationTapped("casual")
+        model.motivationTapped("long_term")
+        model.motivationTapped("long_term")
+        model.motivationContinue {}
+        await settle()
+        XCTAssertEqual(analytics.names, ["check_in_step_answered", "motivation_selected"])
+        XCTAssertEqual(props("check_in_step_answered")["answer_value"] as? String, "picked")
+        let selected = props("motivation_selected")
+        XCTAssertEqual(selected["motivation_id"] as? String, "long_term")
+        XCTAssertEqual(selected["sensitivity_class"] as? Int, 1)
+        let last = await store.answers.last
+        XCTAssertEqual(last?.0, "long_term")
+        XCTAssertNil(last?.1)
+    }
+
+    func testAReturningUserLandsOnTheLastAcceptedAnswerAndContinueReportsPrefilled() async {
+        var held = await store.held
+        held.lastMotivation = "casual"
+        held.lastVibes = ["calm", "playful"]
+        held.firstCheckIn = false
+        await store.setHeld(held)
+        await walkTo(.motivation)
+        XCTAssertEqual(state.motivation, "casual")
+        model.motivationContinue {}
+        XCTAssertEqual(analytics.of("check_in_step_answered").last?["answer_value"] as? String, "prefilled")
+        XCTAssertEqual(analytics.of("motivation_selected").map { $0["motivation_id"] as? String }, ["casual"])
+    }
+
+    func testACloseOnMotivationSavesNothingItDidNotAccept() async {
+        await walkTo(.motivation)
+        model.motivationTapped("friends")
+        model.closePressed(.motivation) {}
+        await settle()
+        let answers = await store.answers
+        XCTAssertTrue(answers.isEmpty)
+        XCTAssertEqual(analytics.of("check_in_closed").map { $0["step_id"] as? String }, ["motivation"])
+    }
+
+    // MARK: - 04: vibe
+
+    func testASixthChipSelectsNothingAndRaisesTheMaxToastWithNoEvent() async {
+        await walkTo(.vibe)
+        for id in ["coffee_chat", "sunset", "calm", "playful", "no_rush"] { model.vibeTapped(id) }
+        analytics.clear()
+        model.vibeTapped("cozy")
+        XCTAssertEqual(state.vibes.count, 5)
+        XCTAssertFalse(state.vibes.contains("cozy"))
+        XCTAssertEqual(state.toast, CheckInCopy.vibeToastMax)
+        XCTAssertTrue(analytics.names.isEmpty)
+    }
+
+    func testContinueReportsTheWholeSetInListOrderOnce() async {
+        await walkTo(.vibe)
+        analytics.clear()
+        model.vibeTapped("no_rush")
+        model.vibeTapped("playful")
+        model.vibeTapped("coffee_chat")
+        model.vibeContinue {}
+        XCTAssertEqual(analytics.names, ["check_in_step_answered", "vibe_selected"])
+        let selected = props("vibe_selected")
+        XCTAssertEqual(selected["vibe_ids"] as? String, "coffee_chat,playful,no_rush")
+        XCTAssertEqual(selected["vibe_count"] as? Int, 3)
+        XCTAssertEqual(selected["sensitivity_class"] as? Int, 0)
+    }
+
+    func testAnEmptyVibeToastsAndSameValuesInAnyTapOrderArePrefilled() async {
+        var held = await store.held
+        held.lastVibes = ["calm", "playful"]
+        await store.setHeld(held)
+        await walkTo(.vibe)
+        model.vibeTapped("calm")
+        model.vibeTapped("playful")
+        XCTAssertTrue(state.vibes.isEmpty)
+        model.vibeContinue {}
+        XCTAssertEqual(state.toast, CheckInCopy.vibeToastEmpty)
+        model.vibeTapped("playful")
+        model.vibeTapped("calm")
+        model.vibeContinue {}
+        XCTAssertEqual(analytics.of("check_in_step_answered").last?["answer_value"] as? String, "prefilled")
+    }
+
+    // MARK: - 05: filters
+
+    func testFiltersPrefillReportWhatChangedButNeverTheGendersAndSend65PlusAsNull() async {
+        await walkTo(.filters)
+        XCTAssertEqual(state.filters?.genders, ["woman"])
+        analytics.clear()
+        model.genderTapped("non_binary")
+        model.ageMoved(thumb: 0, value: 25)
+        model.ageMoved(thumb: 1, value: 35)
+        model.distanceMoved(15)
+        XCTAssertTrue(analytics.names.isEmpty, "no event per drag or tap")
+        model.filtersContinue {}
+        await settle()
+        XCTAssertEqual(analytics.names, ["check_in_step_answered", "check_in_filters_changed"])
+        let changed = props("check_in_filters_changed")
+        XCTAssertEqual(changed["filters_changed"] as? String, "meet_gender,age_range,distance_km")
+        XCTAssertEqual(changed["min_age"] as? Int, 25)
+        XCTAssertEqual(changed["max_age"] as? Int, 35)
+        XCTAssertEqual(changed["distance_km"] as? Int, 15)
+        XCTAssertFalse(changed.values.contains { String(describing: $0).contains("non_binary") },
+                       "the genders are Class 2 and never travel")
+        let saved = await store.filterBodies.last
+        XCTAssertEqual(saved, CheckInFilters(genders: ["woman", "non_binary"], minAge: 25, maxAge: 35, distanceKm: 15))
+    }
+
+    func testUnchangedFiltersStillFireWithNoneAndANullMaxAge() async {
+        await walkTo(.filters)
+        analytics.clear()
+        model.filtersContinue {}
+        XCTAssertEqual(props("check_in_step_answered")["answer_value"] as? String, "prefilled")
+        XCTAssertEqual(props("check_in_filters_changed")["filters_changed"] as? String, "none")
+        XCTAssertEqual(props("check_in_filters_changed")["max_age"] as? JSONNull, JSONNull())
+    }
+
+    func testNoGenderToastsAndStays() async {
+        await walkTo(.filters)
+        model.genderTapped("woman")
+        var moved = false
+        model.filtersContinue { moved = true }
+        XCTAssertFalse(moved)
+        XCTAssertEqual(state.toast, CheckInCopy.filtersToast)
+    }
+
+    func testAnOfflineStartStillGivesFiltersAWorkingStandInReplacedByALateReadIfUntouched() async {
+        await store.setReads(false)
+        await walkTo(.vibe)
+        model.vibeContinue {}
+        await arrive(.filters)
+        XCTAssertEqual(state.filters?.genders, [], "no gender ticked: Continue toasts, never a dead button")
+        await store.setReads(true)
+        var held = await store.held
+        held.filters = CheckInFilters(genders: ["man"], distanceKm: 20)
+        await store.setHeld(held)
+        model.refresh()
+        await settle()
+        XCTAssertEqual(state.filters?.genders, ["man"])
+    }
+
+    func testALateReadNeverOverwritesAFilterTheUserHasTouched() async {
+        await store.setReads(false)
+        await walkTo(.vibe)
+        model.vibeContinue {}
+        await arrive(.filters)
+        model.genderTapped("other")
+        await store.setReads(true)
+        model.refresh()
+        await settle()
+        XCTAssertEqual(state.filters?.genders, ["other"])
+    }
+
+    // MARK: - 06: uplift and the commit
+
+    func testTheFieldIsEmptyOnEveryEntryCutAt100GraphemesAndBackKeepsIt() async {
+        await walkTo(.uplift)
+        XCTAssertEqual(state.uplift, "")
+        model.upliftChanged(String(repeating: "\u{1F600}", count: 130))
+        XCTAssertEqual(graphemeCount(state.uplift), 100)
+        model.upliftChanged("boat")
+        model.backPressed(.uplift) {}
+        await arrive(.filters, referrer: .checkinUplift)
+        model.filtersContinue {}
+        await arrive(.uplift, referrer: .checkinFilters)
+        XCTAssertEqual(state.uplift, "boat")
+    }
+
+    func testContactInfoBlocksTheCommitToastsAndSendsNothing() async {
+        await walkTo(.uplift)
+        analytics.clear()
+        model.upliftChanged("Text me on 0176 2345 6789")
+        XCTAssertTrue(state.upliftBlocked)
+        await model.findMyDate {}
+        XCTAssertEqual(state.toast, CheckInCopy.contactError)
+        await settle()
+        let commits = await store.commits
+        XCTAssertTrue(commits.isEmpty)
+        XCTAssertTrue(analytics.names.isEmpty, "no request, no event")
+        model.upliftChanged("Text me")
+        XCTAssertFalse(state.upliftBlocked)
+    }
+
+    func testAnEmptyFieldCommitsWithNoPromptAndSuccessFiresStepAnsweredThenNavigates() async {
+        await walkTo(.uplift)
+        analytics.clear()
+        ms += 9_000
+        var order: [String] = []
+        await model.findMyDate { order.append("navigate") }
+        order.insert(contentsOf: analytics.names, at: 0)
+        XCTAssertEqual(order, ["check_in_step_answered", "navigate"])
+        let answered = props("check_in_step_answered")
+        XCTAssertEqual(answered["step_id"] as? String, "uplift")
+        XCTAssertEqual(answered["answer_value"] as? String, "empty")
+        XCTAssertEqual(answered["time_to_answer_ms"] as? Int, 9_000)
+        XCTAssertTrue(analytics.of("check_in_created").isEmpty, "check_in_created is the server's")
+        XCTAssertTrue(analytics.of("check_in_completed").isEmpty)
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 1)
+        XCTAssertNil(commits.first?.uplift, "empty is stored as no uplift, never \"\"")
+        XCTAssertFalse(model.flowAlive)
+    }
+
+    func testTheCommitCarriesBothDaysSlotsAsInstantsTheAnswersAndTheTrimmedText() async throws {
+        await walkTo(.uplift)
+        model.upliftChanged("  will take you out on my boat  ")
+        await model.findMyDate {}
+        let commits = await store.commits
+        let request = try XCTUnwrap(commits.first)
+        XCTAssertEqual(commits.count, 1)
+        XCTAssertEqual(request.windowId, window)
+        XCTAssertEqual(request.uplift, "will take you out on my boat")
+        XCTAssertEqual(request.motivation, "long_term")
+        XCTAssertEqual(request.vibes, ["calm"])
+        let iso = ISO8601DateFormatter()
+        XCTAssertEqual(request.slots, [
+            CommitSlot(startsAt: try XCTUnwrap(iso.date(from: "2026-10-13T18:00:00Z")), tier: .preferred),
+            CommitSlot(startsAt: try XCTUnwrap(iso.date(from: "2026-10-14T12:00:00Z")), tier: .preferred),
+        ])
+        XCTAssertEqual(analytics.of("check_in_step_answered").last?["answer_value"] as? String, "written")
+    }
+
+    func testWhileSavingTheButtonBackAndCloseAreInertAndADoubleTapSendsOneRequest() async {
+        await walkTo(.uplift)
+        await store.slowCommits(300_000_000)
+        let first = Task { await self.model.findMyDate { self.landed += 1 } }
+        await settle()
+        await model.findMyDate { landed += 1 }
+        XCTAssertTrue(state.saving)
+        var back = false
+        var closed = false
+        model.backPressed(.uplift) { back = true }
+        model.closePressed(.uplift) { closed = true }
+        model.upliftChanged("changed while saving")
+        XCTAssertFalse(back)
+        XCTAssertFalse(closed)
+        XCTAssertEqual(state.uplift, "")
+        await first.value
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 1)
+        XCTAssertEqual(landed, 1)
+        XCTAssertTrue(analytics.of("check_in_closed").isEmpty)
+    }
+
+    func testAFailedSaveKeepsEverythingReportsOncePerRequestAndTheRetryCountsUp() async {
+        await walkTo(.uplift)
+        await store.answerCommits([.network, .server])
+        model.upliftChanged("boat")
+        await model.findMyDate {}
+        XCTAssertTrue(state.saveFailed)
+        XCTAssertEqual(state.uplift, "boat")
+        XCTAssertEqual(state.picks.count, 2)
+        await model.findMyDate {}
+        var landed = false
+        await model.findMyDate { landed = true }
+        XCTAssertTrue(landed)
+        let failures = analytics.of("check_in_commit_failed")
+        XCTAssertEqual(failures.map { $0["reason"] as? String }, ["network", "server"])
+        XCTAssertEqual(failures.map { $0["attempt"] as? Int }, [1, 2])
+        XCTAssertEqual(analytics.of("check_in_step_answered").filter { $0["step_id"] as? String == "uplift" }.count, 1,
+                       "step_answered fires on the save, once")
+    }
+
+    func testTheSaveFailedCardClearsOnTheNextTapOrAnEdit() async {
+        await walkTo(.uplift)
+        await store.answerCommits([.network])
+        await model.findMyDate {}
+        XCTAssertTrue(state.saveFailed)
+        model.upliftChanged("x")
+        XCTAssertFalse(state.saveFailed)
+    }
+
+    func testAServerContactInfoRefusalShowsStateCNotTheSaveFailedCard() async {
+        await walkTo(.uplift)
+        await store.answerCommits([.contactInfo])
+        model.upliftChanged("ping me on insta")
+        await model.findMyDate {}
+        XCTAssertTrue(state.upliftBlocked)
+        XCTAssertFalse(state.saveFailed)
+        XCTAssertEqual(props("check_in_commit_failed")["reason"] as? String, "contact_info")
+        await model.findMyDate {}
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 1, "a dimmed tap toasts and sends nothing")
+        XCTAssertEqual(state.toast, CheckInCopy.contactError)
+        model.upliftChanged("ping me")
+        XCTAssertFalse(state.upliftBlocked)
+    }
+
+    func testFiltersThatDidNotSaveAreSavedBeforeTheCommit() async {
+        await store.setFilterSaves(false)
+        await walkTo(.uplift)
+        await store.setFilterSaves(true)
+        let before = await store.filterBodies.count
+        await model.findMyDate {}
+        let after = await store.filterBodies.count
+        let commits = await store.commits
+        XCTAssertEqual(after, before + 1)
+        XCTAssertEqual(commits.count, 1)
+    }
+
+    func testTheUpliftCloseDiscardsTheTextAndFiresClosedUplift() async {
+        await walkTo(.uplift)
+        model.upliftChanged("boat")
+        model.closePressed(.uplift) {}
+        XCTAssertEqual(state.uplift, "")
+        XCTAssertEqual(props("check_in_closed")["step_id"] as? String, "uplift")
+    }
+
+    /// The Kotlin twin's `CancellationException` path: a commit whose task ended is not a failure.
+    func testACommitWhoseTaskIsCancelledReportsNothingAndFreesTheScreen() async {
+        await walkTo(.uplift)
+        await store.slowCommits(300_000_000)
+        await store.answerCommits([.network])
+        let commit = Task { await self.model.findMyDate {} }
+        await settle()
+        XCTAssertTrue(state.saving)
+        commit.cancel()
+        await commit.value
+        XCTAssertTrue(analytics.of("check_in_commit_failed").isEmpty)
+        XCTAssertFalse(state.saving)
+        XCTAssertFalse(state.saveFailed)
+    }
+
+    /// Unreachable through the walk -- Motivation's Continue needs one -- but never a dead button.
+    func testFindMyDateWithNoMotivationShowsTheSaveFailedCardAndSendsNothing() async {
+        await begin()
+        await arrive(.uplift)
+        XCTAssertNil(state.motivation)
+        await model.findMyDate {}
+        XCTAssertTrue(state.saveFailed)
+        let commits = await store.commits
+        XCTAssertTrue(commits.isEmpty)
+        XCTAssertTrue(analytics.of("check_in_commit_failed").isEmpty)
+    }
+
+    // MARK: - the whole flow
+
+    func testAFullWalkFiresOnlyRegisteredNamesAndNoEventCarriesTheUpliftOrAGender() async {
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: nil)
+        model.gateTapped(.cta) { _ in }
+        await walkTo(.uplift)
+        model.upliftChanged("will take you out on my boat")
+        await model.findMyDate {}
+        let allowed: Set<String> = [
+            "screen_viewed", "check_in_started", "check_in_closed", "check_in_gate_tapped", "check_in_step_answered",
+            "availability_slots_set", "check_in_no_hours_today_resolved", "motivation_selected", "vibe_selected",
+            "check_in_filters_changed", "check_in_commit_failed",
+        ]
+        XCTAssertTrue(analytics.names.allSatisfy { allowed.contains($0) }, "\(analytics.names)")
+        for (name, properties) in analytics.events {
+            for value in properties.values {
+                XCTAssertFalse(String(describing: value).contains("boat"), "\(name) carries the uplift")
+                XCTAssertNotEqual(String(describing: value), "woman", "\(name) carries a gender")
+            }
+        }
+        XCTAssertEqual(analytics.of("check_in_step_answered").map { $0["step_id"] as? String },
+                       ["today", "tomorrow", "motivation", "vibe", "filters", "uplift"])
+    }
+
+    func testEveryPayloadNamesExactlyTheRegistrysFields() async {
+        model.arrived(nil, screen: .checkinSearchUnavailable, referrer: nil)
+        model.gateTapped(.cta) { _ in }
+        await begin()
+        model.arrived(.intro, screen: .checkinIntro, referrer: nil)
+        model.introStarted {}
+        await arrive(.today)
+        model.availabilityContinue(.today) {}
+        model.noHoursConfirmed {}
+        await walkTo(.uplift)
+        await store.answerCommits([.network])
+        await model.findMyDate {}
+        model.closePressed(.uplift) {}
+
+        // events.json, family H, verbatim.
+        let registry: [String: Set<String>] = [
+            "check_in_started": ["window_id"],
+            "check_in_closed": ["step_id", "window_id"],
+            "check_in_gate_tapped": ["target", "intro_passed"],
+            "check_in_step_answered": ["step_id", "answer_value", "time_to_answer_ms"],
+            "availability_slots_set": ["day", "preferred_hours", "available_hours", "window_id"],
+            "check_in_no_hours_today_resolved": ["action", "window_id"],
+            "motivation_selected": ["motivation_id", "window_id"],
+            "vibe_selected": ["vibe_ids", "vibe_count", "window_id"],
+            "check_in_filters_changed": ["filters_changed", "min_age", "max_age", "distance_km", "window_id"],
+            "check_in_commit_failed": ["reason", "attempt", "window_id"],
+        ]
+        let stamp: Set<String> = ["sensitivity_class", "field_registry_version"]
+        let seen = analytics.events.filter { $0.0 != "screen_viewed" }
+        XCTAssertEqual(Set(seen.map(\.0)), Set(registry.keys))
+        for (name, properties) in seen {
+            XCTAssertEqual(Set(properties.keys).subtracting(stamp), registry[name], name)
+            XCTAssertEqual(properties["field_registry_version"] as? String, "1.4.25", name)
+        }
+    }
+}

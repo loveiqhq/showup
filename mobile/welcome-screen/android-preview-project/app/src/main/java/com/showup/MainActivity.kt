@@ -106,6 +106,25 @@ import com.showup.profile.ProfilePromptsScreen
 import com.showup.profile.ProfileProgressRepository
 import com.showup.profile.PromptsRepository
 import com.showup.profile.ResumePoint
+import com.showup.checkin.CheckInAnalytics
+import com.showup.checkin.CheckInAvailabilityScreen
+import com.showup.checkin.CheckInFilters
+import com.showup.checkin.CheckInFiltersScreen
+import com.showup.checkin.CheckInGateScreen
+import com.showup.checkin.CheckInIntroScreen
+import com.showup.checkin.CheckInMotivationScreen
+import com.showup.checkin.CheckInRepository
+import com.showup.checkin.CheckInStep
+import com.showup.checkin.CheckInUpliftScreen
+import com.showup.checkin.CheckInVibeScreen
+import com.showup.checkin.CheckInViewModel
+import com.showup.checkin.SearchUnlockedPlaceholderScreen
+import com.showup.checkin.SettingsPlaceholderScreen
+import com.showup.dev.DEV_GALLERY_ACTIVITY
+import com.showup.dev.DevCheckInLaunch
+import com.showup.dev.DevState
+import com.showup.dev.DevCheckInStore
+import com.showup.designsystem.Tab
 import com.showup.profile.resumePoint
 import com.showup.profile.ProfileScreen
 import com.showup.profile.PromptsViewModel
@@ -359,6 +378,35 @@ class MainActivity : ComponentActivity() {
                 },
             )
             val locationState by location.state.collectAsStateWithLifecycle()
+
+            // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ───────────────
+            //
+            // One owner for the whole flow, built before its steps (epic, "Built once"): the step
+            // order, back and ✕, the gate's reopen rule and every event of family H. Keyed on the
+            // account like the others: a new sign-in must not inherit the last account's answers.
+            // DEBUG ONLY: a launch with `dev_checkin` walks the Check-In on an in-memory server, so
+            // every screen and failure state can be walked and recorded on a phone with no backend
+            // (dev/DevCheckInStore.kt). A fresh launch only; never in a release build.
+            val devCheckIn = remember {
+                if (BuildConfig.DEBUG && savedInstanceState == null) DevCheckInLaunch.from(intent) else null
+            }
+            val checkIn: CheckInViewModel = viewModel(
+                key = "checkin-$account",
+                factory = viewModelFactory {
+                    initializer {
+                        val store = devCheckIn?.let { DevCheckInStore(it.latencyMs, it.commit, it.introPassed) }
+                            ?: CheckInRepository(api)
+                        CheckInViewModel(store, analytics = AppAnalytics)
+                    }
+                },
+            )
+            val checkInState by checkIn.state.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) {
+                val dev = devCheckIn ?: return@LaunchedEffect
+                val target = FlowScreen.entries.firstOrNull { it.name == dev.start } ?: FlowScreen.CheckInIntro
+                if (target.isCheckInStep) checkIn.beginFlow()
+                screen = target
+            }
 
             // WHERE THE USER CAME FROM, for `referrer_screen_id` -- held beside the screen, for the
             // same reason (FlowNavigator).
@@ -668,6 +716,16 @@ class MainActivity : ComponentActivity() {
                 resumeChecked = true
                 if (progress == null) return@LaunchedEffect
                 if (screen != FlowScreen.SignUp) return@LaunchedEffect
+                // A FINISHED PROFILE OPENS ON THE SEARCH TAB (Check-In 01): the gate until a
+                // Check-In is active, unlocked Search after. Read before deciding -- and an
+                // unreachable server is the gate, because date search must never open on a guess.
+                val finished = if (resumePoint(progress) == ResumePoint.Done) {
+                    if (checkIn.read()?.active == true) FlowScreen.CheckInSearch else FlowScreen.CheckInGate
+                } else {
+                    null
+                }
+                // The read took time: a user who has walked somewhere meanwhile stays there.
+                if (screen != FlowScreen.SignUp) return@LaunchedEffect
                 // Everything already entered, still present.
                 firstName = progress.displayName.orEmpty()
                 email = progress.email.orEmpty()
@@ -703,7 +761,7 @@ class MainActivity : ComponentActivity() {
                     ResumePoint.Interests -> FlowScreen.ProfileInterests
                     ResumePoint.LifeNow -> FlowScreen.ProfileLifeNow
                     ResumePoint.LifeAhead -> FlowScreen.ProfileLifeAhead
-                    ResumePoint.Done -> FlowScreen.Home
+                    ResumePoint.Done -> finished ?: FlowScreen.CheckInGate
                 }
                 if (screen == FlowScreen.ProfilePrompts) prompts.load()
                 // A resume onto a detail step pre-fills the saved value: start the read now,
@@ -746,6 +804,71 @@ class MainActivity : ComponentActivity() {
                 lifecycleOwner.lifecycle.addObserver(observer)
                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
             }
+
+            // THE CHECK-IN IS RE-READ ON EVERY FOREGROUND, and its clock re-evaluated: "read on every
+            // foreground", and "a slot that has started disappears from the grid and from the
+            // selection, silently". Only while a Check-In screen is shown -- elsewhere nothing
+            // reads it, and a signed-out launch must not send an authenticated request.
+            DisposableEffect(lifecycleOwner, checkIn) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME && screen.isCheckIn) {
+                        checkIn.evaluateClock()
+                        checkIn.refresh()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+
+            // THE SEARCH TAB FOLLOWS THE SERVER. "B is the Search tab whenever the user has no
+            // completed Check-In": a Check-In committed elsewhere unlocks it, and a window that
+            // closed while the app was away locks it again. Only between these two -- never out of
+            // the middle of a Check-In.
+            val checkInActive = checkInState.server?.active
+            LaunchedEffect(checkInActive, screen) {
+                when {
+                    screen == FlowScreen.CheckInGate && checkInActive == true -> goTo(FlowScreen.CheckInSearch)
+                    screen == FlowScreen.CheckInSearch && checkInActive == false -> goTo(FlowScreen.CheckInGate)
+                }
+            }
+
+            /** The Check-In screen for a step. */
+            fun CheckInStep.flowScreen(): FlowScreen = when (this) {
+                CheckInStep.Intro -> FlowScreen.CheckInIntro
+                CheckInStep.Today -> FlowScreen.CheckInToday
+                CheckInStep.Tomorrow -> FlowScreen.CheckInTomorrow
+                CheckInStep.Motivation -> FlowScreen.CheckInMotivation
+                CheckInStep.Vibe -> FlowScreen.CheckInVibe
+                CheckInStep.Filters -> FlowScreen.CheckInFilters
+                CheckInStep.Uplift -> FlowScreen.CheckInUplift
+            }
+
+            /**
+             * A Check-In step is on screen. IF ITS OWNER DID NOT SURVIVE -- a process death; the
+             * screen is saved, the view model is not -- the Check-In restarts at Today, empty, and
+             * Motivation, Vibe and Filters pre-fill from the server again (story 02: only ✕ "or
+             * leaving the app long enough for the screen to be destroyed" clears the picks). The
+             * intro holds nothing and is simply shown.
+             */
+            fun checkInArrived(step: CheckInStep) {
+                if (step != CheckInStep.Intro && !checkIn.flowAlive) {
+                    checkIn.beginFlow()
+                    if (step != CheckInStep.Today) {
+                        // Not a navigation the user made: no referrer, as on a launch.
+                        nav.cameFrom = null
+                        screen = FlowScreen.CheckInToday
+                        return
+                    }
+                }
+                checkIn.arrived(step, step.screen, profileScreenOf(cameFrom))
+            }
+
+            /** Every step's ✕: the flow is discarded and the gate shown. */
+            fun closeCheckIn(step: CheckInStep) = checkIn.closePressed(step) { goTo(FlowScreen.CheckInGate) }
+
+            /** The gate's CTA, Search tab or Instant tab: the intro until it has been passed, Today after. */
+            fun reopenCheckIn(target: CheckInAnalytics.GateTarget) =
+                checkIn.gateTapped(target) { step -> goTo(step.flowScreen()) }
 
             // THE SYSTEM PICKER. No permission is requested and none is declared: it runs out of
             // process, shows the user their whole library, and returns only what they chose.
@@ -817,6 +940,10 @@ class MainActivity : ComponentActivity() {
                 picks.leftElsewhere()
                 notifyModel.left()
                 reachModel.left()
+                checkIn.leftElsewhere()
+                // A jump INTO a Check-In step begins a flow there, as the walk would have: pre-filled
+                // from the server, availability and the uplift empty.
+                if (target.isCheckInStep) checkIn.beginFlow()
                 when (target) {
                     FlowScreen.ProfileNotifications -> goTo(afterMedia())
                     FlowScreen.ProfileLocation -> enterLocation()
@@ -1540,11 +1667,157 @@ class MainActivity : ComponentActivity() {
                         ProfileLifeAheadScreen(
                             state = heldWhileLeaving(picksState, onTop),
                             onTap = { question, value -> picks.pillTapped(PickStep.LifeAhead, question, value) },
-                            // THE CHECK-IN INTRO IS NOT BUILT, so the end of profile creation lands on
-                            // Home for now. Both exits change together when it is.
-                            onContinue = { picks.continuePressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) } },
-                            onSkip = { picks.skipPressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) } },
+                            // THE END OF PROFILE CREATION, by either exit: the 48hrs Check-In intro
+                            // (Check-In 01), with a new flow begun behind it.
+                            onContinue = {
+                                picks.continuePressed(PickStep.LifeAhead) {
+                                    checkIn.beginFlow()
+                                    goTo(FlowScreen.CheckInIntro)
+                                }
+                            },
+                            onSkip = {
+                                picks.skipPressed(PickStep.LifeAhead) {
+                                    checkIn.beginFlow()
+                                    goTo(FlowScreen.CheckInIntro)
+                                }
+                            },
                             onBack = { picks.backPressed(PickStep.LifeAhead) { goTo(FlowScreen.ProfileLifeNow) } },
+                        )
+                    }
+
+                    // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ──────────────────
+                    //
+                    // Every screen draws `heldWhileLeaving`: a ✕ discards the flow, and without it
+                    // the outgoing step would visibly empty during its exit.
+                    FlowScreen.CheckInGate -> {
+                        LaunchedEffect(onTop) {
+                            if (onTop) checkIn.arrived(null, ProfileScreen.CheckinSearchUnavailable, profileScreenOf(cameFrom))
+                        }
+                        CheckInGateScreen(
+                            onCheckIn = { target -> reopenCheckIn(target) },
+                            onSettings = { goTo(FlowScreen.CheckInSettings) },
+                        )
+                    }
+                    FlowScreen.CheckInIntro -> {
+                        LaunchedEffect(onTop) { if (onTop) checkInArrived(CheckInStep.Intro) }
+                        CheckInIntroScreen(
+                            onStart = { checkIn.introStarted { goTo(FlowScreen.CheckInToday) } },
+                            // Android back is the ✕ here: the intro has no back (story 01).
+                            onClose = { closeCheckIn(CheckInStep.Intro) },
+                        )
+                    }
+                    FlowScreen.CheckInToday, FlowScreen.CheckInTomorrow -> {
+                        val step = if (current == FlowScreen.CheckInToday) CheckInStep.Today else CheckInStep.Tomorrow
+                        LaunchedEffect(onTop) { if (onTop) checkInArrived(step) }
+                        val held = heldWhileLeaving(checkInState, onTop)
+                        val grid = if (step == CheckInStep.Today) held.todayGrid else held.tomorrowGrid
+                        if (grid != null) {
+                            CheckInAvailabilityScreen(
+                                grid = grid,
+                                picked = grid.picked(held.picks),
+                                howItWorksOpen = held.howItWorksOpen,
+                                toast = held.toast,
+                                toastTick = held.toastTick,
+                                dialogOpen = held.noHoursDialog,
+                                onSlot = { hour ->
+                                    val at = grid.hours.indexOf(hour)
+                                    if (at >= 0) checkIn.slotTapped(step, grid.starts[at])
+                                },
+                                onClearAll = { checkIn.clearAll(step) },
+                                onToggleHowItWorks = checkIn::toggleHowItWorks,
+                                onContinue = {
+                                    checkIn.availabilityContinue(step) {
+                                        goTo(if (step == CheckInStep.Today) FlowScreen.CheckInTomorrow else FlowScreen.CheckInMotivation)
+                                    }
+                                },
+                                onConfirmNoToday = { checkIn.noHoursConfirmed { goTo(FlowScreen.CheckInTomorrow) } },
+                                onCancelNoToday = { checkIn.noHoursCancelled(dismissed = false) },
+                                onDismissNoToday = { checkIn.noHoursCancelled(dismissed = true) },
+                                // Today's back is the intro, even after a gate reopen skipped it
+                                // (story 02, Open: "Default: back -> intro").
+                                onBack = {
+                                    checkIn.backPressed(step) {
+                                        goTo(if (step == CheckInStep.Today) FlowScreen.CheckInIntro else FlowScreen.CheckInToday)
+                                    }
+                                },
+                                onClose = { closeCheckIn(step) },
+                            )
+                        }
+                    }
+                    FlowScreen.CheckInMotivation -> {
+                        LaunchedEffect(onTop) { if (onTop) checkInArrived(CheckInStep.Motivation) }
+                        val held = heldWhileLeaving(checkInState, onTop)
+                        CheckInMotivationScreen(
+                            selected = held.motivation,
+                            toast = held.toast,
+                            toastTick = held.toastTick,
+                            onPick = checkIn::motivationTapped,
+                            onContinue = { checkIn.motivationContinue { goTo(FlowScreen.CheckInVibe) } },
+                            onBack = { checkIn.backPressed(CheckInStep.Motivation) { goTo(FlowScreen.CheckInTomorrow) } },
+                            onClose = { closeCheckIn(CheckInStep.Motivation) },
+                        )
+                    }
+                    FlowScreen.CheckInVibe -> {
+                        LaunchedEffect(onTop) { if (onTop) checkInArrived(CheckInStep.Vibe) }
+                        val held = heldWhileLeaving(checkInState, onTop)
+                        CheckInVibeScreen(
+                            picked = held.vibes,
+                            toast = held.toast,
+                            toastTick = held.toastTick,
+                            onTap = checkIn::vibeTapped,
+                            onContinue = { checkIn.vibeContinue { goTo(FlowScreen.CheckInFilters) } },
+                            onBack = { checkIn.backPressed(CheckInStep.Vibe) { goTo(FlowScreen.CheckInMotivation) } },
+                            onClose = { closeCheckIn(CheckInStep.Vibe) },
+                        )
+                    }
+                    FlowScreen.CheckInFilters -> {
+                        LaunchedEffect(onTop) { if (onTop) checkInArrived(CheckInStep.Filters) }
+                        val held = heldWhileLeaving(checkInState, onTop)
+                        CheckInFiltersScreen(
+                            // Null only for the instant before the arrival seeds the stand-in.
+                            filters = held.filters ?: CheckInFilters(genders = emptySet()),
+                            toast = held.toast,
+                            toastTick = held.toastTick,
+                            onGender = checkIn::genderTapped,
+                            onAge = checkIn::ageMoved,
+                            onDistance = checkIn::distanceMoved,
+                            onContinue = { checkIn.filtersContinue { goTo(FlowScreen.CheckInUplift) } },
+                            onBack = { checkIn.backPressed(CheckInStep.Filters) { goTo(FlowScreen.CheckInVibe) } },
+                            onClose = { closeCheckIn(CheckInStep.Filters) },
+                        )
+                    }
+                    FlowScreen.CheckInUplift -> {
+                        LaunchedEffect(onTop) { if (onTop) checkInArrived(CheckInStep.Uplift) }
+                        val held = heldWhileLeaving(checkInState, onTop)
+                        CheckInUpliftScreen(
+                            text = held.uplift,
+                            blocked = held.upliftBlocked,
+                            saving = held.saving,
+                            saveFailed = held.saveFailed,
+                            toast = held.toast,
+                            toastTick = held.toastTick,
+                            onText = checkIn::upliftChanged,
+                            // Saved -> straight to Search, date search unlocked. No toast.
+                            onFindMyDate = { checkIn.findMyDate { goTo(FlowScreen.CheckInSearch) } },
+                            onBack = { checkIn.backPressed(CheckInStep.Uplift) { goTo(FlowScreen.CheckInFilters) } },
+                            onClose = { closeCheckIn(CheckInStep.Uplift) },
+                        )
+                    }
+                    FlowScreen.CheckInSearch -> SearchUnlockedPlaceholderScreen()
+                    FlowScreen.CheckInSettings -> {
+                        LaunchedEffect(onTop) { if (onTop) checkIn.atTabs() }
+                        // Back returns to Search, the tab the gate is.
+                        BackHandler { goTo(FlowScreen.CheckInGate) }
+                        SettingsPlaceholderScreen(
+                            onTab = { tab ->
+                                when (tab) {
+                                    // Search with no Check-In IS the gate (story 01).
+                                    Tab.Search -> goTo(FlowScreen.CheckInGate)
+                                    // Instant is still gated: it opens the Check-In, as on the gate.
+                                    Tab.Instant -> reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                    Tab.Settings -> Unit
+                                }
+                            },
                         )
                     }
 
@@ -1637,6 +1910,14 @@ class MainActivity : ComponentActivity() {
                             devMenuOpen = false
                         },
                         onClose = { devMenuOpen = false },
+                        onTestServer = {
+                            devMenuOpen = false
+                            restartOnDevCheckIn(it)
+                        },
+                        onOpenState = { state ->
+                            devMenuOpen = false
+                            openDevState(state)
+                        },
                     )
                     // Back closes the menu, never the screen under it.
                     BackHandler { devMenuOpen = false }
@@ -1653,6 +1934,30 @@ class MainActivity : ComponentActivity() {
      * signed-in session survives in memory: not a view model, not the flow position. No animation
      * -- the notice is the explanation, and a slide would read as the user having gone somewhere.
      */
+    /**
+     * DEBUG ONLY: start again on the Check-In's in-memory test server at [screen] -- the developer
+     * menu's way into the Check-In with no account. A fresh task, so the real server's state and the
+     * test server's never mix in one set of view models.
+     */
+    private fun restartOnDevCheckIn(screen: FlowScreen) {
+        if (!BuildConfig.DEBUG) return
+        val fresh = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            .putExtra(DevCheckInLaunch.EXTRA_ON, true)
+            .putExtra(DevCheckInLaunch.EXTRA_START, screen.name)
+            // Past the intro, so the gate reopens at Today as a returning user's would; the intro row
+            // itself still opens the intro.
+            .putExtra(DevCheckInLaunch.EXTRA_INTRO_PASSED, screen != FlowScreen.CheckInIntro)
+        startActivity(fresh)
+    }
+
+    /** DEBUG ONLY: one ticket frame in its exact state, over the app; back returns to it. */
+    private fun openDevState(state: DevState) {
+        if (!BuildConfig.DEBUG) return
+        val open = Intent().setClassName(packageName, DEV_GALLERY_ACTIVITY).putExtra("state", state.id)
+        runCatching { startActivity(open) }
+    }
+
     private fun restartSignedOut() {
         val fresh = Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -1791,6 +2096,14 @@ private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen)
     FlowScreen.ProfileInterests -> ProfileScreen.Interests
     FlowScreen.ProfileLifeNow -> ProfileScreen.LifeNow
     FlowScreen.ProfileLifeAhead -> ProfileScreen.LifeAhead
+    FlowScreen.CheckInGate -> ProfileScreen.CheckinSearchUnavailable
+    FlowScreen.CheckInIntro -> ProfileScreen.CheckinIntro
+    FlowScreen.CheckInToday -> ProfileScreen.CheckinToday
+    FlowScreen.CheckInTomorrow -> ProfileScreen.CheckinTomorrow
+    FlowScreen.CheckInMotivation -> ProfileScreen.CheckinMotivation
+    FlowScreen.CheckInVibe -> ProfileScreen.CheckinVibe
+    FlowScreen.CheckInFilters -> ProfileScreen.CheckinFilters
+    FlowScreen.CheckInUplift -> ProfileScreen.CheckinUplift
     else -> null
 }
 

@@ -76,6 +76,18 @@ object Motion {
      * signed them out. Leaving Startup ends it sooner.
      */
     const val NOTICE = 6000
+
+    /**
+     * A small thing arriving: the Check-In toast and How it works' panel (`su-toast-in`), the No
+     * hours today? scrim, and How it works' chevron turning over (`transform 200ms`). SHOWUP-179.
+     */
+    const val REVEAL = 200
+
+    /** The No hours today? card popping in (`su-checkin-pop 260ms`). SHOWUP-179. */
+    const val POP = 260
+
+    /** One turn of the commit spinner (`su-checkin-spin 800ms linear infinite`). SHOWUP-183. */
+    const val SPIN = 800
 }
 
 /**

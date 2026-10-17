@@ -130,7 +130,7 @@ class PickStepsViewModelTest {
         assertEquals("interests", step["step_id"])
         assertEquals(8, step["step_index"])
         assertEquals(0, step["sensitivity_class"])
-        assertEquals("1.4.18", step["field_registry_version"])
+        assertEquals("1.4.25", step["field_registry_version"])
     }
 
     @Test

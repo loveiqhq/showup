@@ -2152,12 +2152,19 @@ for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
                  "life_question_answered", "future_question_answered", "profile_interests",
                  "profile_life_now", "profile_life_ahead"):
         check("174-176 %s is registry-backed (%s)" % (name, label), '"%s"' % name in text)
-check("registry 1.4.18 stamped (kotlin)", 'FIELD_REGISTRY_VERSION = "1.4.18"' in pa_kt)
-check("registry 1.4.18 stamped (swift)", 'fieldRegistryVersion = "1.4.18"' in pa_sw)
-# Future exits home until the Check-In intro is built -- both exits, both platforms.
-check("176 exits home for now (kotlin)", "picks.continuePressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) }" in app_kt
-      and "picks.skipPressed(PickStep.LifeAhead) { goTo(FlowScreen.Home) }" in app_kt)
-check("176 exits home for now (swift)", "lifeScreen(.lifeAhead, next: .home, previous: .profileLifeNow)" in app_sw)
+check("registry 1.4.25 stamped (kotlin)", 'FIELD_REGISTRY_VERSION = "1.4.25"' in pa_kt)
+check("registry 1.4.25 stamped (swift)", 'fieldRegistryVersion = "1.4.25"' in pa_sw)
+# Future ends profile creation in the 48hrs Check-In intro (Check-In 01, SHOWUP-178) -- both exits,
+# both platforms, each with a new Check-In flow begun behind it. It exited to Home until the intro
+# was built (14 October 2026).
+_future_kt = app_kt[app_kt.find("FlowScreen.ProfileLifeAhead -> {"):]
+_future_kt = _future_kt[:_future_kt.find("FlowScreen.CheckInGate ->")]
+check("176 exits to the check-in intro (kotlin)",
+      _future_kt.count("checkIn.beginFlow()") == 2 and _future_kt.count("goTo(FlowScreen.CheckInIntro)") == 2
+      and "goTo(FlowScreen.Home)" not in _future_kt)
+check("176 exits to the check-in intro (swift)",
+      "lifeScreen(.lifeAhead, previous: .profileLifeNow, exit: {" in app_sw
+      and re.search(r"lifeScreen\(\.lifeAhead, previous: \.profileLifeNow, exit: \{\s*checkIn\.beginFlow\(\)\s*go\(to: \.checkInIntro\)", app_sw) is not None)
 
 # ── a new sign-in starts with nothing from the last account (13 October 2026) ──
 # Found on the emulator: "Start over" (or the developer menu's Startup) and a NEW account showed the

@@ -16,6 +16,19 @@ interface AnalyticsTracker {
     fun track(event: String, properties: Map<String, Any>)
 }
 
+/**
+ * A property whose registry type is nullable and whose value is null -- JSON `null`, not an absent
+ * key and not a stand-in number.
+ *
+ * Properties are `Map<String, Any>`, which cannot hold a null, and until the Check-In no registry
+ * field needed one (`referrer_screen_id` reads "" by its own rule). `check_in_filters_changed`'s
+ * `max_age` does: "null for 65+ (no upper limit), never 65" (SHOWUP-182). A destination writes this
+ * as JSON null; the debug log shows `null`.
+ */
+object JsonNull {
+    override fun toString() = "null"
+}
+
 /** Reports nothing. The default on every screen. */
 object NoOpAnalytics : AnalyticsTracker {
     override fun track(event: String, properties: Map<String, Any>) = Unit

@@ -164,8 +164,22 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     Interests("profile_interests", "ProfileInterests"),
     LifeNow("profile_life_now", "ProfileLifeNow"),
 
-    /** The last step of profile creation (SHOWUP-176). Its exit, `checkin_intro`, is not built yet. */
+    /** The last step of profile creation (SHOWUP-176). Its exit is the Check-In intro. */
     LifeAhead("profile_life_ahead", "ProfileLifeAhead"),
+
+    // ── the 48hrs Check-In (SHOWUP-178 to 183), §11 rows from registry 1.4.19 to 1.4.25. Here with
+    // the profile's screens because `referrer_screen_id` crosses the two: the intro's referrer is
+    // `profile_life_ahead`. Not steps of profile creation -- nothing here fires profile_step_*.
+    CheckinIntro("checkin_intro", "CheckinIntro"),
+
+    /** The Search tab for a user with no committed Check-In -- "date search not available". */
+    CheckinSearchUnavailable("checkin_search_unavailable", "CheckinSearchUnavailable"),
+    CheckinToday("checkin_today", "CheckinToday"),
+    CheckinTomorrow("checkin_tomorrow", "CheckinTomorrow"),
+    CheckinMotivation("checkin_motivation", "CheckinMotivation"),
+    CheckinVibe("checkin_vibe", "CheckinVibe"),
+    CheckinFilters("checkin_filters", "CheckinFilters"),
+    CheckinUplift("checkin_uplift", "CheckinUplift"),
 }
 
 /**
@@ -357,7 +371,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.18"
+    const val FIELD_REGISTRY_VERSION = "1.4.25"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,

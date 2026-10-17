@@ -11,6 +11,10 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.cssLineBox
+import androidx.compose.ui.semantics.semantics
+import com.showup.designsystem.prettyWidthPx
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +60,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -359,6 +364,9 @@ fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier) {
  */
 internal const val NBSP = '\u00A0'
 
+/** Lora's descent in ems -- `hhea` -274 / 1000, identical in the bundled cut and Google Fonts'. */
+private const val LORA_DESCENT_EM = 0.274f
+
 @Composable
 fun WashHeadline(
     parts: List<Pair<String, Boolean>>,      // text → is this the italic run?
@@ -397,6 +405,40 @@ fun WashHeadline(
      * say so at the call site.
      */
     balance: Boolean = false,
+    /**
+     * The run's weight and ink. Bold [Fg] for every headline; the Check-In intro's closing line
+     * (SHOWUP-178) is the same `.su-underlined` rule on Lora 400 in `--liq-fg-muted`.
+     */
+    fontWeight: FontWeight = FontWeight.Bold,
+    color: Color = Fg,
+    /** Centred lines -- the Check-In gate's statement and the No hours today? title. */
+    textAlign: TextAlign? = null,
+    /**
+     * Whether the em carries the orange wash, i.e. the text is `.su-underlined`. The No hours
+     * today? title (SHOWUP-179) is a plain `<em>`: italic in the run's own weight, no wash.
+     */
+    wash: Boolean = true,
+    /**
+     * `text-wrap: pretty`, which CSS has and Compose does not. The Check-In step headlines set it,
+     * and the spec sheet shows it at 390: `When can you` over `date today?`, never `When can you
+     * date` over a lone `today?`.
+     *
+     * THE RULE IS CHROME'S, MEASURED, not a guess at "no short last line". Swept across 375 layouts
+     * of the step headlines in headless Chrome (14 Oct 2026): it re-wraps only when the last line is
+     * ONE WORD -- an em run joined by no-break spaces is one word -- narrower than a third of the
+     * width, and then it pulls exactly one word down to it. A two-word last line is never touched
+     * however short (Motivation's `to date?`, 0.32 of the width), and a long single word keeps its
+     * line (`tomorrow?`, 0.43). OFF BY DEFAULT, like [balance], for the same reason.
+     */
+    pretty: Boolean = false,
+    /**
+     * Lay the block out as CSS does -- n lines of [lineHeight], the first baseline where CSS puts
+     * it (`designsystem/CssLineBox.kt`). Compose makes a two-line Lora 34 / 1.1 headline 6.1pt
+     * taller than that, half of it above the first line, and everything below the headline moves
+     * down with it. OFF BY DEFAULT: turning it on moves every headline that has not asked for it,
+     * on screens already reviewed against their sheets with the offset in them.
+     */
+    cssLineBox: Boolean = false,
 ) {
     // `white-space: nowrap` on the emphasis span — the token file sets it on `.su-underlined em`
     // and the ticket restates it: "an emphasis phrase never breaks across lines". A plain space is
@@ -409,8 +451,10 @@ fun WashHeadline(
         safe.forEach { (t, italic) ->
             if (italic) {
                 // Weight 500, as the token file specifies — the bundled family now carries a real
-                // Medium Italic cut. See fonts/README-medium-italic.md.
-                withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Medium)) { append(t) }
+                // Medium Italic cut. See fonts/README-medium-italic.md. A plain `<em>` (no wash)
+                // keeps the run's own weight, as a browser draws it.
+                val emWeight = if (wash) FontWeight.Medium else fontWeight
+                withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = emWeight)) { append(t) }
             } else {
                 append(t)
             }
@@ -458,16 +502,28 @@ fun WashHeadline(
     val headline: @Composable (Modifier) -> Unit = { outer ->
     Text(
         text = textWithIcon,
-        modifier = outer.drawBehind {
+        modifier = outer
+            .then(if (cssLineBox) Modifier.cssLineBox(lineHeight) else Modifier)
+            .drawBehind {
             val lr = layout ?: return@drawBehind
-            if (start < 0 || end <= start) return@drawBehind
+            if (!wash || start < 0 || end <= start) return@drawBehind
             val bounds = lr.getPathForRange(start, end).getBounds()
             if (bounds.width <= 0f) return@drawBehind
 
             val em = fontSize.toPx()
             val left = bounds.left - 2.dp.toPx()
             val right = bounds.right + 2.dp.toPx()
-            val bottom = bounds.bottom + em * 0.08f      // bottom: -0.08em
+            // bottom: -0.08em -- from the bottom of the em's CONTENT BOX, which in CSS is the font's
+            // descent below the baseline whatever the line height. The selection path's bottom is
+            // the line's bottom instead, which moves with the line height: 3pt too high on a Lora
+            // 34 / 1.1 headline, 1.5pt too low on the 17 / 1.45 closing line, both measured against
+            // the sheets. Under the CSS line box the CSS anchor is used; elsewhere the old one stays
+            // until those screens are reviewed with it.
+            val bottom = if (cssLineBox) {
+                lr.getLineBaseline(lr.getLineForOffset(end - 1)) + em * (LORA_DESCENT_EM + 0.08f)
+            } else {
+                bounds.bottom + em * 0.08f
+            }
             val h = em * 0.32f                            // height: 0.32em
             val w = right - left
             val rx = w / 2f
@@ -504,16 +560,17 @@ fun WashHeadline(
         },
         onTextLayout = { layout = it },
         inlineContent = inline,
-        color = Fg,
+        color = color,
         fontFamily = Lora,
-        fontWeight = FontWeight.Bold,
+        fontWeight = fontWeight,
         fontSize = fontSize,
         lineHeight = lineHeight,
         letterSpacing = letterSpacing,
+        textAlign = textAlign,
     )
     }
 
-    if (!balance) {
+    if (!balance && !pretty) {
         headline(modifier)
         return
     }
@@ -523,12 +580,15 @@ fun WashHeadline(
     // caller's modifier goes on the box, which is where a padding or a weight belongs anyway.
     val measurer = rememberTextMeasurer()
     val style = TextStyle(
-        fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = fontSize,
+        fontFamily = Lora, fontWeight = fontWeight, fontSize = fontSize,
         lineHeight = lineHeight, letterSpacing = letterSpacing,
     )
-    BoxWithConstraints(modifier) {
+    // MERGED, so whatever the caller set lands on the text: a `heading()` on this box alone made
+    // TalkBack announce an empty heading and then the words as plain text, on every balanced or
+    // pretty headline (CheckInSemanticsTest).
+    BoxWithConstraints(modifier.semantics(mergeDescendants = true) {}) {
         val available = maxWidth
-        val narrowest = remember(textWithIcon, available, fontSize, lineHeight, letterSpacing) {
+        val narrowest = remember(textWithIcon, available, fontSize, lineHeight, letterSpacing, balance) {
             with(density) {
                 val full = available.roundToPx()
                 if (full <= 0) return@with available
@@ -539,6 +599,8 @@ fun WashHeadline(
                 val target = linesAt(full)
                 // A single line has nothing to balance, and narrowing it would only make two.
                 if (target <= 1) return@with available
+                // Pretty: Chrome's rule, shared with body copy (designsystem/PrettyWrap.kt).
+                if (!balance) return@with prettyWidthPx(measurer, textWithIcon, style, full).toDp()
                 var low = 1
                 var high = full
                 while (low < high) {
@@ -646,7 +708,15 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
      * Both are now the kit's own paths under the kit's own names. Connect moves to this one, which
      * is the variant it always meant; nothing else used the old glyph.
      */
-    HeartFilled }
+    HeartFilled,
+
+    // ── added for the 48hrs Check-In (SHOWUP-178 to 183) ─────────────────────
+    //
+    // The tab bar names `search · zap · settings`, Motivation's third row `flame`. Drawn from the
+    // kit's own path data through Compose's SVG parser rather than re-plotted by hand: the gear
+    // alone is sixteen arcs and curves, and a hand conversion is exactly where a glyph goes subtly
+    // wrong (`heart-filled` was drawn from memory once, and matched neither of the kit's paths).
+    Search, Zap, Settings, Flame }
 
 @Composable
 /**
@@ -1213,6 +1283,17 @@ fun Icon(
                 // radius 5.5 meeting at the top notch (12, 5.67) and running down to the point.
                 BrandIcon.Heart -> drawPath(heartPath(), tint, style = stroke)
                 BrandIcon.HeartFilled -> drawPath(heartPath(), tint)
+                // `circle 11,11 r7` + `line 16.65,16.65 -> 21,21`.
+                BrandIcon.Search -> {
+                    drawCircle(tint, radius = 7f, center = Offset(11f, 11f), style = stroke)
+                    drawLine(tint, Offset(16.65f, 16.65f), Offset(21f, 21f), stroke.width, StrokeCap.Round)
+                }
+                BrandIcon.Zap -> drawPath(KitPaths.zap, tint, style = stroke)
+                BrandIcon.Settings -> {
+                    drawCircle(tint, radius = 3f, center = Offset(12f, 12f), style = stroke)
+                    drawPath(KitPaths.gear, tint, style = stroke)
+                }
+                BrandIcon.Flame -> drawPath(KitPaths.flame, tint, style = stroke)
                 
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
@@ -1265,6 +1346,34 @@ private fun path(points: List<Pair<Float, Float>>, close: Boolean = false) =
  * Verified by rendering it at 80dp and looking -- see `IconSheet162`. A heart is the one glyph
  * where being slightly wrong is unmistakable and being subtly wrong is invisible.
  */
+/**
+ * Kit icons whose geometry is taken from `components/shared.jsx` as SVG path data, VERBATIM, through
+ * Compose's own parser -- curves and arcs the hand-plotted icons above would only approximate.
+ * Parsed once; the strings are the kit's, character for character.
+ */
+private object KitPaths {
+    private fun parse(d: String) = androidx.compose.ui.graphics.vector.PathParser().parsePathString(d).toPath()
+
+    /** `polygon 13 2 3 14 12 14 11 22 21 10 12 10 13 2`. */
+    val zap = parse("M13 2L3 14L12 14L11 22L21 10L12 10L13 2Z")
+
+    /** The gear's outline (its centre is the `circle 12,12 r3` drawn beside it). */
+    val gear = parse(
+        "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 " +
+            "1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06" +
+            "a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09" +
+            "A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 " +
+            "1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 " +
+            "1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.42.88.74.22.32" +
+            ".34.7.34 1.09 0 .39-.12.77-.34 1.09-.22.32-.52.58-.88.74z",
+    )
+
+    val flame = parse(
+        "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 " +
+            "1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
+    )
+}
+
 private fun heartPath() = androidx.compose.ui.graphics.Path().apply {
     // Right lobe: circle centre (16.95, 8.50), r 5.5. From -45 degrees anticlockwise over the top.
     moveTo(20.84f, 4.61f)

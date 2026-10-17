@@ -79,6 +79,33 @@ extension Color {
     /// The interests counter's empty bar, rgba(29,17,41,.08) — lighter than the step bar's track.
     static let liqMeterTrack = Color(hex: 0x1D1129).opacity(0.08)
 
+    // ── added for the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) — mirrors DesignSystem.kt ─────
+    //
+    // Values the six Check-In references set inline and that a built-once component draws (the step
+    // footer's toast, the availability tiers, the coach note, the dialog, the gate's tab bar). Tints
+    // of an existing token (the danger field, the focus ring) are written as `.opacity` where they
+    // are drawn, as InlineErrorCard already does.
+    /// `--liq-primary-600`, #6B1D8F — the availability summary's ranges (Check-In 02).
+    static let liqPrimary600 = Color(hex: 0x6B1D8F)
+    /// The 2nd-tap "Available" tier and its legend pill: fill, ink and border (Check-In 02).
+    static let liqTierAvailableFill = Color(hex: 0xF1ECF9)
+    static let liqTierAvailableInk = Color(hex: 0x7C6BA0)
+    static let liqTierAvailableBorder = Color(hex: 0xE3DBF0)
+    /// CoachNote, lilac — and How it works' panel, which matches it (Check-In 02, 03, 06).
+    static let liqCoachLilacFill = Color(hex: 0xEFE6FF)
+    static let liqCoachLilacInk = Color(hex: 0x4F2B8C)
+    /// CoachNote, warm — Motivation, Vibe and Filters (Check-In 03 to 05).
+    static let liqCoachWarmFill = Color(hex: 0xFFF6CF)
+    static let liqCoachWarmInk = Color(hex: 0x73510B)
+    /// CheckInFooter's toast, rgba(29,17,41,.92), and its `0 6px 20px` shadow at .18.
+    static let liqCheckInToastFill = Color(hex: 0x1D1129).opacity(0.92)
+    static let liqCheckInToastShadow = Color(hex: 0x1D1129).opacity(0.18)
+    /// The No hours today? dialog: scrim rgba(29,17,41,.44), card shadow rgba(20,12,28,.34).
+    static let liqDialogScrim = Color(hex: 0x1D1129).opacity(0.44)
+    static let liqDialogShadow = Color(hex: 0x140C1C).opacity(0.34)
+    /// The tab bar's glass, rgba(255,251,247,.92) (`components/shared.jsx` TabBar).
+    static let liqTabBarGlass = Color(hex: 0xFFFBF7).opacity(0.92)
+
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
     ///
@@ -131,6 +158,9 @@ enum PS {
     /// Weight 500 italic, interpolated from the 400 and 700 masters. See
     /// fonts/README-medium-italic.md. Replace if design ships a foundry file.
     static let loraMediumItalic = "Lora-MediumItalic"
+    /// Weight 400, instanced from the variable font the design loads. See
+    /// fonts/README-manrope-regular.md.
+    static let manropeRegular = "Manrope-Regular"
     static let manropeMedium  = "Manrope-Medium"
     static let manropeSemi    = "Manrope-SemiBold"
     static let manropeBold    = "Manrope-Bold"
@@ -152,6 +182,9 @@ enum F {
         // step light, and Android did the same by having no 800 in its family to match.
         case .heavy:         name = PS.manropeXBold
         case .semibold:      name = PS.manropeSemi
+        // 400 had no file until 14 Oct 2026 and fell through to Medium below -- a step heavy and
+        // ~3% wide, on Android too. See fonts/README-manrope-regular.md.
+        case .regular:       name = PS.manropeRegular
         default:             name = PS.manropeMedium
         }
         return .custom(name, size: size)
@@ -188,7 +221,7 @@ enum TypeMetrics {
 
     /// A synthesised oblique, for a family that ships no italic of its own.
     ///
-    /// Manrope has no italic cut -- the bundle carries Medium, SemiBold and Bold and nothing else --
+    /// Manrope has no italic cut -- the bundle carries Regular to ExtraBold, all upright --
     /// and the spec sheets ask for one anyway ("will meet" italic 700 on tutorial card 1). The sheet
     /// was drawn in a browser, which answers `font-style: italic` on such a family by skewing the
     /// upright, so this skews it by the same 0.2 browsers use. Asking UIKit for `.traitItalic`

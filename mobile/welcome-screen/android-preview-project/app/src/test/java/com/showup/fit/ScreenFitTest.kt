@@ -17,6 +17,21 @@
 package com.showup.fit
 
 import com.showup.HomePlaceholderScreen
+import com.showup.checkin.CheckInAvailabilityScreen
+import com.showup.checkin.CheckInCopy
+import com.showup.checkin.CheckInFilters
+import com.showup.checkin.CheckInFiltersScreen
+import com.showup.checkin.CheckInGateScreen
+import com.showup.checkin.CheckInIntroScreen
+import com.showup.checkin.CheckInMotivationScreen
+import com.showup.checkin.CheckInStep
+import com.showup.checkin.CheckInUpliftScreen
+import com.showup.checkin.CheckInVibeScreen
+import com.showup.checkin.SearchUnlockedPlaceholderScreen
+import com.showup.checkin.SettingsPlaceholderScreen
+import com.showup.checkin.SlotTier
+import com.showup.checkin.checkInDays
+import com.showup.checkin.gridOf
 import com.showup.tutorial.MatchMeansMeetScreen
 import com.showup.tutorial.MatchOnAvailabilityScreen
 import com.showup.tutorial.MeetInRealLifeScreen
@@ -890,6 +905,54 @@ class ScreenFitTest {
             sweep("Picks/save failed @$scale", fontScale = scale) {
                 ProfileLifeNowScreen(LIFE_B.copy(saveFailed = true))
             }
+        }
+        assertClean()
+    }
+
+    @Test
+    fun `the 48hrs check-in, every state, at three type sizes`() {
+        val days = checkInDays(java.time.LocalDateTime.of(2026, 10, 13, 16, 20))
+        val today = gridOf(CheckInStep.Today, days)
+        val tomorrow = gridOf(CheckInStep.Tomorrow, days)
+        val picked = mapOf(18 to SlotTier.Preferred, 19 to SlotTier.Preferred, 20 to SlotTier.Available)
+        val five = setOf("coffee_chat", "sunset", "deep_talk", "playful", "no_rush")
+        val written = "I'll take you on a rafting tour on Wannsee — picnic included"
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            sweep("CheckIn/intro @$scale", fontScale = scale) { CheckInIntroScreen() }
+            sweep("CheckIn/gate @$scale", fontScale = scale) { CheckInGateScreen() }
+            sweep("CheckIn/today A @$scale", fontScale = scale) { CheckInAvailabilityScreen(today, picked, false) }
+            sweep("CheckIn/today B confirm @$scale", fontScale = scale) { CheckInAvailabilityScreen(today, emptyMap(), false, dialogOpen = true) }
+            sweep("CheckIn/today how it works @$scale", fontScale = scale) { CheckInAvailabilityScreen(today, picked, true) }
+            sweep("CheckIn/tomorrow C toast @$scale", fontScale = scale) {
+                CheckInAvailabilityScreen(tomorrow, emptyMap(), false, toast = CheckInCopy.TOMORROW_TOAST)
+            }
+            sweep("CheckIn/motivation B @$scale", fontScale = scale) { CheckInMotivationScreen(null, toast = CheckInCopy.MOTIVATION_TOAST) }
+            sweep("CheckIn/motivation C @$scale", fontScale = scale) { CheckInMotivationScreen("long_term") }
+            sweep("CheckIn/vibe D @$scale", fontScale = scale) { CheckInVibeScreen(five, toast = CheckInCopy.VIBE_TOAST_MAX) }
+            sweep("CheckIn/filters B @$scale", fontScale = scale) {
+                CheckInFiltersScreen(CheckInFilters(emptySet()), toast = CheckInCopy.FILTERS_TOAST)
+            }
+            sweep("CheckIn/filters C @$scale", fontScale = scale) { CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), 25, 35, 15)) }
+            sweep("CheckIn/uplift A @$scale", fontScale = scale) { CheckInUpliftScreen("") }
+            sweep("CheckIn/uplift C @$scale", fontScale = scale) {
+                CheckInUpliftScreen("Text me on 0176 2345 6789 and we'll grab a drink tonight", blocked = true, toast = CheckInCopy.CONTACT_ERROR)
+            }
+            sweep("CheckIn/uplift D @$scale", fontScale = scale) { CheckInUpliftScreen(written, saving = true) }
+            sweep("CheckIn/uplift E @$scale", fontScale = scale) { CheckInUpliftScreen(written, saveFailed = true) }
+            sweep("CheckIn/search placeholder @$scale", fontScale = scale) { SearchUnlockedPlaceholderScreen() }
+            sweep("CheckIn/settings placeholder @$scale", fontScale = scale) { SettingsPlaceholderScreen() }
+        }
+        assertClean()
+    }
+
+    /** Uplift with the keyboard up: Find my date rides above it on every phone. */
+    @Test
+    fun `uplift clears a keyboard`() {
+        sweep("CheckIn/uplift B + keyboard", keyboardDp = 300) {
+            CheckInUpliftScreen("I have 2 tickets for the Berghain garden tonight and nobody to go with")
+        }
+        sweep("CheckIn/uplift C + keyboard", keyboardDp = 300) {
+            CheckInUpliftScreen("Text me on 0176 2345 6789", blocked = true, toast = CheckInCopy.CONTACT_ERROR)
         }
         assertClean()
     }

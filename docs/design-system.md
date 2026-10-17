@@ -142,6 +142,9 @@ existed, which is worth locking down rather than leaving to coincidence.
 | `PULSE_LONG` / `pulseLong` | 1400 | 1.4 | Connect linking animation |
 | `TOAST` / `toast` | 2600 | 2.6 | how long a refusal toast stays up (SHOWUP-156/158) |
 | `NOTICE` / `notice` | 6000 | 6 | how long the "please log in again" notice stays up untapped |
+| `REVEAL` / `reveal` | 200 | 0.2 | an element that appears, `su-toast-in`: the Check-In toast, How it works' panel, a dialog's scrim (SHOWUP-179) |
+| `POP` / `pop` | 260 | 0.26 | a dialog card popping in, `su-checkin-pop` (the No hours today? confirm) |
+| `SPIN` / `spin` | 800 | 0.8 | one turn of the saving spinner on `Find my date` (SHOWUP-183) |
 
 Two curves sit beside the durations. `ShowUpEasing` / the Swift `.timingCurve(0.22, 1, 0.36, 1)` is
 the house curve, `cubic-bezier(.22,1,.36,1)`. `CssEase` / `Motion.cssEase(_:)` is CSS's default
@@ -581,6 +584,44 @@ Two things had to move before the button could, both for the same reason — the
 not depend on a screen. `ShowUpEasing` went into `Motion.kt`, and `rememberMotion()` into
 `MotionPreference.kt`, where its return type was renamed from `Motion` so it stops colliding with
 the `Motion` durations object.
+
+## Added for the 48hrs Check-In (SHOWUP-178 to 183), 14 October 2026
+
+### Colours
+
+Thirteen, each the reference's literal: `Primary600` `#6B1D8F` (the summary's ranges) ·
+`TierAvailableFill` / `Ink` / `Border` `#F1ECF9` / `#7C6BA0` / `#E3DBF0` (a slot's second tap, the summary
+once picked) · `CoachLilacFill` / `Ink` `#EFE6FF` / `#4F2B8C` and `CoachWarmFill` / `Ink` `#FFF6CF` /
+`#73510B` (the two CoachNote tones -- lilac on Uplift and How it works, warm on 03-05) ·
+`CheckInToastFill` rgba(29,17,41,.92) and `CheckInToastShadow` .18 · `DialogScrim` rgba(29,17,41,.44)
+and `DialogShadow` rgba(20,12,28,.34) · `TabBarGlass` rgba(255,251,247,.92). iOS prefixes each `liq`.
+
+### Type: Manrope Regular
+
+**The bundle had no Manrope 400**, so every weight-400 run in both apps rendered in Medium -- a step
+heavy and about 3% wide, enough to move line breaks. `Manrope-Regular.ttf` is the official 400,
+instanced from the variable font the design loads; see `mobile/welcome-screen/fonts/README-manrope-regular.md`.
+
+### CSS fidelity -- what Compose and SwiftUI do differently, measured
+
+| Primitive | Android | iOS | What it matches |
+|---|---|---|---|
+| CSS line box | `designsystem/CssLineBox.kt`, `WashHeadline(cssLineBox = true)` | `CSSTextLayout.swift`, `WashHeadline(cssLineBox:)` | n lines of `line-height` with the first baseline where CSS puts it. Compose made a two-line Lora 34 / 1.1 headline 6.1pt taller than CSS. Opt-in: turning it on moves every headline reviewed with the offset in it |
+| `text-wrap: pretty` | `designsystem/PrettyWrap.kt` (`prettyWrap`, `prettyWidthPx`), `WashHeadline(pretty = true)` | `CSSTextLayout.swift` (`PrettyText`), `WashHeadline(pretty:)` | Chrome's rule, measured over 375 layouts in headless Chrome: re-wrap only a ONE-word last line narrower than a third of the width, by pulling one word down |
+| Wash anchor | `WashHeadline`, under `cssLineBox` | the same | the em's content box: baseline + Lora's 0.274em descent + 0.08em, not the line's bottom, which moved with the line height |
+| Shrink to fit | `designsystem/ShrinkToFit.kt` | `.minimumScaleFactor` | one line that shrinks instead of truncating: slot labels at 2x, the summary to 0.78 |
+| Focus halo | `halo` in `designsystem/Shadows.kt` | in the uplift field | `box-shadow: 0 0 0 4px`. **Must come before any clip**: the prompt editor's sat after one and its focus ring never showed on Android -- fixed |
+| Multi-layer glow | `pillShadows` + `ShadowViolet` in `Shadows.kt` | `PrimaryButton.glow` | `--liq-shadow-violet`, both layers. The sunset and violet `PrimaryButton`s used elevation `shadow(12dp)`, whose direction moved with the button's position and which no test render drew |
+| Blur behind a dialog | `blurBehindDialog` in `SheetScaffold.kt` | `.blur(radius: 3)` | `blur(3px)` behind the No hours today? scrim, fading with it. Android 12+ only (RenderEffect) |
+
+### Components
+
+| | Android | iOS | Note |
+|---|---|---|---|
+| **RangeSlider** | `designsystem/RangeSlider.kt` | `RangeSlider.swift` | one thumb or two, 44 track inset, thumbs never cross; Search's filter sheet consumes it |
+| **TabBar** | `designsystem/TabBar.kt` | `TabBar.swift` | Search / Instant / Settings; the gate and Settings use it |
+| Check-In chrome | `checkin/CheckInChrome.kt`, `CheckInFlexBody.kt`, `AvailabilityChrome.kt` | `CheckInChrome.swift`, `CheckInAvailabilityChrome.swift`, `CheckInNoHoursDialog.swift` | the step shell, footer (dim, toast, spinner, error), the header-over-region body with its 80 floor, CoachNote, NumberedRow, close and arrow. Local to the Check-In: one flow uses them |
+| LifePill | reused from Profile 22 | reused | Vibe and the gender filter, as built -- no second chip |
 
 ## How the verifiers still check numbers
 

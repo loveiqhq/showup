@@ -94,6 +94,12 @@ fun AppHeader(
     onBack: () -> Unit = {},
     /** Spoken by TalkBack. The chevron is a Canvas, so without this the control has no name. */
     backLabel: String = "Back",
+    /**
+     * What the trailing 36 slot holds -- the Check-In steps' close ✕ (`components/shared.jsx`
+     * AppHeader's `trailing`). Null everywhere else, where the slot stays empty and still occupies
+     * its 36 so the title never moves.
+     */
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier
@@ -144,9 +150,9 @@ fun AppHeader(
             textAlign = TextAlign.Center,
         )
 
-        // Empty on every screen in this flow, and still occupying its 36 for the same reason the
+        // Empty unless a screen fills it, and always occupying its 36 for the same reason the
         // leading slot does.
-        Box(Modifier.width(36.dp))
+        Box(Modifier.width(36.dp), contentAlignment = Alignment.CenterEnd) { trailing?.invoke() }
     }
 }
 

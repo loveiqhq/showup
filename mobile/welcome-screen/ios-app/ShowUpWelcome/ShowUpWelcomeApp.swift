@@ -265,6 +265,16 @@ private struct TutorialFlow: View {
         analytics: AppAnalytics.shared
     )
     @SceneStorage private var picksStored: String
+
+    // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ───────────────────────
+    //
+    // One owner for the whole flow, built before its steps (epic, "Built once"): the step order,
+    // back and close, the gate's reopen rule and every event of family H. NOT in scene storage, on
+    // purpose -- "only the close, or leaving the app long enough for the screen to be destroyed,
+    // clears the picks": a restored scene whose model is new restarts the Check-In at Today
+    // (`checkInArrived`). Replaced by `beginNewAccount` like every account-scoped model.
+    @State private var checkIn = CheckInModel(store: CheckInRepository(api: APIAccess.client),
+                                              analytics: AppAnalytics.shared)
     /// Whether Embrace 2's confetti has started for this showing — so a scene restore onto the
     /// bridge does not replay it. Cleared by the push, never by the way out.
     @SceneStorage private var confettiPlayed: Bool
@@ -607,6 +617,7 @@ private struct TutorialFlow: View {
                           analytics: AppAnalytics.shared)
         location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client),
                                  analytics: AppAnalytics.shared)
+        checkIn = CheckInModel(store: CheckInRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
         firstName = ""
         email = ""
         marketingConsent = false
@@ -655,6 +666,14 @@ private struct TutorialFlow: View {
         case .profileInterests: return .interests
         case .profileLifeNow: return .lifeNow
         case .profileLifeAhead: return .lifeAhead
+        case .checkInGate: return .checkinSearchUnavailable
+        case .checkInIntro: return .checkinIntro
+        case .checkInToday: return .checkinToday
+        case .checkInTomorrow: return .checkinTomorrow
+        case .checkInMotivation: return .checkinMotivation
+        case .checkInVibe: return .checkinVibe
+        case .checkInFilters: return .checkinFilters
+        case .checkInUplift: return .checkinUplift
         default: return nil
         }
     }
@@ -766,18 +785,159 @@ private struct TutorialFlow: View {
     }
 
     /// Life or Future: the same column with its own step (Profile 23 consumes Profile 22's).
-    private func lifeScreen(_ step: PickStep, next: FlowScreen, previous: FlowScreen) -> some View {
+    /// `exit` is where Continue and Skip both go -- for Future, the end of profile creation.
+    private func lifeScreen(_ step: PickStep, previous: FlowScreen, exit: @escaping () -> Void) -> some View {
         LifeView(
             step: step,
             state: picks.state,
             onTap: { picks.pillTapped(step, $0, $1) },
-            onContinue: { Task { await picks.continuePressed(step) { go(to: next) } } },
-            onSkip: { picks.skipPressed(step) { go(to: next) } },
+            onContinue: { Task { await picks.continuePressed(step) { exit() } } },
+            onSkip: { picks.skipPressed(step) { exit() } },
             onBack: { picks.backPressed(step) { go(to: previous) } }
         )
         .onAppear {
             attachPicks()
             picks.arrived(step, referrer: profileScreen(of: cameFrom))
+        }
+    }
+
+
+    // MARK: - the 48hrs Check-In (SHOWUP-178 to SHOWUP-183)
+
+    /// A Check-In step is on screen. IF ITS OWNER DID NOT SURVIVE -- a scene restored onto a step
+    /// with a new model -- the Check-In restarts at Today, empty, and Motivation, Vibe and Filters
+    /// pre-fill from the server again (story 02: only the close "or leaving the app long enough for
+    /// the screen to be destroyed" clears the picks). The intro holds nothing and is simply shown.
+    private func checkInArrived(_ step: CheckInStep) {
+        if step != .intro && !checkIn.flowAlive {
+            checkIn.beginFlow()
+            if step != .today {
+                // Not a navigation the user made: no referrer, as on a launch.
+                cameFromRaw = ""
+                screenRaw = FlowScreen.checkInToday.rawValue
+                return
+            }
+        }
+        checkIn.arrived(step, screen: step.screen, referrer: profileScreen(of: cameFrom))
+    }
+
+    /// Every step's close: the flow is discarded and the gate shown.
+    private func closeCheckIn(_ step: CheckInStep) {
+        checkIn.closePressed(step) { go(to: .checkInGate) }
+    }
+
+    /// The gate's CTA, Search tab or Instant tab: the intro until it has been passed, Today after.
+    private func reopenCheckIn(_ target: CheckInAnalytics.GateTarget) {
+        checkIn.gateTapped(target) { go(to: $0.flowScreen) }
+    }
+
+    /// The Check-In's screens. Each takes the model's state and returns its taps as model calls;
+    /// the model decides, the host only routes.
+    @ViewBuilder private func checkInScreen(_ screen: FlowScreen) -> some View {
+        let s = checkIn.state
+        switch screen {
+        case .checkInGate:
+            CheckInGateView(onCheckIn: { reopenCheckIn($0) }, onSettings: { go(to: .checkInSettings) })
+                .onAppear {
+                    checkIn.arrived(nil, screen: .checkinSearchUnavailable, referrer: profileScreen(of: cameFrom))
+                }
+        case .checkInIntro:
+            // No back on the intro (story 01): no swipe, and the close is the only way out.
+            CheckInIntroView(onStart: { checkIn.introStarted { go(to: .checkInToday) } },
+                             onClose: { closeCheckIn(.intro) })
+                .onAppear { checkInArrived(.intro) }
+        case .checkInToday, .checkInTomorrow:
+            let step: CheckInStep = screen == .checkInToday ? .today : .tomorrow
+            Group {
+                if let grid = step == .today ? s.todayGrid : s.tomorrowGrid {
+                    CheckInAvailabilityView(
+                        grid: grid,
+                        picked: grid.picked(s.picks),
+                        howItWorksOpen: s.howItWorksOpen,
+                        toast: s.toast,
+                        toastTick: s.toastTick,
+                        dialogOpen: s.noHoursDialog,
+                        onSlot: { hour in
+                            if let at = grid.hours.firstIndex(of: hour) {
+                                checkIn.slotTapped(step, start: grid.starts[at])
+                            }
+                        },
+                        onClearAll: { checkIn.clearAll(step) },
+                        onToggleHowItWorks: { checkIn.toggleHowItWorks() },
+                        onContinue: {
+                            checkIn.availabilityContinue(step) {
+                                go(to: step == .today ? .checkInTomorrow : .checkInMotivation)
+                            }
+                        },
+                        onConfirmNoToday: { checkIn.noHoursConfirmed { go(to: .checkInTomorrow) } },
+                        onCancelNoToday: { checkIn.noHoursCancelled(dismissed: false) },
+                        onDismissNoToday: { checkIn.noHoursCancelled(dismissed: true) },
+                        // Today's back is the intro, even after a gate reopen skipped it (story 02,
+                        // Open: "Default: back -> intro").
+                        onBack: {
+                            checkIn.backPressed(step) { go(to: step == .today ? .checkInIntro : .checkInToday) }
+                        },
+                        onClose: { closeCheckIn(step) })
+                } else {
+                    Color.liqCream.ignoresSafeArea()
+                }
+            }
+            .onAppear { checkInArrived(step) }
+        case .checkInMotivation:
+            CheckInMotivationView(
+                selected: s.motivation, toast: s.toast, toastTick: s.toastTick,
+                onPick: { checkIn.motivationTapped($0) },
+                onContinue: { checkIn.motivationContinue { go(to: .checkInVibe) } },
+                onBack: { checkIn.backPressed(.motivation) { go(to: .checkInTomorrow) } },
+                onClose: { closeCheckIn(.motivation) })
+                .onAppear { checkInArrived(.motivation) }
+        case .checkInVibe:
+            CheckInVibeView(
+                picked: s.vibes, toast: s.toast, toastTick: s.toastTick,
+                onTap: { checkIn.vibeTapped($0) },
+                onContinue: { checkIn.vibeContinue { go(to: .checkInFilters) } },
+                onBack: { checkIn.backPressed(.vibe) { go(to: .checkInMotivation) } },
+                onClose: { closeCheckIn(.vibe) })
+                .onAppear { checkInArrived(.vibe) }
+        case .checkInFilters:
+            CheckInFiltersView(
+                // Nil only for the instant before the arrival seeds the stand-in.
+                filters: s.filters ?? CheckInFilters(genders: []),
+                toast: s.toast, toastTick: s.toastTick,
+                onGender: { checkIn.genderTapped($0) },
+                onAge: { checkIn.ageMoved(thumb: $0, value: $1) },
+                onDistance: { checkIn.distanceMoved($0) },
+                onContinue: { checkIn.filtersContinue { go(to: .checkInUplift) } },
+                onBack: { checkIn.backPressed(.filters) { go(to: .checkInVibe) } },
+                onClose: { closeCheckIn(.filters) })
+                .onAppear { checkInArrived(.filters) }
+        case .checkInUplift:
+            CheckInUpliftView(
+                text: s.uplift, blocked: s.upliftBlocked, saving: s.saving, saveFailed: s.saveFailed,
+                toast: s.toast, toastTick: s.toastTick,
+                onText: { checkIn.upliftChanged($0) },
+                // Saved -> straight to Search, date search unlocked. No toast.
+                onFindMyDate: { Task { await checkIn.findMyDate { go(to: .checkInSearch) } } },
+                onBack: { checkIn.backPressed(.uplift) { go(to: .checkInFilters) } },
+                onClose: { closeCheckIn(.uplift) })
+                .onAppear { checkInArrived(.uplift) }
+        case .checkInSearch:
+            SearchUnlockedPlaceholderView()
+        case .checkInSettings:
+            SettingsPlaceholderView(onTab: { tab in
+                switch tab {
+                // Search with no Check-In IS the gate (story 01).
+                case .search: go(to: .checkInGate)
+                // Instant is still gated: it opens the Check-In, as on the gate.
+                case .instant: reopenCheckIn(.instantTab)
+                case .settings: break
+                }
+            })
+            // Back returns to Search, the tab the gate is.
+            .modifier(EdgeSwipeBack(onBack: { go(to: .checkInGate) }))
+            .onAppear { checkIn.atTabs() }
+        default:
+            EmptyView()
         }
     }
 
@@ -816,6 +976,27 @@ private struct TutorialFlow: View {
     /// For this launch only: hidden so a screenshot for design review is clean.
     @State private var devTabHidden = false
     @State private var devFacts: DevMenuFacts?
+    /// The ticket frame open over the app, from the States page.
+    @State private var devState: DevState?
+
+    /// The States page's frame, full screen over the app, with its own close.
+    private var devStateHost: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .fullScreenCover(item: $devState) { state in
+                DevStateCover(state: state, onClose: { devState = nil })
+            }
+    }
+
+    /// The Check-In on the in-memory test server -- signed out, `DevJump.testServer`. The model is
+    /// replaced, not the screens: the real routing and the real model, only the server swapped.
+    /// Past the intro, so the gate reopens at Today as a returning user's would; the intro row itself
+    /// still opens the intro.
+    private func startDevCheckIn(at target: FlowScreen) {
+        checkIn = CheckInModel(store: DevCheckInStore(introPassed: target != .checkInIntro),
+                               analytics: AppAnalytics.shared)
+        Task { await jumpFromDevMenu(to: target) }
+    }
 
     @ViewBuilder private var devOverlay: some View {
         if devMenuOpen {
@@ -826,6 +1007,14 @@ private struct TutorialFlow: View {
                 onJump: { target in
                     devMenuOpen = false
                     Task { await jumpFromDevMenu(to: target) }
+                },
+                onTestServer: { target in
+                    devMenuOpen = false
+                    startDevCheckIn(at: target)
+                },
+                onOpenState: { state in
+                    devMenuOpen = false
+                    devState = state
                 },
                 onClearEvents: { EventLog.shared.clear() },
                 onHideTab: {
@@ -863,6 +1052,10 @@ private struct TutorialFlow: View {
         picks.leftElsewhere()
         notifications.left()
         reachability.left()
+        checkIn.leftElsewhere()
+        // A jump INTO a Check-In step begins a flow there, as the walk would have: pre-filled from
+        // the server, availability and the uplift empty.
+        if target.isCheckInStep { checkIn.beginFlow() }
         switch target {
         case .profileNotifications: go(to: await afterMedia())
         case .profileLocation: await enterLocation()
@@ -1132,11 +1325,19 @@ private struct TutorialFlow: View {
                 // "Share some details", steps 8 to 10 (SHOWUP-174 to SHOWUP-176).
                 case .profileInterests: interestsScreen
                 case .profileLifeNow:
-                    lifeScreen(.lifeNow, next: .profileLifeAhead, previous: .profileInterests)
+                    lifeScreen(.lifeNow, previous: .profileInterests, exit: { go(to: .profileLifeAhead) })
                 case .profileLifeAhead:
-                    // THE CHECK-IN INTRO IS NOT BUILT, so the end of profile creation lands on home
-                    // for now. Both exits change together when it is.
-                    lifeScreen(.lifeAhead, next: .home, previous: .profileLifeNow)
+                    // THE END OF PROFILE CREATION, by either exit: the 48hrs Check-In intro (Check-In
+                    // 01), with a new flow begun behind it.
+                    lifeScreen(.lifeAhead, previous: .profileLifeNow, exit: {
+                        checkIn.beginFlow()
+                        go(to: .checkInIntro)
+                    })
+
+                // The 48hrs Check-In (SHOWUP-178 to SHOWUP-183).
+                case .checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
+                     .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings:
+                    checkInScreen(screen)
 
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
@@ -1152,11 +1353,26 @@ private struct TutorialFlow: View {
 
             #if DEBUG
             devOverlay
+            devStateHost
             #endif
         }
         // Moving past sign-up ends the notice: it describes why the user is HERE.
         .onChange(of: screenRaw) { _, _ in
             if screen != .signUp { onSessionNoticeDismissed() }
+        }
+        // THE CHECK-IN IS RE-READ ON EVERY FOREGROUND, and its clock re-evaluated: "read on every
+        // foreground", and "a slot that has started disappears from the grid and from the
+        // selection, silently". Only while a Check-In screen is shown -- elsewhere nothing reads it,
+        // and a signed-out launch must not send an authenticated request.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && screen.isCheckIn {
+                checkIn.evaluateClock()
+                checkIn.refresh()
+            }
+        }
+        // THE SEARCH TAB FOLLOWS THE SERVER (`checkInTabTarget`).
+        .onChange(of: checkInTabTarget(screen: screen, active: checkIn.state.server?.active)) { _, target in
+            if let target { go(to: target) }
         }
         // ── resuming a half-finished profile (flow rule 4a) ─────────────────
         //
@@ -1174,6 +1390,15 @@ private struct TutorialFlow: View {
             resumeChecked = true
             guard let progress = await progressRepo.fetch() else { return }
             guard screen == .signUp else { return }
+            // A FINISHED PROFILE OPENS ON THE SEARCH TAB (Check-In 01): the gate until a Check-In is
+            // active, unlocked Search after. Read before deciding -- and an unreachable server is
+            // the gate, because date search must never open on a guess.
+            var finished: FlowScreen?
+            if resumePoint(progress) == .done {
+                finished = await checkIn.read()?.active == true ? .checkInSearch : .checkInGate
+                // The read took time: a user who has walked somewhere meanwhile stays there.
+                guard screen == .signUp else { return }
+            }
             // Everything already entered, still present.
             firstName = progress.displayName ?? ""
             // BOTH copies: the email field reads the scene-stored `email`, the code send reads
@@ -1207,7 +1432,7 @@ private struct TutorialFlow: View {
             case .interests: go(to: .profileInterests); picks.preload()
             case .lifeNow: go(to: .profileLifeNow); picks.preload()
             case .lifeAhead: go(to: .profileLifeAhead); picks.preload()
-            case .done: go(to: .home)
+            case .done: go(to: finished ?? .checkInGate)
             }
             // A resume onto a detail step pre-fills the saved value: start the read now.
             details.preload()
