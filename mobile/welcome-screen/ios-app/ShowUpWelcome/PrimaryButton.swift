@@ -121,8 +121,11 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
                 : variant == .google ? Capsule().strokeBorder(Color(hex: 0x747775), lineWidth: 1)
                 : nil
             )
-            .shadow(color: variant == .sunset ? Color.liqPurple.opacity(0.28) : .clear,
-                    radius: 10, y: 8)
+            // `--liq-shadow-violet`, BOTH layers, since 14 Oct 2026 -- Android's `pillShadows`.
+            // It was one `.shadow` at the first layer's values on sunset only; violet had none,
+            // though Android has always drawn it there. Behind the clipped capsule, so each layer
+            // is the shape's own shadow rather than a shadow of the one before it.
+            .background(glow)
             .opacity(enabled ? 1 : 0.45)
         }
         .buttonStyle(PressScale())
@@ -137,6 +140,23 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
         case .google: return Color(hex: 0x1F1F1F)     // Google's specified label colour
         case .ghost: return .liqFg
         case .plain: return .liqMuted
+        }
+    }
+
+    /// `0 8px 20px rgba(129,42,236,.28), 0 2px 6px rgba(129,42,236,.18)` under the sunset and
+    /// violet pills. CSS's blur is twice SwiftUI's shadow radius, so 20 is 10 and 6 is 3. The
+    /// shape under each shadow is the button's own fill, so its antialiased edge carries no fringe
+    /// of another colour; CSS's first layer is listed last, so it ends on top.
+    @ViewBuilder private var glow: some View {
+        if variant == .sunset || variant == .violet {
+            ZStack {
+                Capsule().fill(Color.liqPurple)
+                    .overlay(background.clipShape(Capsule()))
+                    .shadow(color: Color.liqPurple.opacity(0.18), radius: 3, y: 2)
+                Capsule().fill(Color.liqPurple)
+                    .overlay(background.clipShape(Capsule()))
+                    .shadow(color: Color.liqPurple.opacity(0.28), radius: 10, y: 8)
+            }
         }
     }
 

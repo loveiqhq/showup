@@ -110,8 +110,8 @@ enum ProfileScreen: String {
     /// The second bridge (SHOWUP-166). A screen and not a step, like `embraceBuild`.
     case embraceDetails = "profile_embrace_details"
 
-    // "Share some details" (SHOWUP-167 to SHOWUP-173). Rows added in registry 1.4.8 for all eleven
-    // steps at once; only the seven with a screen are spelled, the rest join with their screens.
+    // "Share some details" (SHOWUP-167 to SHOWUP-176). Rows added in registry 1.4.8; `profile_habits`
+    // was removed with its screen in 1.4.16, leaving ten.
     case height = "profile_height"
     case gender = "profile_gender"
     case orientation = "profile_orientation"
@@ -119,6 +119,23 @@ enum ProfileScreen: String {
     case education = "profile_education"
     case religion = "profile_religion"
     case politics = "profile_politics"
+    case interests = "profile_interests"
+    case lifeNow = "profile_life_now"
+    /// The last step of profile creation (SHOWUP-176). Its exit is the Check-In intro.
+    case lifeAhead = "profile_life_ahead"
+
+    // The 48hrs Check-In (SHOWUP-178 to 183), §11 rows from registry 1.4.19 to 1.4.25. Here with the
+    // profile's screens because `referrer_screen_id` crosses the two: the intro's referrer is
+    // `profile_life_ahead`. Not steps of profile creation -- nothing here fires profile_step_*.
+    case checkinIntro = "checkin_intro"
+    /// The Search tab for a user with no committed Check-In -- "date search not available".
+    case checkinSearchUnavailable = "checkin_search_unavailable"
+    case checkinToday = "checkin_today"
+    case checkinTomorrow = "checkin_tomorrow"
+    case checkinMotivation = "checkin_motivation"
+    case checkinVibe = "checkin_vibe"
+    case checkinFilters = "checkin_filters"
+    case checkinUplift = "checkin_uplift"
 
     var screenId: String { rawValue }
 
@@ -145,6 +162,17 @@ enum ProfileScreen: String {
         case .education: return "ProfileEducation"
         case .religion: return "ProfileReligion"
         case .politics: return "ProfilePolitics"
+        case .interests: return "ProfileInterests"
+        case .lifeNow: return "ProfileLifeNow"
+        case .lifeAhead: return "ProfileLifeAhead"
+        case .checkinIntro: return "CheckinIntro"
+        case .checkinSearchUnavailable: return "CheckinSearchUnavailable"
+        case .checkinToday: return "CheckinToday"
+        case .checkinTomorrow: return "CheckinTomorrow"
+        case .checkinMotivation: return "CheckinMotivation"
+        case .checkinVibe: return "CheckinVibe"
+        case .checkinFilters: return "CheckinFilters"
+        case .checkinUplift: return "CheckinUplift"
         }
     }
 }
@@ -288,6 +316,11 @@ enum ConsentSurface {
 enum Stamp {
     /// enums.json -> registry_version at the time of writing.
     ///
+    /// 1.4.18 (8 October 2026) closes the last three steps, one version each: 1.4.16 Interests (the
+    /// six How I live fields in §1, §3 rewritten to 51 tag_ids, habits retired), 1.4.17 Life (§4
+    /// re-slugged with an `exclusive` column, partnership Class 2), 1.4.18 Future (`checkin_intro`
+    /// registered in §11).
+    ///
     /// 1.4.15 (5 October 2026) closes the nine "Share some details" tickets, one version each:
     /// 1.4.7 location (§26 `location_unavailable_reason`), 1.4.8 the `add_details` bridge, then
     /// one per detail step from height (1.4.9) to politics (1.4.15) - `muslim` added to religion in
@@ -307,7 +340,7 @@ enum Stamp {
     ///
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
-    static let fieldRegistryVersion = "1.4.15"
+    static let fieldRegistryVersion = "1.4.25"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
@@ -412,6 +445,19 @@ enum ProfileAnalytics {
     static let detailSkippedName = "detail_skipped"
     static let fieldDisplayOptedOutName = "field_display_opted_out"
 
+    // MARK: family F · Interests, Life and Future (SHOWUP-174 to SHOWUP-176)
+
+    /// TWO CADENCES ON INTERESTS, by registry rule: What I'm into reports PER TAP with a running
+    /// total; How I live reports once per answered group on an accepted Continue, as
+    /// `detail_answered`. Life and Future report once per answered question on Continue, never per
+    /// tap, each stamped with its question's own §4 class.
+    static let interestSelectedName = "interest_selected"
+    static let interestDeselectedName = "interest_deselected"
+    static let interestCapReachedName = "interest_cap_reached"
+    static let showMoreExpandedName = "show_more_expanded"
+    static let lifeQuestionAnsweredName = "life_question_answered"
+    static let futureQuestionAnsweredName = "future_question_answered"
+
     /// The closed set on `permission_prompted.type`, from `enums.json` §8.
     ///
     /// `permission_os_sheet_shown.type` and `permission_result.type` are typed `str` in the
@@ -492,6 +538,77 @@ enum ProfileAnalytics {
             "field_id": step.fieldId, "rule": rule,
             "screen_id": step.screen.screenId, "step_id": step.stepId,
         ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    // MARK: Interests, Life and Future
+
+    /// T2, class 0. Step `step` was shown.
+    static func pickStepViewed(_ step: PickStep) -> (String, [String: any Sendable]) {
+        (profileStepViewed, [
+            "step_id": step.stepId, "step_index": step.stepIndex,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Continue with something picked was accepted and saved.
+    static func pickStepCompleted(_ step: PickStep,
+                                  timeOnStepSeconds: Int) -> (String, [String: any Sendable]) {
+        (profileStepCompleted, [
+            "step_id": step.stepId, "time_on_step_s": timeOnStepSeconds,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. Skip, or a Continue with nothing picked - the two are one act on these steps.
+    static func pickStepSkipped(_ step: PickStep) -> (String, [String: any Sendable]) {
+        (profileStepSkipped, [
+            "step_id": step.stepId, "screen_id": step.screen.screenId,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, the field's class. One per ANSWERED How I live group on an accepted Continue, in list
+    /// order - the same event the detail steps send, keyed by the same §1 field_id vocabulary.
+    static func lifestyleAnswered(_ field: LifestyleField,
+                                  value: String) -> (String, [String: any Sendable]) {
+        precondition(!value.isEmpty, "an unanswered group sends nothing")
+        return (detailAnsweredName, [
+            "field_id": field.fieldId, "value_bucketed": value,
+        ].merging(Stamp.of(field.sensitivityClass)) { a, _ in a })
+    }
+
+    /// T1, class 0. A What I'm into chip was picked; `total` counts What I'm into only, after it.
+    static func interestSelected(_ tagId: String, total: Int) -> (String, [String: any Sendable]) {
+        (interestSelectedName, ["tag_id": tagId, "total_selected": total].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. A What I'm into chip was unpicked.
+    static func interestDeselected(_ tagId: String, total: Int) -> (String, [String: any Sendable]) {
+        (interestDeselectedName, ["tag_id": tagId, "total_selected": total].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, class 0. A tap on a faded chip at the cap - every such tap, and the tap does nothing.
+    static func interestCapReached() -> (String, [String: any Sendable]) {
+        (interestCapReachedName, ["cap": interestsMax].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T2, class 0. `Show more` opened a group. Never on `Show less`.
+    static func showMoreExpanded(_ section: InterestSection) -> (String, [String: any Sendable]) {
+        (showMoreExpandedName, [
+            "screen_id": ProfileScreen.interests.screenId,
+            "section_id": section.sectionId,
+            "revealed_count": section.hiddenCount,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// T1, the question's class. One per ANSWERED question on an accepted Continue, in screen order:
+    /// `life_question_answered` on Life, `future_question_answered` on Future. `valueBucketed` is the
+    /// picked §4 values in list order, comma-joined, no spaces - never empty.
+    static func lifeAnswered(_ step: PickStep, _ question: LifeQuestion,
+                             valueBucketed: String) -> (String, [String: any Sendable]) {
+        precondition(!valueBucketed.isEmpty, "an unanswered question sends nothing")
+        precondition(step.questions.contains(question), "\(question) is not asked on \(step)")
+        let name = step == .lifeAhead ? futureQuestionAnsweredName : lifeQuestionAnsweredName
+        return (name, [
+            "question_id": question.questionId, "value_bucketed": valueBucketed,
+        ].merging(Stamp.of(question.sensitivityClass)) { a, _ in a })
     }
 
     /// T1, class 0. `referrer_screen_id` is B2 and travels empty until Step 3 lands.

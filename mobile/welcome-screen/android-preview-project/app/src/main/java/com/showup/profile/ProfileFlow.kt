@@ -51,6 +51,10 @@ val FLOW_ORDER: List<FlowPosition> = listOf(
     FlowPosition.education,
     FlowPosition.religion,
     FlowPosition.politics,
+    FlowPosition.interests,
+    FlowPosition.life_now,
+    // The last: reported by Future's Continue and Skip alike, it means profile creation is complete.
+    FlowPosition.life_ahead,
 )
 
 /**

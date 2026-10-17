@@ -483,6 +483,66 @@ final class ScreenFitTests: XCTestCase {
                     ProfileChoiceView(step: .politics, state: DetailsUiState(
                         draft: DetailDraft(politics: "apolitical"), toast: .saveFailed)),
                     on: device), .orange),
+
+                // SHOWUP-174 to SHOWUP-176. The round ORANGE NextButton, never disabled. Only the
+                // answer region scrolls, so a finding means something FIXED overflowed. At the cap
+                // the counter's meter turns orange too; it sits far above the footer, so the CTA is
+                // still the lowest orange run this probe reads.
+                ("Interests empty", try render(ProfileInterestsView(), on: device), .orange),
+                ("Interests two and six", try render(ProfileInterestsView(state: .interestsB), on: device), .orange),
+                ("Interests cap", try render(ProfileInterestsView(state: .interestsC), on: device), .orange),
+                ("Interests Move open", try render(ProfileInterestsView(state: .interestsD), on: device), .orange),
+                ("Life empty", try render(LifeView(step: .lifeNow), on: device), .orange),
+                ("Life answered", try render(LifeView(step: .lifeNow, state: .lifeB), on: device), .orange),
+                ("Future empty", try render(LifeView(step: .lifeAhead), on: device), .orange),
+                ("Future answered", try render(LifeView(step: .lifeAhead, state: .futureB), on: device), .orange),
+
+                // The 48hrs Check-In (SHOWUP-178 to SHOWUP-183). Every CTA is the SUNSET pill, probed
+                // at its violet end. The picks below stay out of the grid's fourth column, so no
+                // violet slot shares the probe's x with the CTA.
+                //
+                // THE DIMMED STATES ARE DELIBERATELY ABSENT -- Tomorrow, Motivation, Vibe and Filters
+                // with nothing picked, and Uplift blocked. "Dimmed is not disabled": the footer draws
+                // the pill at .45 opacity and .4 saturation, which lands on neither `.violet` nor
+                // `.violetDim` (b about 198 against cream), so the probe would report a pill that is on
+                // screen as missing. The dim changes no geometry, so their undimmed twins below hold
+                // the same layout. The No hours today? confirm is absent for the scrim's reason above.
+                ("Check-In intro", try render(CheckInIntroView(), on: device), .violet),
+                ("Check-In gate", try render(CheckInGateView(), on: device), .violet),
+                ("Check-In Today empty", try render(
+                    CheckInAvailabilityView(grid: gridOf(.today, fitCheckInDays), picked: [:], howItWorksOpen: false),
+                    on: device), .violet),
+                ("Check-In Today picked", try render(
+                    CheckInAvailabilityView(grid: gridOf(.today, fitCheckInDays),
+                                            picked: [18: .preferred, 19: .available], howItWorksOpen: false),
+                    on: device), .violet),
+                // How it works open on a short phone is where the header can outgrow the frame: the
+                // flex body's floor keeps the grid, the summary and the legend.
+                ("Check-In How it works open", try render(
+                    CheckInAvailabilityView(grid: gridOf(.today, fitCheckInDays),
+                                            picked: [18: .preferred], howItWorksOpen: true),
+                    on: device), .violet),
+                ("Check-In Tomorrow picked + toast", try render(
+                    CheckInAvailabilityView(grid: gridOf(.tomorrow, fitCheckInDays),
+                                            picked: [12: .preferred, 13: .preferred, 19: .available],
+                                            howItWorksOpen: false, toast: CheckInCopy.tomorrowToast),
+                    on: device), .violet),
+                ("Check-In Motivation picked", try render(
+                    CheckInMotivationView(selected: "long_term"), on: device), .violet),
+                ("Check-In Vibe five + toast", try render(
+                    CheckInVibeView(picked: ["coffee_chat", "sunset", "calm", "playful", "no_rush"],
+                                    toast: CheckInCopy.vibeToastMax), on: device), .violet),
+                ("Check-In Filters narrowed", try render(
+                    CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "non_binary"],
+                                                               minAge: 25, maxAge: 35, distanceKm: 15)),
+                    on: device), .violet),
+                ("Check-In Uplift empty", try render(CheckInUpliftView(text: ""), on: device), .violet),
+                ("Check-In Uplift saving", try render(
+                    CheckInUpliftView(text: "will take you out on my boat on Wannsee", saving: true),
+                    on: device), .violet),
+                ("Check-In Uplift save failed", try render(
+                    CheckInUpliftView(text: "will take you out on my boat on Wannsee", saveFailed: true),
+                    on: device), .violet),
             ]
             for (label, image, tint) in screens {
                 guard let rows = ctaRows(in: image, tint: tint) else {
@@ -559,6 +619,10 @@ final class FixedInsetWindow: UIWindow {
     var fixedInsets: UIEdgeInsets = .zero
     override var safeAreaInsets: UIEdgeInsets { fixedInsets }
 }
+
+/// The kit's 4:20pm, so Today starts at 5pm as on every Check-In sheet.
+private let fitCheckInDays = checkInDays(
+    CivilDateTime(date: CivilDate(year: 2026, month: 10, day: 13), hour: 16, minute: 20))
 
 // MARK: - fixtures for "The real you"
 //

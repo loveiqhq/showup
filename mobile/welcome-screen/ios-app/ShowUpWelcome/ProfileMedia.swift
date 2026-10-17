@@ -91,17 +91,14 @@ struct ProfileMediaView: View {
                     Color.clear.frame(height: 18)
                 },
                 footer: {
-                    HStack {
-                        SkipLink(label: MediaCopy.skip, action: onSkip)
-                        Spacer()
-                        // ALWAYS ORANGE, in every state. The sunset gradient is reserved for the
-                        // sheet's commit CTA and the two review primaries; the reference's own
-                        // comment says this "pops to sunset when both slots are filled" and its
-                        // code does not, and the ticket settles it: "It stays the orange 52px
-                        // NextButton."
-                        NextButton(label: MediaCopy.continueLabel, variant: .orange,
-                                   arrowSize: 22, circleSize: 52, action: onContinue)
-                    }
+                    // ALWAYS ORANGE, in every state. The sunset gradient is reserved for the
+                    // sheet's commit CTA and the two review primaries; the reference's own comment
+                    // says this "pops to sunset when both slots are filled" and its code does not,
+                    // and the ticket settles it: "It stays the orange 52px NextButton." Side by
+                    // side when the two fit, stacked when they do not — the rule Android's media
+                    // footer has had since its fit sweep, now shared (SkipContinueRow).
+                    SkipContinueRow(skipLabel: MediaCopy.skip, ctaLabel: MediaCopy.continueLabel,
+                                    onSkip: onSkip, onContinue: onContinue, circleSize: 52)
                     .padding(.horizontal, Spacing.screenGutter)
                     .padding(.top, Spacing.xl)
                     .padding(.bottom, 14)

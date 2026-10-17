@@ -40,3 +40,40 @@ extension View {
             .contentShape(Rectangle())
     }
 }
+
+extension View {
+    /// A control DRAWN smaller than the tap floor that still ANSWERS at it, without moving anything:
+    /// the slot stays the drawn size, and a touch area of `ComponentSizes.minTapTarget` is laid over
+    /// it, overflowing it symmetrically above and below.
+    ///
+    /// NOT `minTapTarget`, which GROWS the frame to 44 — right for a lone pill, wrong for Interests'
+    /// 38 chips and Life's 34 pills in rows 8 apart, where a 44 frame would open every row by 6 or
+    /// 10 and move every chip below the first. The Kotlin twin is `OverflowTapTarget`.
+    ///
+    /// From the MEASURED height, as the twin does: a control Dynamic Type has grown to 44 or more
+    /// overflows by nothing. Until 13 October 2026 this worked from the design's drawn height, so a
+    /// grown chip still reached 3 into the gap, a pill 5 and the toggle 9 — into the next row's.
+    func overflowTapTarget() -> some View {
+        OverflowTapLayout {
+            self
+            Color.clear.contentShape(Rectangle())
+        }
+    }
+}
+
+/// `overflowTapTarget`'s two layers: the control, reported at its own size, and a touch layer at
+/// least `ComponentSizes.minTapTarget` tall centred on it. SwiftUI hit-tests a child outside its
+/// parent's frame, so the overflow answers as long as nothing clips it.
+private struct OverflowTapLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        subviews.first?.sizeThatFits(proposal) ?? .zero
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        subviews[0].place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(bounds.size))
+        let touch = Swift.max(bounds.height, ComponentSizes.minTapTarget)
+        subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.midY - touch / 2), anchor: .topLeading,
+                          proposal: ProposedViewSize(width: bounds.width, height: touch))
+    }
+}

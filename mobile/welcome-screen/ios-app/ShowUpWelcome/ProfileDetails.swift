@@ -22,7 +22,7 @@ struct DetailOption: Equatable, Sendable {
 }
 
 /// How many segments the group's bar has — `SHARE_STEPS_TOTAL`, "a prop of the shell, never typed
-/// per screen". Ten, and still open: §2's indices end at 9. One number to change when it settles.
+/// per screen". Ten, settled 8 October 2026: "Interests 8 · Life 9 · Future 10" once habits was cut.
 let shareStepsTotal = 10
 
 /// A step of "Share some details". Mirrors `DetailStep` in Kotlin case for case.
@@ -295,6 +295,12 @@ struct SavedDetails: Equatable, Sendable {
     var religion: String?
     var politics: String?
     var hiddenFields: Set<String> = []
+    /// Interests' "How I live", §1 field id -> §1 value, answered groups only (SHOWUP-174).
+    var lifestyle: [String: String] = [:]
+    /// Interests' "What I'm into", §3 tag_ids in list order. Empty when never answered.
+    var interests: [String] = []
+    /// Life and Future, §4 question_id -> values in list order, answered questions only (175, 176).
+    var life: [String: [String]] = [:]
 }
 
 /// The draft a screen opens with: the saved value and visibility for THAT step only.

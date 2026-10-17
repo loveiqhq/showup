@@ -1,6 +1,6 @@
 //
 //  ProfileDetailsRepository.swift
-//  ShowUp · the "Share some details" answers, read and written (SHOWUP-167 to SHOWUP-173)
+//  ShowUp · the "Share some details" answers, read and written (SHOWUP-167 to SHOWUP-176)
 //
 //  The Swift twin of `profile/ProfileDetailsRepository.kt`. Two calls on the owner's own profile:
 //  `GET /me/profile` to pre-fill, and `PATCH /me/profile` to store an answer, its visibility and the
@@ -56,7 +56,31 @@ extension SavedDetails {
             education: dto.education,
             religion: dto.religion,
             politics: dto.politics,
-            hiddenFields: Set(dto.hiddenFields)
+            hiddenFields: Set(dto.hiddenFields),
+            lifestyle: Self.answered([
+                (LifestyleField.activity.fieldId, dto.activity),
+                (LifestyleField.diet.fieldId, dto.diet),
+                (LifestyleField.alcohol.fieldId, dto.alcohol),
+                (LifestyleField.smoking.fieldId, dto.smoking),
+                (LifestyleField.rhythm.fieldId, dto.rhythm),
+                (LifestyleField.social.fieldId, dto.social),
+            ]),
+            interests: dto.interests ?? [],
+            life: Self.answered([
+                (LifeQuestion.partnership.questionId, dto.partnership),
+                (LifeQuestion.family.questionId, dto.family),
+                (LifeQuestion.living.questionId, dto.living),
+                (LifeQuestion.familyAhead.questionId, dto.familyAhead),
+                (LifeQuestion.partnershipAhead.questionId, dto.partnershipAhead),
+                (LifeQuestion.livingAhead.questionId, dto.livingAhead),
+            ])
         )
+    }
+
+    /// The answered entries of a list of (key, optional value): what the server has an answer for.
+    private static func answered<V>(_ pairs: [(String, V?)]) -> [String: V] {
+        var out: [String: V] = [:]
+        for (key, value) in pairs { if let value { out[key] = value } }
+        return out
     }
 }

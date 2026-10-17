@@ -92,6 +92,18 @@ public struct ShowUpAPI: Sendable {
     /// and wrong.
     public static let userAgent = "ShowUp-iOS-0.1"
 
+    /// Whether a call threw because NO RESPONSE ARRIVED -- offline, timed out, the host unreachable
+    /// -- rather than because one arrived that could not be read.
+    ///
+    /// The generated client wraps every failure in `ClientError`, an OpenAPIRuntime type the app
+    /// target does not import, so the line is drawn here. A `URLError` underneath is the network;
+    /// anything else had a response and is the server's. The 48hrs Check-In reports the two apart
+    /// (`check_in_commit_failed`'s `network` and `server`), as Android's `IOException` does.
+    public static func isNoResponse(_ error: any Error) -> Bool {
+        let underlying = (error as? ClientError)?.underlyingError ?? error
+        return underlying is URLError
+    }
+
     /// One refresh call, read into a `TokenRefresher.Outcome`.
     ///
     /// Here rather than inline so the auth tests run THIS mapping, not a copy of it: the line
