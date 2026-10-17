@@ -135,13 +135,25 @@ struct PrettyText: UIViewRepresentable {
     var emphasisColor: Color? = nil
     var centered: Bool = false
     var pretty: Bool = true
+    /// As wide as its widest line when `pretty` did not narrow it -- a one-line toast shrinks to its
+    /// text, as the reference's centred flex column and Android's `prettyWrap` do. Off, the
+    /// paragraph keeps every point it is offered.
+    var hugs: Bool = false
 
-    init(_ text: String, font: UIFont, lineHeight: CGFloat, color: Color, centered: Bool = false) {
+    /// The type size the user chose, as a factor of the default: 1 at the default size. The fonts
+    /// here are UIFonts built at a fixed size, which Dynamic Type never touches on its own -- so at
+    /// the largest sizes these paragraphs stayed put while the `F.manrope` text around them grew.
+    /// Relative to body, as `F.manrope` text scales.
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
+
+    init(_ text: String, font: UIFont, lineHeight: CGFloat, color: Color, centered: Bool = false,
+         hugs: Bool = false) {
         self.runs = [(text, false)]
         self.font = font
         self.lineHeight = lineHeight
         self.color = color
         self.centered = centered
+        self.hugs = hugs
     }
 
     init(runs: [(String, Bool)], font: UIFont, lineHeight: CGFloat, color: Color,
@@ -164,15 +176,17 @@ struct PrettyText: UIViewRepresentable {
     }
 
     func updateUIView(_ v: PrettyLabel, context: Context) {
+        let base = font.withSize(font.pointSize * typeScale)
+        let emphasis = emphasisFont.map { $0.withSize($0.pointSize * typeScale) }
         let para = NSMutableParagraphStyle()
         // A CSS line-height is a multiple of the FONT SIZE; lineHeightMultiple is a multiple of the
         // font's own line height -- the conversion WashHeadline documents.
-        para.lineHeightMultiple = lineHeight / font.lineHeight
+        para.lineHeightMultiple = lineHeight * typeScale / base.lineHeight
         para.alignment = centered ? .center : .natural
         let out = NSMutableAttributedString()
         for (text, emphasised) in runs {
             out.append(NSAttributedString(string: text, attributes: [
-                .font: emphasised ? (emphasisFont ?? font) : font,
+                .font: emphasised ? (emphasis ?? base) : base,
                 .foregroundColor: UIColor(emphasised ? (emphasisColor ?? color) : color),
                 .paragraphStyle: para,
             ]))
@@ -189,7 +203,10 @@ struct PrettyText: UIViewRepresentable {
               let text = v.attributedText else { return nil }
         let used = pretty ? CSSTextLayout.prettyWidth(text, within: width) : width
         let fit = v.sizeThatFits(CGSize(width: used, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: fit.height)
+        // Narrowed, it keeps the whole width and the label places the text inside it. Hugging and
+        // not narrowed, every line already fits its widest one, so the breaks do not change.
+        let hugged = hugs && used >= width ? min(width, ceil(fit.width)) : width
+        return CGSize(width: hugged, height: fit.height)
     }
 }
 

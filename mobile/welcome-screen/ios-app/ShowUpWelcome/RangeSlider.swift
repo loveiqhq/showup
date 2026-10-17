@@ -38,6 +38,11 @@ struct RangeSlider: View {
     /// -2 while two coincident thumbs wait for the first movement. Disposable gesture state.
     @State private var grabbed: Int?
 
+    /// True while a drag is down. Gesture state resets itself when the drag ends OR IS CANCELLED,
+    /// and `onEnded` does not run for a cancel -- so the grab is cleared from here, or the next drag
+    /// would reuse a stale thumb. Android resets in `onDragCancel`.
+    @GestureState private var dragging = false
+
     /// The thumb's hit box -- and twice the track's inset.
     private let thumbHit = ComponentSizes.minTapTarget
     private var inset: CGFloat { thumbHit / 2 }
@@ -69,6 +74,9 @@ struct RangeSlider: View {
             .simultaneousGesture(drag(track: track))
         }
         .frame(height: thumbHit)
+        .onChange(of: dragging) { _, down in
+            if !down { grabbed = nil }
+        }
     }
 
     private func fraction(_ v: Int) -> CGFloat {
@@ -78,6 +86,7 @@ struct RangeSlider: View {
 
     private func drag(track: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 4)
+            .updating($dragging) { _, down, _ in down = true }
             .onChanged { g in
                 if grabbed == nil {
                     let mostlyVertical = abs(g.translation.height) > abs(g.translation.width)

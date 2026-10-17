@@ -174,7 +174,10 @@ struct CheckInFlexBody<Header: View, Region: View>: View {
             ScrollView(.vertical, showsIndicators: false) {
                 FlexBodyLayout(viewport: geo.size.height, floor: checkInRegionFloor) {
                     VStack(alignment: .leading, spacing: 0) { header() }
-                    region()
+                    // One subview whatever the region holds: the layout places exactly two, and a
+                    // region of several views would flatten into more and draw nothing. Android's
+                    // `Box { region() }`.
+                    VStack(alignment: .leading, spacing: 0) { region() }
                 }
                 .frame(width: geo.size.width)
             }
@@ -292,7 +295,7 @@ struct CheckInToast: View {
     var body: some View {
         PrettyText(text,
                    font: TypeMetrics.uiFont(PS.manropeSemi, 12.5, fallback: .systemFont(ofSize: 12.5, weight: .semibold)),
-                   lineHeight: 12.5 * 1.35, color: .white, centered: true)
+                   lineHeight: 12.5 * 1.35, color: .white, centered: true, hugs: true)
             .padding(.horizontal, 14)
             .padding(.vertical, Spacing.md)
             .background(
