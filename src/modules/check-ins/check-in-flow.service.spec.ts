@@ -19,7 +19,11 @@ import { CheckInProfile } from './entities/check-in-profile.entity';
 import { CheckInWindow } from './entities/check-in-window.entity';
 import { FilterSettings } from './entities/filter-settings.entity';
 import { CheckInStatus, DEFAULT_PREPARATION_MINUTES } from './util/check-in';
-import { MEET_GENDERS, UPLIFT_CONTACT_ERROR_CODE } from './util/check-in-flow';
+import {
+  MEET_GENDERS,
+  NO_HOURS_ERROR_CODE,
+  UPLIFT_CONTACT_ERROR_CODE,
+} from './util/check-in-flow';
 
 /**
  * The 48hrs Check-In service's decisions, without a database (SHOWUP-177, stories 178 to 183).
@@ -660,9 +664,12 @@ describe('CheckInFlowService', () => {
           NOW,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
+      // Its own code: the app asks for hours again rather than showing a connection error.
       await expect(
         service.commit(USER, commitDto({ slots: [] }), NOW),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({
+        response: { statusCode: 400, error: NO_HOURS_ERROR_CODE },
+      });
       expect(windows()[0].committedAt).toBeNull();
       expect(checkIns()).toHaveLength(0);
       expect(db.queries).toHaveLength(0);

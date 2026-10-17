@@ -38,6 +38,7 @@ import {
   upcomingSlots,
   UPLIFT_CONTACT_ERROR,
   UPLIFT_CONTACT_ERROR_CODE,
+  NO_HOURS_ERROR_CODE,
   UPLIFT_MAX_GRAPHEMES,
   upliftContact,
 } from './util/check-in-flow';
@@ -211,9 +212,12 @@ export class CheckInFlowService {
       // saved still answers with it, however late it arrives.
       const upcoming = upcomingSlots(slots, now);
       if (upcoming.length === 0) {
-        throw new BadRequestException(
-          'Every picked hour has started. Pick an hour that is still ahead.',
-        );
+        throw new BadRequestException({
+          statusCode: 400,
+          message:
+            'Every picked hour has started. Pick an hour that is still ahead.',
+          error: NO_HOURS_ERROR_CODE,
+        });
       }
 
       // One active Check-In at a time: the hours of an earlier one that are still live end here.

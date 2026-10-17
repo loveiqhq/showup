@@ -79,6 +79,12 @@ export const MAX_SLOTS = 48;
 /** The API's error code for an uplift the server refused for contact info (story 06, state C). */
 export const UPLIFT_CONTACT_ERROR_CODE = 'uplift_contact_info';
 
+/**
+ * A commit whose every picked hour has started. Its own code, so the app asks for hours again
+ * instead of showing a connection error -- the device's clock can be behind the server's.
+ */
+export const NO_HOURS_ERROR_CODE = 'check_in_no_hours';
+
 /** The one string for all three kinds of contact info -- never name which one was found. */
 export const UPLIFT_CONTACT_ERROR =
   'No emails, phone numbers or links allowed.';
