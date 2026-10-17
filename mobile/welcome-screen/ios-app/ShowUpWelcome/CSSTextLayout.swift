@@ -24,6 +24,7 @@
 //  breaks computed here are the breaks the label makes.
 //
 
+import SwiftUI
 import UIKit
 
 enum CSSTextLayout {
