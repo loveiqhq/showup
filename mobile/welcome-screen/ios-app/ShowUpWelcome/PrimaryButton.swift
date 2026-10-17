@@ -126,6 +126,12 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
             // though Android has always drawn it there. Behind the clipped capsule, so each layer
             // is the shape's own shadow rather than a shadow of the one before it.
             .background(glow)
+            // ONE layer before any fade. SwiftUI applies opacity to each layer on its own, so at
+            // 45% the glow's violet capsule showed through the dimmed pill and the button read
+            // darker than its disabled look -- the fit probe stopped finding it on every disabled
+            // screen. This also covers a fade applied from outside, as Check-In's dimmed CTA is.
+            // Android's `graphicsLayer { alpha }` already fades the button as one.
+            .compositingGroup()
             .opacity(enabled ? 1 : 0.45)
         }
         .buttonStyle(PressScale())
