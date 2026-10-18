@@ -248,3 +248,10 @@ extension SignUpOutcome {
         }
     }
 }
+
+extension FlowScreen {
+    /// Still inside profile creation -- `in_flow` on `permission_status_changed`, "true when the
+    /// change is detected while the user is still inside profile creation" (events.json). Every
+    /// step of that flow is named `profile*`, so a step added later is counted without a list.
+    var isProfileCreation: Bool { rawValue.hasPrefix("profile") }
+}

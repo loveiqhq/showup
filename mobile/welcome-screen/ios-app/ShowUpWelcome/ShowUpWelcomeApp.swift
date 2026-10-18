@@ -298,6 +298,22 @@ private struct TutorialFlow: View {
     /// Becoming active again is the only moment a permission granted in Settings can be noticed.
     @Environment(\.scenePhase) private var scenePhase
 
+    /// THE SHARED PERMISSION RECONCILER (epic SHOWUP-151). On launch and on every return from the
+    /// background, for the life of the app -- not only while a permission screen is up: a
+    /// permission turned off in Settings next week must still reach the server and the analytics.
+    /// Built on the same readers the screens use; see PermissionReconciler.swift.
+    @State private var permissions = PermissionReconciler(
+        snapshot: ReaderPermissionSnapshot(notifications: UNNotificationAccess(),
+                                           location: CLLocationAccess(),
+                                           media: AVMediaAccess()),
+        ledger: UserDefaultsPermissionLedger(),
+        push: PushRegistrationSync(),
+        analytics: AppAnalytics.shared)
+    /// The scene has been in the background since it was last active: the next return is a trip
+    /// outside the app. A return from `.inactive` alone is a system alert -- our own permission
+    /// sheet among them -- and is absorbed, never reported.
+    @State private var leftForBackground = false
+
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
     private func go(to next: FlowScreen) {
@@ -1358,6 +1374,28 @@ private struct TutorialFlow: View {
         // Moving past sign-up ends the notice: it describes why the user is HERE.
         .onChange(of: screenRaw) { _, _ in
             if screen != .signUp { onSessionNoticeDismissed() }
+        }
+        // The reconciler's launch read, then one per return from the background.
+        .task { await permissions.onStart(inFlow: screen.isProfileCreation) }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .background:
+                leftForBackground = true
+            case .active:
+                let outside = leftForBackground
+                leftForBackground = false
+                let inFlow = screen.isProfileCreation
+                Task {
+                    if outside {
+                        await permissions.onStart(inFlow: inFlow)
+                    } else {
+                        // Our own permission sheet's answer: permission_result's act, never this event.
+                        await permissions.absorbOwnAnswer()
+                    }
+                }
+            default:
+                break
+            }
         }
         // THE CHECK-IN IS RE-READ ON EVERY FOREGROUND, and its clock re-evaluated: "read on every
         // foreground", and "a slot that has started disappears from the grid and from the
