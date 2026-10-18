@@ -125,11 +125,23 @@ final class CheckInModel {
     /// Filter saves that have not answered yet.
     private var filtersSaving = 0
 
+    /// Counts filter saves as they are made, so only the newest one's answer clears
+    /// `filtersInFlight`.
+    private var filtersSaveSeq = 0
+
     /// The last filter save that answered: what it sent, and why it failed (nil when it landed).
     private var lastFiltersSave: (filters: CheckInFilters, failure: CallFailure?)?
 
-    /// Continue was accepted on the stand-in, so the settings it resolves to are saved when it does.
-    private var standInAccepted = false
+    /// Continue was accepted on the stand-in: what it showed and what the user had changed on it, at
+    /// that moment. Saved, resolved against the server's settings, when a read lands -- the accepted
+    /// settings, not whatever the step holds by then: an edit made after going back to Filters is
+    /// not confirmed until its own Continue.
+    private var standInAccepted: (filters: CheckInFilters, edited: Set<FilterField>)?
+
+    /// A commit in this flow reached the network and its outcome is unknown -- no response, or one
+    /// that was not a save. It may have saved: from then on every commit goes to the server, which
+    /// answers a saved one with a replay, instead of being stopped on the device for having no hours.
+    private var commitMaybeSaved = false
 
     /// An intro-passed write is in flight, so a resend never doubles it.
     private var marking = false
@@ -265,8 +277,10 @@ final class CheckInModel {
             standInEdits = []
             // Continue was accepted on it: the settings it resolved to are what the user accepted,
             // saved now as any accepted Continue is -- not lost to a later close.
-            if standInAccepted, let resolved = state.filters { saveFilters(resolved) }
-            standInAccepted = false
+            if let accepted = standInAccepted {
+                saveFilters(filtersOverStandIn(accepted.filters, server: read.filters, edited: accepted.edited))
+            }
+            standInAccepted = nil
         }
         // A pre-fill landing on the step on screen is what that step showed: Continue on it
         // unchanged is `prefilled`, not `picked` against the empty step it replaced.
@@ -305,7 +319,8 @@ final class CheckInModel {
         filtersTouched = false
         filtersStandIn = false
         standInEdits = []
-        standInAccepted = false
+        standInAccepted = nil
+        commitMaybeSaved = false
         filtersConfirmed = nil
         clearToast()
         let server = state.server
@@ -600,7 +615,7 @@ final class CheckInModel {
         filtersTouched = true
         // Built on the stand-in, nothing is sent yet: the read that lands resolves and sends it, or
         // the commit reads first.
-        if filtersStandIn { standInAccepted = true } else { saveFilters(filters) }
+        if filtersStandIn { standInAccepted = (filters, standInEdits) } else { saveFilters(filters) }
         leaveStep()
         onAdvance()
     }
@@ -611,12 +626,16 @@ final class CheckInModel {
         let store = self.store
         filtersInFlight = filters
         filtersSaving += 1
+        filtersSaveSeq += 1
+        let seq = filtersSaveSeq
         filtersSave = Task { [weak self] in
             await previous?.value
             let outcome = await store.saveFilters(filters)
             guard let self else { return }
             self.filtersSaving -= 1
-            if self.filtersInFlight == filters { self.filtersInFlight = nil }
+            // Only the newest save's answer: an earlier one answering, even with the same settings,
+            // leaves later saves still out.
+            if seq == self.filtersSaveSeq { self.filtersInFlight = nil }
             switch outcome {
             case .success:
                 self.lastFiltersSave = (filters, nil)
@@ -703,9 +722,10 @@ final class CheckInModel {
     /// every upcoming picked hour with its instant on the device's zone. A failure on the way is
     /// reported as what it was -- no response, or the server's.
     private func commit(_ motivation: String) async -> CommitResult {
-        // Nothing left to commit -- known before any call is made.
+        // Nothing left to commit -- known before any call is made, unless an earlier attempt may
+        // have saved: then the server decides, and answers a saved one with a replay.
         evaluateClock()
-        if state.picks.isEmpty { return .noHours }
+        if state.picks.isEmpty && !commitMaybeSaved { return .noHours }
         var server = filtersStandIn ? nil : state.server
         if server == nil {
             switch await readOutcome(writeSeq) {
@@ -738,11 +758,13 @@ final class CheckInModel {
             .sorted { $0.key < $1.key }
             .map { CommitSlot(startsAt: $0.key.instant(in: zone), tier: $0.value) }
         // The last hour may have started while the calls above were out.
-        if slots.isEmpty { return .noHours }
+        if slots.isEmpty && !commitMaybeSaved { return .noHours }
         let trimmed = s.uplift.trimmingCharacters(in: .whitespacesAndNewlines)
-        return await store.commit(CommitRequest(
+        let result = await store.commit(CommitRequest(
             windowId: windowId, slots: slots, motivation: motivation, vibes: s.vibes,
             uplift: trimmed.isEmpty ? nil : trimmed))
+        if result == .network || result == .server { commitMaybeSaved = true }
+        return result
     }
 
     // MARK: back and close
@@ -795,7 +817,8 @@ final class CheckInModel {
         prefillPending = false
         filtersStandIn = false
         standInEdits = []
-        standInAccepted = false
+        standInAccepted = nil
+        commitMaybeSaved = false
         var s = state
         s.picks = [:]
         s.uplift = ""

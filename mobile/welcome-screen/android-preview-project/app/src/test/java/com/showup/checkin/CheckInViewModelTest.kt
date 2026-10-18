@@ -959,6 +959,67 @@ class CheckInViewModelTest {
     }
 
     @Test
+    fun `the stand-in save sends what Continue accepted, not an edit made after going back`() = runTest(dispatcher) {
+        store.reads = false
+        store.held = store.held.copy(filters = CheckInFilters(setOf("man"), minAge = 25, maxAge = 35, distanceKm = 20))
+        walkTo(CheckInStep.Vibe)
+        model.vibeContinue {}
+        arrive(CheckInStep.Filters)
+        model.genderTapped("woman")
+        model.filtersContinue {}                                              // accepted: a gender
+        arrive(CheckInStep.Uplift, ProfileScreen.CheckinFilters)
+        model.backPressed(CheckInStep.Uplift) {}
+        arrive(CheckInStep.Filters, ProfileScreen.CheckinUplift)
+        model.ageMoved(0, 40)                                                 // not confirmed by any Continue
+        store.reads = true
+        model.refresh(); advanceUntilIdle()
+        assertEquals(
+            "the accepted settings, resolved against the server's",
+            listOf(CheckInFilters(setOf("woman"), minAge = 25, maxAge = 35, distanceKm = 20)), store.filters,
+        )
+        assertEquals("the step still shows the edit in progress", 40, state.filters!!.minAge)
+    }
+
+    @Test
+    fun `after a commit with no answer, a retry past every hour goes to the server, which may replay it`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Uplift)
+        store.commitAnswers.add(CommitResult.Network)                         // saved? nobody knows
+        model.findMyDate {}
+        advanceUntilIdle()
+        now = LocalDateTime.of(2026, 10, 14, 13, 30)                        // every pick has started since
+        var landed = false
+        model.findMyDate { landed = true }
+        advanceUntilIdle()
+        assertEquals("sent, not stopped on the device", 2, store.commits.size)
+        assertTrue(store.commits.last().slots.isEmpty())
+        assertTrue("the server's replay lands it", landed)
+    }
+
+    @Test
+    fun `only the newest filter save's answer clears what a reopened flow starts from`() = runTest(dispatcher) {
+        walkTo(CheckInStep.Filters)
+        store.filterScript.addAll(listOf(1_000L to false, 1_000L to true, 1_000L to true))
+        val x = CheckInFilters(setOf("woman", "man"))
+        model.genderTapped("man")
+        model.filtersContinue {}                                              // X
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        model.backPressed(CheckInStep.Uplift) {}
+        model.arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, ProfileScreen.CheckinUplift)
+        model.genderTapped("non_binary")
+        model.filtersContinue {}                                              // Y
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        model.backPressed(CheckInStep.Uplift) {}
+        model.arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, ProfileScreen.CheckinUplift)
+        model.genderTapped("non_binary")
+        model.filtersContinue {}                                              // X again
+        model.arrived(CheckInStep.Uplift, ProfileScreen.CheckinUplift, ProfileScreen.CheckinFilters)
+        advanceTimeBy(1_100)                                                  // the first X has answered, failed
+        model.closePressed(CheckInStep.Uplift) {}
+        model.beginFlow()
+        assertEquals("Y and the second X are still out: the flow starts from the newest", x, state.filters)
+    }
+
+    @Test
     fun `the uplift close discards the text and fires closed uplift`() = runTest(dispatcher) {
         walkTo(CheckInStep.Uplift)
         model.upliftChanged("boat")

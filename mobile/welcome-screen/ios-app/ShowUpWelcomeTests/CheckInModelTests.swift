@@ -973,6 +973,64 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(commits.count, 1)
     }
 
+    func testTheStandInSaveSendsWhatContinueAcceptedNotAnEditMadeAfterGoingBack() async {
+        await store.setReads(false)
+        var held = await store.held
+        held.filters = CheckInFilters(genders: ["man"], minAge: 25, maxAge: 35, distanceKm: 20)
+        await store.setHeld(held)
+        await walkTo(.vibe)
+        model.vibeContinue {}
+        await arrive(.filters)
+        model.genderTapped("woman")
+        model.filtersContinue {}                                     // accepted: a gender
+        await arrive(.uplift, referrer: .checkinFilters)
+        model.backPressed(.uplift) {}
+        await arrive(.filters, referrer: CheckInStep.uplift.screen)
+        model.ageMoved(thumb: 0, value: 40)                          // not confirmed by any Continue
+        await store.setReads(true)
+        model.refresh()
+        await settle()
+        let bodies = await store.filterBodies
+        XCTAssertEqual(bodies, [CheckInFilters(genders: ["woman"], minAge: 25, maxAge: 35, distanceKm: 20)],
+                       "the accepted settings, resolved against the server's")
+        XCTAssertEqual(state.filters?.minAge, 40, "the step still shows the edit in progress")
+    }
+
+    func testAfterACommitWithNoAnswerARetryPastEveryHourGoesToTheServerWhichMayReplayIt() async {
+        await walkTo(.uplift)
+        await store.answerCommits([.network])                        // saved? nobody knows
+        await model.findMyDate {}
+        now = at(13, 30, day: 14)                                    // every pick has started since
+        await model.findMyDate { self.landed += 1 }
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 2, "sent, not stopped on the device")
+        XCTAssertEqual(commits.last?.slots.isEmpty, true)
+        XCTAssertEqual(landed, 1, "the server's replay lands it")
+    }
+
+    func testOnlyTheNewestFilterSavesAnswerClearsWhatAReopenedFlowStartsFrom() async {
+        await walkTo(.filters)
+        await store.scriptFilterSaves([(300_000_000, false), (300_000_000, true), (300_000_000, true)])
+        let x = CheckInFilters(genders: ["woman", "man"])
+        model.genderTapped("man")
+        model.filtersContinue {}                                     // X
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        model.backPressed(.uplift) {}
+        model.arrived(.filters, screen: CheckInStep.filters.screen, referrer: CheckInStep.uplift.screen)
+        model.genderTapped("non_binary")
+        model.filtersContinue {}                                     // Y
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        model.backPressed(.uplift) {}
+        model.arrived(.filters, screen: CheckInStep.filters.screen, referrer: CheckInStep.uplift.screen)
+        model.genderTapped("non_binary")
+        model.filtersContinue {}                                     // X again
+        model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
+        await settle(0.4)                                            // the first X has answered, failed
+        model.closePressed(.uplift) {}
+        model.beginFlow()
+        XCTAssertEqual(state.filters, x, "Y and the second X are still out: the flow starts from the newest")
+    }
+
     func testTheUpliftCloseDiscardsTheTextAndFiresClosedUplift() async {
         await walkTo(.uplift)
         model.upliftChanged("boat")
