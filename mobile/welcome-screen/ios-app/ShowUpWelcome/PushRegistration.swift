@@ -53,6 +53,8 @@ struct NoPushToken: PushTokenSource {
 enum PushRegistrationResult: Equatable, Sendable {
     /// The token reached the backend.
     case registered
+    /// The backend dropped the token: it will send this device nothing.
+    case removed
     /// There is no token source in this build. See the file header.
     case noTokenSource
     /// A token existed and the upload failed. Worth retrying; never worth blocking the flow.
@@ -88,6 +90,28 @@ struct PushRegistration: PushRegistering {
             switch response {
             case .ok:
                 return .registered
+            default:
+                return .failed("unexpected response")
+            }
+        } catch {
+            return .failed(String(describing: type(of: error)))
+        }
+    }
+
+    /// Removes the device's token from `DELETE /me/push-tokens` -- the permission was turned off,
+    /// so a push sent to this token would never be shown. The epic's "register or invalidate the
+    /// token" (SHOWUP-151), called by `PermissionReconciler`. Never blocks anything either.
+    func unregister() async -> PushRegistrationResult {
+        // No token source, no token to remove -- the same honest answer as `register`.
+        guard let token = await source.token() else { return .noTokenSource }
+        do {
+            let response = try await APIAccess.client.client.deregisterPushToken(
+                body: .json(.init(token: token))
+            )
+            // The operation declares 204, 400, 401 and 500.
+            switch response {
+            case .noContent:
+                return .removed
             default:
                 return .failed("unexpected response")
             }

@@ -2,6 +2,7 @@ package com.showup
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 
 import com.showup.designsystem.Motion
@@ -28,6 +29,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -95,6 +97,10 @@ import com.showup.profile.PhotoSource
 import com.showup.profile.PhotosRepository
 import com.showup.profile.PhotosViewModel
 import com.showup.profile.AndroidNotificationAccess
+import com.showup.profile.PermissionReconciler
+import com.showup.profile.PushRegistrationSync
+import com.showup.profile.SharedPrefsPermissionLedger
+import com.showup.profile.permissionSnapshot
 import com.showup.profile.ProfileNotificationsScreen
 import com.showup.profile.PushRegistration
 import com.showup.profile.shouldShowAsk
@@ -143,6 +149,7 @@ import com.showup.profile.ProfileVerifyEmailScreen
 import com.showup.profile.rememberDateOrder
 import com.showup.welcome.FlowNavigator
 import com.showup.welcome.FlowScreen
+import com.showup.welcome.isProfileCreation
 import com.showup.welcome.SignUpFlow
 import com.showup.welcome.SignUpOutcome
 import com.showup.welcome.showsTutorial
@@ -310,6 +317,39 @@ class MainActivity : ComponentActivity() {
             val detailsState by details.state.collectAsStateWithLifecycle()
 
             val locationAccess = remember(context) { AndroidLocationAccess(context) }
+
+            // THE SHARED PERMISSION RECONCILER (epic SHOWUP-151). On launch and on every return to
+            // the foreground, for the life of the app -- not only while a permission screen is up:
+            // a permission turned off in Settings next week must still reach the server and the
+            // analytics. Built on the same readers the screens use; see PermissionReconciler.kt.
+            val permissions = remember(context) {
+                PermissionReconciler(
+                    snapshot = permissionSnapshot(
+                        notifications = AndroidNotificationAccess(context),
+                        location = locationAccess,
+                        media = AndroidMediaAccess(context),
+                    ),
+                    ledger = SharedPrefsPermissionLedger(context),
+                    push = PushRegistrationSync(PushRegistration(api)),
+                    analytics = AppAnalytics,
+                    scope = lifecycleScope,
+                )
+            }
+            val reconcilerScreen by rememberUpdatedState(screen)
+            val reconcilerLifecycle = LocalLifecycleOwner.current
+            DisposableEffect(reconcilerLifecycle, permissions) {
+                // ON_START, not ON_RESUME: our own permission dialogs pause the activity without
+                // stopping it, so they never look like a trip outside the app -- and their answers
+                // are absorbed where they land, below. Added while already started, the observer
+                // is brought up to date at once, which is how the launch itself is read.
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_START) {
+                        permissions.onStart(inFlow = reconcilerScreen.isProfileCreation)
+                    }
+                }
+                reconcilerLifecycle.lifecycle.addObserver(observer)
+                onDispose { reconcilerLifecycle.lifecycle.removeObserver(observer) }
+            }
             val location: LocationViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
@@ -359,6 +399,8 @@ class MainActivity : ComponentActivity() {
                 // Recorded when ANSWERED, never before the launch -- the same rule as the
                 // notification dialog, for the same reason.
                 PermissionAskLog.recordAsked(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                // Our own sheet: permission_result's act, never an outside change.
+                permissions.absorbOwnAnswer()
                 location.permissionAnswered(result.values.any { it }) { leaveLocation() }
             }
 
@@ -558,6 +600,7 @@ class MainActivity : ComponentActivity() {
                 // a user who raises the sheet and backgrounds the app without answering would come
                 // back recorded as denied while the OS status is still not determined.
                 PermissionAskLog.recordAsked(context, Manifest.permission.POST_NOTIFICATIONS)
+                permissions.absorbOwnAnswer()
                 reachModel.notificationAnswered(granted)
             }
 
@@ -596,6 +639,7 @@ class MainActivity : ComponentActivity() {
                 cameraGranted = ContextCompat.checkSelfPermission(
                     context, Manifest.permission.CAMERA,
                 ) == PackageManager.PERMISSION_GRANTED
+                permissions.absorbOwnAnswer()
                 val pending = pendingTake
                 pendingTake = null
                 if (pending != null) media.permissionResult(pending.first, pending.second)
@@ -721,6 +765,7 @@ class MainActivity : ComponentActivity() {
             val askCamera = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { granted ->
+                permissions.absorbOwnAnswer()
                 photos.refreshAccess()
                 if (granted) launchCamera()
             }

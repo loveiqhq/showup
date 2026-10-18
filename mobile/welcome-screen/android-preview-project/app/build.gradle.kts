@@ -37,6 +37,9 @@ openApiGenerate {
     // with OkHttp -- which is where the auth interceptor lives, keeping tokens out of every
     // generated endpoint method.
     library.set("jvm-retrofit2")
+    // One line of the stock template overridden: a DELETE with a body (DELETE /me/push-tokens) came
+    // out as @DELETE + @Body, which Retrofit rejects at call time. See the template's own header.
+    templateDir.set("$projectDir/openapi-templates")
 
     configOptions.set(
         mapOf(

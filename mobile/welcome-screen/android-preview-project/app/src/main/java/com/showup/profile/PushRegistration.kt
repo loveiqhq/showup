@@ -38,6 +38,7 @@ package com.showup.profile
 import android.util.Log
 import com.showup.BuildConfig
 import com.showup.api.ShowUpApi
+import com.showup.api.generated.model.DeletePushTokenDto
 import com.showup.api.generated.model.RegisterPushTokenDto
 
 /**
@@ -65,6 +66,9 @@ object NoPushToken : PushTokenSource {
 sealed interface PushRegistrationResult {
     /** The token reached the backend. */
     data object Registered : PushRegistrationResult
+
+    /** The backend dropped the token: it will send this device nothing. */
+    data object Removed : PushRegistrationResult
 
     /** There is no token source in this build. See the file header. */
     data object NoTokenSource : PushRegistrationResult
@@ -104,6 +108,24 @@ open class PushRegistration(
             )
             if (response.isSuccessful) {
                 PushRegistrationResult.Registered
+            } else {
+                PushRegistrationResult.Failed("http ${response.code()}")
+            }
+        }.getOrElse { PushRegistrationResult.Failed(it::class.simpleName ?: "unknown") }
+    }
+
+    /**
+     * Removes the device's token from `DELETE /me/push-tokens` -- the permission was turned off,
+     * so a push sent to this token would never be shown. The epic's "register or invalidate the
+     * token" (SHOWUP-151), called by [PermissionReconciler]. Never blocks anything either.
+     */
+    open suspend fun unregister(): PushRegistrationResult {
+        // No token source, no token to remove -- the same honest answer as [register].
+        val token = source.token() ?: return PushRegistrationResult.NoTokenSource
+        return runCatching {
+            val response = api.notifications.deregisterPushToken(DeletePushTokenDto(token = token))
+            if (response.isSuccessful) {
+                PushRegistrationResult.Removed
             } else {
                 PushRegistrationResult.Failed("http ${response.code()}")
             }

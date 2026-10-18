@@ -175,3 +175,10 @@ enum class FlowScreen {
             // with it -- the same fix, and the same reason, as ProfileEmail above.
             this == ProfilePhotos || this == ProfilePrompts
 }
+
+/**
+ * Still inside profile creation -- `in_flow` on `permission_status_changed`, "true when the change
+ * is detected while the user is still inside profile creation" (events.json). Every step of that
+ * flow is named `Profile*`, so a step added later is counted without editing a list.
+ */
+val FlowScreen.isProfileCreation: Boolean get() = name.startsWith("Profile")
