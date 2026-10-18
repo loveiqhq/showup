@@ -1010,7 +1010,9 @@ final class CheckInModelTests: XCTestCase {
 
     func testOnlyTheNewestFilterSavesAnswerClearsWhatAReopenedFlowStartsFrom() async {
         await walkTo(.filters)
-        await store.scriptFilterSaves([(300_000_000, false), (300_000_000, true), (300_000_000, true)])
+        // The first X answers at 0.4 s; Y not before 2.4 s -- a window wide enough that a slow runner
+        // still checks the flow between the two, rather than after every save has answered.
+        await store.scriptFilterSaves([(400_000_000, false), (2_000_000_000, true), (2_000_000_000, true)])
         let x = CheckInFilters(genders: ["woman", "man"])
         model.genderTapped("man")
         model.filtersContinue {}                                     // X
@@ -1025,7 +1027,7 @@ final class CheckInModelTests: XCTestCase {
         model.genderTapped("non_binary")
         model.filtersContinue {}                                     // X again
         model.arrived(.uplift, screen: CheckInStep.uplift.screen, referrer: .checkinFilters)
-        await settle(0.4)                                            // the first X has answered, failed
+        await settle(0.6)                                            // the first X has answered, failed
         model.closePressed(.uplift) {}
         model.beginFlow()
         XCTAssertEqual(state.filters, x, "Y and the second X are still out: the flow starts from the newest")
