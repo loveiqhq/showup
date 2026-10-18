@@ -26,6 +26,7 @@ describe('NotificationDispatchService', () => {
   let users: { findOne: jest.Mock };
   let prefs: { getState: jest.Mock };
   let pushTokens: { listForUser: jest.Mock; prune: jest.Mock };
+  let permissions: { notificationsBlocked: jest.Mock };
   let pushSender: { send: jest.Mock };
   let emailSender: { send: jest.Mock };
 
@@ -34,6 +35,7 @@ describe('NotificationDispatchService', () => {
       users as any,
       prefs as any,
       pushTokens as any,
+      permissions as any,
       logRepo as any,
       pushSender,
       emailSender,
@@ -56,6 +58,9 @@ describe('NotificationDispatchService', () => {
         .mockResolvedValue([{ token: 't1' }, { token: 't2' }]),
       prune: jest.fn().mockResolvedValue(undefined),
     };
+    permissions = {
+      notificationsBlocked: jest.fn().mockResolvedValue(false),
+    };
     pushSender = {
       send: jest.fn().mockResolvedValue({ success: true, messageId: 'm' }),
     };
@@ -65,6 +70,22 @@ describe('NotificationDispatchService', () => {
   });
 
   describe('sendPush', () => {
+    it('skips a phone whose notifications are switched off, and logs it as skipped', async () => {
+      // epic SHOWUP-151: "can we notify this user" evaluates the permission, not only the consent
+      // and the token -- a push to a phone with notifications off is accepted and never shown.
+      permissions.notificationsBlocked.mockResolvedValue(true);
+      const res = await make().sendPush('user-1', 'date_reminder', {
+        time: '8pm',
+        venue: 'X',
+      });
+      expect(res).toEqual({ status: 'skipped', delivered: 0 });
+      expect(pushSender.send).not.toHaveBeenCalled();
+      expect(permissions.notificationsBlocked).toHaveBeenCalledWith('user-1');
+      expect(logRepo.rows.map((r) => r.status)).toEqual([
+        NotificationLogStatus.Skipped,
+      ]);
+    });
+
     it('fans a push out to every registered token and logs each as sent', async () => {
       const res = await make().sendPush('user-1', 'date_reminder', {
         time: '8pm',
