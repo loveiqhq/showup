@@ -23,6 +23,9 @@ import ShowUpAPI
 let flowOrder: [Components.Schemas.FlowPosition] = [
     .media_video, .notifications, .reachability, .location,
     .height, .gender, .orientation, .dating_language, .education, .religion, .politics,
+    // The last, `life_ahead`, is reported by Future's Continue and Skip alike: profile creation is
+    // complete.
+    .interests, .life_now, .life_ahead,
 ]
 
 /// A stored position's place in the walk, or -1 when none has been reached.

@@ -94,8 +94,13 @@ enum class ResumePoint {
     Education,
     Religion,
     Politics,
+    Interests,
+    LifeNow,
 
-    /** Everything the flow asks for is on the account. */
+    /** Future. "A user who killed the app on this screen resumes here, not on the Check-In intro." */
+    LifeAhead,
+
+    /** Everything the flow asks for is on the account -- Future was continued or skipped. */
     Done,
 }
 
@@ -147,5 +152,10 @@ fun resumePoint(progress: ProfileProgress): ResumePoint = when {
     hasNotReached(progress.flowPosition, FlowPosition.education) -> ResumePoint.Education
     hasNotReached(progress.flowPosition, FlowPosition.religion) -> ResumePoint.Religion
     hasNotReached(progress.flowPosition, FlowPosition.politics) -> ResumePoint.Politics
+    hasNotReached(progress.flowPosition, FlowPosition.interests) -> ResumePoint.Interests
+    hasNotReached(progress.flowPosition, FlowPosition.life_now) -> ResumePoint.LifeNow
+    // PROFILE CREATION IS COMPLETE ONLY ON `life_ahead`, which Future's Continue and Skip both
+    // report. Anything short of it -- a kill on Future itself -- comes back to Future.
+    hasNotReached(progress.flowPosition, FlowPosition.life_ahead) -> ResumePoint.LifeAhead
     else -> ResumePoint.Done
 }

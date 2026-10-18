@@ -3,6 +3,7 @@ package com.showup.api
 import com.showup.BuildConfig
 import com.showup.api.generated.api.AccountApi
 import com.showup.api.generated.api.AuthApi
+import com.showup.api.generated.api.CheckInApi
 import com.showup.api.generated.api.CheckInsApi
 import com.showup.api.generated.api.MatchingApi
 import com.showup.api.generated.api.NotificationsApi
@@ -77,6 +78,9 @@ class ShowUpApi(
     val account: AccountApi by lazy { client.createService(AccountApi::class.java) }
     val profiles: ProfilesApi by lazy { client.createService(ProfilesApi::class.java) }
     val checkIns: CheckInsApi by lazy { client.createService(CheckInsApi::class.java) }
+
+    /** The 48hrs Check-In flow (SHOWUP-178 to 183): its state, the answers, the filters and the commit. */
+    val checkIn: CheckInApi by lazy { client.createService(CheckInApi::class.java) }
     val matching: MatchingApi by lazy { client.createService(MatchingApi::class.java) }
     val safety: SafetyApi by lazy { client.createService(SafetyApi::class.java) }
 

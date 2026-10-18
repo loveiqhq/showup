@@ -25,6 +25,13 @@ token named in a comment on nearly every line. One was added on 9 September 2026
 `BorderSoft` · `Success` / `SuccessFg` · `Danger` / `DangerFg` / `DangerDigit` · `Lavender` ·
 `EyebrowBg` / `EyebrowOrangeBg` · plus the `SunsetStops` and `WordmarkStops` gradients.
 
+**Four added on 12 October 2026 for Interests and Life (SHOWUP-174 to 176):** `ChipGlow`
+rgba(129,42,236,.18) and `ChipRest` rgba(46,1,71,.03), the picked and resting interest chip's
+shadows; `PillGlow` rgba(129,42,236,.22), the picked life pill's; `MeterTrack` rgba(29,17,41,.08),
+the interests counter's empty bar — lighter than `Track` (.12) so the meter never reads as the step
+bar. iOS names them `liqChipGlow`, `liqChipRest`, `liqPillGlow`, `liqMeterTrack`. Life's 28 category
+medallion reuses `EyebrowBg`, which is the same lavender-400 at 16%.
+
 **`Success` and `SuccessFg` are two different values, not a shade of one another.** `--liq-success`
 `#00AB55` is the badge fill; `--liq-success-fg` `#0A7A47` is the darker ink a success glyph needs on
 a light ground. Only the badge one had been ported until the profile email screen's helper tick
@@ -127,13 +134,17 @@ existed, which is worth locking down rather than leaving to coincidence.
 | Token | Android | iOS | Meaning |
 |---|---|---|---|
 | `FAST` / `fast` | 180 | 0.18 | press feedback and fades |
-| `PROGRESS` / `progress` | 280 | 0.28 | the step progress bar's segment fill (`StepProgress`, `transition: background 280ms`) |
+| `PROGRESS` / `progress` | 280 | 0.28 | the step progress bar's segment fill (`StepProgress`, `transition: background 280ms`), and the interests counter's meter, the same act |
+| `DISCLOSURE` / `disclosure` | 220 | 0.22 | a disclosure chevron turning over — Interests' `Show more` (SHOWUP-174) |
 | `SCREEN` / `screen` | 320 | 0.32 | screen-to-screen transition |
 | `SHAKE` / `shake` | 480 | 0.48 | the one-shot mismatch shake. **SHOWUP-143 specifies 480ms** |
 | `PULSE_SLOW` / `pulseSlow` | 900 | 0.9 | in-flight pulse on a provider button |
 | `PULSE_LONG` / `pulseLong` | 1400 | 1.4 | Connect linking animation |
 | `TOAST` / `toast` | 2600 | 2.6 | how long a refusal toast stays up (SHOWUP-156/158) |
 | `NOTICE` / `notice` | 6000 | 6 | how long the "please log in again" notice stays up untapped |
+| `REVEAL` / `reveal` | 200 | 0.2 | an element that appears, `su-toast-in`: the Check-In toast, How it works' panel, a dialog's scrim (SHOWUP-179) |
+| `POP` / `pop` | 260 | 0.26 | a dialog card popping in, `su-checkin-pop` (the No hours today? confirm) |
+| `SPIN` / `spin` | 800 | 0.8 | one turn of the saving spinner on `Find my date` (SHOWUP-183) |
 
 Two curves sit beside the durations. `ShowUpEasing` / the Swift `.timingCurve(0.22, 1, 0.36, 1)` is
 the house curve, `cubic-bezier(.22,1,.36,1)`. `CssEase` / `Motion.cssEase(_:)` is CSS's default
@@ -497,6 +508,24 @@ That change grows two Android hit areas from 44 to 48. Both are invisible — ne
 fill — but it needs measuring at 17 sizes, because `heightIn` on a link inside a row can push a
 column. Hence a separate task.
 
+### Drawn smaller, answering at 44 — `OverflowTapTarget` / `overflowTapTarget(drawnHeight:)`
+
+Added 12 October 2026 for Interests' 38 chips and Life's 34 pills (SHOWUP-174 to 176), which sit in
+wrapping rows 8 apart. `minTapTarget` GROWS the frame to 44, which there would open every row by 6
+or 10 and move every chip below the first — Life's whole "fits at 390" budget. These keep the slot
+at the drawn height and lay the touch area over it, overflowing symmetrically.
+
+Android's is a two-child `Layout`, not `requiredHeightIn` inside a `heightIn` box: that older
+pattern only overflows under a FIXED parent height, and under a minimum the parent wraps the 44 child
+and the slot becomes 44 — which the fit harness caught on the first run. iOS pads the hit area out
+and takes the same padding back from the layout with a negative one.
+
+### `WrapLayout` (iOS)
+
+SwiftUI has no `FlowRow`. `WrapLayout` is CSS `flex-wrap: wrap` with a gap: each child at its ideal
+width, the row wrapping around whole children, and only a child wider than the row offered the
+row's width.
+
 ## Reusable primitives — the state of play
 
 **Every shared primitive is now one implementation per platform.** As of 9 September 2026 there are
@@ -555,6 +584,44 @@ Two things had to move before the button could, both for the same reason — the
 not depend on a screen. `ShowUpEasing` went into `Motion.kt`, and `rememberMotion()` into
 `MotionPreference.kt`, where its return type was renamed from `Motion` so it stops colliding with
 the `Motion` durations object.
+
+## Added for the 48hrs Check-In (SHOWUP-178 to 183), 14 October 2026
+
+### Colours
+
+Thirteen, each the reference's literal: `Primary600` `#6B1D8F` (the summary's ranges) ·
+`TierAvailableFill` / `Ink` / `Border` `#F1ECF9` / `#7C6BA0` / `#E3DBF0` (a slot's second tap, the summary
+once picked) · `CoachLilacFill` / `Ink` `#EFE6FF` / `#4F2B8C` and `CoachWarmFill` / `Ink` `#FFF6CF` /
+`#73510B` (the two CoachNote tones -- lilac on Uplift and How it works, warm on 03-05) ·
+`CheckInToastFill` rgba(29,17,41,.92) and `CheckInToastShadow` .18 · `DialogScrim` rgba(29,17,41,.44)
+and `DialogShadow` rgba(20,12,28,.34) · `TabBarGlass` rgba(255,251,247,.92). iOS prefixes each `liq`.
+
+### Type: Manrope Regular
+
+**The bundle had no Manrope 400**, so every weight-400 run in both apps rendered in Medium -- a step
+heavy and about 3% wide, enough to move line breaks. `Manrope-Regular.ttf` is the official 400,
+instanced from the variable font the design loads; see `mobile/welcome-screen/fonts/README-manrope-regular.md`.
+
+### CSS fidelity -- what Compose and SwiftUI do differently, measured
+
+| Primitive | Android | iOS | What it matches |
+|---|---|---|---|
+| CSS line box | `designsystem/CssLineBox.kt`, `WashHeadline(cssLineBox = true)` | `CSSTextLayout.swift`, `WashHeadline(cssLineBox:)` | n lines of `line-height` with the first baseline where CSS puts it. Compose made a two-line Lora 34 / 1.1 headline 6.1pt taller than CSS. Opt-in: turning it on moves every headline reviewed with the offset in it |
+| `text-wrap: pretty` | `designsystem/PrettyWrap.kt` (`prettyWrap`, `prettyWidthPx`), `WashHeadline(pretty = true)` | `CSSTextLayout.swift` (`PrettyText`), `WashHeadline(pretty:)` | Chrome's rule, measured over 375 layouts in headless Chrome: re-wrap only a ONE-word last line narrower than a third of the width, by pulling one word down |
+| Wash anchor | `WashHeadline`, under `cssLineBox` | the same | the em's content box: baseline + Lora's 0.274em descent + 0.08em, not the line's bottom, which moved with the line height |
+| Shrink to fit | `designsystem/ShrinkToFit.kt` | `.minimumScaleFactor` | one line that shrinks instead of truncating: slot labels at 2x, the summary to 0.78 |
+| Focus halo | `halo` in `designsystem/Shadows.kt` | in the uplift field | `box-shadow: 0 0 0 4px`. **Must come before any clip**: the prompt editor's sat after one and its focus ring never showed on Android -- fixed |
+| Multi-layer glow | `pillShadows` + `ShadowViolet` in `Shadows.kt` | `PrimaryButton.glow` | `--liq-shadow-violet`, both layers. The sunset and violet `PrimaryButton`s used elevation `shadow(12dp)`, whose direction moved with the button's position and which no test render drew |
+| Blur behind a dialog | `blurBehindDialog` in `SheetScaffold.kt` | `.blur(radius: 3)` | `blur(3px)` behind the No hours today? scrim, fading with it. Android 12+ only (RenderEffect) |
+
+### Components
+
+| | Android | iOS | Note |
+|---|---|---|---|
+| **RangeSlider** | `designsystem/RangeSlider.kt` | `RangeSlider.swift` | one thumb or two, 44 track inset, thumbs never cross; Search's filter sheet consumes it |
+| **TabBar** | `designsystem/TabBar.kt` | `TabBar.swift` | Search / Instant / Settings; the gate and Settings use it |
+| Check-In chrome | `checkin/CheckInChrome.kt`, `CheckInFlexBody.kt`, `AvailabilityChrome.kt` | `CheckInChrome.swift`, `CheckInAvailabilityChrome.swift`, `CheckInNoHoursDialog.swift` | the step shell, footer (dim, toast, spinner, error), the header-over-region body with its 80 floor, CoachNote, NumberedRow, close and arrow. Local to the Check-In: one flow uses them |
+| LifePill | reused from Profile 22 | reused | Vibe and the gender filter, as built -- no second chip |
 
 ## How the verifiers still check numbers
 

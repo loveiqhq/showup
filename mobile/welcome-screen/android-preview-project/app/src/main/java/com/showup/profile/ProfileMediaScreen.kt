@@ -33,7 +33,6 @@ package com.showup.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -48,9 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.media3.common.Player
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -61,7 +57,6 @@ import com.showup.designsystem.Manrope
 import com.showup.designsystem.Purple
 import com.showup.designsystem.SheetScaffold
 import com.showup.designsystem.blurBehindSheet
-import com.showup.designsystem.SkipLink
 import com.showup.designsystem.Spacing
 import com.showup.designsystem.StepProgress
 import com.showup.tutorial.NextButton
@@ -264,12 +259,13 @@ private fun MediaSlot(
  *
  * MEASURED, NOT THRESHOLDED. A `fontScale > 1.3` rule would be right for English and wrong for the
  * first translation, so both labels are laid out with the real font at the real size and the row
- * decides for itself -- the same rule, and the same `rememberTextMeasurer`, as the review actions
- * and the three SSO marks.
+ * decides for itself. Since 12 October 2026 that rule is `SkipContinueRow`, shared with the detail
+ * steps and Interests / Life / Future, whose footers pair the same two controls and had the same
+ * defect.
  */
 @Composable
 private fun MediaFooter(onSkip: () -> Unit, onContinue: () -> Unit) {
-    BoxWithConstraints(
+    Box(
         Modifier
             .fillMaxWidth()
             .padding(
@@ -279,62 +275,21 @@ private fun MediaFooter(onSkip: () -> Unit, onContinue: () -> Unit) {
                 bottom = 14.dp,
             ),
     ) {
-        val measurer = rememberTextMeasurer()
-        val density = LocalDensity.current
-        val room = maxWidth
-
-        val fits = with(density) {
-            val skip = measurer
-                .measure(
-                    MediaCopy.SKIP,
-                    TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp),
-                ).size.width.toDp()
-            val cta = measurer
-                .measure(
-                    MediaCopy.CONTINUE,
-                    TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 17.sp),
-                ).size.width.toDp()
-            // the 52 circle, the gap the button keeps between label and circle, and a breath
-            // between the two controls
-            skip + cta + 52.dp + Spacing.xl + Spacing.xl <= room
-        }
-
+        // THE ROW IS SHARED NOW (SkipContinueRow): this footer found the defect and fixed it first,
+        // and the detail group's footer, the same two controls, had kept it. One measured rule for
+        // the three footers that pair a skip link with Continue.
+        //
         // ALWAYS ORANGE, in every state. The sunset gradient is reserved for the sheet's commit CTA
         // and the two review primaries; the reference's own comment says this "pops to sunset when
         // both slots are filled" and its code does not, and the ticket settles it: "It stays the
         // orange 52px NextButton."
-        val cta = @Composable {
-            NextButton(
-                MediaCopy.CONTINUE,
-                onClick = onContinue,
-                arrowSize = 22.dp,
-                circleSize = 52.dp,
-            )
-        }
-
-        if (fits) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SkipLink(onClick = onSkip, label = MediaCopy.SKIP)
-                cta()
-            }
-        } else {
-            // Continue LAST, nearest the thumb, and each on its own line with the full width to
-            // itself. Skip stays the quiet one above it rather than becoming a second button.
-            Column(
-                Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                Box(Modifier.fillMaxWidth()) {
-                    SkipLink(onClick = onSkip, label = MediaCopy.SKIP)
-                }
-                cta()
-            }
-        }
+        SkipContinueRow(
+            skipLabel = MediaCopy.SKIP,
+            ctaLabel = MediaCopy.CONTINUE,
+            onSkip = onSkip,
+            onContinue = onContinue,
+            circleSize = 52.dp,
+        )
     }
 }
 

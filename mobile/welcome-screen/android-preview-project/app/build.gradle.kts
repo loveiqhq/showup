@@ -150,6 +150,22 @@ android {
         // be absent from a test. Robolectric tests provide the real implementations regardless;
         // this only affects the plain JVM ones.
         unitTests.isReturnDefaultValues = true
+        unitTests.all {
+            // 2 GB FOR THE TEST JVM, where Gradle's default is 512 MB. The fit harnesses render
+            // every screen state at 17 phone sizes and three type sizes under Robolectric -- about
+            // 1,300 compositions in PickFitTest alone (SHOWUP-174 to 176) -- and the suite ran out
+            // of heap on CI at 512 the day those landed, failing every test after it.
+            it.maxHeapSize = "2g"
+            // A FRESH JVM EVERY FOUR CLASSES. 2 GB alone was not enough: Robolectric keeps a little
+            // of every composition it renders, so the heap fills ACROSS classes, not within one --
+            // each fit class passes on its own, and the 66 sharing one JVM ran out partway through
+            // on CI (13 October 2026, "OutOfMemoryError ... 125 tests completed, 14 failed"). A
+            // restart frees all of it, for a few seconds of start-up each.
+            it.setForkEvery(4)
+            // Two at once on CI, which has 4 cores and 16 GB, to win that start-up back. One
+            // locally: this machine reaps a Gradle run that asks for too much memory.
+            if (System.getenv("CI") != null) it.maxParallelForks = 2
+        }
     }
 }
 

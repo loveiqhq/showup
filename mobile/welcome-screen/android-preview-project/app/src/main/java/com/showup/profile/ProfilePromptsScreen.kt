@@ -131,6 +131,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import com.showup.designsystem.Border
 import com.showup.designsystem.ComponentSizes
+import com.showup.designsystem.halo
 import com.showup.designsystem.eyebrowCase
 import com.showup.designsystem.blurBehindSheet
 import com.showup.designsystem.Cream
@@ -404,24 +405,6 @@ private fun Modifier.outline(color: Color, radius: Dp, width: Dp = 1.5.dp): Modi
         size = Size(size.width - w, size.height - w),
         cornerRadius = CornerRadius(radius.toPx()),
         style = Stroke(width = w),
-    )
-}
-
-/**
- * `box-shadow: 0 0 0 4px <colour>` — a ring OUTSIDE the border box.
- *
- * Not `Modifier.shadow`, which is Android's elevation system: it has a light source at the top of
- * the window, so its direction depends on where the control sits on screen. This is a flat halo
- * with no direction, which is what the CSS actually specifies. Drawn outside the node's own bounds
- * rather than inside, so the field does not shrink when it gains focus.
- */
-private fun Modifier.halo(color: Color, radius: Dp, spread: Dp = 4.dp): Modifier = drawBehind {
-    val s = spread.toPx()
-    drawRoundRect(
-        color = color,
-        topLeft = Offset(-s, -s),
-        size = Size(size.width + 2 * s, size.height + 2 * s),
-        cornerRadius = CornerRadius(radius.toPx() + s),
     )
 }
 
@@ -822,8 +805,10 @@ private fun WritePromptSheet(
             Modifier
                 .fillMaxWidth()
                 .shakeOnce(shakeKey, showNudge && motion.enabled)
-                .clip(RoundedCornerShape(Spacing.xxl))
+                // The halo BEFORE the clip: it is drawn outside the box, and a clip earlier in the
+                // chain cut it away entirely -- the focus ring never showed on Android.
                 .halo(haloColor, Spacing.xxl)
+                .clip(RoundedCornerShape(Spacing.xxl))
                 .background(Elevated)
                 .outline(borderColor, Spacing.xxl)
                 // Bottom 34 rather than 16: the counter sits inside the box, and the text must not

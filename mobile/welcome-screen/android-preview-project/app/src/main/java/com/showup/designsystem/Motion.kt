@@ -11,7 +11,8 @@ package com.showup.designsystem
  * still, and forbids a looping animation.
  *
  * Not here: the 500/1200/1600ms delays in ConnectFlowHost, which are the fake provider round trip
- * and go away with the real SDKs, and 220ms, which is one fade-in.
+ * and go away with the real SDKs. 220ms was one fade-in until SHOWUP-174 gave it a meaning of its
+ * own -- see [DISCLOSURE].
  */
 object Motion {
     /** Press feedback and fades. */
@@ -31,6 +32,13 @@ object Motion {
      * and the reference times it separately from the transition between them.
      */
     const val PROGRESS = 280
+
+    /**
+     * A disclosure chevron turning over -- `Show more` / `Show less` on Interests (SHOWUP-174),
+     * `transform 220ms` on [ShowUpEasing]. A touch longer than [FAST] because the chevron travels
+     * 180 degrees where a fade travels nowhere.
+     */
+    const val DISCLOSURE = 220
 
     /** Screen-to-screen transition. */
     const val SCREEN = 320
@@ -68,6 +76,18 @@ object Motion {
      * signed them out. Leaving Startup ends it sooner.
      */
     const val NOTICE = 6000
+
+    /**
+     * A small thing arriving: the Check-In toast and How it works' panel (`su-toast-in`), the No
+     * hours today? scrim, and How it works' chevron turning over (`transform 200ms`). SHOWUP-179.
+     */
+    const val REVEAL = 200
+
+    /** The No hours today? card popping in (`su-checkin-pop 260ms`). SHOWUP-179. */
+    const val POP = 260
+
+    /** One turn of the commit spinner (`su-checkin-spin 800ms linear infinite`). SHOWUP-183. */
+    const val SPIN = 800
 }
 
 /**
