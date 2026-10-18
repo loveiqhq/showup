@@ -21,6 +21,7 @@ import { PermissionStatusesService } from './permission-statuses.service';
  */
 describe('PermissionStatusesService', () => {
   const USER = 'user-1';
+  const declared = Object.values(DevicePermission);
   let rows: PermissionStatusEntry[];
   let service: PermissionStatusesService;
 
@@ -37,11 +38,16 @@ describe('PermissionStatusesService', () => {
       }
       return Promise.resolve();
     },
+    // Sorted the way Postgres sorts an enum column: by declaration order, not alphabetically. An
+    // alphabetical fake once agreed with a wrong expectation that only the e2e run caught.
     find: ({ where }: { where: { userId: string } }) =>
       Promise.resolve(
         rows
           .filter((r) => r.userId === where.userId)
-          .sort((a, b) => a.permission.localeCompare(b.permission)),
+          .sort(
+            (a, b) =>
+              declared.indexOf(a.permission) - declared.indexOf(b.permission),
+          ),
       ),
     findOne: ({
       where,
@@ -93,14 +99,14 @@ describe('PermissionStatusesService', () => {
     const stored = await service.list(USER);
     expect(stored.map((r) => [r.permission, r.status, r.platform])).toEqual([
       [
-        DevicePermission.Location,
-        DevicePermissionStatus.NotDetermined,
-        PushPlatform.Android,
-      ],
-      [
         DevicePermission.Notifications,
         DevicePermissionStatus.Denied,
         PushPlatform.Ios,
+      ],
+      [
+        DevicePermission.Location,
+        DevicePermissionStatus.NotDetermined,
+        PushPlatform.Android,
       ],
     ]);
   });

@@ -97,8 +97,9 @@ describe('Permission statuses (e2e)', () => {
         res.body as { permission: string; status: string; platform: string }[]
       ).map((r) => [r.permission, r.status, r.platform]),
     ).toEqual([
-      ['location', 'not_determined', 'android'],
+      // The enum's declared order, which is how Postgres sorts it -- not alphabetical.
       ['notifications', 'denied', 'ios'],
+      ['location', 'not_determined', 'android'],
     ]);
   });
 
@@ -126,7 +127,7 @@ describe('Permission statuses (e2e)', () => {
       .post('/me/push-tokens')
       .set('Authorization', bearer())
       .send({ token: 'e2e-permission-token', platform: 'android' })
-      .expect(200);
+      .expect(201);
     const dispatch = app.get(NotificationDispatchService);
 
     await save({

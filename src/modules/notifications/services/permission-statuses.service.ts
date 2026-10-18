@@ -43,7 +43,11 @@ export class PermissionStatusesService {
     );
   }
 
-  /** Everything the server has heard for this user, in a stable order. */
+  /**
+   * Everything the server has heard for this user, in a stable order: the enum's DECLARED order
+   * (notifications, location, camera, microphone), which is how Postgres sorts an enum column --
+   * not alphabetical. The same order the apps list them in.
+   */
   async list(userId: string): Promise<PermissionStatusEntry[]> {
     return this.entries.find({
       where: { userId },
