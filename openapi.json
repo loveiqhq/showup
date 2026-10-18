@@ -1,6 +1,15 @@
 {
   "components": {
     "schemas": {
+      "Activity": {
+        "enum": [
+          "couch_lover",
+          "moderately_active",
+          "active",
+          "sport_is_my_life"
+        ],
+        "type": "string"
+      },
       "AdminUserRowDto": {
         "properties": {
           "accountStatus": {
@@ -39,6 +48,15 @@
           "createdAt"
         ],
         "type": "object"
+      },
+      "Alcohol": {
+        "enum": [
+          "never",
+          "rarely",
+          "socially",
+          "regularly"
+        ],
+        "type": "string"
       },
       "ApiErrorDto": {
         "properties": {
@@ -233,6 +251,191 @@
           "preparationMinutes",
           "active",
           "createdAt"
+        ],
+        "type": "object"
+      },
+      "CheckInMotivation": {
+        "description": "Registry §30. The last motivation accepted with Continue, which pre-selects the step; null on a first Check-In.",
+        "enum": [
+          "long_term",
+          "non_monogamy",
+          "short_term",
+          "casual",
+          "friends"
+        ],
+        "type": "string"
+      },
+      "CheckInSlotDto": {
+        "properties": {
+          "startsAt": {
+            "description": "The instant the hour starts. The client works it out from the device clock and the 7am day boundary; the server drops an hour that has already started.",
+            "example": "2026-10-13T17:00:00.000Z",
+            "type": "string"
+          },
+          "tier": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CheckInSlotTier"
+              }
+            ],
+            "description": "preferred: the 1st tap. available: the 2nd tap."
+          }
+        },
+        "required": [
+          "startsAt",
+          "tier"
+        ],
+        "type": "object"
+      },
+      "CheckInSlotTier": {
+        "description": "preferred: the 1st tap. available: the 2nd tap.",
+        "enum": [
+          "preferred",
+          "available"
+        ],
+        "type": "string"
+      },
+      "CheckInStateDto": {
+        "properties": {
+          "active": {
+            "description": "Whether the current window holds a committed Check-In. True unlocks date search; false is the \"date search not available\" Search tab.",
+            "type": "boolean"
+          },
+          "filters": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FilterSettingsDto"
+              }
+            ],
+            "description": "The filter settings the Filters step opens with: the saved ones, or -- for a user with none yet -- the first-Check-In pre-fill from the profile (story 05), any age, 10 km."
+          },
+          "filtersSaved": {
+            "description": "Whether `filters` are saved settings rather than the profile pre-fill.",
+            "type": "boolean"
+          },
+          "firstCheckIn": {
+            "description": "True until the user has committed a Check-In once.",
+            "type": "boolean"
+          },
+          "introPassed": {
+            "description": "Whether the intro CTA has ever been tapped. The gate reopens at Today once it has, at the intro before that.",
+            "type": "boolean"
+          },
+          "lastMotivation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CheckInMotivation"
+              }
+            ],
+            "description": "Registry §30. The last motivation accepted with Continue, which pre-selects the step; null on a first Check-In.",
+            "nullable": true
+          },
+          "lastVibes": {
+            "description": "Registry §31, in list order. The last vibes accepted with Continue; empty on a first Check-In.",
+            "items": {
+              "$ref": "#/components/schemas/CheckInVibe"
+            },
+            "type": "array"
+          },
+          "windowId": {
+            "description": "The current Check-In window -- `window_id` on every Check-In event. Null only before profile creation is complete; one opens then and lasts 48 hours.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "windowId",
+          "introPassed",
+          "active",
+          "firstCheckIn",
+          "lastMotivation",
+          "lastVibes",
+          "filters",
+          "filtersSaved"
+        ],
+        "type": "object"
+      },
+      "CheckInVibe": {
+        "description": "Registry §31, in list order. The last vibes accepted with Continue; empty on a first Check-In.",
+        "enum": [
+          "coffee_chat",
+          "casual_drink",
+          "grab_food",
+          "nature_walk",
+          "bouldering_table_tennis",
+          "workout",
+          "sunset",
+          "drinks_music",
+          "calm",
+          "deep_talk",
+          "playful",
+          "cozy",
+          "spontaneous",
+          "curious",
+          "quick_hello",
+          "low_key",
+          "high_energy",
+          "no_rush",
+          "early_night",
+          "meet_now"
+        ],
+        "type": "string"
+      },
+      "CommitCheckInDto": {
+        "properties": {
+          "latitude": {
+            "description": "Where the phone is, if location is allowed. Sent with longitude or not at all.",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "longitude": {
+            "description": "Where the phone is, if location is allowed. Sent with latitude or not at all.",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "motivation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CheckInMotivation"
+              }
+            ]
+          },
+          "slots": {
+            "description": "Today and Tomorrow, every picked hour with its tier.",
+            "items": {
+              "$ref": "#/components/schemas/CheckInSlotDto"
+            },
+            "maxItems": 48,
+            "type": "array"
+          },
+          "uplift": {
+            "description": "The reason to be picked: at most 100 characters (graphemes), never an email, a phone number or a link. Trimmed; empty is stored as no uplift.",
+            "maxLength": 1000,
+            "nullable": true,
+            "type": "string"
+          },
+          "vibes": {
+            "items": {
+              "$ref": "#/components/schemas/CheckInVibe"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "type": "array"
+          },
+          "windowId": {
+            "description": "The window the flow ran in. The commit is idempotent per window: a retry never creates a second Check-In. If it has expired, the Check-In goes into the current window.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "windowId",
+          "slots",
+          "motivation",
+          "vibes"
         ],
         "type": "object"
       },
@@ -438,6 +641,15 @@
         ],
         "type": "object"
       },
+      "Diet": {
+        "enum": [
+          "everything",
+          "flexitarian",
+          "vegetarian",
+          "vegan"
+        ],
+        "type": "string"
+      },
       "DiscoveryProfileDto": {
         "properties": {
           "displayName": {
@@ -484,6 +696,43 @@
         ],
         "type": "string"
       },
+      "FilterSettingsDto": {
+        "properties": {
+          "distanceKm": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxAge": {
+            "description": "The oldest age to see, or null for 65+ -- no upper limit.",
+            "maximum": 64,
+            "minimum": 18,
+            "nullable": true,
+            "type": "integer"
+          },
+          "meetGender": {
+            "description": "Registry §10 meet_gender, the §1 gender set: who they want to meet. At least one. Class 2 -- never in a tracking payload.",
+            "items": {
+              "$ref": "#/components/schemas/MeetGender"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array"
+          },
+          "minAge": {
+            "maximum": 65,
+            "minimum": 18,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meetGender",
+          "minAge",
+          "maxAge",
+          "distanceKm"
+        ],
+        "type": "object"
+      },
       "FlowPosition": {
         "description": "The §2 step just completed or skipped. Only ever moves forward: an earlier step is accepted and ignored, so going back a screen never rewinds the account.",
         "enum": [
@@ -498,7 +747,39 @@
           "dating_language",
           "education",
           "religion",
-          "politics"
+          "politics",
+          "interests",
+          "life_now",
+          "life_ahead"
+        ],
+        "type": "string"
+      },
+      "FutureFamily": {
+        "description": "Registry §4 family_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "want_kids",
+          "dont_want_kids",
+          "find_out_together"
+        ],
+        "type": "string"
+      },
+      "FutureLiving": {
+        "description": "Registry §4 living_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "stay_local",
+          "expat_life",
+          "move_abroad",
+          "find_out_together"
+        ],
+        "type": "string"
+      },
+      "FuturePartnership": {
+        "description": "Registry §4 partnership_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "monogamous_relationship",
+          "open_relationship",
+          "ethically_non_monogamous",
+          "find_out_together"
         ],
         "type": "string"
       },
@@ -525,6 +806,94 @@
           "idToken"
         ],
         "type": "object"
+      },
+      "InterestTag": {
+        "description": "Registry §3 interest tags, the \"What I am into\" chips. Between one and ten; stored de-duplicated and in list order, whatever order is sent.",
+        "enum": [
+          "gym",
+          "running",
+          "hyrox_crossfit",
+          "yoga_pilates",
+          "bouldering",
+          "cycling",
+          "swimming",
+          "hiking",
+          "team_sports",
+          "tennis_padel",
+          "martial_arts",
+          "winter_sports",
+          "cooking",
+          "baking",
+          "trying_new_restaurants",
+          "brunch",
+          "street_food_markets",
+          "wine",
+          "craft_beer",
+          "coffee_spots",
+          "cocktail_bars",
+          "live_music",
+          "museums_exhibitions",
+          "theatre",
+          "cinema",
+          "reading",
+          "comedy",
+          "festivals",
+          "making_art_music",
+          "tv_series",
+          "movie_nights",
+          "gaming",
+          "board_games",
+          "podcasts",
+          "plants_gardening",
+          "bars",
+          "clubbing",
+          "dinner_parties",
+          "quiz_nights",
+          "karaoke",
+          "concerts_with_friends",
+          "volunteering",
+          "city_breaks",
+          "road_trips",
+          "beach_relax",
+          "all_inclusive",
+          "backpacking",
+          "surf_adventure",
+          "wellness_spa",
+          "camping",
+          "cruises"
+        ],
+        "type": "string"
+      },
+      "LifeFamily": {
+        "description": "Registry §4 family. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "no_children",
+          "has_children",
+          "single_parent",
+          "co_parenting",
+          "empty_nester"
+        ],
+        "type": "string"
+      },
+      "LifeLiving": {
+        "description": "Registry §4 living. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "living_alone",
+          "living_with_roommates",
+          "living_with_family",
+          "living_with_children"
+        ],
+        "type": "string"
+      },
+      "LifePartnership": {
+        "description": "Registry §4 partnership. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+        "enum": [
+          "single",
+          "open_relationship",
+          "ethically_non_monogamous",
+          "divorced"
+        ],
+        "type": "string"
       },
       "LikeResultDto": {
         "properties": {
@@ -672,6 +1041,16 @@
         ],
         "type": "object"
       },
+      "MeetGender": {
+        "description": "Registry §10 meet_gender, the §1 gender set: who they want to meet. At least one. Class 2 -- never in a tracking payload.",
+        "enum": [
+          "woman",
+          "man",
+          "non_binary",
+          "other"
+        ],
+        "type": "string"
+      },
       "NotificationPreferencesDto": {
         "properties": {
           "engagement": {
@@ -725,9 +1104,19 @@
       },
       "OwnProfileDto": {
         "properties": {
+          "activity": {
+            "description": "One of: couch_lover, moderately_active, active, sport_is_my_life. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
           "age": {
             "nullable": true,
             "type": "integer"
+          },
+          "alcohol": {
+            "description": "One of: never, rarely, socially, regularly. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
           },
           "datingLanguages": {
             "description": "In list order; null when never answered. Each: One of: german, english, spanish, italian, french, turkish, russian, arabic. Read tolerantly: a newer server may add values.",
@@ -737,6 +1126,11 @@
             "nullable": true,
             "type": "array"
           },
+          "diet": {
+            "description": "One of: everything, flexitarian, vegetarian, vegan. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
           "displayName": {
             "nullable": true,
             "type": "string"
@@ -745,6 +1139,22 @@
             "description": "One of: a_levels_abitur, apprenticeship, university_degree, phd. Read tolerantly: a newer server may add values.",
             "nullable": true,
             "type": "string"
+          },
+          "family": {
+            "description": "Each: One of: no_children, has_children, single_parent, co_parenting, empty_nester. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "familyAhead": {
+            "description": "At most one. Each: One of: want_kids, dont_want_kids, find_out_together. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
           },
           "gender": {
             "description": "One of: woman, man, non_binary, other. Read tolerantly: a newer server may add values.",
@@ -768,11 +1178,35 @@
           "id": {
             "type": "string"
           },
+          "interests": {
+            "description": "Up to ten, in list order; null when never answered. Each: One of: gym, running, hyrox_crossfit, yoga_pilates, bouldering, cycling, swimming, hiking, team_sports, tennis_padel, martial_arts, winter_sports, cooking, baking, trying_new_restaurants, brunch, street_food_markets, wine, craft_beer, coffee_spots, cocktail_bars, live_music, museums_exhibitions, theatre, cinema, reading, comedy, festivals, making_art_music, tv_series, movie_nights, gaming, board_games, podcasts, plants_gardening, bars, clubbing, dinner_parties, quiz_nights, karaoke, concerts_with_friends, volunteering, city_breaks, road_trips, beach_relax, all_inclusive, backpacking, surf_adventure, wellness_spa, camping, cruises. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
           "isComplete": {
             "type": "boolean"
           },
           "isVisible": {
             "type": "boolean"
+          },
+          "living": {
+            "description": "Each: One of: living_alone, living_with_roommates, living_with_family, living_with_children. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "livingAhead": {
+            "description": "Each: One of: stay_local, expat_life, move_abroad, find_out_together. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
           },
           "lookingFor": {
             "nullable": true,
@@ -783,6 +1217,22 @@
             "nullable": true,
             "type": "string"
           },
+          "partnership": {
+            "description": "Class 2. Each: One of: single, open_relationship, ethically_non_monogamous, divorced. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "partnershipAhead": {
+            "description": "Class 2. Each: One of: monogamous_relationship, open_relationship, ethically_non_monogamous, find_out_together. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
           "politics": {
             "description": "One of: left, mid_left, middle, mid_right, right, conservative, libertarian, apolitical. Read tolerantly: a newer server may add values.",
             "nullable": true,
@@ -790,6 +1240,21 @@
           },
           "religion": {
             "description": "One of: protestant, catholic, orthodox, muslim, jewish, buddhist, hindu, atheist, spiritual_other. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "rhythm": {
+            "description": "One of: early_bird, night_owl. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "smoking": {
+            "description": "One of: no, sometimes, yes. Read tolerantly: a newer server may add values.",
+            "nullable": true,
+            "type": "string"
+          },
+          "social": {
+            "description": "One of: cozy_at_home, balanced, always_out. Read tolerantly: a newer server may add values.",
             "nullable": true,
             "type": "string"
           },
@@ -818,7 +1283,20 @@
           "datingLanguages",
           "education",
           "religion",
-          "politics"
+          "politics",
+          "activity",
+          "diet",
+          "alcohol",
+          "smoking",
+          "rhythm",
+          "social",
+          "interests",
+          "partnership",
+          "family",
+          "living",
+          "familyAhead",
+          "partnershipAhead",
+          "livingAhead"
         ],
         "type": "object"
       },
@@ -1194,6 +1672,70 @@
         ],
         "type": "object"
       },
+      "Rhythm": {
+        "enum": [
+          "early_bird",
+          "night_owl"
+        ],
+        "type": "string"
+      },
+      "SaveCheckInAnswersDto": {
+        "properties": {
+          "motivation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CheckInMotivation"
+              }
+            ]
+          },
+          "vibes": {
+            "description": "One to five; stored de-duplicated and in list order.",
+            "items": {
+              "$ref": "#/components/schemas/CheckInVibe"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SaveFilterSettingsDto": {
+        "properties": {
+          "distanceKm": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxAge": {
+            "description": "Null, or 65, for no upper limit -- stored as null either way.",
+            "maximum": 65,
+            "minimum": 18,
+            "nullable": true,
+            "type": "integer"
+          },
+          "meetGender": {
+            "items": {
+              "$ref": "#/components/schemas/MeetGender"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array"
+          },
+          "minAge": {
+            "maximum": 65,
+            "minimum": 18,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meetGender",
+          "minAge",
+          "maxAge",
+          "distanceKm"
+        ],
+        "type": "object"
+      },
       "SendChatMessageDto": {
         "properties": {
           "body": {
@@ -1270,6 +1812,22 @@
           "status"
         ],
         "type": "object"
+      },
+      "Smoking": {
+        "enum": [
+          "no",
+          "sometimes",
+          "yes"
+        ],
+        "type": "string"
+      },
+      "SocialBattery": {
+        "enum": [
+          "cozy_at_home",
+          "balanced",
+          "always_out"
+        ],
+        "type": "string"
       },
       "StaffReportDto": {
         "properties": {
@@ -1416,6 +1974,20 @@
       },
       "UpsertProfileDto": {
         "properties": {
+          "activity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Activity"
+              }
+            ]
+          },
+          "alcohol": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Alcohol"
+              }
+            ]
+          },
           "dateOfBirth": {
             "description": "YYYY-MM-DD; must be 18+",
             "example": "1998-04-23",
@@ -1426,7 +1998,15 @@
             "items": {
               "$ref": "#/components/schemas/DatingLanguage"
             },
+            "minItems": 1,
             "type": "array"
+          },
+          "diet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Diet"
+              }
+            ]
           },
           "displayName": {
             "example": "Leo",
@@ -1438,6 +2018,20 @@
                 "$ref": "#/components/schemas/Education"
               }
             ]
+          },
+          "family": {
+            "description": "Registry §4 family. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/LifeFamily"
+            },
+            "type": "array"
+          },
+          "familyAhead": {
+            "description": "Registry §4 family_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/FutureFamily"
+            },
+            "type": "array"
           },
           "flowPosition": {
             "allOf": [
@@ -1470,9 +2064,32 @@
             },
             "type": "array"
           },
+          "interests": {
+            "description": "Registry §3 interest tags, the \"What I am into\" chips. Between one and ten; stored de-duplicated and in list order, whatever order is sent.",
+            "items": {
+              "$ref": "#/components/schemas/InterestTag"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
+          },
           "isVisible": {
             "description": "Whether the profile is visible in discovery",
             "type": "boolean"
+          },
+          "living": {
+            "description": "Registry §4 living. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/LifeLiving"
+            },
+            "type": "array"
+          },
+          "livingAhead": {
+            "description": "Registry §4 living_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/FutureLiving"
+            },
+            "type": "array"
           },
           "lookingFor": {
             "type": "string"
@@ -1483,6 +2100,20 @@
                 "$ref": "#/components/schemas/Orientation"
               }
             ]
+          },
+          "partnership": {
+            "description": "Registry §4 partnership. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/LifePartnership"
+            },
+            "type": "array"
+          },
+          "partnershipAhead": {
+            "description": "Registry §4 partnership_ahead. May be empty (walked past without an answer); stored de-duplicated and in list order. An exclusive value combined with another is refused.",
+            "items": {
+              "$ref": "#/components/schemas/FuturePartnership"
+            },
+            "type": "array"
           },
           "politics": {
             "allOf": [
@@ -1495,6 +2126,27 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Religion"
+              }
+            ]
+          },
+          "rhythm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rhythm"
+              }
+            ]
+          },
+          "smoking": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Smoking"
+              }
+            ]
+          },
+          "social": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SocialBattery"
               }
             ]
           }
@@ -4035,6 +4687,230 @@
         ]
       }
     },
+    "/me/check-in": {
+      "get": {
+        "operationId": "getCheckInState",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInStateDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "check-in"
+        ]
+      }
+    },
+    "/me/check-in/answers": {
+      "put": {
+        "operationId": "saveCheckInAnswers",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCheckInAnswersDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "check-in"
+        ]
+      }
+    },
+    "/me/check-in/commit": {
+      "post": {
+        "operationId": "commitCheckIn",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitCheckInDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInStateDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "error: uplift_contact_info -- the reason to be picked carries an email, a phone number or a link."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "check-in"
+        ]
+      }
+    },
+    "/me/check-in/intro-passed": {
+      "post": {
+        "operationId": "markCheckInIntroPassed",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "check-in"
+        ]
+      }
+    },
     "/me/check-ins": {
       "post": {
         "operationId": "createCheckIn",
@@ -4267,6 +5143,73 @@
         "summary": "",
         "tags": [
           "dates"
+        ]
+      }
+    },
+    "/me/filter-settings": {
+      "put": {
+        "operationId": "saveFilterSettings",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveFilterSettingsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterSettingsDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "check-in"
         ]
       }
     },

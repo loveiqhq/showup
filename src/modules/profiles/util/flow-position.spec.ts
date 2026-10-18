@@ -2,6 +2,8 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
   advanceFlowPosition,
+  FLOW_POSITION_COMPLETE,
+  FLOW_POSITION_ORDER,
   FLOW_POSITIONS,
   flowPositionRank,
 } from './flow-position';
@@ -46,6 +48,9 @@ describe('flow positions', () => {
       'education',
       'religion',
       'politics',
+      'interests',
+      'life_now',
+      'life_ahead',
     ];
     const ranks = walk.map(flowPositionRank);
     expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
@@ -59,8 +64,14 @@ describe('flow positions', () => {
   });
 
   it('is not a position for anything outside the vocabulary', () => {
-    expect(flowPositionRank('interests')).toBe(-1);
+    expect(flowPositionRank('habits')).toBe(-1);
+    expect(flowPositionRank('profile_interests')).toBe(-1);
     expect(flowPositionRank(null)).toBe(-1);
+  });
+
+  it('ends on life_ahead, which is profile creation complete (Profile 23)', () => {
+    expect(FLOW_POSITION_ORDER.at(-1)).toEqual([FLOW_POSITION_COMPLETE]);
+    expect(FLOW_POSITION_COMPLETE).toBe('life_ahead');
   });
 });
 

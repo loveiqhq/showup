@@ -151,9 +151,9 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
      */
     EmbraceDetails("profile_embrace_details", "ProfileEmbraceDetails"),
 
-    // ── "Share some details" (SHOWUP-167 to SHOWUP-173). Rows added in registry 1.4.8 for all
-    // eleven steps at once, "so the funnel runs unbroken from this bridge to the end of the flow".
-    // Only the seven with a screen are spelled; the other four join when their screens do.
+    // ── "Share some details" (SHOWUP-167 to SHOWUP-176). Rows added in registry 1.4.8 "so the
+    // funnel runs unbroken from this bridge to the end of the flow"; `profile_habits` was removed
+    // with its screen in 1.4.16, leaving ten.
     Height("profile_height", "ProfileHeight"),
     Gender("profile_gender", "ProfileGender"),
     Orientation("profile_orientation", "ProfileOrientation"),
@@ -161,6 +161,25 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     Education("profile_education", "ProfileEducation"),
     Religion("profile_religion", "ProfileReligion"),
     Politics("profile_politics", "ProfilePolitics"),
+    Interests("profile_interests", "ProfileInterests"),
+    LifeNow("profile_life_now", "ProfileLifeNow"),
+
+    /** The last step of profile creation (SHOWUP-176). Its exit is the Check-In intro. */
+    LifeAhead("profile_life_ahead", "ProfileLifeAhead"),
+
+    // ── the 48hrs Check-In (SHOWUP-178 to 183), §11 rows from registry 1.4.19 to 1.4.25. Here with
+    // the profile's screens because `referrer_screen_id` crosses the two: the intro's referrer is
+    // `profile_life_ahead`. Not steps of profile creation -- nothing here fires profile_step_*.
+    CheckinIntro("checkin_intro", "CheckinIntro"),
+
+    /** The Search tab for a user with no committed Check-In -- "date search not available". */
+    CheckinSearchUnavailable("checkin_search_unavailable", "CheckinSearchUnavailable"),
+    CheckinToday("checkin_today", "CheckinToday"),
+    CheckinTomorrow("checkin_tomorrow", "CheckinTomorrow"),
+    CheckinMotivation("checkin_motivation", "CheckinMotivation"),
+    CheckinVibe("checkin_vibe", "CheckinVibe"),
+    CheckinFilters("checkin_filters", "CheckinFilters"),
+    CheckinUplift("checkin_uplift", "CheckinUplift"),
 }
 
 /**
@@ -329,6 +348,11 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.18 (8 October 2026) closes the last three steps, one version each: 1.4.16 Interests (the
+     * six How I live fields in §1, §3 rewritten to 51 tag_ids, habits retired), 1.4.17 Life (§4
+     * re-slugged with an `exclusive` column, partnership Class 2), 1.4.18 Future (`checkin_intro`
+     * registered in §11).
+     *
      * 1.4.15 (5 October 2026) closes the nine "Share some details" tickets, one version each:
      * 1.4.7 location (§26 `location_unavailable_reason`), 1.4.8 the `add_details` bridge, then one
      * per detail step from height (1.4.9) to politics (1.4.15) -- `muslim` added to religion in
@@ -347,7 +371,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.15"
+    const val FIELD_REGISTRY_VERSION = "1.4.25"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -449,6 +473,19 @@ object ProfileAnalytics {
     const val DETAIL_ANSWERED = "detail_answered"
     const val DETAIL_SKIPPED = "detail_skipped"
     const val FIELD_DISPLAY_OPTED_OUT = "field_display_opted_out"
+
+    // ── family F, Interests / Life / Future (SHOWUP-174 to SHOWUP-176) ──────
+    //
+    // TWO CADENCES ON INTERESTS, by registry rule: What I'm into reports PER TAP with a running
+    // total; How I live reports once per answered group on an accepted Continue, as
+    // `detail_answered`. Life and Future report once per answered question on Continue, never per
+    // tap, each stamped with its question's own §4 class.
+    const val INTEREST_SELECTED = "interest_selected"
+    const val INTEREST_DESELECTED = "interest_deselected"
+    const val INTEREST_CAP_REACHED = "interest_cap_reached"
+    const val SHOW_MORE_EXPANDED = "show_more_expanded"
+    const val LIFE_QUESTION_ANSWERED = "life_question_answered"
+    const val FUTURE_QUESTION_ANSWERED = "future_question_answered"
 
     /**
      * The closed set on `permission_prompted.type`, from `enums.json` §8.
@@ -610,6 +647,88 @@ object ProfileAnalytics {
             put("step_id", step.stepId)
             putAll(Stamp.of(0))
         }
+
+    // ── Interests, Life and Future ───────────────────────────────────────────
+
+    /** T2, class 0. Step [step] was shown. */
+    fun pickStepViewed(step: PickStep) = PROFILE_STEP_VIEWED to buildMap<String, Any> {
+        put("step_id", step.stepId)
+        put("step_index", step.stepIndex)
+        putAll(Stamp.of(0))
+    }
+
+    /** T2, class 0. Continue with something picked was accepted and saved. */
+    fun pickStepCompleted(step: PickStep, timeOnStepSeconds: Int) =
+        PROFILE_STEP_COMPLETED to buildMap<String, Any> {
+            put("step_id", step.stepId)
+            put("time_on_step_s", timeOnStepSeconds)
+            putAll(Stamp.of(0))
+        }
+
+    /** T2, class 0. Skip, or a Continue with nothing picked -- the two are one act on these steps. */
+    fun pickStepSkipped(step: PickStep) = PROFILE_STEP_SKIPPED to buildMap<String, Any> {
+        put("step_id", step.stepId)
+        put("screen_id", step.screen.screenId)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, the field's class. One per ANSWERED How I live group on an accepted Continue, in list
+     * order. The same event the detail steps send, keyed by the same §1 field_id vocabulary.
+     */
+    fun lifestyleAnswered(field: LifestyleField, value: String): Pair<String, Map<String, Any>> {
+        require(value.isNotEmpty()) { "an unanswered group sends nothing" }
+        return DETAIL_ANSWERED to buildMap {
+            put("field_id", field.fieldId)
+            put("value_bucketed", value)
+            putAll(Stamp.of(field.sensitivityClass))
+        }
+    }
+
+    /** T1, class 0. A What I'm into chip was picked; [total] counts What I'm into only, after it. */
+    fun interestSelected(tagId: String, total: Int) = INTEREST_SELECTED to buildMap<String, Any> {
+        put("tag_id", tagId)
+        put("total_selected", total)
+        putAll(Stamp.of(0))
+    }
+
+    /** T1, class 0. A What I'm into chip was unpicked. */
+    fun interestDeselected(tagId: String, total: Int) = INTEREST_DESELECTED to buildMap<String, Any> {
+        put("tag_id", tagId)
+        put("total_selected", total)
+        putAll(Stamp.of(0))
+    }
+
+    /** T1, class 0. A tap on a faded chip at the cap -- every such tap, and the tap does nothing. */
+    fun interestCapReached() = INTEREST_CAP_REACHED to buildMap<String, Any> {
+        put("cap", INTERESTS_MAX)
+        putAll(Stamp.of(0))
+    }
+
+    /** T2, class 0. `Show more` opened a group. Never on `Show less`. */
+    fun showMoreExpanded(section: InterestSection) = SHOW_MORE_EXPANDED to buildMap<String, Any> {
+        put("screen_id", ProfileScreen.Interests.screenId)
+        put("section_id", section.sectionId)
+        put("revealed_count", section.hiddenCount)
+        putAll(Stamp.of(0))
+    }
+
+    /**
+     * T1, the question's class. One per ANSWERED question on an accepted Continue, in screen order:
+     * `life_question_answered` on Life, `future_question_answered` on Future. [valueBucketed] is the
+     * picked §4 values in list order, comma-joined, no spaces -- never empty, because an unanswered
+     * question sends nothing.
+     */
+    fun lifeAnswered(step: PickStep, question: LifeQuestion, valueBucketed: String): Pair<String, Map<String, Any>> {
+        require(valueBucketed.isNotEmpty()) { "an unanswered question sends nothing" }
+        require(question in step.questions) { "$question is not asked on $step" }
+        val event = if (step == PickStep.LifeAhead) FUTURE_QUESTION_ANSWERED else LIFE_QUESTION_ANSWERED
+        return event to buildMap {
+            put("question_id", question.questionId)
+            put("value_bucketed", valueBucketed)
+            putAll(Stamp.of(question.sensitivityClass))
+        }
+    }
 
     /** T1, class 0. `referrer_screen_id` is B2 and travels as null until Step 3 lands. */
     fun screenViewed(screen: ProfileScreen, referrer: ProfileScreen? = null) =

@@ -15,9 +15,14 @@
  * `media_voice` and `media_video`, which share step_index 3 in §2, so both are accepted at the same
  * rank.
  *
- * Steps that exist in §2 but have no screen yet (interests, life_now, life_ahead, habits) are absent
- * on purpose: accepting a value nothing can set would make this list a wish rather than a contract.
- * Add each one when its screen ships.
+ * A step with no screen yet is absent on purpose: accepting a value nothing can set would make this
+ * list a wish rather than a contract. Add each one when its screen ships. Interests, life_now and
+ * life_ahead arrived with SHOWUP-174 to 176 (8 Oct 2026); habits was retired from §2 the same day.
+ *
+ * `life_ahead` IS "PROFILE CREATION COMPLETE". Future (Profile 23) is the last step, and its
+ * Continue and Skip both report it: "mark the saved flow position as profile creation complete".
+ * An account whose position is `life_ahead` has walked the whole flow; one on `life_now` was last
+ * seen on Future and resumes there ("a user who killed the app on this screen resumes here").
  */
 export const FLOW_POSITION_ORDER: readonly (readonly string[])[] = [
   ['media_voice', 'media_video'],
@@ -31,7 +36,13 @@ export const FLOW_POSITION_ORDER: readonly (readonly string[])[] = [
   ['education'],
   ['religion'],
   ['politics'],
+  ['interests'],
+  ['life_now'],
+  ['life_ahead'],
 ];
+
+/** The position Future reports: the whole flow has been walked. */
+export const FLOW_POSITION_COMPLETE = 'life_ahead';
 
 /** Every accepted position, flat, for validation. */
 export const FLOW_POSITIONS: readonly string[] = FLOW_POSITION_ORDER.flat();

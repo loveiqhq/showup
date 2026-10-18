@@ -104,6 +104,40 @@ final class DevMenuRulesTests: XCTestCase {
         }
     }
 
+    /// Android's DevStatesTest, the rules half.
+    func testSignedOutACheckInRowOpensOnTheTestServerAndOtherAccountScreensStillRefuse() {
+        XCTAssertEqual(jump(.checkInToday, signedIn: false), .testServer(.checkInToday))
+        XCTAssertEqual(jump(.checkInGate, signedIn: false), .testServer(.checkInGate))
+        XCTAssertEqual(jump(.profileHeight, signedIn: false), .needsLogIn)
+        XCTAssertEqual(jump(.checkInToday), .lands(.checkInToday))
+    }
+
+    func testTheCheckInScreensSitInTheirOwnSectionAndNeedAnAccount() {
+        let section = FlowScreen.allCases.filter { $0.devSection == .checkIn }
+        XCTAssertEqual(section, FlowScreen.allCases.filter(\.isCheckIn))
+        XCTAssertTrue(section.allSatisfy(\.needsAccount))
+        XCTAssertEqual(DevSection.checkIn.rawValue, "48hrs Check-In")
+        XCTAssertEqual(FlowScreen.checkInGate.devLabel, "Date search not available (gate)")
+        XCTAssertEqual(FlowScreen.checkInUplift.devLabel, "6 · Uplift + Find my date")
+    }
+
+    /// Every States entry opens a frame of its own -- a row with none would open "Unknown state".
+    func testEveryStatesEntryOpensAFrameOfItsOwn() {
+        let frames = devStates.map { DevFrame.of($0.id) }
+        XCTAssertFalse(frames.contains(nil), "a States row has no frame")
+        XCTAssertEqual(Set(frames.compactMap { $0 }).count, devStates.count, "two rows open the same frame")
+        XCTAssertEqual(Set(frames.compactMap { $0 }), Set(DevFrame.allCases), "a frame no row opens")
+        XCTAssertNil(DevFrame.of("178Z"))
+    }
+
+    func testTheStatesPageListsEveryFrameTheSixTicketsNameOnce() {
+        XCTAssertEqual(Set(devStates.map(\.id)).count, devStates.count)
+        var perTicket: [String: Int] = [:]
+        for state in devStates { perTicket[String(state.id.prefix(3)), default: 0] += 1 }
+        XCTAssertEqual(perTicket, ["178": 2, "179": 5, "180": 3, "181": 5, "182": 3, "183": 5])
+        XCTAssertEqual(devStateTickets.count, 6)
+    }
+
     func testEveryOtherScreenLandsWhereAsked() {
         let special: Set<FlowScreen> = [.profileNotifications, .profileLocation]
         for screen in FlowScreen.allCases where !special.contains(screen) {

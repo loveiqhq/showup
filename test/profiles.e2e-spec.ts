@@ -444,7 +444,20 @@ describe('Profiles (e2e)', () => {
     await request(server)
       .patch('/me/profile')
       .set('Authorization', bearer())
-      .send({ religion: 'buddhist', politics: 'left', orientation: 'gay' })
+      .send({
+        religion: 'buddhist',
+        politics: 'left',
+        orientation: 'gay',
+        alcohol: 'rarely',
+        smoking: 'sometimes',
+        interests: ['reading'],
+        partnership: ['divorced'],
+        family: ['has_children'],
+        living: [],
+        familyAhead: ['dont_want_kids'],
+        partnershipAhead: ['monogamous_relationship'],
+        livingAhead: ['stay_local'],
+      })
       .expect(200);
     await users.update({ id: userId }, { role: UserRole.Admin });
     const res = await request(server)
@@ -460,6 +473,19 @@ describe('Profiles (e2e)', () => {
       'datingLanguages',
       'education',
       'heightCm',
+      'activity',
+      'diet',
+      'alcohol',
+      'smoking',
+      'rhythm',
+      'social',
+      'interests',
+      'partnership',
+      'family',
+      'living',
+      'familyAhead',
+      'partnershipAhead',
+      'livingAhead',
     ]) {
       expect(res.body).not.toHaveProperty(field);
     }

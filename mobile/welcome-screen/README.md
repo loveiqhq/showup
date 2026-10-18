@@ -58,6 +58,7 @@ guess:
 | `Lora-Bold.ttf` | `Lora-Bold` |
 | `Lora-Italic.ttf` | **`LoraItalic-Italic`** |
 | `Lora-BoldItalic.ttf` | **`LoraItalic-BoldItalic`** |
+| `Manrope-Regular.ttf` | `Manrope-Regular` |
 | `Manrope-Medium.ttf` | `Manrope-Medium` |
 | `Manrope-SemiBold.ttf` | `Manrope-SemiBold` |
 | `Manrope-Bold.ttf` | `Manrope-Bold` |
@@ -72,7 +73,8 @@ for f in UIFont.familyNames.sorted() { print(f, UIFont.fontNames(forFamilyName: 
 (Android resource names allow nothing else):
 
 ```
-Lora-Regular.ttf     -> lora_regular.ttf        Manrope-Medium.ttf   -> manrope_medium.ttf
+Lora-Regular.ttf     -> lora_regular.ttf        Manrope-Regular.ttf  -> manrope_regular.ttf
+                                                Manrope-Medium.ttf   -> manrope_medium.ttf
 Lora-Bold.ttf        -> lora_bold.ttf           Manrope-SemiBold.ttf -> manrope_semibold.ttf
 Lora-Italic.ttf      -> lora_italic.ttf         Manrope-Bold.ttf     -> manrope_bold.ttf
 Lora-BoldItalic.ttf  -> lora_bold_italic.ttf

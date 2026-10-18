@@ -23,6 +23,18 @@ public struct NoOpAnalytics: AnalyticsTracking, Sendable {
     public func track(_ event: String, properties: [String: any Sendable]) {}
 }
 
+/// A property whose registry type is nullable and whose value is null -- JSON `null`, not an absent
+/// key and not a stand-in number. Android's `JsonNull`.
+///
+/// Properties are `[String: any Sendable]`, and an `Optional` stored there would be a value that
+/// some destinations unwrap and others drop. Until the Check-In no registry field needed one
+/// (`referrer_screen_id` reads "" by its own rule). `check_in_filters_changed`'s `max_age` does:
+/// "null for 65+ (no upper limit), never 65" (SHOWUP-182). A destination writes this as JSON null.
+public struct JSONNull: Sendable, Equatable, CustomStringConvertible {
+    public init() {}
+    public var description: String { "null" }
+}
+
 /// Names and properties for the tutorial flow.
 ///
 /// "Tutorial", deliberately not "onboarding" — onboarding is the separate flow where someone fills

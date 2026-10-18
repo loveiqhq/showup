@@ -55,7 +55,11 @@ enum ResumePoint: CaseIterable {
     case education
     case religion
     case politics
-    /// Everything the flow asks for is on the account.
+    case interests
+    case lifeNow
+    /// Future. "A user who killed the app on this screen resumes here, not on the Check-In intro."
+    case lifeAhead
+    /// Everything the flow asks for is on the account — Future was continued or skipped.
     case done
 }
 
@@ -104,5 +108,10 @@ func resumePoint(_ progress: ProfileProgress) -> ResumePoint {
     if hasNotReached(at, .education) { return .education }
     if hasNotReached(at, .religion) { return .religion }
     if hasNotReached(at, .politics) { return .politics }
+    if hasNotReached(at, .interests) { return .interests }
+    if hasNotReached(at, .life_now) { return .lifeNow }
+    // PROFILE CREATION IS COMPLETE ONLY ON `life_ahead`, which Future's Continue and Skip both
+    // report. Anything short of it — a kill on Future itself — comes back to Future.
+    if hasNotReached(at, .life_ahead) { return .lifeAhead }
     return .done
 }
