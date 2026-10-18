@@ -112,7 +112,7 @@ data class DevMenuFacts(
     val location: LocationArrival,
 )
 
-private enum class DevTabPage { Screens, Events }
+private enum class DevTabPage { Screens, States, Events }
 
 @Composable
 fun DevMenu(
@@ -122,6 +122,10 @@ fun DevMenu(
     onClearEvents: () -> Unit,
     onHideTab: () -> Unit,
     onClose: () -> Unit,
+    /** A Check-In screen opened on the in-memory test server -- signed out, see [DevJump.TestServer]. */
+    onTestServer: (FlowScreen) -> Unit = {},
+    /** One ticket frame, opened in its exact state -- the States page. */
+    onOpenState: (DevState) -> Unit = {},
 ) {
     var page by rememberSaveable { mutableStateOf(DevTabPage.Screens) }
     // A text field on the screen underneath keeps its keyboard up over the menu otherwise.
@@ -153,17 +157,24 @@ fun DevMenu(
         )
         Row(Modifier.fillMaxWidth().padding(vertical = Spacing.lg), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             DevPageTab("Screens", page == DevTabPage.Screens) { page = DevTabPage.Screens }
+            DevPageTab("States", page == DevTabPage.States) { page = DevTabPage.States }
             DevPageTab("Events (${events.size})", page == DevTabPage.Events) { page = DevTabPage.Events }
         }
         when (page) {
-            DevTabPage.Screens -> ScreensPage(facts, onJump, onHideTab)
+            DevTabPage.Screens -> ScreensPage(facts, onJump, onTestServer, onHideTab)
+            DevTabPage.States -> StatesPage(onOpenState)
             DevTabPage.Events -> EventsPage(events, onClearEvents)
         }
     }
 }
 
 @Composable
-private fun ScreensPage(facts: DevMenuFacts, onJump: (FlowScreen) -> Unit, onHideTab: () -> Unit) {
+private fun ScreensPage(
+    facts: DevMenuFacts,
+    onJump: (FlowScreen) -> Unit,
+    onTestServer: (FlowScreen) -> Unit,
+    onHideTab: () -> Unit,
+) {
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             val status = when (facts.signedIn) {
@@ -196,7 +207,12 @@ private fun ScreensPage(facts: DevMenuFacts, onJump: (FlowScreen) -> Unit, onHid
                 } else {
                     devJump(screen, facts.signedIn == true, facts.notificationsAsk, facts.oldAndroid, facts.location)
                 }
-                ScreenRow(screen, here = screen == facts.current, jump = jump, onJump = onJump)
+                ScreenRow(
+                    screen,
+                    here = screen == facts.current,
+                    jump = jump,
+                    onJump = { if (jump is DevJump.TestServer) onTestServer(it) else onJump(it) },
+                )
             }
         }
         item { Spacer(Modifier.heightIn(min = Spacing.xxl)) }
@@ -210,6 +226,7 @@ private fun ScreenRow(screen: FlowScreen, here: Boolean, jump: DevJump?, onJump:
         jump == null -> "Checking sign-in..."
         jump is DevJump.NeedsLogIn -> "Log in first"
         jump is DevJump.Skipped -> jump.why
+        jump is DevJump.TestServer -> "Opens on a test server -- no account, nothing saved"
         else -> null
     }
     val enabled = !here && jump != null && jump !is DevJump.NeedsLogIn
@@ -227,6 +244,45 @@ private fun ScreenRow(screen: FlowScreen, here: Boolean, jump: DevJump?, onJump:
             color = if (enabled || here) Fg else Subtle,
         )
         if (note != null) Text(note, color = if (here) Purple else Muted, fontFamily = Manrope, fontSize = 12.sp)
+    }
+}
+
+/**
+ * Every frame the Check-In tickets name, each opened directly in its exact state: the screen to look
+ * at, without walking the flow to reach it and without an account or a backend. Android back returns
+ * here -- the frame opens over the app, not in place of it.
+ */
+@Composable
+private fun StatesPage(onOpenState: (DevState) -> Unit) {
+    LazyColumn(Modifier.fillMaxSize()) {
+        item {
+            Text(
+                "Open any ticket frame in its exact state. Back returns here.",
+                color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+            )
+        }
+        DEV_STATES.groupBy { it.ticket }.forEach { (ticket, states) ->
+            item(key = "ticket:$ticket") {
+                Text(
+                    ticket.uppercase(), color = Subtle, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp, letterSpacing = 0.8.sp,
+                    modifier = Modifier.padding(top = Spacing.xl, bottom = Spacing.sm).semantics { heading() },
+                )
+            }
+            items(states, key = { "state:${it.id}" }) { state ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ComponentSizes.controlHeightMedium)
+                        .clickable(role = Role.Button) { onOpenState(state) }
+                        .padding(horizontal = Spacing.md, vertical = Spacing.md),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(state.label, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                }
+            }
+        }
+        item { Spacer(Modifier.heightIn(min = Spacing.xxl)) }
     }
 }
 

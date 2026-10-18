@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 
 import { CheckInStatus } from '../util/check-in';
+import { SLOT_TIERS, type SlotTier } from '../util/check-in-flow';
 
 export { CheckInStatus };
 
@@ -49,6 +50,26 @@ export class CheckIn {
    */
   @Column({ name: 'preparation_minutes', type: 'smallint', default: 30 })
   preparationMinutes: number;
+
+  /**
+   * The Check-In window these hours were committed with (story 06), or null for a window created
+   * directly through `POST /me/check-ins`. Lets a new Check-In retire the hours of the last one.
+   */
+  @Index()
+  @Column({ name: 'check_in_window_id', type: 'uuid', nullable: true })
+  windowId: string | null;
+
+  /**
+   * The 1st tap (`preferred`) or the 2nd tap (`available`) on these hours (story 02: "both tiers are
+   * stored and used"). One row is one run of consecutive hours of one tier.
+   */
+  @Column({
+    type: 'enum',
+    enum: SLOT_TIERS,
+    enumName: 'check_ins_tier_enum',
+    default: 'preferred',
+  })
+  tier: SlotTier;
 
   /**
    * When the "your check-in is about to expire" reminder was sent (Epic 10, SHOWUP-70). Null until

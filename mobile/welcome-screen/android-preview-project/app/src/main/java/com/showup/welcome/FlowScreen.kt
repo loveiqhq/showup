@@ -146,7 +146,46 @@ enum class FlowScreen {
     ProfileReligion,
     ProfilePolitics,
 
-    /** Where the flow ends, for both the tutorial and a returning member. */
+    // ── "Share some details", steps 8 to 10 (SHOWUP-174 to SHOWUP-176) ──────
+    //
+    // Their own column, not the detail scaffold, and still the same walk: each one's back pops to
+    // the one above it, and Future's Continue and Skip end profile creation.
+    ProfileInterests,
+    ProfileLifeNow,
+    ProfileLifeAhead,
+
+    // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ──────────────────────────
+    //
+    // THE GATE COMES FIRST, the order the transitions read: the intro's ✕ lands on it and reads as a
+    // close (backward), and every reopen from it reads forward. The steps are in walk order, which is
+    // also back order. None is in [hasSystemBack]: each draws its own back and handles the gesture.
+
+    /**
+     * Check-In 01 B, "date search not available" -- the Search tab for a user with no committed
+     * Check-In. Where the intro's and every step's ✕ land, and where a launch lands once profile
+     * creation is done and no Check-In is active.
+     */
+    CheckInGate,
+
+    /** Check-In 01 A, the intro. Future's Continue and Skip end profile creation here. */
+    CheckInIntro,
+    CheckInToday,
+    CheckInTomorrow,
+    CheckInMotivation,
+    CheckInVibe,
+    CheckInFilters,
+    CheckInUplift,
+
+    /** Where `Find my date` lands, and a launch with an active Check-In: Search is not built yet. */
+    CheckInSearch,
+
+    /** The gate's Settings tab: no Settings screen exists yet. */
+    CheckInSettings,
+
+    /**
+     * Where the flow ends for a NEW SIGN-IN, tutorial or returning member (SHOWUP-146). A launch
+     * with a finished profile goes to the gate or Search instead.
+     */
     Home,
     ;
 
@@ -168,6 +207,14 @@ enum class FlowScreen {
      * back on the email screen leaves the app instead of returning to their name. The screen draws
      * a back chevron; the gesture has to agree with it.
      */
+    /** A screen of the 48hrs Check-In or the tabs it gates -- what the foreground re-read covers. */
+    val isCheckIn: Boolean
+        get() = ordinal in CheckInGate.ordinal..CheckInSettings.ordinal
+
+    /** One of the six steps or the intro: a screen whose flow lives in the Check-In's view model. */
+    val isCheckInStep: Boolean
+        get() = ordinal in CheckInIntro.ordinal..CheckInUplift.ordinal
+
     val hasSystemBack: Boolean
         get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal ||
             this == ProfileEmail || this == ProfileVerifyEmail || this == ProfileDob ||
@@ -175,3 +222,10 @@ enum class FlowScreen {
             // with it -- the same fix, and the same reason, as ProfileEmail above.
             this == ProfilePhotos || this == ProfilePrompts
 }
+
+/**
+ * Still inside profile creation -- `in_flow` on `permission_status_changed`, "true when the change
+ * is detected while the user is still inside profile creation" (events.json). Every step of that
+ * flow is named `Profile*`, so a step added later is counted without editing a list.
+ */
+val FlowScreen.isProfileCreation: Boolean get() = name.startsWith("Profile")

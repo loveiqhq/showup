@@ -236,7 +236,7 @@ describe('Profile details (e2e)', () => {
   });
 
   it('refuses a position that is not a step after prompts', async () => {
-    await patch({ flowPosition: 'interests' }).expect(400);
+    await patch({ flowPosition: 'habits' }).expect(400);
     await patch({ flowPosition: 'profile_height' }).expect(400);
   });
 
@@ -261,7 +261,7 @@ describe('Profile details (e2e)', () => {
     expect((await me()).body.religion).toBe('muslim');
   });
 
-  it('habits cannot be hidden yet -- its screen is not built', async () => {
+  it('habits cannot be hidden -- the screen was cut on 8 Oct 2026', async () => {
     await patch({ hiddenFields: ['habits'] }).expect(400);
   });
 

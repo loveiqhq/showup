@@ -41,10 +41,9 @@ data class DetailOption(val value: String, val label: String)
  * How many segments the group's bar has -- `SHARE_STEPS_TOTAL` in the reference, "a prop of the
  * shell, never typed per screen" (Profile 14).
  *
- * TEN, AND THE TICKETS SAY WHY IT IS STILL OPEN: §2's step indices end at 9 (interests, life now,
- * life ahead and habits follow politics) and the kit's life screen draws 8. The count belongs to
- * the shell and every screen reads it from here, so when the design side settles it this is the
- * one number that changes.
+ * TEN, SETTLED 8 OCTOBER 2026: the habits screen was cut and the bar is "Interests 8 · Life 9 ·
+ * Future 10" (flow README). The count belongs to the shell and every screen reads it from here,
+ * Interests, Life and Future included, so no screen types it.
  */
 const val SHARE_STEPS_TOTAL = 10
 
@@ -165,7 +164,7 @@ enum class DetailStep(
     /** The `hidden_fields` entry -- the same string again; `HIDEABLE_FIELDS` on the server. */
     val hiddenField: String get() = stepId
 
-    /** The step after this one, or null after politics (interests is not built yet). */
+    /** The step after this one, or null after politics, whose Continue goes on to Interests. */
     val next: DetailStep? get() = entries.getOrNull(ordinal + 1)
 
     /** The step before this one, or null on height, whose back goes to Embrace 2. */
@@ -348,6 +347,12 @@ data class SavedDetails(
     val religion: String? = null,
     val politics: String? = null,
     val hiddenFields: Set<String> = emptySet(),
+    /** Interests' "How I live" answers, §1 field id -> §1 value, answered groups only (SHOWUP-174). */
+    val lifestyle: Map<String, String> = emptyMap(),
+    /** Interests' "What I'm into", §3 tag_ids in list order. Empty when never answered. */
+    val interests: List<String> = emptyList(),
+    /** Life and Future, §4 question_id -> values in list order, answered questions only (175, 176). */
+    val life: Map<String, List<String>> = emptyMap(),
 )
 
 /**

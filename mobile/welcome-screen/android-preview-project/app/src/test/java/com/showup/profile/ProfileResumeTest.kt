@@ -106,11 +106,22 @@ class ProfileResumeTest {
             "dating_language" to ResumePoint.Education,
             "education" to ResumePoint.Religion,
             "religion" to ResumePoint.Politics,
-            "politics" to ResumePoint.Done,
+            "politics" to ResumePoint.Interests,
+            "interests" to ResumePoint.LifeNow,
+            "life_now" to ResumePoint.LifeAhead,
+            // Future reports life_ahead on Continue AND Skip: profile creation is complete.
+            "life_ahead" to ResumePoint.Done,
         )
         walk.forEach { (position, expected) ->
             assertEquals("at $position", expected, resumePoint(at(position)))
         }
+    }
+
+    @Test
+    fun `a kill on Future resumes on Future, never on the Check-In intro`() {
+        // Profile 23: "A user who killed the app on this screen resumes here." Life's own Continue
+        // left the position at life_now, which is short of complete.
+        assertEquals(ResumePoint.LifeAhead, resumePoint(at("life_now")))
     }
 
     @Test
@@ -149,7 +160,7 @@ class ProfileResumeTest {
     fun `a position this build does not know resumes early, never late`() {
         // A newer server may store a step this app has no screen for. Showing a screen twice is
         // recoverable; skipping one silently is the bug the position exists to prevent.
-        assertEquals(ResumePoint.Media, resumePoint(at("interests")))
+        assertEquals(ResumePoint.Media, resumePoint(at("habits")))
         assertEquals(ResumePoint.Media, resumePoint(at("garbage")))
     }
 
@@ -187,7 +198,8 @@ class ProfileResumeTest {
         // user could get stuck on a step the resume never returns them to.
         val positions = listOf(
             null, "media_video", "notifications", "reachability", "location", "height", "gender",
-            "orientation", "dating_language", "education", "religion", "politics",
+            "orientation", "dating_language", "education", "religion", "politics", "interests",
+            "life_now", "life_ahead",
         )
         val reached = (
             listOf(

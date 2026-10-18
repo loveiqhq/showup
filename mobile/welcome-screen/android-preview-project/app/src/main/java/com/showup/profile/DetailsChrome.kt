@@ -39,12 +39,10 @@ package com.showup.profile
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -68,7 +66,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -87,11 +84,9 @@ import com.showup.designsystem.Manrope
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.OptionRow
 import com.showup.designsystem.ProfileVisibility
-import com.showup.designsystem.SkipLink
 import com.showup.designsystem.Spacing
 import com.showup.designsystem.StepProgress
 import com.showup.designsystem.scrollIndicator
-import com.showup.tutorial.NextButton
 import com.showup.welcome.OrbPlacement
 import com.showup.welcome.WashHeadline
 import com.showup.welcome.WelcomeBackdrop
@@ -309,9 +304,12 @@ fun DetailsScaffold(
  * only coerce inside the constraints it is given, so the floor would never engage; `requiredHeightIn`
  * would overflow the slot symmetrically over whatever sits above it. Measuring the two parts here is
  * the one way to say "the rest, but at least this much" and have the column grow when it must.
+ *
+ * Internal, not private: Interests, Life and Future (`PickChrome.kt`) take the same floor for the
+ * same reason -- at the largest system font their fixed part outgrows a small phone too.
  */
 @Composable
-private fun FlexWithFloor(
+internal fun FlexWithFloor(
     available: androidx.compose.ui.unit.Dp,
     floor: androidx.compose.ui.unit.Dp,
     fixed: @Composable () -> Unit,
@@ -370,19 +368,15 @@ fun DetailsFooter(
     if (toastVisible) lastShown[0] = toastMessage
     Box(Modifier.fillMaxWidth()) {
         RefusalToast(visible = toastVisible, icon = null, message = lastShown[0], lift = 10.dp)
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = if (onSkip != null) Arrangement.SpaceBetween else Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (onSkip != null) SkipLink(onClick = onSkip, label = DetailsCopy.SKIP)
-            NextButton(
-                label = DetailsCopy.CTA,
-                onClick = onContinue,
-                modifier = Modifier.testTag(DETAILS_CTA_TAG),
-                arrowSize = 22.dp,
-            )
-        }
+        // Side by side when the two fit, stacked when they do not -- at the largest system font a
+        // plain row crushed Continue's circle (SkipContinueRow).
+        SkipContinueRow(
+            skipLabel = DetailsCopy.SKIP,
+            ctaLabel = DetailsCopy.CTA,
+            onSkip = onSkip,
+            onContinue = onContinue,
+            ctaModifier = Modifier.testTag(DETAILS_CTA_TAG),
+        )
     }
 }
 

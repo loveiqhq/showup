@@ -22,9 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -136,26 +136,20 @@ fun PrimaryButton(
             .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.45f }
             .then(
                 when (variant) {
-                    // --liq-shadow-violet on the sunset CTA.
+                    // --liq-shadow-violet on the sunset CTA, DRAWN, both layers, since 14 Oct 2026.
                     //
-                    // FLAGGED, not fixed: Modifier.shadow uses Android's elevation system, whose
-                    // light sits at the top-centre of the window, so the direction depends on
-                    // where the button sits on screen. verify-spec.py forbids exactly this in
-                    // TutorialShell.kt, where the Next circle draws its glow instead. Correcting
-                    // it here changes how eight buttons render and is its own task.
+                    // It was `Modifier.shadow(12.dp)`: Android's elevation system, whose light sits
+                    // at the top-centre of the window, so the glow's direction depended on where the
+                    // button sat on screen -- and a test render drew none at all, so no screenshot
+                    // ever showed the deviation. verify-spec.py already forbade exactly this in
+                    // TutorialShell.kt. Found comparing the Check-In footer against its sheets.
                     PrimaryButtonVariant.Sunset -> Modifier
-                        // 12 is an elevation, and there is no elevation token; Spacing.xl happens
-                        // to be 12 and would be a spacing token telling a lie about itself.
-                        .shadow(12.dp, shape, ambientColor = Purple, spotColor = Purple)
+                        .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), ShadowViolet)
                         .clip(shape)
-                        .background(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()))
-                    // Flat violet, not a gradient. The same glow as [Sunset], and the same
-                    // flag on it: this is Android's elevation system, whose light moves with the
-                    // control's position on screen.
+                    // Flat violet, not a gradient. The same glow as [Sunset], drawn the same way.
                     PrimaryButtonVariant.Violet -> Modifier
-                        .shadow(12.dp, shape, ambientColor = Purple, spotColor = Purple)
+                        .pillShadows(SolidColor(Purple), ShadowViolet)
                         .clip(shape)
-                        .background(Purple)
                     PrimaryButtonVariant.Ghost -> Modifier
                         .clip(shape)
                         .border(1.dp, Border, shape)

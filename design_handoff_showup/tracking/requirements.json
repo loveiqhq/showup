@@ -461,7 +461,8 @@
         "Code reconciliation 7 Sep 2026"
       ],
       "notes": [
-        "check_in_created ships on the server while the ten unbuilt events in that family are checkin_*. Two prefixes for one feature is an afternoon lost in the warehouse later."
+        "check_in_created ships on the server while the ten unbuilt events in that family are checkin_*. Two prefixes for one feature is an afternoon lost in the warehouse later.",
+        "Done 12 Oct 2026 with the Check-In 01 ticket: the family is check_in_* in events.json (taxonomy 1.4.10). checkin_intro_viewed was dropped as a duplicate of screen_viewed rather than renamed."
       ],
       "outcome": "The shipped event keeps its name. When the Check-In flow is built the family standardises on check_in_ and the ten unbuilt events are renamed then — recorded on check_in_created as a code_delta so it cannot be forgotten."
     },

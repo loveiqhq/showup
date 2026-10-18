@@ -39,6 +39,10 @@ struct AppHeader: View {
     var onBack: () -> Void = {}
     /// Spoken by VoiceOver. The chevron is drawn, so without this the control has no name.
     var backLabel: String = "Back"
+    /// What the trailing 36 slot holds -- the Check-In steps' close (`components/shared.jsx`
+    /// AppHeader's `trailing`). Nil everywhere else, where the slot stays empty and still occupies
+    /// its 36 so the title never moves. Last, so no existing call site changes.
+    var trailing: AnyView? = nil
 
     var body: some View {
         HStack(spacing: Spacing.md) {
@@ -63,9 +67,13 @@ struct AppHeader: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // Empty on every screen in this flow, and still occupying its 36 for the same reason
-            // the leading slot does.
-            Color.clear.frame(width: 36, height: 36)
+            // Empty unless a screen fills it, and always occupying its 36 for the same reason the
+            // leading slot does.
+            ZStack(alignment: .trailing) {
+                Color.clear.frame(width: 36, height: 36)
+                if let trailing { trailing }
+            }
+            .frame(width: 36)
         }
         .padding(.horizontal, 16)
         // A FLOOR, NOT A FIXED HEIGHT — the Kotlin twin says why: "Share some details" wraps at the

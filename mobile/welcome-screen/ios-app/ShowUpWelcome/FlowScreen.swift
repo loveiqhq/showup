@@ -114,12 +114,91 @@ enum FlowScreen: String, CaseIterable, Comparable {
     case profileReligion
     case profilePolitics
 
-    /// Where the flow ends, for both the tutorial and a returning member.
+    // "Share some details", steps 8 to 10 (SHOWUP-174 to SHOWUP-176): their own column, not the
+    // detail scaffold, and still the same walk — each back pops to the one above, and Future's
+    // Continue and Skip end profile creation.
+    case profileInterests
+    case profileLifeNow
+    case profileLifeAhead
+
+    // The 48hrs Check-In (SHOWUP-178 to SHOWUP-183).
+    //
+    // THE GATE COMES FIRST, the order the transitions read: the intro's close lands on it and reads
+    // as a close (backward), and every reopen from it reads forward. The steps are in walk order,
+    // which is also back order. Android's `FlowScreen.kt` in the same order.
+
+    /// Check-In 01 B, "date search not available" -- the Search tab for a user with no committed
+    /// Check-In. Where the intro's and every step's close land, and where a launch lands once
+    /// profile creation is done and no Check-In is active.
+    case checkInGate
+
+    /// Check-In 01 A, the intro. Future's Continue and Skip end profile creation here.
+    case checkInIntro
+    case checkInToday
+    case checkInTomorrow
+    case checkInMotivation
+    case checkInVibe
+    case checkInFilters
+    case checkInUplift
+
+    /// Where `Find my date` lands, and a launch with an active Check-In: Search is not built yet.
+    case checkInSearch
+
+    /// The gate's Settings tab: no Settings screen exists yet.
+    case checkInSettings
+
+    /// Where the flow ends for a NEW SIGN-IN, tutorial or returning member (SHOWUP-146). A launch
+    /// with a finished profile goes to the gate or Search instead.
     case home
 
     private var order: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 
     static func < (lhs: Self, rhs: Self) -> Bool { lhs.order < rhs.order }
+
+    /// A screen of the 48hrs Check-In or the tabs it gates -- what the foreground re-read covers.
+    var isCheckIn: Bool { (Self.checkInGate...Self.checkInSettings).contains(self) }
+
+    /// One of the six steps or the intro: a screen whose flow lives in `CheckInModel`.
+    var isCheckInStep: Bool { (Self.checkInIntro...Self.checkInUplift).contains(self) }
+
+    /// The Check-In step this screen is, or nil.
+    var checkInStep: CheckInStep? {
+        switch self {
+        case .checkInIntro: return .intro
+        case .checkInToday: return .today
+        case .checkInTomorrow: return .tomorrow
+        case .checkInMotivation: return .motivation
+        case .checkInVibe: return .vibe
+        case .checkInFilters: return .filters
+        case .checkInUplift: return .uplift
+        default: return nil
+        }
+    }
+}
+
+extension CheckInStep {
+    /// The screen a step is drawn on.
+    var flowScreen: FlowScreen {
+        switch self {
+        case .intro: return .checkInIntro
+        case .today: return .checkInToday
+        case .tomorrow: return .checkInTomorrow
+        case .motivation: return .checkInMotivation
+        case .vibe: return .checkInVibe
+        case .filters: return .checkInFilters
+        case .uplift: return .checkInUplift
+        }
+    }
+}
+
+/// THE SEARCH TAB FOLLOWS THE SERVER. "B is the Search tab whenever the user has no completed
+/// Check-In": a Check-In committed elsewhere unlocks it, and a window that closed while the app was
+/// away locks it again. Only between these two -- never out of the middle of a Check-In. Nil when
+/// nothing moves; `active` is nil before the first read.
+func checkInTabTarget(screen: FlowScreen, active: Bool?) -> FlowScreen? {
+    if screen == .checkInGate && active == true { return .checkInSearch }
+    if screen == .checkInSearch && active == false { return .checkInGate }
+    return nil
 }
 
 // MARK: - Scene storage adapters
@@ -168,4 +247,11 @@ extension SignUpOutcome {
         default: return nil
         }
     }
+}
+
+extension FlowScreen {
+    /// Still inside profile creation -- `in_flow` on `permission_status_changed`, "true when the
+    /// change is detected while the user is still inside profile creation" (events.json). Every
+    /// step of that flow is named `profile*`, so a step added later is counted without a list.
+    var isProfileCreation: Bool { rawValue.hasPrefix("profile") }
 }

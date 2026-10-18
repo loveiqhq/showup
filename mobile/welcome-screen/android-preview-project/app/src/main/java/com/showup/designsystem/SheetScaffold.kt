@@ -168,6 +168,20 @@ fun Modifier.blurBehindSheet(covered: Boolean): Modifier =
     if (covered) blur(SheetBackdropBlur) else this
 
 /**
+ * The same, behind a centred DIALOG: Check-In 02's *No hours today?* confirm, whose scrim is
+ * `rgba(29,17,41,.44) + blur 3` (callout 16). Its own value -- the sheet's 1.5 is a different
+ * callout on a different component -- converted from CSS's blur, which is a Gaussian SIGMA, to
+ * the radius `Modifier.blur` takes, the same conversion `Shadows.kt` documents. A no-op on API 30,
+ * like the sheet's, for the reason above. [fraction] is the scrim's own fade, 0 to 1: the blur
+ * belongs to the scrim and arrives with it, rather than snapping on under a scrim still fading in.
+ */
+fun Modifier.blurBehindDialog(fraction: Float): Modifier =
+    if (fraction > 0f) blur(DialogBackdropBlur * fraction) else this
+
+/** `blur(3px)`: sigma 3, as a RenderEffect radius -- (3 - 0.5) / 0.57735. */
+private val DialogBackdropBlur = 4.33.dp
+
+/**
  * 1.5, from callout 15 and the reference file both. A SOFTENING, not a frosted panel -- the
  * spec's own words are "the screen stays visible behind it", and every larger value tried here
  * turned the screen into wallpaper.
