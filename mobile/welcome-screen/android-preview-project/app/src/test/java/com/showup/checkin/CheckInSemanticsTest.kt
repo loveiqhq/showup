@@ -83,6 +83,14 @@ class CheckInSemanticsTest {
     }
 
     @Test
+    fun `Clear all is a button named Clear all`() = runComposeUiTest {
+        // Found unnamed on a device: its touch area is a sibling of the text, so it carried no name.
+        val grid = gridOf(CheckInStep.Today, days)
+        setContent { CheckInAvailabilityScreen(grid, mapOf(18 to SlotTier.Preferred), false) }
+        onNode(hasContentDescription(CheckInCopy.CLEAR_ALL) and roleOf(Role.Button)).assertExists()
+    }
+
+    @Test
     fun `the confirm is a named dialog pane and the screen behind is out of reach`() = runComposeUiTest {
         val grid = gridOf(CheckInStep.Today, days)
         setContent { CheckInAvailabilityScreen(grid, emptyMap(), false, dialogOpen = true) }

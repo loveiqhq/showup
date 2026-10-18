@@ -205,7 +205,13 @@ fun HowItWorks(
 /** `Clear all` -- `x` 14 + 13 / 700 in `--liq-fg-subtle`, gap 5. Shown only with a selection. */
 @Composable
 fun ClearAll(onClick: () -> Unit) {
-    OverflowTapTarget(touch = Modifier.clickable(role = Role.Button, onClick = onClick)) {
+    // The name goes on the touch area: it is a sibling of the drawn text, not its parent, so
+    // without one TalkBack found an unnamed button -- as How it works above already does.
+    OverflowTapTarget(
+        touch = Modifier
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = CheckInCopy.CLEAR_ALL },
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(BrandIcon.Close, 14.dp, tint = FgSubtle, strokeWidth = 2.2f)
             Text(CheckInCopy.CLEAR_ALL, color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.sp)
