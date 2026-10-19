@@ -7,10 +7,12 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { User } from '../users/entities/user.entity';
 import { NotificationPreferencesController } from './controllers/notification-preferences.controller';
 import { PushTokensController } from './controllers/push-tokens.controller';
+import { PermissionStatusesController } from './controllers/permission-statuses.controller';
 import { emailSenderProvider } from './email/email-sender.provider';
 import { NotificationLogEntry } from './entities/notification-log.entity';
 import { NotificationPreference } from './entities/notification-preference.entity';
 import { PushToken } from './entities/push-token.entity';
+import { PermissionStatusEntry } from './entities/permission-status.entity';
 import { DateReminderProcessor } from './jobs/date-reminder.processor';
 import { pushSenderProvider } from './push/push-sender.provider';
 import { EmailService } from './services/email.service';
@@ -18,6 +20,7 @@ import { NotificationDispatchService } from './services/notification-dispatch.se
 import { NotificationPreferencesService } from './services/notification-preferences.service';
 import { NotificationsScheduler } from './services/notifications.scheduler';
 import { PushTokensService } from './services/push-tokens.service';
+import { PermissionStatusesService } from './services/permission-statuses.service';
 
 /**
  * Notifications & email (Epic 10). Owns the send seams (push/email), the single gated dispatch
@@ -29,16 +32,22 @@ import { PushTokensService } from './services/push-tokens.service';
     TypeOrmModule.forFeature([
       NotificationPreference,
       PushToken,
+      PermissionStatusEntry,
       NotificationLogEntry,
       User,
     ]),
     BullModule.registerQueue({ name: QUEUE_DATE_REMINDERS }),
     AnalyticsModule,
   ],
-  controllers: [NotificationPreferencesController, PushTokensController],
+  controllers: [
+    NotificationPreferencesController,
+    PushTokensController,
+    PermissionStatusesController,
+  ],
   providers: [
     NotificationPreferencesService,
     PushTokensService,
+    PermissionStatusesService,
     NotificationDispatchService,
     EmailService,
     NotificationsScheduler,

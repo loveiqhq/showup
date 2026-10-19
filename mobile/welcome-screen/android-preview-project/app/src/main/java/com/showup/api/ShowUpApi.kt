@@ -7,6 +7,7 @@ import com.showup.api.generated.api.CheckInApi
 import com.showup.api.generated.api.CheckInsApi
 import com.showup.api.generated.api.MatchingApi
 import com.showup.api.generated.api.NotificationsApi
+import com.showup.api.generated.api.PermissionsApi
 import com.showup.api.generated.api.ProfilesApi
 import com.showup.api.generated.api.SafetyApi
 import com.showup.api.generated.infrastructure.ApiClient
@@ -91,6 +92,13 @@ class ShowUpApi(
      * a silent failure that looks exactly like success. See [com.showup.profile.PushRegistration].
      */
     val notifications: NotificationsApi by lazy { client.createService(NotificationsApi::class.java) }
+
+    /**
+     * The phone's permission statuses (epic SHOWUP-151), sent by
+     * [com.showup.profile.PermissionReconciler]. The server's push path reads them, so a phone with
+     * notifications off is not sent pushes it would never show.
+     */
+    val permissions: PermissionsApi by lazy { client.createService(PermissionsApi::class.java) }
 
     /**
      * Signs the user out: revokes the session server-side, then forgets the tokens locally.

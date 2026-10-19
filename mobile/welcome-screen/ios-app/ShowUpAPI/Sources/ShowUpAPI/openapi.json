@@ -641,6 +641,25 @@
         ],
         "type": "object"
       },
+      "DevicePermission": {
+        "enum": [
+          "notifications",
+          "location",
+          "camera",
+          "microphone"
+        ],
+        "type": "string"
+      },
+      "DevicePermissionStatus": {
+        "description": "enums.json §24. restricted is parental controls or MDM, treated as denied.",
+        "enum": [
+          "not_determined",
+          "granted",
+          "denied",
+          "restricted"
+        ],
+        "type": "string"
+      },
       "Diet": {
         "enum": [
           "everything",
@@ -1300,6 +1319,66 @@
         ],
         "type": "object"
       },
+      "PermissionStatusDto": {
+        "properties": {
+          "permission": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DevicePermission"
+              }
+            ]
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DevicePermissionStatus"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "permission",
+          "status",
+          "platform",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "PermissionStatusItemDto": {
+        "properties": {
+          "permission": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DevicePermission"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DevicePermissionStatus"
+              }
+            ],
+            "description": "enums.json §24. restricted is parental controls or MDM, treated as denied."
+          }
+        },
+        "required": [
+          "permission",
+          "status"
+        ],
+        "type": "object"
+      },
       "PhotoDto": {
         "properties": {
           "createdAt": {
@@ -1733,6 +1812,30 @@
           "minAge",
           "maxAge",
           "distanceKm"
+        ],
+        "type": "object"
+      },
+      "SavePermissionStatusesDto": {
+        "properties": {
+          "platform": {
+            "enum": [
+              "ios",
+              "android"
+            ],
+            "type": "string"
+          },
+          "statuses": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionStatusItemDto"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "platform",
+          "statuses"
         ],
         "type": "object"
       },
@@ -5571,6 +5674,114 @@
         ]
       }
     },
+    "/me/permissions": {
+      "get": {
+        "operationId": "getPermissionStatuses",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionStatusDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "permissions"
+        ]
+      },
+      "put": {
+        "operationId": "savePermissionStatuses",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePermissionStatusesDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "permissions"
+        ]
+      }
+    },
     "/me/photos": {
       "get": {
         "operationId": "listPhotos",
@@ -6354,7 +6565,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {

@@ -99,6 +99,9 @@ const PROTECTED: Route[] = [
   // push-tokens.controller.ts
   { method: 'post', path: '/me/push-tokens' },
   { method: 'delete', path: '/me/push-tokens' },
+  // permission-statuses.controller.ts (epic SHOWUP-151) -- the phone's permission statuses.
+  { method: 'put', path: '/me/permissions' },
+  { method: 'get', path: '/me/permissions' },
   // media.controller.ts (SHOWUP-161) -- the 10-second video and the 15-second voice note.
   //
   // Authenticated like every other /me route, and more obviously than most: these carry a

@@ -13,12 +13,16 @@
 //  from inactive alone (`absorbOwnAnswer`) and reconciles a return from the background. That act is
 //  `permission_result`'s, and the two "must never both fire for one act".
 //
-//  "UPDATE THE SERVER" IS THE PUSH TOKEN, FOR NOW: the backend has no field for an OS permission
-//  status, so a notifications change registers or removes the token and the status is recorded on
-//  the device. Whether the server should store it too is the product owner's question.
+//  "UPDATE THE SERVER" IS TWO THINGS: every watched status goes to `PUT /me/permissions`, whose
+//  push path then skips a phone with notifications off, and a notifications change registers or
+//  removes the push token. The whole snapshot is sent whenever it differs from what the server last
+//  took in this process -- once at launch, after any change (our own dialogs' answers included:
+//  silent for the analytics, not for the server), and again for a new sign-in. A failed send is
+//  tried again at the next start.
 //
 
 import Foundation
+import ShowUpAPI
 
 /// The permissions the reconciler watches: the MVP's asks, as `enums.json` §8 names them.
 enum WatchedPermission: String, CaseIterable, Sendable {
@@ -148,24 +152,94 @@ struct PushRegistrationSync: PushTokenSyncing {
     func unregister() async { _ = await push.unregister() }
 }
 
+/// What the reconciler tells the server: every watched permission, as just read. A seam, so a test
+/// can see what was sent. True when the server took it.
+protocol PermissionStatusSyncing: Sendable {
+    func save(_ statuses: [WatchedPermission: PermissionStatus]) async -> Bool
+}
+
+/// The real one: `PUT /me/permissions`. Signed out, it sends nothing -- there is no account to store
+/// it against, and the sign-in sends it instead.
+struct APIPermissionStatusSync: PermissionStatusSyncing {
+    func save(_ statuses: [WatchedPermission: PermissionStatus]) async -> Bool {
+        guard await APIAccess.tokens.accessToken() != nil else { return false }
+        let items = WatchedPermission.allCases.compactMap { permission in
+            statuses[permission].map { status in
+                Components.Schemas.PermissionStatusItemDto(
+                    permission: Components.Schemas.PermissionStatusItemDto.permissionPayload(value1: permission.wire),
+                    status: Components.Schemas.PermissionStatusItemDto.statusPayload(value1: status.wire))
+            }
+        }
+        do {
+            let response = try await APIAccess.client.client.savePermissionStatuses(
+                body: .json(.init(platform: .ios, statuses: items))
+            )
+            // The operation declares 204, 400, 401 and 500.
+            switch response {
+            case .noContent:
+                return true
+            default:
+                return false
+            }
+        } catch {
+            return false
+        }
+    }
+}
+
+// Spelled out rather than matched on the strings: a value added on either side fails to compile
+// here instead of being sent as something the server refuses.
+private extension WatchedPermission {
+    var wire: Components.Schemas.DevicePermission {
+        switch self {
+        case .notifications: return .notifications
+        case .location: return .location
+        case .camera: return .camera
+        case .microphone: return .microphone
+        }
+    }
+}
+
+private extension PermissionStatus {
+    var wire: Components.Schemas.DevicePermissionStatus {
+        switch self {
+        case .notDetermined: return .not_determined
+        case .granted: return .granted
+        case .denied: return .denied
+        case .restricted: return .restricted
+        }
+    }
+}
+
 @MainActor
 final class PermissionReconciler {
     private let snapshot: any PermissionSnapshotting
     private let ledger: any PermissionLedger
     private let push: (any PushTokenSyncing)?
+    private let server: (any PermissionStatusSyncing)?
     private let analytics: (any AnalyticsTracking)?
     private let firstStart: @MainActor () -> Bool
+
+    /// What the server last took, in this process. Nil: nothing yet, so the next read is sent.
+    private var lastSent: [WatchedPermission: PermissionStatus]?
+    /// The send in flight. Each one waits for the one before, so an older read can never land on
+    /// the server after a newer one.
+    private var sending: Task<Void, Never>?
+    /// Which sign-in a send belongs to. A send for an earlier one is skipped, and its answer ignored.
+    private var session = 0
 
     init(
         snapshot: any PermissionSnapshotting,
         ledger: any PermissionLedger,
         push: (any PushTokenSyncing)?,
+        server: (any PermissionStatusSyncing)?,
         analytics: (any AnalyticsTracking)?,
         firstStart: @escaping @MainActor () -> Bool = { ProcessLaunchMark.firstStart() }
     ) {
         self.snapshot = snapshot
         self.ledger = ledger
         self.push = push
+        self.server = server
         self.analytics = analytics
         self.firstStart = firstStart
     }
@@ -191,13 +265,42 @@ final class PermissionReconciler {
                 type: change.permission.trackingType))
             if change.permission == .notifications { syncPushToken(change.to) }
         }
+        sendIfMoved(now)
         return changes
     }
 
     /// One of our own permission dialogs was answered: whatever it changed is recorded silently.
+    /// The server is still told: what it stores is the status, however it came about.
     func absorbOwnAnswer() async {
         let now = await snapshot.read()
         for (permission, status) in now { ledger.record(permission, status) }
+        sendIfMoved(now)
+    }
+
+    /// A session began, possibly a different account's. What the server took before was for the
+    /// account before, so the statuses go again -- and a send still on its way no longer counts.
+    func accountChanged() async {
+        session += 1
+        lastSent = nil
+        sendIfMoved(await snapshot.read())
+    }
+
+    /// Waits for every send started so far. For a test.
+    func settled() async {
+        await sending?.value
+    }
+
+    private func sendIfMoved(_ now: [WatchedPermission: PermissionStatus]) {
+        guard let server, now != lastSent else { return }
+        let forSession = session
+        let before = sending
+        sending = Task {
+            await before?.value
+            // Queued for the account before, or already carried by the send ahead of this one.
+            guard forSession == session, now != lastSent else { return }
+            // The session can change while the call is out; then what it took was the old one's.
+            if await server.save(now), forSession == session { lastSent = now }
+        }
     }
 
     /// A notifications grant registers the token; a refusal removes it. Background work, always.
