@@ -10,6 +10,7 @@ import {
 import {
   ApiBearerAuth,
   ApiExtraModels,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -31,7 +32,7 @@ export class CheckInsController {
   /** Check in: become available for matching for the given window. */
   @Post()
   @ApiOperation({ operationId: 'createCheckIn' })
-  @ApiOkResponse({ type: CheckInDto })
+  @ApiCreatedResponse({ type: CheckInDto })
   async create(
     @CurrentUser() user: User,
     @Body() dto: CreateCheckInDto,

@@ -1,6 +1,6 @@
 {
   "taxonomy_version": "1.4.16",
-  "reconciled_against": "loveiqhq/showup main @ c195089",
+  "reconciled_against": "loveiqhq/showup development @ 8540ee4",
   "generated": "2026-10-13",
   "event_count": 297,
   "changed_in_1_4_16": [
@@ -2536,7 +2536,7 @@
           "backend_status": "Not built",
           "required_payload": "type, from, to and detected_on always. from is what the SERVER was last told, not what the screen last saw — a change the client never synced is exactly the case this event exists for.",
           "trigger": "The OS permission status read on launch or foreground differs from the last value the client synced: the user changed it outside our app (Settings, an OS update, a Focus mode, Android's per-channel switches) or a restore carried a different one in. NOT the answer to our own dialog — that is permission_result, and the two must never both fire for one act. Emitted by the shared permission reconciler, not by a screen.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "consent_changed",
@@ -2762,7 +2762,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "User taps “Check-in for a date” on the Check-In intro (checkin_intro). Not fired when the gate reopens at Today — that path (intro passed before) skips the intro.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "check_in_closed",
@@ -2782,7 +2782,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "User taps the ✕ on any Check-In screen and lands on checkin_search_unavailable. Availability (today, tomorrow) and the uplift text are DISCARDED; motivation, vibe and filters keep their last accepted answer. Check-In 01 emits step_id intro; each step ticket adds its own value. Uplift (06): step_id uplift; ✕ is inert while a commit is in flight.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "check_in_gate_tapped",
@@ -2802,7 +2802,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "On checkin_search_unavailable (date search not available), the user taps the CTA, the Search tab or the Instant tab — all three reopen the Check-In. Settings does not fire it.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "check_in_step_answered",
@@ -2826,7 +2826,7 @@
           "sensitivity_class": null,
           "backend_status": "Live",
           "trigger": "User taps Continue on a Check-In step and it is accepted (never on the intro). On today / tomorrow (Check-In 02) answer_value is \"hours\" when ≥ 1 hour is picked and \"none\" for an empty Today confirmed with continue_tomorrow — the hour detail is availability_slots_set. time_to_answer_ms runs from that step's screen_viewed. Fires again on every accepted Continue, including a pre-filled draft Continued unchanged. On motivation (Check-In 03) answer_value is \"prefilled\" (the pre-selected last answer Continued unchanged) or \"picked\" (first Check-In, or changed); the value itself is motivation_selected (Class 1). On vibe (Check-In 04) answer_value is \"prefilled\" (the pre-selected set Continued unchanged) or \"picked\" (first Check-In, or the set changed); the values are vibe_selected. On filters (Check-In 05) answer_value is \"prefilled\" (the shown settings Continued unchanged) or \"picked\" (anything changed); the settings are check_in_filters_changed. On uplift (Check-In 06) answer_value is \"written\" (non-empty after trim) or \"empty\"; it fires ONCE, when the commit SUCCEEDS — not on the tap, so a failed save and a retry fire it once. The text itself is never sent.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "availability_slots_set",
@@ -2854,7 +2854,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "User taps Continue on checkin_today or checkin_tomorrow and it is accepted — once per accepted Continue, after check_in_step_answered. An empty Today confirmed with continue_tomorrow fires it with 0 / 0. Never per hour tap, never on Clear all. Respecified 13 Oct 2026 (Check-In 02, taxonomy 1.4.12).",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "check_in_no_hours_today_resolved",
@@ -2874,7 +2874,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "User answers the “No hours today?” confirm on checkin_today (Continue tapped with no hours). Fires once per dialog, before navigation. Created 13 Oct 2026 (Check-In 02).",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "motivation_selected",
@@ -2894,7 +2894,7 @@
           "sensitivity_class": 1,
           "backend_status": "Live",
           "trigger": "User taps Continue on checkin_motivation and it is accepted — once per accepted Continue, after check_in_step_answered, including a pre-selected last answer Continued unchanged. Never per row tap; never on ✕. Respecified 13 Oct 2026 (Check-In 03, taxonomy 1.4.13): was payload value, trigger “Dating motivation tag set”.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "vibe_selected",
@@ -2918,7 +2918,7 @@
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "User taps Continue on checkin_vibe and it is accepted — once per accepted Continue, after check_in_step_answered, including a pre-selected last answer Continued unchanged. Never per chip tap; never on the max-reached toast; never on ✕. Respecified 13 Oct 2026 (Check-In 04, taxonomy 1.4.14): was payload value, trigger “Vibe tag selected for upcoming window”.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "check_in_filters_changed",
@@ -2950,7 +2950,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "User taps Continue on checkin_filters and it is accepted — once per accepted Continue, after check_in_step_answered, including settings Continued unchanged (filters_changed \"none\"). Never per chip tap or slider drag; never on ✕; never for the no-gender toast. meet_gender values are never sent. Respecified 13 Oct 2026 (Check-In 05, taxonomy 1.4.15): was filter_id · value · is_premium_filter, per modification.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "check_in_created",
@@ -2991,7 +2991,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Find my date was tapped on checkin_uplift, the commit request was sent, and it did not save. Once per failed request. Never for the client-side contact-info block (no request is sent) and never for a dimmed tap. Created 13 Oct 2026 (Check-In 06, taxonomy 1.4.16).",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "check_in_abandoned",
@@ -6039,8 +6039,8 @@
       ]
     }
   ],
-  "reconciled_with_code": "Reconciled against both apps' shipped code, 12 October 2026: 94 events implemented -- 86 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names. 13 Oct 2026: merged into handoff registry 1.4.25 / taxonomy 1.4.16 (Check-In 01-06); the reconciliation above was carried over event by event, and event_count is the real count (the handoff file said one fewer).",
-  "implemented_count": 94,
+  "reconciled_with_code": "Reconciled against both apps' shipped code, 12 October 2026: 94 events implemented -- 86 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names. 13 Oct 2026: merged into handoff registry 1.4.25 / taxonomy 1.4.16 (Check-In 01-06); the reconciliation above was carried over event by event, and event_count is the real count (the handoff file said one fewer). 19 Oct 2026: 11 more turned on, the 48hrs Check-In's ten client events and permission_status_changed (the shared permission reconciler), each fired by production code on both apps: 105 implemented, 97 client and 8 server.",
+  "implemented_count": 105,
   "code_delta_count": 32,
   "screen_identity_note": "Two properties, on purpose. screen_id is the stable machine key and never changes. screen_name is the human label and is what a person searches for in the analytics tool. Only screen_viewed carries both; every other event carries screen_id alone and joins to it. Both values come from the enums.json §11 registry — never typed at a call site."
 }

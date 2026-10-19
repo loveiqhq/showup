@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import {
   ApiAcceptedResponse,
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -74,7 +75,7 @@ export class ProfilesController {
 
   @Post()
   @ApiOperation({ operationId: 'createProfile' })
-  @ApiOkResponse({ type: OwnProfileDto })
+  @ApiCreatedResponse({ type: OwnProfileDto })
   async create(
     @CurrentUser() user: User,
     @Body() dto: UpsertProfileDto,
