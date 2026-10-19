@@ -91,8 +91,11 @@ struct ProfileHeightView: View {
                 .lineSpacing(12.5 * 0.4)
                 .foregroundColor(.liqSubtle)
                 .fixedSize(horizontal: false, vertical: true)
-                // `margin: 10px 2px 0`.
-                .padding(.top, Spacing.lg)
+                // `margin: 10px 2px 0` in the reference; 6 on top here, decided 19 October 2026. On
+                // a 375 x 667 phone with the number pad the answer region is 97.5 and field + note
+                // needed 101.5, so the note's last 4 were cut and the region scrolled, which
+                // SHOWUP-167 forbids. One line already, so shorter copy could not help.
+                .padding(.top, Spacing.sm)
                 .padding(.horizontal, 2)
         }
     }
