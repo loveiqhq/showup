@@ -5,7 +5,8 @@
 //  The Swift twin of `PermissionReconcilerTest.kt`, rule for rule: a starting point reports
 //  nothing, a change made outside the app fires once with what it was and what it is, the first
 //  start is the launch and every later one a foreground, our own dialog's answer never fires it,
-//  and a notifications change moves the push token.
+//  and a notifications change moves the push token. And the server: every status goes to it when it
+//  moves, a refused send is tried again, a new sign-in sends again.
 //
 
 import XCTest
@@ -31,6 +32,23 @@ private actor FakeDevice: PermissionSnapshotting {
     func read() async -> [WatchedPermission: PermissionStatus] { statuses }
 }
 
+/// Records every send; answers with `accepts`, so a test can make the server refuse. `delay` holds
+/// each answer back, so a test can change the session while one is out.
+private actor RecordingServer: PermissionStatusSyncing {
+    private(set) var sent: [[WatchedPermission: PermissionStatus]] = []
+    var accepts = true
+    var delay: UInt64 = 0
+
+    func setAccepts(_ value: Bool) { accepts = value }
+    func setDelay(_ nanoseconds: UInt64) { delay = nanoseconds }
+
+    func save(_ statuses: [WatchedPermission: PermissionStatus]) async -> Bool {
+        sent.append(statuses)
+        if delay > 0 { try? await Task.sleep(nanoseconds: delay) }
+        return accepts
+    }
+}
+
 private actor CountingPush: PushTokenSyncing {
     private(set) var registered = 0
     private(set) var unregistered = 0
@@ -45,6 +63,7 @@ final class PermissionReconcilerTests: XCTestCase {
     private var ledger = InMemoryPermissionLedger()
     private var analytics = Recorder()
     private var push = CountingPush()
+    private var server = RecordingServer()
     /// Launch on the first start, foreground after -- as the process-wide mark does.
     private var starts = 0
 
@@ -54,11 +73,12 @@ final class PermissionReconcilerTests: XCTestCase {
         ledger = InMemoryPermissionLedger()
         analytics = Recorder()
         push = CountingPush()
+        server = RecordingServer()
         starts = 0
     }
 
     private func reconciler() -> PermissionReconciler {
-        PermissionReconciler(snapshot: device, ledger: ledger, push: push, analytics: analytics,
+        PermissionReconciler(snapshot: device, ledger: ledger, push: push, server: server, analytics: analytics,
                              firstStart: { [unowned self] in
                                  self.starts += 1
                                  return self.starts == 1
@@ -154,6 +174,76 @@ final class PermissionReconcilerTests: XCTestCase {
         XCTAssertEqual(unregistered, 0)
         XCTAssertEqual(Set(changes.compactMap { $0["type"] as? String }), ["location", "camera", "microphone"],
                        "each change is its own event")
+    }
+
+    func testTheLaunchSendsEveryStatusOnceAndAStartWithNothingNewSendsNothing() async {
+        await device.set(.notifications, .granted)
+        let r = reconciler()
+        await r.onStart(inFlow: false)
+        await r.settled()
+        await r.onStart(inFlow: false)
+        await r.settled()
+        let sent = await server.sent
+        let phone = await device.read()
+        XCTAssertEqual(sent.count, 1)
+        XCTAssertEqual(sent.first, phone, "the whole snapshot, not only what moved")
+    }
+
+    func testAChangeMadeOutsideTheAppReachesTheServerAndSoDoesOurOwnDialogsAnswer() async {
+        let r = reconciler()
+        await r.onStart(inFlow: false)
+        await r.settled()
+        await device.set(.notifications, .denied)                       // turned off in Settings
+        await r.onStart(inFlow: false)
+        await r.settled()
+        await device.set(.location, .granted)                           // the user answered OUR sheet
+        await r.absorbOwnAnswer()
+        await r.settled()
+        let sent = await server.sent
+        XCTAssertEqual(sent.count, 3)
+        XCTAssertEqual(sent[1][.notifications], .denied)
+        XCTAssertEqual(sent[2][.location], .granted, "silent for the analytics, not for the server")
+        XCTAssertEqual(changes.compactMap { $0["type"] as? String }, ["notifications"])
+    }
+
+    func testASendTheServerRefusedIsTriedAgainAtTheNextStart() async {
+        await server.setAccepts(false)
+        let r = reconciler()
+        await r.onStart(inFlow: false)
+        await r.settled()
+        await server.setAccepts(true)
+        await r.onStart(inFlow: false)                                  // nothing moved on the phone
+        await r.settled()
+        await r.onStart(inFlow: false)
+        await r.settled()
+        let sent = await server.sent
+        XCTAssertEqual(sent.count, 2, "the refused one, its retry, and nothing after")
+    }
+
+    func testANewSignInSendsTheStatusesAgainEvenWithNothingChanged() async {
+        let r = reconciler()
+        await r.onStart(inFlow: false)
+        await r.settled()
+        await r.accountChanged()
+        await r.settled()
+        let sent = await server.sent
+        XCTAssertEqual(sent.count, 2)
+        XCTAssertEqual(sent.first, sent.last)
+    }
+
+    func testAnAnswerThatArrivesAfterANewSignInDoesNotCountForTheNewAccount() async {
+        // The launch send is still out when the session changes: it was the old account's.
+        await server.setDelay(100_000_000)
+        let r = reconciler()
+        await r.onStart(inFlow: false)
+        // Until the server has the send in hand, the old one has not gone out yet.
+        while await server.sent.isEmpty { await Task.yield() }
+        await r.accountChanged()
+        await r.settled()
+        await r.onStart(inFlow: false)
+        await r.settled()
+        let sent = await server.sent
+        XCTAssertEqual(sent.count, 2, "the old account's send, the new account's, and no third")
     }
 
     func testTheSnapshotReadsTheScreensOwnReadersAndMapsCaptureOntoSection24() async {

@@ -17,16 +17,30 @@
  * two "must never both fire for one act" (events.json). The host hands every answer to
  * [absorbOwnAnswer], which records it silently, so the next foreground sees nothing new.
  *
- * "UPDATE THE SERVER" IS THE PUSH TOKEN, FOR NOW. The backend has no field for an OS permission
- * status -- only the push token endpoints -- so a notifications change registers or removes the
- * token, and the status itself is recorded on the device ([PermissionLedger]). Whether the server
- * should store it too is an open question for the product owner, not something to invent here.
+ * "UPDATE THE SERVER" IS TWO THINGS. Every watched status goes to `PUT /me/permissions`, and the
+ * server's push path reads it: a phone with notifications off is not sent pushes it would never
+ * show. And a notifications change registers or removes the push token. The ledger stays the
+ * device's own record of the last status, because the analytics `from` must survive a restart
+ * even when the server could not be reached.
+ *
+ * WHAT IS SENT, AND WHEN. The whole snapshot, whenever it differs from what the server last took
+ * in this process: once at launch, after any change -- our own dialogs' answers included, because
+ * the server must know even though the analytics stay silent -- and again for a new sign-in. A
+ * send that fails is simply tried again at the next start; nothing waits on it.
  */
 package com.showup.profile
 
 import android.content.Context
 import com.showup.analytics.AnalyticsTracker
+import com.showup.api.ShowUpApi
+import com.showup.api.TokenStore
+import com.showup.api.generated.model.DevicePermission
+import com.showup.api.generated.model.DevicePermissionStatus
+import com.showup.api.generated.model.PermissionStatusItemDto
+import com.showup.api.generated.model.SavePermissionStatusesDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /** The permissions the reconciler watches: the MVP's asks, as `enums.json` §8 names them. */
@@ -157,14 +171,81 @@ class PushRegistrationSync(private val push: PushRegistration) : PushTokenSync {
     }
 }
 
+/**
+ * What the reconciler tells the server: every watched permission, as just read. A seam, so a test
+ * can see what was sent. True when the server took it.
+ */
+fun interface PermissionStatusSync {
+    suspend fun save(statuses: Map<WatchedPermission, PermissionStatus>): Boolean
+}
+
+/**
+ * The real one: `PUT /me/permissions`. Signed out, it sends nothing -- there is no account to store
+ * it against, and the sign-in sends it instead.
+ */
+class ApiPermissionStatusSync(
+    private val api: ShowUpApi,
+    private val tokens: TokenStore,
+) : PermissionStatusSync {
+    override suspend fun save(statuses: Map<WatchedPermission, PermissionStatus>): Boolean {
+        if (tokens.accessToken() == null) return false
+        // NOT runCatching: that would also swallow this coroutine's cancellation, and a send cut
+        // short by a new sign-in would read as one the server took or refused.
+        return try {
+            api.permissions.savePermissionStatuses(
+                SavePermissionStatusesDto(
+                    platform = SavePermissionStatusesDto.Platform.android,
+                    statuses = statuses.map { (permission, status) ->
+                        PermissionStatusItemDto(permission = permission.wire, status = status.wire)
+                    },
+                ),
+            ).isSuccessful
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+    }
+}
+
+// Spelled out rather than matched on the strings: a value added on either side fails to compile
+// here instead of being sent as something the server refuses.
+private val WatchedPermission.wire: DevicePermission
+    get() = when (this) {
+        WatchedPermission.Notifications -> DevicePermission.notifications
+        WatchedPermission.Location -> DevicePermission.location
+        WatchedPermission.Camera -> DevicePermission.camera
+        WatchedPermission.Microphone -> DevicePermission.microphone
+    }
+
+private val PermissionStatus.wire: DevicePermissionStatus
+    get() = when (this) {
+        PermissionStatus.NotDetermined -> DevicePermissionStatus.not_determined
+        PermissionStatus.Granted -> DevicePermissionStatus.granted
+        PermissionStatus.Denied -> DevicePermissionStatus.denied
+        PermissionStatus.Restricted -> DevicePermissionStatus.restricted
+    }
+
 class PermissionReconciler(
     private val snapshot: PermissionSnapshot,
     private val ledger: PermissionLedger,
     private val push: PushTokenSync?,
+    private val server: PermissionStatusSync?,
     private val analytics: AnalyticsTracker?,
     private val scope: CoroutineScope,
     private val launchMark: LaunchMark = ProcessLaunchMark,
 ) {
+    // What the server last took, in this process. Null: nothing yet, so the next read is sent.
+    // Touched only from the main thread, like everything else here.
+    private var lastSent: Map<WatchedPermission, PermissionStatus>? = null
+
+    // The send in flight. Each one waits for the one before, so an older read can never land on
+    // the server after a newer one.
+    private var sending: Job? = null
+
+    // Which sign-in a send belongs to. A send for an earlier one is skipped, and its answer ignored.
+    private var session = 0
+
     /**
      * The app came to the foreground -- or launched. [inFlow]: the user is still inside profile
      * creation. Returns what changed, for a test to read.
@@ -194,15 +275,43 @@ class PermissionReconciler(
             )
             if (change.permission == WatchedPermission.Notifications) syncPushToken(change.to)
         }
+        sendIfMoved(now)
         return changes
     }
 
     /**
      * One of our own permission dialogs was answered: whatever it changed is recorded silently.
-     * That act is `permission_result`'s, and the screen reports it -- never this event.
+     * That act is `permission_result`'s, and the screen reports it -- never this event. The server
+     * is still told: what it stores is the status, however it came about.
      */
     fun absorbOwnAnswer() {
-        snapshot.read().forEach { (permission, status) -> ledger.record(permission, status) }
+        val now = snapshot.read()
+        now.forEach { (permission, status) -> ledger.record(permission, status) }
+        sendIfMoved(now)
+    }
+
+    /**
+     * A session began, possibly a different account's. What the server took before was for the
+     * account before, so the statuses go again -- and a send still on its way no longer counts.
+     */
+    fun accountChanged() {
+        session += 1
+        lastSent = null
+        sendIfMoved(snapshot.read())
+    }
+
+    private fun sendIfMoved(now: Map<WatchedPermission, PermissionStatus>) {
+        val sync = server ?: return
+        if (now == lastSent) return
+        val forSession = session
+        val before = sending
+        sending = scope.launch {
+            before?.join()
+            // Queued for the account before, or already carried by the send ahead of this one.
+            if (forSession != session || now == lastSent) return@launch
+            // The session can change while the call is out; then what it took was the old one's.
+            if (sync.save(now) && forSession == session) lastSent = now
+        }
     }
 
     /** A notifications grant registers the token; a refusal removes it. Background work, always. */

@@ -98,6 +98,7 @@ import com.showup.profile.PhotoSource
 import com.showup.profile.PhotosRepository
 import com.showup.profile.PhotosViewModel
 import com.showup.profile.AndroidNotificationAccess
+import com.showup.profile.ApiPermissionStatusSync
 import com.showup.profile.PermissionReconciler
 import com.showup.profile.PushRegistrationSync
 import com.showup.profile.SharedPrefsPermissionLedger
@@ -390,6 +391,7 @@ class MainActivity : ComponentActivity() {
                     ),
                     ledger = SharedPrefsPermissionLedger(context),
                     push = PushRegistrationSync(PushRegistration(api)),
+                    server = ApiPermissionStatusSync(api, tokenStore),
                     analytics = AppAnalytics,
                     scope = lifecycleScope,
                 )
@@ -1063,6 +1065,8 @@ class MainActivity : ComponentActivity() {
                             firstName = ""
                             email = ""
                             marketingConsent = false
+                            // And the server hears this account's permission statuses.
+                            permissions.accountChanged()
                             outcome = it
                             screen = if (showsTutorial(it)) FlowScreen.TutorialWelcome else FlowScreen.Home
                         },

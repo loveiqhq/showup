@@ -308,6 +308,7 @@ private struct TutorialFlow: View {
                                            media: AVMediaAccess()),
         ledger: UserDefaultsPermissionLedger(),
         push: PushRegistrationSync(),
+        server: APIPermissionStatusSync(),
         analytics: AppAnalytics.shared)
     /// The scene has been in the background since it was last active: the next return is a trip
     /// outside the app. A return from `.inactive` alone is a system alert -- our own permission
@@ -1122,6 +1123,7 @@ private struct TutorialFlow: View {
                 // straight into the app for a returning member.
                 case .signUp: SignUpFlowView(onFinished: { o in
                     beginNewAccount()
+                    Task { await permissions.accountChanged() }
                     outcomeRaw = o.storageKey
                     go(to: showsTutorial(o) ? .tutorialWelcome : .home)
                 }, auth: phoneAuth, epoch: epoch, sessionEnded: sessionNotice,

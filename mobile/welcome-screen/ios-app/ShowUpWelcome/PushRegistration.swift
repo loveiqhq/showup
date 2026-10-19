@@ -86,9 +86,10 @@ struct PushRegistration: PushRegistering {
             let response = try await APIAccess.client.client.registerPushToken(
                 body: .json(.init(platform: .ios, token: token))
             )
-            // The operation declares 200, 400, 401 and 500 -- there is no 201 to match on.
+            // The operation declares 201, 400, 401 and 500. It declared 200 until October 2026 while
+            // the server answered 201, so every successful registration landed in `default`.
             switch response {
-            case .ok:
+            case .created:
                 return .registered
             default:
                 return .failed("unexpected response")
