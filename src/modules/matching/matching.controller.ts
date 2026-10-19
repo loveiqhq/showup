@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -48,7 +49,7 @@ export class MatchingController {
   /** Like a profile. Creates a match automatically if the like is mutual and both are available. */
   @Post('likes')
   @ApiOperation({ operationId: 'likeProfile' })
-  @ApiOkResponse({ type: LikeResultDto })
+  @ApiCreatedResponse({ type: LikeResultDto })
   async like(
     @CurrentUser() user: User,
     @Body() dto: CreateLikeDto,
