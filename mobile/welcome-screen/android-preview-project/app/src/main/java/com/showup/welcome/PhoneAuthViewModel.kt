@@ -195,8 +195,16 @@ class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
      *   routing decision: complete goes to Home, incomplete continues onboarding. Read from
      *   `/me/profile` rather than from a flag on the auth response, because completeness survives
      *   an interrupted signup and "was this new" does not.
+     * @param onRefused receives the number of the refused attempt against the live code, 1-based,
+     *   for `signup_code_verify_failed` (SHOWUP-143). Only a code the server checked and refused:
+     *   not the cap, not an answer dropped because a newer code arrived, not a network failure.
      */
-    fun verify(phoneE164: String, code: String, onSignedIn: (profileComplete: Boolean) -> Unit) {
+    fun verify(
+        phoneE164: String,
+        code: String,
+        onRefused: (attempt: Int) -> Unit = {},
+        onSignedIn: (profileComplete: Boolean) -> Unit,
+    ) {
         val s = _state.value
         // Only a verify blocks a verify, for the same reason a start only blocks a start.
         if (s.verifying || s.locked() || code.length != 6) return
@@ -239,6 +247,7 @@ class PhoneAuthViewModel(private val repo: PhoneAuthRepository) : ViewModel() {
                     AuthTrace.log(
                         "challenge $against refused, attempt ${_state.value.attempts}",
                     )
+                    onRefused(_state.value.attempts)
                 }
                 // The server says the cap is reached, so the count goes TO the cap rather than up
                 // by one -- the two can disagree if a request was lost, and the server wins.
