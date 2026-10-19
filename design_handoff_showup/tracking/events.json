@@ -516,8 +516,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Submitted code is wrong; attempt is the 1-based try count within the session",
-          "implemented": false,
-          "code_delta": "Not fired since commit 256b420 (10 Sep 2026), when code verification moved to the server: the builder remains on both platforms, no call site does. Re-add the call on a refused code, or retire the event."
+          "implemented": true
         },
         {
           "name": "connect_provider_tapped",
@@ -6039,8 +6038,8 @@
       ]
     }
   ],
-  "reconciled_with_code": "Reconciled against both apps' shipped code, 12 October 2026: 94 events implemented -- 86 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names. 13 Oct 2026: merged into handoff registry 1.4.25 / taxonomy 1.4.16 (Check-In 01-06); the reconciliation above was carried over event by event, and event_count is the real count (the handoff file said one fewer). 19 Oct 2026: 11 more turned on, the 48hrs Check-In's ten client events and permission_status_changed (the shared permission reconciler), each fired by production code on both apps: 105 implemented, 97 client and 8 server.",
-  "implemented_count": 105,
-  "code_delta_count": 32,
+  "reconciled_with_code": "Reconciled against both apps' shipped code, 12 October 2026: 94 events implemented -- 86 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names. 13 Oct 2026: merged into handoff registry 1.4.25 / taxonomy 1.4.16 (Check-In 01-06); the reconciliation above was carried over event by event, and event_count is the real count (the handoff file said one fewer). 19 Oct 2026: 11 more turned on, the 48hrs Check-In's ten client events and permission_status_changed (the shared permission reconciler), each fired by production code on both apps: 105 implemented, 97 client and 8 server. 19 Oct 2026, later: signup_code_verify_failed fires again (on a code the server refused, with its 1-based attempt), so it is implemented and its code_delta is gone: 106 implemented, 98 client.",
+  "implemented_count": 106,
+  "code_delta_count": 31,
   "screen_identity_note": "Two properties, on purpose. screen_id is the stable machine key and never changes. screen_name is the human label and is what a person searches for in the analytics tool. Only screen_viewed carries both; every other event carries screen_id alone and joins to it. Both values come from the enums.json §11 registry — never typed at a call site."
 }

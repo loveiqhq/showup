@@ -95,7 +95,11 @@ final class PhoneAuthModel {
     ///
     /// - Parameter onSignedIn: receives whether the account already has a complete profile.
     ///   Complete goes to Home, incomplete continues onboarding.
+    /// - Parameter onRefused: receives the number of the refused attempt, 1-based, for
+    ///   `signup_code_verify_failed` (SHOWUP-143). Only a code the server checked and refused: not
+    ///   the cap, not a network failure.
     func verify(phoneE164: String, code: String,
+                onRefused: @escaping (Int) -> Void = { _ in },
                 onSignedIn: @escaping (Bool) -> Void) {
         guard !busy, !locked, code.count == 6 else { return }
         busy = true
@@ -110,6 +114,7 @@ final class PhoneAuthModel {
             case .refused:
                 attempts += 1
                 lastSubmitRefused = true
+                onRefused(attempts)
             case .tooManyAttempts:
                 // The server says the cap is reached, so the count goes TO the cap rather than
                 // up by one — the two can disagree if a request was lost, and the server wins.
