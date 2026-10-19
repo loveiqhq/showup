@@ -11,6 +11,7 @@ import {
 import {
   ApiBearerAuth,
   ApiExtraModels,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -45,7 +46,7 @@ export class SafetyController {
   /** Block another user. Idempotent; you cannot block yourself. */
   @Post('blocks')
   @ApiOperation({ operationId: 'blockUser' })
-  @ApiOkResponse({ type: BlockDto })
+  @ApiCreatedResponse({ type: BlockDto })
   async block(
     @CurrentUser() user: User,
     @Body() dto: CreateBlockDto,
@@ -76,7 +77,7 @@ export class SafetyController {
   /** Report another user with a reason. The reason must be valid for where it's made from. */
   @Post('reports')
   @ApiOperation({ operationId: 'reportUser' })
-  @ApiOkResponse({ type: ReportDto })
+  @ApiCreatedResponse({ type: ReportDto })
   async report(
     @CurrentUser() user: User,
     @Body() dto: CreateReportDto,
@@ -87,7 +88,7 @@ export class SafetyController {
   /** Run a selfie-verification attempt (consent required). */
   @Post('me/verification')
   @ApiOperation({ operationId: 'submitSelfieVerification' })
-  @ApiOkResponse({ type: VerificationDto })
+  @ApiCreatedResponse({ type: VerificationDto })
   async verify(
     @CurrentUser() user: User,
     @Body() dto: RequestVerificationDto,
