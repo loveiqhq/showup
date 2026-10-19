@@ -45,7 +45,9 @@ const PHONE = '+491701234777';
 // Stands in for any :id / :userId path parameter. Never resolved — the guard answers first.
 const ID = '00000000-0000-4000-8000-000000000000';
 
-type Method = 'get' | 'post' | 'patch' | 'delete';
+// `put` joined the list with the prompt routes (SHOWUP-158): `PUT /me/prompts/{topicId}` is
+// idempotent on the topic, which is what makes "Save overwrites" one call rather than two.
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 interface Route {
   method: Method;
   path: string;
@@ -74,6 +76,12 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/me/check-ins' },
   { method: 'get', path: '/me/check-ins/active' },
   { method: 'post', path: `/me/check-ins/${ID}/cancel` },
+  // The 48hrs Check-In flow (SHOWUP-177).
+  { method: 'get', path: '/me/check-in' },
+  { method: 'post', path: '/me/check-in/intro-passed' },
+  { method: 'put', path: '/me/check-in/answers' },
+  { method: 'post', path: '/me/check-in/commit' },
+  { method: 'put', path: '/me/filter-settings' },
   // dates.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/me/dates' },
   { method: 'post', path: `/dates/${ID}/cancel` },
@@ -91,15 +99,33 @@ const PROTECTED: Route[] = [
   // push-tokens.controller.ts
   { method: 'post', path: '/me/push-tokens' },
   { method: 'delete', path: '/me/push-tokens' },
+  // permission-statuses.controller.ts (epic SHOWUP-151) -- the phone's permission statuses.
+  { method: 'put', path: '/me/permissions' },
+  { method: 'get', path: '/me/permissions' },
+  // media.controller.ts (SHOWUP-161) -- the 10-second video and the 15-second voice note.
+  //
+  // Authenticated like every other /me route, and more obviously than most: these carry a
+  // recording of the account holder's face and voice.
+  { method: 'post', path: '/me/media' },
+  { method: 'get', path: '/me/media' },
+  { method: 'delete', path: `/me/media/${ID}` },
   // photos.controller.ts
   { method: 'post', path: '/me/photos' },
   { method: 'get', path: '/me/photos' },
   { method: 'delete', path: `/me/photos/${ID}` },
+  { method: 'patch', path: '/me/photos/order' },
   // profiles.controller.ts
   { method: 'get', path: '/me/profile' },
   { method: 'post', path: '/me/profile' },
   { method: 'patch', path: '/me/profile' },
   { method: 'post', path: '/me/profile/verification' },
+  // Reads where a half-finished profile left off (flow rule 4a). Authenticated like every other
+  // /me route: it names the account's own address and its own progress.
+  { method: 'get', path: '/me/profile/progress' },
+  // prompts.controller.ts
+  { method: 'get', path: '/me/prompts' },
+  { method: 'put', path: `/me/prompts/${ID}` },
+  { method: 'delete', path: `/me/prompts/${ID}` },
   // safety.controller.ts — no HTTP coverage anywhere before this file
   { method: 'post', path: '/blocks' },
   { method: 'delete', path: `/blocks/${ID}` },
@@ -147,6 +173,9 @@ describe('API authorization contract (e2e)', () => {
     if (r.method === 'get') return req.get(r.path);
     if (r.method === 'post') return req.post(r.path);
     if (r.method === 'patch') return req.patch(r.path);
+    // PUT was missing, so every PUT went out as a DELETE: `put /me/prompts/:id` passed only because
+    // the same path also has a DELETE route. Found adding the Check-In routes (13 Oct 2026).
+    if (r.method === 'put') return req.put(r.path);
     return req.delete(r.path);
   };
 

@@ -23,5 +23,15 @@ enum ComponentSizes {
     static let controlHeight: CGFloat = 56
 
     /// The floor for anything tappable, even where the reference draws smaller.
+    /// The design system's `md` button — 48 tall, 15pt label (`shared.jsx`, the `sizes` map).
+    ///
+    /// A SECOND STANDARD HEIGHT, not a one-off. `shared.jsx` defines three: sm 36, md 48, lg 56.
+    /// `controlHeight` is `lg` and is what the flow's full-width CTAs use; `md` is what a button
+    /// INSIDE a card uses, and the media step's `See the prompts` is the first of those to be
+    /// built. The 8pt matters there: SHOWUP-161 requires the whole empty state — pill, headline,
+    /// both cards, both CTAs — to fit above the fold at 390x844, and two cards' CTAs at `lg` spend
+    /// 16 of that budget on nothing.
+    static let controlHeightMedium: CGFloat = 48
+
     static let minTapTarget: CGFloat = 44
 }

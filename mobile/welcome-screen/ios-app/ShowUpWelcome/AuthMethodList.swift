@@ -15,6 +15,7 @@
 //  ships", and it explicitly outranks the ticket body, the spec sheet and the zip.
 
 import SwiftUI
+import UIKit
 
 /// Canonical order. Connect drops phone; Welcome back keeps it. Never reordered beyond the lift.
 let CONNECT_METHODS: [AuthMethod] = [.apple, .google, .facebook]
@@ -56,7 +57,7 @@ func methodSpec(_ m: AuthMethod) -> MethodSpec {
 /// so it keeps the sunset pill **when it is the promoted one** and drops to ghost otherwise. A
 /// provider never takes the gradient in any position — which means "promoted to primary" is carried
 /// by position and by the hint row, never by a fill swap.
-func providerVariant(_ m: AuthMethod, isPrimary: Bool = false) -> PillVariant {
+func providerVariant(_ m: AuthMethod, isPrimary: Bool = false) -> PrimaryButtonVariant {
     switch m {
     case .apple: return .apple
     case .google: return .google
@@ -126,9 +127,19 @@ struct AuthMethodList<Notice: View>: View {
             VStack(spacing: Spacing.lg) {
                 MethodRow(method: primary, isPrimary: true, loading: loading,
                           anyLoading: anyLoading, onSelect: onSelect)
+                // ONE WIDTH FOR THE SECONDARY ROWS, so their marks land on a single line. The
+                // buttons stay CENTRED, which is what the design system's `Button` specifies;
+                // what changes is that the icon-plus-label group is the same width on each, and a
+                // set of equal-width groups centres to the same x.
+                //
+                // The primary is excluded on purpose: it is the full-width sunset CTA and not one
+                // of the set. Padding it to match would push its own mark off centre to line up
+                // with three buttons it does not belong to.
+                let secondaryLabelWidth = sharedLabelWidth(rest.map { methodSpec($0).label })
                 ForEach(rest, id: \.self) { m in
                     MethodRow(method: m, isPrimary: false, loading: loading,
-                              anyLoading: anyLoading, onSelect: onSelect)
+                              anyLoading: anyLoading, onSelect: onSelect,
+                              labelWidth: secondaryLabelWidth)
                 }
                 if let onSkip { SkipRow(anyLoading: anyLoading, onSkip: onSkip) }
             }
@@ -147,12 +158,33 @@ extension AuthMethodList where Notice == EmptyView {
     }
 }
 
+/// The width of the widest of a set of labels, measured in the style the button draws them in.
+///
+/// MEASURED, NOT GUESSED. A hand-tuned number is right for one language, one font scale and one
+/// device, and this project has shipped exactly that mistake before — the shared rule is that text
+/// is measured rather than assumed. `UIFont` is what knows how wide `Continue with Facebook` is in
+/// Manrope Bold at whatever size the user has chosen.
+///
+/// Falls back to the system font at the same size if Manrope is somehow unavailable: a slightly
+/// wrong width still lines the three up with each other, which is the whole point, whereas
+/// returning nil would leave them ragged.
+private func sharedLabelWidth(_ labels: [String]) -> CGFloat {
+    let font = UIFont(name: PS.manropeBold, size: 16)
+        ?? UIFont.systemFont(ofSize: 16, weight: .bold)
+    return labels
+        .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+        .max()?
+        .rounded(.up) ?? 0
+}
+
 private struct MethodRow: View {
     let method: AuthMethod
     let isPrimary: Bool
     let loading: AuthMethod?
     let anyLoading: Bool
     let onSelect: (AuthMethod) -> Void
+    /// Shared across the secondary rows so their marks line up. Nil on the primary.
+    var labelWidth: CGFloat?
 
     private var isLoading: Bool { loading == method }
 
@@ -180,19 +212,22 @@ private struct MethodRow: View {
             ? spec.label
             : (isLoading ? "Connecting to \(spec.short)…" : spec.label)
 
-        PillButton(
+        PrimaryButton(
             label: label,
             variant: variant,
             // Disabled is a state every provider permits, so it carries the in-flight signal.
             enabled: !anyLoading,
-            action: { onSelect(method) }
-        ) {
-            if isLoading {
-                Spinner(tint: providerTint(method, isPrimary: isPrimary))
-            } else {
-                BrandIconView(icon: spec.icon, size: 18, tint: providerTint(method, isPrimary: isPrimary))
+            labelWidth: labelWidth,
+            action: { onSelect(method) },
+            leading: {
+                if isLoading {
+                    Spinner(tint: providerTint(method, isPrimary: isPrimary))
+                } else {
+                    BrandIconView(icon: spec.icon, size: 18,
+                                  tint: providerTint(method, isPrimary: isPrimary))
+                }
             }
-        }
+        )
         // Siblings dim while one is in flight; the tapped one stays at full opacity.
         .opacity(anyLoading && !isLoading ? 0.45 : 1)
         .animation(.easeOut(duration: Motion.fast), value: anyLoading)
@@ -244,12 +279,10 @@ struct ErrorBanner: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.lg) {
-            Text("!")
-                .font(F.lora(13, bold: true))
-                .foregroundColor(.white)
-                .frame(width: IconSizes.sm, height: IconSizes.sm)
-                .background(Color.liqDanger)
-                .clipShape(Circle())
+            // The glyph is shared; the BANNER is not. Its radius, padding and glyph size all
+            // differ from the inline card's -- three parameters to unify one shape, which is the
+            // "everything component" this design system keeps declining to build.
+            DangerGlyph(size: IconSizes.sm, glyphSize: 13)
                 .padding(.top, 1)
             Text(message)
                 .font(F.manrope(13.5, .medium))

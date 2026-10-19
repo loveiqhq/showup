@@ -33,6 +33,61 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- App Transport Security: ONE narrow exception, for the developer's own machine.
+
+	     The development build talks to http://localhost:3000, and ATS refuses cleartext unless
+	     an app opts in. NSAllowsLocalNetworking is the narrow opt-in: loopback, .local names and
+	     the private IP ranges, and nothing else. NSAllowsArbitraryLoads, which permits cleartext
+	     to any host on the internet, is deliberately NOT set.
+
+	     Added 10 September 2026 after the identical hole on Android cost a working screen. There,
+	     cleartext was blocked in the debug build, every send failed before a socket opened, and
+	     the app said nothing at all — tapping "Send me the code" simply did nothing, with an
+	     empty logcat, because the request was refused by policy before it left the process. iOS
+	     had the same gap against the same local backend.
+
+	     Staging and production are https, so this changes nothing for a shipped build. -->
+	<!-- THE ONE PERMISSION THE PHOTO STEP ASKS FOR (SHOWUP-156).
+
+	     There is deliberately no NSPhotoLibraryUsageDescription and there must not be one: the
+	     library is reached through PHPickerViewController, which runs out of process and needs no
+	     permission at all. Adding the key would not grant access, but it would be the first step
+	     towards asking for something the picker exists to avoid. See PhotoAccess.swift.
+
+	     The camera is different — it is the one permission that always applies, on both
+	     platforms. iOS shows this sentence in the alert and shows the alert ONCE, ever, so it has
+	     to say what the camera is for rather than that the app would like to use it. A denied
+	     camera blocks nothing: the library path still works and the step is still completable. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo and film your 10-second video without leaving Show Up.</string>
+	<!-- THE MICROPHONE, for the media step (SHOWUP-161).
+
+	     Two things need it and the string has to cover both: the 15-second voice note, and the
+	     sound on the 10-second video. Video needs camera AND microphone; a voice note needs the
+	     microphone alone, which is why a blocked microphone is the only status that blocks that
+	     whole step while a blocked camera only blocks one card. See MediaAccess.swift.
+
+	     iOS shows this ONCE. There is no second prompt after a refusal, which is why
+	     MediaPermission.canAsk is an Android-only state and this platform goes straight from
+	     notDetermined to blocked. Asked on the COMMIT CTA inside the prompt sheet, never on
+	     screen entry and never on "See the prompts", so the user has already chosen what they
+	     are about to say before anything is requested of them. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record your 15-second voice note, and the sound on your video.</string>
+	<!-- LOCATION, WHEN IN USE ONLY (SHOWUP-165).
+
+	     The one string inside the OS location dialog that is ours; Android's dialog shows no
+	     developer text. The ticket's copy, exactly — `audit/verify-profile.py` quotes it. Without
+	     this key iOS terminates the app on the request, so it is the one part of the location ask
+	     that can never ship hidden. There is deliberately no "Always" key: the app needs location
+	     only while it is open. Asked from the in-app ask's CTA, never on screen entry. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to find people nearby and choose a halfway meeting spot for your date.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<!-- Every bundled font must be listed here or iOS will not load it, and .custom() will
 	     silently fall back to the system face. -->
 	<key>UIAppFonts</key>
@@ -42,9 +97,11 @@
 		<string>Lora-Italic.ttf</string>
 		<string>Lora-BoldItalic.ttf</string>
 		<string>Lora-MediumItalic.ttf</string>
+		<string>Manrope-Regular.ttf</string>
 		<string>Manrope-Medium.ttf</string>
 		<string>Manrope-SemiBold.ttf</string>
 		<string>Manrope-Bold.ttf</string>
+		<string>Manrope-ExtraBold.ttf</string>
 	</array>
 </dict>
 </plist>

@@ -25,6 +25,12 @@
  */
 package com.showup.welcome
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.PrimaryButtonVariant
+
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Radius
@@ -45,10 +51,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
@@ -75,6 +79,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Elevated
+import com.showup.designsystem.StatusBadge
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Subtle
@@ -85,7 +90,7 @@ import com.showup.designsystem.Purple
 import com.showup.designsystem.Success
 import com.showup.tutorial.NextButton
 import com.showup.tutorial.NextVariant
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 import kotlinx.coroutines.delay
 
 /** The eight screen states. The two OS handoffs share one of them; the provider tells them apart. */
@@ -213,7 +218,19 @@ private fun MethodListLayout(
     val errored = state == ConnectState.Error
     val short = methodSpec(provider).short
 
-    WelcomeScaffold {
+    // Scroll only when the frame runs out, per the 10 September decision.
+    //
+    // This is the screen the fit sweep had the most to say about: 39 findings across five short
+    // phones, every one of them the same shape. The states that add a banner -- cancelled, and
+    // both errors -- push the bottom group down until the one weighted spacer has nothing left,
+    // and a Column with nothing left shrinks its children in place. The legal line went to zero
+    // height and "Skip and continue to profile" was measured at 15dp: the escape hatch from a
+    // failed social sign-in, too small to hit, on the phones most likely to be someone's only
+    // phone.
+    //
+    // Nothing changes where it already fits. The inner column is floored at the viewport, so on
+    // all twelve devices 390dp and wider the spacer divides the leftover space exactly as before.
+    WelcomeScaffold(scrollWhenTight = true) {
         val compact = LocalConfiguration.current.screenHeightDp < 700
         Wordmark()
 
@@ -229,7 +246,10 @@ private fun MethodListLayout(
             WashHeadline(
                 parts = listOf("Welcome to " to false, "Show Up" to true),
                 fontSize = if (compact) 34.sp else 40.sp,
-                trailing = BrandIcon.Heart,
+                // HeartFilled, which is the glyph this button has always drawn -- the kit calls
+                // it `heart-filled` and the notifications ask (SHOWUP-162) needed the outline
+                // `heart` under that name. Same pixels as before, now from the kit's own path.
+                trailing = BrandIcon.HeartFilled,
             )
             Text(
                 // A hard break, not a wrap: the ticket specifies two lines and names the break.
@@ -432,14 +452,14 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
                         .background(Success, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(BrandIcon.Check, 18.dp, tint = Color.White, strokeWidth = 2.4.dp)
+                    Icon(BrandIcon.Check, 18.dp, tint = Color.White, strokeWidth = 2.4f)
                 }
             }
             Column(
                 verticalArrangement = Arrangement.spacedBy(Spacing.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Eyebrow("${methodSpec(provider).short} connected")
+                StatusBadge("${methodSpec(provider).short} connected")
                 // No name from the provider is a real case, not a defensive default: Apple's
                 // private-relay users often share nothing. The italic run still has to be the
                 // emphasis, so the whole sentence changes shape rather than the name being
@@ -468,24 +488,6 @@ private fun SuccessHero(provider: AuthMethod, firstName: String?, onContinue: ()
 }
 
 /** Orange tone: bg orange 12%, orange text, a 5dp dot, Manrope 700 11 uppercase, tracking .08. */
-@Composable
-private fun Eyebrow(label: String) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(50))
-            .background(Orange.copy(alpha = 0.12f))
-            .padding(horizontal = Spacing.lg, vertical = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(5.dp).background(Orange, CircleShape))
-        Text(
-            label.uppercase(), color = Orange, fontFamily = Manrope,
-            fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.08.em,
-        )
-    }
-}
-
 // ─────────────────────────────────────────────────────────────
 // I — the conflict modal
 // ─────────────────────────────────────────────────────────────
@@ -523,7 +525,7 @@ private fun ConflictSheet(
                 Modifier.size(IconSizes.badge).background(Orange.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(BrandIcon.Shield, 26.dp, tint = Orange, strokeWidth = 1.8.dp)
+                Icon(BrandIcon.Shield, 26.dp, tint = Orange, strokeWidth = 1.8f)
             }
             Spacer(Modifier.height(Spacing.xxl))
 
@@ -566,7 +568,7 @@ private fun ConflictSheet(
             // Google-owned account offers Continue with Google. Getting this backwards sends the
             // user round a loop. It wears that provider's own button, because the ticket lists
             // this CTA alongside the three on the method list.
-            PillButton(
+            PrimaryButton(
                 methodSpec(owner).label, onResolve,
                 variant = providerVariant(owner),
                 height = 54.dp,
@@ -576,9 +578,9 @@ private fun ConflictSheet(
 
             // No border, so the pair never reads as two equal choices. This is the only dismiss:
             // there is no close icon and the scrim above does not accept taps.
-            PillButton(
+            PrimaryButton(
                 "Use a different account", onUseDifferent,
-                variant = PillVariant.Plain, height = 50.dp,
+                variant = PrimaryButtonVariant.Plain, height = 50.dp,
             )
         }
     }
@@ -587,6 +589,26 @@ private fun ConflictSheet(
 // ─────────────────────────────────────────────────────────────
 // Previews — the seven states the ticket wants evidence for, at all three sizes
 // ─────────────────────────────────────────────────────────────
+// ── the two sizes that were actually broken ─────────────────────────────────
+//
+// The error and cancelled states, at the sizes where the bottom band ran out. On 10 September the
+// fit sweep measured "Skip and continue to profile" at 15dp here -- the escape hatch from a failed
+// social sign-in, too small to hit -- with the legal line at zero height. Every other preview on
+// this screen is 375, 390 or 430, all of which were always fine.
+
+@Preview(name = "H error · network · 360x640", showBackground = true,
+         widthDp = 360, heightDp = 640)
+@Composable
+private fun CAPreviewErrorSmall() {
+    ConnectAccountScreen(state = ConnectState.Error, kind = ErrorKind.Network)
+}
+
+@Preview(name = "G cancelled · 320x686", showBackground = true, widthDp = 320, heightDp = 686)
+@Composable
+private fun CAPreviewCancelledFold() {
+    ConnectAccountScreen(state = ConnectState.Cancelled)
+}
+
 @Preview(name = "A idle · 390x844", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun CAIdle() { ConnectAccountScreen() }

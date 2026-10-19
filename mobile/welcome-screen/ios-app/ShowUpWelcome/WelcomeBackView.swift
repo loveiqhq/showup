@@ -46,7 +46,13 @@ struct WelcomeBackView: View {
         GeometryReader { geo in
             let compact = geo.size.height < 700
 
-            WelcomeScaffold {
+            // Scroll only when the frame runs out, per the 10 September decision. Mirrors
+            // WelcomeBackScreen.kt: on every phone where the content fits this changes nothing,
+            // because the inner column is floored at the viewport height and the two weighted
+            // spacers still divide what is left. On the short ones it is the difference between
+            // a screen and a broken one — Android measured "Continue with Facebook" at 7.5dp on
+            // a 320x686 with a 24-character name.
+            WelcomeScaffold(scrollWhenTight: true) {
                 Wordmark()
 
                 // 120 here against Startup's 132 — same role: the element that yields first.

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Profile photos</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  /* su-app reset (mirrors ui_kits/show-up/index.html so shared.jsx renders right) */
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  /* Page chrome (matches Verify code / Verify email pages) */
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame {
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.ok   { background: #00AB55; box-shadow: 0 0 0 3px rgba(0,171,85,0.18); }
+  .frame-label .pip.note { background: var(--liq-orange-500); box-shadow: 0 0 0 3px rgba(254,104,57,0.18); }
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app {
+    border-radius: 38px;
+    overflow: hidden;
+  }
+
+  /* Caption row below frames */
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 24px;
+    max-width: 720px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Shared primitives (StatusBar, AppHeader, Icon, Button, NextButton, StepProgress, Eyebrow, PortraitPlaceholder, HomeIndicator) -->
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+// ─────────────────────────────────────────────────────────────
+// Photo slot
+//
+// Filled  → portrait image + circular close button in the corner.
+// Empty   → soft lilac wash card with the slot's category label and a
+//           plus glyph in a violet pill, dashed violet border so the
+//           tap target reads as "add something here".
+//
+// Slot height is uniform (158px) so all four cards form a clean 2×2
+// grid; the headline-of-the-screen does the differentiating work.
+// ─────────────────────────────────────────────────────────────
+function PhotoSlot({ filled, hint, photoName, photoIndex = 0, onRemove }) {
+  if (filled) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <PortraitPlaceholder
+          name={photoName || 'You'}
+          photoIndex={photoIndex}
+          height={158}
+          radius={20}
+          label={false}
+        >
+          <button
+            onClick={onRemove}
+            aria-label={`Remove ${hint || 'photo'}`}
+            style={{
+              position: 'absolute', top: 8, right: 8,
+              width: 28, height: 28, borderRadius: 9999,
+              background: 'rgba(29, 17, 41, 0.62)',
+              color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <Icon name="x" size={14} stroke={2.6}/>
+          </button>
+        </PortraitPlaceholder>
+      </div>
+    );
+  }
+  return (
+    <button style={{
+      height: 158, borderRadius: 20,
+      background: 'var(--liq-bg-raised)',
+      border: '1.5px dashed rgba(129, 42, 236, 0.36)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 10,
+      padding: '0 14px',
+      transition: 'transform 180ms cubic-bezier(.22,1,.36,1), background 180ms',
+    }}
+      onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+      onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+    >
+      <div style={{
+        width: 40, height: 40, borderRadius: 9999,
+        background: '#fff',
+        border: '1px solid rgba(129,42,236,0.20)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--liq-primary-500)',
+        boxShadow: '0 1px 2px rgba(46,1,71,0.06)',
+      }}>
+        <Icon name="plus" size={20} stroke={2.4}/>
+      </div>
+      <span style={{
+        fontFamily: 'var(--liq-font-sans)', fontWeight: 600, fontSize: 13,
+        color: 'var(--liq-primary-500)', lineHeight: 1.25, textAlign: 'center',
+        maxWidth: 130,
+      }}>
+        {hint}
+      </span>
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// VerifyProfileCard
+//
+// Lilac wash card with a shield-check on the left, two lines of copy
+// in the middle, and an outlined "Verify" pill on the right. Sits in
+// the sticky footer above the Continue row so the secondary upsell
+// never pushes the primary CTA off-screen.
+//
+// Copy stays on-brand: "Verified profiles get up to 3× more matches"
+// is informative microcopy (per the system's voice rule), not
+// promotional.
+// ─────────────────────────────────────────────────────────────
+function VerifyProfileCard({ onVerify }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 14px',
+      borderRadius: 18,
+      background: 'var(--su-grad-lilac, linear-gradient(180deg, #F3E8FF 0%, #E9D5FF 100%))',
+      border: '1px solid rgba(129,42,236,0.16)',
+    }}>
+      <div style={{
+        flex: 'none', width: 40, height: 40, borderRadius: 12,
+        background: 'rgba(255,255,255,0.7)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--liq-primary-500)',
+      }}>
+        <Icon name="shield-check" size={22} stroke={2}/>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 700, fontSize: 14,
+          color: 'var(--liq-fg)', lineHeight: 1.25,
+        }}>
+          Verify your profile
+        </div>
+        <div style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 12,
+          color: 'var(--liq-fg-muted)', lineHeight: 1.35, marginTop: 2,
+        }}>
+          Quick selfie · up to 3× more matches
+        </div>
+      </div>
+      <button onClick={onVerify} style={{
+        flex: 'none',
+        height: 36, padding: '0 16px', borderRadius: 9999,
+        background: 'transparent',
+        border: '1.5px solid var(--liq-primary-500)',
+        color: 'var(--liq-primary-500)',
+        fontFamily: 'var(--liq-font-sans)', fontWeight: 700, fontSize: 13.5,
+        letterSpacing: 0.01,
+        transition: 'background 180ms, color 180ms',
+      }}
+        onMouseDown={e => { e.currentTarget.style.background = 'var(--liq-primary-500)'; e.currentTarget.style.color = '#fff'; }}
+        onMouseUp={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--liq-primary-500)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--liq-primary-500)'; }}
+      >
+        Verify
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ScreenProfilePhotos — Profile creation · photos step
+//
+// `state` toggles between:
+//   - 'partial' : 2 photos filled, 2 empty (mid-fill — most users will
+//                 see this state for some seconds while they pick)
+//   - 'full'    : 4 photos filled, "+ add more" expanded with a 5th
+//                 empty slot below to invite optional extras
+//
+// Layout is split into a fixed top (status + header + progress),
+// scrolling middle (headline + grid + add-more), and STICKY FOOTER
+// (Verify card + Continue row). The footer uses a soft canvas-tinted
+// backdrop blur so content scrolling underneath fades out cleanly
+// rather than colliding with the buttons.
+// ─────────────────────────────────────────────────────────────
+function ScreenProfilePhotos({ state = 'partial' }) {
+  // Photos in the four primary slots. Each slot has its own category
+  // hint; categories stay the same across states so the layout's
+  // visual identity is stable.
+  const SLOTS = [
+    { hint: 'Portrait',          photoName: 'Leonie', photoIndex: 0 },
+    { hint: 'With friends',      photoName: 'Maya',   photoIndex: 0 },
+    { hint: 'Full body',         photoName: 'Liv',    photoIndex: 0 },
+    { hint: 'Favourite activity',photoName: 'Sofia',  photoIndex: 0 },
+  ];
+
+  // partial state: only the first two are filled, so the user can see
+  // the "next step" placeholder treatment. full state: all four filled.
+  const filledCount = state === 'full' ? 4 : 2;
+
+  // In the 'full' state, the "+ add more" hypertext expands to expose
+  // a single optional 5th slot. This keeps the screen calm by default
+  // (4 cards always, per the brief) but rewards the over-achiever.
+  const [expanded, setExpanded] = useState(state === 'full');
+
+  return (
+    <div className="su-app" style={{
+      width: 390, height: 844, position: 'relative', overflow: 'hidden',
+      background: 'var(--liq-bg)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Ambient atmosphere — hero tier (expressive identity moment) */}
+      <Atmosphere variant="hero"/>
+
+      {/* Fixed top chrome — status bar, header, progress (3 steps) */}
+      <div style={{ position: 'relative', zIndex: 3 }}>
+        <StatusBar time="4:20"/>
+        <AppHeader title="Your profile" leading="back"/>
+        <div style={{ padding: '4px 24px 14px' }}>
+          {/* 3-step SQPS progress — photos is step 2 of 3
+              (basics → photos → bio). Filled segments use the violet
+              primary, unfilled stay on the system border color. */}
+          <StepProgress steps={3} current={2}/>
+        </div>
+      </div>
+
+      {/* Scrollable middle — headline, copy, photo grid, add-more */}
+      <div className="su-noscroll" style={{
+        flex: 1, position: 'relative', zIndex: 1, overflow: 'auto',
+        padding: '4px 24px 0',
+      }}>
+        <Eyebrow color="orange">Emotional charge</Eyebrow>
+
+        <h1 className="su-underlined" style={{
+          fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 32,
+          letterSpacing: '-0.018em', lineHeight: 1.08, color: 'var(--liq-fg)',
+          margin: '12px 0 8px', textWrap: 'balance',
+        }}>
+          The <em>messy hair</em>, the loud laugh.
+        </h1>
+
+        <p style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 14.5,
+          lineHeight: 1.45, color: 'var(--liq-neutral-200)', margin: 0,
+          textWrap: 'pretty', maxWidth: 320,
+        }}>
+          Show who you actually are — not a polished version. Upload at
+          least 4 photos.
+        </p>
+
+        {/* 2×2 grid — exactly four slots, as briefed. */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          gap: 12, marginTop: 18,
+        }}>
+          {SLOTS.map((s, i) => (
+            <PhotoSlot
+              key={i}
+              filled={i < filledCount}
+              hint={s.hint}
+              photoName={s.photoName}
+              photoIndex={s.photoIndex}
+            />
+          ))}
+        </div>
+
+        {/* "+ add more" — text-styled hypertext button below the grid.
+            Tapping it reveals an optional 5th slot. Keeps the default
+            view to four cards as briefed while still letting a power
+            user upload a fifth photo. */}
+        <div style={{
+          display: 'flex', justifyContent: 'center',
+          margin: '14px 0 6px',
+        }}>
+          <button
+            onClick={() => setExpanded(v => !v)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 10px',
+              fontFamily: 'var(--liq-font-sans)', fontSize: 14, fontWeight: 700,
+              color: 'var(--liq-primary-500)',
+              textDecoration: 'underline', textUnderlineOffset: 4,
+              textDecorationThickness: 1.5,
+            }}
+          >
+            <Icon name="plus" size={14} stroke={2.6}/>
+            {expanded ? 'add more' : 'add more'}
+          </button>
+        </div>
+
+        {expanded && (
+          <div style={{ marginTop: 4 }}>
+            <PhotoSlot filled={false} hint="One more (optional)"/>
+          </div>
+        )}
+
+        {/* Reserve breathing room at the bottom so the last photo card
+            isn't kissed by the sticky footer's top edge. */}
+        <div style={{ height: 24 }}/>
+      </div>
+
+      {/* Sticky footer — Verify card + Continue row.
+          Backdrop blur on a canvas-tinted alpha so scrolling content
+          fades out cleanly underneath rather than overlapping the CTA.
+          This is what keeps the Continue button always visible (the
+          fourth ask). */}
+      <div style={{
+        position: 'relative', zIndex: 2, flex: 'none',
+        padding: '12px 20px 0',
+        background: 'linear-gradient(180deg, rgba(255,251,247,0) 0%, rgba(255,251,247,0.92) 22%, rgba(255,251,247,1) 100%)',
+        backdropFilter: 'blur(8px)',
+      }}>
+        <VerifyProfileCard/>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 0 6px',
+        }}>
+          <span style={{
+            fontFamily: 'var(--liq-font-sans)', fontSize: 13, fontWeight: 600,
+            color: 'var(--liq-fg-subtle)',
+          }}>
+            {filledCount}/4 photos
+          </span>
+          {/* Disabled state surfaced naturally — at 2/4 the user
+              hasn't met the "upload at least 4" rule, so Continue is
+              greyed but still in-place (no shifting layout). */}
+          <div style={{
+            opacity: filledCount >= 4 ? 1 : 0.42,
+            filter: filledCount >= 4 ? 'none' : 'saturate(0.4)',
+            pointerEvents: filledCount >= 4 ? 'auto' : 'none',
+            transition: 'opacity 180ms, filter 180ms',
+            display: 'flex', alignItems: 'center', gap: 14,
+          }}>
+            <span style={{
+              fontFamily: 'var(--liq-font-sans)', fontSize: 15, fontWeight: 700,
+              color: 'var(--liq-fg)',
+            }}>
+              Continue
+            </span>
+            <NextButton color="orange" size={52}/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ position: 'relative', zIndex: 3 }}>
+        <HomeIndicator/>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page — both states side-by-side on a warm canvas.
+// ─────────────────────────────────────────────────────────────
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          01 · Welcome &amp; sign-up · Profile photos
+        </span>
+        <h1>Show the <em style={{ fontWeight: 500 }}>messy</em> you.</h1>
+        <p>
+          The photos step, now with a 3-step progress bar, exactly four
+          photo cards in the default view, a "+ add more" hypertext for
+          optional extras, the Verify-your-profile upsell, and a Continue
+          CTA pinned in the viewport at all times.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame">
+          <div className="frame-label">
+            <span className="pip note"></span>
+            01 · Mid-fill · 2 of 4 photos
+          </div>
+          <div className="frame-shell">
+            <ScreenProfilePhotos state="partial"/>
+          </div>
+          <div className="caption">
+            Default arrival. Two slots seeded, two awaiting taps.
+            <strong> Continue is greyed</strong> until 4 photos are in —
+            but stays anchored to the bottom so the user always sees
+            where the goal is.
+          </div>
+        </div>
+
+        <div className="frame">
+          <div className="frame-label">
+            <span className="pip ok"></span>
+            02 · Complete · ready to continue
+          </div>
+          <div className="frame-shell">
+            <ScreenProfilePhotos state="full"/>
+          </div>
+          <div className="caption">
+            All four required photos uploaded.
+            <strong> Continue is live</strong>, the "+ add more" link is
+            expanded to reveal one optional fifth slot, and the
+            Verify-profile upsell still sits one tap away.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>What changed from the previous draft</h3>
+        <ul>
+          <li>
+            <strong>Progress bar is 3 steps</strong> (name → photos →
+            bio), not 6 — the photos step now sits mid-flow with two
+            filled segments and one to go.
+          </li>
+          <li>
+            <strong>Four photo cards by default</strong>, arranged in a
+            2×2 grid. Extras live behind a "+ add more" hypertext
+            instead of dangling as a second row of empties — the page
+            no longer looks half-finished on first paint.
+          </li>
+          <li>
+            <strong>Verify your profile card</strong> uses the system's
+            lilac wash, the shield-check glyph, and an outlined violet
+            Verify pill on the right. Copy is informative microcopy,
+            not promotional — "Quick selfie · up to 3× more matches".
+          </li>
+          <li>
+            <strong>Continue is pinned in the viewport.</strong> The
+            footer is a sticky band — Verify card on top, Continue row
+            below — with a canvas-to-transparent gradient mask so
+            scrolling content fades out cleanly underneath rather than
+            overlapping the CTA.
+          </li>
+          <li>
+            <strong>Disabled state, not hidden state.</strong> When
+            fewer than 4 photos are in, Continue is greyed at the same
+            position rather than absent — the user always sees where
+            they're heading, and the layout doesn't jump when the
+            fourth photo lands.
+          </li>
+          <li>
+            <strong>Photos slots</strong> use the system's portrait
+            radius (20px), the warm-violet glassy remove pill in the
+            top corner, and the dashed-violet "add" treatment for empty
+            slots — same vocabulary as the rest of the kit.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

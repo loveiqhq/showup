@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Late cancellation</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  /* su-app reset (mirrors ui_kits/show-up/index.html so shared.jsx renders right) */
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  /* Page chrome */
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 820px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head h1 em { font-style: italic; font-weight: 500; }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 40px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame {
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    max-width: 430px;
+  }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.cost { background: var(--liq-orange-500); box-shadow: 0 0 0 3px rgba(254,104,57,0.18); }
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app {
+    border-radius: 38px;
+    overflow: hidden;
+  }
+
+  .caption {
+    max-width: 380px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 8px;
+    max-width: 760px;
+    padding: 24px 28px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 14px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 9px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+
+  /* Two-sided fairness diagram */
+  .sides {
+    max-width: 760px; width: 100%;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .side {
+    border-radius: 18px; padding: 18px 20px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(29,17,41,0.08);
+  }
+  .side .who {
+    font-family: var(--liq-font-sans); font-weight: 800; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--liq-fg-muted);
+    margin: 0 0 6px;
+  }
+  .side .what {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 19px;
+    color: var(--liq-fg); margin: 0 0 8px; line-height: 1.2;
+  }
+  .side .desc {
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-neutral-200); margin: 0;
+  }
+  .side .verdict {
+    display: inline-flex; align-items: center; gap: 7px; margin-top: 12px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12.5px;
+    padding: 5px 12px; border-radius: 9999px;
+  }
+  .side .verdict.ok   { background: rgba(0,171,85,0.13);  color: var(--liq-success-fg); }
+  .side .verdict.cost { background: rgba(254,104,57,0.14); color: #B0401C; }
+  @media (max-width: 720px) { .sides { grid-template-columns: 1fr; } }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Shared primitives (Phone, StatusBar, Icon, Button, Atmosphere, HomeIndicator) -->
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+// ─────────────────────────────────────────────────────────────
+// Late cancellation — the INTERMEDIATE screen the late partner sees.
+//
+// Scenario: the user told Leonie they'd be more than 10 minutes late.
+// That crosses the kit's 10-minute grace line, so Leonie was free to
+// leave the date with no penalty — and she did. The date never happens.
+//
+// Leonie's side ends on the standard rating flow ("Did Leonie show up?
+// → No", no penalty). THIS screen is the other half: the late partner
+// is told, plainly but kindly, that the date is closed and — because
+// the delay was theirs — a Show-up Rate penalty applies. The whole
+// screen leans on the brand's core value: be on time, respect each
+// other's time.
+//
+// It deliberately mirrors the No-show recovery screen's anatomy
+// (hero card → consequence rows → CTA) but swaps the lilac "this one's
+// on us" tone for a warm blush "this one has a cost" tone.
+// ─────────────────────────────────────────────────────────────
+function ScreenLateCancelled({ name = 'Leonie', from = 94, to = 90 }) {
+  const rows = [
+    {
+      i: 'shield-check',
+      accent: 'var(--liq-orange-500)',
+      tint: 'rgba(254,104,57,0.12)',
+      t: <>This counts as a missed date. Your <strong style={{ color: 'var(--liq-fg)' }}>Show-up Rate drops from {from}% to {to}%</strong>.</>,
+    },
+    {
+      i: 'heart',
+      accent: 'var(--liq-success-fg)',
+      tint: 'rgba(0,171,85,0.12)',
+      t: <>{name} keeps her full score. She waited the whole window — past 10 minutes, the delay sits with you.</>,
+    },
+    {
+      i: 'clock',
+      accent: 'var(--liq-primary-500)',
+      tint: 'var(--liq-bg-raised)',
+      t: <>Ten minutes is the promise we all keep for each other. Show up on time and your rate climbs right back.</>,
+    },
+  ];
+
+  return (
+    <div className="su-app" style={{
+      width: 390, height: 844, position: 'relative', overflow: 'hidden',
+      background: 'var(--liq-bg)', display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Hero-tier atmosphere — this is an emotional / consequence screen */}
+      <Atmosphere variant="hero"/>
+
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <StatusBar time="4:20"/>
+      </div>
+
+      <div className="su-noscroll" style={{
+        flex: 1, position: 'relative', zIndex: 1, overflow: 'hidden',
+        padding: '8px 20px 0', display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Hero card — warm blush signals "this one has a cost" (vs. the
+            lilac, no-penalty No-show screen). */}
+        <div style={{
+          padding: '30px 24px', borderRadius: 28,
+          background: 'var(--su-grad-blush)', textAlign: 'center',
+        }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 9999, margin: '0 auto 18px',
+            background: '#fff', color: 'var(--liq-orange-500)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: 'var(--liq-shadow-md)',
+          }}><Icon name="clock" size={28} stroke={2.2}/></div>
+
+          <h2 className="su-underlined" style={{
+            fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 27,
+            color: 'var(--liq-fg)', margin: '0 0 12px', lineHeight: 1.15,
+            letterSpacing: '-0.01em', textWrap: 'balance',
+          }}>{name} left after waiting <em>10 minutes</em>.</h2>
+
+          <p style={{ fontSize: 14, color: 'var(--liq-fg-muted)', margin: 0, lineHeight: 1.55, textWrap: 'pretty' }}>
+            You let {name} know you'd be more than 10 minutes behind. That's past our grace window, so
+            <strong style={{ color: 'var(--liq-fg)' }}> she was free to head home — no penalty for her.</strong> This date is now closed.
+          </p>
+        </div>
+
+        <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {rows.map((row, i) => (
+            <div key={i} style={{
+              display: 'flex', gap: 12, padding: 14, borderRadius: 14,
+              background: '#fff', border: '1px solid var(--liq-border-soft)',
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 12, flex: 'none',
+                background: row.tint, color: row.accent,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}><Icon name={row.i} size={18} stroke={2}/></div>
+              <div style={{ fontSize: 13.5, color: 'var(--liq-fg)', lineHeight: 1.45, alignSelf: 'center' }}>{row.t}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, minHeight: 14 }}/>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 }}>
+          <Button variant="sunset" size="lg" fullWidth>I'll show up on time</Button>
+          <button style={{ padding: '10px 0', fontSize: 13, fontWeight: 600, color: 'var(--liq-fg-subtle)' }}>Something happened — tell us</button>
+        </div>
+      </div>
+
+      <HomeIndicator/>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page — single phone frame + the two-sided fairness model + notes.
+// ─────────────────────────────────────────────────────────────
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          08 · Rate &amp; Show-up Rate · Late cancellation
+        </span>
+        <h1>When the delay <em>crossed</em> the line.</h1>
+        <p>
+          The late partner's side of a date that never happened. Leonie waited the full
+          10-minute grace window and chose to leave — with no penalty. This screen tells the
+          person who ran late that the date is closed and, because the delay was theirs, their
+          Show-up Rate takes the hit. Honest about the cost, warm about the recovery.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame">
+          <div className="frame-label">
+            <span className="pip cost"></span>
+            The late partner · this screen
+          </div>
+          <div className="frame-shell">
+            <ScreenLateCancelled/>
+          </div>
+          <div className="caption">
+            Mirrors the No-show recovery anatomy, but the lilac
+            <strong> "this one's on us"</strong> tone becomes a warm blush
+            <strong> "this one has a cost"</strong> — penalty shown as a concrete
+            94% → 90% drop, not a vague warning.
+          </div>
+        </div>
+      </div>
+
+      <div className="sides">
+        <div className="side">
+          <p className="who">Leonie · waited &amp; left</p>
+          <p className="what">Rate your date — did Leonie show up? <em style={{ color: 'var(--liq-orange-500)' }}>No.</em></p>
+          <p className="desc">
+            She held the venue for the full 10 minutes, then headed out. The standard
+            rating flow closes her side. Because the delay was not hers, nothing touches
+            her score.
+          </p>
+          <span className="verdict ok">No penalty</span>
+        </div>
+        <div className="side">
+          <p className="who">You · ran 10+ min late</p>
+          <p className="what">This intermediate screen.</p>
+          <p className="desc">
+            You don't reach a rating screen — there was no date to rate. Instead you land
+            here: the date is closed, the cause was your delay, and your Show-up Rate
+            drops. One tap back to the value: show up on time.
+          </p>
+          <span className="verdict cost">Show-up Rate −4 pts</span>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>Why this screen, and why a penalty</h3>
+        <ul>
+          <li>
+            <strong>The 10-minute line is symmetrical.</strong> Past the grace window the
+            person who waited may leave with no penalty — so the cost has to land somewhere,
+            or the promise is empty. It lands on the side that broke it.
+          </li>
+          <li>
+            <strong>Intermediate, not a rating screen.</strong> A date that never happened
+            can't be rated. The late partner needs a different terminal beat — closure plus a
+            clear, fair explanation of the consequence.
+          </li>
+          <li>
+            <strong>Concrete consequence, not a threat.</strong> We show the actual hit
+            (94% → 90%) rather than "your score may be affected." Specific numbers respect the
+            user and make the cost legible.
+          </li>
+          <li>
+            <strong>Names the fairness out loud.</strong> Row two states plainly that Leonie
+            keeps her full score and why — the user sees the system as even-handed, not
+            arbitrary.
+          </li>
+          <li>
+            <strong>Ends on the value, not the punishment.</strong> "Ten minutes is the
+            promise we all keep" + "show up on time and your rate climbs right back." The CTA
+            is a commitment ("I'll show up on time"), and an escape hatch ("Something happened —
+            tell us") stays for genuine emergencies.
+          </li>
+          <li>
+            <strong>Brand-true visuals.</strong> Editorial Lora headline with the orange
+            italic-underline flourish, the clock glyph, sunset CTA, warm violet ink. Only the
+            hero gradient changes — blush instead of lilac — to mark this as the version with a
+            cost.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+//  PrimaryButton.swift
+//  ShowUp · the one primary button
+//
+//  There were three of these. This one (as `PillButton`) lived in WelcomeShell.swift and carried
+//  the whole design; `SunsetButton` in WelcomeView.swift was a copy of its sunset variant written
+//  six days earlier, before this one existed, and it had drifted; `NextButton` in TutorialShell is
+//  not a duplicate at all and stays there -- it is a label beside a circular arrow badge, a
+//  different silhouette with its own spec and twelve checks in verify-spec.py.
+//
+//  A primitive living in a screen file is how the second copy happens: whoever wrote the tutorial's
+//  CTA had no reason to look inside the sign-up flow's shell.
+
+import SwiftUI
+
+// MARK: - ④ Buttons — always pills (9999), never rounded rectangles
+
+/// Button treatments. Six, and every one is required.
+///
+/// `.apple`, `.google` and `.facebook` are not style choices — each provider dictates the appearance
+/// of its own sign-in button and enforces it. Google forbids recolouring or resizing the G and
+/// requires a white background, making compliance a condition of app verification; Meta requires its
+/// mark in white or #1877F2 and prohibits recolouring to a host brand's palette. The uniform ghost
+/// treatment the design specified breaks both.
+///
+/// The pill silhouette, the 56 height and the Manrope label stay — those are ours.
+/// `.plain` is not a provider treatment and never carries one: it is the conflict modal's
+/// secondary, which has no border precisely so the pair does not read as two equal choices.
+/// Seven, and every one is required.
+///
+/// `apple`, `google` and `facebook` are not style choices — each provider dictates the appearance
+/// of its own sign-in button and enforces it. `plain` is the conflict modal's secondary.
+///
+/// `violet` is the recovery action on a permission card (SHOWUP-156). FLAT violet rather than the
+/// sunset gradient, and that difference is the point: sunset is reserved for commitment beats, and
+/// "Allow photo access" is the user getting back to where they already were. Added as a variant
+/// rather than a second button, which is the rule this file exists to enforce.
+enum PrimaryButtonVariant { case sunset, violet, ghost, plain, apple, google, facebook }
+
+/// `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
+/// Manrope 700 16, gap 8.
+///
+/// Press is `scale(0.98)` over 180ms on `cubic-bezier(.22,1,.36,1)`. CLAUDE.md states it as a
+/// non-negotiable, and there are no hover states because the product is mobile-first.
+struct PrimaryButton<Leading: View, Trailing: View>: View {
+    // Argument order mirrors the stored properties, because Swift's memberwise init is positional
+    // and a call site that reorders them will not compile. See audit/check-swift-arg-order.py.
+    let label: String
+    var variant: PrimaryButtonVariant = .sunset
+    var enabled: Bool = true
+    /// 56 everywhere except the conflict modal, whose resolve CTA the reference draws at 54 and
+    /// whose secondary it draws at 50. All three clear every provider's published minimum
+    /// (Apple's is 44pt), so the smaller two are a layout choice rather than a compliance question.
+    var height: CGFloat = 56
+    /// 16 in the sign-up flow, 17 in the tutorial — two design worlds, one call site each way.
+    ///
+    /// A parameter rather than a variant because the tone is unchanged: the tutorial's CTA is the
+    /// same sunset button set one step larger. `.plain` overrides it, being 15/600 by definition
+    /// rather than by choice. Worth collapsing to one value if the design side agrees.
+    var labelSize: CGFloat = 16
+    /// Give the label a fixed width so a COLUMN of these buttons lines its marks up.
+    ///
+    /// THE GROUP STAYS CENTRED. `Button` in `components/shared.jsx` is `justifyContent: 'center'`,
+    /// and that is kept: what changes is that the icon-plus-label group is the same WIDTH on every
+    /// button that shares a width, so centring puts all of their marks at the same x.
+    ///
+    /// Without it, three buttons reading `Continue with Apple`, `Continue with Google` and
+    /// `Continue with Facebook` centre three differently-sized groups and their marks sit a few
+    /// points apart — close enough to read as sloppy rather than as a choice. The spec sheets show
+    /// the same, so this is a deliberate deviation rather than a port bug; see E10.
+    ///
+    /// Nil everywhere else, which is every button in the app that is not one of a set.
+    var labelWidth: CGFloat?
+    /// How many lines the label may wrap to before it is cut. Two everywhere but one: the location
+    /// ask's `Not now — ask me when I search` (SHOWUP-165), the longest label on any button, needs a
+    /// third at the largest type on the narrowest phone. Declared before `action`, defaulted, so no
+    /// call site changes.
+    var labelLineLimit: Int = 2
+    var action: () -> Void
+    @ViewBuilder var leading: () -> Leading
+    /// Mirrors `leading`. Used once: the tutorial CTA's trailing arrow.
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        Button(action: { if enabled { action() } }) {
+            HStack(spacing: Spacing.md) {
+                leading()
+                Text(label)
+                    // A fixed width makes the group the same size on every button in the set, so
+                    // centring lands their marks on one line. The text sits at the start of that
+                    // width rather than centred inside it, or the labels would be ragged instead
+                    // of the marks.
+                    .frame(width: labelWidth, alignment: labelWidth == nil ? .center : .leading)
+                    // The plain secondary is 600/15 — one step down from the 700 every real
+                    // button carries, which is what stops the modal reading as two equal choices.
+                    .font(variant == .plain ? F.manrope(15, .semibold)
+                                            : F.manrope(labelSize, .bold))
+                    // Two, so a label too wide for a narrow phone wraps instead of being
+                    // cut. Still bounded: unlimited would let a translation grow the control
+                    // without end. Mirrors PrimaryButton.kt.
+                    .lineLimit(labelLineLimit)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(labelColor)
+                trailing()
+            }
+            .frame(maxWidth: .infinity)
+            // A MINIMUM, not a fixed height, since 10 September.
+            //
+            // On every device where the label fits on one line this is exactly `height` and
+            // nothing changes — 16 of the 17 in the fit matrix. On the 320pt Fold cover screen
+            // "Continue with phone number" does not fit: 272 of button, less 56 of padding and
+            // 28 of mark and gap, leaves 188 for a label that wants about 234. Android measured
+            // it ellipsised, so the primary sign-in control on that phone read "Continue with
+            // phone numb...". Letting the pill grow keeps the type size, the padding and the
+            // copy the design specifies.
+            .frame(minHeight: height)
+            .padding(.horizontal, 28)
+            .background(background)
+            .clipShape(Capsule())
+            .overlay(
+                variant == .ghost ? Capsule().strokeBorder(Color.liqBorder, lineWidth: 1)
+                : variant == .google ? Capsule().strokeBorder(Color(hex: 0x747775), lineWidth: 1)
+                : nil
+            )
+            // `--liq-shadow-violet`, BOTH layers, since 14 Oct 2026 -- Android's `pillShadows`.
+            // It was one `.shadow` at the first layer's values on sunset only; violet had none,
+            // though Android has always drawn it there. Behind the clipped capsule, so each layer
+            // is the shape's own shadow rather than a shadow of the one before it.
+            .background(glow)
+            // ONE layer before any fade. SwiftUI applies opacity to each layer on its own, so at
+            // 45% the glow's violet capsule showed through the dimmed pill and the button read
+            // darker than its disabled look -- the fit probe stopped finding it on every disabled
+            // screen. This also covers a fade applied from outside, as Check-In's dimmed CTA is.
+            // Android's `graphicsLayer { alpha }` already fades the button as one.
+            .compositingGroup()
+            .opacity(enabled ? 1 : 0.45)
+        }
+        .buttonStyle(PressScale())
+        .disabled(!enabled)
+        .accessibilityLabel(Text(label))
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var labelColor: Color {
+        switch variant {
+        case .sunset, .violet, .apple, .facebook: return .white
+        case .google: return Color(hex: 0x1F1F1F)     // Google's specified label colour
+        case .ghost: return .liqFg
+        case .plain: return .liqMuted
+        }
+    }
+
+    /// `0 8px 20px rgba(129,42,236,.28), 0 2px 6px rgba(129,42,236,.18)` under the sunset and
+    /// violet pills. CSS's blur is twice SwiftUI's shadow radius, so 20 is 10 and 6 is 3. The
+    /// shape under each shadow is the button's own fill, so its antialiased edge carries no fringe
+    /// of another colour; CSS's first layer is listed last, so it ends on top.
+    @ViewBuilder private var glow: some View {
+        if variant == .sunset || variant == .violet {
+            ZStack {
+                Capsule().fill(Color.liqPurple)
+                    .overlay(background.clipShape(Capsule()))
+                    .shadow(color: Color.liqPurple.opacity(0.18), radius: 3, y: 2)
+                Capsule().fill(Color.liqPurple)
+                    .overlay(background.clipShape(Capsule()))
+                    .shadow(color: Color.liqPurple.opacity(0.28), radius: 10, y: 8)
+            }
+        }
+    }
+
+    @ViewBuilder private var background: some View {
+        switch variant {
+        case .sunset:
+            // 135°, midpoint at 38% — not an even three-stop ramp. Defined once in DesignSystem
+            // since the media step became its second user.
+            Gradients.sunset()
+        // Flat violet, not a gradient.
+        case .violet:
+            Color.liqPurple
+        case .ghost, .plain:
+            Color.clear
+        // Black is one of the three appearances Apple's guidelines allow.
+        case .apple:
+            Color.black
+        // A white background is required, not preferred — the G may not sit on anything else.
+        case .google:
+            Color.white
+        // Facebook Blue. Recolouring to our palette is explicitly prohibited.
+        case .facebook:
+            Color(hex: 0x1877F2)
+        }
+    }
+}
+
+// The three convenience inits, one per slot combination actually used.
+//
+// Each fills the unused slots with EmptyView. Call sites that DO pass a slot name it explicitly
+// (`leading:` / `trailing:`) rather than using trailing-closure syntax: with two closure
+// properties, an unlabelled trailing closure is ambiguous between the last two inits below, and
+// the error Swift gives for that names neither.
+
+extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
+    init(_ label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
+         height: CGFloat = 56, labelSize: CGFloat = 16, labelLineLimit: Int = 2,
+         action: @escaping () -> Void) {
+        self.init(label: label, variant: variant, enabled: enabled, height: height,
+                  labelSize: labelSize, labelLineLimit: labelLineLimit, action: action,
+                  leading: { EmptyView() }, trailing: { EmptyView() })
+    }
+}
+
+extension PrimaryButton where Trailing == EmptyView {
+    init(label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
+         height: CGFloat = 56, labelSize: CGFloat = 16,
+         labelWidth: CGFloat? = nil, action: @escaping () -> Void,
+         @ViewBuilder leading: @escaping () -> Leading) {
+        self.init(label: label, variant: variant, enabled: enabled, height: height,
+                  labelSize: labelSize, labelWidth: labelWidth,
+                  action: action, leading: leading, trailing: { EmptyView() })
+    }
+}
+
+extension PrimaryButton where Leading == EmptyView {
+    init(label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
+         height: CGFloat = 56, labelSize: CGFloat = 16, action: @escaping () -> Void,
+         @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.init(label: label, variant: variant, enabled: enabled, height: height,
+                  labelSize: labelSize, action: action,
+                  leading: { EmptyView() }, trailing: trailing)
+    }
+}
+
+/// `transform 180ms cubic-bezier(.22,1,.36,1)`, scale 0.98. Honours reduce-motion.
+///
+/// Lives here rather than in WelcomeShell.swift because it is the press treatment this primitive
+/// defines, and four other files reach for it: the design system cannot be a screen's export.
+struct PressScale: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.fast),
+                       value: configuration.isPressed)
+    }
+}

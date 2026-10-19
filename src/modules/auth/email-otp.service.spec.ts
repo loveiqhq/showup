@@ -155,6 +155,63 @@ describe('EmailOtpService', () => {
     );
   });
 
+  /**
+   * THE THREE REFUSALS MUST BE TELLABLE APART, and this is the test that would have caught it.
+   *
+   * Every one of them answered the same sentence -- "Invalid or expired code" -- so the app could
+   * not tell a mistyped code from one that had simply aged out, and rendered both as "That code
+   * doesn't match. Check your inbox." A user holding a CORRECT but expired code was told to look
+   * in their inbox for the code they had just typed. Reported twice from a device.
+   *
+   * Asserted on `error`, which is the field the client matches on. The human `message` is
+   * deliberately unchanged and deliberately NOT asserted here: it is the same for two of the
+   * three, which is exactly why it cannot be the discriminator.
+   */
+  it('says WHICH refusal it is, so the client can say the right thing', async () => {
+    const reasonOf = async (fn: () => Promise<unknown>) => {
+      try {
+        await fn();
+        throw new Error('expected a refusal');
+      } catch (e) {
+        return (e as UnauthorizedException).getResponse() as { error?: string };
+      }
+    };
+
+    // A USER EACH. The repo is shared across `make()` inside one test, and the resend cooldown
+    // is per user -- so reusing one id would refuse the second request rather than the code, and
+    // the test would be measuring the cooldown it did not mean to exercise.
+    const svc = make();
+
+    // Wrong code.
+    await svc.request('u-mismatch', EMAIL);
+    expect(
+      (await reasonOf(() => svc.verify('u-mismatch', '000000'))).error,
+    ).toBe('otp_mismatch');
+
+    // Aged out.
+    const expired = await svc.request('u-expired', 'expired@example.com');
+    const expiredRow = repo.rows.find((r) => r.userId === 'u-expired');
+    expiredRow!.expiresAt = new Date(Date.now() - 1000);
+    expect(
+      (await reasonOf(() => svc.verify('u-expired', expired.devCode!))).error,
+    ).toBe('otp_expired');
+
+    // No challenge at all -- a restart, or a code already consumed. Indistinguishable from
+    // expired to the user, and treated as such: both need a new code.
+    expect((await reasonOf(() => svc.verify('u-none', '000000'))).error).toBe(
+      'otp_expired',
+    );
+
+    // The cap.
+    const capped = await svc.request('u-capped', 'capped@example.com');
+    for (let i = 0; i < 5; i += 1) {
+      await reasonOf(() => svc.verify('u-capped', '000000'));
+    }
+    expect(
+      (await reasonOf(() => svc.verify('u-capped', capped.devCode!))).error,
+    ).toBe('otp_too_many');
+  });
+
   it('enforces the resend cooldown', async () => {
     const svc = make();
     await svc.request(USER_ID, EMAIL);

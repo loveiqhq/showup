@@ -18,6 +18,12 @@
  */
 package com.showup.welcome
 
+import androidx.compose.runtime.getValue
+import com.showup.designsystem.Subtle
+
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.PrimaryButtonVariant
+
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Radius
@@ -39,7 +45,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -59,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Danger
+import com.showup.designsystem.DangerGlyph
 import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
@@ -66,8 +77,7 @@ import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Raised
-import com.showup.designsystem.Subtle
-import com.showup.tutorial.rememberMotion
+import com.showup.designsystem.rememberMotion
 
 /**
  * Provider button titles are taken from each provider's own permitted list rather than from the
@@ -110,11 +120,11 @@ fun methodSpec(m: AuthMethod): MethodSpec = when (m) {
  * ticket 02: the stack has a gradient primary in the phone case and none in the other three, and
  * the hint row is what carries the suggestion in all four.
  */
-fun providerVariant(m: AuthMethod, isPrimary: Boolean = false): PillVariant = when (m) {
-    AuthMethod.Apple -> PillVariant.Apple
-    AuthMethod.Google -> PillVariant.Google
-    AuthMethod.Facebook -> PillVariant.Facebook
-    AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PillVariant.Sunset else PillVariant.Ghost
+fun providerVariant(m: AuthMethod, isPrimary: Boolean = false): PrimaryButtonVariant = when (m) {
+    AuthMethod.Apple -> PrimaryButtonVariant.Apple
+    AuthMethod.Google -> PrimaryButtonVariant.Google
+    AuthMethod.Facebook -> PrimaryButtonVariant.Facebook
+    AuthMethod.Phone, AuthMethod.Unknown -> if (isPrimary) PrimaryButtonVariant.Sunset else PrimaryButtonVariant.Ghost
 }
 
 /** The Google G ignores this — it is drawn in its own four colours. */
@@ -174,10 +184,47 @@ fun AuthMethodList(
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             MethodButton(primary, onSelect, loading, errorFor == primary, loading != null, isPrimary = true)
+            // ONE WIDTH FOR THE SECONDARY ROWS, so their marks land on a single line.
+            //
+            // The buttons stay CENTRED, which is what the design system's `Button` specifies. What
+            // changes is that the icon-plus-label group is the same width on each of them, and a
+            // set of equal-width groups centres to the same x.
+            //
+            // The primary is excluded on purpose: it is the full-width sunset CTA and is not one
+            // of the set. Padding it to the same width would push its own mark off centre to line
+            // up with three buttons it does not belong to.
+            val secondaryLabelWidth = rememberSharedLabelWidth(rest.map { methodSpec(it).label })
             rest.forEach { m ->
-                MethodButton(m, onSelect, loading, errorFor == m, loading != null, isPrimary = false)
+                MethodButton(
+                    m, onSelect, loading, errorFor == m, loading != null, isPrimary = false,
+                    labelWidth = secondaryLabelWidth,
+                )
             }
             if (onSkip != null) SkipRow(onSkip, anyLoading = loading != null)
+        }
+    }
+}
+
+/**
+ * The width of the widest of a set of labels, measured in the style the button draws them in.
+ *
+ * MEASURED, NOT GUESSED. A hand-tuned number is right for one language, one font scale and one
+ * device, and this project has shipped exactly that mistake before -- the shared rule is that text
+ * is measured rather than assumed. `rememberTextMeasurer` lays the string out with the real font,
+ * which is the only thing that knows how wide `Continue with Facebook` is in Manrope Bold at
+ * whatever size the user has chosen.
+ *
+ * Keyed on the labels AND the font scale, so turning the system font up re-measures rather than
+ * clipping into a width computed at 1x.
+ */
+@Composable
+private fun rememberSharedLabelWidth(labels: List<String>): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    return remember(labels, density.density, density.fontScale) {
+        with(density) {
+            labels.maxOfOrNull { measurer.measure(it, style).size.width }?.toDp() ?: 0.dp
         }
     }
 }
@@ -190,6 +237,8 @@ private fun MethodButton(
     isErrored: Boolean,
     anyLoading: Boolean,
     isPrimary: Boolean,
+    /** Shared across the secondary rows so their marks line up. Null on the primary. */
+    labelWidth: Dp? = null,
 ) {
     val spec = methodSpec(method)
     val isLoading = loading == method
@@ -219,13 +268,14 @@ private fun MethodButton(
         isErrored && !PROVIDER_COMPLIANT_LABELS -> "Try ${spec.short} again"
         else -> spec.label
     }
-    PillButton(
+    PrimaryButton(
         label, { onSelect(method) },
         // Siblings dim to 0.45 while one is in flight; the tapped one stays at full opacity.
         modifier = Modifier.alpha(if (anyLoading && !isLoading) 0.45f else 1f),
         variant = variant,
         // Disabled is one of the states every provider permits, so it carries the in-flight signal.
         enabled = !anyLoading,
+        labelWidth = labelWidth,
         leading = {
             if (isLoading) Spinner(tint = providerTint(method, isPrimary))
             else Icon(spec.icon, 18.dp, tint = providerTint(method, isPrimary))
@@ -279,11 +329,21 @@ private fun SkipRow(onSkip: () -> Unit, anyLoading: Boolean) {
             color = if (anyLoading) Fg else Muted,
             fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
         )
-        Icon(BrandIcon.ArrowRight, 17.dp, tint = if (anyLoading) Fg else Muted, strokeWidth = 2.2.dp)
+        Icon(BrandIcon.ArrowRight, 17.dp, tint = if (anyLoading) Fg else Muted, strokeWidth = 2.2f)
     }
 }
 
-/** Danger banner — the failure states. Sits above the list; the buttons do not move. */
+/**
+ * Danger banner — the failure states. Sits above the list; the buttons do not move.
+ *
+ * DELIBERATELY NOT [InlineErrorCard], though the two share a palette.
+ *
+ * The inline card is a field's error: radius 12, 14/10 padding, an 18 glyph. This is a banner above
+ * a list: radius 14, 14/12 padding, a 20 glyph, full width with its own bottom margin. Three of its
+ * four geometry values differ, so unifying them would mean three parameters to express one shape --
+ * the "everything component" this design system keeps declining to build. The glyph is shared
+ * because the glyph genuinely is the same.
+ */
 @Composable
 fun ErrorBanner(message: String) {
     val shape = RoundedCornerShape(Radius.control)
@@ -297,8 +357,9 @@ fun ErrorBanner(message: String) {
             .padding(horizontal = 14.dp, vertical = Spacing.xl),
         horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
-        Box(Modifier.padding(top = 1.dp).size(IconSizes.sm).background(Danger, CircleShape), contentAlignment = Alignment.Center) {
-            Text("!", color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        // The glyph is shared; the BANNER is not. See the note on ErrorBanner above.
+        Box(Modifier.padding(top = 1.dp)) {
+            DangerGlyph(size = IconSizes.sm, glyphSize = 13.dp)
         }
         Text(
             message, color = DangerFg, fontFamily = Manrope,
@@ -327,7 +388,7 @@ fun CancelledNotice(provider: AuthMethod) {
         horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
         Box(Modifier.size(IconSizes.sm).background(Fg.copy(alpha = 0.10f), CircleShape), contentAlignment = Alignment.Center) {
-            Icon(BrandIcon.Close, 12.dp, tint = Fg, strokeWidth = 2.4.dp)
+            Icon(BrandIcon.Close, 12.dp, tint = Fg, strokeWidth = 2.4f)
         }
         Text(
             buildAnnotatedString {

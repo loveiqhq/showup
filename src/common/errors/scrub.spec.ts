@@ -37,6 +37,19 @@ describe('scrubSentryEvent', () => {
     expect(event.request.data.deviceId).toBe('d1');
   });
 
+  it('a failed profile save does not ship the special-category answer it carried', () => {
+    const event: any = scrubSentryEvent({
+      request: {
+        url: '/me/profile',
+        data: { religion: 'catholic', heightCm: 171, flowPosition: 'religion' },
+      },
+    });
+
+    expect(event.request.data.religion).toBe(REDACTED);
+    expect(event.request.data.heightCm).toBe(171);
+    expect(event.request.data.flowPosition).toBe('religion');
+  });
+
   it('keeps the user id but never the email or IP address', () => {
     const event: any = scrubSentryEvent({
       user: { id: 'user-1', email: 'leo@example.com', ip_address: '1.2.3.4' },

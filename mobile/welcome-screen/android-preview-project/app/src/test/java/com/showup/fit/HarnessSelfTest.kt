@@ -13,6 +13,8 @@ package com.showup.fit
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -25,6 +27,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.junit.Assert.assertTrue
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.runComposeUiTest
+import com.showup.profile.WAVEFORM_TAG
+import com.showup.profile.Waveform
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -58,6 +74,10 @@ class HarnessSelfTest {
             Box(Modifier.height(18.dp).width(200.dp)) { Text(LONG_TEXT, fontSize = 14.sp) }
         }
         assertTrue("clipped text was not detected: $v", v.any { it.problem == "TEXT CLIPPED" })
+        // Never advisory. Scrolling excuses where a thing sits, never whether it can be read, so
+        // the scroll-aware branch must not have softened this one.
+        assertTrue("clipping must fail a screen, not merely be noted: $v",
+            v.filter { it.problem == "TEXT CLIPPED" }.none { it.advisory })
     }
 
     @Test
@@ -70,6 +90,43 @@ class HarnessSelfTest {
         assertTrue("an element past the bottom was not caught: $v",
             v.any { it.problem == "OFF THE BOTTOM" })
     }
+
+    @Test
+    fun `content below the fold of a scroll view is an advisory, not a failure`() {
+        // The instrument for the scroll-aware branch added on 10 September. Without this, "zero
+        // findings" on a scrolling screen is indistinguishable from a detector that never fires --
+        // and the whole sweep would go quiet the moment a screen started scrolling.
+        val v = measureFit(PHONE, "scrolled") {
+            Column(
+                Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text("top")
+                Text("far below", Modifier.padding(top = 2000.dp))
+            }
+        }
+        val below = v.filter { it.problem == "BELOW THE FOLD" }
+        assertTrue("content below a scroll fold was not reported at all: $v", below.isNotEmpty())
+        assertTrue("below-the-fold content must not FAIL a screen: $below", below.all { it.advisory })
+        assertTrue("it must not also be reported as lost off the bottom: $v",
+            v.none { it.problem == "OFF THE BOTTOM" })
+    }
+
+    // NO SELF-TEST FOR "text clipped inside a scroll view is still a failure", and the absence
+    // is deliberate rather than an oversight.
+    //
+    // The property holds structurally: the `scrollable` flag added on 10 September gates ONLY the
+    // off-the-bottom branch, and the clipping detector above it is untouched. What could not be
+    // built is a synthetic case to prove it, because Compose will not produce the condition. A
+    // scroll container measures its content with an infinite maximum height, and every attempt to
+    // squeeze a text node underneath one -- requiredHeight on the text, a fixed-height Box around
+    // it, a fixed-height Column around it -- leaves the paragraph laid out in full and merely
+    // overhanging its box, which is not clipping and is correctly not reported.
+    //
+    // Three constructions were tried and all three returned no findings at all. Writing a fourth
+    // until something passed would have produced a test asserting whatever it happened to catch.
+    // The clipping detector's own instrument is `text squeezed into too little height is caught
+    // as clipped` above, which also asserts the finding is not advisory.
+
 
     @Test
     fun `an element forced past the right edge is caught`() {
@@ -121,11 +178,126 @@ class HarnessSelfTest {
     }
 
     @Test
+    fun `content pushed above the top OUTSIDE a scroll is a failure`() {
+        val v = measureFit(PHONE, "off the top") {
+            Box(Modifier.fillMaxSize()) {
+                Text("lost", Modifier.offset(y = (-40).dp))
+            }
+        }
+        val hit = v.firstOrNull { it.problem == "OFF THE TOP" }
+        assertTrue("text 40dp above the top was not caught: $v", hit != null)
+        assertTrue("outside a scroll it must be a failure", !hit!!.advisory)
+    }
+
+    @Test
+    fun `content scrolled above the top INSIDE a scroll is an advisory, not a failure`() {
+        // A list opened scrolled to its saved row: the first rows are above the viewport and one
+        // drag away. Reported, never failed -- the mirror of BELOW THE FOLD.
+        val v = measureFit(PHONE, "scrolled list") {
+            val state = rememberScrollState(initial = 200)
+            Column(Modifier.height(300.dp).verticalScroll(state)) {
+                repeat(20) { Text("row $it", Modifier.height(48.dp)) }
+            }
+        }
+        assertTrue("scrolled-away rows must not fail: $v", v.none { it.problem == "OFF THE TOP" })
+        assertTrue("...but they are noted: $v", v.any { it.problem == "ABOVE THE FOLD" && it.advisory })
+    }
+
+    @Test
     fun `a healthy 56dp tap target is not reported at all`() {
         val v = measureFit(PHONE, "good target") {
             Column { Text("tap me", Modifier.height(56.dp).clickable { }) }
         }
         assertTrue("a compliant 56dp button was wrongly reported: $v",
             v.none { it.problem.contains("TAP TARGET") || it.problem.contains("56dp spec") })
+    }
+
+    // ── a drawing given no room to draw in ──────────────────────────────────────────────────
+    //
+    // The three below exist because the voice waveform shipped invisible for an afternoon and every
+    // check in this file said the screen was clean. They reproduce the exact shape of that bug.
+
+    @Test
+    fun `a canvas given a height RANGE collapses, and is caught`() {
+        // The bug, in four lines. `Canvas` is `Spacer(modifier.drawBehind {})`, and Spacer takes the
+        // incoming maximum only on an axis whose constraint is FIXED -- zero on an axis given a
+        // range. `heightIn(min, max)` is a range, so this canvas is 0dp tall and paints nothing.
+        val v = measureFit(PHONE, "collapsed canvas") {
+            Column {
+                Canvas(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp, max = 120.dp)
+                        .testTag(WAVEFORM_TAG),
+                ) { drawRect(Color.Red) }
+            }
+        }
+        val hit = v.firstOrNull { it.problem == "CANVAS COLLAPSED" }
+        assertTrue("a zero-height canvas must be caught: $v", hit != null)
+        assertTrue("and must not be an advisory", !hit!!.advisory)
+    }
+
+    @Test
+    fun `the same canvas with a FIXED height is not reported`() {
+        val v = measureFit(PHONE, "healthy canvas") {
+            Column {
+                Canvas(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp, max = 120.dp)
+                        .fillMaxHeight()
+                        .testTag(WAVEFORM_TAG),
+                ) { drawRect(Color.Red) }
+            }
+        }
+        assertTrue("the fix must read as clean: $v", v.none { it.problem.startsWith("CANVAS") })
+    }
+
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    @Test
+    fun `every tag the harness measures is one a real component actually carries`() {
+        // Keeps MEASURED_CANVASES honest. The set is spelled as strings so the harness does not
+        // depend on the screen package; the cost of that is a tag rename silently matching nothing,
+        // and this is what pays it. Every entry must be reachable by rendering a real component.
+        val rendered = mutableSetOf<String>()
+        measureFit(PHONE, "tag reachability") {
+            Waveform(
+                bars = List(24) { 0.5f },
+                progress = 0.5f,
+                playedColor = Color.Red,
+                restColor = Color.Blue,
+                barGap = 2.dp,
+                minBarHeight = 3.dp,
+                corner = 2.dp,
+                modifier = Modifier.fillMaxWidth().height(36.dp),
+            )
+        }
+        // measureFit reports only problems, so ask the tree directly.
+        runComposeUiTest {
+            setContent {
+                Box(Modifier.testTag("root")) {
+                    Waveform(
+                        bars = List(24) { 0.5f },
+                        progress = 0.5f,
+                        playedColor = Color.Red,
+                        restColor = Color.Blue,
+                        barGap = 2.dp,
+                        minBarHeight = 3.dp,
+                        corner = 2.dp,
+                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                    )
+                }
+            }
+            fun walk(n: SemanticsNode) {
+                n.config.getOrNull(SemanticsProperties.TestTag)?.let { rendered += it }
+                n.children.forEach { walk(it) }
+            }
+            walk(onNodeWithTag("root").fetchSemanticsNode())
+        }
+        val missing = MEASURED_CANVASES - rendered
+        assertTrue(
+            "these tags are measured by the harness but no component carries them: $missing",
+            missing.isEmpty(),
+        )
     }
 }

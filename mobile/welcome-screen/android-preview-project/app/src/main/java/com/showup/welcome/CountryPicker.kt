@@ -9,12 +9,16 @@
  */
 package com.showup.welcome
 
-import com.showup.designsystem.Spacing
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+
+import com.showup.designsystem.PrimaryButton
+import com.showup.designsystem.PrimaryButtonVariant
+
+import com.showup.designsystem.Spacing
+
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.ImageBitmap
@@ -175,7 +179,7 @@ fun CountrySheet(
                             color = if (selected) Purple else Muted, fontFamily = Manrope,
                             fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
                         )
-                        if (selected) Icon(BrandIcon.Check, 16.dp, tint = Purple, strokeWidth = 2.4.dp)
+                        if (selected) Icon(BrandIcon.Check, 16.dp, tint = Purple, strokeWidth = 2.4f)
                         else Spacer(Modifier.width(Spacing.xxl))
                     }
                 }
@@ -187,7 +191,7 @@ fun CountrySheet(
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(horizontal = Spacing.screenGutter, vertical = Spacing.xl)
             ) {
-                PillButton("Close", onDismiss, variant = PillVariant.Ghost)
+                PrimaryButton("Close", onDismiss, variant = PrimaryButtonVariant.Ghost)
             }
         }
     }

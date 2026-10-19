@@ -1,0 +1,194 @@
+//  FlowScreenTests.swift
+//  ShowUp · the typed screen, and the values a scene writes down
+//
+//  WHAT THIS COVERS, AND WHAT IT HONESTLY DOES NOT
+//
+//  `@SceneStorage` needs a real scene. These tests run in a hosted window with no scene, so
+//  "the flow actually comes back where the user left it on iOS" is NOT asserted here and is a
+//  manual check on a device. Android's half of the same behaviour IS machine-tested, in
+//  `FlowRestorationTest`, using StateRestorationTester.
+//
+//  What is testable here is the half that would break silently: the values a scene writes down
+//  have to survive the round trip, and the ORDER of the cases has to reproduce every direction the
+//  Int scheme gave, because the screen transition reads its direction from a comparison.
+
+import XCTest
+@testable import ShowUpWelcome
+
+final class FlowScreenTests: XCTestCase {
+
+    // MARK: - the raw values a scene stores
+
+    /// Every case survives being written down and read back.
+    func testEveryScreenRoundTripsThroughItsRawValue() {
+        for screen in FlowScreen.allCases {
+            XCTAssertEqual(FlowScreen(rawValue: screen.rawValue), screen,
+                           "\(screen) did not survive the round trip")
+        }
+    }
+
+    /// A stored value that is not a screen must fall back rather than crash or pick a case.
+    func testAnUnknownStoredValueIsRejectedRatherThanGuessed() {
+        XCTAssertNil(FlowScreen(rawValue: ""))
+        XCTAssertNil(FlowScreen(rawValue: "-4"))          // the old Int scheme
+        XCTAssertNil(FlowScreen(rawValue: "tutorialwelcome"))  // case matters
+    }
+
+    /// Names, not ordinals.
+    ///
+    /// This is the reason the enum carries String raw values at all. If these were the implicit
+    /// Int ordinals, inserting a tutorial card would move every restored user one screen along --
+    /// silently, and only for people who had been killed mid-flow.
+    func testRawValuesAreNamesSoInsertingAScreenCannotShiftAnyone() {
+        XCTAssertEqual(FlowScreen.signUp.rawValue, "signUp")
+        XCTAssertEqual(FlowScreen.showUpEveryTime.rawValue, "showUpEveryTime")
+        XCTAssertEqual(FlowScreen.home.rawValue, "home")
+        for screen in FlowScreen.allCases {
+            XCTAssertNil(Int(screen.rawValue), "\(screen) stores something that looks like an index")
+        }
+    }
+
+    // MARK: - the ordering the transition depends on
+
+    /// Every direction the Int scheme produced, reproduced by declaration order.
+    ///
+    /// Taken from the scheme this replaced: -4 signUp, 1...6 the cards, 7 home. "Start over" was
+    /// 7 -> -4 and read as BACKWARD, which is the one a naive ordering gets wrong.
+    func testTheOrderReproducesEveryDirectionTheIntSchemeGave() {
+        let cases: [(FlowScreen, FlowScreen, Bool)] = [
+            (.signUp, .tutorialWelcome, true),
+            (.signUp, .home, true),
+            (.tutorialWelcome, .meetInRealLife, true),
+            (.meetInRealLife, .matchOnAvailability, true),
+            (.matchOnAvailability, .matchMeansMeet, true),
+            (.matchMeansMeet, .thirtyMinutes, true),
+            (.thirtyMinutes, .showUpEveryTime, true),
+            (.showUpEveryTime, .home, true),
+            (.matchOnAvailability, .meetInRealLife, false),
+            (.matchMeansMeet, .matchOnAvailability, false),
+            (.thirtyMinutes, .matchMeansMeet, false),
+            (.showUpEveryTime, .thirtyMinutes, false),
+            (.home, .signUp, false),
+        ]
+        for (from, to, wasForward) in cases {
+            XCTAssertEqual(to > from, wasForward,
+                           "\(from) -> \(to) should travel \(wasForward ? "forward" : "back")")
+        }
+    }
+
+    func testEveryScreenIsDistinctAndNamed() {
+        // 16: the eight originals, the four steps of "The basics", profileEmbrace (the bridge
+        // that follows them, a POSITION and not a step, which is why it is counted here and
+        // deliberately absent from BasicsStep), and the three steps of "The real you" —
+        // profilePhotos, profilePrompts and profileMedia.
+        //
+        // profileMedia was the sixteenth, added with SHOWUP-161. The capture views it opens are
+        // NOT cases here and must not become them: they have no entry point of their own, no way
+        // back except Cancel, and no meaning outside a take that is already running — so they are
+        // a state of this position rather than a place the router can send anyone.
+        //
+        // Mirrors FlowRestorationTest on Android.
+        // profileNotifications is the seventeenth, added with SHOWUP-162. Like the bridge and the
+        // media step it is not a resume point: it holds nothing on the account, so there is no
+        // fact that says whether it was seen.
+        //
+        // profileReachability is the eighteenth, added with SHOWUP-163. It is the first of the
+        // four that DOES hold something — a push consent — but it is still not a resume point
+        // while `NoConsentBackend` is the repository: there is no endpoint to read the consent
+        // back from, so nothing can say whether the screen was answered. When that endpoint
+        // exists, this is the one to revisit.
+        //
+        // SHOWUP-165 to SHOWUP-173 add nine: profileLocation (whose A, B and C are states, not
+        // cases), profileEmbraceDetails (the second bridge, never a resume point), and the seven
+        // "Share some details" steps.
+        // SHOWUP-174 to 176 add Interests, Life and Future, for thirty.
+        //
+        // The 48hrs Check-In (SHOWUP-178 to 183) adds ten, for forty: the gate, the intro, the six
+        // steps, and the two tab placeholders Search and Settings. The No hours today? confirm and
+        // How it works are states of Today, not positions.
+        XCTAssertEqual(FlowScreen.allCases.count, 40)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 40)
+    }
+
+    /// The Check-In walks forward in step order and every back reads backward; the gate sits
+    /// before the intro, so the intro's close reads as a close and a reopen reads forward.
+    func testTheCheckInWalksForwardAndItsCloseReadsBackward() {
+        let walk: [FlowScreen] = [
+            .profileLifeAhead, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
+            .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch,
+        ]
+        for (from, to) in zip(walk, walk.dropFirst()) {
+            XCTAssertTrue(to > from, "\(from) -> \(to) should travel forward")
+        }
+        XCTAssertTrue(FlowScreen.checkInGate < .checkInIntro, "the intro's close lands backward on the gate")
+        XCTAssertTrue(FlowScreen.checkInToday > .checkInGate, "a reopen from the gate reads forward")
+    }
+
+    func testWhichScreensAreTheCheckInAndWhichAreItsSteps() {
+        let checkIn = FlowScreen.allCases.filter(\.isCheckIn)
+        XCTAssertEqual(checkIn, [.checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
+                                 .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings])
+        XCTAssertEqual(FlowScreen.allCases.filter(\.isCheckInStep),
+                       [.checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation, .checkInVibe,
+                        .checkInFilters, .checkInUplift])
+        for step in CheckInStep.allCases {
+            XCTAssertEqual(step.flowScreen.checkInStep, step)
+        }
+        XCTAssertNil(FlowScreen.checkInGate.checkInStep)
+    }
+
+    /// "B is the Search tab whenever the user has no completed Check-In" -- and only between those
+    /// two screens: never out of the middle of a Check-In, never before the first read.
+    func testTheSearchTabFollowsTheServerBetweenTheGateAndSearchOnly() {
+        XCTAssertEqual(checkInTabTarget(screen: .checkInGate, active: true), .checkInSearch)
+        XCTAssertEqual(checkInTabTarget(screen: .checkInSearch, active: false), .checkInGate)
+        XCTAssertNil(checkInTabTarget(screen: .checkInGate, active: false))
+        XCTAssertNil(checkInTabTarget(screen: .checkInSearch, active: true))
+        XCTAssertNil(checkInTabTarget(screen: .checkInGate, active: nil))
+        XCTAssertNil(checkInTabTarget(screen: .checkInUplift, active: true))
+        XCTAssertNil(checkInTabTarget(screen: .checkInToday, active: false))
+    }
+
+    /// The new positions walk forward in flow order, and every back from a detail step reads as
+    /// backward — the transition takes its direction from this comparison.
+    func testTheDetailStepsWalkForwardAndBackInFlowOrder() {
+        let walk: [FlowScreen] = [
+            .profileReachability, .profileLocation, .profileEmbraceDetails, .profileHeight,
+            .profileGender, .profileOrientation, .profileDatingLanguage, .profileEducation,
+            .profileReligion, .profilePolitics, .home,
+        ]
+        for (from, to) in zip(walk, walk.dropFirst()) {
+            XCTAssertTrue(to > from, "\(from) -> \(to) should travel forward")
+            // A back from `to` lands on `from`; the shell reads its direction as `next > screen`.
+            XCTAssertFalse(from > to, "\(to) -> \(from) should travel back")
+        }
+    }
+
+    // MARK: - the routing vocabulary a scene stores
+
+    /// `Entry` and `SignUpOutcome` are persisted through adapters kept OUT of TutorialRouting.swift,
+    /// so that file stays a pure decision module with no storage concerns. These assert the
+    /// adapters, not the routing.
+    func testRoutingValuesRoundTripThroughTheirStorageKeys() {
+        for entry in [Entry.createAccount, .logIn] {
+            XCTAssertEqual(Entry(storageKey: entry.storageKey), entry)
+        }
+        for outcome in [SignUpOutcome.newAccount, .returningMember] {
+            XCTAssertEqual(SignUpOutcome(storageKey: outcome.storageKey), outcome)
+        }
+    }
+
+    func testUnknownRoutingKeysAreRejected() {
+        XCTAssertNil(Entry(storageKey: "createaccount"))
+        XCTAssertNil(SignUpOutcome(storageKey: ""))
+    }
+
+    /// The storage keys are deliberately independent of the case names, so renaming a case cannot
+    /// silently invalidate everyone's restored scene.
+    func testStorageKeysAreStableStrings() {
+        XCTAssertEqual(Entry.createAccount.storageKey, "createAccount")
+        XCTAssertEqual(Entry.logIn.storageKey, "logIn")
+        XCTAssertEqual(SignUpOutcome.newAccount.storageKey, "newAccount")
+        XCTAssertEqual(SignUpOutcome.returningMember.storageKey, "returningMember")
+    }
+}

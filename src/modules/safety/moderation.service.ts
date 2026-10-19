@@ -68,8 +68,12 @@ export class ModerationService {
     const profile = await this.profiles.findOne({ where: { id: profileId } });
     if (!profile) throw new NotFoundException('Profile not found');
     const from = profile.moderationStanding;
-    profile.moderationStanding = standing;
-    await this.profiles.save(profile);
+    // Only the standing column. A whole-entity save would write back every other column as this
+    // request read it, undoing anything the user saved in between (see ProfilesService.update).
+    await this.profiles.update(
+      { id: profileId },
+      { moderationStanding: standing },
+    );
     await this.record(
       ModerationSubjectType.Profile,
       profileId,

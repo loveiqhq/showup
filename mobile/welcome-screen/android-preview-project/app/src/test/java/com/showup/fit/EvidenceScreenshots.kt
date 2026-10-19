@@ -1,0 +1,873 @@
+/*
+ * EvidenceScreenshots.kt
+ * ShowUp · the images each ticket's last acceptance criterion asks for
+ *
+ * SHOWUP-155, SHOWUP-156 and SHOWUP-158 all end the same way: "Evidence of done: attach
+ * screenshots of all <n> states at 375 x 667, 390 x 844 and 430 x 932". Three, twenty-one and
+ * twenty-four images.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS IS A TEST AND NOT A PERSON WITH AN EMULATOR
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Forty-eight screenshots taken by hand is an afternoon, and it is an afternoon again the next
+ * time a colour changes. Worse, it is an afternoon of screenshots nobody can check: a person
+ * resizing an emulator three times and walking seven states is a person who will, at some point,
+ * capture the same state twice and not notice.
+ *
+ * The fit harness already renders every state at every size; this asks it for the pixels instead
+ * of the measurements. The states are the SAME LIST the fit sweeps use, deliberately -- if a state
+ * is added to one and not the other, the counts below stop matching the tickets and this fails.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHAT THESE IMAGES ARE, AND WHAT THEY ARE NOT
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * They are the composition, rendered into the device's SAFE AREA at that device's size, with the
+ * platform's own fonts. That is what the acceptance criteria are about: all content visible,
+ * nothing clipped, the CTA on screen.
+ *
+ * They are NOT a device screenshot. There is no status bar, no gesture bar, no keyboard and no
+ * wallpaper behind a translucent system bar, because none of those is ours. The tickets' own
+ * reference files draw a mocked status bar for the same reason and say not to build it.
+ *
+ * Written to `app/build/evidence/`, which is not committed -- an image is a build output, and
+ * forty-eight of them in git is a repository nobody can clone on a train.
+ */
+package com.showup.fit
+
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.os.Looper
+import android.provider.Settings
+import android.view.View
+import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import org.robolectric.Robolectric
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
+import java.util.concurrent.TimeUnit
+import com.showup.profile.CameraAccess
+import com.showup.profile.FUTURE_B
+import com.showup.profile.INTERESTS_B
+import com.showup.profile.INTERESTS_C
+import com.showup.profile.INTERESTS_D
+import com.showup.profile.LIFE_B
+import com.showup.profile.PickUiState
+import com.showup.profile.ProfileInterestsScreen
+import com.showup.profile.ProfileLifeAheadScreen
+import com.showup.profile.ProfileLifeNowScreen
+import com.showup.profile.LocationState
+import com.showup.profile.ProfileLocationScreen
+import com.showup.profile.LibraryAccess
+import com.showup.profile.PhotoGridState
+import com.showup.profile.PickedPhoto
+import com.showup.profile.ProfileEmbraceScreen
+import com.showup.profile.MediaAccess
+import com.showup.profile.MediaArtefact
+import com.showup.profile.MediaPermission
+import com.showup.profile.MediaCaptureScreen
+import com.showup.profile.MediaEntryPoint
+import com.showup.profile.MediaKind
+import com.showup.profile.MediaPlayback
+import com.showup.profile.PlaybackSource
+import com.showup.profile.MediaSheet
+import com.showup.profile.MediaState
+import com.showup.profile.MediaTake
+import com.showup.profile.MediaUploadStatus
+import com.showup.profile.ProfileMediaScreen
+import com.showup.profile.DeactivationPrompt
+import com.showup.profile.InterestChannel
+import com.showup.profile.ProfileNotificationsScreen
+import androidx.compose.foundation.ScrollState
+import com.showup.profile.ProfileReachabilityScreen
+import com.showup.profile.ReachabilityState
+import com.showup.profile.ProfilePhotosScreen
+import com.showup.profile.RecordingPhase
+import com.showup.profile.ProfilePromptsScreen
+import com.showup.profile.PROMPT_SAMPLE_AT_CAP
+import com.showup.profile.PROMPT_SAMPLE_MID
+import com.showup.profile.PromptSheet
+import com.showup.profile.PromptsState
+import com.showup.profile.SavedPrompt
+import com.showup.profile.UploadStatus
+import com.showup.checkin.CheckInAvailabilityScreen
+import com.showup.checkin.CheckInCopy
+import com.showup.checkin.CheckInFilters
+import com.showup.checkin.CheckInFiltersScreen
+import com.showup.checkin.CheckInGateScreen
+import com.showup.checkin.CheckInIntroScreen
+import com.showup.checkin.CheckInMotivationScreen
+import com.showup.checkin.CheckInStep
+import com.showup.checkin.CheckInUpliftScreen
+import com.showup.checkin.CheckInVibeScreen
+import com.showup.checkin.SlotTier
+import com.showup.checkin.checkInDays
+import com.showup.checkin.gridOf
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import java.io.File
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [34], qualifiers = "w600dp-h1200dp-xhdpi")
+class EvidenceScreenshots {
+
+    /**
+     * The three frames every ticket names, by name rather than by number.
+     *
+     * Pulled from [DEVICES] so the safe-area insets are the same ones the fit sweeps measure
+     * against -- a screenshot taken at a different usable height than the one that was measured is
+     * evidence for a screen nobody tested.
+     */
+    private val frames = DEVICES.filter { it.inAcceptanceCriteria }
+
+    private val out = File("build/evidence").apply { mkdirs() }
+
+    /**
+     * Every file this RUN wrote, so the counts below measure the run rather than the directory.
+     *
+     * They used to count what was on disk, and the directory is never cleared -- so a state renamed
+     * between runs left its old file behind and the count failed with a number nobody could place.
+     * That happened the first time the two playing states were added, and the failure said the
+     * ticket wanted 30 images and found 36 when the run had produced exactly 30.
+     */
+    private val written = mutableListOf<String>()
+
+    /**
+     * How much virtual time each render is given.
+     *
+     * Two frames at 60Hz is 33ms; 200 is generous enough that a slow composition is never cut
+     * short and small enough that thirty renders cost no real time at all. See [settle].
+     */
+    private val SETTLE_MS = 200L
+
+    /**
+     * Renders one state at each frame and writes the pixels.
+     *
+     * WHY THE VIEW IS DRAWN INTO A BITMAP RATHER THAN `captureToImage()`.
+     *
+     * The obvious call is the test API's own: `onNodeWithTag(...).captureToImage()`. Under
+     * Robolectric it times out -- "Condition still not satisfied after 2000 ms" -- because that
+     * path asks the WINDOW to redraw and wait for the frame, and Robolectric has no surface to
+     * produce one from. It is built for an instrumented device.
+     *
+     * A `ComposeView` measured, laid out and drawn into a `Bitmap` needs no window at all, which
+     * is the same thing every Robolectric screenshot library does underneath. `GraphicsMode.NATIVE`
+     * is what makes the result real pixels rather than a no-op canvas -- the same annotation the
+     * fit harness needs for font metrics, and for the same reason.
+     */
+    private fun shoot(
+        ticket: String,
+        state: String,
+        /**
+         * The system font size to render at, as a multiplier.
+         *
+         * 1.0 for the ticket frames, which are what the design was drawn at. The tight sweep below
+         * uses 2.0, because that and the narrowest phone together are where every layout bug in
+         * this flow has actually been found.
+         */
+        fontScale: Float = 1f,
+        /** Which frames to render. Defaults to the three the tickets name. */
+        devices: List<Device> = frames,
+        /**
+         * Drives this state to the end of its scroll before the shutter opens.
+         *
+         * A RAW `ComposeView`, not a test rule: there is no `performScrollTo` here and no gesture
+         * to send. So the screen's scroll position is hoisted, handed in by the caller, and then
+         * pushed past any plausible content height -- Compose clamps it to `maxValue`, which is
+         * exactly "scrolled to the bottom" and needs no arithmetic about how tall the content is.
+         *
+         * AFTER LAYOUT, necessarily: `maxValue` does not exist until the content is measured.
+         */
+        scrolled: ScrollState? = null,
+        content: @Composable () -> Unit,
+    ) {
+        // ANIMATIONS OFF, FOR THE WHOLE HARNESS.
+        //
+        // Two reasons, and the second cost four and a half hours of CI. A frame captured mid
+        // animation is not reproducible evidence -- a pulsing dot photographed at whatever phase
+        // the clock happened to be in changes between runs. And a composition carrying an
+        // animation that never ends never goes idle, so the render never returns.
+        //
+        // `rememberMotion` reads this setting, which is what a person turning animations off in
+        // Settings changes. Setting it here is that same instruction, not a test-only back door.
+        Settings.Global.putFloat(
+            RuntimeEnvironment.getApplication().contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            0f,
+        )
+        devices.forEach { device ->
+            val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+            val activity = controller.get()
+            val view = ComposeView(activity)
+            activity.setContentView(view)
+            var widthPx = 0
+            var heightPx = 0
+            view.setContent {
+                val cfg = android.content.res.Configuration(LocalConfiguration.current).apply {
+                    screenWidthDp = device.width
+                    screenHeightDp = device.height
+                    this.fontScale = fontScale
+                }
+                // Captured from the composition rather than assumed from the qualifiers, so the
+                // bitmap is the right size whatever density the test host reports.
+                widthPx = with(LocalDensity.current) { device.width.dp.roundToPx() }
+                heightPx = with(LocalDensity.current) { device.safeHeight.dp.roundToPx() }
+                // BOTH, not one. The Configuration is what a composable reading
+                // `LocalConfiguration.fontScale` sees; LocalDensity is what actually sizes an `sp`.
+                // Setting only the first scales nothing -- the same trap the fit harness documents.
+                CompositionLocalProvider(
+                    LocalConfiguration provides cfg,
+                    LocalDensity provides Density(LocalDensity.current.density, fontScale),
+                ) {
+                    Box(
+                        Modifier.requiredSize(device.width.dp, device.safeHeight.dp),
+                    ) { content() }
+                }
+            }
+            // Compose schedules its first composition on the main looper; nothing is laid out
+            // until it has run.
+            settle()
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
+            )
+            view.layout(0, 0, widthPx, heightPx)
+            settle()
+
+            if (scrolled != null) {
+                scrolled.dispatchRawDelta(100_000f)
+                settle()
+                view.layout(0, 0, widthPx, heightPx)
+                settle()
+            }
+
+            val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(bitmap))
+            val suffix = if (fontScale == 1f) "" else "_fontScale$fontScale"
+            val name = "${ticket}_${state}_${device.width}x${device.height}$suffix.png"
+            written += name
+            File(out, name).outputStream().use {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            bitmap.recycle()
+            // DESTROYED, every render. Left alive, each Activity kept its composition running on the
+            // shared main looper -- and one with an animation that never ends (the media step's REC
+            // chip) kept that looper busy for whatever ran next in the same JVM: HarnessSelfTest's
+            // `waitForIdle` spun for sixty seconds and failed whenever the test forks grouped it after
+            // this class (14 Oct 2026, when CheckInFitTest shifted the grouping). It also returns the
+            // memory each render held.
+            controller.pause().stop().destroy()
+        }
+    }
+
+    /**
+     * Runs the main looper for a BOUNDED slice of virtual time.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * WHY THIS IS NOT `idle()`, WHICH IS WHAT IT USED TO BE
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * `idle()` drains the queue until it is EMPTY. A screen carrying an infinite animation never
+     * empties it: `rememberInfiniteTransition` re-posts a frame callback every frame, forever, so
+     * draining to empty is draining to never.
+     *
+     * Nothing here hit that until the media step arrived. Its `REC` chip pulses while recording,
+     * so states G and I are the first screens in this harness with an animation that does not end
+     * -- and the CI run that introduced them spent FOUR AND A HALF HOURS in `testDebugUnitTest`,
+     * against about three minutes before. It passed, which is the worst way to fail.
+     *
+     * `idleFor` advances a VIRTUAL clock by a fixed amount and runs what falls due. Composition and
+     * layout are posted immediately and complete in the first frame or two, so the window below is
+     * generous for them and finite for everything else. It also makes the captured frame
+     * DETERMINISTIC: a pulsing dot photographed at whatever phase the wall clock happened to be in
+     * is not reproducible evidence, and evidence that changes between runs is not evidence.
+     *
+     * This is the harness's bug rather than the chip's. The app is allowed an animation that does
+     * not end; a screenshot is not allowed to wait for one.
+     */
+    private fun settle() {
+        shadowOf(Looper.getMainLooper()).idleFor(SETTLE_MS, TimeUnit.MILLISECONDS)
+    }
+
+    // `slot = it` IS NOT OPTIONAL, and leaving it off is why every one of these states rendered
+    // ONE photo instead of n. `PhotoGridState.at(index)` matches on `PickedPhoto.slot`, which
+    // defaults to 0 -- so a list built without it puts every photo in the first box, `at(1..5)`
+    // returns null, and the grid draws one filled tile and five empty ones. Nothing throws and
+    // nothing looks broken: an "empty" state and a "four photos" state are the same picture.
+//
+    // It was found by a drag test, not by looking: only slot 0 could be dragged, because
+    // `reorderable` is enabled per slot on `at(index) != null`.
+    private fun confirmed(n: Int) =
+        List(n) { PickedPhoto(it.toLong(), null, UploadStatus.Confirmed, slot = it) }
+
+    private val onePrompt = listOf(
+        SavedPrompt(
+            "first_date_usually",
+            "Talk about anything real. Not jobs, not pets, not the weather. The thing actually " +
+                "on your mind this week. Bring it. I'll listen.",
+        ),
+    )
+    private val threePrompts = onePrompt + listOf(
+        SavedPrompt(
+            "hill_to_die_on",
+            "Showing up. Cancelling last minute isn't a scheduling problem, it's an answer.",
+        ),
+        SavedPrompt(
+            "cross_town_for",
+            "A proper conversation. An old cinema. The 8pm walk after a long day.",
+        ),
+    )
+
+    /**
+     * The same screens at the largest system font on the narrowest phone.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * WHY A SECOND SWEEP EXISTS
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * Every layout defect in this flow has been found at 320 x 2.0 and at no other combination,
+     * and several of them were invisible to `ScreenFitTest` at the same size. A canvas that
+     * resolved to zero height drew nothing and clipped nothing. A hint pushed past the end of its
+     * own scrolling region sat inside the viewport, so nothing was off the bottom. A chip broke
+     * `RECORDED` into `RECORD` and `ED`, which is two legal lines of text.
+     *
+     * All three were found by looking at a picture. The harness has since learned to catch each of
+     * them -- see the canvas check and the scroll-overflow check in `FitHarness` -- but the
+     * pictures are what found them, and the Definition of Done ends with somebody looking at the
+     * screen for exactly this reason. These are the frames to look at.
+     */
+    /**
+     * Location's state A (SHOWUP-165), after Philipp's 8 October change to the benefit rows: each
+     * pip level with its bold title, the three paragraphs evenly spaced. The ticket frames, and the
+     * narrowest phone at the largest system font, where a layout change bites first.
+     */
+    @Test
+    fun `location's benefit rows, at the ticket frames and the tight case`() {
+        shoot("165", "location-ask") { ProfileLocationScreen(LocationState.Ask) }
+        shoot("TIGHT", "location-ask", fontScale = 2f, devices = listOf(DEVICES.first { it.width == 320 })) {
+            ProfileLocationScreen(LocationState.Ask)
+        }
+    }
+
+    @Test
+    fun `the tight states, at the narrowest phone and the largest system font`() {
+        val tight = listOf(DEVICES.first { it.width == 320 })
+
+        shoot("TIGHT", "media-empty", fontScale = 2f, devices = tight) { ProfileMediaScreen() }
+        shoot("TIGHT", "media-both", fontScale = 2f, devices = tight) {
+            ProfileMediaScreen(
+                MediaState(
+                    video = MediaArtefact(
+                        kind = MediaKind.Video, promptId = "relaxed_and_happy",
+                        durationMs = 9_400, localPath = null, remoteId = "v1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                    voice = MediaArtefact(
+                        kind = MediaKind.Voice, promptId = "relaxing_sound",
+                        durationMs = 14_100, localPath = null, remoteId = "a1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                ),
+            )
+        }
+        shoot("TIGHT", "media-prompt-sheet", fontScale = 2f, devices = tight) {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        shoot("TIGHT", "media-blocked", fontScale = 2f, devices = tight) {
+            ProfileMediaScreen(
+                MediaState(access = MediaAccess(microphone = MediaPermission.Blocked)),
+                platformLabel = { "Microphone" },
+            )
+        }
+        shoot("TIGHT", "voice-review", fontScale = 2f, devices = tight) {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+            )
+        }
+        shoot("TIGHT", "voice-recording", fontScale = 2f, devices = tight) {
+            MediaCaptureScreen(
+                MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 6_000),
+            )
+        }
+        shoot("TIGHT", "video-review", fontScale = 2f, devices = tight) {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Video, "relaxed_and_happy",
+                    phase = RecordingPhase.Review, elapsedMs = 9_000,
+                ),
+            )
+        }
+        // SHOWUP-162. THE COMBINATION THAT HID A REAL BUG for a whole review round: at 320 x 2.0
+        // the Premium pill was squeezed to 25dp of the 123 it needed, with the word ellipsised
+        // inside a stub of a capsule. Nothing overflowed, so the fit sweep called the screen clean
+        // on all seventeen devices at 2.0x -- and it was clean, by every measurement it takes.
+        // A picture is what shows it, which is this test's whole argument.
+        shoot("TIGHT", "notifications", fontScale = 2f, devices = tight) {
+            ProfileNotificationsScreen()
+        }
+
+        // Not a media screen. The photo sheet's blocked camera row is where the `Settings` pill
+        // and the sentence beside it compete for a 320dp line, and it is the other screen the
+        // unmerged-tree harness found a real clipping bug on.
+        shoot("TIGHT", "photos-camera-blocked", fontScale = 2f, devices = tight) {
+            ProfilePhotosScreen(
+                PhotoGridState(photos = confirmed(2)),
+                sheetOpen = true,
+                camera = CameraAccess.Blocked,
+            )
+        }
+    }
+
+    @Test
+    fun `every state of every ticket, at the three frames the tickets name`() {
+        // SHOWUP-163 -- four states, at FOUR frames since 28 September 2026. Philipp's update
+        // added 393 x 852 to this ticket's evidence ("screenshots of states A, B, C and D at
+        // 375 x 667, 390 x 844, 393 x 852 and 430 x 932"), because that is the frame the whole
+        // update was for: the screen has to fit on it without scrolling. Added for 163 ONLY --
+        // flipping `inAcceptanceCriteria` on the device would put an unrequested fourth image on
+        // every other ticket's evidence too. 375 x 667 is additionally shown scrolled to the top
+        // and bottom below.
+        val reach = frames + DEVICES.first { it.width == 393 && it.height == 852 }
+        shoot("SHOWUP-163", "A-default", devices = reach) { ProfileReachabilityScreen() }
+        shoot("SHOWUP-163", "B-interest", devices = reach) {
+            ProfileReachabilityScreen(
+                ReachabilityState(
+                    interest = setOf(InterestChannel.AiCall, InterestChannel.WhatsApp),
+                ),
+            )
+        }
+        shoot("SHOWUP-163", "C-confirm", devices = reach) {
+            ProfileReachabilityScreen(
+                ReachabilityState(prompt = DeactivationPrompt.UserTurnedItOff),
+            )
+        }
+        shoot("SHOWUP-163", "D-after-denial", devices = reach) {
+            ProfileReachabilityScreen(
+                ReachabilityState(prompt = DeactivationPrompt.AfterOsDenial),
+            )
+        }
+
+        // THE ONE FRAME THE ACCEPTANCE CRITERIA ASK FOR TWICE: "with 375 x 667 shown scrolled to
+        // the top and to the bottom". 375 x 667 is the tightest of the three and the only one
+        // where this screen scrolls at the default font, so it is the only place a scrolled
+        // photograph says anything at all.
+        //
+        // What the pair has to show together is the criterion: the fine print ends clear of a
+        // CTA that has not moved between the two images.
+        val tight = DEVICES.filter { it.width == 375 && it.height == 667 }
+        val atTop = ScrollState(0)
+        val atBottom = ScrollState(0)
+        shoot("SHOWUP-163", "A-scrolled-top", devices = tight) {
+            ProfileReachabilityScreen(scrollState = atTop)
+        }
+        shoot("SHOWUP-163", "A-scrolled-bottom", devices = tight, scrolled = atBottom) {
+            ProfileReachabilityScreen(scrollState = atBottom)
+        }
+
+        // SHOWUP-155 -- one state. The ticket asks for three images and says what to check on the
+        // smallest: that the spacer collapsed to about 65 and the headline still fits.
+        shoot("SHOWUP-155", "bridge") { ProfileEmbraceScreen(firstName = "Leo") }
+
+        // SHOWUP-156 -- seven states, A through G, in the ticket's own order and lettering.
+        shoot("SHOWUP-156", "A-empty") { ProfilePhotosScreen() }
+        shoot("SHOWUP-156", "B-partial") {
+            ProfilePhotosScreen(PhotoGridState(photos = confirmed(2)))
+        }
+        shoot("SHOWUP-156", "C-uploading-failed") {
+            ProfilePhotosScreen(
+                PhotoGridState(
+                    photos = listOf(
+                        PickedPhoto(0, null, UploadStatus.Confirmed, slot = 0),
+                        PickedPhoto(1, null, UploadStatus.InFlight, progress = 0.62f, slot = 1),
+                        PickedPhoto(2, null, UploadStatus.Failed, slot = 2),
+                    ),
+                ),
+            )
+        }
+        shoot("SHOWUP-156", "D-library-blocked") {
+            ProfilePhotosScreen(library = LibraryAccess.Blocked)
+        }
+        shoot("SHOWUP-156", "E-library-can-ask") {
+            ProfilePhotosScreen(library = LibraryAccess.CanAsk)
+        }
+        shoot("SHOWUP-156", "F-source-sheet") {
+            ProfilePhotosScreen(PhotoGridState(photos = confirmed(2)), sheetOpen = true)
+        }
+        shoot("SHOWUP-156", "G-camera-blocked") {
+            ProfilePhotosScreen(
+                PhotoGridState(photos = confirmed(2)),
+                sheetOpen = true,
+                camera = CameraAccess.Blocked,
+            )
+        }
+
+        // SHOWUP-158 -- eight states, A through H.
+        shoot("SHOWUP-158", "A-none-saved") { ProfilePromptsScreen() }
+        shoot("SHOWUP-158", "B-one-saved") {
+            ProfilePromptsScreen(PromptsState(prompts = onePrompt))
+        }
+        shoot("SHOWUP-158", "C-three-saved") {
+            ProfilePromptsScreen(PromptsState(prompts = threePrompts))
+        }
+        shoot("SHOWUP-158", "D-topic-sheet") {
+            ProfilePromptsScreen(PromptsState(prompts = onePrompt, sheet = PromptSheet.Topics))
+        }
+        shoot("SHOWUP-158", "E-write-empty") {
+            ProfilePromptsScreen(PromptsState(sheet = PromptSheet.Write("first_date_usually")))
+        }
+        shoot("SHOWUP-158", "F-write-mid") {
+            ProfilePromptsScreen(
+                PromptsState(
+                    sheet = PromptSheet.Write("first_date_usually"),
+                    drafts = mapOf("first_date_usually" to PROMPT_SAMPLE_MID),
+                ),
+            )
+        }
+        shoot("SHOWUP-158", "G-write-at-cap") {
+            ProfilePromptsScreen(
+                PromptsState(
+                    sheet = PromptSheet.Write("first_date_usually"),
+                    // EXACTLY 160. A sample one character short is state F wearing state G's
+                    // name, which is what the first run of this actually produced.
+                    drafts = mapOf("first_date_usually" to PROMPT_SAMPLE_AT_CAP),
+                ),
+            )
+        }
+        shoot("SHOWUP-158", "H-write-nudge") {
+            ProfilePromptsScreen(
+                PromptsState(sheet = PromptSheet.Write("first_date_usually"), nudge = true),
+            )
+        }
+
+        // ── SHOWUP-161 · the media step, all ten states ─────────────────────
+        //
+        // "Evidence of done: attach screenshots of all ten states at 375 x 667, 390 x 844 and
+        // 430 x 932 -- thirty images." A to F are the media screen and its sheet; G to J are the
+        // two capture sub-screens, which have no chrome at all.
+        //
+        // THE CAPTURE VIEWS RENDER WITHOUT A CAMERA, and that is what these images are for. The
+        // viewfinder is a live preview layer that this harness cannot produce, so G and H show the
+        // composition over the viewfinder's own dark ground -- which is exactly what the ticket
+        // asks these images to prove: "nothing clipped and the primary action fully visible". The
+        // scene behind them is the one thing on this screen that is never ours to draw.
+        val mediaVideo = MediaArtefact(
+            kind = MediaKind.Video, promptId = "relaxed_and_happy", durationMs = 9_400,
+            localPath = null, remoteId = "v1", status = MediaUploadStatus.Confirmed,
+        )
+        val mediaVoice = MediaArtefact(
+            kind = MediaKind.Voice, promptId = "relaxing_sound", durationMs = 14_100,
+            localPath = null, remoteId = "a1", status = MediaUploadStatus.Confirmed,
+        )
+
+        shoot("SHOWUP-161", "A-empty") { ProfileMediaScreen() }
+        shoot("SHOWUP-161", "B-video-only") {
+            ProfileMediaScreen(MediaState(video = mediaVideo))
+        }
+        shoot("SHOWUP-161", "C-voice-only") {
+            ProfileMediaScreen(MediaState(voice = mediaVoice))
+        }
+        shoot("SHOWUP-161", "D-both") {
+            ProfileMediaScreen(MediaState(video = mediaVideo, voice = mediaVoice))
+        }
+        shoot("SHOWUP-161", "E-prompts-video") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Video, MediaEntryPoint.SeeThePrompts, openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        shoot("SHOWUP-161", "F-prompts-voice") {
+            ProfileMediaScreen(
+                MediaState(
+                    sheet = MediaSheet(
+                        MediaKind.Voice, MediaEntryPoint.SeeThePrompts,
+                        selectedId = "relaxing_sound", openedAtMs = 0L,
+                    ),
+                ),
+            )
+        }
+        shoot("SHOWUP-161", "G-video-recording") {
+            MediaCaptureScreen(MediaTake(MediaKind.Video, "relaxed_and_happy", elapsedMs = 6_000))
+        }
+        shoot("SHOWUP-161", "H-video-review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Video, "relaxed_and_happy",
+                    phase = RecordingPhase.Review, elapsedMs = 9_000,
+                ),
+            )
+        }
+        shoot("SHOWUP-161", "I-voice-recording") {
+            MediaCaptureScreen(MediaTake(MediaKind.Voice, "relaxing_sound", elapsedMs = 4_000))
+        }
+        shoot("SHOWUP-161", "J-voice-review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+            )
+        }
+
+        // SHOWUP-162 -- one state, three frames. The ticket asks for exactly three images, each
+        // showing all five rows, the lead, the headline and the CTA with nothing clipped and no
+        // scroll.
+        shoot("SHOWUP-162", "notifications") { ProfileNotificationsScreen() }
+
+        // ── the two PLAYING states ───────────────────────────────────────────────────────────
+        //
+        // UNDER THEIR OWN PREFIX, so the count below stays exactly 30. That assertion is the
+        // ticket's attachment deliverable -- "all ten states at 375, 390 and 430, thirty images" --
+        // and padding it with states the ticket does not list would quietly change what is being
+        // handed over. It caught this on the first run, which is what it is for.
+        //
+        // Not in the ticket's ten, because the ticket does not draw them -- it specs a
+        // `0:08 / 0:14` readout on the filled voice card and a review screen that "plays back on
+        // demand", and draws neither mid-play. They are here because until the playback work they
+        // did not exist: the readout was a hardcoded `0:00` and the review waveform sat empty
+        // through every play.
+        //
+        // VOICE ONLY, and that is a real limit rather than an omission. A video mid-play needs a
+        // decoder drawing into a surface, and there is none in this harness -- the video card and
+        // the video review both fall back to their still frame, which is states B and H. Video
+        // playback is confirmable on a device and nowhere else.
+        shoot("PLAYING", "voice-card") {
+            ProfileMediaScreen(
+                MediaState(
+                    video = MediaArtefact(
+                        kind = MediaKind.Video, promptId = "relaxed_and_happy",
+                        durationMs = 9_400, localPath = null, remoteId = "v1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                    voice = MediaArtefact(
+                        kind = MediaKind.Voice, promptId = "relaxing_sound",
+                        durationMs = 14_100, localPath = null, remoteId = "a1",
+                        status = MediaUploadStatus.Confirmed,
+                    ),
+                    playback = MediaPlayback(
+                        kind = MediaKind.Voice, source = PlaybackSource.Card,
+                        positionMs = 8_000, durationMs = 14_100,
+                    ),
+                ),
+            )
+        }
+
+        shoot("PLAYING", "voice-review") {
+            MediaCaptureScreen(
+                MediaTake(
+                    MediaKind.Voice, "relaxing_sound",
+                    phase = RecordingPhase.Review, elapsedMs = 14_000,
+                ),
+                playback = MediaPlayback(
+                    kind = MediaKind.Voice, source = PlaybackSource.Review,
+                    positionMs = 9_000, durationMs = 14_000,
+                ),
+            )
+        }
+
+        // The counts the tickets ask for, asserted rather than trusted. A state added to the fit
+        // sweep and forgotten here shows up as a number that no longer matches its ticket.
+        val produced = written
+        assertEquals("SHOWUP-155 asks for 3 images", 3, produced.count { it.startsWith("SHOWUP-155") })
+        assertEquals("SHOWUP-156 asks for 21 images", 21, produced.count { it.startsWith("SHOWUP-156") })
+        assertEquals("SHOWUP-158 asks for 24 images", 24, produced.count { it.startsWith("SHOWUP-158") })
+        // Ten states at three sizes. The eleventh -- the permission row -- is deliberately absent:
+        // "Include one capture per permission mode ONCE THE ROW IS SPECCED", and it has no artboard.
+        assertEquals("SHOWUP-161 asks for 30 images", 30, produced.count { it.startsWith("SHOWUP-161") })
+        // One state at the three frames. SHOWUP-162's evidence line asks for exactly three.
+        assertEquals("SHOWUP-162 asks for 3 images", 3, produced.count { it.startsWith("SHOWUP-162") })
+
+        // And an image that is a blank rectangle is not evidence of anything. A real render of one
+        // of these screens is tens of kilobytes; an empty one compresses to a few hundred bytes.
+        out.listFiles().orEmpty().forEach {
+            assertTrue("${it.name} is too small to be a rendered screen", it.length() > 5_000)
+        }
+        println("EVIDENCE: ${produced.size} images in ${out.absolutePath}")
+    }
+
+    /**
+     * Interests, Life and Future (SHOWUP-174 to SHOWUP-176), each ticket's own "Evidence of done":
+     *
+     *   174 -- A, B and C at the three frames, plus 375 x 667 scrolled to the bottom with one group
+     *          expanded (frame D): ten images.
+     *   175 -- A and B at the three frames, plus 375 x 667 scrolled to the bottom: seven.
+     *   176 -- A and B at the three frames, plus 390 x 844 scrolled to the bottom (frame C): seven.
+     *
+     * Its own test, so its counts are its own: the sweep above counts every other ticket's images.
+     */
+    @Test
+    fun `interests, life and future, the evidence each ticket names`() {
+        val se = DEVICES.filter { it.width == 375 && it.height == 667 }
+        val mid = DEVICES.filter { it.width == 390 && it.height == 844 }
+
+        shoot("SHOWUP-174", "A-empty") { ProfileInterestsScreen() }
+        shoot("SHOWUP-174", "B-two-and-six") { ProfileInterestsScreen(INTERESTS_B) }
+        shoot("SHOWUP-174", "C-cap") { ProfileInterestsScreen(INTERESTS_C) }
+        val interestsBottom = ScrollState(0)
+        shoot("SHOWUP-174", "D-move-open-scrolled-bottom", devices = se, scrolled = interestsBottom) {
+            ProfileInterestsScreen(INTERESTS_D, scrollState = interestsBottom)
+        }
+
+        shoot("SHOWUP-175", "A-empty") { ProfileLifeNowScreen() }
+        shoot("SHOWUP-175", "B-all-answered") { ProfileLifeNowScreen(LIFE_B) }
+        val lifeBottom = ScrollState(0)
+        shoot("SHOWUP-175", "B-scrolled-bottom", devices = se, scrolled = lifeBottom) {
+            ProfileLifeNowScreen(LIFE_B, scrollState = lifeBottom)
+        }
+
+        shoot("SHOWUP-176", "A-empty") { ProfileLifeAheadScreen() }
+        shoot("SHOWUP-176", "B-all-answered") { ProfileLifeAheadScreen(FUTURE_B) }
+        val futureBottom = ScrollState(0)
+        shoot("SHOWUP-176", "C-scrolled-bottom", devices = mid, scrolled = futureBottom) {
+            ProfileLifeAheadScreen(FUTURE_B, scrollState = futureBottom)
+        }
+
+        // The narrowest phone at the largest system font, where every layout defect in this flow
+        // has been found: the frames to look at, not counted against the tickets.
+        val tightest = DEVICES.filter { it.width == 320 }
+        shoot("SHOWUP-174", "C-cap-tight", fontScale = 2f, devices = tightest) { ProfileInterestsScreen(INTERESTS_C) }
+        shoot("SHOWUP-175", "B-tight", fontScale = 2f, devices = tightest) { ProfileLifeNowScreen(LIFE_B) }
+        shoot("SHOWUP-176", "B-tight", fontScale = 2f, devices = tightest) { ProfileLifeAheadScreen(FUTURE_B) }
+
+        val atTicketSize = written.filter { !it.contains("fontScale") }
+        assertEquals("SHOWUP-174 asks for 10 images", 10, atTicketSize.count { it.startsWith("SHOWUP-174") })
+        assertEquals("SHOWUP-175 asks for 7 images", 7, atTicketSize.count { it.startsWith("SHOWUP-175") })
+        assertEquals("SHOWUP-176 asks for 7 images", 7, atTicketSize.count { it.startsWith("SHOWUP-176") })
+        written.forEach { name ->
+            assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000)
+        }
+        println("EVIDENCE 174-176: ${written.size} images in ${out.absolutePath}")
+    }
+
+    // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ──────────────────────────────────────────
+
+    /** The kit's clock: every sheet reads 4:20pm, so Today starts at 5pm. */
+    private val kitDays = checkInDays(java.time.LocalDateTime.of(2026, 10, 13, 16, 20))
+
+    /** The sheets' own sample text, frame by frame (06's B, C and D/E). */
+    private val upliftTyping = "I have 2 tickets for the Berghain garden tonight and nobody to go with"
+    private val upliftContact = "Text me on 0176 2345 6789 and we'll grab a drink tonight"
+    private val upliftWritten = "I'll take you on a rafting tour on Wannsee \u2014 picnic included"
+
+    @Test
+    fun `the check-in, every frame each ticket names`() {
+        val se = DEVICES.filter { it.width == 375 && it.height == 667 }
+
+        // 01: A and B.
+        shoot("SHOWUP-178", "A-intro") { CheckInIntroScreen() }
+        shoot("SHOWUP-178", "B-gate") { CheckInGateScreen() }
+
+        // 02: A Today picked, B Today empty + the confirm, C Tomorrow empty + toast, D Tomorrow picked.
+        val today = gridOf(CheckInStep.Today, kitDays)
+        val tomorrow = gridOf(CheckInStep.Tomorrow, kitDays)
+        shoot("SHOWUP-179", "A-today-picked") {
+            CheckInAvailabilityScreen(
+                today, mapOf(18 to SlotTier.Preferred, 19 to SlotTier.Preferred, 20 to SlotTier.Available), false,
+            )
+        }
+        shoot("SHOWUP-179", "B-today-confirm") { CheckInAvailabilityScreen(today, emptyMap(), false, dialogOpen = true) }
+        shoot("SHOWUP-179", "C-tomorrow-toast") {
+            CheckInAvailabilityScreen(tomorrow, emptyMap(), false, toast = CheckInCopy.TOMORROW_TOAST)
+        }
+        shoot("SHOWUP-179", "D-tomorrow-picked") {
+            CheckInAvailabilityScreen(
+                tomorrow, mapOf(12 to SlotTier.Preferred, 13 to SlotTier.Preferred, 19 to SlotTier.Available), false,
+            )
+        }
+
+        // 03: A nothing selected, B the toast, C one picked.
+        shoot("SHOWUP-180", "A-empty") { CheckInMotivationScreen(selected = null) }
+        shoot("SHOWUP-180", "B-toast") { CheckInMotivationScreen(selected = null, toast = CheckInCopy.MOTIVATION_TOAST) }
+        shoot("SHOWUP-180", "C-picked") { CheckInMotivationScreen(selected = "long_term") }
+
+        // 04: A empty, B the toast, C three picked, D five picked + the max toast, and D scrolled.
+        // The sheet's D: Deep conversation, Fun & playful and Free evening picked, Calm idle; the
+        // other two are activities scrolled out of view.
+        val five = setOf("coffee_chat", "sunset", "deep_talk", "playful", "no_rush")
+        shoot("SHOWUP-181", "A-empty") { CheckInVibeScreen(picked = emptySet()) }
+        shoot("SHOWUP-181", "B-toast") { CheckInVibeScreen(picked = emptySet(), toast = CheckInCopy.VIBE_TOAST_EMPTY) }
+        shoot("SHOWUP-181", "C-three") { CheckInVibeScreen(picked = setOf("coffee_chat", "playful", "no_rush")) }
+        shoot("SHOWUP-181", "D-five-max") { CheckInVibeScreen(picked = five, toast = CheckInCopy.VIBE_TOAST_MAX) }
+        val vibeBottom = ScrollState(0)
+        shoot("SHOWUP-181", "D-scrolled-end", devices = se, scrolled = vibeBottom) {
+            CheckInVibeScreen(picked = five, toast = CheckInCopy.VIBE_TOAST_MAX, groupsScroll = vibeBottom)
+        }
+
+        // 05: A pre-filled (both age thumbs at the ends), B no gender + toast, C narrowed.
+        shoot("SHOWUP-182", "A-prefilled") { CheckInFiltersScreen(CheckInFilters(genders = setOf("woman"))) }
+        shoot("SHOWUP-182", "B-no-gender") {
+            CheckInFiltersScreen(CheckInFilters(genders = emptySet()), toast = CheckInCopy.FILTERS_TOAST)
+        }
+        shoot("SHOWUP-182", "C-narrowed") {
+            CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), minAge = 25, maxAge = 35, distanceKm = 15))
+        }
+
+        // 06: A empty, B typing (the keyboard is the OS's -- a device recording shows it), C blocked
+        // + toast, D saving, E save failed.
+        shoot("SHOWUP-183", "A-empty") { CheckInUpliftScreen(text = "") }
+        shoot("SHOWUP-183", "B-typing") { CheckInUpliftScreen(text = upliftTyping) }
+        shoot("SHOWUP-183", "C-blocked") {
+            CheckInUpliftScreen(text = upliftContact, blocked = true, toast = CheckInCopy.CONTACT_ERROR)
+        }
+        shoot("SHOWUP-183", "D-saving") { CheckInUpliftScreen(text = upliftWritten, saving = true) }
+        shoot("SHOWUP-183", "E-failed") { CheckInUpliftScreen(text = upliftWritten, saveFailed = true) }
+
+        // The narrowest phone at the largest system font, where every layout defect has been found.
+        val tightest = DEVICES.filter { it.width == 320 }
+        shoot("CHECKIN", "intro-tight", fontScale = 2f, devices = tightest) { CheckInIntroScreen() }
+        shoot("CHECKIN", "gate-tight", fontScale = 2f, devices = tightest) { CheckInGateScreen() }
+        shoot("CHECKIN", "today-tight", fontScale = 2f, devices = tightest) {
+            CheckInAvailabilityScreen(today, mapOf(18 to SlotTier.Preferred), false)
+        }
+        shoot("CHECKIN", "confirm-tight", fontScale = 2f, devices = tightest) {
+            CheckInAvailabilityScreen(today, emptyMap(), false, dialogOpen = true)
+        }
+        shoot("CHECKIN", "motivation-tight", fontScale = 2f, devices = tightest) { CheckInMotivationScreen(selected = "long_term") }
+        shoot("CHECKIN", "vibe-tight", fontScale = 2f, devices = tightest) { CheckInVibeScreen(picked = five) }
+        shoot("CHECKIN", "filters-tight", fontScale = 2f, devices = tightest) {
+            CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), minAge = 25, maxAge = 35, distanceKm = 15))
+        }
+        shoot("CHECKIN", "uplift-tight", fontScale = 2f, devices = tightest) {
+            CheckInUpliftScreen(text = upliftContact, blocked = true)
+        }
+
+        val atTicketSize = written.filter { !it.contains("fontScale") }
+        assertEquals("SHOWUP-178 asks for 6 images", 6, atTicketSize.count { it.startsWith("SHOWUP-178") })
+        assertEquals("SHOWUP-179 asks for 12 images", 12, atTicketSize.count { it.startsWith("SHOWUP-179") })
+        assertEquals("SHOWUP-180 asks for 9 images", 9, atTicketSize.count { it.startsWith("SHOWUP-180") })
+        assertEquals("SHOWUP-181 asks for 12 images and D scrolled", 13, atTicketSize.count { it.startsWith("SHOWUP-181") })
+        assertEquals("SHOWUP-182 asks for 9 images", 9, atTicketSize.count { it.startsWith("SHOWUP-182") })
+        assertEquals("SHOWUP-183 asks for 15 images", 15, atTicketSize.count { it.startsWith("SHOWUP-183") })
+        written.forEach { name ->
+            assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000)
+        }
+        println("EVIDENCE 178-183: ${written.size} images in ${out.absolutePath}")
+    }
+}

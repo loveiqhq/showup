@@ -11,30 +11,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - ⑧ Reusable "sunset / lg" button
-
-struct SunsetButton: View {
-    let title: String
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: Spacing.lg) {
-                Text(title).font(F.manrope(17, .bold))
-                Image(systemName: "arrow.right").font(.system(size: 20, weight: .bold))
-            }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: ComponentSizes.controlHeight)                                   // size lg
-            .background(LinearGradient(colors: [.liqOrange, .liqPurple],
-                                       startPoint: .leading, endPoint: .trailing))
-            .clipShape(Capsule())                                // pill
-            .shadow(color: .liqPurple.opacity(0.45), radius: 18, y: 12)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - ② Background: cream base + peach top fade + two blurred orbs
 
 private struct WelcomeBackground: View {
@@ -208,11 +184,30 @@ struct WelcomeView: View {
 
                 // ⑧⑨ Button + caption — bottom-anchored (20 above floor)
                 VStack(spacing: Spacing.lg) {                              // button → caption 10
-                    SunsetButton(title: "Show me how") {
-                        analytics.track(TutorialAnalytics.ctaTapped,
-                                        properties: TutorialAnalytics.welcome)
-                        onContinue()
-                    }
+                    // The shared primitive, not the copy of it that used to live in this file.
+                    // That copy predated PrimaryButton by six days and had drifted: a two-stop
+                    // gradient instead of the spec's three with D05976 at 38%, a heavier violet
+                    // shadow than every other sunset button, no press feedback at all, and an SF
+                    // Symbol for the arrow where CLAUDE.md requires a drawn 2pt stroke.
+                    //
+                    // 17 is the tutorial's CTA size -- NextButton is 17 too -- against 16 in the
+                    // sign-up flow. The arrow is the tour's own, the same one the Next circle draws.
+                    PrimaryButton(
+                        label: "Show me how",
+                        labelSize: 17,
+                        action: {
+                            analytics.track(TutorialAnalytics.ctaTapped,
+                                            properties: TutorialAnalytics.welcome)
+                            onContinue()
+                        },
+                        trailing: {
+                            ArrowRight()
+                                .stroke(Color.white,
+                                        style: StrokeStyle(lineWidth: 2, lineCap: .round,
+                                                           lineJoin: .round))
+                                .frame(width: IconSizes.sm, height: IconSizes.sm)
+                        }
+                    )
                     Text("Takes less than a minute")
                         .font(F.manrope(12, .semibold)).foregroundColor(.liqSubtle)
                 }

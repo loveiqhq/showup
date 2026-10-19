@@ -15,7 +15,9 @@ import ShowUpAPI
 /// Second, it is where the environment and the token store are decided, once. A screen that built
 /// its own client would be a screen that could pick the wrong environment.
 ///
-/// No screen calls this yet. Wiring the sign-up flow to real endpoints is a separate change.
+/// Both scene-level models are built from it: `PhoneAuthModel`, which signs in and writes the
+/// tokens, and `BasicsModel`, which spends them. They share `tokens` on purpose — see the comment
+/// beside `phoneAuth` in `ShowUpWelcomeApp`.
 enum APIAccess {
 
     /// Where credentials live in the app: the Keychain, never in memory.
@@ -30,5 +32,13 @@ enum APIAccess {
     /// choice and the one line to change when there is a staging deployment; it is not a runtime
     /// condition, because a runtime condition can be wrong and then a release build talks to the
     /// wrong server.
-    static let client = ShowUpAPI(environment: .development, tokens: tokens)
+    ///
+    /// A refused session is announced to the scene through `SessionEndedSignal`. The refresh runs
+    /// off the main actor, so it only hops there and raises the flag; the scene root decides what
+    /// happens next.
+    static let client = ShowUpAPI(
+        environment: .development,
+        tokens: tokens,
+        onSessionEnded: { Task { @MainActor in SessionEndedSignal.shared.raise() } }
+    )
 }

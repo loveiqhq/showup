@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Profile · choose your interests</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none; background: none; padding: 0;
+    cursor: pointer; color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 28px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.a { background: #A78BFA; box-shadow: 0 0 0 3px rgba(167,139,250,0.22); }
+  .frame-label .pip.b { background: #812AEC; box-shadow: 0 0 0 3px rgba(129,42,236,0.18); }
+  .frame-label .pip.c { background: #FE6839; box-shadow: 0 0 0 3px rgba(254,104,57,0.20); }
+
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app { border-radius: 38px; overflow: hidden; }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 24px;
+    max-width: 760px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+<script type="text/babel" src="ui_kits/show-up/screens-profile-interests.jsx"></script>
+
+<script type="text/babel">
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          03 · Profile creation · Interests
+        </span>
+        <h1>Pick the <em style={{ fontWeight: 500 }}>10</em> things you're really into.</h1>
+        <p>
+          The penultimate step of the Share-some-details sub-flow. A multi-select
+          interest picker, three categories, capped at 10. Every chip carries
+          a stroke-line icon so the picker scans visually as well as by
+          label. The live counter shifts color when the cap is reached so the
+          stop-signal is read instantly.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="01 Interests · empty state">
+          <div className="frame-label"><span className="pip a"></span>01 · Empty</div>
+          <div className="frame-shell">
+            <ScreenProfileInterests/>
+          </div>
+          <div className="caption">
+            <strong>The default landing.</strong> Counter reads
+            <em>0 picked · 10 left</em> in violet. Continue is disabled
+            until the user picks at least one — the affordance is faded
+            and non-interactive.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="02 Interests · partial selection">
+          <div className="frame-label"><span className="pip b"></span>02 · Mid-pick</div>
+          <div className="frame-shell">
+            <ScreenProfileInterests
+              initialPicked={['Cooking','TV-series','Reading','Hiking','Brunch','Wellness']}
+            />
+          </div>
+          <div className="caption">
+            <strong>Six picks across all three categories.</strong>
+            Counter ticks down — <em>6 picked · 4 left</em>. The
+            progress segment fills to 60%; Continue lights up.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="03 Interests · at the cap">
+          <div className="frame-label"><span className="pip c"></span>03 · Cap reached</div>
+          <div className="frame-shell">
+            <ScreenProfileInterests
+              initialPicked={[
+                'Gym','Cooking','TV-series','Reading','Gaming',
+                'Brunch','Sports','Hiking','Beach','Wellness',
+              ]}
+              initialExpanded={['evenings']}
+            />
+          </div>
+          <div className="caption">
+            <strong>10 of 10 picked.</strong> Counter and progress bar
+            switch to orange — the stop-signal color in this system.
+            Unselected chips are faded and non-tappable so the user
+            can only deselect to make room.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>How this fits the system</h3>
+        <ul>
+          <li>
+            <strong>Step 8 of the share-some-details sub-flow.</strong>
+            Reuses the same StepProgress (10 segments, current = 8),
+            same status bar, same "Share some details" header, same
+            italic-Lora headline rule and same NextButton CTA pattern as
+            the seven existing screens (height through politics).
+          </li>
+          <li>
+            <strong>Iconography rule respected.</strong> Eighteen new
+            glyphs were added <em>inline to this screen file</em>, not to
+            <code>shared.jsx</code> — they are specific to the interest
+            picker and shouldn't pollute the global icon set used by
+            search, check-in and date flows. All follow Lucide
+            geometry: 24×24 viewBox, stroke-only, currentColor,
+            stroke-width 1.7, round caps + joins. No emoji.
+          </li>
+          <li>
+            <strong>Chip = pill.</strong> Brand non-negotiable: every
+            interactive control is fully rounded. Selected chips fill
+            with primary violet and pick up a soft violet glow shadow;
+            unselected stay on white with a hairline warm-ink border.
+            The icon color tracks the text color so the chip reads as a
+            single object in either state.
+          </li>
+          <li>
+            <strong>Live counter and progress segment.</strong>
+            <em>N picked · M left</em> in <code>--liq-primary-500</code>
+            while there's room, switching to
+            <code>--liq-orange-500</code> at the cap. A 4px progress
+            bar fills the remaining width — a quiet visual confirmation
+            of the count, not a feature in its own right. At 10/10 the
+            bar is the same orange as the label so the whole row reads
+            as "stop."
+          </li>
+          <li>
+            <strong>Cap behavior is deselect-only.</strong> Once 10 are
+            picked, unselected chips are faded to 40% and made
+            non-interactive. Selected chips stay tappable so the user
+            can swap one for another without first having to drop into
+            a separate "manage" mode. No modal, no alert.
+          </li>
+          <li>
+            <strong>Show more / Show less.</strong> Each category starts
+            with 6 chips and expands in place to 10. Same chevron
+            affordance as the other Show-Up reveal patterns (rotates
+            180° on expand). No navigation, no sheet — the user stays
+            in the page.
+          </li>
+          <li>
+            <strong>Footer follows the sub-flow.</strong> "Skip for now"
+            on the left, sunset NextButton "Continue" on the right —
+            same layout as language / education / religion / politics.
+            A hairline divider above lifts the footer off the
+            scrolling chip cluster so the CTA never feels mid-content.
+          </li>
+          <li>
+            <strong>One italic word.</strong> Headline emphasises
+            <em>10</em> with the standard orange-wash underline — the
+            number is the constraint the user is being asked to plan
+            against, so it carries the emphasis.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

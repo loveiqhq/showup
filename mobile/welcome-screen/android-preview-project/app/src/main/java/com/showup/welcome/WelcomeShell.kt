@@ -11,36 +11,37 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.cssLineBox
+import androidx.compose.ui.semantics.semantics
+import com.showup.designsystem.prettyWidthPx
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+
 import com.showup.designsystem.Spacing
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -49,9 +50,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -61,22 +60,21 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.showup.designsystem.Border
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Fg
 import com.showup.designsystem.Lora
-import com.showup.designsystem.Manrope
-import com.showup.designsystem.Muted
 import com.showup.designsystem.Orange
 import com.showup.designsystem.Purple
-import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.WordmarkStops
-import com.showup.tutorial.rememberMotion
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ① Backdrop — full-bleed, BEHIND the status bar and home indicator
@@ -91,35 +89,145 @@ import com.showup.tutorial.rememberMotion
  * would give hard-edged circles on a third of devices. A radial gradient's own alpha falloff carries
  * the softness on every API level.
  */
+/**
+ * Where the two orbs sit, and how big they are.
+ *
+ * Four recipes, because four groups of screens ask for four. They were a boolean until 15
+ * September 2026, when "The real you" arrived with two more -- and a second backdrop component
+ * would have been the primary button all over again. The differences are small and deliberate:
+ * every one of them is a number the reference file for that screen sets, and none of them mean
+ * anything on their own, which is why they live here as named recipes rather than as five
+ * parameters a call site has to get right.
+ */
+enum class OrbPlacement {
+    /** Startup and Welcome back: orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%. */
+    Startup,
+
+    /** Phone verification: orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%. */
+    PhoneVerify,
+
+    /**
+     * Profile photos: orange 460 at top -22% / right -30%, violet 420 at top -12% / left -28%.
+     *
+     * Both orbs at the top, because the screen below them scrolls: an orb anchored to the bottom
+     * of a scrolling screen sits behind the sticky footer, where it reads as a smudge under the
+     * CTA rather than as atmosphere.
+     */
+    RealYouTop,
+
+    /**
+     * Profile prompts: orange 460 at top -20% / right -25%, violet 420 at BOTTOM -12% / left -28%.
+     *
+     * The one split pair. This screen's footer is a bare CTA row with no gradient mask over it, so
+     * there is nothing for a low violet to muddy -- and the suggestion cards fill the middle, which
+     * a second top orb would sit behind.
+     */
+    RealYouSplit,
+
+    /**
+     * The voice capture screen: orange 520 at top -25% / right -30%, violet 520 at BOTTOM -22% /
+     * left -30%, both a touch more saturated than elsewhere (SHOWUP-161).
+     *
+     * A fifth placement rather than the nearest existing one, because this is the only screen in
+     * the app with no chrome at all -- no header, no progress bar, no footer -- so the orbs ARE the
+     * composition rather than atmosphere behind one, and 40dp of orb radius is visible where it
+     * would not be on a screen with content over it. `Startup` is the closest and is still 260/300
+     * at different offsets.
+     */
+    VoiceCapture,
+
+    /**
+     * `Atmosphere` from `components/shared.jsx` -- orange 460 at top -18% / right -25%, violet 460
+     * at bottom -16% / left -26%. "Share some details" uses it at the `form` intensity, 0.13 / 0.11
+     * (SHOWUP-167 to SHOWUP-173). No peach wash: that layer is the bridges' and Startup's.
+     */
+    Atmosphere,
+
+    /**
+     * Embrace 2 (SHOWUP-166): orange 480 at top -18% / right -20%, and the violet as a broad glow
+     * CENTRED at the bottom rather than an orb in the corner -- `radial-gradient(ellipse at 50% 70%)`
+     * over a box 120% wide and 540 tall, sitting 10% below the bottom edge. Its peach wash is 320
+     * tall and fades out by 60%, not Startup's 360 / 70%.
+     *
+     * A placement of the ONE backdrop and not a second component: the ticket asks for exactly
+     * that ("if the backdrop component cannot take it as a prop cheaply, say so before building a
+     * second variant"). It could.
+     */
+    EmbraceDetails,
+}
+
 @Composable
 fun WelcomeBackdrop(
     modifier: Modifier = Modifier,
     peachWash: Boolean = true,
     orangeAlpha: Float = 0.32f,
     violetAlpha: Float = 0.28f,
-    topWeighted: Boolean = false,
+    placement: OrbPlacement = OrbPlacement.Startup,
 ) {
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
 
-        if (topWeighted) {
-            // Phone verification: orange 460 at top -18% / right -30%, violet 420 at top -10% / left -25%
-            radial(Offset(w * 1.30f - 230.dp.toPx(), -0.18f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
-            radial(Offset(-0.25f * w + 210.dp.toPx(), -0.10f * h + 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
-        } else {
-            // Startup / Welcome back: orange 520 at top -15% / right -25%, violet 600 at bottom -20% / left -30%
-            radial(Offset(w + 0.25f * w - 260.dp.toPx(), -0.15f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
-            radial(Offset(-0.30f * w + 300.dp.toPx(), h + 0.20f * h - 300.dp.toPx()), 300.dp.toPx(), Purple, violetAlpha)
+        when (placement) {
+            OrbPlacement.PhoneVerify -> {
+                radial(Offset(w * 1.30f - 230.dp.toPx(), -0.18f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.25f * w + 210.dp.toPx(), -0.10f * h + 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.RealYouTop -> {
+                radial(Offset(w * 1.30f - 230.dp.toPx(), -0.22f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.28f * w + 210.dp.toPx(), -0.12f * h + 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.RealYouSplit -> {
+                radial(Offset(w * 1.25f - 230.dp.toPx(), -0.20f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.28f * w + 210.dp.toPx(), h + 0.12f * h - 210.dp.toPx()), 210.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.VoiceCapture -> {
+                radial(Offset(w + 0.30f * w - 260.dp.toPx(), -0.25f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.30f * w + 260.dp.toPx(), h + 0.22f * h - 260.dp.toPx()), 260.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.Startup -> {
+                radial(Offset(w + 0.25f * w - 260.dp.toPx(), -0.15f * h + 260.dp.toPx()), 260.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.30f * w + 300.dp.toPx(), h + 0.20f * h - 300.dp.toPx()), 300.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.Atmosphere -> {
+                radial(Offset(w + 0.25f * w - 230.dp.toPx(), -0.18f * h + 230.dp.toPx()), 230.dp.toPx(), Orange, orangeAlpha)
+                radial(Offset(-0.26f * w + 230.dp.toPx(), h + 0.16f * h - 230.dp.toPx()), 230.dp.toPx(), Purple, violetAlpha)
+            }
+            OrbPlacement.EmbraceDetails -> {
+                radial(Offset(w + 0.20f * w - 240.dp.toPx(), -0.18f * h + 240.dp.toPx()), 240.dp.toPx(), Orange, orangeAlpha)
+                // THE ELLIPSE, derived rather than eyeballed. CSS sizes an `ellipse at 50% 70%` to
+                // the farthest corner at the closest-side aspect: for a box 1.2w x 540 that is a
+                // vertical radius of sqrt(162^2 + 378^2) = 411.25 whatever the width, and a
+                // horizontal one 1.523 x the width. Centre: half the width, 70% down a box whose
+                // bottom sits at 1.1h -- so 1.1h - 162. Drawn as a circle on an x-scaled canvas,
+                // the same move the headline wash makes; transparent from 60% of the radius, as
+                // the reference stops it.
+                val ry = 411.25.dp.toPx()
+                val rx = 1.5231f * w
+                val centre = Offset(w / 2f, 1.1f * h - 162.dp.toPx())
+                withTransform({ scale(rx / ry, 1f, pivot = centre) }) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0.00f to Purple.copy(alpha = violetAlpha),
+                            0.60f to Color.Transparent,
+                            1.00f to Color.Transparent,
+                            center = centre, radius = ry,
+                        ),
+                        radius = ry, center = centre,
+                    )
+                }
+            }
         }
 
         if (peachWash) {
             // linear-gradient(180deg, rgba(255,229,210,.55) 0%, rgba(255,251,247,0) 70%) · height 360
-            val washH = 360.dp.toPx()
+            // -- Embrace 2 draws its own at 320 tall, transparent by 60%.
+            val embrace2 = placement == OrbPlacement.EmbraceDetails
+            val washH = (if (embrace2) 320 else 360).dp.toPx()
             drawRect(
                 brush = Brush.verticalGradient(
                     0.0f to Color(0xFFFFE5D2).copy(alpha = 0.55f),
-                    0.7f to Color(0x00FFFBF7),
+                    (if (embrace2) 0.6f else 0.7f) to Color(0x00FFFBF7),
                     1.0f to Color.Transparent,
                     startY = 0f, endY = washH,
                 ),
@@ -256,6 +364,9 @@ fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier) {
  */
 internal const val NBSP = '\u00A0'
 
+/** Lora's descent in ems -- `hhea` -274 / 1000, identical in the bundled cut and Google Fonts'. */
+private const val LORA_DESCENT_EM = 0.274f
+
 @Composable
 fun WashHeadline(
     parts: List<Pair<String, Boolean>>,      // text → is this the italic run?
@@ -276,6 +387,58 @@ fun WashHeadline(
     trailingSize: Dp = 30.dp,
     trailingTint: Color = Orange,
     trailingGap: Dp = 12.dp,
+    /**
+     * `text-wrap: balance`, which CSS has and Compose does not.
+     *
+     * The references set it on these headlines and the acceptance criteria name it, so it is not
+     * decoration. A greedy wrap fills each line to the edge and leaves whatever is left on the
+     * last one; balance evens them. On the notifications ask at 390 the two disagree and the
+     * artboard shows the balanced form -- `Never miss a date` over `with Notifications!` rather
+     * than `Never miss a date with` over `Notifications!`.
+     *
+     * HOW. Balance is "the narrowest width that still fits in the same number of lines". Lay the
+     * text out once at the full width to learn that number, then binary-search downward for the
+     * narrowest width that still produces it. Eight measurements rather than a scan's three
+     * hundred, because a headline re-measures on every recomposition.
+     *
+     * OFF BY DEFAULT: it moves where existing headlines break, so the two screens that ask for it
+     * say so at the call site.
+     */
+    balance: Boolean = false,
+    /**
+     * The run's weight and ink. Bold [Fg] for every headline; the Check-In intro's closing line
+     * (SHOWUP-178) is the same `.su-underlined` rule on Lora 400 in `--liq-fg-muted`.
+     */
+    fontWeight: FontWeight = FontWeight.Bold,
+    color: Color = Fg,
+    /** Centred lines -- the Check-In gate's statement and the No hours today? title. */
+    textAlign: TextAlign? = null,
+    /**
+     * Whether the em carries the orange wash, i.e. the text is `.su-underlined`. The No hours
+     * today? title (SHOWUP-179) is a plain `<em>`: italic in the run's own weight, no wash.
+     */
+    wash: Boolean = true,
+    /**
+     * `text-wrap: pretty`, which CSS has and Compose does not. The Check-In step headlines set it,
+     * and the spec sheet shows it at 390: `When can you` over `date today?`, never `When can you
+     * date` over a lone `today?`.
+     *
+     * THE RULE IS CHROME'S, MEASURED, not a guess at "no short last line". Swept across 375 layouts
+     * of the step headlines in headless Chrome (14 Oct 2026): it re-wraps only when the last line is
+     * ONE WORD -- an em run joined by no-break spaces is one word -- narrower than a third of the
+     * width, and then it pulls exactly one word down to it. A two-word last line is never touched
+     * however short (Motivation's `to date?`, 0.32 of the width), and a long single word keeps its
+     * line (`tomorrow?`, 0.43). OFF BY DEFAULT, like [balance], for the same reason.
+     */
+    pretty: Boolean = false,
+    /**
+     * Lay the block out as CSS does -- n lines of [lineHeight], the first baseline where CSS puts
+     * it (`designsystem/CssLineBox.kt`). Compose makes a two-line Lora 34 / 1.1 headline 6.1pt
+     * taller than that, half of it above the first line, and everything below the headline moves
+     * down with it. OFF BY DEFAULT: turning it on moves every headline that has not asked for it,
+     * on screens already reviewed against their sheets with the offset in them.
+     */
+    cssLineBox: Boolean = false,
 ) {
     // `white-space: nowrap` on the emphasis span — the token file sets it on `.su-underlined em`
     // and the ticket restates it: "an emphasis phrase never breaks across lines". A plain space is
@@ -288,8 +451,10 @@ fun WashHeadline(
         safe.forEach { (t, italic) ->
             if (italic) {
                 // Weight 500, as the token file specifies — the bundled family now carries a real
-                // Medium Italic cut. See fonts/README-medium-italic.md.
-                withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Medium)) { append(t) }
+                // Medium Italic cut. See fonts/README-medium-italic.md. A plain `<em>` (no wash)
+                // keeps the run's own weight, as a browser draws it.
+                val emWeight = if (wash) FontWeight.Medium else fontWeight
+                withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = emWeight)) { append(t) }
             } else {
                 append(t)
             }
@@ -331,19 +496,34 @@ fun WashHeadline(
         cursor += t.length
     }
 
+    val density = LocalDensity.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    val headline: @Composable (Modifier) -> Unit = { outer ->
     Text(
         text = textWithIcon,
-        modifier = modifier.drawBehind {
+        modifier = outer
+            .then(if (cssLineBox) Modifier.cssLineBox(lineHeight) else Modifier)
+            .drawBehind {
             val lr = layout ?: return@drawBehind
-            if (start < 0 || end <= start) return@drawBehind
+            if (!wash || start < 0 || end <= start) return@drawBehind
             val bounds = lr.getPathForRange(start, end).getBounds()
             if (bounds.width <= 0f) return@drawBehind
 
             val em = fontSize.toPx()
             val left = bounds.left - 2.dp.toPx()
             val right = bounds.right + 2.dp.toPx()
-            val bottom = bounds.bottom + em * 0.08f      // bottom: -0.08em
+            // bottom: -0.08em -- from the bottom of the em's CONTENT BOX, which in CSS is the font's
+            // descent below the baseline whatever the line height. The selection path's bottom is
+            // the line's bottom instead, which moves with the line height: 3pt too high on a Lora
+            // 34 / 1.1 headline, 1.5pt too low on the 17 / 1.45 closing line, both measured against
+            // the sheets. Under the CSS line box the CSS anchor is used; elsewhere the old one stays
+            // until those screens are reviewed with it.
+            val bottom = if (cssLineBox) {
+                lr.getLineBaseline(lr.getLineForOffset(end - 1)) + em * (LORA_DESCENT_EM + 0.08f)
+            } else {
+                bounds.bottom + em * 0.08f
+            }
             val h = em * 0.32f                            // height: 0.32em
             val w = right - left
             val rx = w / 2f
@@ -380,13 +560,58 @@ fun WashHeadline(
         },
         onTextLayout = { layout = it },
         inlineContent = inline,
-        color = Fg,
+        color = color,
         fontFamily = Lora,
-        fontWeight = FontWeight.Bold,
+        fontWeight = fontWeight,
         fontSize = fontSize,
         lineHeight = lineHeight,
         letterSpacing = letterSpacing,
+        textAlign = textAlign,
     )
+    }
+
+    if (!balance && !pretty) {
+        headline(modifier)
+        return
+    }
+
+    // BoxWithConstraints rather than reading the previous frame's layout: the width has to be
+    // known on the FIRST pass, or the headline visibly re-wraps once after it appears. The
+    // caller's modifier goes on the box, which is where a padding or a weight belongs anyway.
+    val measurer = rememberTextMeasurer()
+    val style = TextStyle(
+        fontFamily = Lora, fontWeight = fontWeight, fontSize = fontSize,
+        lineHeight = lineHeight, letterSpacing = letterSpacing,
+    )
+    // MERGED, so whatever the caller set lands on the text: a `heading()` on this box alone made
+    // TalkBack announce an empty heading and then the words as plain text, on every balanced or
+    // pretty headline (CheckInSemanticsTest).
+    BoxWithConstraints(modifier.semantics(mergeDescendants = true) {}) {
+        val available = maxWidth
+        val narrowest = remember(textWithIcon, available, fontSize, lineHeight, letterSpacing, balance) {
+            with(density) {
+                val full = available.roundToPx()
+                if (full <= 0) return@with available
+                fun linesAt(px: Int) = measurer.measure(
+                    textWithIcon, style,
+                    constraints = Constraints(maxWidth = px.coerceAtLeast(1)),
+                ).lineCount
+                val target = linesAt(full)
+                // A single line has nothing to balance, and narrowing it would only make two.
+                if (target <= 1) return@with available
+                // Pretty: Chrome's rule, shared with body copy (designsystem/PrettyWrap.kt).
+                if (!balance) return@with prettyWidthPx(measurer, textWithIcon, style, full).toDp()
+                var low = 1
+                var high = full
+                while (low < high) {
+                    val mid = (low + high) / 2
+                    if (linesAt(mid) <= target) high = mid else low = mid + 1
+                }
+                low.toDp()
+            }
+        }
+        headline(Modifier.width(narrowest))
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -434,98 +659,6 @@ private fun inkOffset(icon: BrandIcon): Offset {
     return Offset(12f - (left + right) / 2f, 12f - (top + bottom) / 2f)
 }
 
-enum class PillVariant { Sunset, Ghost, Plain, Apple, Google, Facebook }
-
-/**
- * `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
- * Manrope 700 16, gap 8.
- *
- * Press is `scale(0.98)` over 180ms on `cubic-bezier(.22,1,.36,1)` — CLAUDE.md states it as a
- * non-negotiable, and there are no hover states because the product is mobile-first.
- */
-@Composable
-fun PillButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    variant: PillVariant = PillVariant.Sunset,
-    enabled: Boolean = true,
-    /**
-     * 56 everywhere except the conflict modal's resolve CTA, which the reference draws at 54.
-     * Both clear every provider's published minimum (Apple's is 44pt), so the smaller one is a
-     * layout choice rather than a compliance question.
-     */
-    height: Dp = 56.dp,
-    leading: (@Composable () -> Unit)? = null,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val motion = rememberMotion()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled && motion.enabled) 0.98f else 1f,
-        animationSpec = tween(durationMillis = if (motion.enabled) 180 else 0, easing = ShowUpEasing),
-        label = "press",
-    )
-    val shape = RoundedCornerShape(50)
-    Row(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.45f }
-            .then(
-                when (variant) {
-                    // --liq-shadow-violet on the sunset CTA
-                    PillVariant.Sunset -> Modifier
-                        .shadow(12.dp, shape, ambientColor = Purple, spotColor = Purple)
-                        .clip(shape)
-                        .background(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()))
-                    PillVariant.Ghost -> Modifier
-                        .clip(shape)
-                        .border(1.dp, Border, shape)
-                    PillVariant.Plain -> Modifier.clip(shape)
-                    // Black is one of the three appearances Apple's guidelines allow.
-                    PillVariant.Apple -> Modifier.clip(shape).background(Color.Black)
-                    // White background is required, not preferred — the G may not sit on anything
-                    // else. #747775 is the border colour from Google's own button.
-                    PillVariant.Google -> Modifier
-                        .clip(shape)
-                        .background(Color.White)
-                        .border(1.dp, Color(0xFF747775), shape)
-                    // Facebook Blue. Recolouring to our palette is explicitly prohibited.
-                    PillVariant.Facebook -> Modifier.clip(shape).background(Color(0xFF1877F2))
-                }
-            )
-            .clickable(
-                interactionSource = interaction, indication = null,
-                enabled = enabled, role = Role.Button, onClick = onClick,
-            )
-            .padding(horizontal = 28.dp),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        leading?.invoke()
-        Text(
-            label,
-            color = when (variant) {
-                PillVariant.Sunset, PillVariant.Apple, PillVariant.Facebook -> Color.White
-                PillVariant.Google -> Color(0xFF1F1F1F)   // Google's specified label colour
-                PillVariant.Ghost -> Fg
-                PillVariant.Plain -> Muted
-            },
-            fontFamily = Manrope,
-            // The plain secondary is 600/15 — one step down from the 700/16 every real button
-            // carries, which is what stops the modal reading as two equal choices.
-            fontWeight = if (variant == PillVariant.Plain) FontWeight.SemiBold else FontWeight.Bold,
-            fontSize = if (variant == PillVariant.Plain) 15.sp else 16.sp,
-            maxLines = 1,
-        )
-    }
-}
-
-/** CLAUDE.md: easing is `cubic-bezier(.22,1,.36,1)` · 180ms state · 280ms progress. */
-val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ⑤ Icons — Lucide geometry, 24x24, stroke 1.7, currentColor
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -535,7 +668,55 @@ val ShowUpEasing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 
  * paths in the source, so they are drawn filled here.
  */
 enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, ChevronLeft,
-                       ArrowLeft, ArrowRight, Pencil, Close, Check, Shield, Heart }
+                       ChevronRight, ArrowLeft, ArrowRight, Pencil, Pen, Edit, Close, Check,
+                       Shield, Heart, EyeOff, Plus, Image, Camera, Lock, Sliders,
+                       // ── the media step (SHOWUP-161) ──────────────────────────────
+                       Video, Mic, Play, Refresh, Trash,
+    // ── added for the notifications ask (SHOWUP-162) ─────────────────────────
+    //
+    // The five benefit rows name `heart · sparkles · message-circle · clock · x`. Three did not
+    // exist; `x` is [Close], already drawn at the kit's exact geometry; and `heart` needed
+    // splitting -- see [HeartFilled].
+    Sparkles, MessageCircle, Clock,
+
+    // ── added for Stay reachable (SHOWUP-163) ───────────────────────────────
+    //
+    // `Bell` is the card's head pip and the push row's; `PhoneCall` and `WhatsApp` are two of the
+    // three interest rows (SMS reuses `MessageCircle`); `AlertCircle` is the dialog's pip.
+    Bell, PhoneCall, WhatsApp, AlertCircle,
+
+    // ── added for the location ask (SHOWUP-165) ─────────────────────────────
+    //
+    // The three benefit rows name `compass · map-pin · navigation` (`Lock` already existed, for the
+    // privacy note). Copied from `components/shared.jsx` at its exact 24-grid geometry.
+    Compass, MapPin, Navigation,
+
+    // ── added for Life and Future (SHOWUP-175 / 176) ────────────────────────
+    //
+    // The category medallions name `heart · users · home` and `users · heart · compass`. `heart` and
+    // `compass` already existed; these two are copied from `components/shared.jsx` at its geometry.
+    Users, Home,
+    /**
+     * The kit's `heart-filled`, which is what Connect's button has always drawn.
+     *
+     * THE KIT HAS TWO HEARTS AND THIS PROJECT HAD ONE. `components/shared.jsx` carries `heart`
+     * (stroked outline) and `heart-filled` (the same path with `fill="currentColor"`), and the
+     * single [Heart] here was the filled one -- drawn from memory rather than from the kit, so it
+     * matched neither path. The notifications ask needs the OUTLINE at size 20 / stroke 1.8 inside
+     * a lilac pip, so keeping one glyph under one name was not an option.
+     *
+     * Both are now the kit's own paths under the kit's own names. Connect moves to this one, which
+     * is the variant it always meant; nothing else used the old glyph.
+     */
+    HeartFilled,
+
+    // ── added for the 48hrs Check-In (SHOWUP-178 to 183) ─────────────────────
+    //
+    // The tab bar names `search · zap · settings`, Motivation's third row `flame`. Drawn from the
+    // kit's own path data through Compose's SVG parser rather than re-plotted by hand: the gear
+    // alone is sixteen arcs and curves, and a hand conversion is exactly where a glyph goes subtly
+    // wrong (`heart-filled` was drawn from memory once, and matched neither of the kit's paths).
+    Search, Zap, Settings, Flame }
 
 @Composable
 /**
@@ -551,12 +732,30 @@ fun Icon(
     icon: BrandIcon,
     size: Dp,
     tint: Color = Fg,
-    strokeWidth: Dp = 1.7.dp,
+    /**
+     * Stroke weight IN GRID UNITS, exactly as the design's SVGs author it.
+     *
+     * NOT Dp, and that is the whole point. It used to be, and it was converted with `toPx()`
+     * OUTSIDE the `scale(s, s)` below and then drawn INSIDE it -- so every stroke was multiplied
+     * by the scale a second time and came out `density` times too thick. On a 2.625x phone every
+     * icon in the app was 2.6x heavier than drawn, and the arrow on the embrace CTA was fat
+     * enough that its two head strokes merged into a solid triangle.
+     *
+     * It looked correct at exactly one density, 1.0, which is why previews never showed it and
+     * the fit harness could not: that harness measures the space a control occupies, and this is
+     * a bug in the ink inside it.
+     *
+     * A [Float] rather than a [Dp] because the value belongs to the 24-grid the paths are drawn
+     * on, and the scale below is what turns it into pixels. Typing it as Dp is what invited the
+     * conversion that broke it.
+     */
+    strokeWidth: Float = 1.7f,
     opticalCentre: Boolean = false,
 ) {
     Canvas(Modifier.size(size)) {
         val s = this.size.width / 24f                      // all paths are authored on a 24 grid
-        val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        // The width is in grid units and the transform scales it, exactly like the coordinates.
+        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
         val nudge = if (opticalCentre) inkOffset(icon) else Offset.Zero
         withTransform({ scale(s, s, pivot = Offset.Zero); translate(nudge.x, nudge.y) }) {
             when (icon) {
@@ -586,11 +785,487 @@ fun Icon(
                     drawLine(tint, Offset(5f, 12f), Offset(19f, 12f), stroke.width, StrokeCap.Round)
                     drawPath(path(listOf(12f to 5f, 19f to 12f, 12f to 19f)), tint, style = stroke)
                 }
+                // ── added for "The real you" (SHOWUP-156 / SHOWUP-158) ──────────────
+                //
+                // Every one of these is copied from `components/shared.jsx`, the design system's
+                // own icon set, at its exact 24-grid geometry. Not from a screen's inline SVG and
+                // not from memory: the back control was drawn `arrow-left` where the design says
+                // `chevron-left` once already, and no test catches that.
+                BrandIcon.ChevronRight ->
+                    drawPath(path(listOf(9f to 18f, 15f to 12f, 9f to 6f)), tint, style = stroke)
+                BrandIcon.Plus -> {
+                    drawLine(tint, Offset(12f, 5f), Offset(12f, 19f), stroke.width, StrokeCap.Round)
+                    drawLine(tint, Offset(5f, 12f), Offset(19f, 12f), stroke.width, StrokeCap.Round)
+                }
+                BrandIcon.Image -> {
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(3f, 3f), size = Size(18f, 18f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f),
+                        style = stroke,
+                    )
+                    drawCircle(tint, radius = 1.6f, center = Offset(8.5f, 8.5f), style = stroke)
+                    drawPath(path(listOf(21f to 15f, 16f to 10f, 5f to 21f)), tint, style = stroke)
+                }
+                BrandIcon.Camera -> {
+                    // The body is a 2-radius rounded rect with a notch cut into its top edge for
+                    // the lens housing. Drawn as one path rather than a rect plus a trapezium, so
+                    // the stroke has no join artefacts where the notch meets the edge.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(23f, 19f)
+                            arcTo(Rect(19f, 17f, 23f, 21f), 0f, 90f, false)
+                            lineTo(3f, 21f)
+                            arcTo(Rect(1f, 17f, 5f, 21f), 90f, 90f, false)
+                            lineTo(1f, 8f)
+                            arcTo(Rect(1f, 6f, 5f, 10f), 180f, 90f, false)
+                            lineTo(7f, 6f); lineTo(9f, 3f); lineTo(15f, 3f); lineTo(17f, 6f)
+                            lineTo(21f, 6f)
+                            arcTo(Rect(19f, 6f, 23f, 10f), 270f, 90f, false)
+                            close()
+                        }, tint, style = stroke)
+                    drawCircle(tint, radius = 4f, center = Offset(12f, 13f), style = stroke)
+                }
+                BrandIcon.Lock -> {
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(3f, 11f), size = Size(18f, 11f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f),
+                        style = stroke,
+                    )
+                    // The shackle: up, over the top as a true semicircle, back down.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(7f, 11f); lineTo(7f, 7f)
+                            arcTo(Rect(7f, 2f, 17f, 12f), 180f, 180f, false)
+                            lineTo(17f, 11f)
+                        }, tint, style = stroke)
+                }
+                BrandIcon.Sliders -> {
+                    listOf(
+                        4f to (21f to 14f), 4f to (10f to 3f),
+                        12f to (21f to 12f), 12f to (8f to 3f),
+                        20f to (21f to 16f), 20f to (12f to 3f),
+                    ).forEach { (x, span) ->
+                        drawLine(tint, Offset(x, span.first), Offset(x, span.second), stroke.width, StrokeCap.Round)
+                    }
+                    listOf(
+                        Triple(1f, 7f, 14f), Triple(9f, 15f, 8f), Triple(17f, 23f, 16f),
+                    ).forEach { (x1, x2, y) ->
+                        drawLine(tint, Offset(x1, y), Offset(x2, y), stroke.width, StrokeCap.Round)
+                    }
+                }
+                // `edit` from the shared set: a pen over a baseline stroke. The arc in the source
+                // path -- `a2.121 2.121 0 0 1 3 3` -- is a true semicircle, because the chord
+                // (3, 3) has length 4.243 and the radius is 2.121, so 2r is the chord. Centre is
+                // therefore the chord's midpoint.
+                BrandIcon.Edit -> {
+                    drawLine(tint, Offset(12f, 20f), Offset(21f, 20f), stroke.width, StrokeCap.Round)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(16.5f, 3.5f)
+                            arcTo(Rect(15.879f, 2.879f, 20.121f, 7.121f), 225f, 180f, false)
+                            lineTo(7f, 19f); lineTo(3f, 20f); lineTo(4f, 16f)
+                            close()
+                        }, tint, style = stroke)
+                }
+                // The prompts card's edit pip. A pen with NO baseline stroke, which is what makes
+                // it a different glyph from [Edit] rather than the same one at another size --
+                // SHOWUP-158's reference draws this one inline.
+                BrandIcon.Pen -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(17f, 3f)
+                            arcTo(Rect(16.17f, 2.17f, 21.83f, 7.83f), 225f, 180f, false)
+                            lineTo(7.5f, 20.5f); lineTo(2f, 22f); lineTo(3.5f, 16.5f)
+                            close()
+                        }, tint, style = stroke)
+                    drawLine(tint, Offset(15f, 5f), Offset(19f, 9f), stroke.width, StrokeCap.Round)
+                }
                 BrandIcon.Close -> {
                     drawLine(tint, Offset(18f, 6f), Offset(6f, 18f), stroke.width, StrokeCap.Round)
                     drawLine(tint, Offset(6f, 6f), Offset(18f, 18f), stroke.width, StrokeCap.Round)
                 }
                 BrandIcon.Check -> drawPath(path(listOf(20f to 6f, 9f to 17f, 4f to 12f)), tint, style = stroke)
+                // ── added for the notifications ask (SHOWUP-162) ────────────────────
+                //
+                // All three from `components/shared.jsx` at its 24-grid geometry, for the reason
+                // the media set states: an icon redrawn from memory is a real icon, faithfully
+                // drawn, and the wrong one -- which no test catches.
+                //
+                // `sparkles` IS NOT A LUCIDE SPARKLE. The kit draws an eight-ray starburst --
+                // four axis rays and four diagonals radiating from the centre -- not the familiar
+                // four-point twinkle. Copied as drawn.
+                BrandIcon.Sparkles -> {
+                    // M12 3v3 · M12 18v3 · M3 12h3 · M18 12h3
+                    listOf(
+                        Offset(12f, 3f) to Offset(12f, 6f),
+                        Offset(12f, 18f) to Offset(12f, 21f),
+                        Offset(3f, 12f) to Offset(6f, 12f),
+                        Offset(18f, 12f) to Offset(21f, 12f),
+                        // M5.6 5.6l2 2 · M16.4 16.4l2 2 · M5.6 18.4l2-2 · M16.4 7.6l2-2
+                        Offset(5.6f, 5.6f) to Offset(7.6f, 7.6f),
+                        Offset(16.4f, 16.4f) to Offset(18.4f, 18.4f),
+                        Offset(5.6f, 18.4f) to Offset(7.6f, 16.4f),
+                        Offset(16.4f, 7.6f) to Offset(18.4f, 5.6f),
+                    ).forEach { (a, b) -> drawLine(tint, a, b, stroke.width, StrokeCap.Round) }
+                }
+                // The speech bubble with its tail. The source is one path of five arcs; the shape
+                // is a circle of radius ~8.5 centred (12.5, 11.5) with a tail dropping to (3, 21)
+                // and the 1.9/5.7 kink that makes it read as a bubble rather than a balloon.
+                BrandIcon.MessageCircle -> drawPath(
+                    androidx.compose.ui.graphics.Path().apply {
+                        moveTo(21f, 11.5f)
+                        cubicTo(21f, 12.84f, 20.69f, 14.15f, 20.1f, 15.3f)
+                        cubicTo(18.66f, 18.18f, 15.72f, 20f, 12.5f, 20f)
+                        cubicTo(11.18f, 20f, 9.88f, 19.69f, 8.7f, 19.1f)
+                        lineTo(3f, 21f)
+                        lineTo(4.9f, 15.3f)
+                        cubicTo(4.31f, 14.12f, 4f, 12.82f, 4f, 11.5f)
+                        cubicTo(4f, 8.28f, 5.82f, 5.34f, 8.7f, 3.9f)
+                        cubicTo(9.85f, 3.31f, 11.16f, 3f, 12.5f, 3f)
+                        lineTo(13f, 3f)
+                        cubicTo(17.4f, 3.25f, 20.75f, 6.6f, 21f, 11f)
+                        close()
+                    }, tint, style = stroke)
+                // circle r9 at (12,12) plus the hands: polyline 12 7 -> 12 12 -> 15 14.
+                BrandIcon.Clock -> {
+                    drawCircle(tint, radius = 9f, center = Offset(12f, 12f), style = stroke)
+                    drawPath(path(listOf(12f to 7f, 12f to 12f, 15f to 14f)), tint, style = stroke)
+                }
+                // ── added for Stay reachable (SHOWUP-163) ───────────────────────────
+                //
+                // Same rule as the media five: copied from `components/shared.jsx` at its exact
+                // 24-grid geometry rather than redrawn.
+                //
+                // `M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9` + `M13.73 21a2 2 0 0 1-3.46 0`.
+                // The dome is a 6-radius half-circle centred (12, 8); the skirt runs from it out
+                // to the 3/21 rim and straight across; the clapper is the small arc beneath.
+                BrandIcon.Bell -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(18f, 8f)
+                            // a6 6 0 1 0-12 0 -- the large-arc flag is what makes this the TOP
+                            // half of the circle rather than the bottom, and it is the difference
+                            // between a bell and a bowl.
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(6f, 2f, 18f, 14f),
+                                0f, -180f, false,
+                            )
+                            cubicTo(6f, 15f, 3f, 17f, 3f, 17f)
+                            lineTo(21f, 17f)
+                            cubicTo(21f, 17f, 18f, 15f, 18f, 8f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(13.73f, 21f)
+                            cubicTo(13.37f, 21.64f, 12.7f, 22.03f, 11.98f, 22.03f)
+                            cubicTo(11.26f, 22.03f, 10.6f, 21.64f, 10.27f, 21f)
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                // `M15.05 5A5 5 0 0 1 19 8.95 M15.05 1A9 9 0 0 1 23 8.94` -- two signal arcs --
+                // over the same handset body the `phone` glyph already uses.
+                BrandIcon.PhoneCall -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(15.05f, 5f)
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(14.05f, 3.95f, 24.05f, 13.95f),
+                                -90f, 61f, false,
+                            )
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(15.05f, 1f)
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(14.05f, -0.06f, 32.05f, 17.94f),
+                                -90f, 61f, false,
+                            )
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(phonePath(), tint, style = stroke)
+                }
+                // The kit's own outline -- a speech bubble with a tail dropping to (3, 21) and the
+                // handset inside it. NOT the WhatsApp brand asset: this is a line icon in our set,
+                // and using the real mark would put a third party's branding rules on the screen.
+                BrandIcon.WhatsApp -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(21f, 11.5f)
+                            cubicTo(21f, 12.83f, 20.69f, 14.14f, 20.1f, 15.3f)
+                            cubicTo(18.66f, 18.18f, 15.72f, 20f, 12.5f, 20f)
+                            cubicTo(11.17f, 20f, 9.86f, 19.69f, 8.7f, 19.1f)
+                            lineTo(3f, 21f)
+                            lineTo(4.9f, 15.3f)
+                            cubicTo(4.31f, 14.14f, 4f, 12.83f, 4f, 11.5f)
+                            cubicTo(4f, 8.28f, 5.82f, 5.34f, 8.7f, 3.9f)
+                            cubicTo(9.86f, 3.31f, 11.17f, 3f, 12.5f, 3f)
+                            lineTo(13f, 3f)
+                            cubicTo(17.5f, 3.25f, 20.75f, 6.5f, 21f, 11f)
+                            lineTo(21f, 11.5f)
+                            close()
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(9.4f, 8.2f)
+                            cubicTo(8.8f, 8.2f, 8.2f, 8.8f, 8.2f, 9.6f)
+                            cubicTo(8.2f, 10.9f, 9.1f, 12.2f, 9.2f, 12.4f)
+                            cubicTo(9.4f, 12.6f, 11f, 15.3f, 13.7f, 16.4f)
+                            cubicTo(14.4f, 16.7f, 15f, 16.7f, 15.4f, 16.6f)
+                            cubicTo(15.9f, 16.5f, 16.8f, 16f, 17f, 15.4f)
+                            cubicTo(17.2f, 14.8f, 17.2f, 14.3f, 17.1f, 14.2f)
+                            cubicTo(17.1f, 14.1f, 16.9f, 14f, 16.6f, 13.9f)
+                            lineTo(15.2f, 13.2f)
+                            cubicTo(15f, 13.1f, 14.8f, 13.2f, 14.7f, 13.3f)
+                            lineTo(14.1f, 14.1f)
+                            cubicTo(14f, 14.2f, 13.8f, 14.3f, 13.6f, 14.2f)
+                            cubicTo(12.9f, 13.9f, 12.2f, 13.5f, 11.7f, 12.9f)
+                            cubicTo(11.3f, 12.5f, 10.9f, 12f, 10.7f, 11.5f)
+                            cubicTo(10.6f, 11.3f, 10.7f, 11.1f, 10.8f, 11f)
+                            lineTo(11.3f, 10.4f)
+                            cubicTo(11.4f, 10.3f, 11.4f, 10.1f, 11.4f, 10f)
+                            lineTo(10.8f, 8.5f)
+                            cubicTo(10.6f, 8f, 10.4f, 8f, 10.2f, 8f)
+                            close()
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                // `circle r10` + a stem and a dot -- the standard alert glyph. The dot is drawn as
+                // a zero-length round-capped line, which is how the source authors it
+                // (`x1="12" y1="16" x2="12.01" y2="16"`) and what makes it a dot rather than a
+                // second stem.
+                BrandIcon.AlertCircle -> {
+                    drawCircle(tint, radius = 10f, center = Offset(12f, 12f), style = stroke)
+                    drawLine(
+                        tint, Offset(12f, 8f), Offset(12f, 12f),
+                        stroke.width, StrokeCap.Round,
+                    )
+                    drawLine(
+                        tint, Offset(12f, 16f), Offset(12.01f, 16f),
+                        stroke.width, StrokeCap.Round,
+                    )
+                }
+                // ── added for the location ask (SHOWUP-165) ───────────────────────────
+                //
+                // `circle 12,12 r10` + `polygon 16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88`.
+                BrandIcon.Compass -> {
+                    drawCircle(tint, radius = 10f, center = Offset(12f, 12f), style = stroke)
+                    drawPath(
+                        path(
+                            listOf(16.24f to 7.76f, 14.12f to 14.12f, 7.76f to 16.24f, 9.88f to 9.88f),
+                            close = true,
+                        ),
+                        tint, style = stroke,
+                    )
+                }
+                // `M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z` + `circle 12,10 r3`. The `s`
+                // segment's first control point is the reflection of the `c` segment's second,
+                // which sits on the tip (12,23) -- so both curves leave the tip straight down.
+                BrandIcon.MapPin -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(21f, 10f)
+                            cubicTo(21f, 17f, 12f, 23f, 12f, 23f)
+                            cubicTo(12f, 23f, 3f, 17f, 3f, 10f)
+                            // a9 9 0 0 1 18 0 -- the TOP half, clockwise from left to right.
+                            arcTo(Rect(3f, 1f, 21f, 19f), 180f, 180f, false)
+                            close()
+                        },
+                        tint, style = stroke,
+                    )
+                    drawCircle(tint, radius = 3f, center = Offset(12f, 10f), style = stroke)
+                }
+                // `polygon 3 11 22 2 13 21 11 13`.
+                BrandIcon.Navigation -> drawPath(
+                    path(listOf(3f to 11f, 22f to 2f, 13f to 21f, 11f to 13f), close = true),
+                    tint, style = stroke,
+                )
+                // `M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2` + `circle 9,7 r4` +
+                // `M23 21v-2a4 4 0 0 0-3-3.87` + `M16 3.13a4 4 0 0 1 0 7.75`.
+                //
+                // THE ARCS ARE SOLVED, NOT EYEBALLED. SVG names an arc by its end point and Compose by
+                // its centre, so each centre below is the one the SVG flags pick out: sweep 0 runs
+                // counter-clockwise on screen (a negative sweep here), sweep 1 clockwise. The back
+                // shoulder's arc ends 3.87 up, which puts its centre at (19, 19) and its end at
+                // -75.5 degrees; the back head's chord is 7.75, so its centre sits 0.99 left of x = 16.
+                BrandIcon.Users -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(17f, 21f)
+                            lineTo(17f, 19f)
+                            arcTo(Rect(9f, 15f, 17f, 23f), 0f, -90f, false)
+                            lineTo(5f, 15f)
+                            arcTo(Rect(1f, 15f, 9f, 23f), 270f, -90f, false)
+                            lineTo(1f, 21f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawCircle(tint, radius = 4f, center = Offset(9f, 7f), style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(23f, 21f)
+                            lineTo(23f, 19f)
+                            arcTo(Rect(15f, 15f, 23f, 23f), 0f, -75.51f, false)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(16f, 3.13f)
+                            arcTo(Rect(11.0078f, 3.005f, 19.0078f, 11.005f), -75.64f, 151.28f, false)
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                // `M3 12 12 3l9 9` + `M5 10v10h14V10` -- the roof, then the open-topped walls.
+                BrandIcon.Home -> {
+                    drawPath(path(listOf(3f to 12f, 12f to 3f, 21f to 12f)), tint, style = stroke)
+                    drawPath(path(listOf(5f to 10f, 5f to 20f, 19f to 20f, 19f to 10f)), tint, style = stroke)
+                }
+                // ── added for the media step (SHOWUP-161) ───────────────────────────
+                //
+                // All five copied from `components/shared.jsx` at its exact 24-grid geometry,
+                // like the set above and for the same reason: an icon redrawn from memory is a
+                // real icon, faithfully drawn, and the wrong one -- which no test catches.
+                //
+                // `video` and `mic` are the two slot pips; `play`, `refresh` and `trash` are the
+                // controls on a filled card and on the review screen.
+                BrandIcon.Video -> {
+                    // polygon 23 7 -> 16 12 -> 23 17. The lens flare, drawn stroked and closed.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(23f, 7f); lineTo(16f, 12f); lineTo(23f, 17f); close()
+                        },
+                        tint, style = stroke,
+                    )
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(1f, 5f), size = Size(15f, 14f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f),
+                        style = stroke,
+                    )
+                }
+                BrandIcon.Mic -> {
+                    // The capsule is a 6x12 rect at radius 3 -- a rounded rectangle whose radius
+                    // is half its width, which is a capsule exactly.
+                    drawRoundRect(
+                        color = tint, topLeft = Offset(9f, 2f), size = Size(6f, 12f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f),
+                        style = stroke,
+                    )
+                    // `M5 11 a7 7 0 0 0 14 0` -- the lower half of a circle centred (12,11) r 7.
+                    // 0 degrees is at 3 o'clock and a positive sweep runs clockwise, which on a
+                    // y-down canvas is downwards: 0 -> 180 is the half that cradles the capsule.
+                    drawArc(
+                        color = tint,
+                        startAngle = 0f, sweepAngle = 180f, useCenter = false,
+                        topLeft = Offset(5f, 4f), size = Size(14f, 14f), style = stroke,
+                    )
+                    drawLine(tint, Offset(12f, 18f), Offset(12f, 22f), stroke.width, StrokeCap.Round)
+                    drawLine(tint, Offset(8f, 22f), Offset(16f, 22f), stroke.width, StrokeCap.Round)
+                }
+                // FILLED, not stroked. The design draws it as a solid polygon in every size it
+                // appears at, the same way the provider marks are filled paths in the source.
+                BrandIcon.Play -> drawPath(
+                    androidx.compose.ui.graphics.Path().apply {
+                        moveTo(6f, 4f); lineTo(20f, 12f); lineTo(6f, 20f); close()
+                    },
+                    tint,
+                )
+                BrandIcon.Refresh -> {
+                    drawPath(path(listOf(23f to 4f, 23f to 10f, 17f to 10f)), tint, style = stroke)
+                    drawPath(path(listOf(1f to 20f, 1f to 14f, 7f to 14f)), tint, style = stroke)
+                    // The two 9-unit arcs both run on the circle centred (12,12) -- solved from
+                    // the SVG's endpoints rather than eyeballed, which is why the rect below is
+                    // (3,3)..(21,21) and the sweeps are the same 115.5 degrees in opposite
+                    // directions. Drawn as one path each so the line joins stay round.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(3f, 3f, 21f, 21f),
+                                -160.5f, 115.5f, true,
+                            )
+                            lineTo(23f, 10f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(1f, 14f)
+                            lineTo(5.64f, 18.36f)
+                            arcTo(
+                                androidx.compose.ui.geometry.Rect(3f, 3f, 21f, 21f),
+                                135f, -115.5f, false,
+                            )
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                BrandIcon.Trash -> {
+                    drawLine(tint, Offset(3f, 6f), Offset(21f, 6f), stroke.width, StrokeCap.Round)
+                    // The can. Its two lower corners are 2-unit rounds, drawn as quadratics with
+                    // the control point at the corner the curve replaces -- indistinguishable from
+                    // the SVG arc at every size this is drawn at, and far less arithmetic.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(19f, 6f)
+                            lineTo(18f, 20f)
+                            quadraticBezierTo(18f, 22f, 16f, 22f)
+                            lineTo(8f, 22f)
+                            quadraticBezierTo(6f, 22f, 6f, 20f)
+                            lineTo(5f, 6f)
+                        },
+                        tint, style = stroke,
+                    )
+                    drawLine(tint, Offset(10f, 11f), Offset(10f, 17f), stroke.width, StrokeCap.Round)
+                    drawLine(tint, Offset(14f, 11f), Offset(14f, 17f), stroke.width, StrokeCap.Round)
+                    // The lid's handle, 1-unit rounds.
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(9f, 6f)
+                            lineTo(9f, 4f)
+                            quadraticBezierTo(9f, 3f, 10f, 3f)
+                            lineTo(14f, 3f)
+                            quadraticBezierTo(15f, 3f, 15f, 4f)
+                            lineTo(15f, 6f)
+                        },
+                        tint, style = stroke,
+                    )
+                }
+                // The visibility band's mark (SHOWUP-154 callout 11). Feather's eye-off: the
+                // eye's two arcs with the pupil, struck through corner to corner. Authored on the
+                // same 24 grid as everything else here.
+                BrandIcon.EyeOff -> {
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(17.94f, 17.94f)
+                            cubicTo(16.23f, 19.24f, 14.15f, 19.97f, 12f, 20f)
+                            cubicTo(5f, 20f, 1f, 12f, 1f, 12f)
+                            cubicTo(2.24f, 9.68f, 3.97f, 7.65f, 6.06f, 6.06f)
+                        }, tint, style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(9.9f, 4.24f)
+                            cubicTo(10.59f, 4.08f, 11.29f, 4f, 12f, 4f)
+                            cubicTo(19f, 4f, 23f, 12f, 23f, 12f)
+                            cubicTo(22.39f, 13.13f, 21.678f, 14.2f, 20.84f, 15.19f)
+                        }, tint, style = stroke)
+                    drawPath(
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(14.12f, 14.12f)
+                            cubicTo(13.55f, 14.73f, 12.76f, 15.09f, 11.93f, 15.1f)
+                            cubicTo(10.24f, 15.1f, 8.87f, 13.73f, 8.87f, 12.04f)
+                            cubicTo(8.88f, 11.21f, 9.24f, 10.42f, 9.85f, 9.85f)
+                        }, tint, style = stroke)
+                    drawLine(tint, Offset(1f, 1f), Offset(23f, 23f), stroke.width, StrokeCap.Round)
+                }
                 BrandIcon.Shield -> drawPath(
                     androidx.compose.ui.graphics.Path().apply {
                         moveTo(12f, 22f)
@@ -599,15 +1274,26 @@ fun Icon(
                         cubicTo(4f, 18f, 12f, 22f, 12f, 22f)
                         close()
                     }, tint, style = stroke)
-                BrandIcon.Heart -> drawPath(
-                    androidx.compose.ui.graphics.Path().apply {
-                        moveTo(12f, 21f)
-                        cubicTo(12f, 21f, 3.5f, 15.4f, 3.5f, 10f)
-                        cubicTo(3.5f, 6.5f, 8.5f, 4.7f, 12f, 7.2f)
-                        cubicTo(15.5f, 4.7f, 20.5f, 6.5f, 20.5f, 10f)
-                        cubicTo(20.5f, 15.4f, 12f, 21f, 12f, 21f)
-                        close()
-                    }, tint)
+                // ── the kit's two hearts (SHOWUP-162) ────────────────────────────────
+                //
+                // One path, drawn twice: `heart` stroked and `heart-filled` filled. Both are
+                // `M20.84 4.61 a5.5 5.5 0 0 0-7.78 0 L12 5.67 l-1.06-1.06 a5.5 5.5 0 0 0-7.78
+                // 7.78 l1.06 1.06 L12 21.23 l7.78-7.78 1.06-1.06 a5.5 5.5 0 0 0 0-7.78z` from
+                // `components/shared.jsx`, which is the standard two-lobe heart: two half-circles of
+                // radius 5.5 meeting at the top notch (12, 5.67) and running down to the point.
+                BrandIcon.Heart -> drawPath(heartPath(), tint, style = stroke)
+                BrandIcon.HeartFilled -> drawPath(heartPath(), tint)
+                // `circle 11,11 r7` + `line 16.65,16.65 -> 21,21`.
+                BrandIcon.Search -> {
+                    drawCircle(tint, radius = 7f, center = Offset(11f, 11f), style = stroke)
+                    drawLine(tint, Offset(16.65f, 16.65f), Offset(21f, 21f), stroke.width, StrokeCap.Round)
+                }
+                BrandIcon.Zap -> drawPath(KitPaths.zap, tint, style = stroke)
+                BrandIcon.Settings -> {
+                    drawCircle(tint, radius = 3f, center = Offset(12f, 12f), style = stroke)
+                    drawPath(KitPaths.gear, tint, style = stroke)
+                }
+                BrandIcon.Flame -> drawPath(KitPaths.flame, tint, style = stroke)
                 
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
@@ -636,6 +1322,77 @@ private fun path(points: List<Pair<Float, Float>>, close: Boolean = false) =
         if (close) close()
     }
 
+/**
+ * `heart` / `heart-filled` from `components/shared.jsx`: one path, drawn two ways.
+ *
+ * `M20.84 4.61 a5.5 5.5 0 0 0-7.78 0 L12 5.67 l-1.06-1.06 a5.5 5.5 0 0 0-7.78 7.78 l1.06 1.06
+ * L12 21.23 l7.78-7.78 1.06-1.06 a5.5 5.5 0 0 0 0-7.78z`
+ *
+ * THE THREE ARCS ARE NOT THE SAME ARC, which is what the first attempt at this got wrong -- it
+ * rendered a crown. A chord of length c across radius r subtends 2 asin(c/2r):
+ *
+ *   arc 1  (20.84, 4.61) to (13.06, 4.61)   chord 7.78 = 5.5 root 2   ->  90 degrees
+ *   arc 2  (10.94, 4.61) to (3.16, 12.39)   chord 11.0 = 2r           -> 180 degrees, a semicircle
+ *   arc 3  (20.84, 12.39) to (20.84, 4.61)  chord 7.78                ->  90 degrees
+ *
+ * Arcs 1 and 3 are two pieces of ONE circle -- the right lobe, centred (16.95, 8.50) -- separated
+ * in the path by the notch and the point. Arc 2 is the left lobe, centred on its own chord's
+ * midpoint (7.05, 8.50) because a semicircle's centre is exactly that. Both radii are 5.5, so the
+ * bounding boxes are (11.45, 3, 22.45, 14) and (1.55, 3, 12.55, 14).
+ *
+ * Every sweep is negative: SVG's sweep-flag 0 is anticlockwise, and Compose measures clockwise
+ * from 3 o'clock on a y-down canvas.
+ *
+ * Verified by rendering it at 80dp and looking -- see `IconSheet162`. A heart is the one glyph
+ * where being slightly wrong is unmistakable and being subtly wrong is invisible.
+ */
+/**
+ * Kit icons whose geometry is taken from `components/shared.jsx` as SVG path data, VERBATIM, through
+ * Compose's own parser -- curves and arcs the hand-plotted icons above would only approximate.
+ * Parsed once; the strings are the kit's, character for character.
+ */
+private object KitPaths {
+    private fun parse(d: String) = androidx.compose.ui.graphics.vector.PathParser().parsePathString(d).toPath()
+
+    /** `polygon 13 2 3 14 12 14 11 22 21 10 12 10 13 2`. */
+    val zap = parse("M13 2L3 14L12 14L11 22L21 10L12 10L13 2Z")
+
+    /** The gear's outline (its centre is the `circle 12,12 r3` drawn beside it). */
+    val gear = parse(
+        "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 " +
+            "1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06" +
+            "a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09" +
+            "A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 " +
+            "1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 " +
+            "1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.42.88.74.22.32" +
+            ".34.7.34 1.09 0 .39-.12.77-.34 1.09-.22.32-.52.58-.88.74z",
+    )
+
+    val flame = parse(
+        "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 " +
+            "1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
+    )
+}
+
+private fun heartPath() = androidx.compose.ui.graphics.Path().apply {
+    // Right lobe: circle centre (16.95, 8.50), r 5.5. From -45 degrees anticlockwise over the top.
+    moveTo(20.84f, 4.61f)
+    arcTo(Rect(11.45f, 3.0f, 22.45f, 14.0f), -45f, -90f, false)
+    // The notch between the lobes.
+    lineTo(12f, 5.67f)
+    lineTo(10.94f, 4.61f)
+    // Left lobe: circle centre (7.05, 8.50), r 5.5. A true semicircle -- see the doc above.
+    arcTo(Rect(1.55f, 3.0f, 12.55f, 14.0f), -45f, -180f, false)
+    lineTo(4.22f, 13.45f)
+    // The point.
+    lineTo(12f, 21.23f)
+    lineTo(19.78f, 13.45f)
+    lineTo(20.84f, 12.39f)
+    // The right lobe's outer side, closing back to the start.
+    arcTo(Rect(11.45f, 3.0f, 22.45f, 14.0f), 45f, -90f, false)
+    close()
+}
+
 private fun phonePath() = androidx.compose.ui.graphics.Path().apply {
     moveTo(22f, 16.92f); lineTo(22f, 19.92f)
     cubicTo(22f, 21.02f, 20.92f, 21.99f, 19.82f, 21.92f)
@@ -656,15 +1413,45 @@ private fun phonePath() = androidx.compose.ui.graphics.Path().apply {
     close()
 }
 
+/*
+ * The Apple mark, on the 24 grid, in two subpaths: the body and the leaf.
+ *
+ * REDRAWN 11 September 2026, because the previous one was not the Apple logo. It was a hand-drawn
+ * approximation and it showed: the body had no bite, the shoulders were square, and the leaf sat
+ * as a lens floating clear of the fruit. On a 16dp mark inside a black pill it read as a smudge.
+ *
+ * Apple's Sign in with Apple guidelines say the mark may be scaled but not redrawn, so the one
+ * thing this must not be is somebody's impression of an apple. The geometry below is the standard
+ * 24-unit outline -- the same one Google's four-colour G beside it uses, and for the same reason:
+ * "close enough" is altering a mark we are not permitted to alter.
+ *
+ * Two subpaths and NonZero winding, which is the default. The bite is not a hole to be subtracted;
+ * it is part of the body's own outline, curving inward on the right. Drawing it as a second
+ * subpath would punch a notch through the leaf as well.
+ */
 private fun applePath() = androidx.compose.ui.graphics.Path().apply {
-    moveTo(16f, 4f); cubicTo(16.5f, 5.5f, 15.5f, 7f, 14f, 7.5f)
-    cubicTo(12f, 8f, 11f, 7f, 11f, 5.5f); cubicTo(12.5f, 4f, 14f, 3.5f, 16f, 4f); close()
-    moveTo(18.4f, 13.5f); cubicTo(17.8f, 15f, 17f, 16.5f, 15.5f, 16.5f)
-    cubicTo(14.1f, 16.5f, 13.6f, 15.7f, 12f, 15.7f); cubicTo(10.4f, 15.7f, 9.9f, 16.5f, 8.5f, 16.5f)
-    cubicTo(7f, 16.5f, 6.1f, 15.1f, 5.4f, 13.6f); cubicTo(4f, 11f, 4.6f, 7.6f, 6.6f, 6.5f)
-    cubicTo(7.9f, 5.8f, 9.1f, 6.2f, 10.1f, 6.5f); cubicTo(11.1f, 6.8f, 11.5f, 6.8f, 12.5f, 6.5f)
-    cubicTo(13.6f, 6.1f, 14.7f, 5.6f, 16.1f, 6.3f); cubicTo(14.4f, 7.4f, 14f, 9.8f, 15.7f, 11.1f)
-    cubicTo(16.2f, 12.2f, 16.5f, 12.7f, 18.4f, 13.5f); close()
+    // The body. Starts at the top of the bite and runs anticlockwise around the fruit.
+    moveTo(17.05f, 12.54f)
+    cubicTo(17.04f, 10.2f, 18.98f, 9.07f, 19.07f, 9.01f)
+    cubicTo(17.97f, 7.41f, 16.26f, 7.19f, 15.65f, 7.17f)
+    cubicTo(14.2f, 7.02f, 12.8f, 8.03f, 12.06f, 8.03f)
+    cubicTo(11.31f, 8.03f, 10.16f, 7.19f, 8.93f, 7.21f)
+    cubicTo(7.35f, 7.23f, 5.89f, 8.14f, 5.08f, 9.56f)
+    cubicTo(3.42f, 12.43f, 4.66f, 16.67f, 6.27f, 18.99f)
+    cubicTo(7.06f, 20.13f, 7.99f, 21.4f, 9.22f, 21.36f)
+    cubicTo(10.41f, 21.31f, 10.86f, 20.59f, 12.3f, 20.59f)
+    cubicTo(13.73f, 20.59f, 14.14f, 21.36f, 15.39f, 21.33f)
+    cubicTo(16.67f, 21.31f, 17.47f, 20.18f, 18.25f, 19.04f)
+    cubicTo(19.16f, 17.72f, 19.53f, 16.44f, 19.55f, 16.37f)
+    cubicTo(19.52f, 16.36f, 17.07f, 15.42f, 17.05f, 12.54f)
+    close()
+    // The leaf, meeting the body at the stem rather than floating above it.
+    moveTo(14.7f, 5.64f)
+    cubicTo(15.36f, 4.85f, 15.8f, 3.74f, 15.68f, 2.64f)
+    cubicTo(14.74f, 2.68f, 13.6f, 3.27f, 12.92f, 4.06f)
+    cubicTo(12.31f, 4.76f, 11.78f, 5.89f, 11.92f, 6.96f)
+    cubicTo(12.97f, 7.04f, 14.04f, 6.42f, 14.7f, 5.64f)
+    close()
 }
 
 /*
@@ -739,10 +1526,34 @@ private fun facebookPath() = androidx.compose.ui.graphics.Path().apply {
 fun WelcomeScaffold(
     modifier: Modifier = Modifier,
     peachWash: Boolean = true,
-    topWeighted: Boolean = false,
+    placement: OrbPlacement = OrbPlacement.Startup,
     orangeAlpha: Float = 0.32f,
     violetAlpha: Float = 0.28f,
+    /**
+     * The body's scroll position, hoisted so a caller can place it.
+     *
+     * DEFAULTS TO THE ONE IT ALWAYS HAD, so every existing call site is unchanged. It became a
+     * parameter for SHOWUP-163, whose acceptance criteria ask for evidence of the screen
+     * "scrolled to the top and to the bottom": the evidence camera draws into a raw `ComposeView`
+     * rather than through a test rule, so it has no gesture to send and no node to scroll to.
+     * Handing it the state is the only way to photograph a scrolled screen.
+     *
+     * It is also the honest shape. A scroll position is state, and hoisting it is what this
+     * project's first rule about state says to do. It is not saved anywhere yet, because no
+     * screen has asked to survive a rotation mid-scroll.
+     */
+    scrollState: ScrollState = rememberScrollState(),
     topPadding: Dp = 20.dp,
+    /**
+     * The side gutter.
+     *
+     * [Spacing.screenGutter] on every screen this scaffold was written for. A parameter because
+     * the embrace bridge (SHOWUP-155) draws at 28 -- its reference sets `padding: '64px 28px 0'`
+     * on the headline and `'28px 28px 0'` on the body, and a bridge is a wider, quieter beat than
+     * the screens either side of it. Not a token: 28 has no meaning beyond "this one screen",
+     * which is exactly the case the design-system rules say to keep local.
+     */
+    gutter: Dp = Spacing.screenGutter,
     /**
      * Scroll only as a last resort, for screens that share the frame with a keyboard.
      *
@@ -755,31 +1566,90 @@ fun WelcomeScaffold(
      * The inner column is floored at the viewport height, so when everything fits there is nothing
      * to scroll and the weighted spacer still pushes the bottom row down — the layout is byte-for-
      * byte what it was. It only engages when the alternative is an unreachable button.
+     *
+     * SCROLLING ALONE IS NOT ENOUGH FOR A SCREEN WHOSE CONTENT REALLY OVERFLOWS -- it makes the CTA
+     * reachable, not visible, and on the notifications ask (SHOWUP-162) that meant a Galaxy Fold
+     * opening on a permission screen with no button drawn on it at all. Pass [footer] as well.
      */
     scrollWhenTight: Boolean = false,
+    /**
+     * A fixed band below the scrolling region -- the CTA, and nothing else so far.
+     *
+     * NULL ON EVERY SCREEN BUT ONE, and the null path is the old layout unchanged: one column, the
+     * content filling it, nothing pinned.
+     *
+     * The notifications ask passes it because its content does not fit three of the seventeen
+     * frames at the default font and none of them at 2.0x type, and "the primary action is
+     * reachable" is the one guarantee that has to hold on all of them. [scrollWhenTight] alone
+     * made it reachable
+     * and left it invisible until the user dragged -- which the iOS fit sweep caught as a CTA that
+     * was simply not drawn, and the Android sweep did not, because BELOW THE FOLD is only an
+     * advisory on a scrolling screen.
+     *
+     * On the frames where the content fits this changes nothing: the content's own weighted
+     * spacer still takes the slack and the button still lands at the bottom of the screen, because
+     * that is where the band already is.
+     *
+     * IT IS FULL-BLEED, and applies its own horizontal padding.
+     *
+     * It used to inherit [gutter], which is simpler and was wrong the moment a footer needed a
+     * BACKGROUND: Stay reachable (SHOWUP-163) specifies "the footer is pinned, with its fade from
+     * transparent to --liq-bg", and a fade inset by 24 leaves two unfaded strips down the sides
+     * where the backdrop orbs show through. `RealYouScaffold` had this right already -- "footer:
+     * fixed, the screen's own padding and background" -- so this is that shape, not a new one.
+     *
+     * A footer with no background looks identical either way, which is why the notifications
+     * ask's did not notice; it carries its own 28 now and is unchanged on screen.
+     *
+     * It still clears the gesture bar: the insets are on the column this sits in.
+     */
+    footer: (@Composable () -> Unit)? = null,
+    /**
+     * A full-bleed layer ABOVE the backdrop and BELOW the content -- Embrace 2's confetti
+     * (SHOWUP-166): "the confetti passes behind the copy and the CTA, never over them". Drawn
+     * outside the insets, like the backdrop, so it falls from above the status bar to below the
+     * gesture bar. Null everywhere else, which draws nothing.
+     */
+    behindContent: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Box(modifier.fillMaxSize().background(Cream)) {
         WelcomeBackdrop(
-            peachWash = peachWash, topWeighted = topWeighted,
+            peachWash = peachWash, placement = placement,
             orangeAlpha = orangeAlpha, violetAlpha = violetAlpha,
         )
+        behindContent?.invoke()
         // safeDrawing = system bars + display cutout + IME, so the column sits above the keyboard.
         // It only reports the IME when the activity is in adjustResize; the manifest sets that.
         val insets = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = topPadding)
 
-        if (scrollWhenTight) {
-            BoxWithConstraints(insets) {
-                val viewport = maxHeight
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Column(Modifier.heightIn(min = viewport), content = content)
+        Column(insets) {
+            // `weight(1f)` hands the region a FIXED height, which is what both branches need: the
+            // scrolling one measures its viewport from it, and the content's own weighted spacer
+            // resolves against it. With no footer the region is the whole column, so this is the
+            // layout that was here before, spelled with one more box.
+            //
+            // THE GUTTER AND THE TOP PADDING LIVE HERE, not on the column, so that [footer] spans
+            // the frame and can carry a full-bleed band.
+            val region = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(start = gutter, end = gutter, top = topPadding)
+
+            if (scrollWhenTight) {
+                BoxWithConstraints(region) {
+                    val viewport = maxHeight
+                    Column(Modifier.verticalScroll(scrollState)) {
+                        Column(Modifier.heightIn(min = viewport), content = content)
+                    }
                 }
+            } else {
+                Column(region, content = content)
             }
-        } else {
-            Column(insets, content = content)
+
+            footer?.invoke()
         }
     }
 }

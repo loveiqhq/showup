@@ -3,8 +3,11 @@ package com.showup.api
 import com.showup.BuildConfig
 import com.showup.api.generated.api.AccountApi
 import com.showup.api.generated.api.AuthApi
+import com.showup.api.generated.api.CheckInApi
 import com.showup.api.generated.api.CheckInsApi
 import com.showup.api.generated.api.MatchingApi
+import com.showup.api.generated.api.NotificationsApi
+import com.showup.api.generated.api.PermissionsApi
 import com.showup.api.generated.api.ProfilesApi
 import com.showup.api.generated.api.SafetyApi
 import com.showup.api.generated.infrastructure.ApiClient
@@ -27,6 +30,11 @@ import java.util.concurrent.TimeUnit
 class ShowUpApi(
     private val baseUrl: String = BuildConfig.API_BASE_URL,
     private val tokens: TokenStore,
+    /**
+     * Told when the server refuses to renew the session -- see [TokenRefresher]. Called on a
+     * network thread, after the tokens are already gone.
+     */
+    onSessionEnded: () -> Unit = {},
 ) {
     /**
      * A client with NO auth attached, used only to refresh.
@@ -38,27 +46,19 @@ class ShowUpApi(
      * that reads as a network problem rather than an expired session.
      */
     private val bareAuthApi: AuthApi by lazy {
-        ApiClient(baseUrl = baseUrl).createService(AuthApi::class.java)
+        ApiClient(baseUrl = baseUrl, converterFactories = ApiJson.converterFactories)
+            .createService(AuthApi::class.java)
     }
 
-    private val refresher = TokenRefresher(tokens) { refreshToken ->
-        val response = bareAuthApi.refreshAuthToken(USER_AGENT, RefreshDto(refreshToken = refreshToken))
-        val body = response.body()
-        if (!response.isSuccessful || body == null) {
-            null
-        } else {
-            // Both tokens, not just the access token: the backend ROTATES the refresh token on
-            // every successful refresh, so storing only the new access token would leave the app
-            // holding a refresh token that is already spent.
-            TokenRefresher.TokenPair(
-                accessToken = body.accessToken,
-                refreshToken = body.refreshToken,
-            )
-        }
+    private val refresher = TokenRefresher(tokens, onSessionEnded) { refreshToken ->
+        exchangeRefresh(bareAuthApi, refreshToken)
     }
 
     private val client = ApiClient(
         baseUrl = baseUrl,
+        // Omits unset optionals rather than sending them as explicit nulls -- see ApiJson. Without
+        // this, any partial update wipes every field the caller did not set.
+        converterFactories = ApiJson.converterFactories,
         okHttpClientBuilder = OkHttpClient.Builder()
             // An application interceptor, not a network one: application interceptors run once per
             // call rather than once per network attempt, so a redirect or retry cannot produce a
@@ -79,8 +79,26 @@ class ShowUpApi(
     val account: AccountApi by lazy { client.createService(AccountApi::class.java) }
     val profiles: ProfilesApi by lazy { client.createService(ProfilesApi::class.java) }
     val checkIns: CheckInsApi by lazy { client.createService(CheckInsApi::class.java) }
+
+    /** The 48hrs Check-In flow (SHOWUP-178 to 183): its state, the answers, the filters and the commit. */
+    val checkIn: CheckInApi by lazy { client.createService(CheckInApi::class.java) }
     val matching: MatchingApi by lazy { client.createService(MatchingApi::class.java) }
     val safety: SafetyApi by lazy { client.createService(SafetyApi::class.java) }
+
+    /**
+     * Push-token registration and notification preferences (SHOWUP-162).
+     *
+     * Added for the notification ask: granting the permission and never registering the device is
+     * a silent failure that looks exactly like success. See [com.showup.profile.PushRegistration].
+     */
+    val notifications: NotificationsApi by lazy { client.createService(NotificationsApi::class.java) }
+
+    /**
+     * The phone's permission statuses (epic SHOWUP-151), sent by
+     * [com.showup.profile.PermissionReconciler]. The server's push path reads them, so a phone with
+     * notifications off is not sent pushes it would never show.
+     */
+    val permissions: PermissionsApi by lazy { client.createService(PermissionsApi::class.java) }
 
     /**
      * Signs the user out: revokes the session server-side, then forgets the tokens locally.
@@ -104,11 +122,36 @@ class ShowUpApi(
         tokens.clear()
     }
 
-    private companion object {
+    companion object {
         /**
-         * Sent on refresh because the contract requires a user-agent on that route -- the backend
-         * records it against the session so a user can see where they are signed in.
+         * What the backend records against a session so a person can see where they are signed in.
+         *
+         * Not private: two routes send it -- refresh, here, and `/auth/phone/verify`, called from
+         * PhoneAuthRepository. A second definition would make the devices list disagree with
+         * itself, the same phone appearing under two names depending on which request made the row.
          */
         const val USER_AGENT = "ShowUp-Android/${BuildConfig.VERSION_NAME}"
+
+        /**
+         * One refresh call, read into a [TokenRefresher.Outcome].
+         *
+         * Here rather than inline so the auth tests run THIS mapping, not a copy of it: the line
+         * between "the server said no" and "the server was not there" is the line between sending
+         * someone to sign-in and leaving them signed in, and a test of a copy proves nothing about
+         * it.
+         */
+        internal suspend fun exchangeRefresh(api: AuthApi, refreshToken: String): TokenRefresher.Outcome {
+            val response = api.refreshAuthToken(USER_AGENT, RefreshDto(refreshToken = refreshToken))
+            val body = response.body()
+            if (!response.isSuccessful || body == null) {
+                return TokenRefresher.Outcome.ofFailedResponse(response.code())
+            }
+            // Both tokens, not just the access token: the backend ROTATES the refresh token on
+            // every successful refresh, so storing only the new access token would leave the app
+            // holding a refresh token that is already spent.
+            return TokenRefresher.Outcome.Renewed(
+                TokenRefresher.TokenPair(accessToken = body.accessToken, refreshToken = body.refreshToken),
+            )
+        }
     }
 }

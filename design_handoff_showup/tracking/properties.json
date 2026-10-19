@@ -1,0 +1,682 @@
+{
+  "taxonomy_version": "1.2",
+  "reconciled_against": "loveiqhq/showup main @ c195089",
+  "generated": "2026-08-06",
+  "event_count": 270,
+  "groups": [
+    {
+      "id": "P1",
+      "name": "Global properties",
+      "properties": [
+        {
+          "property": "event_id",
+          "type": "String (UUIDv4)",
+          "allowed_values": "e.g. c8a2b3f1-4e78-4a12-8e3d-...",
+          "class": "0",
+          "status": "OK",
+          "description": "Client/Server generated unique event ID"
+        },
+        {
+          "property": "event_name",
+          "type": "String",
+          "allowed_values": "Enum (Defined in Taxonomy)",
+          "class": "0",
+          "status": "OK",
+          "description": "Name of event in object_action format"
+        },
+        {
+          "property": "event_source",
+          "type": "String (Enum)",
+          "allowed_values": "client | server",
+          "class": "0",
+          "status": "OK",
+          "description": "Source layer firing the event payload"
+        },
+        {
+          "property": "schema_version",
+          "type": "String",
+          "allowed_values": "1.0.0",
+          "class": "0",
+          "status": "OK",
+          "description": "Version of the event taxonomy spec"
+        },
+        {
+          "property": "timestamp_utc",
+          "type": "String (ISO-8601)",
+          "allowed_values": "YYYY-MM-DDTHH:mm:ss.sssZ",
+          "class": "0",
+          "status": "OK",
+          "description": "Exact UTC timestamp of action trigger"
+        },
+        {
+          "property": "client_sent_at_utc",
+          "type": "String (ISO-8601)",
+          "allowed_values": "YYYY-MM-DDTHH:mm:ss.sssZ",
+          "class": "0",
+          "status": "OK",
+          "description": "UTC timestamp when queue flushed event"
+        },
+        {
+          "property": "session_id",
+          "type": "String (UUIDv4)",
+          "allowed_values": "e.g. 3f7b2c1a-...",
+          "class": "0",
+          "status": "OK",
+          "description": "Session identifier reset on logout"
+        },
+        {
+          "property": "user_id_hashed",
+          "type": "String",
+          "allowed_values": "SHA-256 string",
+          "class": "0",
+          "status": "OK",
+          "description": "Salted hash of user database ID (null pre-auth)"
+        },
+        {
+          "property": "anonymous_id",
+          "type": "String (UUIDv4)",
+          "allowed_values": "e.g. b1a2c3d4-...",
+          "class": "0",
+          "status": "OK",
+          "description": "Device-scoped persistent UUID"
+        },
+        {
+          "property": "screen_id",
+          "type": "String (Enum)",
+          "allowed_values": "Design Canvas Artboard ID",
+          "class": "0",
+          "status": "Revise",
+          "description": "Current UI screen artboard identifierDefined as a design-tool artboard ID. Should be an independent enum that survives renaming a frame."
+        },
+        {
+          "property": "mode",
+          "type": "String (Enum)",
+          "allowed_values": "scheduled | instant",
+          "class": "0",
+          "status": "Revise",
+          "description": "Active app interaction stateRequired on every event, but meaningless pre-auth and before Instant Mode ships. Add none or make Optional."
+        },
+        {
+          "property": "plan_tier",
+          "type": "String (Enum)",
+          "allowed_values": "free | premium",
+          "class": "0",
+          "status": "Not built",
+          "description": "Current subscription statusPayments are planned only — value is always free today."
+        },
+        {
+          "property": "app_version",
+          "type": "String",
+          "allowed_values": "SemVer (e.g. 2.4.1)",
+          "class": "0",
+          "status": "OK",
+          "description": "Client app release version"
+        },
+        {
+          "property": "build_number",
+          "type": "Integer",
+          "allowed_values": "e.g. 10421",
+          "class": "0",
+          "status": "OK",
+          "description": "Internal build identifier"
+        },
+        {
+          "property": "os_version",
+          "type": "String",
+          "allowed_values": "e.g. iOS 18.1 | Android 15",
+          "class": "0",
+          "status": "OK",
+          "description": "Operating system release string"
+        },
+        {
+          "property": "device_model",
+          "type": "String",
+          "allowed_values": "e.g. iPhone16;2 | Pixel_8_Pro",
+          "class": "0",
+          "status": "OK",
+          "description": "Physical device hardware code"
+        },
+        {
+          "property": "locale",
+          "type": "String",
+          "allowed_values": "BCP 47 (e.g. en_US | de_DE)",
+          "class": "0",
+          "status": "OK",
+          "description": "User device language and region"
+        },
+        {
+          "property": "city_geohash",
+          "type": "String",
+          "allowed_values": "5-character string",
+          "class": "1",
+          "status": "OK",
+          "description": "Coarse geohash (~4.9km x 4.9km grid)"
+        },
+        {
+          "property": "network_type",
+          "type": "String (Enum)",
+          "allowed_values": "wifi | cellular_5g | cellular_4g | offline",
+          "class": "0",
+          "status": "OK",
+          "description": "Active network interface status"
+        },
+        {
+          "property": "entry_point",
+          "type": "String (Enum)",
+          "allowed_values": "cold | push | sms | whatsapp | email | deeplink",
+          "class": "0",
+          "status": "OK",
+          "description": "Channel driving application access"
+        },
+        {
+          "property": "experiment_ids",
+          "type": "Array[String]",
+          "allowed_values": "[\"exp_01_varB\"; \"exp_04_varA\"]",
+          "class": "0",
+          "status": "OK",
+          "description": "Active A/B test flag assignments"
+        },
+        {
+          "property": "is_test_account",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "OK",
+          "description": "Internal flag for dev/QA account filtering"
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "User properties",
+      "properties": [
+        {
+          "property": "signup_date",
+          "type": "String (ISO-8601)",
+          "allowed_values": "YYYY-MM-DD",
+          "class": "0",
+          "status": "OK",
+          "description": "User registration date"
+        },
+        {
+          "property": "auth_method",
+          "type": "String (Enum)",
+          "allowed_values": "phone | apple | google",
+          "class": "0",
+          "status": "OK",
+          "description": "Primary authentication provider"
+        },
+        {
+          "property": "phone_verified",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "OK",
+          "description": "Phone verification state"
+        },
+        {
+          "property": "email_verified",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "Not built",
+          "description": "Email verification stateEmail is never requested; it only arrives with Apple/Google sign-in, already confirmed."
+        },
+        {
+          "property": "photo_verified",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "Replace",
+          "description": "Facial verification stateBoolean cannot express the backend’s four states. Replaced by verification_state below."
+        },
+        {
+          "property": "age_band",
+          "type": "String (Enum)",
+          "allowed_values": "18-24 | 25-34 | 35-44 | 45-54 | 55+",
+          "class": "0",
+          "status": "OK",
+          "description": "Bucketed user age range"
+        },
+        {
+          "property": "profile_completeness_pct",
+          "type": "Integer",
+          "allowed_values": "0 to 100",
+          "class": "0",
+          "status": "OK",
+          "description": "Percentage of profile parameters completed"
+        },
+        {
+          "property": "photos_count",
+          "type": "Integer",
+          "allowed_values": "0 to 6was 1 to 6",
+          "class": "0",
+          "status": "Revise",
+          "description": "Active photos count on profileProfile is created empty, so 0 is valid. Sheet says 1 to 6."
+        },
+        {
+          "property": "prompts_answered_count",
+          "type": "Integer",
+          "allowed_values": "0 to 5",
+          "class": "0",
+          "status": "Not built",
+          "description": "Written prompt responses completedNo prompt storage in the backend."
+        },
+        {
+          "property": "has_voice_prompt",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "Not built",
+          "description": "Indicates presence of voice promptNo voice media storage."
+        },
+        {
+          "property": "has_video_prompt",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "Not built",
+          "description": "Indicates presence of video promptNo video media storage."
+        },
+        {
+          "property": "fields_hidden_count",
+          "type": "Integer",
+          "allowed_values": "0 to 10",
+          "class": "0",
+          "status": "Not built",
+          "description": "Profile fields hidden via privacy controlsNo per-field privacy mechanism exists — the backend has one global visibility switch."
+        },
+        {
+          "property": "showup_rate",
+          "type": "Float",
+          "allowed_values": "0.00 to 1.00",
+          "class": "0",
+          "status": "Not built",
+          "description": "Calculated show-up reliability scoreShow-Up score is planned only."
+        },
+        {
+          "property": "showup_band",
+          "type": "String (Enum)",
+          "allowed_values": "trusted | steady | at_risk",
+          "class": "0",
+          "status": "Not built",
+          "description": "Classified reliability tierShow-Up score is planned only."
+        },
+        {
+          "property": "dates_scheduled_total",
+          "type": "Integer",
+          "allowed_values": ">= 0",
+          "class": "0",
+          "status": "OK",
+          "description": "Lifetime dates scheduled"
+        },
+        {
+          "property": "dates_attended_total",
+          "type": "Integer",
+          "allowed_values": ">= 0",
+          "class": "0",
+          "status": "OK",
+          "description": "Lifetime dates attended"
+        },
+        {
+          "property": "no_shows_total",
+          "type": "Integer",
+          "allowed_values": ">= 0",
+          "class": "0",
+          "status": "Not built",
+          "description": "Lifetime confirmed dates missedNo-show reporting is planned only."
+        },
+        {
+          "property": "late_cancellations_total",
+          "type": "Integer",
+          "allowed_values": ">= 0",
+          "class": "0",
+          "status": "Not built",
+          "description": "Lifetime cancellations under notice limitNot built."
+        },
+        {
+          "property": "avg_arrival_delta_min",
+          "type": "Float",
+          "allowed_values": "Value in minutes (+/-)",
+          "class": "0",
+          "status": "Not built",
+          "description": "Mean deviation from agreed date timeNot built."
+        },
+        {
+          "property": "checkin_streak",
+          "type": "Integer",
+          "allowed_values": ">= 0",
+          "class": "0",
+          "status": "Not built",
+          "description": "Consecutive active check-in cyclesNot computed."
+        },
+        {
+          "property": "availability_hours_per_week",
+          "type": "Float",
+          "allowed_values": "Hours",
+          "class": "0",
+          "status": "Not built",
+          "description": "Average total weekly availability setNot computed."
+        },
+        {
+          "property": "avg_response_latency_min",
+          "type": "Float",
+          "allowed_values": "Minutes",
+          "class": "0",
+          "status": "Not built",
+          "description": "Average response time to date chatsNo chat in the backend."
+        },
+        {
+          "property": "instant_opt_in",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "Not built",
+          "description": "State of Instant Mode togglesInstant Mode is not in the backend."
+        },
+        {
+          "property": "matching_suspended",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "Not built",
+          "description": "Indicates account lockout/suspensionNot built — see account_status."
+        },
+        {
+          "property": "suspension_reason",
+          "type": "String (Enum)",
+          "allowed_values": "none | no_show_threshold | late_cancel_threshold | report_pending",
+          "class": "1",
+          "status": "Not built",
+          "description": "Active lockout reasonNot built — see moderation_standing."
+        },
+        {
+          "property": "plan_period",
+          "type": "String (Enum)",
+          "allowed_values": "none | month | quarter | year",
+          "class": "0",
+          "status": "Not built",
+          "description": "Subscription billing frequencyPayments are planned only."
+        },
+        {
+          "property": "subscription_state",
+          "type": "String (Enum)",
+          "allowed_values": "inactive | active | in_grace_period | canceled",
+          "class": "0",
+          "status": "Not built",
+          "description": "Billing pipeline statePayments are planned only."
+        },
+        {
+          "property": "boosts_balance",
+          "type": "Integer",
+          "allowed_values": ">= 0",
+          "class": "0",
+          "status": "Not built",
+          "description": "Unused profile boost creditsPayments are planned only."
+        },
+        {
+          "property": "ltv_gross",
+          "type": "Float",
+          "allowed_values": "Total spend in USD",
+          "class": "0",
+          "status": "Not built",
+          "description": "Gross lifetime revenue generatedPayments are planned only."
+        },
+        {
+          "property": "trial_used",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "0",
+          "status": "Not built",
+          "description": "Indicates if trial period has been consumedPayments are planned only."
+        },
+        {
+          "property": "consent_push",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "1",
+          "status": "Not built",
+          "description": "Explicit Push opt-in stateConsent flags are not stored."
+        },
+        {
+          "property": "consent_sms",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "1",
+          "status": "Not built",
+          "description": "Explicit SMS opt-in stateConsent flags are not stored."
+        },
+        {
+          "property": "consent_whatsapp",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "1",
+          "status": "Not built",
+          "description": "Explicit WhatsApp opt-in stateConsent flags are not stored."
+        },
+        {
+          "property": "consent_email",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "1",
+          "status": "Not built",
+          "description": "Explicit Email opt-in stateConsent flags are not stored."
+        },
+        {
+          "property": "consent_call",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "1",
+          "status": "Not built",
+          "description": "Explicit Voice/Concierge call opt-in stateConsent flags are not stored."
+        },
+        {
+          "property": "location_permission",
+          "type": "String (Enum)",
+          "allowed_values": "granted_always | granted_in_use | denied",
+          "class": "1",
+          "status": "OK",
+          "description": "OS location permission state"
+        },
+        {
+          "property": "contacts_permission",
+          "type": "String (Enum)",
+          "allowed_values": "granted | denied",
+          "class": "1",
+          "status": "OK",
+          "description": "OS contact list permission state"
+        },
+        {
+          "property": "concierge_contact_saved",
+          "type": "Boolean",
+          "allowed_values": "true | false",
+          "class": "1",
+          "status": "Not built",
+          "description": "Verified Concierge vCard saved stateNot stored."
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Additions",
+      "properties": [
+        {
+          "property": "hidden_fieldsv1.2",
+          "type": "Array[String]",
+          "scope": "User Property",
+          "allowed_values": "See field_id registry",
+          "class": "1",
+          "why": "Every field_id the user currently hides, rewritten on every change in both directions. field_display_opted_out answers which fields people choose to hide; it cannot answer how many users hide religion right now, because an un-hide fires nothing and repeated toggling inflates the count. This property is that answer, and it is the value the profile renderer reads anyway."
+        },
+        {
+          "property": "sensitivity_class",
+          "type": "Integer",
+          "scope": "Required",
+          "allowed_values": "0 | 1 | 2 | 3",
+          "class": "0",
+          "why": "Resolved class stamped on the event at emit time. The pipeline routes on this value and never joins to the registry to make a safety decision."
+        },
+        {
+          "property": "field_registry_version",
+          "type": "String",
+          "scope": "Required",
+          "allowed_values": "SemVer",
+          "class": "0",
+          "why": "Version of the field_id registry the client resolved against. Lets a historical row be read back with the classification it was collected under."
+        },
+        {
+          "property": "gender",
+          "type": "String (Enum)",
+          "scope": "User Property",
+          "allowed_values": "See registry",
+          "class": "2",
+          "why": "Set from detail_answered · field_id=\"gender\". Missing today, so gender cannot be used as a segment."
+        },
+        {
+          "property": "height_band",
+          "type": "String (Enum)",
+          "scope": "User Property",
+          "allowed_values": "See registry",
+          "class": "0",
+          "why": "Set from detail_answered · field_id=\"height\"."
+        },
+        {
+          "property": "attributes_answered_count",
+          "type": "Integer",
+          "scope": "User Property",
+          "allowed_values": "0 to 9",
+          "class": "0",
+          "why": "How many registry fields carry a value. The attribute-flow equivalent of photos_count."
+        },
+        {
+          "property": "account_status",
+          "type": "String (Enum)",
+          "scope": "User Property",
+          "allowed_values": "registered | verified | active | restricted | suspended | deletion_pending | deleted",
+          "class": "1",
+          "why": "Backend UserStatus. Absent from the sheet, and not reconstructable from matching_suspended. Two values are never set by any code today: verified and restricted."
+        },
+        {
+          "property": "moderation_standing",
+          "type": "String (Enum)",
+          "scope": "User Property",
+          "allowed_values": "Per backend",
+          "class": "1",
+          "why": "A separate axis from account status. No property today."
+        },
+        {
+          "property": "verification_state",
+          "type": "String (Enum)",
+          "scope": "User Property",
+          "allowed_values": "none | pending | verified | rejected",
+          "class": "3",
+          "why": "Replaces boolean photo_verified. Note: the provider is a stand-in that always returns pass."
+        },
+        {
+          "property": "profile_visible",
+          "type": "Boolean",
+          "scope": "User Property",
+          "allowed_values": "true | false",
+          "class": "0",
+          "why": "The one privacy switch that actually exists."
+        },
+        {
+          "property": "topic_id",
+          "type": "String (Enum)",
+          "scope": "Event Property",
+          "allowed_values": "See prompt_topic_id registry (enums §17)",
+          "class": "0",
+          "why": "Which prompt topic. The whole point of the prompts taxonomy: it is what answers “which topics do people choose, and which do they open and then abandon”. Stable id, assigned once — never the display string, or a copy edit splits one topic into two rows."
+        },
+        {
+          "property": "topic_group",
+          "type": "String (Enum)",
+          "scope": "Event Property",
+          "allowed_values": "dating_me | real_life | opinions",
+          "class": "0",
+          "why": "Which of the three groups in the browse sheet the topic belongs to. Lets the question be asked at group level when per-topic volume is thin."
+        },
+        {
+          "property": "length_bucket",
+          "type": "String (Enum)",
+          "scope": "Event Property",
+          "allowed_values": "1_40 | 41_80 | 81_120 | 121_160 (enums §19)",
+          "class": "0",
+          "why": "Bucketed length of a saved prompt answer. Never the text: the answer is user-written free text about themselves. Says whether the floor framing changed what people write."
+        },
+        {
+          "property": "draft_length_bucket",
+          "type": "String (Enum)",
+          "scope": "Event Property",
+          "allowed_values": "0 | 1_40 | 41_80 | 81_120 | 121_160",
+          "class": "0",
+          "why": "Bucketed length of an abandoned draft on prompt_editor_dismissed. Separates “opened and looked” from “wrote half of it and gave up” — two different problems with two different fixes."
+        },
+        {
+          "property": "had_draft",
+          "type": "Boolean",
+          "scope": "Event Property",
+          "allowed_values": "true | false",
+          "class": "0",
+          "why": "Whether any text existed when the write sheet was dismissed without saving."
+        },
+        {
+          "property": "selection_index",
+          "type": "Integer",
+          "scope": "Event Property",
+          "allowed_values": "1 upwards",
+          "class": "0",
+          "why": "1-based count of topic selections in one visit to the prompts step, on prompt_topic_selected. selection_index: 1 is the topic the user reached for FIRST — a different question from which topic they saved. Added 16 Sep 2026."
+        },
+        {
+          "property": "used_count",
+          "type": "Integer",
+          "scope": "Event Property",
+          "allowed_values": "0 to 3",
+          "class": "0",
+          "why": "How many topics were already used when the browse sheet was opened or cancelled. Carried by prompt_topic_list_opened and prompt_topic_list_dismissed — browsing with nothing written is a different act from browsing for a third prompt."
+        },
+        {
+          "property": "dismiss_method",
+          "type": "String (Enum)",
+          "scope": "Event Property",
+          "allowed_values": "close | backdrop | swipe | system_back (enums §23)",
+          "class": "0",
+          "why": "How a bottom sheet was closed — the write sheet, the topic sheet, the media prompt list, and every sheet after them. ONE canonical set (§23) since 16 Sep 2026: scrim/back and cancel were three spellings of the same four acts. Cheap to record and it separates a deliberate exit from a misplaced tap on the scrim."
+        },
+        {
+          "property": "is_edit",
+          "type": "Boolean",
+          "scope": "Event Property",
+          "allowed_values": "true | false",
+          "class": "0",
+          "why": "Whether the editor was opened on an existing prompt rather than an empty slot. An edit does not consume a slot and must not be counted as a new prompt."
+        },
+        {
+          "property": "prompt_count",
+          "type": "Integer",
+          "scope": "Event Property",
+          "allowed_values": "0 to 3",
+          "class": "0",
+          "why": "How many prompts the user holds after the action. The prompts equivalent of filled_count on photos. Also carried by profile_step_completed on step_id: \"prompts\" (v1.4.1) — that is the answer to how much was written when Continue was pressed, and the step completing does not say it on its own."
+        },
+        {
+          "property": "prompts_count",
+          "type": "Integer",
+          "scope": "User Property",
+          "allowed_values": "0 to 3",
+          "class": "0",
+          "why": "How many prompts the profile currently carries. Missing today, so “profiles with 1 prompt versus 3” is not a segment that can be built."
+        },
+        {
+          "property": "profile_complete",
+          "type": "Boolean",
+          "scope": "User Property",
+          "allowed_values": "true | false",
+          "class": "0",
+          "why": "Name + DOB + ≥4 photos. A flag only — nothing is gated on it."
+        }
+      ]
+    }
+  ]
+}

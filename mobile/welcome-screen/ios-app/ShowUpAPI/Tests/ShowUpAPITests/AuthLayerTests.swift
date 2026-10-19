@@ -1,6 +1,7 @@
 import XCTest
 import OpenAPIRuntime
 import HTTPTypes
+import os
 @testable import ShowUpAPI
 
 /// Verifies the iOS auth layer: injection, refresh, rotation, clearing, and single-flight.
@@ -36,11 +37,31 @@ final class AuthLayerTests: XCTestCase {
         {"expiresAt":"2026-09-04T10:15:30Z","resendAvailableAt":"2026-09-04T10:16:00Z"}
         """
 
+    /// How many times the app was told the session is over.
+    ///
+    /// Counted SYNCHRONOUSLY, under a lock, rather than on the `Counter` actor: the refresher calls
+    /// `onSessionEnded` before `validToken` returns, so the count is already final when the
+    /// assertion reads it. Hopping to an actor would leave the test waiting on a task it cannot see.
+    private final class SessionEndings: Sendable {
+        private let count = OSAllocatedUnfairLock(initialState: 0)
+        func record() { count.withLock { $0 += 1 } }
+        var value: Int { count.withLock { $0 } }
+    }
+
+    /// How the refresh endpoint answers.
+    private enum RefreshAnswer: Sendable {
+        /// A new pair.
+        case renewed
+        /// This status, with an error body. 401 stands in for a spent or revoked token.
+        case status(Int)
+        /// No answer at all: the connection drops.
+        case dropped
+    }
+
     /// Serves 401 to anything carrying a stale token and 200 to anything carrying the new one.
     private struct StubTransport: ClientTransport {
         let counter: Counter
-        /// When true the refresh endpoint rejects, standing in for a spent or revoked token.
-        let refreshFails: Bool
+        let refresh: RefreshAnswer
 
         func send(
             _ request: HTTPRequest,
@@ -53,13 +74,20 @@ final class AuthLayerTests: XCTestCase {
 
             if path.hasSuffix("/auth/refresh") {
                 await counter.countRefresh()
-                if refreshFails {
-                    return (HTTPResponse(status: .unauthorized), HTTPBody(#"{"statusCode":401,"message":"Invalid","error":"Unauthorized"}"#))
+                switch refresh {
+                case .renewed:
+                    return (
+                        HTTPResponse(status: .ok, headerFields: [.contentType: "application/json"]),
+                        HTTPBody(AuthLayerTests.authResponse)
+                    )
+                case .status(let code):
+                    return (
+                        HTTPResponse(status: .init(code: code), headerFields: [.contentType: "application/json"]),
+                        HTTPBody(#"{"statusCode":\#(code),"message":"Refused","error":"Refused"}"#)
+                    )
+                case .dropped:
+                    throw URLError(.networkConnectionLost)
                 }
-                return (
-                    HTTPResponse(status: .ok, headerFields: [.contentType: "application/json"]),
-                    HTTPBody(AuthLayerTests.authResponse)
-                )
             }
 
             await counter.countProtected(auth: auth)
@@ -76,49 +104,39 @@ final class AuthLayerTests: XCTestCase {
         }
     }
 
+    /// The package's own refresh mapping — not a copy of it — so these tests cover what ships.
     private func makeRefresher(
         tokens: any TokenStoring,
         counter: Counter,
-        refreshFails: Bool = false
+        refresh: RefreshAnswer = .renewed,
+        endings: SessionEndings = SessionEndings()
     ) -> TokenRefresher {
         let bare = Client(
             serverURL: APIEnvironment.development.baseURL,
-            transport: StubTransport(counter: counter, refreshFails: refreshFails)
+            transport: StubTransport(counter: counter, refresh: refresh)
         )
-        return TokenRefresher(tokens: tokens) { refreshToken in
-            let response = try await bare.refreshAuthToken(
-                headers: .init(user_hyphen_agent: "test-agent"),
-                body: .json(.init(refreshToken: refreshToken))
-            )
-            switch response {
-            case .ok(let ok):
-                let payload = try ok.body.json
-                return TokenRefresher.TokenPair(
-                    accessToken: payload.accessToken,
-                    refreshToken: payload.refreshToken
-                )
-            default:
-                return nil
-            }
+        return TokenRefresher(tokens: tokens, onSessionEnded: { endings.record() }) { refreshToken in
+            try await ShowUpAPI.exchangeRefresh(bare, refreshToken: refreshToken, userAgent: "test-agent")
         }
     }
 
     private func makeClient(
         tokens: any TokenStoring,
         counter: Counter,
-        refreshFails: Bool = false
+        refresh: RefreshAnswer = .renewed
     ) -> Client {
         Client(
             serverURL: APIEnvironment.development.baseURL,
-            transport: StubTransport(counter: counter, refreshFails: refreshFails),
+            transport: StubTransport(counter: counter, refresh: refresh),
             middlewares: [
                 AuthMiddleware(
                     tokens: tokens,
-                    refresher: makeRefresher(tokens: tokens, counter: counter, refreshFails: refreshFails)
+                    refresher: makeRefresher(tokens: tokens, counter: counter, refresh: refresh)
                 )
             ]
         )
     }
+
 
     // MARK: - Injection
 
@@ -227,10 +245,11 @@ final class AuthLayerTests: XCTestCase {
 
     // MARK: - Failure and clearing
 
-    func testAFailedRefreshClearsTheSession() async throws {
+    func testARefusedRefreshEndsTheSessionAndTellsTheAppOnce() async throws {
         let counter = Counter()
         let tokens = InMemoryTokenStore(accessToken: "stale-access", refreshToken: "spent-refresh")
-        let refresher = makeRefresher(tokens: tokens, counter: counter, refreshFails: true)
+        let endings = SessionEndings()
+        let refresher = makeRefresher(tokens: tokens, counter: counter, refresh: .status(401), endings: endings)
 
         let result = await refresher.validToken(after: "stale-access")
 
@@ -240,18 +259,97 @@ final class AuthLayerTests: XCTestCase {
         let refresh = await tokens.refreshToken()
         XCTAssertNil(access, "access token cleared")
         XCTAssertNil(refresh, "refresh token cleared")
+        // THE BUG THIS FIXES: the tokens went and nobody was told, so every save after that failed
+        // with "We couldn't save that just now" and no way back to sign-in.
+        XCTAssertEqual(endings.value, 1, "the app is told the session is over, once")
+    }
+
+    func testTenConcurrentCallersAgainstARefusedSessionTellTheAppOnce() async throws {
+        let counter = Counter()
+        let tokens = InMemoryTokenStore(accessToken: "stale-access", refreshToken: "spent-refresh")
+        let endings = SessionEndings()
+        let refresher = makeRefresher(tokens: tokens, counter: counter, refresh: .status(401), endings: endings)
+
+        await withTaskGroup(of: String?.self) { group in
+            for _ in 1...10 {
+                group.addTask { await refresher.validToken(after: "stale-access") }
+            }
+            for await _ in group {}
+        }
+
+        let refreshes = await counter.refreshCalls
+        XCTAssertEqual(refreshes, 1, "one refresh")
+        XCTAssertEqual(endings.value, 1, "one notice, not ten")
+    }
+
+    func testAServerErrorDuringRefreshKeepsTheUserSignedIn() async throws {
+        let counter = Counter()
+        let tokens = InMemoryTokenStore(accessToken: "stale-access", refreshToken: "good-refresh")
+        let endings = SessionEndings()
+        let refresher = makeRefresher(tokens: tokens, counter: counter, refresh: .status(503), endings: endings)
+
+        let result = await refresher.validToken(after: "stale-access")
+
+        XCTAssertNil(result, "no token to give right now")
+        let refresh = await tokens.refreshToken()
+        XCTAssertEqual(refresh, "good-refresh", "tokens kept: the server being down says nothing about the session")
+        XCTAssertEqual(endings.value, 0)
+    }
+
+    func testNoConnectionDuringRefreshKeepsTheUserSignedIn() async throws {
+        let counter = Counter()
+        let tokens = InMemoryTokenStore(accessToken: "stale-access", refreshToken: "good-refresh")
+        let endings = SessionEndings()
+        let refresher = makeRefresher(tokens: tokens, counter: counter, refresh: .dropped, endings: endings)
+
+        let result = await refresher.validToken(after: "stale-access")
+
+        XCTAssertNil(result)
+        let access = await tokens.accessToken()
+        let refresh = await tokens.refreshToken()
+        XCTAssertEqual(access, "stale-access", "a train in a tunnel does not sign anyone out")
+        XCTAssertEqual(refresh, "good-refresh")
+        XCTAssertEqual(endings.value, 0)
+    }
+
+    func testARateLimitedOrTimedOutRefreshIsNotARefusal() async throws {
+        for code in [408, 429] {
+            let counter = Counter()
+            let tokens = InMemoryTokenStore(accessToken: "stale-access", refreshToken: "good-refresh")
+            let endings = SessionEndings()
+            let refresher = makeRefresher(tokens: tokens, counter: counter, refresh: .status(code), endings: endings)
+
+            _ = await refresher.validToken(after: "stale-access")
+
+            let refresh = await tokens.refreshToken()
+            XCTAssertEqual(refresh, "good-refresh", "\(code) keeps the tokens")
+            XCTAssertEqual(endings.value, 0, "\(code) is not a refusal")
+        }
+    }
+
+    func testTheRefusalLine() {
+        // Every 4xx but 408 and 429 refuses; nothing else does.
+        for code in [400, 401, 403, 404, 410] {
+            XCTAssertEqual(TokenRefresher.Outcome.ofFailedResponse(statusCode: code), .refused, "\(code)")
+        }
+        for code in [200, 408, 429, 500, 502, 503] {
+            XCTAssertEqual(TokenRefresher.Outcome.ofFailedResponse(statusCode: code), .unreachable, "\(code)")
+        }
     }
 
     func testA401WithNoRefreshTokenDoesNotAttemptARefresh() async throws {
         let counter = Counter()
         let tokens = InMemoryTokenStore(accessToken: "stale-access", refreshToken: nil)
-        let refresher = makeRefresher(tokens: tokens, counter: counter)
+        let endings = SessionEndings()
+        let refresher = makeRefresher(tokens: tokens, counter: counter, endings: endings)
 
         let result = await refresher.validToken(after: "stale-access")
 
         XCTAssertNil(result)
         let refreshes = await counter.refreshCalls
         XCTAssertEqual(refreshes, 0, "a signed-out user is not an error worth a network call")
+        // Someone who never signed in has no session to end, so no "log in again".
+        XCTAssertEqual(endings.value, 0)
     }
 
     func testClearingRemovesBothTokens() async throws {

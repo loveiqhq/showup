@@ -80,7 +80,17 @@ fun WelcomeBackScreen(
     val known = lastUsed != AuthMethod.Unknown && lastUsed in methods
     val primary = if (known) lastUsed else methods.firstOrNull() ?: AuthMethod.Phone
 
-    WelcomeScaffold {
+    // Scroll only when the frame runs out, per the 10 September decision.
+    //
+    // On every phone where the content fits -- all twelve at 390dp and wider, and most of the
+    // 360s -- this changes nothing at all: the inner column is floored at the viewport height, so
+    // the two weighted spacers still divide the leftover space and the layout is what it was.
+    //
+    // On the short ones it is the difference between a screen and a broken one. At 320x686 with a
+    // 24-character name, "Continue with Facebook" was measured at 7.5dp tall: a real sign-in
+    // button squeezed to a sliver, because a Column with nothing left to give shrinks its children
+    // in place rather than pushing them off the edge. Nothing looked wrong in a preview.
+    WelcomeScaffold(scrollWhenTight = true) {
         val compact = LocalConfiguration.current.screenHeightDp < 700
         Wordmark()
 
@@ -191,6 +201,27 @@ fun WelcomeBackScreen(
  * default the screen ships with, so a caller that passes nothing gets this rather than a greeting
  * addressed to a stranger.
  */
+// ── the two sizes that were actually broken ─────────────────────────────────
+//
+// Every preview below this pair is 375, 390 or 430 -- the sizes the design was drawn at, and all
+// three were always fine. The screen was broken at 360x640 and 320x686, where nobody was looking:
+// on 10 September the fit sweep measured "Continue with Facebook" at 7.5dp tall here, with the
+// legal line and the help line both at zero height. Keep these two. A preview set that only
+// covers the comfortable sizes is how a screen stays broken for six weeks.
+
+@Preview(name = "320 x 686 - Fold cover, 24-char name", showBackground = true,
+         widthDp = 320, heightDp = 686)
+@Composable
+private fun WBPreviewFoldCover() {
+    WelcomeBackScreen(name = "Alexandra-Wilhelmina Ma", lastUsed = AuthMethod.Facebook)
+}
+
+@Preview(name = "360 x 640 - small Android", showBackground = true, widthDp = 360, heightDp = 640)
+@Composable
+private fun WBPreviewSmallAndroid() {
+    WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Phone)
+}
+
 @Preview(name = "no account on this device", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun WBPreviewNoAccount() { WelcomeBackScreen() }

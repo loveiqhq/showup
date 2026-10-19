@@ -23,6 +23,7 @@ import {
 import { AnalyticsService } from '../../analytics/analytics.service';
 import { notificationSentEvent } from '../../analytics/events/server-events';
 import { NotificationPreferencesService } from './notification-preferences.service';
+import { PermissionStatusesService } from './permission-statuses.service';
 import { PushTokensService } from './push-tokens.service';
 
 /** Outcome of a dispatch attempt. `skipped` = suppressed by status/preferences (not an error). */
@@ -51,6 +52,7 @@ export class NotificationDispatchService {
     private readonly users: Repository<User>,
     private readonly prefs: NotificationPreferencesService,
     private readonly pushTokens: PushTokensService,
+    private readonly permissions: PermissionStatusesService,
     @InjectRepository(NotificationLogEntry)
     private readonly logRepo: Repository<NotificationLogEntry>,
     @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
@@ -78,6 +80,19 @@ export class NotificationDispatchService {
       return { status: 'skipped', delivered: 0 };
     }
     if (!shouldSend(type, await this.prefs.getState(userId))) {
+      await this.log(
+        NotificationChannel.Push,
+        userId,
+        type,
+        NotificationLogStatus.Skipped,
+        { locale },
+      );
+      return { status: 'skipped', delivered: 0 };
+    }
+    // THE PHONE SAID NOTIFICATIONS ARE OFF (epic SHOWUP-151: "can we notify this user" evaluates the
+    // permission, the consent and the token). A push to it would be accepted and never shown, so
+    // it is skipped like any other suppressed send. Not knowing is not off: see the service.
+    if (await this.permissions.notificationsBlocked(userId)) {
       await this.log(
         NotificationChannel.Push,
         userId,

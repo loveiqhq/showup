@@ -15,11 +15,11 @@
  * database workable in the first place.
  *
  * ─── Why the guard below is not optional ───
- * There is no separate test database: DB_NAME is the same `showup` database used for local
- * development. Truncating is therefore already destructive by design, and would be catastrophic if
- * the connection details ever pointed somewhere real. The guard refuses to run against anything
- * that is not an obviously local or throwaway host, so a misconfigured DB_HOST fails loudly instead
- * of quietly emptying a live database.
+ * This empties every table. Since 8 October 2026 it runs against the suite's OWN database
+ * (`e2e-database.ts`: `<DB_NAME>_test`, created and migrated by `e2e-global-setup.ts`), never the
+ * `showup` database the local app uses — before that, every run deleted every local account. The
+ * guard refuses any database whose name does not end in `_test`, and any host that is not
+ * obviously local or throwaway, so a misconfiguration fails loudly instead of emptying real data.
  */
 
 import { config as loadEnv } from 'dotenv';

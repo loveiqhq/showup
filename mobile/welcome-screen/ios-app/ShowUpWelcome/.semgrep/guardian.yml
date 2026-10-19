@@ -1,0 +1,5 @@
+serial: 1
+anonymous_user_id: cac5fc59-b560-4917-a458-171e3f281e74
+semgrep:
+    auth_method: oauth
+expiry: 2026-10-05T06:56:33.7063402+02:00

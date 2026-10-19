@@ -25,7 +25,8 @@ const ALLOWED_TYPES = new Map<string, string>([
   ['image/webp', 'webp'],
 ]);
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const MAX_PHOTOS = 6;
+/** The most photos one account may hold. Six, matching the grid the client draws. */
+export const MAX_PHOTOS = 6;
 
 /** Minimal shape of an uploaded file (subset of Express.Multer.File). */
 export interface UploadedImage {
@@ -98,6 +99,61 @@ export class PhotosService {
     });
   }
 
+  /**
+   * Stores the order the user dragged the grid into.
+   *
+   * TAKES THE WHOLE ORDER AND REQUIRES IT TO BE COMPLETE. `ids` must be exactly this account's
+   * photos, each once — no missing, no extra, no duplicates. A partial list is refused rather than
+   * applied, because "position these three and leave the rest" has no answer the caller and the
+   * server would agree on: whatever the server invented for the others would be an order the user
+   * did not choose.
+   *
+   * Refusing is also what makes a stale client safe. A grid that was built before another device
+   * added a photo sends a list one short, and the 400 sends it back to `list()` rather than
+   * quietly renumbering around a photo it has never seen.
+   *
+   * MODERATION IS NOT CONSULTED, deliberately. This app post-moderates: `isPhotoVisibleToOthers`
+   * shows pending and approved and hides only rejected, and `listVisible` is what every path
+   * serving photos to somebody else already uses. So which photo a stranger sees first is decided
+   * where photos are READ, not here — and refusing to move a photo that is still in review would
+   * be a drag that silently springs back, with nothing on screen to explain it.
+   */
+  async reorder(userId: string, ids: string[]): Promise<ProfilePhoto[]> {
+    const mine = await this.list(userId);
+
+    const unique = new Set(ids);
+    if (unique.size !== ids.length) {
+      throw new BadRequestException('The same photo appears more than once.');
+    }
+    if (ids.length !== mine.length || !mine.every((p) => unique.has(p.id))) {
+      // One message for all three shapes of wrong -- missing, extra, or somebody else's id --
+      // because the caller's only recovery is the same in each case: re-read and try again. Naming
+      // which id was unrecognised would also tell a caller whether an id exists on another account.
+      throw new BadRequestException(
+        'The order must list this account’s photos exactly once each.',
+      );
+    }
+
+    const byId = new Map(mine.map((photo) => [photo.id, photo]));
+    const reordered = ids.map((id, index) => {
+      const photo = byId.get(id)!;
+      photo.position = index;
+      return photo;
+    });
+    await this.photos.save(reordered);
+    return reordered;
+  }
+
+  /**
+   * Deletes one photo and closes the gap it left.
+   *
+   * RENUMBERING IS NOT TIDINESS. `upload` gives a new photo `position = count`, which is only the
+   * end of the list while positions are dense. Leave holes and it stops being: delete three of
+   * five photos and the next upload takes position 2, ahead of the two survivors at 3 and 4 --
+   * a photo the user just added silently becoming their main photo.
+   *
+   * Six rows at most, so this is one extra write and no query worth optimising.
+   */
   async remove(userId: string, photoId: string): Promise<void> {
     const photo = await this.photos.findOne({
       where: { id: photoId, userId },
@@ -105,6 +161,15 @@ export class PhotosService {
     if (!photo) throw new NotFoundException('Photo not found');
     await this.storage.delete(photo.storageKey);
     await this.photos.remove(photo);
+
+    const remaining = await this.list(userId);
+    const moved = remaining.filter((p, index) => {
+      if (p.position === index) return false;
+      p.position = index;
+      return true;
+    });
+    if (moved.length > 0) await this.photos.save(moved);
+
     await this.profiles.refreshCompletion(userId);
   }
 

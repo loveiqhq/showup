@@ -34,7 +34,7 @@ explaining why.**
 **Do not report a platform as verified unless it was actually built and tested in that platform's
 toolchain.**
 
-Each of these is here because it was broken. The primary button exists three times on Android. Eight
+Each of these is here because it was broken. The primary button existed three times on Android until 7 September 2026, and one of the copies had quietly drifted four ways. Eight
 Swift tests sat in no target for a week and were reported as present. "It compiles" was, more than
 once, the whole basis for calling a screen done.
 
@@ -71,6 +71,11 @@ they are now a parity check rather than a substitute for one.
 a reserved region collapses to nil in SwiftUI and reserved nothing, moving the CTA 56 points; the
 identical code on Android reserved its minimum height and looked fine. "It works on Android" is not
 evidence about iOS.
+
+**Portrait only, both platforms.** Product decision, 9 September 2026. iOS lists one supported
+orientation in `Info.plist`; Android sets `android:screenOrientation="portrait"`. Do not design
+for landscape and do not add the other orientations back without a product decision reversing
+this. Large screens are a real caveat — see `docs/mobile-client-architecture-spike.md` 1.5.2.
 
 ## Minimum OS targets
 

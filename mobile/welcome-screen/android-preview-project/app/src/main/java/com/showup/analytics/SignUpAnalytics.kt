@@ -93,14 +93,43 @@ object SignUpAnalytics {
      */
     const val LEGAL_LINK_TAPPED = "legal_link_tapped"
 
+    /**
+     * §13 `legal_link`, in full: `terms · privacy · legal_notice`.
+     *
+     * THESE ARE THE REGISTRY'S VALUES, and two of them were wrong here until 25 September 2026 --
+     * `terms_and_conditions` and `privacy_policy`, which are the document names rather than the
+     * vocabulary. Seven links across three screens share one event, and a value outside the set
+     * is a row nobody can group by.
+     */
     object Legal {
-        const val TERMS = "terms_and_conditions"
-        const val PRIVACY = "privacy_policy"
+        const val TERMS = "terms"
+        const val PRIVACY = "privacy"
         const val LEGAL_NOTICE = "legal_notice"
     }
 
-    fun legalLinkTapped(link: String, screen: String): Pair<String, Map<String, Any>> =
-        LEGAL_LINK_TAPPED to mapOf("link" to link, "screen_name" to screen)
+    /**
+     * The §11 keys for the screens that carry a legal link.
+     *
+     * NOT [Screen], which holds LABELS ("Signup - CreateAccount") for `screen_name`. This event
+     * carries `screen_id`, and events.json says why: "this event carries the key only;
+     * screen_viewed is where the label lives". Sending a label under an id was the second half of
+     * the same defect.
+     */
+    object ScreenId {
+        const val CREATE_ACCOUNT = "signup_create_account"
+        const val WELCOME_BACK = "signup_welcome_back"
+        const val CONNECT_SSO = "connect_sso"
+    }
+
+    /**
+     * One event across all seven links on three screens.
+     *
+     * `screen_id`, NOT `screen_name`. events.json carries the rename as an explicit `code_delta`,
+     * and the key matters more than it looks: a funnel joining this to `screen_viewed` joins on
+     * the id, and a label will not match.
+     */
+    fun legalLinkTapped(link: String, screenId: String): Pair<String, Map<String, Any>> =
+        LEGAL_LINK_TAPPED to mapOf("link" to link, "screen_id" to screenId)
 
     // ── SHOWUP-142 / 145 · Welcome back ─────────────────────────────────────
 

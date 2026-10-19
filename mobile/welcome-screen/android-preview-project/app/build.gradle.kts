@@ -37,6 +37,9 @@ openApiGenerate {
     // with OkHttp -- which is where the auth interceptor lives, keeping tokens out of every
     // generated endpoint method.
     library.set("jvm-retrofit2")
+    // One line of the stock template overridden: a DELETE with a body (DELETE /me/push-tokens) came
+    // out as @DELETE + @Body, which Retrofit rejects at call time. See the template's own header.
+    templateDir.set("$projectDir/openapi-templates")
 
     configOptions.set(
         mapOf(
@@ -141,6 +144,28 @@ android {
     testOptions {
         // Robolectric needs the real resources -- fonts and the drawable the welcome card uses.
         unitTests.isIncludeAndroidResources = true
+        // android.jar in a unit test is stubs that THROW. Without this, touching anything from
+        // the framework -- android.util.Log, in AuthTrace -- fails the test with "not mocked"
+        // rather than doing nothing, which is a strange default for code whose whole job is to
+        // be absent from a test. Robolectric tests provide the real implementations regardless;
+        // this only affects the plain JVM ones.
+        unitTests.isReturnDefaultValues = true
+        unitTests.all {
+            // 2 GB FOR THE TEST JVM, where Gradle's default is 512 MB. The fit harnesses render
+            // every screen state at 17 phone sizes and three type sizes under Robolectric -- about
+            // 1,300 compositions in PickFitTest alone (SHOWUP-174 to 176) -- and the suite ran out
+            // of heap on CI at 512 the day those landed, failing every test after it.
+            it.maxHeapSize = "2g"
+            // A FRESH JVM EVERY FOUR CLASSES. 2 GB alone was not enough: Robolectric keeps a little
+            // of every composition it renders, so the heap fills ACROSS classes, not within one --
+            // each fit class passes on its own, and the 66 sharing one JVM ran out partway through
+            // on CI (13 October 2026, "OutOfMemoryError ... 125 tests completed, 14 failed"). A
+            // restart frees all of it, for a few seconds of start-up each.
+            it.setForkEvery(4)
+            // Two at once on CI, which has 4 cores and 16 GB, to win that start-up back. One
+            // locally: this machine reaps a Gradle run that asks for too much memory.
+            if (System.getenv("CI") != null) it.maxParallelForks = 2
+        }
     }
 }
 
@@ -173,6 +198,18 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.10.00"))
     implementation("androidx.core:core-ktx:1.13.1")
 
+    // ── the profile flow owns asynchronous work, so it gets a ViewModel ─────────
+    //
+    // CLAUDE.md said when: "Introduce one the moment a screen loads, uploads or retries; then it
+    // exposes StateFlow and the screen collects it lifecycle-aware with collectAsStateWithLifecycle(),
+    // never bare collectAsState()." SHOWUP-153 is that moment -- it sends a code, waits, and
+    // retries -- and these two are what that sentence requires.
+    //
+    // runtime-compose is the one that matters for correctness: collectAsStateWithLifecycle lives
+    // there, and bare collectAsState keeps collecting while the app is backgrounded.
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+
     // Google's libphonenumber — Apache 2.0, free, offline. It carries the real numbering rules for
     // every country, which is what makes a full country list possible: hand-writing length and
     // mobile-prefix rules for 250 countries would mean guessing, and a wrong guess rejects a real
@@ -184,6 +221,31 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // ── capture, for the media step (SHOWUP-161) ────────────────────────────────
+    //
+    // CameraX rather than Camera2 or an intent to the camera app. The ticket rules the intent out
+    // in as many words -- "capture runs through our OWN session... UIImagePickerController / an
+    // intent to the OS camera app is NOT an acceptable substitute" -- because handing off loses the
+    // prompt under the lens, the 10-second cap and the review screen, which are three of the four
+    // things this screen is for. Camera2 would do the same job with an order of magnitude more code
+    // and its own device-quirk list.
+    //
+    // `camera-view` carries LifecycleCameraController, which binds preview and video capture to a
+    // lifecycle in one object; `camera-video` is the Recorder. Both are needed and neither is
+    // transitive from the other.
+    implementation("androidx.camera:camera-core:1.4.0")
+    implementation("androidx.camera:camera-camera2:1.4.0")
+    implementation("androidx.camera:camera-lifecycle:1.4.0")
+    implementation("androidx.camera:camera-video:1.4.0")
+    implementation("androidx.camera:camera-view:1.4.0")
+
+    // Audio playback on the review screen and the filled voice card. Media3 rather than the
+    // platform MediaPlayer: MediaPlayer's state machine throws on a call in the wrong state and
+    // gives no way to ask which state it is in, which is exactly the shape of bug that a
+    // play-pause-replay control on a screen the user can leave at any moment produces.
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
 
     // The phone rules are pure JVM logic, so they are tested off-device.
     testImplementation("junit:junit:4.13.2")

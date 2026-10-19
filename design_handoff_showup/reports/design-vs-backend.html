@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Design vs Backend</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="taxonomy.css">
+<style>
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--liq-border);margin:9px 0 4px}
+.two>div{padding:10px 12px;font-size:12.5px;line-height:1.45}
+.two>div:first-child{background:rgba(129,42,236,.05);border-right:1px solid var(--liq-border)}
+.two b{display:block;font-family:var(--liq-font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--liq-fg-subtle);margin-bottom:5px;font-weight:700}
+.owner{margin-left:6px;vertical-align:2px}
+.mono{font-family:var(--liq-font-mono);font-size:11px;color:var(--liq-fg-subtle)}
+</style>
+</head>
+<body>
+<div class="stage">
+<nav class="tnav">
+<span class="brand">Design vs Backend <b>v1.1</b></span>
+<span class="links"><a href="taxonomy-overview.html">Taxonomy</a><a href="taxonomy-conflicts.html">Conflicts</a><a href="../designs/Show Up - UI Kit standalone.html">UI Kit</a></span>
+</nav>
+<header>
+<span class="kicker"><span class="dot"></span>Gap to target</span>
+<h1>What the designs require that the backend cannot yet hold.</h1>
+<p class="lede">The screens in this project define the end state of the product. The backend was built ahead of them, from requirements derived while the concept was still moving — so most of what differs is not a defect, it is a place where the target only recently became specific. This document names those places, flow by flow, read against <code>loveiqhq/showup main @ c195089</code>. <strong>Seven items still need a decision; two were decided on 6 August and are now build specs.</strong> The rest already agrees.</p>
+<div class="statline" style="margin-top:22px"><span class="pill c2">3 Blocking build</span><span class="pill c1">3 Product decision</span><span class="pill ok">2 Decided · not yet built</span><span class="pill no">1 Not yet started</span></div>
+</header>
+
+<section id="method">
+<div class="sec-head"><span class="sec-num">0</span><h2>How to read this</h2></div>
+<p class="sec-sub">Three things worth stating before the list, because they change what the list means.</p>
+<div class="rules">
+<div class="rule"><span class="n">i</span><div><h4>The designs are the target; the code is provisional</h4><p>Nothing below is phrased as a bug. Where the two disagree, the design wins by definition — the question is only <em>when</em> the code should follow, and whether the design implies a data model nobody has agreed to yet.</p></div></div>
+<div class="rule"><span class="n">ii</span><div><h4>Tracking is already reconciled — this is about the product data model</h4><p>Event Taxonomy v1.2 was reconciled against this exact commit, and its twenty conflicts are closed. This report deliberately does not re-cover that ground. It covers a different surface: whether the backend can <strong>store and serve</strong> what the screens collect and display.</p></div></div>
+<div class="rule"><span class="n">iii</span><div><h4>The repo is backend only</h4><p><code>loveiqhq/showup</code> is a NestJS + PostGIS API. There is no frontend in it, so there is nothing to compare visually — no components, no CSS, no token file. Colour, type and layout adherence cannot drift yet because no client consumes the design system. That comparison becomes possible when the iOS/Android clients land, and is worth re-running then.</p></div></div>
+</div>
+</section>
+
+<section id="flows">
+<div class="sec-head"><span class="sec-num">1</span><h2>Flow-by-flow status</h2><span class="count">11 designed flows</span></div>
+<p class="sec-sub">Every screen designed in this project, against the module that would serve it. <strong>Served</strong> means the backend can already store and return what the screen needs. <strong>Partial</strong> means some of it. <strong>No backend</strong> means the screen has nowhere to write.</p>
+<table>
+<thead><tr><th style="width:20%">Designed flow</th><th style="width:26%">Backend counterpart</th><th style="width:11%">Status</th><th>What is missing</th></tr></thead>
+<tbody>
+<tr><td><code class="ename">Verify email</code></td><td><span class="mono">modules/auth</span><div class="anchor">otp.service.ts · social/</div></td><td><span class="pill no">No backend</span></td><td class="trig">Not an identity path — email is collected during <em>profile creation</em>, after phone auth. Missing: an email column, a verified/unverified state, an outbound mail sender, and a second 6-digit OTP path distinct from the SMS one. See gap 08.</td></tr>
+<tr><td><code class="ename">Verify code</code></td><td><span class="mono">auth/otp.service.ts</span></td><td><span class="pill wip">Partial</span></td><td class="trig">The OTP mechanism exists and is unit-tested. It issues <strong>4</strong> digits; <strong>6</strong> is decided. See gap 07.</td></tr>
+<tr><td><code class="ename">Verify profile</code></td><td><span class="mono">safety/verification.service.ts</span></td><td><span class="pill ok">Served</span></td><td class="trig">Consent gate, swappable provider, raw capture discarded, one-way template kept, four-state status on the profile. Matches the screen and the privacy copy.</td></tr>
+<tr><td><code class="ename">Profile photos</code></td><td><span class="mono">profiles/photos.service.ts</span></td><td><span class="pill ok">Served</span></td><td class="trig">Minimum 4, maximum 6, moderation state per photo. Agrees with the screen and with the completion rule.</td></tr>
+<tr><td><code class="ename">Share some details</code> <span class="mono">(7 steps)</span></td><td><span class="mono">profiles/entities/profile.entity.ts</span></td><td><span class="pill c2">Blocked</span></td><td class="trig">Only <code>gender</code> has a column, typed <code>varchar(40)</code> with no enum. Height and orientation have nowhere to write. See gaps 01 and 02.</td></tr>
+<tr><td><code class="ename">Your lifestyle and habits</code></td><td><span class="mono">profiles/entities/profile.entity.ts</span></td><td><span class="pill c2">Blocked</span></td><td class="trig">No column. See gap 01.</td></tr>
+<tr><td><code class="ename">Living status</code></td><td><span class="mono">profiles/entities/profile.entity.ts</span></td><td><span class="pill c2">Blocked</span></td><td class="trig">No column. See gap 01.</td></tr>
+<tr><td><code class="ename">Interests</code> <span class="mono">(cap 10)</span></td><td><span class="mono">profiles/entities/profile.entity.ts</span></td><td><span class="pill c2">Blocked</span></td><td class="trig">Multi-value, capped, drawn from a fixed vocabulary — needs its own table, not a column. See gap 01.</td></tr>
+<tr><td><code class="ename">Profile prompts</code></td><td><span class="mono">profiles/entities/profile.entity.ts</span></td><td><span class="pill c2">Blocked</span></td><td class="trig">Prompt-plus-answer pairs, also multi-row. Only free-text <code>bio</code> exists. See gap 01.</td></tr>
+<tr><td><code class="ename">Embrace details</code></td><td><span class="mono">profiles/util/completion.ts</span></td><td><span class="pill wip">Partial</span></td><td class="trig">Completion is name + DOB + 4 photos. It does not count any of the detail steps, so a profile is "complete" with every designed step skipped.</td></tr>
+<tr><td><code class="ename">Late cancellation</code></td><td><span class="mono">dates/dates.service.ts</span></td><td><span class="pill c2">Blocked</span></td><td class="trig">One flat cancellation with a free-text reason. No grace window, no lateness declaration, no asymmetric consequence, no score to move. See gaps 04 and 05.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="gaps">
+<div class="sec-head"><span class="sec-num">2</span><h2>The nine gaps</h2><span class="count">7 open · 2 decided</span></div>
+<p class="sec-sub">Ordered by how much rework each causes if it is decided late. Each carries the owner who has to make the call — <span class="pill c1">Product</span> for a decision about the experience, <span class="pill c2">Engineering</span> for one about implementation.</p>
+<div class="rules">
+
+<div class="rule"><span class="n">01</span><div><h4>Six of nine profile steps have nowhere to live <span class="pill c2 owner">Engineering</span><span class="pill c1 owner">Product</span></h4>
+<p>The single largest gap, and the one that blocks the most screens. The profile entity carries nine columns; the designed flow collects nine <em>fields</em>, and only two of them (name, DOB) plus free-text bio have a home.</p>
+<div class="two">
+<div><b>Designed</b>height · gender · orientation · habits · interests (max 10) · prompts (pairs) · living situation · age · plus a visibility flag per field</div>
+<div><b>In code</b><code>displayName</code> · <code>dateOfBirth</code> · <code>bio</code> · <code>gender</code> <span class="mono">varchar(40)</span> · <code>lookingFor</code> · <code>isVisible</code> · <code>isComplete</code> · <code>verificationStatus</code> · <code>moderationStanding</code></div>
+</div>
+<p><strong>Decision needed:</strong> two separate calls. <em>Shape</em> — typed columns, one JSONB attributes blob, or child tables; interests and prompts are multi-row and capped, so they want tables regardless of what the scalars do. <em>Vocabulary ownership</em> — the option sets already exist, agreed, on Enums §1. Those should become Postgres enums generated from that registry rather than re-typed by hand, or the two will diverge on the first edit.</p>
+<p><strong>Why it is urgent:</strong> matching and discovery read profile attributes. Choosing the shape late means rewriting the query layer, not just adding a migration.</p></div></div>
+
+<div class="rule"><span class="n">02</span><div><h4>"Don't display on my profile" has no persisted state <span class="pill c2 owner">Engineering</span></h4>
+<p>The checkbox appears on all nine profile-creation steps, unticked by default. The taxonomy resolved its semantics (conflict 07c): display is suppressed, matching is unaffected, and the opt-out is tracked as one directional event with no boolean.</p>
+<p>That resolution explicitly requires <strong>the completion-time state to be authoritative over the event stream</strong> — because a user who ticks and then unticks must end up displayed. There is nowhere to keep that state. Today the answer is only inferable from analytics, which is exactly what the decision ruled out.</p>
+<p><strong>Decision needed:</strong> a per-field visibility store — a <code>profile_field_visibility</code> row per hidden field, or a mask on the profile. Whichever shape gap 01 takes, this rides along with it, so decide the two together.</p></div></div>
+
+<div class="rule"><span class="n">03</span><div><h4>Discovery has no filters, and <code>lookingFor</code> contradicts the taxonomy <span class="pill c2 owner">Engineering</span></h4>
+<p>Matching centres on the viewer's active check-in and searches a hard-coded <code>DEFAULT_DISCOVERY_RADIUS_METERS = 50_000</code>. There is no filter state anywhere in the service: no gender filter, no orientation filter, no age range, no user-set distance.</p>
+<div class="two">
+<div><b>Designed</b><code>meet_gender</code> multi · <code>meet_orientation</code> multi · <code>age_range</code> 18–99 · <code>distance_km</code> user-set</div>
+<div><b>In code</b><code>lookingFor</code> <span class="mono">varchar(40)</span>, single value, on the profile — unread by matching</div>
+</div>
+<p><strong>Decision needed:</strong> the taxonomy already resolved that <code>looking_for</code> is <em>search state, not a profile attribute</em> (Enums §10). The column therefore sits in the wrong place. Move it to a discovery-preferences table over the same enums as the profile fields — one vocabulary, no mapping table — and have <code>getDiscovery</code> read it.</p></div></div>
+
+<div class="rule"><span class="n">04</span><div><h4>The 10-minute grace rule does not exist in the date lifecycle <span class="pill c1 owner">Product</span><span class="pill c2 owner">Engineering</span></h4>
+<p>The Late cancellation screen encodes a specific, symmetrical promise: past ten minutes the person waiting may leave with no penalty, and the cost lands on the person who broke it. The backend has one cancellation path — <code>cancel(dateId, userId, reason?)</code> — which records who cancelled and an optional free-text reason. Nothing models lateness, the grace window, or the asymmetry.</p>
+<p><strong>Missing, concretely:</strong> a "running late" declaration from the late party; a timestamp the grace window is measured from; a distinct terminal state for <em>date closed because one side left inside the rules</em> as against an ordinary cancellation; and the rule that the waiter's score is untouched.</p>
+<p><strong>Decision needed:</strong> Product confirms the ten minutes is fixed and universal (the screen states it as a brand promise, so presumably yes). Engineering then adds the states — this is a lifecycle change, not a field.</p></div></div>
+
+<div class="rule"><span class="n">05</span><div><h4>Show-up Rate is displayed everywhere and computed nowhere <span class="pill c1 owner">Product</span></h4>
+<p>Screens show a concrete number and a concrete movement — <em>94% → 90%</em>. The backend stores the inputs (<code>aRating</code>, <code>bRating</code>, <code>aConfirmedHappened</code>, <code>bConfirmedHappened</code>, plus a permanent status-change history per date, which is a good foundation) but derives no score. Scoring is Epic 8, not started.</p>
+<p><strong>Decision needed, and it is a Product decision:</strong> the formula. What counts as a miss, how much a late cancellation costs, whether the window is lifetime or rolling, what a new user starts at, and whether the number is shown to others or only to its owner. Every screen quoting a percentage is unbuildable until this is answered — and a placeholder formula will be visible to users the moment it is wrong, so it should not be guessed.</p></div></div>
+
+<div class="rule"><span class="n">06</span><div><h4>The 270-event taxonomy has no ingestion point <span class="pill no owner">Not started</span></h4>
+<p><code>modules/analytics/analytics.module.ts</code> is a 175-byte placeholder. PostHog is configured at boot (<code>config/configuration.ts</code>) and the taxonomy is complete and reconciled, but no event in it is emitted or received yet. Roughly a third are marked <span class="src server">Server</span>, which means they cannot be added by the client later — they need trigger points in the services the taxonomy already names.</p>
+<p><strong>Not a conflict — a sequencing note.</strong> Worth stating plainly so nobody assumes tracking is live because the spec is finished. The taxonomy's per-event source anchors (<span class="mono">auth/token.service.ts</span> and so on) are the build list.</p></div></div>
+
+<div class="rule"><span class="n">07</span><div><h4>OTP length — six digits <span class="pill ok owner">Decided · 6 digits</span></h4>
+<p><strong>Confirmed by Product, 6 Aug 2026: six digits. The design is the truth; the code changes.</strong> Consistent with conflict 02. Still four digits in <code>otp.service.ts</code> at this commit, and not yet developed — a two-line change with a test alongside it. Applies to <em>both</em> code paths: the phone SMS OTP and the email OTP in item 08.</p></div></div>
+
+<div class="rule"><span class="n">08</span><div><h4>Email capture and verification <span class="pill ok owner">Decided · build it</span></h4>
+<p><strong>Confirmed by Product, 6 Aug 2026:</strong> an email address <strong>will</strong> be requested during <em>profile creation</em>, and it <strong>must</strong> be verified by a <strong>6-digit code</strong>. Not developed yet; the design is the target. This matches conflict 03, which kept all five email events rather than removing them.</p>
+<p>Note the two code screens are different things and neither replaces the other. <strong>Verify code</strong> is phone verification, flow <span class="mono">01 · Welcome &amp; sign-up</span> — that is sign-in, and <code>auth/otp.service.ts</code> backs it. <strong>Verify email</strong> is labelled <span class="mono">03 · Profile creation · Email verification</span>, step 2 of 3 of <em>The basics</em>, and runs <em>after</em> the user is authenticated by phone. There is no phone-versus-email identity conflict.</p>
+<p><strong>To build, concretely:</strong> an email column on the account or profile; an outbound mail sender; a <strong>second OTP path distinct from the SMS one</strong>, also 6 digits, with its own resend cooldown and attempt counter; and a verification state so a collected-but-unverified address is distinguishable from a verified one. The five Family D events (<code>email_submitted</code>, <code>email_validation_failed</code>, <code>email_code_sent</code>, <code>email_code_resent</code>, <code>email_code_submitted</code>) already carry their full spec and flip from <span class="pill no">Not built</span> to <span class="pill ok">Live</span> once it exists — no taxonomy change needed.</p>
+<p><strong>Still worth settling before the migration:</strong> whether a verified email is ever the <em>only</em> way to reach or recover an account. If yes, it is an identity credential and needs the recovery path designed; if it is for notifications only, the column and the verification are enough.</p></div></div>
+
+<div class="rule"><span class="n">09</span><div><h4>Profile completion ignores the detail steps <span class="pill c1 owner">Product</span></h4>
+<p><code>isProfileComplete</code> requires a display name, a date of birth, and four photos. Nine designed steps sit outside it, so a profile passes as complete with every one of them skipped — which makes matching thinner than the designs assume and makes the "complete" flag weaker than the flow implies.</p>
+<p><strong>Decision needed:</strong> whether any detail step is required, or a minimum count across them, or completion stays photo-led on purpose to keep onboarding short. A legitimate answer is "leave it" — but it should be a decision, since the design of the flow implies otherwise.</p></div></div>
+
+</div>
+</section>
+
+<section id="agrees">
+<div class="sec-head"><span class="sec-num">3</span><h2>Where the two already agree</h2><span class="count">8 items</span></div>
+<p class="sec-sub">Stated so nobody spends time re-deciding them. These are places the backend either matched the design or got ahead of it correctly.</p>
+<table>
+<thead><tr><th style="width:26%">Rule</th><th style="width:30%">Where it lives</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>Photos: minimum 4, maximum 6</td><td><span class="mono">profiles/util/completion.ts</span></td><td class="trig">Matches the screen and closed taxonomy conflict 01.</td></tr>
+<tr><td>Four verification states</td><td><span class="mono">ProfileVerificationStatus</span></td><td class="trig"><code>none · pending · verified · rejected</code> — the code was right and the taxonomy adopted it (conflict 08).</td></tr>
+<tr><td>Biometric consent is mandatory</td><td><span class="mono">safety/verification.service.ts</span></td><td class="trig">Refuses without consent, discards the raw capture, keeps a one-way template. Matches the privacy copy on the screen.</td></tr>
+<tr><td>One active check-in at a time</td><td><span class="mono">check-ins.service.ts</span></td><td class="trig">Stacking is blocked explicitly, as the flow assumes.</td></tr>
+<tr><td>No continuous location tracking</td><td><span class="mono">check-ins · location</span></td><td class="trig">Coordinates never leave the server; distances are rounded to 100 m; nothing raw reaches analytics. Stronger than the designs promise.</td></tr>
+<tr><td>A match needs mutual interest <em>and</em> both live</td><td><span class="mono">matching.service.ts</span></td><td class="trig">Likes persist when the other side is not available, so nothing is lost — matches the "meet now" premise.</td></tr>
+<tr><td>Both sides confirm before a date completes</td><td><span class="mono">dates.service.ts</span></td><td class="trig">Plus a permanent status-change history — the audit trail scoring will need.</td></tr>
+<tr><td>Blocks hide people in both directions</td><td><span class="mono">safety.service.ts</span></td><td class="trig">Enforced in discovery and on likes, with moderation standing gating both.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="keeping">
+<div class="sec-head"><span class="sec-num">4</span><h2>Keeping it aligned</h2></div>
+<p class="sec-sub">This report is a snapshot of one commit. Three habits make the next one cheap.</p>
+<div class="rules">
+<div class="rule"><span class="n">a</span><div><h4>One vocabulary, generated not retyped</h4><p>The option sets on Enums §1 and §10 are agreed. If they are hand-copied into TypeScript enums they will drift on the first edit. Generate the Postgres and TypeScript enums from that registry, or make the registry a file in the repo that both this document and the code read.</p></div></div>
+<div class="rule"><span class="n">b</span><div><h4>Re-run this diff at each commit that touches an entity</h4><p>The expensive gaps here are all shape decisions — where a field lives, what states a lifecycle has. Those are cheap before the migration and expensive after. A re-read when profile, date or match entities change catches them at the cheap end.</p></div></div>
+<div class="rule"><span class="n">c</span><div><h4>Decide gaps 01, 02 and 03 as one piece of work</h4><p>They are the same decision seen three times: where profile attributes and search preferences live, and over which vocabulary. Answered together they are one migration. Answered separately they are three, and the third will contradict the first.</p></div></div>
+</div>
+</section>
+
+<p class="foot">Show Up · Design vs Backend v1.0 · read against <code>loveiqhq/showup main @ c195089</code> · 11 flows · 9 gaps · 8 agreements · tracking taxonomy covered separately in v1.2</p>
+</div>
+</body>
+</html>

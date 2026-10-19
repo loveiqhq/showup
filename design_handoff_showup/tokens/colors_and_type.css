@@ -1,0 +1,367 @@
+/* Show Up — Design tokens: color & type
+ *
+ * Source: the original loveIQ design system, lifted onto a paper-white canvas
+ * for Show Up's daytime / public-meeting energy. The warm violet + orange
+ * duet remains the brand; the foreground is now a warm violet ink (#1D1129)
+ * rather than the loveIQ near-black violet (#0A0510).
+ *
+ * Type pairing: editorial Lora serif + Manrope sans. Italics are reserved
+ * for emphasis inside headlines and get a hand-drawn orange wash underneath
+ * (see .su-underlined em::after below).
+ *
+ * Drop this file in <head>:
+ *   <link rel="stylesheet" href="colors_and_type.css">
+ * Fonts are loaded from Google Fonts. To self-host, swap the @import for
+ * @font-face rules pointing at fonts/.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Manrope:wght@300..800&display=swap');
+
+:root {
+  /* ——————————————————————————————————————————————————————————
+   * COLOR PRIMITIVES — Show Up palette (light canvas, warm ink)
+   * ——————————————————————————————————————————————————————————*/
+
+  /* Canvas — warm paper white, NOT pure #FFF. The 3-step neutral
+     grades from canvas → card → raised. The raised tint is faintly
+     lavender, never gray. */
+  --liq-bg:            #FFFBF7;  /* paper white — body / app background */
+  --liq-bg-elevated:   #FFFFFF;  /* card surface on canvas */
+  --liq-bg-raised:     #F7F2FA;  /* raised chrome, inputs, time slots */
+
+  /* Foreground / ink — warm violet, not slate or pure black */
+  --liq-fg:            #1D1129;
+  --liq-fg-muted:      rgba(29, 17, 41, 0.62);  /* secondary copy */
+  --liq-fg-subtle:     rgba(29, 17, 41, 0.46);  /* tertiary / captions */
+  --liq-fg-faint:      rgba(29, 17, 41, 0.24);  /* disabled, hairlines */
+  --liq-fg-on-light:   #1D1129;
+
+  /* Border — also warm-ink wash, never neutral gray */
+  --liq-border:        rgba(29, 17, 41, 0.12);
+  --liq-border-soft:   rgba(29, 17, 41, 0.06);
+  --liq-surface-glass: rgba(255, 255, 255, 0.72);
+
+  /* Primary violet scale */
+  --liq-primary:       #541475;
+  --liq-primary-600:   #6B1D8F;
+  --liq-primary-500:   #812AEC;  /* hero violet — used for headings, gradients */
+  --liq-primary-400:   #A855F7;
+
+  /* Lavender (warm accent 1) */
+  --liq-lavender-50:   #F9F7FF;
+  --liq-lavender-100:  #E0D9FF;
+  --liq-lavender-200:  #E9D5FF;
+  --liq-lavender-300:  #D8B4FE;
+  --liq-lavender-400:  #A78BFA;
+  --liq-lavender-500:  #8B5CF6;
+
+  /* Orange (complementary accent — CTAs, preferred-time slots, hot-streak ring) */
+  --liq-orange-300:    #FFEB8E;
+  --liq-orange-400:    #FF9450;
+  --liq-orange-500:    #FE6839;  /* PRIMARY CTA */
+  --liq-orange-600:    #FF6A3D;
+
+  /* Neutral scale — body text on white */
+  --liq-neutral-50:    #F2F2F2;
+  --liq-neutral-100:   #E5E7EB;
+  --liq-neutral-200:   #4B3B5A;  /* body text on white */
+  --liq-neutral-300:   #6B5C7A;
+  --liq-neutral-400:   #6B7280;
+  --liq-neutral-500:   #4B5563;
+  --liq-neutral-600:   #343A41;
+  --liq-neutral-700:   #1F2937;
+  --liq-neutral-800:   #181818;
+  --liq-ink:           #1D1129;
+
+  /* Semantic affordance */
+  --liq-success:       #00AB55;
+  --liq-success-fg:    #0A7A47;
+  --liq-danger:        #FB323B;
+  --liq-danger-fg:     #B71F26;
+
+  /* ——————————————————————————————————————————————————————————
+   * SIGNATURE GRADIENTS — Show Up's warm sunset
+   * ——————————————————————————————————————————————————————————*/
+
+  --su-grad-sunset: linear-gradient(135deg, #FE6839 0%, #D05976 38%, #812AEC 100%); /* @kind color */
+  --su-grad-wordmark: linear-gradient(96deg, #812AEC 0%, #D05976 55%, #FE6839 100%); /* @kind color */
+  --su-grad-blush: linear-gradient(180deg, #FDE7DC 0%, #F5D9EA 100%); /* @kind color */
+  --su-grad-lilac: linear-gradient(180deg, #F1E6FF 0%, #E8DCF5 100%); /* @kind color */
+  --su-grad-mint:  linear-gradient(180deg, #DBEFE6 0%, #BFDCD0 100%); /* @kind color */
+
+  /* ——————————————————————————————————————————————————————————
+   * AMBIENT ATMOSPHERE — the warm wash that lives inside every screen.
+   * Rendered by <Atmosphere variant="hero|form"/> (shared.jsx): an
+   * orange glow top-right + a violet glow bottom-left. ONE rule, TWO
+   * intensities — same geometry, only the glow opacity changes, so the
+   * product reads as one continuous space.
+   *   hero → expressive / emotional screens  · orange 0.26 / violet 0.22
+   *   form → input / verification screens     · orange 0.13 / violet 0.11
+   * ——————————————————————————————————————————————————————————*/
+  --su-atmo-orange-hero: rgba(254, 104, 57, 0.26); /* @kind color */
+  --su-atmo-violet-hero: rgba(129, 42, 236, 0.22); /* @kind color */
+  --su-atmo-orange-form: rgba(254, 104, 57, 0.13); /* @kind color */
+  --su-atmo-violet-form: rgba(129, 42, 236, 0.11); /* @kind color */
+
+  --liq-grad-orb:  radial-gradient(circle,
+                       rgba(129, 42, 236, 0.18) 0%,
+                       rgba(129, 42, 236, 0.00) 70%); /* @kind color */
+  --liq-grad-underline: rgba(254, 104, 57, 0.3);
+
+  /* ——————————————————————————————————————————————————————————
+   * SHADOW SYSTEM — tuned for white canvas, violet-tinted
+   * ——————————————————————————————————————————————————————————*/
+
+  --liq-shadow-sm:     0 1px 2px  rgba(46, 1, 71, 0.04);
+  --liq-shadow-md:     0 4px 12px rgba(46, 1, 71, 0.06),
+                       0 1px  3px rgba(46, 1, 71, 0.04);
+  --liq-shadow-lg:     0 12px 32px rgba(46, 1, 71, 0.10),
+                       0 4px 12px rgba(46, 1, 71, 0.06);
+  --liq-shadow-cta:    0 8px 20px rgba(254, 104, 57, 0.32),
+                       0 2px  6px rgba(254, 104, 57, 0.20);
+  --liq-shadow-violet: 0 8px 20px rgba(129, 42, 236, 0.28),
+                       0 2px  6px rgba(129, 42, 236, 0.18);
+
+  /* ——————————————————————————————————————————————————————————
+   * RADII — generous; brand favors pills (9999) and 20-40 cards
+   * ——————————————————————————————————————————————————————————*/
+
+  --liq-radius-xs:    8px;
+  --liq-radius-sm:   12px;
+  --liq-radius-md:   16px;
+  --liq-radius-lg:   20px;
+  --liq-radius-xl:   24px;
+  --liq-radius-2xl:  32px;
+  --liq-radius-3xl:  40px;
+  --liq-radius-pill: 9999px;
+
+  /* ——————————————————————————————————————————————————————————
+   * SPACING — 8px base, 4px half-step for dense UI
+   * ——————————————————————————————————————————————————————————*/
+
+  --liq-space-1:    4px;
+  --liq-space-2:    8px;
+  --liq-space-3:   12px;
+  --liq-space-4:   16px;
+  --liq-space-5:   20px;
+  --liq-space-6:   24px;
+  --liq-space-8:   32px;
+  --liq-space-10:  40px;
+  --liq-space-12:  48px;
+  --liq-space-16:  64px;
+  --liq-space-24:  96px;
+  --liq-space-32: 128px;
+
+  /* ——————————————————————————————————————————————————————————
+   * TYPOGRAPHY PRIMITIVES
+   * ——————————————————————————————————————————————————————————*/
+
+  --liq-font-serif: "Lora", "Charis SIL", "Merriweather", Georgia, serif;
+  --liq-font-sans:  "Manrope", "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --liq-font-mono:  "Liberation Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Size scale */
+  --liq-size-xs:      12px;
+  --liq-size-sm:      13px;
+  --liq-size-base:    14px;
+  --liq-size-md:      16px;
+  --liq-size-lg:      18px;
+  --liq-size-xl:      20px;
+  --liq-size-2xl:     24px;
+  --liq-size-3xl:     30px;
+  --liq-size-4xl:     36px;
+  --liq-size-5xl:     48px;
+  --liq-size-6xl:     60px;
+  --liq-size-7xl:     72px;
+  --liq-size-display: 214px;  /* section starters — used rarely */
+
+  /* Weights — Manrope ships 300/400/500/600/700/800 */
+  --liq-weight-light:    300;
+  --liq-weight-regular:  400;
+  --liq-weight-medium:   500;
+  --liq-weight-semibold: 600;
+  --liq-weight-bold:     700;
+
+  /* Line heights */
+  --liq-leading-tight:  1.05;
+  --liq-leading-snug:   1.20;
+  --liq-leading-normal: 1.40;
+  --liq-leading-body:   1.50;
+  --liq-leading-loose:  1.70;
+
+  /* Letter spacing — display headlines get a subtle negative track */
+  --liq-tracking-tight:  -0.025em;
+  --liq-tracking-snug:   -0.015em;
+  --liq-tracking-normal: 0;
+  --liq-tracking-wide:   0.06em;
+}
+
+/* ————————————————————————————————————————————————————————————
+ * SEMANTIC TYPE ROLES — class or compose
+ * ———————————————————————————————————————————————————————————— */
+
+.liq-display {
+  font-family: var(--liq-font-serif);
+  font-weight: var(--liq-weight-bold);
+  font-size: clamp(56px, 6vw + 16px, 96px);
+  line-height: var(--liq-leading-tight);
+  letter-spacing: var(--liq-tracking-tight);
+  color: var(--liq-fg);
+}
+.liq-display em,
+.liq-display .liq-accent-italic {
+  font-style: italic;
+  font-weight: var(--liq-weight-medium);
+}
+
+.liq-h1 {
+  font-family: var(--liq-font-serif);
+  font-weight: var(--liq-weight-bold);
+  font-size: clamp(40px, 3vw + 20px, 72px);
+  line-height: var(--liq-leading-tight);
+  letter-spacing: var(--liq-tracking-tight);
+  color: var(--liq-fg);
+}
+
+.liq-h2 {
+  font-family: var(--liq-font-serif);
+  font-weight: var(--liq-weight-bold);
+  font-size: clamp(32px, 2vw + 16px, 60px);
+  line-height: var(--liq-leading-snug);
+  letter-spacing: var(--liq-tracking-snug);
+  color: var(--liq-fg);
+}
+
+.liq-h3 {
+  font-family: var(--liq-font-serif);
+  font-weight: var(--liq-weight-bold);
+  font-size: clamp(22px, 1vw + 16px, 30px);
+  line-height: 1.2;
+  color: var(--liq-fg);
+}
+
+.liq-h4 {
+  font-family: var(--liq-font-serif);
+  font-weight: var(--liq-weight-semibold);
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--liq-fg);
+}
+
+.liq-eyebrow {
+  font-family: var(--liq-font-sans);
+  font-weight: var(--liq-weight-bold);
+  font-size: var(--liq-size-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--liq-primary-500);
+}
+
+.liq-lead {
+  font-family: var(--liq-font-sans);
+  font-weight: var(--liq-weight-medium);
+  font-size: var(--liq-size-xl);
+  line-height: 1.4;
+  color: var(--liq-neutral-200);
+}
+
+.liq-body {
+  font-family: var(--liq-font-sans);
+  font-weight: var(--liq-weight-regular);
+  font-size: var(--liq-size-md);
+  line-height: var(--liq-leading-body);
+  color: var(--liq-neutral-200);
+}
+
+.liq-body-sm {
+  font-family: var(--liq-font-sans);
+  font-weight: var(--liq-weight-medium);
+  font-size: var(--liq-size-base);
+  line-height: 1.4;
+  color: var(--liq-neutral-300);
+}
+
+.liq-caption {
+  font-family: var(--liq-font-sans);
+  font-weight: var(--liq-weight-medium);
+  font-size: 13px;
+  line-height: 1.33;
+  color: var(--liq-fg-subtle);
+}
+
+.liq-label {
+  font-family: var(--liq-font-sans);
+  font-weight: var(--liq-weight-semibold);
+  font-size: var(--liq-size-md);
+  line-height: 1.5;
+  color: var(--liq-fg);
+}
+
+.liq-button-text {
+  font-family: var(--liq-font-sans);
+  font-weight: var(--liq-weight-bold);
+  font-size: var(--liq-size-md);
+  line-height: 1.5;
+}
+
+.liq-mono {
+  font-family: var(--liq-font-mono);
+  font-size: 12px;
+  color: var(--liq-fg-subtle);
+}
+
+/* ————————————————————————————————————————————————————————————
+ * SURFACE UTILITIES
+ * ———————————————————————————————————————————————————————————— */
+
+.liq-surface-light  { background: #FFFFFF;             color: var(--liq-ink); }
+.liq-surface-paper  { background: var(--liq-bg);       color: var(--liq-fg); }
+.liq-surface-raised { background: var(--liq-bg-raised); color: var(--liq-fg); }
+.liq-surface-lilac  { background: var(--liq-lavender-50); color: var(--liq-ink); }
+.liq-surface-glass  { background: var(--liq-surface-glass); backdrop-filter: blur(12px); }
+
+/* ————————————————————————————————————————————————————————————
+ * BRAND — Wordmark + hand-drawn italic underline
+ * ———————————————————————————————————————————————————————————— */
+
+.su-wordmark {
+  font-family: var(--liq-font-serif);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.18em;
+}
+.su-wordmark .su-up {
+  background: var(--su-grad-wordmark);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-style: italic;
+}
+.su-wordmark .su-dot { color: var(--liq-orange-500); }
+
+/* Italic emphasis inside headings gets a soft orange glow under the words.
+   This is THE signature editorial flourish — it appears under
+   nearly every headline in the product. */
+.su-underlined em,
+.su-underlined .su-italic {
+  font-style: italic;
+  font-weight: 500;
+  position: relative;
+  white-space: nowrap;
+  isolation: isolate;
+}
+.su-underlined em::after,
+.su-underlined .su-italic::after {
+  content: '';
+  position: absolute;
+  left: -2px; right: -2px; bottom: -0.08em;
+  height: 0.32em;
+  background: radial-gradient(ellipse at 50% 100%,
+                rgba(254, 104, 57, 0.55) 0%,
+                rgba(254, 104, 57, 0)   70%);
+  z-index: -1;
+}
+.su-no-underline .su-underlined em::after,
+.su-no-underline .su-underlined .su-italic::after { display: none; }

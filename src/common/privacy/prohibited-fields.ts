@@ -35,6 +35,25 @@ const PROHIBITED_NORMALISED = new Set<string>([
   'dob',
   'birthdate',
   'dateofbirth',
+  // Special-category profile answers -- sensitivity class 2 in the tracking registry (SHOWUP-168,
+  // 169, 172, 173). They arrive as plain keys on PATCH /me/profile, so a failed save would otherwise
+  // carry someone's religion or orientation into a log line or a Sentry report. Analytics records
+  // these as `field_id` + value under a class stamp, never under these key names, so stripping the
+  // names takes nothing away from it.
+  'gender',
+  'orientation',
+  'religion',
+  'politics',
+  // Substance use and relationship structure, Class 2 since SHOWUP-174 to 176 (registry 1.4.16-18):
+  // the How I live alcohol and smoking answers, and the Life / Future partnership sets.
+  'alcohol',
+  'smoking',
+  'partnership',
+  'partnershipahead',
+  // The 48hrs Check-In (SHOWUP-177): the gender filter is Class 2 (registry §10 meet_gender), and
+  // the uplift is the user's own words, which "appear in no tracking payload" (story 06).
+  'meetgender',
+  'uplift',
   // Secrets. Note `code`: our one-time sign-in and email-verification payloads name the secret
   // `code` (VerifyOtpDto.code, VerifyEmailDto.code), so the bare name must be withheld. An API error
   // code is a different thing and must be named `error_code` so it is not caught by this rule.

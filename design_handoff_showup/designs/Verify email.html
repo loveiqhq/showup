@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Up — Verify email</title>
+
+<link rel="stylesheet" href="colors_and_type.css">
+
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: var(--liq-font-sans);
+    background:
+      radial-gradient(80% 60% at 20% 10%, rgba(254,104,57,0.10), transparent 70%),
+      radial-gradient(70% 60% at 90% 90%, rgba(129,42,236,0.10), transparent 70%),
+      #F0EEE9;
+    color: var(--liq-fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  .su-app {
+    background: var(--liq-bg);
+    color: var(--liq-fg);
+    font-family: var(--liq-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .su-app * { box-sizing: border-box; }
+  .su-app button {
+    font-family: inherit;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+  }
+  .su-noscroll::-webkit-scrollbar { display: none; }
+  .su-noscroll { scrollbar-width: none; }
+
+  .stage {
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 36px;
+  }
+  .page-head { max-width: 880px; text-align: center; }
+  .page-head .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--liq-primary-500);
+    padding: 6px 12px; border-radius: 9999px;
+    background: rgba(167,139,250,0.16);
+  }
+  .page-head .kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--liq-orange-500); }
+  .page-head h1 {
+    font-family: var(--liq-font-serif); font-weight: 700;
+    font-size: 40px; line-height: 1.08; letter-spacing: -0.02em;
+    color: var(--liq-fg); margin: 14px 0 8px;
+  }
+  .page-head p {
+    font-family: var(--liq-font-sans); font-weight: 500; font-size: 16px;
+    line-height: 1.5; color: var(--liq-neutral-200); max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .frame {
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--liq-font-sans); font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--liq-fg-muted);
+  }
+  .frame-label .pip { width: 7px; height: 7px; border-radius: 50%; }
+  .frame-label .pip.ok   { background: #00AB55; box-shadow: 0 0 0 3px rgba(0,171,85,0.18); }
+  .frame-label .pip.err  { background: var(--liq-danger); box-shadow: 0 0 0 3px rgba(251,50,59,0.18); }
+  .frame-shell {
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5));
+    box-shadow:
+      0 30px 80px rgba(46, 1, 71, 0.16),
+      0 8px 24px rgba(46, 1, 71, 0.08),
+      0 0 0 1px rgba(29,17,41,0.06);
+  }
+  .frame-shell > .su-app {
+    border-radius: 38px;
+    overflow: hidden;
+  }
+
+  @keyframes su-shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(3px); }
+    30%, 50%, 70% { transform: translateX(-6px); }
+    40%, 60% { transform: translateX(6px); }
+  }
+  @keyframes caret-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  .caption {
+    max-width: 360px; text-align: center;
+    font-family: var(--liq-font-sans); font-size: 13px; line-height: 1.5;
+    color: var(--liq-fg-muted); font-weight: 500;
+  }
+  .caption strong { color: var(--liq-fg); font-weight: 700; }
+
+  .notes {
+    margin-top: 24px;
+    max-width: 720px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.66);
+    border: 1px solid rgba(29,17,41,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .notes h3 {
+    font-family: var(--liq-font-serif); font-weight: 700; font-size: 18px;
+    margin: 0 0 12px; color: var(--liq-fg);
+  }
+  .notes ul {
+    margin: 0; padding-left: 18px; display: grid; gap: 8px;
+    font-family: var(--liq-font-sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--liq-neutral-200);
+  }
+  .notes li strong { color: var(--liq-fg); font-weight: 700; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Shared primitives (StatusBar, AppHeader, Icon, Button, StepProgress, HomeIndicator) -->
+<script type="text/babel" src="ui_kits/show-up/shared.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+// ─────────────────────────────────────────────────────────────
+// iOS-style numeric pad — same look as ScreenPhoneNumber / Verify
+// code, so this verification step reads as a continuation.
+// ─────────────────────────────────────────────────────────────
+function NumericKeypad({ onKey, onBackspace }) {
+  const KEYS = [
+    { d: '1', s: '' },
+    { d: '2', s: 'A B C' },
+    { d: '3', s: 'D E F' },
+    { d: '4', s: 'G H I' },
+    { d: '5', s: 'J K L' },
+    { d: '6', s: 'M N O' },
+    { d: '7', s: 'P Q R S' },
+    { d: '8', s: 'T U V' },
+    { d: '9', s: 'W X Y Z' },
+    null,
+    { d: '0', s: '+' },
+    'back',
+  ];
+  const Key = ({ d, s }) => (
+    <button onClick={() => onKey && onKey(d)} style={{
+      flex: 1, height: '100%', borderRadius: 6, background: '#FFFFFF',
+      boxShadow: '0 1px 0 rgba(29,17,41,0.18)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: '4px 0', transition: 'background 120ms',
+    }}
+      onMouseDown={e => e.currentTarget.style.background = '#E6E1DC'}
+      onMouseUp={e => e.currentTarget.style.background = '#FFFFFF'}
+      onMouseLeave={e => e.currentTarget.style.background = '#FFFFFF'}>
+      <span style={{
+        fontFamily: '-apple-system, "SF Pro Display", system-ui',
+        fontWeight: 400, fontSize: 24, lineHeight: 1, color: 'var(--liq-fg)', letterSpacing: 0.4,
+      }}>{d}</span>
+      {s && <span style={{
+        fontFamily: '-apple-system, "SF Pro Display", system-ui',
+        fontWeight: 600, fontSize: 9, lineHeight: 1, color: 'var(--liq-fg-muted)',
+        letterSpacing: 1.4, marginTop: 3,
+      }}>{s}</span>}
+    </button>
+  );
+  const Back = () => (
+    <button onClick={onBackspace} style={{
+      flex: 1, height: '100%', borderRadius: 6, background: 'transparent',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <svg width="26" height="20" viewBox="0 0 26 20" fill="none">
+        <path d="M8.5 2H23a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8.5L1 10l7.5-8z"
+          stroke="var(--liq-fg)" strokeWidth="1.4" strokeLinejoin="round" fill="none"/>
+        <path d="M12 7l6 6M18 7l-6 6"
+          stroke="var(--liq-fg)" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    </button>
+  );
+  return (
+    <div style={{
+      background: '#D1CDC8',
+      padding: '8px 3px 4px',
+      display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+      gridAutoRows: 46, gap: 6,
+    }}>
+      {KEYS.map((k, i) => {
+        if (k === null) return <div key={i}/>;
+        if (k === 'back') return <Back key={i}/>;
+        return <Key key={i} d={k.d} s={k.s}/>;
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Code slot — empty / active (caret) / filled / error.
+// Compact 49×62 so all six sit comfortably with gap and don't
+// crowd the headline above.
+// ─────────────────────────────────────────────────────────────
+function CodeSlot({ value, active, error }) {
+  const borderColor = error
+    ? 'var(--liq-danger)'
+    : active
+      ? 'var(--liq-primary-500)'
+      : value
+        ? 'rgba(29,17,41,0.32)'
+        : 'var(--liq-border)';
+  const halo = error
+    ? '0 0 0 4px rgba(251,50,59,0.10)'
+    : active
+      ? '0 0 0 4px rgba(129,42,236,0.10)'
+      : '0 1px 2px rgba(46,1,71,0.04)';
+  return (
+    <div style={{
+      width: 49, height: 62, borderRadius: 14, flex: 'none',
+      background: error ? 'rgba(251,50,59,0.04)' : '#FFFFFF',
+      border: `1.5px solid ${borderColor}`,
+      boxShadow: halo,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 30,
+      color: error ? '#7A1F26' : 'var(--liq-fg)',
+      transition: 'border-color 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms, background 180ms',
+      fontVariantNumeric: 'tabular-nums',
+    }}>
+      {value || (active && !error
+        ? <span style={{
+            display: 'inline-block', width: 2, height: 26,
+            background: 'var(--liq-primary-500)',
+            animation: 'caret-blink 1s steps(2, end) infinite',
+          }}/>
+        : null
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ScreenVerifyEmail — `error` toggles failure state.
+//
+// Step 2 of "The basics" (after the email-entry screen). Same
+// header chrome, same StepProgress (3, current=2), italic-
+// underlined headline. The numeric keypad is pinned bottom and
+// the Verify CTA sits in the body — never floated over by a
+// modal — so it's visible in both default and error states.
+// ─────────────────────────────────────────────────────────────
+function ScreenVerifyEmail({ error = false, email = 'leo@hey.com', onBack }) {
+  // Default: empty slots, caret on slot 1.
+  // Error:   keep the digits the user just submitted so they can
+  //          correct only what's wrong rather than re-type all six.
+  const [digits, setDigits] = useState(error ? ['4', '8', '2', '1', '7', '0'] : ['', '', '', '', '', '']);
+  const activeIdx = digits.findIndex(d => !d);
+  const filled = digits.every(d => d);
+
+  // Resend cooldown. Fresh send → 24s. After a failure we assume the
+  // previous send is old enough that resend is immediately available
+  // (cooldown = 0) — punishing the user with a fresh timer after a
+  // typo is hostile.
+  const [cooldown, setCooldown] = useState(error ? 0 : 24);
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  // One-shot shake on the slot row when entering the error state.
+  const [shakeKey, setShakeKey] = useState(0);
+  useEffect(() => { if (error) setShakeKey(k => k + 1); }, [error]);
+
+  const handleKey = (d) => {
+    setDigits(prev => {
+      const idx = prev.findIndex(x => !x);
+      if (idx === -1) return prev;
+      const next = [...prev]; next[idx] = d; return next;
+    });
+  };
+  const handleBack = () => {
+    setDigits(prev => {
+      let idx = prev.length - 1;
+      while (idx >= 0 && !prev[idx]) idx--;
+      if (idx < 0) return prev;
+      const next = [...prev]; next[idx] = ''; return next;
+    });
+  };
+
+  return (
+    <div className="su-app" style={{
+      width: 390, height: 844, position: 'relative', overflow: 'hidden',
+      background: 'var(--liq-bg)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <Atmosphere variant="form"/>
+
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <StatusBar time="4:20"/>
+        <AppHeader title="The basics" leading="back" onBack={onBack}/>
+      </div>
+
+      <div className="su-noscroll" style={{
+        flex: 1, position: 'relative', zIndex: 1, overflow: 'hidden',
+        padding: '4px 24px 0', display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Step 2 of 3 — same as the email-entry screen, since the
+            verification is part of the same sub-step (collect email
+            + confirm ownership). Profile picture is step 3. */}
+        <StepProgress steps={3} current={2} style={{ marginBottom: 18 }}/>
+
+        <h1 className="su-underlined" style={{
+          fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 32,
+          letterSpacing: '-0.015em', lineHeight: 1.1, color: 'var(--liq-fg)',
+          margin: '0 0 8px', textWrap: 'balance',
+        }}>
+          Please verify your <em>email</em>.
+        </h1>
+
+        <p style={{
+          fontFamily: 'var(--liq-font-sans)', fontWeight: 500, fontSize: 14.5,
+          lineHeight: 1.4, color: 'var(--liq-neutral-200)', margin: 0,
+          textWrap: 'pretty', maxWidth: 320,
+        }}>
+          We sent a 6-digit code to{' '}
+          <span style={{ color: 'var(--liq-fg)', fontWeight: 700 }}>
+            {email}
+          </span>.
+        </p>
+
+        {/* Code slots — wrapped in shake-keyed div so failure reads kinetically. */}
+        <div
+          key={shakeKey}
+          style={{
+            marginTop: 22, display: 'flex', gap: 8, justifyContent: 'space-between',
+            animation: error ? 'su-shake 480ms cubic-bezier(.36,.07,.19,.97) both' : undefined,
+          }}
+          aria-label="Enter your 6-digit verification code"
+        >
+          {digits.map((d, i) => (
+            <CodeSlot key={i} value={d} active={!error && i === activeIdx} error={error}/>
+          ))}
+        </div>
+
+        {/* Inline helper / error — sits immediately under the slots.
+            aria-live="polite" announces the failure to assistive tech
+            without yanking focus. */}
+        <div
+          aria-live="polite"
+          style={{ minHeight: 30, marginTop: 12, paddingLeft: 2 }}
+        >
+          {error ? (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: 'rgba(251,50,59,0.07)',
+              border: '1px solid rgba(251,50,59,0.18)',
+            }}>
+              <span style={{
+                flex: 'none', width: 18, height: 18, borderRadius: '50%',
+                background: 'var(--liq-danger)', color: '#fff',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 12,
+                lineHeight: 1, marginTop: 1,
+              }}>!</span>
+              <div style={{
+                fontFamily: 'var(--liq-font-sans)', fontSize: 13.5, lineHeight: 1.4,
+                color: 'var(--liq-danger-fg)', fontWeight: 500,
+              }}>
+                That code doesn't match. Check your inbox or request a new one.
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Primary CTA — always visible. Disabled until 4 digits in
+            default state; enabled in the error state so re-submit is
+            one tap after the fix. */}
+        <div style={{ marginTop: 14 }}>
+          <Button variant="sunset" size="lg" fullWidth disabled={!error && !filled}>
+            Verify code
+          </Button>
+        </div>
+
+        {/* Secondary actions — stacked, text-styled. The sunset CTA
+            stays the only visual destination on the screen. */}
+        <div style={{
+          marginTop: 18, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 8,
+        }}>
+          <div style={{
+            fontFamily: 'var(--liq-font-sans)', fontSize: 14, fontWeight: 600,
+            color: 'var(--liq-fg)', lineHeight: 1.3,
+          }}>
+            Didn't receive a code?
+          </div>
+          {cooldown > 0 ? (
+            <span style={{
+              fontFamily: 'var(--liq-font-sans)', fontSize: 13, fontWeight: 600,
+              color: 'var(--liq-fg-subtle)',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              Send a new code in 0:{String(cooldown).padStart(2, '0')}
+            </span>
+          ) : (
+            <button style={{
+              fontFamily: 'var(--liq-font-sans)', fontSize: 14, fontWeight: 700,
+              color: 'var(--liq-primary-500)',
+              textDecoration: 'underline', textUnderlineOffset: 3,
+              textDecorationThickness: 1.5,
+              padding: '2px 4px',
+            }}>
+              Send a new code
+            </button>
+          )}
+
+          {/* "Edit email" — always present, sends user back to the
+              previous step. Wrong-email is a common cause of "I never
+              got it", so the escape hatch lives in both states. */}
+          <button onClick={onBack} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontFamily: 'var(--liq-font-sans)', fontSize: 13, fontWeight: 500,
+            color: 'var(--liq-fg-muted)',
+            padding: '2px 4px', marginTop: 2,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+              <path d="M15 5l4 4"/>
+            </svg>
+            To edit your email, simply go back
+          </button>
+        </div>
+
+        <div style={{ flex: 1 }}/>
+      </div>
+
+      {/* Numeric keypad pinned to bottom — above the home indicator */}
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <NumericKeypad onKey={handleKey} onBackspace={handleBack}/>
+        <HomeIndicator/>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page — both states side-by-side on a warm canvas.
+// ─────────────────────────────────────────────────────────────
+function Page() {
+  return (
+    <div className="stage">
+      <div className="page-head">
+        <span className="kicker">
+          <span className="dot"></span>
+          03 · Profile creation · Email verification
+        </span>
+        <h1>Please verify your <em style={{ fontWeight: 500 }}>email</em>.</h1>
+        <p>
+          The screen after the user submits their email. Two states:
+          the fresh code-entry view, and the inline failure response after
+          a code mismatch. The "Verify code" CTA stays visible in both —
+          no floating modal occluding it.
+        </p>
+      </div>
+
+      <div className="row">
+        <div className="frame" data-screen-label="01 Verify email · default">
+          <div className="frame-label">
+            <span className="pip ok"></span>
+            01 · Code entry · default
+          </div>
+          <div className="frame-shell">
+            <ScreenVerifyEmail/>
+          </div>
+          <div className="caption">
+            Fresh arrival. Caret on slot 1, address shown so the user can
+            cross-check it,<strong> resend cooled down for 24s</strong> to
+            stop a panicked user spamming the mail server.
+          </div>
+        </div>
+
+        <div className="frame" data-screen-label="02 Verify email · mismatch">
+          <div className="frame-label">
+            <span className="pip err"></span>
+            02 · Code entry · mismatch
+          </div>
+          <div className="frame-shell">
+            <ScreenVerifyEmail error={true}/>
+          </div>
+          <div className="caption">
+            Inline failure response.<strong> Digits preserved</strong> so
+            the user can correct only the wrong one; cooldown released;
+            <strong> Verify code CTA stays visible</strong> — no modal in
+            the way.
+          </div>
+        </div>
+      </div>
+
+      <div className="notes">
+        <h3>Why this error treatment differs from the reference</h3>
+        <ul>
+          <li>
+            <strong>Inline, not modal.</strong> The reference floats a
+            "Wrong code" sheet over the Verify button. That hides the
+            recovery action and disconnects the error from the inputs
+            that caused it. Here the error is glued to the slots, and
+            the CTA stays visible — the user always knows what to do next.
+          </li>
+          <li>
+            <strong>Digits stay put on failure.</strong> Wiping all six
+            slots punishes a near-miss (1 wrong digit out of 6). The user
+            edits the wrong digit with one backspace + one tap.
+          </li>
+          <li>
+            <strong>Brand-voice copy.</strong> "That code doesn't match"
+            instead of "Wrong code". Informative, not cautionary — matches
+            the system's microcopy rule.
+          </li>
+          <li>
+            <strong>Calm danger.</strong> 1.5px danger stroke, 4px halo,
+            7%-alpha wash on the slot bg — never a solid red fill.
+            <code> --liq-danger-fg</code> on text keeps AA contrast on
+            warm paper.
+          </li>
+          <li>
+            <strong>Cooldown released on failure.</strong> If the user
+            typed a digit wrong (or pasted a stale code), they shouldn't
+            have to wait through a fresh 24s timer to try a new code.
+          </li>
+          <li>
+            <strong>Always-available escape hatch.</strong> "To edit your
+            email, simply go back" stays present in both states. Wrong-
+            address is a common cause of "I never got the code".
+          </li>
+          <li>
+            <strong>One-shot shake</strong> on the slot row to confirm
+            the attempt registered, then a still UI. No
+            attention-stealing continuous animation.
+          </li>
+          <li>
+            <strong>aria-live="polite"</strong> on the helper region so
+            screen readers announce the failure without yanking focus
+            from the input the user is about to fix.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Page/>);
+</script>
+</body>
+</html>

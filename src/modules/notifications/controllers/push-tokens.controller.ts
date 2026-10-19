@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, HttpCode, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiNoContentResponse,
-  ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -22,10 +22,16 @@ import { PushTokensService } from '../services/push-tokens.service';
 export class PushTokensController {
   constructor(private readonly pushTokens: PushTokensService) {}
 
-  /** Register this device's push token (idempotent — re-submitting the same token updates it). */
+  /**
+   * Register this device's push token (idempotent — re-submitting the same token updates it).
+   *
+   * 201, Nest's default for a POST, and the contract now says so. It used to declare 200 while the
+   * route answered 201, and the iOS client, which matches responses to the contract exactly, read
+   * every successful registration as a failure.
+   */
   @Post()
   @ApiOperation({ operationId: 'registerPushToken' })
-  @ApiOkResponse({ type: PushTokenDto })
+  @ApiCreatedResponse({ type: PushTokenDto })
   async register(
     @CurrentUser() user: User,
     @Body() dto: RegisterPushTokenDto,

@@ -77,10 +77,15 @@ export class VerificationService {
   }
 
   private async markProfileVerified(userId: string): Promise<void> {
-    const profile = await this.profiles.findOne({ where: { userId } });
-    if (!profile) return;
-    profile.verificationStatus = ProfileVerificationStatus.Verified;
-    profile.verifiedAt = new Date();
-    await this.profiles.save(profile);
+    // Only the two verification columns, never a whole-entity save: that would write back every
+    // other column as this request read it, undoing anything the user saved in between (see
+    // ProfilesService.update). No row is a no-op, as before.
+    await this.profiles.update(
+      { userId },
+      {
+        verificationStatus: ProfileVerificationStatus.Verified,
+        verifiedAt: new Date(),
+      },
+    );
   }
 }
