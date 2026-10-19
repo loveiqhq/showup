@@ -9,7 +9,7 @@ signup_use_different_account_tapped,Sign-up and re-login,B,Auth,"User taps ""Use
 signup_phone_submitted,Sign-up and re-login,B,Auth,User submits phone number form,,fires,fires,true
 signup_phone_validation_failed,Sign-up and re-login,B,Auth,libphonenumber rejects the submitted number.,reason country,fires,fires,true
 signup_code_submitted,Sign-up and re-login,B,Auth,User submits 6-digit verification code,,fires,fires,true
-signup_code_verify_failed,Sign-up and re-login,B,Auth,Submitted code is wrong,attempt,"defined, not fired","defined, not fired",false
+signup_code_verify_failed,Sign-up and re-login,B,Auth,Submitted code is wrong,attempt,fires,fires,true
 signup_resend_requested,Sign-up and re-login,B,Auth,"User taps ""Resend SMS Code""",seconds_waited after_mismatch,fires,fires,true
 signup_edit_phone_tapped,Sign-up and re-login,B,Auth,"User taps ""Edit phone number"" on Signup - Codeentry",,fires,fires,true
 connect_provider_tapped,Sign-up and re-login,B,Auth,Social sign-in button pressed,provider,fires,fires,true

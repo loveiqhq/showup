@@ -26,12 +26,12 @@ fails CI if they fall out of date, so this file cannot drift without someone bei
 - **`legal_link_tapped` changed shape.** It carries `screen_id` (the registry's stable screen key)
   instead of `screen_name`, and its `link` values are `terms`, `privacy` and `legal_notice`. There
   are now 8 legal links, all tracked: Stay reachable's Privacy Policy is new.
-- **`signup_code_verify_failed` is no longer sent.** Checking the code moved to the server, and
-  nothing calls the event's builder on either app. The registry already says so: `implemented:
-  false`, with a `code_delta` asking for the call to be re-added on a refused code, or the event
-  retired.
-- **The registry's flags were brought up to date on 19 October** (PR #135): the Check-In's ten
-  client events and `permission_status_changed` are now marked implemented, 105 in all.
+- **`signup_code_verify_failed` is sent again** (PR #137). It went silent on 10 September, when
+  checking the code moved to the server. Both apps now send it when the server refuses a code,
+  with the 1-based `attempt`, and the registry marks it implemented.
+- **The registry's flags were brought up to date on 19 October** (PRs #135 and #137): the
+  Check-In's ten client events, `permission_status_changed` and `signup_code_verify_failed` are now
+  marked implemented, 106 in all.
 - **The apps record events now.** Since 8 October every screen is handed the app's shared tracker,
   so events fire and show up in the developer menu's Events tab. They still go to no analytics tool.
 - **The nine disagreements with Jira were re-checked against the code on 19 October:** unchanged.
@@ -49,7 +49,7 @@ fails CI if they fall out of date, so this file cannot drift without someone bei
 | Server | **8** | `src/modules/analytics/events/` |
 | | **106** | |
 
-98 client events, 97 of them fired on both platforms. `screen_viewed` is counted once, under sign-up, though profile creation and the Check-In use it too.
+98 client events, 98 of them fired on both platforms. `screen_viewed` is counted once, under sign-up, though profile creation and the Check-In use it too.
 <!-- generated:totals:end -->
 
 ## Nothing is being sent yet — and the two halves differ
@@ -166,7 +166,7 @@ event that is only defined is marked as such.
 | `connect_skip_tapped` | Skip tapped on connect account. | — | fires | fires |
 | `signup_auth_method_tapped` | User taps one of the four auth method buttons | `method`, `is_last_used` | fires | fires |
 | `signup_code_submitted` | User submits 6-digit verification code | — | fires | fires |
-| `signup_code_verify_failed` | Submitted code is wrong | `attempt` | defined, not fired | defined, not fired |
+| `signup_code_verify_failed` | Submitted code is wrong | `attempt` | fires | fires |
 | `signup_create_account_tapped` | User taps "Create free account" on Signup - CreateAccount | — | fires | fires |
 | `signup_edit_phone_tapped` | User taps "Edit phone number" on Signup - Codeentry | — | fires | fires |
 | `signup_get_help_tapped` | User taps "Get help" on Signup - welcomeback | — | fires | fires |
@@ -354,7 +354,7 @@ code disagree:
 
 **The registry says `implemented: true`, but no client catalogue defines it (0):** none
 
-**Defined in the code but not fired on one or both platforms (1):** `signup_code_verify_failed` (Android defined, not fired, iOS defined, not fired)
+**Defined in the code but not fired on one or both platforms (0):** none
 <!-- generated:registry:end -->
 
 ## What the code and the tickets disagree about
@@ -446,8 +446,7 @@ fix.
 
 `audit/check-analytics-parity.py` compares the sign-up and profile catalogues name for name on
 Android and iOS, and the generator checks that every event is not only defined but **sent** on both
-platforms. Of the 98 client events, 97 are sent on both; the one that is not is sent on neither
-(`signup_code_verify_failed`, above).
+platforms. Of the 98 client events, 98 are sent on both.
 
 What no checker can do is tell you whether either app matches the tickets. That is a reading of
 prose, which is what the list above is for.
