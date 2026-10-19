@@ -27,7 +27,11 @@ fails CI if they fall out of date, so this file cannot drift without someone bei
   instead of `screen_name`, and its `link` values are `terms`, `privacy` and `legal_notice`. There
   are now 8 legal links, all tracked: Stay reachable's Privacy Policy is new.
 - **`signup_code_verify_failed` is no longer sent.** Checking the code moved to the server, and
-  nothing calls the event's builder on either app. The registry still lists it as implemented.
+  nothing calls the event's builder on either app. The registry already says so: `implemented:
+  false`, with a `code_delta` asking for the call to be re-added on a refused code, or the event
+  retired.
+- **The registry's flags were brought up to date on 19 October** (PR #135): the Check-In's ten
+  client events and `permission_status_changed` are now marked implemented, 105 in all.
 - **The apps record events now.** Since 8 October every screen is handed the app's shared tracker,
   so events fire and show up in the developer menu's Events tab. They still go to no analytics tool.
 - **The nine disagreements with Jira were re-checked against the code on 19 October:** unchanged.
@@ -346,7 +350,7 @@ The registry's `implemented` flag is the product side's record of what is built.
 code disagree:
 
 <!-- generated:registry:start -->
-**Fired on both platforms, but the registry says `implemented: false` (11):** `permission_status_changed`, `check_in_started`, `check_in_closed`, `check_in_gate_tapped`, `check_in_step_answered`, `availability_slots_set`, `check_in_no_hours_today_resolved`, `motivation_selected`, `vibe_selected`, `check_in_filters_changed`, `check_in_commit_failed`
+**Fired on both platforms, but the registry says `implemented: false` (0):** none
 
 **The registry says `implemented: true`, but no client catalogue defines it (0):** none
 
