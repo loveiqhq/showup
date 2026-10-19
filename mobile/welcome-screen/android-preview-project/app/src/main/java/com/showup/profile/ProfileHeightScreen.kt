@@ -95,8 +95,12 @@ fun ProfileHeightScreen(
         )
         Text(
             DetailsCopy.HEIGHT_NOTE,
-            // `margin: 10px 2px 0`.
-            modifier = Modifier.padding(top = Spacing.lg, start = 2.dp, end = 2.dp),
+            // `margin: 10px 2px 0` in the reference; 6 on top here, decided 19 October 2026. On a
+            // 375 x 667 phone with the iOS number pad the answer region is 97.5 and field + note
+            // needed 101.5, so the note's last 4 were cut and the region scrolled, which SHOWUP-167
+            // forbids. The note is already one line, so shorter copy could not help. DetailsFitTest
+            // asserts it fits.
+            modifier = Modifier.padding(top = Spacing.sm, start = 2.dp, end = 2.dp),
             color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.Medium,
             fontSize = 12.5.sp, lineHeight = (12.5f * 1.4f).sp,
         )

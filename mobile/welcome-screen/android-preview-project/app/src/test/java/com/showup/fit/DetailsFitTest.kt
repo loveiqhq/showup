@@ -306,14 +306,19 @@ class DetailsFitTest {
             val s = shoot(f.first, f.second) { ProfileHeightScreen(DetailsUiState(), autoFocus = false) }
             val cta = s.tag(DETAILS_CTA_TAG)
             val region = s.tag(DETAILS_REGION_TAG)
-            // "The answer region must not scroll internally" (SHOWUP-167, 375 x 667). Reported, not
-            // asserted: the ticket's remedy for an overflow is shortening the note -- a copy
-            // decision -- "before shrinking anything in the layout".
+            // "The answer region must not scroll internally" (SHOWUP-167, 375 x 667). ASSERTED for
+            // the ticket's own phone since 19 October 2026: it overflowed by 4 until the note's gap
+            // went from 10 to 6 (the note is one line, so shortening the copy could not help). The
+            // small Androids are reported only: their region is at its 80 floor and the top part
+            // scrolls as one, by design.
             val overflow = s.regionContentBottom - region.bottom
             println(
                 "DIAG height $name: frame ${f.second}, answer region ${region.height}, " +
                     "content overflows the region by ${maxOf(overflow, 0f)}, CTA bottom ${cta.bottom}",
             )
+            if (name.startsWith("SE") && overflow > 0.5f) {
+                failures += "$name: the note overflows the answer region by $overflow"
+            }
             if (cta.bottom > s.frame + 0.5f) failures += "$name: CTA below the keypad (${cta.bottom} > ${s.frame})"
             // The field must have somewhere to be: its 10 inset and its 64 box. Where the top part
             // cannot give it that at rest, it scrolls, and the focused field is brought into view.
