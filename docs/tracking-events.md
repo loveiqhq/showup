@@ -1,40 +1,67 @@
 # Tracking events — the implemented catalogue
 
-**7 September 2026.** Every analytics event that exists in the code today, extracted from the
-source rather than from the tickets.
+**Updated 19 October 2026** (first version 7 September 2026). Every analytics event that exists in
+the code today, read out of the source rather than the tickets.
 
-This document is the reconciliation sheet, not the specification. Where it disagrees with a Jira
-ticket, that disagreement is listed in [What the code and the tickets disagree
-about](#what-the-code-and-the-tickets-disagree-about) rather than silently resolved. Nine such
-disagreements exist; five are still open.
+This is the reconciliation sheet, not the specification. Where the code and a Jira ticket disagree,
+the disagreement is listed in [What the code and the tickets disagree
+about](#what-the-code-and-the-tickets-disagree-about) rather than silently resolved. Where the code
+and the tracking registry (`design_handoff_showup/tracking/events.json`) disagree, that is listed in
+[The registry and the code](#the-registry-and-the-code).
 
-`audit/check-tracking-doc.py` fails if this file and the code stop listing the same event names, so
-it cannot drift without someone being told.
+The totals, the screen names, the event tables and the registry comparison are **generated from the
+code** by `mobile/welcome-screen/audit/gen-tracking-catalogue.py`. `audit/check-tracking-doc.py`
+fails CI if they fall out of date, so this file cannot drift without someone being told.
+
+## What changed since 7 September
+
+- **35 events became 106.** The first version covered sign-up, the tutorial and the server. Profile
+  creation (families D, E, F and G: the basics, photos, prompts, video and voice, notifications,
+  Stay reachable, location, the seven details, interests, life and future) and the 48hrs Check-In
+  (family H) have been added since, along with `permission_status_changed` from the shared
+  permission reconciler.
+- **The tables are generated now.** The first version was written by hand, per screen. It drifted
+  the moment profile creation started, and its checker did not notice, because it only read the two
+  files that existed in September.
+- **`legal_link_tapped` changed shape.** It carries `screen_id` (the registry's stable screen key)
+  instead of `screen_name`, and its `link` values are `terms`, `privacy` and `legal_notice`. There
+  are now 8 legal links, all tracked: Stay reachable's Privacy Policy is new.
+- **`signup_code_verify_failed` is no longer sent.** Checking the code moved to the server, and
+  nothing calls the event's builder on either app. The registry still lists it as implemented.
+- **The apps record events now.** Since 8 October every screen is handed the app's shared tracker,
+  so events fire and show up in the developer menu's Events tab. They still go to no analytics tool.
+- **The nine disagreements with Jira were re-checked against the code on 19 October:** unchanged.
+  Four settled, five open.
 
 ## Totals
 
+<!-- generated:totals:start -->
 | | Events | Where |
 |---|---|---|
 | Sign-up and re-login | **23** | `SignUpAnalytics` · Android + iOS |
 | Tutorial | **4** | `TutorialAnalytics` · Android + iOS |
+| Profile creation | **61** | `ProfileAnalytics` · Android + iOS |
+| 48hrs Check-In | **10** | `CheckInAnalytics` · Android + iOS |
 | Server | **8** | `src/modules/analytics/events/` |
-| | **35** | |
+| | **106** | |
 
-Plus 6 `screen_name` values (one defined and not wired) and 3 `link` values.
+98 client events, 97 of them fired on both platforms. `screen_viewed` is counted once, under sign-up, though profile creation and the Check-In use it too.
+<!-- generated:totals:end -->
 
 ## Nothing is being sent yet — and the two halves differ
 
-**Mobile sends nothing at all.** `NoOpAnalytics` is the default tracker on every screen, so all 27
-client events are defined, wired, unit-tested and inert. Switching them on is one object in one
-place; no screen changes.
+**Mobile records events, and sends them nowhere.** Every screen is handed the app's shared tracker
+(`AppAnalytics` on both platforms), so events fire, and on a debug build they appear live in the
+developer menu's **Events** tab. There is no analytics tool behind the tracker yet, and no consent
+screen, so nothing leaves the phone. Choosing a tool is one change in one place; no screen changes.
 
 **The server is wired to a real sink but gated three ways.** Events route through
 `AnalyticsService.track()`, which drops anything without consent (`isAnalyticsAllowed`), drops
 anything with no id to attribute it to, and sends to the PostHog EU adapter **only** when
 `posthog.enabled` is true and an API key is present — otherwise to the log sink.
 
-So "implemented" and "flowing" are different questions, and the answer differs per half. Nobody
-should expect data in a dashboard from either today.
+So "implemented" and "flowing" are different questions. Nobody should expect data in a dashboard
+from either half today.
 
 ## Conventions
 
@@ -42,91 +69,229 @@ should expect data in a dashboard from either today.
 uses (`date_confirmed`, `like_sent`, `account_created`). One taxonomy across client and server, or
 the funnel has to be reassembled by hand in the warehouse.
 
-**`screen_name` values are verbatim from the tickets**, capitalisation and spacing included.
-`Signup - welcomeback` is lower-case in SHOWUP-142 and stays that way. They look inconsistent
-because they are inconsistent in the tickets; normalising them here would make the code disagree
-with its own specification. This is the first thing worth fixing in Jira.
+**Two screen keys, for two jobs.** `screen_id` is the registry's stable key (§11) that a saved
+funnel binds to and is never edited; `screen_name` is the human label searched for in the analytics
+tool. Profile creation and the Check-In send both.
+
+**Sign-up's `screen_name` values are verbatim from the tickets**, capitalisation and spacing
+included. `Signup - welcomeback` is lower-case in SHOWUP-142 and stays that way. They look
+inconsistent because they are inconsistent in the tickets; normalising them in the code would make
+the code disagree with its own specification. See disagreements 1 and 6.
 
 ---
 
-## Screenviews
+## Screen names
 
-One event with a `screen_name` property, not one event per screen. That is what makes a funnel
-query possible without naming every screen.
+One event, `screen_viewed`, with a `screen_name` property, rather than one event per screen. That is
+what makes a funnel query possible without naming every screen. It fires when the screen becomes
+visible, and again on return.
 
-| `screen_name` | Ticket | Screen | Extra properties |
-|---|---|---|---|
-| `Signup - CreateAccount` | SHOWUP-140 | Startup | — |
-| `Signup - welcomeback` | SHOWUP-142 | Welcome back | `last_used` (`phone` / `apple` / `google` / `facebook` / `unknown`) |
-| `SSOLogin` | SHOWUP-145 | — | **defined, not wired** — see disagreement 1 |
-| `Signup - Phonenumber` | SHOWUP-143 A/B | Phone entry | — |
-| `Signup - Codeentry` | SHOWUP-143 C/D | Code entry | — |
-| `ConnectSSO` | SHOWUP-144 | Connect account | `state` (currently always `idle`) |
-
-Event name: `screen_viewed`. Fires when the screen becomes visible, and again on return — keyed on
-the flow's `step`, which is the behaviour a funnel needs.
-
-## SHOWUP-140 · Startup
-
-| Event | Trigger | Properties |
+<!-- generated:screens:start -->
+| `screen_name` | `screen_id` | Area |
 |---|---|---|
-| `signup_create_account_tapped` | "Create free account" | — |
-| `signup_log_in_tapped` | "Already have an account? Log in" | — |
-| `legal_link_tapped` | any of the three legal links | `link`, `screen_name` |
+| `Signup - CreateAccount` | — | Sign-up |
+| `Signup - welcomeback` | — | Sign-up |
+| `SSOLogin` | — | Sign-up |
+| `Signup - Phonenumber` | — | Sign-up |
+| `Signup - Codeentry` | — | Sign-up |
+| `ConnectSSO` | — | Sign-up |
+| `ProfileName` | `profile_name` | Profile and Check-In |
+| `ProfileEmail` | `profile_email` | Profile and Check-In |
+| `ProfileEmailVerification` | `profile_email_verification` | Profile and Check-In |
+| `ProfileDoB` | `profile_dob` | Profile and Check-In |
+| `ProfileEmbraceBuild` | `profile_embrace_build` | Profile and Check-In |
+| `ProfilePhotos` | `profile_photos` | Profile and Check-In |
+| `ProfilePrompts` | `profile_prompts` | Profile and Check-In |
+| `ProfileMedia` | `profile_media` | Profile and Check-In |
+| `ProfileNotifications` | `profile_notifications` | Profile and Check-In |
+| `ProfileReachability` | `profile_reachability` | Profile and Check-In |
+| `ProfileMediaRecord` | `profile_media_record` | Profile and Check-In |
+| `ProfileMediaReview` | `profile_media_review` | Profile and Check-In |
+| `ProfileLocation` | `profile_location` | Profile and Check-In |
+| `ProfileEmbraceDetails` | `profile_embrace_details` | Profile and Check-In |
+| `ProfileHeight` | `profile_height` | Profile and Check-In |
+| `ProfileGender` | `profile_gender` | Profile and Check-In |
+| `ProfileOrientation` | `profile_orientation` | Profile and Check-In |
+| `ProfileDatingLanguage` | `profile_dating_language` | Profile and Check-In |
+| `ProfileEducation` | `profile_education` | Profile and Check-In |
+| `ProfileReligion` | `profile_religion` | Profile and Check-In |
+| `ProfilePolitics` | `profile_politics` | Profile and Check-In |
+| `ProfileInterests` | `profile_interests` | Profile and Check-In |
+| `ProfileLifeNow` | `profile_life_now` | Profile and Check-In |
+| `ProfileLifeAhead` | `profile_life_ahead` | Profile and Check-In |
+| `CheckinIntro` | `checkin_intro` | Profile and Check-In |
+| `CheckinSearchUnavailable` | `checkin_search_unavailable` | Profile and Check-In |
+| `CheckinToday` | `checkin_today` | Profile and Check-In |
+| `CheckinTomorrow` | `checkin_tomorrow` | Profile and Check-In |
+| `CheckinMotivation` | `checkin_motivation` | Profile and Check-In |
+| `CheckinVibe` | `checkin_vibe` | Profile and Check-In |
+| `CheckinFilters` | `checkin_filters` | Profile and Check-In |
+| `CheckinUplift` | `checkin_uplift` | Profile and Check-In |
+<!-- generated:screens:end -->
 
-## SHOWUP-142 / 145 · Welcome back
+`SSOLogin` is defined and not wired: see disagreement 1.
 
-| Event | Trigger | Properties |
-|---|---|---|
-| `signup_auth_method_tapped` | any of the four method buttons | `method`, `is_last_used` |
-| `signup_get_help_tapped` | "Get help" | — |
-| `signup_use_different_account_tapped` | "Use a different account" | — |
+## Events, by registry family
 
-`signup_auth_method_tapped` fires for all four methods including the three providers that go
-nowhere yet — the intent to use them is exactly what the funnel needs to know.
+Grouped by the registry's families (A to T), the same letters the registry and the analytics tickets
+use. **When it fires** is the registry's own wording, shortened to its first sentence. **Properties**
+and whether the event **fires** are read from the code. "+ stamp" means the event also carries
+`sensitivity_class` and `field_registry_version`. "Fires" means something in the app sends it; an
+event that is only defined is marked as such.
 
-## SHOWUP-143 · Phone and code
+<!-- generated:events:start -->
+### A · Session & Nav (1)
 
-| Event | Trigger | Properties |
-|---|---|---|
-| `signup_phone_submitted` | "Send me the code" | — |
-| `signup_phone_validation_failed` | submitted number rejected | `reason`, `country` |
-| `signup_code_submitted` | "Verify code" | — |
-| `signup_code_verify_failed` | wrong code | `attempt` |
-| `signup_resend_requested` | "Resend" | `seconds_waited`, `after_mismatch` |
-| `signup_edit_phone_tapped` | "Edit phone number" | — |
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `screen_viewed` | Screen view controller finishes rendering. | `screen_name`, `screen_id`, `referrer_screen_id` + stamp | fires | fires |
 
-`seconds_waited` is the cooldown's full value minus what remains, because the counter runs down —
-and after a mismatch the cooldown is released to 0, which would otherwise read as a full wait.
+### B · Auth (21)
 
-## SHOWUP-144 · Connect account
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `connect_conflict_different_account_tapped` | Conflict modal "Use a different account" tapped. | — | fires | fires |
+| `connect_conflict_raised` | Account exists under different provider UI | `provider` | fires | fires |
+| `connect_conflict_repeated` | Second or later conflict modal within one session — the guess-wrong loop. | `count`, `provider` | fires | fires |
+| `connect_conflict_resolve_tapped` | Conflict modal resolve CTA tapped — one event per attempt, result set when the owning provider's handoff returns. | `provider` | fires | fires |
+| `connect_link_failed` | OAuth callback returns failure state | `provider`, `kind` | fires | fires |
+| `connect_link_succeeded` | Valid identity token generated | `provider` | fires | fires |
+| `connect_linking_timeout` | Linking state (E) exceeds the timeout and falls back to the error banner. | `provider` | fires | fires |
+| `connect_provider_tapped` | Social sign-in button pressed | `provider` | fires | fires |
+| `connect_sheet_dismissed` | User dismisses native social auth UI | `provider` | fires | fires |
+| `connect_skip_tapped` | Skip tapped on connect account. | — | fires | fires |
+| `signup_auth_method_tapped` | User taps one of the four auth method buttons | `method`, `is_last_used` | fires | fires |
+| `signup_code_submitted` | User submits 6-digit verification code | — | fires | fires |
+| `signup_code_verify_failed` | Submitted code is wrong | `attempt` | defined, not fired | defined, not fired |
+| `signup_create_account_tapped` | User taps "Create free account" on Signup - CreateAccount | — | fires | fires |
+| `signup_edit_phone_tapped` | User taps "Edit phone number" on Signup - Codeentry | — | fires | fires |
+| `signup_get_help_tapped` | User taps "Get help" on Signup - welcomeback | — | fires | fires |
+| `signup_log_in_tapped` | User taps "Already have an account? Log in" on Signup - CreateAccount | — | fires | fires |
+| `signup_phone_submitted` | User submits phone number form | — | fires | fires |
+| `signup_phone_validation_failed` | libphonenumber rejects the submitted number. | `reason`, `country` | fires | fires |
+| `signup_resend_requested` | User taps "Resend SMS Code" | `seconds_waited`, `after_mismatch` | fires | fires |
+| `signup_use_different_account_tapped` | User taps "Use a different account" on Signup - welcomeback | — | fires | fires |
 
-| Event | Trigger | Properties |
-|---|---|---|
-| `connect_provider_tapped` | a provider button | `provider` |
-| `connect_skip_tapped` | "Skip and continue to profile" | — |
-| `connect_sheet_dismissed` | provider sheet closed before finishing | `provider` |
-| `connect_link_succeeded` | link completed | `provider` |
-| `connect_link_failed` | link failed | `provider`, `kind` (`network` / `declined`) |
-| `connect_linking_timeout` | the 8-second cap in the acceptance criteria | `provider` |
-| `connect_conflict_raised` | account already exists | `provider` |
-| `connect_conflict_resolve_tapped` | "Continue with `<owner>`" | `provider` |
-| `connect_conflict_different_account_tapped` | "Use a different account" | — |
-| `connect_conflict_repeated` | a second or later conflict in one session | `count`, `provider` |
+### C · Onboarding & Tutorial (4)
 
-`connect_conflict_repeated` carries the running count so the second and third are distinguishable
-from the first without the warehouse having to sessionise.
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `tutorial_back_tapped` | Back on cards 3–6. | `card`, `card_name` | fires | fires |
+| `tutorial_card_viewed` | Card becomes visible. | `card`, `card_name` | fires | fires |
+| `tutorial_completed` | User finishes value declaration deck | `card`, `card_name` | fires | fires |
+| `tutorial_cta_tapped` | Forward CTA on cards 1–5. | `card`, `card_name` | fires | fires |
 
-## Tutorial · SHOWUP-117 / 135 / 136 / 137 / 138 / 139
+### D · Profile Identity (13)
 
-Every event carries `card` (1–6) and `card_name`.
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `age_gate_failed` | System calculates age < 18 | `age` + stamp | fires | fires |
+| `dob_submitted` | Date of birth submitted — the conversion signal for the step. | `age` + stamp | fires | fires |
+| `dob_validation_failed` | Invalid date entered in DOB screen | `rule` + stamp | fires | fires |
+| `email_code_resent` | User requests secondary email code | `attempt_no` + stamp | fires | fires |
+| `email_code_submitted` | Email verification code entered | `attempt_no`, `result` + stamp | fires | fires |
+| `email_submitted` | Email address form submitted | `domain` + stamp | fires | fires |
+| `email_validation_failed` | Client/API rejects email string | `rule` + stamp | fires | fires |
+| `embrace_bridge_viewed` | Bridge view displayed | `variant` + stamp | fires | fires |
+| `name_submitted` | First name form submitted | `char_count` + stamp | fires | fires |
+| `profile_build_started` | User starts basic details intake | `entry_point` + stamp | fires | fires |
+| `profile_step_completed` | Step form validated and submitted | `step_id`, `time_on_step_s`, `prompt_count` + stamp | fires | fires |
+| `profile_step_skipped` | Optional step bypassed via the "Skip" CTA. | `step_id`, `screen_id`, `has_video`, `has_voice` + stamp | fires | fires |
+| `profile_step_viewed` | Specific profile step screen rendered | `step_id`, `step_index` + stamp | fires | fires |
 
-| Event | Trigger | Fires on |
-|---|---|---|
-| `tutorial_card_viewed` | card becomes visible | all 6 cards |
-| `tutorial_cta_tapped` | the forward CTA | cards 1–5 |
-| `tutorial_back_tapped` | Back | cards 3–6 (card 1 has none; card 2 hides it) |
-| `tutorial_completed` | the final card's CTA | card 6 only |
+### E · Profile Photos/Media (26)
+
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `media_deleted` | Delete tapped on a filled card on the Media screen — the artefact is removed from the profile and the card returns to empty. | `type`, `media_prompt_id`, `duration_s`, `had_video`, `had_voice` + stamp | fires | fires |
+| `media_preview_played` | Play tapped on the review screen. | `type`, `attempt`, `play_count` + stamp | fires | fires |
+| `media_prompt_list_dismissed` | The prompt list closed without going to the camera — the X, the backdrop, a swipe-down, or the system back gesture. | `type`, `dismiss_method`, `had_selection`, `time_on_sheet_s` + stamp | fires | fires |
+| `media_prompt_list_opened` | "See the prompts" tapped, opening the prompt list for one medium. | `type`, `entry_point`, `has_existing`, `screen_id` + stamp | fires | fires |
+| `media_prompt_selected` | The commit CTA ("Film 10 seconds" / "Record 15 seconds") tapped with a row selected — the prompt the user actually took into the camera, not every row they tried on the ... | `type`, `media_prompt_id`, `position`, `is_own_prompt`, `selections_before`, `was_previewed` + stamp | fires | fires |
+| `media_retaken` | Retake tapped — either on the review screen, discarding the take just made, or on a filled card on the Media screen, replacing something already saved to the profile. | `type`, `from`, `media_prompt_id`, `attempt`, `prior_duration_s`, `had_video`, `had_voice` + stamp | fires | fires |
+| `media_review_shown` | Stop tapped, or the length cap reached, and the review screen mounts — play / retake / keep. | `type`, `media_prompt_id`, `duration_s`, `attempt`, `stop_reason` + stamp | fires | fires |
+| `media_screen_viewed` | The Media screen ("Show your face") finishes rendering. | `screen_id`, `has_video`, `has_voice`, `preview_video_prompt_id`, `preview_voice_prompt_id`, `preview_source` + stamp | fires | fires |
+| `photo_added` | Image selected and set in slot | `slot_index`, `source`, `filled_count`, `max_slots` + stamp | fires | fires |
+| `photo_removed` | Image deleted from slot | `slot_index`, `filled_count` + stamp | fires | fires |
+| `photo_reordered` | Photo drag-and-drop position changed | `from`, `to` + stamp | fires | fires |
+| `photo_slot_tapped` | Photo slot tapped, or the “Add more” control revealing optional slots 5–6 (action: "reveal_optional") | `slot_index`, `is_optional`, `action` + stamp | fires | fires |
+| `photos_minimum_met` | Minimum required photos (4 of 6) uploaded — fires once, on the first crossing | `count`, `max_slots` + stamp | fires | fires |
+| `prompt_char_limit_reached` | The answer first reached 160 characters in this editor session. | `topic_id` + stamp | fires | fires |
+| `prompt_editor_dismissed` | The write sheet closed without saving. | `topic_id`, `is_edit`, `had_draft`, `draft_length_bucket`, `dismiss_method` + stamp | fires | fires |
+| `prompt_editor_opened` | The write sheet mounted — on a suggestion card, on a row of the browse sheet, or on the pencil pip of a saved prompt. | `topic_id`, `is_edit`, `prompt_count` + stamp | fires | fires |
+| `prompt_example_dismissed` | The worked example hidden with its X. | `topic_id` + stamp | fires | fires |
+| `prompt_saved` | Save pressed with a non-empty answer. | `topic_id`, `topic_group`, `is_edit`, `length_bucket`, `prompt_count` + stamp | fires | fires |
+| `prompt_topic_list_dismissed` | The topic sheet closed WITHOUT a topic being picked — the X, the scrim, a swipe-down or the system back gesture. | `dismiss_method`, `used_count`, `time_on_sheet_s`, `screen_id` + stamp | fires | fires |
+| `prompt_topic_list_opened` | The “Browse all 15 topics” control tapped, opening the topic sheet. | `used_count`, `screen_id` + stamp | fires | fires |
+| `prompt_topic_selected` | A topic chosen — a suggestion card on the screen or a row in the browse sheet. | `topic_id`, `topic_group`, `selection_index` + stamp | fires | fires |
+| `prompts_minimum_met` | The first prompt was saved, so the step can be completed — fires once, on the first crossing. | `count`, `topic_id` + stamp | fires | fires |
+| `video_prompt_recorded` | "Use this clip" accepted on the review screen — NOT on Stop. | `type`, `media_prompt_id`, `is_own_prompt`, `duration_s`, `retakes`, `plays_before_accept` + stamp | fires | fires |
+| `video_recording_started` | Video capture actually begins on the recording screen — permission already granted, timer running. | `type`, `media_prompt_id`, `is_own_prompt`, `attempt`, `is_retake` + stamp | fires | fires |
+| `voice_prompt_recorded` | "Use this recording" accepted on the review screen — NOT on Stop. | `type`, `media_prompt_id`, `is_own_prompt`, `duration_s`, `retakes`, `plays_before_accept` + stamp | fires | fires |
+| `voice_recording_started` | Voice capture actually begins on the recording screen — permission already granted, timer running. | `type`, `media_prompt_id`, `is_own_prompt`, `attempt`, `is_retake` + stamp | fires | fires |
+
+### F · Profile Attributes (9)
+
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `detail_answered` | Detail dropdown selected (Values bucketed) | `field_id`, `value_bucketed` + stamp | fires | fires |
+| `detail_skipped` | Attribute field explicitly skipped | `field_id` + stamp | fires | fires |
+| `field_display_opted_out` | “Don't show on my profile” switched on was: opt-out checkbox ticked — opt-out only, no event on untick. | `field_id` + stamp | fires | fires |
+| `future_question_answered` | Future screen (Profile 23): accepted Continue with at least one pick — one event per answered question, in list order (family_ahead → partnership_ahead → living_ahead). | `question_id`, `value_bucketed` + stamp | fires | fires |
+| `interest_cap_reached` | Tap on a faded chip while 10 "What I'm into" interests are picked — the tap is a no-op. | `cap` + stamp | fires | fires |
+| `interest_deselected` | Interest pill deselected | `tag_id`, `total_selected` + stamp | fires | fires |
+| `interest_selected` | Interest pill selected | `tag_id`, `total_selected` + stamp | fires | fires |
+| `life_question_answered` | Life screen (Profile 22): accepted Continue with at least one pick — one event per answered question, in list order (partnership → family → living). | `question_id`, `value_bucketed` + stamp | fires | fires |
+| `show_more_expanded` | Any “Show more” control expanded in place. | `screen_id`, `section_id`, `revealed_count` + stamp | fires | fires |
+
+### G · Permissions & Consent (12)
+
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `channel_interest_changed` | An interest checkbox on Stay reachable (Profile 10) checked or unchecked — every flip, in order. | `channel`, `on`, `screen_id` + stamp | fires | fires |
+| `consent_changed` | A consent toggle changed, in either direction — on:false is the opt-out, on:true the opt-in. | `channel`, `on`, `surface` + stamp | fires | fires |
+| `consent_deactivation_abandoned` | Opt-out canceled in dialog | `channel` + stamp | fires | fires |
+| `consent_deactivation_confirm_shown` | Confirmation modal shown for opt-out | `channel` + stamp | fires | fires |
+| `consent_deactivation_confirmed` | Opt-out confirmed in dialog | `channel` + stamp | fires | fires |
+| `permission_denied_recovery_shown` | Recovery banner shown after denial. | `type`, `reason` + stamp | fires | fires |
+| `permission_os_sheet_shown` | System permission dialog triggers. | `type` + stamp | fires | fires |
+| `permission_prompted` | Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. | `type` + stamp | fires | fires |
+| `permission_result` | User responds to OS permission dialog. | `type`, `result` + stamp | fires | fires |
+| `permission_settings_opened` | Deep-link to OS App Settings tapped | `type` + stamp | fires | fires |
+| `permission_status_changed` | The OS permission status read on launch or foreground differs from the last value the client synced: the user changed it outside our app (Settings, an OS update, a Focus ... | `type`, `from`, `to`, `detected_on`, `in_flow` + stamp | fires | fires |
+| `reachability_saved` | “Save preferences” tapped and the save confirmed by the server — the state the user actually leaves the screen in, which per-toggle events cannot reconstruct. | `push_on`, `permission`, `interest` + stamp | fires | fires |
+
+### H · 48hr Check-In (10)
+
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `availability_slots_set` | User taps Continue on checkin_today or checkin_tomorrow and it is accepted — once per accepted Continue, after check_in_step_answered. | `day`, `preferred_hours`, `available_hours`, `window_id` + stamp | fires | fires |
+| `check_in_closed` | User taps the ✕ on any Check-In screen and lands on checkin_search_unavailable. | `step_id`, `window_id` + stamp | fires | fires |
+| `check_in_commit_failed` | Find my date was tapped on checkin_uplift, the commit request was sent, and it did not save. | `reason`, `attempt`, `window_id` + stamp | fires | fires |
+| `check_in_filters_changed` | User taps Continue on checkin_filters and it is accepted — once per accepted Continue, after check_in_step_answered, including settings Continued unchanged ... | `filters_changed`, `min_age`, `max_age`, `distance_km`, `window_id` + stamp | fires | fires |
+| `check_in_gate_tapped` | On checkin_search_unavailable (date search not available), the user taps the CTA, the Search tab or the Instant tab — all three reopen the Check-In. | `target`, `intro_passed` + stamp | fires | fires |
+| `check_in_no_hours_today_resolved` | User answers the “No hours today?” confirm on checkin_today (Continue tapped with no hours). | `action`, `window_id` + stamp | fires | fires |
+| `check_in_started` | User taps “Check-in for a date” on the Check-In intro (checkin_intro). | `window_id` + stamp | fires | fires |
+| `check_in_step_answered` | User taps Continue on a Check-In step and it is accepted (never on the intro). | `step_id`, `answer_value`, `time_to_answer_ms` + stamp | fires | fires |
+| `motivation_selected` | User taps Continue on checkin_motivation and it is accepted — once per accepted Continue, after check_in_step_answered, including a pre-selected last answer Continued ... | `motivation_id`, `window_id` + stamp | fires | fires |
+| `vibe_selected` | User taps Continue on checkin_vibe and it is accepted — once per accepted Continue, after check_in_step_answered, including a pre-selected last answer Continued ... | `vibe_ids`, `vibe_count`, `window_id` + stamp | fires | fires |
+
+### S · Settings & Lifecycle (1)
+
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `legal_link_tapped` | User taps a legal link. | `link`, `screen_id` | fires | fires |
+
+### T · Errors & Diagnostics (1)
+
+| Event | When it fires (registry wording) | Properties (from the code) | Android | iOS |
+|---|---|---|---|---|
+| `form_validation_failed` | Fires on the refused action, not on render: the primary CTA was pressed while the screen’s requirement was unmet — Continue under four photos, Continue with no prompt ... | `field_id`, `rule`, `screen_id`, `step_id` + stamp | fires | fires |
+<!-- generated:events:end -->
+
+## Tutorial cards
+
+Every tutorial event carries `card` (1–6) and `card_name`.
 
 | `card` | `card_name` | Ticket |
 |---|---|---|
@@ -138,21 +303,21 @@ Every event carries `card` (1–6) and `card_name`.
 | 6 | `show_up_rate` | SHOWUP-139 |
 
 Card 6 fires `tutorial_completed` **instead of** `tutorial_cta_tapped`, so a completion is not
-double-counted as a card advance.
+double-counted as a card advance. Card 1 has no Back; card 2 hides it.
 
-## Legal links — 7 wirings, and that is all of them
+## Legal links — 8 wirings, and that is all of them
 
-One event, `legal_link_tapped`, carrying `link` and `screen_name`. Every legal link that exists on
-any screen is tracked:
+One event, `legal_link_tapped`, carrying `link` and `screen_id`. Every legal link on any screen is
+tracked:
 
-| Screen | Links shown | Tracked |
-|---|---|---|
-| `Signup - CreateAccount` | Terms & Conditions · Privacy Policy · Legal Notice | 3 / 3 |
-| `Signup - welcomeback` | Privacy Policy · Legal Notice | 2 / 2 |
-| `ConnectSSO` | Terms · Privacy Policy | 2 / 2 |
-| Phone entry, code entry, all 6 tutorial cards | none | n/a |
+| Screen | `screen_id` | Links shown | Tracked |
+|---|---|---|---|
+| Startup | `signup_create_account` | Terms · Privacy Policy · Legal Notice | 3 / 3 |
+| Welcome back | `signup_welcome_back` | Privacy Policy · Legal Notice | 2 / 2 |
+| Connect account | `connect_sso` | Terms · Privacy Policy | 2 / 2 |
+| Stay reachable | `profile_reachability` | Privacy Policy | 1 / 1 |
 
-`link` values: `terms_and_conditions`, `privacy_policy`, `legal_notice`.
+`link` values: `terms`, `privacy`, `legal_notice`.
 
 ## Server events
 
@@ -163,7 +328,7 @@ Emitted by the backend, not the app. All eight route through the same consent-ga
 | `account_created` | `auth.service` — new phone user, and new social user | `auth_method` |
 | `like_sent` | `matching.service` | `has_message` |
 | `match_created` | `matching.service` | `match_id` |
-| `check_in_created` | `check-ins.service` | `has_location` |
+| `check_in_created` | `check-ins.service`, and `check-in-flow.service` on "Find my date" | `has_location` |
 | `date_confirmed` | `dates.service` | `date_id`, `venue_attached` |
 | `date_completed` | `dates.service` | `date_id` |
 | `date_cancelled` | `dates.service` | `date_id`, `had_reason` |
@@ -175,16 +340,30 @@ through `events/privacy.ts` before leaving.
 
 ---
 
+## The registry and the code
+
+The registry's `implemented` flag is the product side's record of what is built. Where it and the
+code disagree:
+
+<!-- generated:registry:start -->
+**Fired on both platforms, but the registry says `implemented: false` (11):** `permission_status_changed`, `check_in_started`, `check_in_closed`, `check_in_gate_tapped`, `check_in_step_answered`, `availability_slots_set`, `check_in_no_hours_today_resolved`, `motivation_selected`, `vibe_selected`, `check_in_filters_changed`, `check_in_commit_failed`
+
+**The registry says `implemented: true`, but no client catalogue defines it (0):** none
+
+**Defined in the code but not fired on one or both platforms (1):** `signup_code_verify_failed` (Android defined, not fired, iOS defined, not fired)
+<!-- generated:registry:end -->
+
 ## What the code and the tickets disagree about
 
-This is the part that matters for a single source of truth. **Four are settled, five are open.**
+The nine below were re-checked against the code on 19 October 2026. **Four are settled, five are
+open**, exactly as on 7 September.
 
 ### 1. Two names for one screen — OPEN
 
 SHOWUP-142 calls it `Signup - welcomeback`. SHOWUP-145 calls it `SSOLogin` and says it "must be
-distinguishable from the first-run Startup screenview". **There is one screen.** Both names are
-defined in the code; `Signup - welcomeback` is the one wired, on the grounds that 142 describes the
-screen that was built.
+distinguishable from the first-run Startup screenview". **There is one screen**, and neither ticket
+says which name wins. Both names are defined in the code; `Signup - welcomeback` is the one wired,
+on the grounds that 142 describes the screen that was built.
 
 **Needs:** one name, in one ticket. The other declaration then gets deleted.
 
@@ -229,9 +408,11 @@ or the property should be dropped. It currently looks like data and is not.
 
 `Signup - CreateAccount`, `Signup - welcomeback`, `Signup - Phonenumber`, `Signup - Codeentry`,
 `ConnectSSO`, `SSOLogin`. Three casing styles, two prefix styles. All verbatim from the tickets.
+(Profile creation's names follow one style, `ProfileName`, `ProfilePhotos`, because the registry
+defines them.)
 
-**Needs:** one convention, applied across the five tickets. The code follows Jira here on purpose,
-so it changes the moment Jira does.
+**Needs:** one convention, applied across the five sign-up tickets. The code follows Jira here on
+purpose, so it changes the moment Jira does.
 
 ### 7. Tutorial card 1 is the welcome screen — SETTLED
 
@@ -247,9 +428,10 @@ correct.
 
 ### 9. No client event has a consent gate yet — OPEN
 
-The server has `isAnalyticsAllowed`. The client has `NoOpAnalytics`, which is not a consent
-mechanism — it is the absence of a sink. When a real tracker is passed in, the client needs the
-same gate, and consent capture is not built on either platform.
+The server has `isAnalyticsAllowed`. The apps have a shared tracker that records events but sends
+them nowhere, which is not a consent mechanism — it is the absence of an analytics tool. Before a
+tool is connected, the apps need the same gate, and asking the user for consent is not built on
+either platform.
 
 **Needs:** a ticket. This is the one item on this list that is a build task rather than a wording
 fix.
@@ -258,12 +440,10 @@ fix.
 
 ## Both platforms agree, and that is checked
 
-`audit/check-analytics-parity.py` compares the two catalogues: **26 `snake_case` constants** (the 23
-events plus the 3 `link` values) and 6 screen names, byte-identical on Android and iOS.
+`audit/check-analytics-parity.py` compares the sign-up and profile catalogues name for name on
+Android and iOS, and the generator checks that every event is not only defined but **sent** on both
+platforms. Of the 98 client events, 97 are sent on both; the one that is not is sent on neither
+(`signup_code_verify_failed`, above).
 
-Beyond the catalogue, every event is also **wired at the same number of call sites on both
-platforms** — 36 symbols compared, no differences. So the two apps do not merely define the same
-names, they fire them in the same places.
-
-What no checker can do is tell you whether either matches the tickets. That is a reading of prose,
-which is what the list above is for.
+What no checker can do is tell you whether either app matches the tickets. That is a reading of
+prose, which is what the list above is for.

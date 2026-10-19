@@ -1,40 +1,107 @@
-source,event_name,ticket,screen_name,fires_when,properties,android,ios
-client,screen_viewed,SHOWUP-140,Signup - CreateAccount,screen becomes visible,screen_name,yes,yes
-client,screen_viewed,SHOWUP-142,Signup - welcomeback,screen becomes visible,screen_name; last_used,yes,yes
-client,screen_viewed,SHOWUP-143,Signup - Phonenumber,screen becomes visible,screen_name,yes,yes
-client,screen_viewed,SHOWUP-143,Signup - Codeentry,screen becomes visible,screen_name,yes,yes
-client,screen_viewed,SHOWUP-144,ConnectSSO,screen becomes visible,screen_name; state,yes,yes
-client,signup_create_account_tapped,SHOWUP-140,Signup - CreateAccount,Create free account,,yes,yes
-client,signup_log_in_tapped,SHOWUP-140,Signup - CreateAccount,Already have an account? Log in,,yes,yes
-client,legal_link_tapped,SHOWUP-140/142/144,CreateAccount; welcomeback; ConnectSSO,any legal link (7 links across 3 screens),link; screen_name,yes,yes
-client,signup_auth_method_tapped,SHOWUP-142,Signup - welcomeback,any of the 4 method buttons,method; is_last_used,yes,yes
-client,signup_get_help_tapped,SHOWUP-142,Signup - welcomeback,Get help,,yes,yes
-client,signup_use_different_account_tapped,SHOWUP-142,Signup - welcomeback,Use a different account,,yes,yes
-client,signup_phone_submitted,SHOWUP-143,Signup - Phonenumber,Send me the code,,yes,yes
-client,signup_phone_validation_failed,SHOWUP-143,Signup - Phonenumber,submitted number rejected,reason; country,yes,yes
-client,signup_code_submitted,SHOWUP-143,Signup - Codeentry,Verify code,,yes,yes
-client,signup_code_verify_failed,SHOWUP-143,Signup - Codeentry,wrong code,attempt,yes,yes
-client,signup_resend_requested,SHOWUP-143,Signup - Codeentry,Resend,seconds_waited; after_mismatch,yes,yes
-client,signup_edit_phone_tapped,SHOWUP-143,Signup - Codeentry,Edit phone number,,yes,yes
-client,connect_provider_tapped,SHOWUP-144,ConnectSSO,a provider button,provider,yes,yes
-client,connect_skip_tapped,SHOWUP-144,ConnectSSO,Skip and continue to profile,,yes,yes
-client,connect_sheet_dismissed,SHOWUP-144,ConnectSSO,provider sheet closed before finishing,provider,yes,yes
-client,connect_link_succeeded,SHOWUP-144,ConnectSSO,link completed,provider,yes,yes
-client,connect_link_failed,SHOWUP-144,ConnectSSO,link failed,provider; kind,yes,yes
-client,connect_linking_timeout,SHOWUP-144,ConnectSSO,8-second cap hit,provider,yes,yes
-client,connect_conflict_raised,SHOWUP-144,ConnectSSO,account already exists,provider,yes,yes
-client,connect_conflict_resolve_tapped,SHOWUP-144,ConnectSSO,Continue with <owner>,provider,yes,yes
-client,connect_conflict_different_account_tapped,SHOWUP-144,ConnectSSO,Use a different account,,yes,yes
-client,connect_conflict_repeated,SHOWUP-144,ConnectSSO,2nd or later conflict in one session,count; provider,yes,yes
-client,tutorial_card_viewed,SHOWUP-117/135/136/137/138/139,Tutorial cards 1-6,card becomes visible,card; card_name,yes,yes
-client,tutorial_cta_tapped,SHOWUP-117/135/136/137/138,Tutorial cards 1-5,forward CTA,card; card_name,yes,yes
-client,tutorial_back_tapped,SHOWUP-136/137/138/139,Tutorial cards 3-6,Back,card; card_name,yes,yes
-client,tutorial_completed,SHOWUP-139,Tutorial card 6,final CTA (instead of cta_tapped),card; card_name,yes,yes
-server,account_created,,n/a,"new phone user, or new social user",auth_method,n/a,n/a
-server,like_sent,,n/a,a like is sent,has_message,n/a,n/a
-server,match_created,,n/a,a match is created,match_id,n/a,n/a
-server,check_in_created,,n/a,a check-in is created,has_location,n/a,n/a
-server,date_confirmed,,n/a,a date is confirmed,date_id; venue_attached,n/a,n/a
-server,date_completed,,n/a,a date is completed,date_id,n/a,n/a
-server,date_cancelled,,n/a,a date is cancelled,date_id; had_reason,n/a,n/a
-server,notification_sent,,n/a,a push or email notification is dispatched,channel; notification_type,n/a,n/a
+event,area,family,family_name,fires_when,properties,android,ios,registry_implemented
+screen_viewed,Sign-up and re-login,A,Session & Nav,Screen view controller finishes rendering.,screen_name screen_id referrer_screen_id sensitivity_class field_registry_version,fires,fires,true
+signup_create_account_tapped,Sign-up and re-login,B,Auth,"User taps ""Create free account"" on Signup - CreateAccount",,fires,fires,true
+signup_log_in_tapped,Sign-up and re-login,B,Auth,"User taps ""Already have an account? Log in"" on Signup - CreateAccount",,fires,fires,true
+legal_link_tapped,Sign-up and re-login,S,Settings & Lifecycle,User taps a legal link.,link screen_id,fires,fires,true
+signup_auth_method_tapped,Sign-up and re-login,B,Auth,User taps one of the four auth method buttons,method is_last_used,fires,fires,true
+signup_get_help_tapped,Sign-up and re-login,B,Auth,"User taps ""Get help"" on Signup - welcomeback",,fires,fires,true
+signup_use_different_account_tapped,Sign-up and re-login,B,Auth,"User taps ""Use a different account"" on Signup - welcomeback",,fires,fires,true
+signup_phone_submitted,Sign-up and re-login,B,Auth,User submits phone number form,,fires,fires,true
+signup_phone_validation_failed,Sign-up and re-login,B,Auth,libphonenumber rejects the submitted number.,reason country,fires,fires,true
+signup_code_submitted,Sign-up and re-login,B,Auth,User submits 6-digit verification code,,fires,fires,true
+signup_code_verify_failed,Sign-up and re-login,B,Auth,Submitted code is wrong,attempt,"defined, not fired","defined, not fired",false
+signup_resend_requested,Sign-up and re-login,B,Auth,"User taps ""Resend SMS Code""",seconds_waited after_mismatch,fires,fires,true
+signup_edit_phone_tapped,Sign-up and re-login,B,Auth,"User taps ""Edit phone number"" on Signup - Codeentry",,fires,fires,true
+connect_provider_tapped,Sign-up and re-login,B,Auth,Social sign-in button pressed,provider,fires,fires,true
+connect_skip_tapped,Sign-up and re-login,B,Auth,Skip tapped on connect account.,,fires,fires,true
+connect_sheet_dismissed,Sign-up and re-login,B,Auth,User dismisses native social auth UI,provider,fires,fires,true
+connect_link_succeeded,Sign-up and re-login,B,Auth,Valid identity token generated,provider,fires,fires,true
+connect_link_failed,Sign-up and re-login,B,Auth,OAuth callback returns failure state,provider kind,fires,fires,true
+connect_linking_timeout,Sign-up and re-login,B,Auth,Linking state (E) exceeds the timeout and falls back to the error banner.,provider,fires,fires,true
+connect_conflict_raised,Sign-up and re-login,B,Auth,Account exists under different provider UI,provider,fires,fires,true
+connect_conflict_resolve_tapped,Sign-up and re-login,B,Auth,"Conflict modal resolve CTA tapped — one event per attempt, result set when the owning provider's handoff returns.",provider,fires,fires,true
+connect_conflict_different_account_tapped,Sign-up and re-login,B,Auth,"Conflict modal ""Use a different account"" tapped.",,fires,fires,true
+connect_conflict_repeated,Sign-up and re-login,B,Auth,Second or later conflict modal within one session — the guess-wrong loop.,count provider,fires,fires,true
+tutorial_card_viewed,Tutorial,C,Onboarding & Tutorial,Card becomes visible.,card card_name,fires,fires,true
+tutorial_cta_tapped,Tutorial,C,Onboarding & Tutorial,Forward CTA on cards 1–5.,card card_name,fires,fires,true
+tutorial_back_tapped,Tutorial,C,Onboarding & Tutorial,Back on cards 3–6.,card card_name,fires,fires,true
+tutorial_completed,Tutorial,C,Onboarding & Tutorial,User finishes value declaration deck,card card_name,fires,fires,true
+profile_step_viewed,Profile creation,D,Profile Identity,Specific profile step screen rendered,step_id step_index sensitivity_class field_registry_version,fires,fires,true
+profile_build_started,Profile creation,D,Profile Identity,User starts basic details intake,entry_point sensitivity_class field_registry_version,fires,fires,true
+profile_step_completed,Profile creation,D,Profile Identity,Step form validated and submitted,step_id time_on_step_s sensitivity_class field_registry_version prompt_count,fires,fires,true
+profile_step_skipped,Profile creation,D,Profile Identity,"Optional step bypassed via the ""Skip"" CTA.",step_id screen_id sensitivity_class field_registry_version has_video has_voice,fires,fires,true
+name_submitted,Profile creation,D,Profile Identity,First name form submitted,char_count sensitivity_class field_registry_version,fires,fires,true
+email_code_submitted,Profile creation,D,Profile Identity,Email verification code entered,attempt_no result sensitivity_class field_registry_version,fires,fires,true
+email_code_resent,Profile creation,D,Profile Identity,User requests secondary email code,attempt_no sensitivity_class field_registry_version,fires,fires,true
+dob_submitted,Profile creation,D,Profile Identity,Date of birth submitted — the conversion signal for the step.,age sensitivity_class field_registry_version,fires,fires,true
+dob_validation_failed,Profile creation,D,Profile Identity,Invalid date entered in DOB screen,rule sensitivity_class field_registry_version,fires,fires,true
+age_gate_failed,Profile creation,D,Profile Identity,System calculates age < 18,age sensitivity_class field_registry_version,fires,fires,true
+email_submitted,Profile creation,D,Profile Identity,Email address form submitted,domain sensitivity_class field_registry_version,fires,fires,true
+email_validation_failed,Profile creation,D,Profile Identity,Client/API rejects email string,rule sensitivity_class field_registry_version,fires,fires,true
+form_validation_failed,Profile creation,T,Errors & Diagnostics,"Fires on the refused action, not on render: the primary CTA was pressed while the screen’s requirement was unmet — Continue under four photos, Continue with no prompt ...",field_id rule screen_id step_id sensitivity_class field_registry_version,fires,fires,true
+consent_changed,Profile creation,G,Permissions & Consent,"A consent toggle changed, in either direction — on:false is the opt-out, on:true the opt-in.",channel on surface sensitivity_class field_registry_version,fires,fires,true
+embrace_bridge_viewed,Profile creation,D,Profile Identity,Bridge view displayed,variant sensitivity_class field_registry_version,fires,fires,true
+photo_slot_tapped,Profile creation,E,Profile Photos/Media,"Photo slot tapped, or the “Add more” control revealing optional slots 5–6 (action: ""reveal_optional"")",slot_index is_optional action sensitivity_class field_registry_version,fires,fires,true
+photo_added,Profile creation,E,Profile Photos/Media,Image selected and set in slot,slot_index source filled_count max_slots sensitivity_class field_registry_version,fires,fires,true
+photo_removed,Profile creation,E,Profile Photos/Media,Image deleted from slot,slot_index filled_count sensitivity_class field_registry_version,fires,fires,true
+photo_reordered,Profile creation,E,Profile Photos/Media,Photo drag-and-drop position changed,from to sensitivity_class field_registry_version,fires,fires,true
+photos_minimum_met,Profile creation,E,Profile Photos/Media,"Minimum required photos (4 of 6) uploaded — fires once, on the first crossing",count max_slots sensitivity_class field_registry_version,fires,fires,true
+prompt_topic_list_opened,Profile creation,E,Profile Photos/Media,"The “Browse all 15 topics” control tapped, opening the topic sheet.",used_count screen_id sensitivity_class field_registry_version,fires,fires,true
+prompt_topic_list_dismissed,Profile creation,E,Profile Photos/Media,"The topic sheet closed WITHOUT a topic being picked — the X, the scrim, a swipe-down or the system back gesture.",dismiss_method used_count time_on_sheet_s screen_id sensitivity_class field_registry_version,fires,fires,true
+prompt_topic_selected,Profile creation,E,Profile Photos/Media,A topic chosen — a suggestion card on the screen or a row in the browse sheet.,topic_id topic_group selection_index sensitivity_class field_registry_version,fires,fires,true
+prompt_editor_opened,Profile creation,E,Profile Photos/Media,"The write sheet mounted — on a suggestion card, on a row of the browse sheet, or on the pencil pip of a saved prompt.",topic_id is_edit prompt_count sensitivity_class field_registry_version,fires,fires,true
+prompt_editor_dismissed,Profile creation,E,Profile Photos/Media,The write sheet closed without saving.,topic_id is_edit had_draft draft_length_bucket dismiss_method sensitivity_class field_registry_version,fires,fires,true
+prompt_saved,Profile creation,E,Profile Photos/Media,Save pressed with a non-empty answer.,topic_id topic_group is_edit length_bucket prompt_count sensitivity_class field_registry_version,fires,fires,true
+prompt_example_dismissed,Profile creation,E,Profile Photos/Media,The worked example hidden with its X.,topic_id sensitivity_class field_registry_version,fires,fires,true
+prompt_char_limit_reached,Profile creation,E,Profile Photos/Media,The answer first reached 160 characters in this editor session.,topic_id sensitivity_class field_registry_version,fires,fires,true
+prompts_minimum_met,Profile creation,E,Profile Photos/Media,"The first prompt was saved, so the step can be completed — fires once, on the first crossing.",count topic_id sensitivity_class field_registry_version,fires,fires,true
+media_screen_viewed,Profile creation,E,Profile Photos/Media,"The Media screen (""Show your face"") finishes rendering.",screen_id has_video has_voice preview_video_prompt_id preview_voice_prompt_id preview_source sensitivity_class field_registry_version,fires,fires,true
+media_prompt_list_opened,Profile creation,E,Profile Photos/Media,"""See the prompts"" tapped, opening the prompt list for one medium.",type entry_point has_existing screen_id sensitivity_class field_registry_version,fires,fires,true
+media_prompt_selected,Profile creation,E,Profile Photos/Media,"The commit CTA (""Film 10 seconds"" / ""Record 15 seconds"") tapped with a row selected — the prompt the user actually took into the camera, not every row they tried on the ...",type media_prompt_id position is_own_prompt selections_before was_previewed sensitivity_class field_registry_version,fires,fires,true
+media_prompt_list_dismissed,Profile creation,E,Profile Photos/Media,"The prompt list closed without going to the camera — the X, the backdrop, a swipe-down, or the system back gesture.",type dismiss_method had_selection time_on_sheet_s sensitivity_class field_registry_version,fires,fires,true
+video_recording_started,Profile creation,E,Profile Photos/Media,"Video capture actually begins on the recording screen — permission already granted, timer running.",type media_prompt_id is_own_prompt attempt is_retake sensitivity_class field_registry_version,fires,fires,true
+voice_recording_started,Profile creation,E,Profile Photos/Media,"Voice capture actually begins on the recording screen — permission already granted, timer running.",type media_prompt_id is_own_prompt attempt is_retake sensitivity_class field_registry_version,fires,fires,true
+media_review_shown,Profile creation,E,Profile Photos/Media,"Stop tapped, or the length cap reached, and the review screen mounts — play / retake / keep.",type media_prompt_id duration_s attempt stop_reason sensitivity_class field_registry_version,fires,fires,true
+media_preview_played,Profile creation,E,Profile Photos/Media,Play tapped on the review screen.,type attempt play_count sensitivity_class field_registry_version,fires,fires,true
+video_prompt_recorded,Profile creation,E,Profile Photos/Media,"""Use this clip"" accepted on the review screen — NOT on Stop.",type media_prompt_id is_own_prompt duration_s retakes plays_before_accept sensitivity_class field_registry_version,fires,fires,true
+voice_prompt_recorded,Profile creation,E,Profile Photos/Media,"""Use this recording"" accepted on the review screen — NOT on Stop.",type media_prompt_id is_own_prompt duration_s retakes plays_before_accept sensitivity_class field_registry_version,fires,fires,true
+media_retaken,Profile creation,E,Profile Photos/Media,"Retake tapped — either on the review screen, discarding the take just made, or on a filled card on the Media screen, replacing something already saved to the profile.",type from media_prompt_id attempt prior_duration_s had_video had_voice sensitivity_class field_registry_version,fires,fires,true
+media_deleted,Profile creation,E,Profile Photos/Media,Delete tapped on a filled card on the Media screen — the artefact is removed from the profile and the card returns to empty.,type media_prompt_id duration_s had_video had_voice sensitivity_class field_registry_version,fires,fires,true
+permission_prompted,Profile creation,G,Permissions & Consent,"Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen.",type sensitivity_class field_registry_version,fires,fires,true
+permission_os_sheet_shown,Profile creation,G,Permissions & Consent,System permission dialog triggers.,type sensitivity_class field_registry_version,fires,fires,true
+permission_result,Profile creation,G,Permissions & Consent,User responds to OS permission dialog.,type result sensitivity_class field_registry_version,fires,fires,true
+permission_status_changed,Profile creation,G,Permissions & Consent,"The OS permission status read on launch or foreground differs from the last value the client synced: the user changed it outside our app (Settings, an OS update, a Focus ...",type from to detected_on in_flow sensitivity_class field_registry_version,fires,fires,false
+permission_settings_opened,Profile creation,G,Permissions & Consent,Deep-link to OS App Settings tapped,type sensitivity_class field_registry_version,fires,fires,true
+consent_deactivation_confirm_shown,Profile creation,G,Permissions & Consent,Confirmation modal shown for opt-out,channel sensitivity_class field_registry_version,fires,fires,true
+consent_deactivation_abandoned,Profile creation,G,Permissions & Consent,Opt-out canceled in dialog,channel sensitivity_class field_registry_version,fires,fires,true
+consent_deactivation_confirmed,Profile creation,G,Permissions & Consent,Opt-out confirmed in dialog,channel sensitivity_class field_registry_version,fires,fires,true
+channel_interest_changed,Profile creation,G,Permissions & Consent,"An interest checkbox on Stay reachable (Profile 10) checked or unchecked — every flip, in order.",channel on screen_id sensitivity_class field_registry_version,fires,fires,true
+reachability_saved,Profile creation,G,Permissions & Consent,"“Save preferences” tapped and the save confirmed by the server — the state the user actually leaves the screen in, which per-toggle events cannot reconstruct.",push_on permission interest sensitivity_class field_registry_version,fires,fires,true
+permission_denied_recovery_shown,Profile creation,G,Permissions & Consent,Recovery banner shown after denial.,type reason sensitivity_class field_registry_version,fires,fires,true
+detail_answered,Profile creation,F,Profile Attributes,Detail dropdown selected (Values bucketed),field_id value_bucketed sensitivity_class field_registry_version,fires,fires,true
+detail_skipped,Profile creation,F,Profile Attributes,Attribute field explicitly skipped,field_id sensitivity_class field_registry_version,fires,fires,true
+field_display_opted_out,Profile creation,F,Profile Attributes,"“Don't show on my profile” switched on was: opt-out checkbox ticked — opt-out only, no event on untick.",field_id sensitivity_class field_registry_version,fires,fires,true
+interest_selected,Profile creation,F,Profile Attributes,Interest pill selected,tag_id total_selected sensitivity_class field_registry_version,fires,fires,true
+interest_deselected,Profile creation,F,Profile Attributes,Interest pill deselected,tag_id total_selected sensitivity_class field_registry_version,fires,fires,true
+interest_cap_reached,Profile creation,F,Profile Attributes,"Tap on a faded chip while 10 ""What I'm into"" interests are picked — the tap is a no-op.",cap sensitivity_class field_registry_version,fires,fires,true
+show_more_expanded,Profile creation,F,Profile Attributes,Any “Show more” control expanded in place.,screen_id section_id revealed_count sensitivity_class field_registry_version,fires,fires,true
+life_question_answered,Profile creation,F,Profile Attributes,"Life screen (Profile 22): accepted Continue with at least one pick — one event per answered question, in list order (partnership → family → living).",question_id value_bucketed sensitivity_class field_registry_version,fires,fires,true
+future_question_answered,Profile creation,F,Profile Attributes,"Future screen (Profile 23): accepted Continue with at least one pick — one event per answered question, in list order (family_ahead → partnership_ahead → living_ahead).",question_id value_bucketed sensitivity_class field_registry_version,fires,fires,true
+check_in_started,48hrs Check-In,H,48hr Check-In,User taps “Check-in for a date” on the Check-In intro (checkin_intro).,window_id sensitivity_class field_registry_version,fires,fires,false
+check_in_closed,48hrs Check-In,H,48hr Check-In,User taps the ✕ on any Check-In screen and lands on checkin_search_unavailable.,step_id window_id sensitivity_class field_registry_version,fires,fires,false
+check_in_gate_tapped,48hrs Check-In,H,48hr Check-In,"On checkin_search_unavailable (date search not available), the user taps the CTA, the Search tab or the Instant tab — all three reopen the Check-In.",target intro_passed sensitivity_class field_registry_version,fires,fires,false
+check_in_step_answered,48hrs Check-In,H,48hr Check-In,User taps Continue on a Check-In step and it is accepted (never on the intro).,step_id answer_value time_to_answer_ms sensitivity_class field_registry_version,fires,fires,false
+availability_slots_set,48hrs Check-In,H,48hr Check-In,"User taps Continue on checkin_today or checkin_tomorrow and it is accepted — once per accepted Continue, after check_in_step_answered.",day preferred_hours available_hours window_id sensitivity_class field_registry_version,fires,fires,false
+check_in_no_hours_today_resolved,48hrs Check-In,H,48hr Check-In,User answers the “No hours today?” confirm on checkin_today (Continue tapped with no hours).,action window_id sensitivity_class field_registry_version,fires,fires,false
+motivation_selected,48hrs Check-In,H,48hr Check-In,"User taps Continue on checkin_motivation and it is accepted — once per accepted Continue, after check_in_step_answered, including a pre-selected last answer Continued ...",motivation_id window_id sensitivity_class field_registry_version,fires,fires,false
+vibe_selected,48hrs Check-In,H,48hr Check-In,"User taps Continue on checkin_vibe and it is accepted — once per accepted Continue, after check_in_step_answered, including a pre-selected last answer Continued ...",vibe_ids vibe_count window_id sensitivity_class field_registry_version,fires,fires,false
+check_in_filters_changed,48hrs Check-In,H,48hr Check-In,"User taps Continue on checkin_filters and it is accepted — once per accepted Continue, after check_in_step_answered, including settings Continued unchanged ...",filters_changed min_age max_age distance_km window_id sensitivity_class field_registry_version,fires,fires,false
+check_in_commit_failed,48hrs Check-In,H,48hr Check-In,"Find my date was tapped on checkin_uplift, the commit request was sent, and it did not save.",reason attempt window_id sensitivity_class field_registry_version,fires,fires,false
+date_confirmed,Server,K,Date Coordination,Both parties confirm date state in DB,,,,true
+date_completed,Server,K,Date Coordination,Date status marked completed in DB,,,,true
+date_cancelled,Server,K,Date Coordination,Date status marked cancelled in DB,,,,true
+like_sent,Server,I,Search & Liking,Like record successfully saved in DB,,,,true
+match_created,Server,J,Match & Notifications,Mutual like logic creates match record,,,,true
+check_in_created,Server,H,48hr Check-In,"Check-in record created in DB — the commit on Find my date (checkin_uplift, Check-In 06).",,,,true
+notification_sent,Server,J,Match & Notifications,Outbound notification sent to provider,,,,true
+account_created,Server,B,Auth,User record persisted in backend DB,,,,true
