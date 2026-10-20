@@ -93,23 +93,36 @@ class NotificationRulesTest {
         // §24: "Android <= 12 notifications have no runtime permission at all and are reported as
         // granted." NOT not_determined -- that would be a lie that raises a sheet which cannot
         // exist. The API-level branch is the one the ticket says actually fires in production.
-        val below = notificationPermissionFor(sdkInt = 32, granted = false, hasAsked = false)
+        val below = notificationPermissionFor(sdkInt = 32, granted = false, hasAsked = false, enabled = true)
         assertEquals(PermissionStatus.Granted, below)
         assertFalse("an ask with nothing to ask for is the bug", shouldShowAsk(below))
 
-        // And from 33 the three facts decide it, which is the rest of the table.
+        // And from 33 the three facts decide it, which is the rest of the table. The Settings
+        // switch adds nothing there: from 33 it IS the permission.
         assertEquals(
             PermissionStatus.NotDetermined,
-            notificationPermissionFor(33, granted = false, hasAsked = false),
+            notificationPermissionFor(33, granted = false, hasAsked = false, enabled = false),
         )
         assertEquals(
             PermissionStatus.Denied,
-            notificationPermissionFor(33, granted = false, hasAsked = true),
+            notificationPermissionFor(33, granted = false, hasAsked = true, enabled = false),
         )
         assertEquals(
             PermissionStatus.Granted,
-            notificationPermissionFor(33, granted = true, hasAsked = true),
+            notificationPermissionFor(33, granted = true, hasAsked = true, enabled = true),
         )
+    }
+
+    @Test
+    fun `android 12 and below with notifications switched off in Settings reports denied`() {
+        // The gap the permission reconciler could not see until 20 October 2026: no permission to
+        // revoke, only the app's switch, and with it off the phone shows nothing. Denied, so the
+        // server stops pushing -- and still determined, so the ask is still skipped.
+        for (sdk in listOf(30, 31, 32)) {
+            val off = notificationPermissionFor(sdkInt = sdk, granted = false, hasAsked = false, enabled = false)
+            assertEquals("API $sdk", PermissionStatus.Denied, off)
+            assertFalse("API $sdk: still nothing to ask for", shouldShowAsk(off))
+        }
     }
 
     // ── what fires, and what must not ───────────────────────────────────────
