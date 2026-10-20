@@ -171,6 +171,40 @@ final class PhoneAuthRepositoryTests: XCTestCase {
         XCTAssertEqual(result, .tooSoon)
     }
 
+    // MARK: - signup_code_verify_failed
+
+    /// The model's verify answers in a task of its own; wait until it has, bounded to 3 s.
+    @MainActor
+    private func waitUntilAnswered(_ model: PhoneAuthModel) async {
+        for _ in 0..<300 where model.busy { try? await Task.sleep(nanoseconds: 10_000_000) }
+    }
+
+    @MainActor
+    func testARefusedCodeReportsItsAttemptNumberAndASuccessDoesNot() async {
+        let refusing = PhoneAuthModel(repo: makeRepo(
+            ["verifyPhone": Canned(401, apiError(401, "Invalid or expired code"))],
+            recorder: ScriptedTransport.Recorder(), tokens: InMemoryTokenStore()))
+        var refused: [Int] = []
+        refusing.verify(phoneE164: "+4917612345678", code: "000000",
+                        onRefused: { refused.append($0) }, onSignedIn: { _ in })
+        await waitUntilAnswered(refusing)
+        refusing.verify(phoneE164: "+4917612345678", code: "000000",
+                        onRefused: { refused.append($0) }, onSignedIn: { _ in })
+        await waitUntilAnswered(refusing)
+        XCTAssertEqual(refused, [1, 2], "SHOWUP-143's attempt is 1-based")
+
+        let accepting = PhoneAuthModel(repo: makeRepo(
+            ["verifyPhone": Canned(200, authResponse()),
+             "getProfile": Canned(200, profile(isComplete: false))],
+            recorder: ScriptedTransport.Recorder(), tokens: InMemoryTokenStore()))
+        var signedIn = false
+        accepting.verify(phoneE164: "+4917612345678", code: "123456",
+                         onRefused: { refused.append($0) }, onSignedIn: { _ in signedIn = true })
+        await waitUntilAnswered(accepting)
+        XCTAssertTrue(signedIn)
+        XCTAssertEqual(refused, [1, 2], "a success is not a wrong code")
+    }
+
     // MARK: - verifying
 
     func testACorrectCodeStoresBothTokens() async {

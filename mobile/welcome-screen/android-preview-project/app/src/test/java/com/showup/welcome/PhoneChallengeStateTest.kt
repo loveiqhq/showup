@@ -323,7 +323,33 @@ class PhoneChallengeStateTest {
         assertEquals("222222", vm.state.value.devCode)
     }
 
-    // ── 9. the correlation record itself ──────────────────────────────────
+    // ── 9. signup_code_verify_failed ───────────────────────────────────────
+
+    @Test
+    fun `a refused code reports its attempt number, and nothing else does`() = runTest(dispatcher) {
+        start(sent("111111"))
+        val refused = mutableListOf<Int>()
+        repo.verifyResult = VerifyPhoneResult.Refused
+        vm.verify(phone, "111111", onRefused = { refused += it }) {}
+        advanceUntilIdle()
+        vm.verify(phone, "111111", onRefused = { refused += it }) {}
+        advanceUntilIdle()
+        assertEquals("SHOWUP-143's attempt is 1-based, against the live code", listOf(1, 2), refused)
+
+        // A network failure, the cap and a success are not a wrong code.
+        repo.verifyResult = VerifyPhoneResult.Failed(null)
+        vm.verify(phone, "111111", onRefused = { refused += it }) {}
+        advanceUntilIdle()
+        repo.verifyResult = VerifyPhoneResult.SignedIn(profileComplete = false)
+        vm.verify(phone, "111111", onRefused = { refused += it }) {}
+        advanceUntilIdle()
+        repo.verifyResult = VerifyPhoneResult.TooManyAttempts
+        vm.verify(phone, "111111", onRefused = { refused += it }) {}
+        advanceUntilIdle()
+        assertEquals(listOf(1, 2), refused)
+    }
+
+    // ── 10. the correlation record itself ─────────────────────────────────
 
     @Test
     fun `the trace names the challenge a verify answered for`() = runTest(dispatcher) {

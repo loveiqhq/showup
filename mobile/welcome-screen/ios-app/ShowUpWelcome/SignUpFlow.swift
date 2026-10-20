@@ -346,7 +346,13 @@ struct SignUpFlowView: View {
                         guard verifyAttempts < maxVerifyAttempts else { return }
                         analytics.track(SignUpAnalytics.codeSubmitted, properties: [:])
                         auth?.verify(phoneE164: country.e164(phoneDigits),
-                                     code: codeDigits) { profileComplete in
+                                     code: codeDigits,
+                                     // SHOWUP-143: "Code submitted · verify failed, with an
+                                     // `attempt` number". Silent from 10 September 2026, when the
+                                     // code check moved to the server.
+                                     onRefused: { attempt in
+                                         track(SignUpAnalytics.codeVerifyFailed(attempt: attempt))
+                                     }) { profileComplete in
                             // SHOWUP-146, decided by the PROFILE rather than by what the user
                             // said they were doing. Connect and the tutorial belong to building
                             // an account; someone whose profile is already complete has been

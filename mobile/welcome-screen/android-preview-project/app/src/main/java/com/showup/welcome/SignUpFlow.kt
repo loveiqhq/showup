@@ -383,7 +383,14 @@ fun SignUpFlow(
                         // for a submit arriving from the keyboard's action key.
                         if (verifyAttempts >= MAX_VERIFY_ATTEMPTS) return@VerifyCodeScreen
                         analytics.track(SignUpAnalytics.CODE_SUBMITTED, emptyMap())
-                        auth?.verify(country.e164(phoneDigits), codeDigits) { profileComplete ->
+                        auth?.verify(
+                            country.e164(phoneDigits),
+                            codeDigits,
+                            // SHOWUP-143: "Code submitted · verify failed, with an `attempt`
+                            // number". Silent from 10 September 2026, when the code check moved
+                            // to the server and nothing called the builder any more.
+                            onRefused = { attempt -> track(SignUpAnalytics.codeVerifyFailed(attempt)) },
+                        ) { profileComplete ->
                             // SHOWUP-146, decided by the PROFILE rather than by what the user
                             // said they were doing. Connect and the tutorial belong to building
                             // an account; someone whose profile is already complete has been
