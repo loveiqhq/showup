@@ -17,12 +17,20 @@
  * and nowhere else.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ANDROID 12 AND BELOW REPORTS `granted`, AND THAT IS NOT A SHORTCUT
+ * ANDROID 12 AND BELOW REPORTS `granted` -- UNLESS THE USER SWITCHED NOTIFICATIONS OFF
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * There is no `POST_NOTIFICATIONS` before API 33: notifications are on by default and there is
  * nothing to ask for. §24 says these users are "reported as granted", so that is what this
  * returns -- not `not_determined`, which would be a lie that raises a sheet that cannot exist.
+ *
+ * But those phones still have a switch: the app's notifications can be turned off in Settings,
+ * and then nothing is shown. Until 20 October 2026 this file reported `granted` regardless, so the
+ * permission reconciler never saw the switch and the server went on pushing to a phone that showed
+ * nothing. Below 33 the status is now that switch (`areNotificationsEnabled`): on is `granted`, off
+ * is `denied`. Both are determined, so the ask is still skipped either way; only the reconciler,
+ * the server and Stay reachable see the difference. Decided 20 October 2026, as the reading of
+ * §24 that keeps its purpose: the server must not push to a phone that has notifications off.
  *
  * The consequence the ticket underlines: those users still need push registration and all five
  * categories. Being skipped by the ASK is not being skipped by the FEATURE.
@@ -48,6 +56,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
 /**
@@ -105,10 +114,13 @@ fun notificationPermissionFor(
     sdkInt: Int,
     granted: Boolean,
     hasAsked: Boolean,
+    enabled: Boolean,
 ): PermissionStatus = when {
-    // Below 33 there is no runtime permission at all. Granted, per §24 -- and the branch the
-    // ticket calls "the one that actually fires in production".
-    sdkInt < Build.VERSION_CODES.TIRAMISU -> PermissionStatus.Granted
+    // Below 33 there is no runtime permission at all, only the Settings switch: on is granted, per
+    // §24, and off is denied -- see the file header. The branch the ticket calls "the one that
+    // actually fires in production".
+    sdkInt < Build.VERSION_CODES.TIRAMISU ->
+        if (enabled) PermissionStatus.Granted else PermissionStatus.Denied
     granted -> PermissionStatus.Granted
     hasAsked -> PermissionStatus.Denied
     else -> PermissionStatus.NotDetermined
@@ -123,8 +135,11 @@ class AndroidNotificationAccess(
 
     override fun read(): PermissionStatus {
         // The context is not touched below 33, where the answer does not depend on it.
+        // The app's Settings switch. From 33 the switch IS the permission, so it adds nothing there;
+        // below 33 it is the only "off" the phone has.
+        val enabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
         if (sdkInt < Build.VERSION_CODES.TIRAMISU) {
-            return notificationPermissionFor(sdkInt, granted = false, hasAsked = false)
+            return notificationPermissionFor(sdkInt, granted = false, hasAsked = false, enabled = enabled)
         }
         return notificationPermissionFor(
             sdkInt = sdkInt,
@@ -134,6 +149,7 @@ class AndroidNotificationAccess(
             hasAsked = PermissionAskLog.hasAsked(
                 context, Manifest.permission.POST_NOTIFICATIONS,
             ),
+            enabled = enabled,
         )
     }
 }
