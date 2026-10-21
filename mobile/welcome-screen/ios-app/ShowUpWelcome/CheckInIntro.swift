@@ -67,10 +67,13 @@ struct CheckInIntroView: View {
 
 /// B -- "date search not available": the Search tab with no committed Check-In. `onCheckIn` takes
 /// the target, because the CTA, the Search tab and the Instant tab each reopen the Check-In and the
-/// event says which; `onSettings` navigates normally.
+/// event says which; `onSettings` navigates normally. `onLikes` is the Likes tab (SHOWUP-186: in
+/// every user's bar, `likes` its badge); where it goes is the host's decision.
 struct CheckInGateView: View {
     var onCheckIn: (CheckInAnalytics.GateTarget) -> Void = { _ in }
     var onSettings: () -> Void = {}
+    var onLikes: () -> Void = {}
+    var likes: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -126,10 +129,11 @@ struct CheckInGateView: View {
             TabBar(active: .search, onTab: { tab in
                 switch tab {
                 case .search: onCheckIn(.searchTab)
+                case .likes: onLikes()
                 case .instant: onCheckIn(.instantTab)
                 case .settings: onSettings()
                 }
-            })
+            }, likes: likes)
         }
         .background(Color.liqCream.ignoresSafeArea())
     }

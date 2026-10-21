@@ -160,12 +160,15 @@ fun CheckInIntroScreen(onStart: () -> Unit = {}, onClose: () -> Unit = {}) {
 /**
  * B -- "date search not available": the Search tab with no committed Check-In. [onCheckIn] takes the
  * target, because the CTA, the Search tab and the Instant tab each reopen the Check-In and the
- * event says which; [onSettings] navigates normally.
+ * event says which; [onSettings] navigates normally. [onLikes] is the Likes tab (SHOWUP-186: in every
+ * user's bar, [likes] its badge); where it goes is the host's decision.
  */
 @Composable
 fun CheckInGateScreen(
     onCheckIn: (CheckInAnalytics.GateTarget) -> Unit = {},
     onSettings: () -> Unit = {},
+    onLikes: () -> Unit = {},
+    likes: Int = 0,
 ) {
     Column(
         Modifier
@@ -251,9 +254,11 @@ fun CheckInGateScreen(
 
         TabBar(
             active = Tab.Search,
+            likes = likes,
             onTab = { tab ->
                 when (tab) {
                     Tab.Search -> onCheckIn(CheckInAnalytics.GateTarget.SearchTab)
+                    Tab.Likes -> onLikes()
                     Tab.Instant -> onCheckIn(CheckInAnalytics.GateTarget.InstantTab)
                     Tab.Settings -> onSettings()
                 }

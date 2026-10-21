@@ -29,16 +29,17 @@ struct SearchUnlockedPlaceholderView: View {
     }
 }
 
-/// Settings from the gate's tab bar. `onTab` gets Search and Instant -- the gate's two other tabs.
+/// Settings from the gate's tab bar. `onTab` gets the other three tabs; `likes` is the Likes badge.
 struct SettingsPlaceholderView: View {
     var onTab: (AppTab) -> Void = { _ in }
+    var likes: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
             PlaceholderStatement(title: "Settings",
                                  line: "Profile and Show-up Rate live here once Settings is built.")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            TabBar(active: .settings, onTab: { if $0 != .settings { onTab($0) } })
+            TabBar(active: .settings, onTab: { if $0 != .settings { onTab($0) } }, likes: likes)
         }
         .background(Color.liqCream.ignoresSafeArea())
     }

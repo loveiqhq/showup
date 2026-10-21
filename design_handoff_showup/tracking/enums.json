@@ -1,6 +1,29 @@
 {
-  "registry_version": "1.4.25",
+  "registry_version": "1.4.29",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_29": [
+    "§23 sheet dismiss_method — note: now also carried by search_coach_dismissed (Search 01 actions coach, 21 Oct 2026). Values unchanged."
+  ],
+  "changed_in_1_4_28": [
+    "Amended 21 Oct 2026, before hand-over (version not bumped): §35 like_surface — grid_card RETIRED (never shipped). Search 02 has no Like from a grid card; the card and its heart open the full profile. §11 search_grid notes updated.",
+    "§11 likes_received / Search - Likes received — NEW row, Search 03. 20 Oct 2026.",
+    "§11 search_profile — notes: also reached from likes_received (referrer likes_received).",
+    "§34 search_pass_type — note: not_interested on a received like also declines it. Values unchanged.",
+    "§35 like_surface — now also the surface of pass_sent, pass_undone and like_confirm_failed. Values unchanged.",
+    "§36 like_close_reason — NEW: matched · no_overlap.",
+    "§37 nav_tab — NEW: search · likes · instant · settings. likes is in every user's bar (amended 21 Oct 2026, before hand-over — was Premium-only; values unchanged).",
+    "Amended the same day, before hand-over: likes_received is the Likes TAB (no back); like_surface likes_received is no longer used by like_tapped; no_overlap now shows an Out of time card."
+  ],
+  "changed_in_1_4_27": [
+    "§11 search_grid / Search - Grid — NEW row, Search 02. 20 Oct 2026.",
+    "§11 search_profile — notes: also reached from search_grid (referrer search_grid); from there every action returns to the grid.",
+    "§35 like_surface — NEW: profile · grid_card · likes_received."
+  ],
+  "changed_in_1_4_26": [
+    "§11 search_profile / Search - Profile — NEW row, Search 01. 20 Oct 2026.",
+    "§33 like_abandon_stage — NEW: confirm · message.",
+    "§34 search_pass_type — NEW: not_now · not_interested."
+  ],
   "changed_in_1_4_25": [
     "§11 checkin_uplift / CheckinUplift — NEW row, Check-In 06. 13 Oct 2026.",
     "§28 check_in_step — uplift CONFIRMED by Check-In 06. Values unchanged.",
@@ -1145,6 +1168,30 @@
               "ticket": "Check-In 06",
               "status": "ticketed — not built",
               "notes": "Check-In step uplift (§28), StepProgress 6 of 6 (ScreenCheckIn step 7, UpliftStep). Added 13 Oct 2026 (registry 1.4.25). The LAST step: carries Find my date, which commits the Check-In. OPTIONAL free text, 100 characters, return = new line, always empty on entry (never pre-filled, never kept). Emails, phone numbers and links are blocked live with one string. The text is never in a tracking payload. Inspirations are not tappable. Success → Search (date search unlocked). Origins: checkin_filters (Continue). Exits: Search (commit), checkin_filters (back), checkin_search_unavailable (✕)."
+            },
+            {
+              "screen_id": "search_profile",
+              "screen_name": "Search - Profile",
+              "flow": "Date search",
+              "ticket": "Search 01",
+              "status": "ticketed — not built",
+              "notes": "Freemium 1-up profile, ScreenSearchProfile. Added 20 Oct 2026 (registry 1.4.26). One screen_id for every profile in the queue; the profile changes, the screen does not. The Be sure and message sheets are NOT screens — they fire like_confirm_shown / like_confirm_abandoned / like_sent, never screen_viewed. Exits: next profile (same screen, no new screen_viewed), Check-In 05 Filters (top-bar filter), search empty state when the queue runs dry. PREMIUM (Search 02, 20 Oct 2026): also opened from a grid card — screen_viewed search_profile with referrer_screen_id search_grid. There it carries a back button, and Like (after the message step), Not now, Not interested and Confirm date all return to search_grid. Search 03: also opened from a Likes tab card — referrer likes_received, Likes tab active, back label All likes, Not interested returns to the list with the Undo toast, Confirm date → Be sure (mutual) → 07a or back to the list with the card closed."
+            },
+            {
+              "screen_id": "search_grid",
+              "screen_name": "Search - Grid",
+              "flow": "Date search",
+              "ticket": "Search 02",
+              "status": "ticketed — not built",
+              "notes": "Premium grid, ScreenSearchGrid. Added 20 Oct 2026 (registry 1.4.27). Two columns of cards; a tap anywhere on a card (heart included) opens search_profile (referrer search_grid); there is no Like from the grid (21 Oct 2026). Cards stay after an action, marked. No header count. Exits: search_profile (card tap), Check-In 05 Filters (top-bar filter), the Likes tab (Search 03), search empty state."
+            },
+            {
+              "screen_id": "likes_received",
+              "screen_name": "Search - Likes received",
+              "flow": "Date search",
+              "ticket": "Search 03",
+              "status": "ticketed — not built",
+              "notes": "Premium list of received likes, ScreenLikedMe. Added 20 Oct 2026 (registry 1.4.28). The root of the LIKES TAB (§37) for a Premium user (a Freemium tap opens the likes upsell, its own story): no back button; the tab badge = open likes. Earliest meet time first, closed cards (Too late / Out of time) last. likes_received_viewed fires once per visit with open_count / closed_count. Origins: any screen with the TabBar (tab_switched · likes). Exits: search_profile (a card's photo, View profile or Confirm date — referrer likes_received), the Search tab (Back to search on the empty state, or the TabBar). The Undo toast is NOT a screen."
             }
           ]
         }
@@ -1522,7 +1569,7 @@
       "id": "e23",
       "num": "23",
       "name": "sheet dismiss_method",
-      "note": "THE CANONICAL SHEET-CLOSE VOCABULARY, and the only one: every bottom sheet in the product reports its dismissal with these four values. Carried by prompt_editor_dismissed, prompt_topic_list_dismissed and media_prompt_list_dismissed, and by every sheet added after them. close is the X or a Cancel control; backdrop is a tap on the scrim; swipe is the drag-down gesture; system_back is the Android gesture or hardware key, which is NOT the same act as the X and must not be folded into it (decision 32). Created 16 Sep 2026 by unifying three drifted spellings of the same four acts — close|scrim|swipe|back on the prompts write sheet and cancel|backdrop|swipe|system_back on the media prompt list. Neither had shipped, so nothing in the warehouse needed migrating; a sheet-close value outside this set is a bug at the call site. Never use the key method for this (§8): method already means phone · apple · google.",
+      "note": "THE CANONICAL SHEET-CLOSE VOCABULARY, and the only one: every bottom sheet in the product reports its dismissal with these four values. Carried by prompt_editor_dismissed, prompt_topic_list_dismissed and media_prompt_list_dismissed, and by every sheet added after them. close is the X or a Cancel control; backdrop is a tap on the scrim; swipe is the drag-down gesture; system_back is the Android gesture or hardware key, which is NOT the same act as the X and must not be folded into it (decision 32). Created 16 Sep 2026 by unifying three drifted spellings of the same four acts — close|scrim|swipe|back on the prompts write sheet and cancel|backdrop|swipe|system_back on the media prompt list. Neither had shipped, so nothing in the warehouse needed migrating; a sheet-close value outside this set is a bug at the call site. Never use the key method for this (§8): method already means phone · apple · google. Also carried by search_coach_dismissed (Search 01 actions coach, 21 Oct 2026): close = Got it or Don't show again (told apart by dont_show_again), backdrop = the scrim, system_back = Android back; swipe never occurs there. Values unchanged.",
       "values": [
         "close",
         "backdrop",
@@ -1679,6 +1726,58 @@
         "network",
         "server",
         "contact_info"
+      ]
+    },
+    {
+      "id": "e33",
+      "num": "33",
+      "name": "like_abandon_stage",
+      "note": "WHERE THE LIKE FLOW WAS LEFT WITHOUT SENDING (like_confirm_abandoned). confirm = Cancel or dismiss on Be sure · message = dismiss on the message sheet. Skip message sends the like and is never an abandon. Created 20 Oct 2026 with Search 01.",
+      "values": [
+        "confirm",
+        "message"
+      ]
+    },
+    {
+      "id": "e34",
+      "num": "34",
+      "name": "search_pass_type",
+      "note": "WHICH PASS ON THE 1-UP PROFILE (pass_sent). not_now = hidden until the viewer’s next Check-In · not_interested = removed from the viewer’s pool for good, no undo on the 1-up profile. On a received like (Search 03), not_interested also declines the like, after a 6 s Undo. Created 20 Oct 2026 with Search 01.",
+      "values": [
+        "not_now",
+        "not_interested"
+      ]
+    },
+    {
+      "id": "e35",
+      "num": "35",
+      "name": "like_surface",
+      "note": "WHERE A LIKE OR A CONFIRM WAS STARTED (like_tapped, like_sent). profile = the Like / Confirm date button on the full profile (Freemium queue, or opened from the grid or the Likes tab — referrer_screen_id of the profile visit tells them apart) · grid_card RETIRED 21 Oct 2026, never shipped: there is no Like from a grid card, a tap anywhere on it opens the profile · likes_received = Not interested on a Likes tab card, or on a profile opened from it (the decline is sent from the Likes list's toast). Not used by like_tapped: Confirm date on a Likes card opens the profile, where the confirm is surface profile. Also the surface of pass_sent (profile · likes_received), pass_undone (profile · likes_received) and like_confirm_failed (profile) (1.4.28). Created 20 Oct 2026 with Search 02; likes_received is used by Search 03.",
+      "values": [
+        "profile",
+        "likes_received"
+      ]
+    },
+    {
+      "id": "e36",
+      "num": "36",
+      "name": "like_close_reason",
+      "note": "WHY AN OPEN LIKE CLOSED WITHOUT A DECISION (like_withdrawn, server · like_confirm_failed, client). matched = either person's other like became mutual first (1 match = 1 date) → the receiver sees a Too late card · no_overlap = the two Check-Ins have no meet-time overlap left → the receiver sees an Out of time card. Both kept until the next visit after they were seen. Created 20 Oct 2026 with Search 03.",
+      "values": [
+        "matched",
+        "no_overlap"
+      ]
+    },
+    {
+      "id": "e37",
+      "num": "37",
+      "name": "nav_tab",
+      "note": "THE TABBAR ITEMS (tab_switched). In bar order. likes is in EVERY user's bar (Search 03; amended 21 Oct 2026 — was Premium-only), with the badge. tab_switched · likes fires for Freemium too; the upsell screen it opens is its own story. Created 20 Oct 2026 with Search 03; replaces tab_switched's old inline meet|instant|score|profile.",
+      "values": [
+        "search",
+        "likes",
+        "instant",
+        "settings"
       ]
     }
   ],

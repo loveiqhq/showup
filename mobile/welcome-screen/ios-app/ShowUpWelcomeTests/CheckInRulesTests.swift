@@ -293,7 +293,8 @@ final class CheckInRulesTests: XCTestCase {
         XCTAssertEqual(CheckInCopy.upliftFieldLabel, "Your reason to be picked")
         XCTAssertEqual([CheckInCopy.sliderMinAge, CheckInCopy.sliderMaxAge, CheckInCopy.sliderDistance],
                        ["Minimum age", "Maximum age", "Distance in km"])
-        XCTAssertEqual(AppTab.allCases.map(\.label), ["Search", "Instant", "Settings"])
+        // Search · Likes · Instant · Settings for every user (SHOWUP-187 rule 10).
+        XCTAssertEqual(AppTab.allCases.map(\.label), ["Search", "Likes", "Instant", "Settings"])
     }
 
     func testStepIdsGateTargetsNoHoursActionsAndCommitFailuresAreTheRegistrys() {

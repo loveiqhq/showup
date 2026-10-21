@@ -348,6 +348,10 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186): §11 gains the three
+     * search screens, §23's dismiss note covers the actions coach, §33-§37 are new. No value an event
+     * here sends moved between 1.4.25 and 1.4.29 -- the stamp follows the file the code reads.
+     *
      * 1.4.18 (8 October 2026) closes the last three steps, one version each: 1.4.16 Interests (the
      * six How I live fields in §1, §3 rewritten to 51 tag_ids, habits retired), 1.4.17 Life (§4
      * re-slugged with an `exclusive` column, partnership Class 2), 1.4.18 Future (`checkin_intro`
@@ -371,7 +375,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.25"
+    const val FIELD_REGISTRY_VERSION = "1.4.29"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,

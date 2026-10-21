@@ -2152,8 +2152,10 @@ for label, text in (("kotlin", pa_kt), ("swift", pa_sw)):
                  "life_question_answered", "future_question_answered", "profile_interests",
                  "profile_life_now", "profile_life_ahead"):
         check("174-176 %s is registry-backed (%s)" % (name, label), '"%s"' % name in text)
-check("registry 1.4.25 stamped (kotlin)", 'FIELD_REGISTRY_VERSION = "1.4.25"' in pa_kt)
-check("registry 1.4.25 stamped (swift)", 'fieldRegistryVersion = "1.4.25"' in pa_sw)
+# Read from enums.json, not pinned: these two pinned "1.4.25" until the Date search registry (1.4.29)
+# landed, a second copy of the value the stamp checks above already read from the file.
+check("registry %s stamped (kotlin)" % _REGISTRY_VERSION, 'FIELD_REGISTRY_VERSION = "%s"' % _REGISTRY_VERSION in pa_kt)
+check("registry %s stamped (swift)" % _REGISTRY_VERSION, 'fieldRegistryVersion = "%s"' % _REGISTRY_VERSION in pa_sw)
 # Future ends profile creation in the 48hrs Check-In intro (Check-In 01, SHOWUP-178) -- both exits,
 # both platforms, each with a new Check-In flow begun behind it. It exited to Home until the intro
 # was built (14 October 2026).

@@ -209,6 +209,10 @@ dependencies {
     // there, and bare collectAsState keeps collecting while the app is backgrounded.
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    // Navigation Compose, adopted at the Date search epic (SHOWUP-187) as CLAUDE.md prescribes: the
+    // shell first, the existing flow one destination (AppRoute.kt). 2.8 for type-safe routes over
+    // kotlinx.serialization, which the build already has; it matches lifecycle 2.8.7 and BOM 2024.10.
+    implementation("androidx.navigation:navigation-compose:2.8.3")
 
     // Google's libphonenumber — Apache 2.0, free, offline. It carries the real numbering rules for
     // every country, which is what makes a full country list possible: hand-writing length and
