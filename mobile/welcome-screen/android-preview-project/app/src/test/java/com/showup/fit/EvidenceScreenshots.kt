@@ -870,4 +870,16 @@ class EvidenceScreenshots {
         }
         println("EVIDENCE 178-183: ${written.size} images in ${out.absolutePath}")
     }
+
+    // The Likes badge (SHOWUP-186 part 2) on the gate's bar: nothing at 0, then a digit, two digits
+    // and the cap, where the pill is widest. One frame is enough -- the bar is the same at every size.
+    @Test
+    fun `the tab bar's likes badge, from none to the cap`() {
+        val iphone = DEVICES.filter { it.width == 390 && it.height == 844 }
+        listOf(0, 3, 42, 120).forEach { n ->
+            shoot("SEARCH-SHELL", "likes-$n", devices = iphone) { CheckInGateScreen(likes = n) }
+        }
+        assertEquals(4, written.size)
+        println("EVIDENCE SEARCH-SHELL: ${written.size} images in ${out.absolutePath}")
+    }
 }
