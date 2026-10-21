@@ -16,8 +16,9 @@ import {
 
 /**
  * A Check-In window -- the `window_id` every Check-In event carries (story 01). One opens when
- * profile creation completes and lasts 48 hours. A COMMITTED Check-In is a window with
- * `committedAt` set: "one Check-In per window_id" is what makes the commit idempotent (story 06).
+ * profile creation completes, unfinished and with no clock; the Check-In's 48 hours start at
+ * `Find my date` (see `ensureCheckInWindow`). A COMMITTED Check-In is a window with `committedAt`
+ * set: "one Check-In per window_id" is what makes the commit idempotent (story 06).
  * Its hours live in `check_ins`, keyed back here, so discovery and matching read them unchanged.
  */
 @Entity('check_in_windows')
@@ -32,8 +33,9 @@ export class CheckInWindow {
   @Column({ name: 'opened_at', type: 'timestamptz', default: () => 'now()' })
   openedAt: Date;
 
-  @Column({ name: 'closes_at', type: 'timestamptz' })
-  closesAt: Date;
+  /** 48 hours after `committedAt`. Null while the Check-In is unfinished: nothing is counted yet. */
+  @Column({ name: 'closes_at', type: 'timestamptz', nullable: true })
+  closesAt: Date | null;
 
   /** Set once, by the commit on `Find my date`. Null on a window nobody has checked in to. */
   @Column({ name: 'committed_at', type: 'timestamptz', nullable: true })
