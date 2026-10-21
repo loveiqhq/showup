@@ -101,10 +101,12 @@ describe('the 48hrs Check-In flow (e2e)', () => {
       })
       .expect(200);
     const rows = await dataSource.query(
-      `SELECT id, closes_at - opened_at AS span FROM check_in_windows WHERE user_id = $1`,
+      `SELECT id, closes_at FROM check_in_windows WHERE user_id = $1`,
       [userId],
     );
     expect(rows).toHaveLength(1);
+    // Unfinished: the 48 hours have not started, and will not until Find my date.
+    expect(rows[0].closes_at).toBeNull();
     const s = await state();
     expect(s.windowId).toBe(rows[0].id);
     // The same window on every read, until it closes.
@@ -320,12 +322,13 @@ describe('the 48hrs Check-In flow (e2e)', () => {
     // Returning users start pre-filled from the last answers.
     expect(flow.lastMotivation).toBe('long_term');
 
-    // The user starts a Check-In in it -- and the window closes before Find my date.
+    // The user starts a Check-In in it, leaves halfway, and comes back four days later. Nothing was
+    // counted while it was unfinished, so it is still the same window.
     await dataSource.query(
-      `UPDATE check_in_windows SET opened_at = now() - interval '49 hours',
-         closes_at = now() - interval '1 minute' WHERE id = $1`,
+      `UPDATE check_in_windows SET opened_at = now() - interval '100 hours' WHERE id = $1`,
       [flow.windowId],
     );
+    expect((await state()).windowId).toBe(flow.windowId);
     const res = await commit({
       windowId: flow.windowId,
       slots: [{ startsAt: hour(5), tier: 'preferred' }],
@@ -333,9 +336,15 @@ describe('the 48hrs Check-In flow (e2e)', () => {
       vibes: ['cozy'],
       uplift: '   ',
     }).expect(200);
-    // No UI for it: the Check-In simply lands in the current window.
-    expect(res.body.windowId).not.toBe(flow.windowId);
+    expect(res.body.windowId).toBe(flow.windowId);
     expect(res.body.active).toBe(true);
+    // The 48 hours start at Find my date.
+    const clock = await dataSource.query(
+      `SELECT extract(epoch FROM closes_at - committed_at)::int AS seconds
+         FROM check_in_windows WHERE id = $1`,
+      [flow.windowId],
+    );
+    expect(clock[0].seconds).toBe(48 * 3600);
     const current = await dataSource.query(
       `SELECT uplift, motivation FROM check_in_windows WHERE id = $1`,
       [res.body.windowId],
@@ -365,6 +374,18 @@ describe('the 48hrs Check-In flow (e2e)', () => {
     }).expect(200);
     expect(res.body.active).toBe(false);
     expect(res.body.windowId).not.toBe(live.windowId);
+  });
+
+  it('refuses to give an unfinished Check-In a clock', async () => {
+    // The rule the migration added, held by Postgres itself: a clock if and only if finished.
+    const unfinished = await state();
+    expect(unfinished.active).toBe(false);
+    await expect(
+      dataSource.query(
+        `UPDATE check_in_windows SET closes_at = now() + interval '1 hour' WHERE id = $1`,
+        [unfinished.windowId],
+      ),
+    ).rejects.toThrow(/check_in_windows_clock_starts_at_commit/);
   });
 
   it('refuses a window that is not the users own', async () => {

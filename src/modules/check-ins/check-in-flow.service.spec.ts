@@ -42,7 +42,9 @@ import {
 type Row = Record<string, unknown>;
 type Entity = abstract new (...args: never[]) => unknown;
 
-function matches(row: Row, where: Row): boolean {
+function matches(row: Row, where: Row | Row[]): boolean {
+  // An array is TypeORM's OR: the row matches if any one clause does.
+  if (Array.isArray(where)) return where.some((clause) => matches(row, clause));
   return Object.entries(where).every(([key, want]) =>
     want instanceof FindOperator ? holds(row[key], want) : row[key] === want,
   );
@@ -51,7 +53,10 @@ function matches(row: Row, where: Row): boolean {
 function holds(got: unknown, op: FindOperator<unknown>): boolean {
   switch (op.type) {
     case 'moreThan':
-      return (got as Date).getTime() > (op.value as Date).getTime();
+      // As Postgres: NULL is never more than anything.
+      return (
+        got != null && (got as Date).getTime() > (op.value as Date).getTime()
+      );
     case 'isNull':
       return got == null;
     case 'not':
@@ -93,12 +98,12 @@ class FakeDb {
     const keyOf = this.perUser.has(entity) ? 'userId' : 'id';
     return {
       findOne: (opts: {
-        where: Row;
+        where: Row | Row[];
         order?: Record<string, 'ASC' | 'DESC'>;
         lock?: { mode: string };
       }) => {
         if (opts.lock?.mode === 'pessimistic_write') {
-          this.locked.push(opts.where.userId as string);
+          this.locked.push((opts.where as Row).userId as string);
         }
         const hits = rows.filter((r) => matches(r, opts.where));
         const [[field, dir] = []] = Object.entries(opts.order ?? {});
@@ -133,8 +138,10 @@ class FakeDb {
 
   readonly em = {
     getRepository: (entity: Entity) => this.repo(entity),
-    findOne: (entity: Entity, opts: { where: Row; lock?: { mode: string } }) =>
-      this.repo(entity).findOne(opts),
+    findOne: (
+      entity: Entity,
+      opts: { where: Row | Row[]; lock?: { mode: string } },
+    ) => this.repo(entity).findOne(opts),
     count: (entity: Entity, opts: { where: Row }) =>
       Promise.resolve(
         this.rows<Row>(entity).filter((r) => matches(r, opts.where)).length,
@@ -181,8 +188,9 @@ describe('CheckInFlowService', () => {
       id: 'w-open',
       userId: USER,
       openedAt: new Date(NOW.getTime() - HOUR),
-      closesAt: new Date(NOW.getTime() + 47 * HOUR),
-      committedAt: null,
+      // Unfinished: no clock until Find my date.
+      closesAt: null as Date | null,
+      committedAt: null as Date | null,
       motivation: null,
       vibes: null,
       uplift: null,
@@ -298,7 +306,7 @@ describe('CheckInFlowService', () => {
       openWindow({
         id: 'w-done',
         openedAt: new Date(NOW.getTime() - 60 * HOUR),
-        closesAt: new Date(NOW.getTime() - 12 * HOUR),
+        closesAt: new Date(NOW.getTime() - 2 * HOUR),
         committedAt: new Date(NOW.getTime() - 50 * HOUR),
       });
       const state = await service.state(USER, NOW);
@@ -306,7 +314,10 @@ describe('CheckInFlowService', () => {
       expect(state.active).toBe(false);
       expect(state.firstCheckIn).toBe(false);
 
-      windows().find((w) => w.id === state.windowId)!.committedAt = NOW;
+      // Committed, as the commit does it: the clock starts with it.
+      const next = windows().find((w) => w.id === state.windowId)!;
+      next.committedAt = NOW;
+      next.closesAt = new Date(NOW.getTime() + 48 * HOUR);
       expect((await service.state(USER, NOW)).active).toBe(true);
     });
   });
@@ -587,56 +598,76 @@ describe('CheckInFlowService', () => {
       expect(track).not.toHaveBeenCalled();
     });
 
-    it('commits an expired window into the current one', async () => {
+    it('starts the 48 hours at Find my date, however long ago the window opened', async () => {
+      // Opened four days ago and left halfway: nothing was counted, so the Check-In lands in it.
+      profile();
+      openWindow({ openedAt: new Date(NOW.getTime() - 100 * HOUR) });
+      const result = await service.commit(USER, commitDto(), NOW);
+      expect(result.created).toBe(true);
+      const [w] = windows();
+      expect(w.committedAt).toEqual(NOW);
+      expect(w.closesAt).toEqual(new Date(NOW.getTime() + 48 * HOUR));
+      expect(result.state).toMatchObject({ windowId: 'w-open', active: true });
+    });
+
+    it('is active for the 48 hours after Find my date, and not after', async () => {
+      profile();
+      openWindow();
+      await service.commit(USER, commitDto(), NOW);
+      const later = (h: number) => new Date(NOW.getTime() + h * HOUR);
+      expect((await service.state(USER, later(47))).active).toBe(true);
+      const over = await service.state(USER, later(48));
+      expect(over.active).toBe(false);
+      // A new, unfinished window -- with no clock of its own.
+      expect(over.windowId).not.toBe('w-open');
+      expect(
+        windows().find((w) => w.id === over.windowId)!.closesAt,
+      ).toBeNull();
+    });
+
+    it('commits an older unfinished window into the current one', async () => {
+      // Rare without a clock -- the migration keeps one unfinished window per user -- but a commit
+      // must never land in a window the state no longer reads.
       profile();
       openWindow({
-        id: 'w-expired',
-        openedAt: new Date(NOW.getTime() - 49 * HOUR),
-        closesAt: new Date(NOW.getTime() - HOUR),
+        id: 'w-older',
+        openedAt: new Date(NOW.getTime() - 10 * HOUR),
       });
+      openWindow({ id: 'w-current', openedAt: new Date(NOW.getTime() - HOUR) });
       const result = await service.commit(
         USER,
-        commitDto({ windowId: 'w-expired' }),
+        commitDto({ windowId: 'w-older' }),
         NOW,
       );
-      const expired = windows().find((w) => w.id === 'w-expired')!;
-      const current = windows().find((w) => w.id !== 'w-expired')!;
-      expect(expired.committedAt).toBeNull();
+      const older = windows().find((w) => w.id === 'w-older')!;
+      const current = windows().find((w) => w.id === 'w-current')!;
+      expect(older.committedAt).toBeNull();
       expect(current.committedAt).toEqual(NOW);
-      expect(checkIns().every((c) => c.windowId === current.id)).toBe(true);
+      expect(checkIns().every((c) => c.windowId === 'w-current')).toBe(true);
       expect(result.state).toMatchObject({
-        windowId: current.id,
+        windowId: 'w-current',
         active: true,
       });
     });
 
-    it('commits into the expired window itself when no new one can open', async () => {
-      // The flow position was edited back after the window opened: no new window is due.
+    it('commits into the unfinished window even when the flow position was edited back', async () => {
+      // No new window is due, and none is needed: the unfinished one is still the current one.
       profile({ flowPosition: 'basics' });
-      openWindow({
-        id: 'w-expired',
-        openedAt: new Date(NOW.getTime() - 49 * HOUR),
-        closesAt: new Date(NOW.getTime() - HOUR),
-      });
-      const result = await service.commit(
-        USER,
-        commitDto({ windowId: 'w-expired' }),
-        NOW,
-      );
+      openWindow({ openedAt: new Date(NOW.getTime() - 49 * HOUR) });
+      const result = await service.commit(USER, commitDto(), NOW);
       expect(result.created).toBe(true);
       expect(windows()).toHaveLength(1);
       expect(windows()[0].committedAt).toEqual(NOW);
-      // The answer reads the current state, so it never claims the closed window is live.
-      expect(result.state.active).toBe(false);
+      expect(result.state.active).toBe(true);
     });
 
-    it('treats an expired window that was committed as a replay', async () => {
+    it('treats a Check-In whose 48 hours are over as a replay', async () => {
       profile();
       openWindow({
         id: 'w-expired',
-        openedAt: new Date(NOW.getTime() - 49 * HOUR),
+        openedAt: new Date(NOW.getTime() - 50 * HOUR),
         closesAt: new Date(NOW.getTime() - HOUR),
-        committedAt: new Date(NOW.getTime() - 30 * HOUR),
+        committedAt: new Date(NOW.getTime() - 49 * HOUR),
       });
       const result = await service.commit(
         USER,

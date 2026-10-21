@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 import {
+  checkInClosesAt,
   CHECK_IN_MOTIVATIONS,
   CHECK_IN_VIBES,
   checkInGenderDefault,
@@ -207,5 +208,24 @@ describe('the hour slots', () => {
   it('accepts an hour on a half-hour UTC offset (India, +5:30)', () => {
     const now = at('2026-10-13T10:00:00Z');
     expect(slotsError([slot('2026-10-13T12:30:00Z')], now)).toBeNull();
+  });
+});
+
+describe('checkInClosesAt -- the 48 hours start at Find my date', () => {
+  it('closes a Check-In 48 hours after it was committed', () => {
+    const committed = new Date('2026-10-21T10:00:00.000Z');
+    expect(checkInClosesAt(committed)).toEqual(
+      new Date('2026-10-23T10:00:00.000Z'),
+    );
+  });
+
+  it('outlasts every hour the app offers: Tomorrow ends at most 48 hours after the commit', () => {
+    // Committed one second after 7am, the latest Tomorrow hour (the second 6am slot) ends at the
+    // second 7am -- 48 hours less a second later. The Check-In is still active through it.
+    const committed = new Date('2026-10-21T07:00:01.000Z');
+    const lastHourEnds = new Date('2026-10-23T07:00:00.000Z');
+    expect(checkInClosesAt(committed).getTime()).toBeGreaterThanOrEqual(
+      lastHourEnds.getTime(),
+    );
   });
 });

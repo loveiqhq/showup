@@ -67,7 +67,7 @@ export type SlotTier = (typeof SLOT_TIERS)[number];
 /** "100 characters, counted as graphemes, so an emoji is one" (story 06). */
 export const UPLIFT_MAX_GRAPHEMES = 100;
 
-/** A Check-In window lasts 48 hours: today and tomorrow. */
+/** A Check-In window lasts 48 hours: today and tomorrow. Counted from `Find my date`. */
 export const CHECK_IN_WINDOW_HOURS = 48;
 
 /**
@@ -160,6 +160,16 @@ export interface SlotWindow {
 }
 
 const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * When a Check-In committed at [committedAt] stops being active: 48 hours later. Long enough for
+ * every hour the app offers -- Today and Tomorrow end at the second 7am on the device, at most 48
+ * hours after the commit -- so a Check-In is not shown as over before its own hours are.
+ * (`slotsError` accepts a day more than that, as slack for a skewed device clock.)
+ */
+export function checkInClosesAt(committedAt: Date): Date {
+  return new Date(committedAt.getTime() + CHECK_IN_WINDOW_HOURS * HOUR_MS);
+}
 
 /**
  * Slots that are still worth keeping at `now`: an hour that has started is dropped silently --
