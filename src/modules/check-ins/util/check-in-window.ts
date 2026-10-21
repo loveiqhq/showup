@@ -1,15 +1,20 @@
-import { EntityManager, MoreThan } from 'typeorm';
+import { EntityManager, IsNull, MoreThan } from 'typeorm';
 
 import { FLOW_POSITION_COMPLETE } from '../../profiles/util/flow-position';
 import { CheckInWindow } from '../entities/check-in-window.entity';
-import { CHECK_IN_WINDOW_HOURS } from './check-in-flow';
-
-const HOUR_MS = 60 * 60 * 1000;
 
 /**
- * The user's current Check-In window: the latest one that has not closed. Opens a new one when the
- * last has closed (or none ever opened) -- but only once profile creation is complete, because a
- * window is "opened when profile creation completes" (story 01).
+ * The user's current Check-In window: an unfinished one, or a finished one still inside its 48
+ * hours. Opens a new, unfinished one when there is neither -- but only once profile creation is
+ * complete, because a window is "opened when profile creation completes" (story 01).
+ *
+ * THE 48 HOURS START AT `Find my date`, NOT HERE. Decided by the product owner on 21 October 2026:
+ * a Check-In left halfway starts again from the beginning next time, so the window is not counted
+ * until the Check-In is finished. An unfinished window therefore has no closing time at all
+ * (`closesAt` null) and stays the user's window however long they take; the commit sets
+ * `closesAt` to 48 hours after itself. Until then the window was opened here with its 48 hours
+ * already running, so a Check-In finished 40 hours after it was first opened went inactive 8
+ * hours later -- before the hours it had just picked.
  *
  * MUST RUN UNDER THE USER'S PROFILE ROW LOCK (`SELECT … FOR UPDATE` on `profiles`). Two requests
  * racing here would otherwise open two windows. Every caller holds it: `ProfilesService.update`
@@ -22,8 +27,13 @@ export async function ensureCheckInWindow(
   now: Date = new Date(),
 ): Promise<CheckInWindow | null> {
   const windows = em.getRepository(CheckInWindow);
+  // Either clause: SQL compares a null `closes_at` as unknown, so an unfinished window is found by
+  // the first and never by the second.
   const current = await windows.findOne({
-    where: { userId, closesAt: MoreThan(now) },
+    where: [
+      { userId, committedAt: IsNull() },
+      { userId, closesAt: MoreThan(now) },
+    ],
     order: { openedAt: 'DESC' },
   });
   if (current) return current;
@@ -32,7 +42,7 @@ export async function ensureCheckInWindow(
     windows.create({
       userId,
       openedAt: now,
-      closesAt: new Date(now.getTime() + CHECK_IN_WINDOW_HOURS * HOUR_MS),
+      closesAt: null,
       committedAt: null,
       motivation: null,
       vibes: null,

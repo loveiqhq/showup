@@ -24,6 +24,7 @@ import { ensureCheckInWindow } from './util/check-in-window';
 import { FilterSettings } from './entities/filter-settings.entity';
 import { CheckInStatus, DEFAULT_PREPARATION_MINUTES } from './util/check-in';
 import {
+  checkInClosesAt,
   CHECK_IN_VIBES,
   checkInGenderDefault,
   type CheckInVibe,
@@ -146,8 +147,10 @@ export class CheckInFlowService {
    *
    * - A window already committed answers with the same state and writes nothing -- a retry after a
    *   timeout never makes a second Check-In (epic rule 10).
-   * - An expired window commits into the user's current one; hours that have started are dropped
-   *   silently, so a Check-In whose Today hours all passed is saved with Tomorrow only. No UI.
+   * - The 48 hours start here: `closesAt` is set to 48 hours after the commit. An unfinished window
+   *   has no clock, so it never expires under a flow left open; an unfinished window that is no
+   *   longer the user's current one commits into the current one. Hours that have started are
+   *   dropped silently, so a Check-In whose Today hours all passed is saved with Tomorrow only.
    * - The uplift is checked for contact info here too; a refusal is a 422 with the distinct error
    *   `uplift_contact_info`, which the client shows as the contact-info state, not a failed save.
    * - Earlier Check-Ins' hours still live are retired: one active Check-In at a time.
@@ -190,15 +193,17 @@ export class CheckInFlowService {
       });
       if (!window) throw new NotFoundException('No such Check-In window');
 
-      // EXPIRED: the Check-In goes into the user's current window instead.
-      if (!window.committedAt && window.closesAt.getTime() <= now.getTime()) {
-        window =
-          (await ensureCheckInWindow(
-            em,
-            userId,
-            profile?.flowPosition ?? null,
-            now,
-          )) ?? window;
+      // NOT THE CURRENT WINDOW: the Check-In goes into the user's current one instead. With no clock
+      // on an unfinished window this is rare -- an older unfinished window -- but a commit must
+      // never land in a window the user's state no longer reads.
+      if (!window.committedAt) {
+        const current = await ensureCheckInWindow(
+          em,
+          userId,
+          profile?.flowPosition ?? null,
+          now,
+        );
+        if (current && current.id !== window.id) window = current;
       }
       if (window.committedAt) {
         return {
@@ -257,6 +262,8 @@ export class CheckInFlowService {
       }
 
       window.committedAt = now;
+      // THE 48 HOURS START NOW, not when the window opened (see `ensureCheckInWindow`).
+      window.closesAt = checkInClosesAt(now);
       window.motivation = dto.motivation;
       window.vibes = canonicalVibes(dto.vibes);
       window.uplift = uplift;
