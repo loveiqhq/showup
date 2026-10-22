@@ -302,6 +302,14 @@ private struct TutorialFlow: View {
     /// background, for the life of the app -- not only while a permission screen is up: a
     /// permission turned off in Settings next week must still reach the server and the analytics.
     /// Built on the same readers the screens use; see PermissionReconciler.swift.
+    /// The app's back stack (AppRoute.swift): what is pushed over the flow.
+    @State private var navPath: [AppRoute] = []
+
+    /// THE LIKES BADGE: open received likes, the one number the Likes tab and the Search likes chip
+    /// both show (SHOWUP-187 rule 10). 0 -- no badge -- until the Search stories give it a source;
+    /// every TabBar already reads it from here, so none of them changes then.
+    @State private var likesOpen = 0
+
     @State private var permissions = PermissionReconciler(
         snapshot: ReaderPermissionSnapshot(notifications: UNNotificationAccess(),
                                            location: CLLocationAccess(),
@@ -843,6 +851,13 @@ private struct TutorialFlow: View {
         checkIn.closePressed(step) { go(to: .checkInGate) }
     }
 
+    /// A TabBar tap while `active` shows: `tab_switched` for any other tab -- the nav act alone.
+    private func tabTapped(active: AppTab, tapped: AppTab) {
+        if let event = NavAnalytics.tabSwitched(active: active, tapped: tapped) {
+            AppAnalytics.shared.report(event)
+        }
+    }
+
     /// The gate's CTA, Search tab or Instant tab: the intro until it has been passed, Today after.
     private func reopenCheckIn(_ target: CheckInAnalytics.GateTarget) {
         checkIn.gateTapped(target) { go(to: $0.flowScreen) }
@@ -854,7 +869,20 @@ private struct TutorialFlow: View {
         let s = checkIn.state
         switch screen {
         case .checkInGate:
-            CheckInGateView(onCheckIn: { reopenCheckIn($0) }, onSettings: { go(to: .checkInSettings) })
+            CheckInGateView(
+                onCheckIn: { target in
+                    if target == .instantTab { tabTapped(active: .search, tapped: .instant) }
+                    reopenCheckIn(target)
+                },
+                onSettings: {
+                    tabTapped(active: .search, tapped: .settings)
+                    go(to: .checkInSettings)
+                },
+                // Premium: Likes received (SHOWUP-186); Freemium: the likes upsell, its own story.
+                // Neither is built, so the tap is the nav act alone -- and it never opens Likes
+                // received for Freemium.
+                onLikes: { tabTapped(active: .search, tapped: .likes) },
+                likes: likesOpen)
                 .onAppear {
                     checkIn.arrived(nil, screen: .checkinSearchUnavailable, referrer: profileScreen(of: cameFrom))
                 }
@@ -942,14 +970,17 @@ private struct TutorialFlow: View {
             SearchUnlockedPlaceholderView()
         case .checkInSettings:
             SettingsPlaceholderView(onTab: { tab in
+                tabTapped(active: .settings, tapped: tab)
                 switch tab {
                 // Search with no Check-In IS the gate (story 01).
                 case .search: go(to: .checkInGate)
+                // As on the gate: nothing is built behind Likes yet.
+                case .likes: break
                 // Instant is still gated: it opens the Check-In, as on the gate.
                 case .instant: reopenCheckIn(.instantTab)
                 case .settings: break
                 }
-            })
+            }, likes: likesOpen)
             // Back returns to Search, the tab the gate is.
             .modifier(EdgeSwipeBack(onBack: { go(to: .checkInGate) }))
             .onAppear { checkIn.atTabs() }
@@ -1109,7 +1140,15 @@ private struct TutorialFlow: View {
         }
     }
 
+    /// THE NAVIGATIONSTACK (AppRoute.swift): the existing flow is its root, the navigation bar
+    /// hidden so nothing about the flow changes. Search's drill-downs are pushed onto `navPath`.
     var body: some View {
+        NavigationStack(path: $navPath) {
+            flow.toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    private var flow: some View {
         ZStack(alignment: .top) {
             Group {
                 // Exhaustive on purpose. ShowUpEveryTime used to be the `default:` branch, which

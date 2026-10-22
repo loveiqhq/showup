@@ -1,8 +1,36 @@
 {
-  "taxonomy_version": "1.4.16",
+  "taxonomy_version": "1.4.20",
   "reconciled_against": "loveiqhq/showup development @ 8540ee4",
-  "generated": "2026-10-13",
-  "event_count": 297,
+  "generated": "2026-09-25",
+  "event_count": 303,
+  "changed_in_1_4_20": [
+    "Search 01 revision, 21 Oct 2026 — actions coach (frame F): search_coach_shown NEW · search_coach_dismissed NEW (dismiss_method §23, dont_show_again, visible_ms). Shown on every Search visit, Freemium and Premium, until Don't show again — the only act stored, server-side per user. The coach is an overlay on search_profile, not a screen: no §11 row, no screen_viewed. profile_card_viewed.dwell_ms for that profile counts from the dismissal.",
+    "Amended the same day, before hand-over: was \"once per account, flag set on any dismissal, Freemium only\"."
+  ],
+  "changed_in_1_4_19": [
+    "Search 03 (Likes received), 20 Oct 2026: likes_received_viewed — RESPECIFIED. is_locked REMOVED (the screen is Premium-only; the Freemium lock is the upsell story's). count renamed open_count (= the Likes tab badge: open likes only), closed_count NEW. Fires once per visit to the Likes tab when the list has loaded.",
+    "tab_switched — RESPECIFIED: tab now enums §37 nav_tab (search · likes · instant · settings). The old inline set meet|instant|score|profile described a nav bar that no longer exists. Likes is a new tab, in every user's bar (Search 03; amended 21 Oct 2026 — Freemium taps go to the upsell). Never shipped; nothing migrates.",
+    "Amended the same day, before hand-over (Search 03 revision, 20 Oct 2026): Likes received became the Likes TAB; Confirm date on a card opens the full profile (the confirm happens there, so like_tapped never carries surface likes_received any more); the Undo window is 6 s; a like that ran out of overlap shows an Out of time card. Versions not bumped: nothing had been handed over.",
+    "pass_sent — surface NEW (§35: profile · likes_received). Not interested on a Likes received card is pass_sent · not_interested · surface likes_received — no separate decline event (decided 20 Oct 2026). On Likes received and on a Liked-you profile opened from it, pass_sent fires when the 6 s Undo window ENDS, not on the tap. Search 02's grid profile: surface profile, fires on the tap (no Undo there).",
+    "pass_undone — NEW, client: Undo tapped on the decline toast. The pass was never sent.",
+    "like_confirm_failed — NEW, client: Confirm date (on the profile) was refused by the server because the like had already closed. reason §36 (matched · no_overlap).",
+    "like_withdrawn — reason NEW (§36 like_close_reason: matched · no_overlap). match_id is null when reason is no_overlap. A received like now also closes when the two Check-Ins have no meet-time overlap left.",
+    "Search 02 aligned with Search 03, 21 Oct 2026 (amended in 1.4.19, versions not bumped): NO LIKE FROM THE GRID. A tap anywhere on a grid card, heart included, opens the full profile (screen_viewed search_profile, referrer search_grid); every decision is made there. §35 grid_card is RETIRED (never shipped): like_tapped and like_sent carry surface profile wherever the profile was opened from — use referrer_screen_id of the profile visit to tell queue, grid and Likes tab apart. A refused confirm from a grid profile fires like_confirm_failed · surface profile and closes the card in place. Not interested on a Liked-you profile opened from the grid gets the same 6 s Undo: pass_sent · surface profile fires when the window ends; Undo fires pass_undone · surface profile (pass_undone surface now profile · likes_received)."
+  ],
+  "changed_in_1_4_18": [
+    "Search 02 (Premium grid), 20 Oct 2026: like_tapped and like_sent — surface (§35 like_surface) NEW: profile · grid_card · likes_received. A like from the heart on a grid card is the same act as Like on the profile; surface tells them apart, so there is no grid_like_tapped.",
+    "like_confirm_shown and like_confirm_abandoned — is_mutual NEW (bool): true when the viewer is confirming a like they received (Be sure in mutual mode, CTA Confirm date, no message step).",
+    "search_viewed — layout \"grid\" is now live (Search 02). Opening a card is screen_viewed search_profile with referrer search_grid — no card-opened event.",
+    "pass_sent — fires from the full profile only; a grid card has no pass buttons."
+  ],
+  "changed_in_1_4_17": [
+    "Search 01 (Freemium 1-up profile), 20 Oct 2026: profile_photo_opened — NEW (fullscreen viewer). like_withdrawn — NEW, server (first mutual like wins, the rest are withdrawn).",
+    "pass_sent — RESPECIFIED: payload position + pass_type (§34). reason_if_given REMOVED (no screen asks). Not now and Not interested are one event with two values, not two events.",
+    "like_confirm_shown / like_confirm_abandoned / like_sent — target_showup_band and showup_band_of_target REPLACED by target_attended_count (int). The percentage Show-up Rate is gone (20 Oct 2026, reward-only count). Neither band field ever shipped.",
+    "like_confirm_abandoned — stage (§33) NEW: confirm · message. Skip message sends the like and is not an abandon.",
+    "profile_card_viewed — shared_vibe_count and shared_interest_count NEW (overlap highlight).",
+    "NOT changed here, flagged: match_created.both_showup_bands still assumes bands — respecify with the Match story."
+  ],
   "changed_in_1_4_16": [
     "Check-In 06 (Uplift + commit), 13 Oct 2026: check_in_completed — RETIRED. check_in_created (server, shipped) is the one commit event; the two overlapped (“valid record committed” vs “record created”). Never implemented; nothing migrates.",
     "uplift_shown — RETIRED. It described a “check-in streak/uplift card” that no screen draws; the Uplift step is measured by screen_viewed checkin_uplift. Never implemented. Do not reuse the name.",
@@ -232,12 +260,12 @@
           "payload": [
             {
               "name": "tab",
-              "type": "\"meet\"|\"instant\"|\"score\"|\"profile\""
+              "type": "str — enums.json §37 nav_tab (search · likes · instant · settings). RESPECIFIED 1.4.19"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "User selects primary navigation tab bar item",
+          "trigger": "User selects a TabBar item other than the active one. Likes is shown to Premium users only (Search 03). The screen it opens fires its own screen_viewed; tab_switched is the nav act, not the screen.",
           "implemented": false
         },
         {
@@ -3091,6 +3119,14 @@
             {
               "name": "sections_scrolled",
               "type": "int"
+            },
+            {
+              "name": "shared_vibe_count",
+              "type": "int — vibes today shared with the viewer (0–5). NEW 1.4.17"
+            },
+            {
+              "name": "shared_interest_count",
+              "type": "int — interests shared with the viewer (0–10). NEW 1.4.17"
             }
           ],
           "sensitivity_class": 0,
@@ -3112,6 +3148,22 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Collapsible profile accordion opened",
+          "implemented": false
+        },
+        {
+          "name": "profile_photo_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "photo_index",
+              "type": "int — 1–6, in profile order"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "A photo on the 1-up profile is tapped and the fullscreen viewer opens. NEW 1.4.17 (Search 01).",
           "implemented": false
         },
         {
@@ -3163,11 +3215,15 @@
             {
               "name": "position",
               "type": "int"
+            },
+            {
+              "name": "surface",
+              "type": "str — enums.json §35 like_surface (profile; grid_card RETIRED 1.4.19; likes_received is pass-only). NEW 1.4.18"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Live",
-          "trigger": "Primary Like CTA button tapped",
+          "trigger": "Like tapped — the Like (or Confirm date) button on the full profile, surface profile. There is no Like from a grid card (21 Oct 2026): the heart on a card opens the profile. Confirm date on a received like is like_tapped with is_mutual on the Be sure events: surface profile (from the Likes tab, Confirm date on a card only opens the profile — Search 03), grid_card for the heart on a Liked-you grid card. surface likes_received is not used by like_tapped.",
           "implemented": false
         },
         {
@@ -3177,8 +3233,12 @@
           "tier": "T1",
           "payload": [
             {
-              "name": "target_showup_band",
-              "type": "str"
+              "name": "target_attended_count",
+              "type": "int — dates the target attended, confirmed by both people (the public Show-up count). 0 = shown as New in the App."
+            },
+            {
+              "name": "is_mutual",
+              "type": "bool — true when confirming a like the viewer received (Be sure in mutual mode). NEW 1.4.18"
             }
           ],
           "sensitivity_class": 0,
@@ -3193,13 +3253,21 @@
           "tier": "T1",
           "payload": [
             {
-              "name": "target_showup_band",
-              "type": "str"
+              "name": "target_attended_count",
+              "type": "int — dates the target attended, confirmed by both people (the public Show-up count). 0 = shown as New in the App."
+            },
+            {
+              "name": "stage",
+              "type": "str — enums.json §33 like_abandon_stage (confirm · message)"
+            },
+            {
+              "name": "is_mutual",
+              "type": "bool — true when confirming a like the viewer received (Be sure in mutual mode). NEW 1.4.18"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "User cancels out of like confirmation",
+          "trigger": "The like flow is left without sending: Cancel or dismiss on Be sure (stage confirm), or dismiss on the message sheet (stage message). Skip message is NOT an abandon — it sends the like.",
           "implemented": false
         },
         {
@@ -3213,19 +3281,43 @@
               "type": "int"
             },
             {
-              "name": "showup_band_of_target",
-              "type": "str"
+              "name": "target_attended_count",
+              "type": "int — dates the target attended, confirmed by both people (the public Show-up count). 0 = shown as New in the App."
             },
             {
               "name": "has_message",
               "type": "bool"
+            },
+            {
+              "name": "surface",
+              "type": "str — enums.json §35 like_surface (profile; grid_card RETIRED 1.4.19; likes_received is pass-only). NEW 1.4.18"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Live",
-          "trigger": "Like record successfully saved in DB",
+          "trigger": "Like record saved in DB — after Skip message (has_message false) or Send message (has_message true) on the message sheet.",
           "implemented": true,
           "code_delta": "Add position and showup_band_of_target. has_message ships already; like_message_attached keeps char_count."
+        },
+        {
+          "name": "like_withdrawn",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "match_id",
+              "type": "str | null — the match that caused the withdrawal; null when reason is no_overlap"
+            },
+            {
+              "name": "reason",
+              "type": "str — enums.json §36 like_close_reason (matched · no_overlap). NEW 1.4.19"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "One per open like that closed without a decision: matched = either person's other like became mutual first (1 match = 1 date); no_overlap = the two Check-Ins have no meet-time overlap left (Search 03). NEW 1.4.17 (Search 01); reason NEW 1.4.19.",
+          "implemented": false
         },
         {
           "name": "like_message_attached",
@@ -3254,13 +3346,17 @@
               "type": "int"
             },
             {
-              "name": "reason_if_given",
-              "type": "str"
+              "name": "pass_type",
+              "type": "str — enums.json §34 search_pass_type (not_now · not_interested)"
+            },
+            {
+              "name": "surface",
+              "type": "str — enums.json §35 like_surface (profile · likes_received). NEW 1.4.19"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Live",
-          "trigger": "User swipes pass or taps Next",
+          "trigger": "Not now or Not interested on the full profile (surface profile), or Not interested on a Likes received card (surface likes_received). not_now = hidden until the next Check-In; not_interested = removed from the pool for good, and on a received like also declines it (the liker is not told). Fires on the tap, EXCEPT for a declined received like: on Likes received (the card, or a Liked-you profile opened from it; surface likes_received) and on a Liked-you profile opened from the grid (surface profile) it fires when the 6 s Undo window ends or the user leaves the screen; an Undo fires pass_undone and no pass_sent. reason_if_given REMOVED 20 Oct 2026. A grid card has no pass buttons.",
           "implemented": false
         },
         {
@@ -3270,17 +3366,92 @@
           "tier": "T1",
           "payload": [
             {
-              "name": "count",
-              "type": "int"
+              "name": "open_count",
+              "type": "int — open likes on the list; the same number as the Likes tab badge. RENAMED from count 1.4.19"
             },
             {
-              "name": "is_locked",
-              "type": "bool"
+              "name": "closed_count",
+              "type": "int — closed cards on the list (Too late + Out of time), not yet seen on a previous visit. NEW 1.4.19"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Partial",
-          "trigger": "Inbound likes grid view rendered",
+          "trigger": "Likes tab list loaded (Search 03), once per visit to the tab. Fires with 0 / 0 on the empty state. Returning from a profile does not fire it again. is_locked REMOVED 1.4.19: the screen is Premium-only.",
+          "implemented": false
+        },
+        {
+          "name": "pass_undone",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "position",
+              "type": "int — the card's 1-based position on the list"
+            },
+            {
+              "name": "surface",
+              "type": "str — enums.json §35 like_surface (profile · likes_received)"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "Undo tapped on the decline toast within its 6 s window: on Likes received (surface likes_received, Search 03) or on the grid after Not interested on a Liked-you profile (surface profile, Search 02). The card returns to its previous state and nothing was sent. NEW 1.4.19.",
+          "implemented": false
+        },
+        {
+          "name": "like_confirm_failed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "reason",
+              "type": "str — enums.json §36 like_close_reason (matched · no_overlap)"
+            },
+            {
+              "name": "surface",
+              "type": "str — enums.json §35 like_surface (profile)"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Confirm date in Be sure (mutual) refused by the server because the like closed first. The first confirm to reach the server wins. Back on the Likes list, or on the grid for a profile opened from it (Search 02), the card is closed in place: matched → Too late, no_overlap → Out of time. surface is profile on both: the confirm is only ever made on the profile. NEW 1.4.19 (Search 03).",
+          "implemented": false
+        },
+        {
+          "name": "search_coach_shown",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "The actions coach (\"Three ways to decide\") is drawn over the first profile of a Search visit: the first queue profile (Freemium, Search 01) or the first profile opened from the grid (Premium, Search 02). Shown on every visit until the user taps Don't show again; at most once per visit. Not on the Likes tab or a Liked-you profile (their third button is Confirm date). An empty queue shows no coach and fires nothing. NEW 1.4.20; amended 21 Oct 2026 before hand-over (was once per account).",
+          "implemented": false
+        },
+        {
+          "name": "search_coach_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "dismiss_method",
+              "type": "str — enums.json §23 sheet dismiss_method: close = Got it or Don't show again · backdrop = scrim tap · system_back = Android back. swipe is never sent (the coach has no drag)."
+            },
+            {
+              "name": "dont_show_again",
+              "type": "bool — true only for the Don't show again button; then the server stores the per-user flag and the coach never shows again. Scrim and Android back are always false."
+            },
+            {
+              "name": "visible_ms",
+              "type": "int — ms from search_coach_shown to the dismissal"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "The actions coach is closed. Got it, a scrim tap and Android back close it for this visit only; Don't show again also sets the per-user flag (server). Backgrounding or killing the app while it shows fires nothing. NEW 1.4.20; dont_show_again added 21 Oct 2026 before hand-over.",
           "implemented": false
         },
         {

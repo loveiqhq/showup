@@ -156,10 +156,11 @@ class CheckInSemanticsTest {
     }
 
     @Test
-    fun `the tab bar is three tabs with Search selected`() = runComposeUiTest {
+    fun `the tab bar is four tabs with Search selected`() = runComposeUiTest {
         setContent { TabBar(active = Tab.Search, onTab = {}) }
         val tabs = onAllNodes(roleOf(Role.Tab)).fetchSemanticsNodes()
-        assertEquals(3, tabs.size)
+        // Search · Likes · Instant · Settings for every user (SHOWUP-187 rule 10).
+        assertEquals(4, tabs.size)
         assertEquals(1, tabs.count { it.config.getOrNull(SemanticsProperties.Selected) == true })
     }
 }

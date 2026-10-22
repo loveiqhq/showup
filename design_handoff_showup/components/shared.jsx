@@ -371,7 +371,10 @@ function AppHeader({ title, leading = 'back', trailing, onBack, dense = false })
 // ─────────────────────────────────────────────────────────────
 // Tab bar (Show Up's bottom nav)
 //
-// Three tabs — Search, Instant, Settings. Always visible on the
+// Search, Likes, Instant, Settings — the same four tabs for EVERY user
+// (21 Oct 2026). likes = open received likes → badge, shown to Freemium too
+// (the Premium upsell). Premium tap → Likes received (Search 03); Freemium
+// tap → the likes upsell screen (own story, not built). Always visible on the
 // Date Search and Match screens; on Match the Search + Instant
 // tabs are disabled while the user has an active date. Tapping a
 // disabled tab pops a short hint above the bar explaining why
@@ -379,10 +382,11 @@ function AppHeader({ title, leading = 'back', trailing, onBack, dense = false })
 // ─────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'search',   icon: 'search',   label: 'Search' },
+  { id: 'likes',    icon: 'heart',    label: 'Likes' },
   { id: 'instant',  icon: 'zap',      label: 'Instant' },
   { id: 'settings', icon: 'settings', label: 'Settings' },
 ];
-function TabBar({ active = 'search', onTab, disabled = [], disabledHint = '', sticky = true }) {
+function TabBar({ active = 'search', onTab, disabled = [], disabledHint = '', sticky = true, likes = (window.likesOpenCount && window.LIKES_RECEIVED ? window.likesOpenCount(window.LIKES_RECEIVED) : 0) }) {
   const [hint, setHint] = useState(null);
   const timerRef = useRef(null);
   function tap(id) {
@@ -446,6 +450,15 @@ function TabBar({ active = 'search', onTab, disabled = [], disabledHint = '', st
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <Icon name={t.icon} size={24} stroke={sel ? 2.2 : 1.7}/>
+                {t.id === 'likes' && likes > 0 && (
+                  <span aria-label={likes === 1 ? '1 open like' : `${likes} open likes`} style={{
+                    position: 'absolute', top: -4, left: 15, minWidth: 18, height: 18, padding: '0 5px',
+                    borderRadius: 9999, background: 'var(--su-grad-sunset)', color: '#fff',
+                    border: '2px solid var(--liq-bg)', boxSizing: 'content-box',
+                    fontFamily: 'var(--liq-font-sans)', fontSize: 10.5, fontWeight: 800, lineHeight: '18px',
+                    textAlign: 'center', fontVariantNumeric: 'tabular-nums',
+                  }}>{likes > 99 ? '99+' : likes}</span>
+                )}
                 {dis && (
                   <span style={{
                     position: 'absolute', right: -7, bottom: -3,
@@ -534,6 +547,7 @@ const PHOTOS = {
   Anna:   ['ph_anna_0',   'ph_anna_1'],
   Emma:   ['ph_emma_0',   'ph_emma_1'],
   Liv:    ['ph_liv_0',    'ph_liv_1'],
+  Clara:  ['ph_liv_1'],
   You:    ['ph_you_0',    'ph_you_1'],
   Jonas:  ['ph_jonas_0',  'ph_jonas_1'],
   Felix:  ['ph_felix_0',  'ph_felix_1'],

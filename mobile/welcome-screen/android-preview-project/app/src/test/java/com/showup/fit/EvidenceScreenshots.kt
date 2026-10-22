@@ -33,6 +33,26 @@
  *
  * Written to `app/build/evidence/`, which is not committed -- an image is a build output, and
  * forty-eight of them in git is a repository nobody can clone on a train.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS CLASS RUNS IN ITS OWN GRADLE INVOCATION
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *     ./gradlew :app:testDebugUnitTest -Pevidence
+ *
+ * The ordinary run excludes it (`app/build.gradle.kts`), and CI runs it as a second step. A Compose
+ * test that shares a JVM with it, after it, can never go idle: on PR #143 (21 Oct 2026) all three
+ * MediaAboveTheFoldTest cases failed with "Compose did not get idle after 10074146 attempts in 60
+ * SECONDS", because a new test class had moved `forkEvery(4)`'s grouping so that one followed this.
+ *
+ * Reproduced locally with this class rendering the Check-In gate and nothing else, then ANY
+ * `runComposeUiTest` -- a static Canvas included. What it takes: the raw `ComposeView` render here
+ * AND animations off. Restoring the scale, disposing the composition and detaching the view each
+ * left it failing, so the exact hold on Compose's test machinery is below our code. Three fixes
+ * that each did not hold are the sign to stop sharing the JVM rather than try a fourth.
+ *
+ * The 14 Oct fix below (destroying each Activity) was the same class of failure seen once
+ * before: HarnessSelfTest grouped after this one.
  */
 package com.showup.fit
 
@@ -206,73 +226,80 @@ class EvidenceScreenshots {
         //
         // `rememberMotion` reads this setting, which is what a person turning animations off in
         // Settings changes. Setting it here is that same instruction, not a test-only back door.
-        Settings.Global.putFloat(
-            RuntimeEnvironment.getApplication().contentResolver,
-            Settings.Global.ANIMATOR_DURATION_SCALE,
-            0f,
-        )
-        devices.forEach { device ->
-            val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
-            val activity = controller.get()
-            val view = ComposeView(activity)
-            activity.setContentView(view)
-            var widthPx = 0
-            var heightPx = 0
-            view.setContent {
-                val cfg = android.content.res.Configuration(LocalConfiguration.current).apply {
-                    screenWidthDp = device.width
-                    screenHeightDp = device.height
-                    this.fontScale = fontScale
+        //
+        // AND IT IS PUT BACK, in `finally`: the setting is process-wide, and a test that changes the
+        // device for whatever runs after it is a test with a side effect. Putting it back is NOT
+        // enough to make this class safe to share a JVM with -- see "WHY THIS CLASS RUNS IN ITS OWN
+        // GRADLE INVOCATION" at the top of the file.
+        val resolver = RuntimeEnvironment.getApplication().contentResolver
+        val before = Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        Settings.Global.putFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
+        try {
+            devices.forEach { device ->
+                val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+                val activity = controller.get()
+                val view = ComposeView(activity)
+                activity.setContentView(view)
+                var widthPx = 0
+                var heightPx = 0
+                view.setContent {
+                    val cfg = android.content.res.Configuration(LocalConfiguration.current).apply {
+                        screenWidthDp = device.width
+                        screenHeightDp = device.height
+                        this.fontScale = fontScale
+                    }
+                    // Captured from the composition rather than assumed from the qualifiers, so the
+                    // bitmap is the right size whatever density the test host reports.
+                    widthPx = with(LocalDensity.current) { device.width.dp.roundToPx() }
+                    heightPx = with(LocalDensity.current) { device.safeHeight.dp.roundToPx() }
+                    // BOTH, not one. The Configuration is what a composable reading
+                    // `LocalConfiguration.fontScale` sees; LocalDensity is what actually sizes an `sp`.
+                    // Setting only the first scales nothing -- the same trap the fit harness documents.
+                    CompositionLocalProvider(
+                        LocalConfiguration provides cfg,
+                        LocalDensity provides Density(LocalDensity.current.density, fontScale),
+                    ) {
+                        Box(
+                            Modifier.requiredSize(device.width.dp, device.safeHeight.dp),
+                        ) { content() }
+                    }
                 }
-                // Captured from the composition rather than assumed from the qualifiers, so the
-                // bitmap is the right size whatever density the test host reports.
-                widthPx = with(LocalDensity.current) { device.width.dp.roundToPx() }
-                heightPx = with(LocalDensity.current) { device.safeHeight.dp.roundToPx() }
-                // BOTH, not one. The Configuration is what a composable reading
-                // `LocalConfiguration.fontScale` sees; LocalDensity is what actually sizes an `sp`.
-                // Setting only the first scales nothing -- the same trap the fit harness documents.
-                CompositionLocalProvider(
-                    LocalConfiguration provides cfg,
-                    LocalDensity provides Density(LocalDensity.current.density, fontScale),
-                ) {
-                    Box(
-                        Modifier.requiredSize(device.width.dp, device.safeHeight.dp),
-                    ) { content() }
-                }
-            }
-            // Compose schedules its first composition on the main looper; nothing is laid out
-            // until it has run.
-            settle()
-            view.measure(
-                View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
-            )
-            view.layout(0, 0, widthPx, heightPx)
-            settle()
-
-            if (scrolled != null) {
-                scrolled.dispatchRawDelta(100_000f)
+                // Compose schedules its first composition on the main looper; nothing is laid out
+                // until it has run.
                 settle()
+                view.measure(
+                    View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
+                )
                 view.layout(0, 0, widthPx, heightPx)
                 settle()
-            }
 
-            val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
-            view.draw(Canvas(bitmap))
-            val suffix = if (fontScale == 1f) "" else "_fontScale$fontScale"
-            val name = "${ticket}_${state}_${device.width}x${device.height}$suffix.png"
-            written += name
-            File(out, name).outputStream().use {
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                if (scrolled != null) {
+                    scrolled.dispatchRawDelta(100_000f)
+                    settle()
+                    view.layout(0, 0, widthPx, heightPx)
+                    settle()
+                }
+
+                val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+                view.draw(Canvas(bitmap))
+                val suffix = if (fontScale == 1f) "" else "_fontScale$fontScale"
+                val name = "${ticket}_${state}_${device.width}x${device.height}$suffix.png"
+                written += name
+                File(out, name).outputStream().use {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                bitmap.recycle()
+                // DESTROYED, every render. Left alive, each Activity kept its composition running on the
+                // shared main looper -- and one with an animation that never ends (the media step's REC
+                // chip) kept that looper busy for whatever ran next in the same JVM: HarnessSelfTest's
+                // `waitForIdle` spun for sixty seconds and failed whenever the test forks grouped it after
+                // this class (14 Oct 2026, when CheckInFitTest shifted the grouping). It also returns the
+                // memory each render held.
+                controller.pause().stop().destroy()
             }
-            bitmap.recycle()
-            // DESTROYED, every render. Left alive, each Activity kept its composition running on the
-            // shared main looper -- and one with an animation that never ends (the media step's REC
-            // chip) kept that looper busy for whatever ran next in the same JVM: HarnessSelfTest's
-            // `waitForIdle` spun for sixty seconds and failed whenever the test forks grouped it after
-            // this class (14 Oct 2026, when CheckInFitTest shifted the grouping). It also returns the
-            // memory each render held.
-            controller.pause().stop().destroy()
+        } finally {
+            Settings.Global.putFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, before)
         }
     }
 
@@ -869,5 +896,17 @@ class EvidenceScreenshots {
             assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000)
         }
         println("EVIDENCE 178-183: ${written.size} images in ${out.absolutePath}")
+    }
+
+    // The Likes badge (SHOWUP-186 part 2) on the gate's bar: nothing at 0, then a digit, two digits
+    // and the cap, where the pill is widest. One frame is enough -- the bar is the same at every size.
+    @Test
+    fun `the tab bar's likes badge, from none to the cap`() {
+        val iphone = DEVICES.filter { it.width == 390 && it.height == 844 }
+        listOf(0, 3, 42, 120).forEach { n ->
+            shoot("SEARCH-SHELL", "likes-$n", devices = iphone) { CheckInGateScreen(likes = n) }
+        }
+        assertEquals(4, written.size)
+        println("EVIDENCE SEARCH-SHELL: ${written.size} images in ${out.absolutePath}")
     }
 }
