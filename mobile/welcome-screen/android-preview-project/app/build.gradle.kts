@@ -165,6 +165,16 @@ android {
             // Two at once on CI, which has 4 cores and 16 GB, to win that start-up back. One
             // locally: this machine reaps a Gradle run that asks for too much memory.
             if (System.getenv("CI") != null) it.maxParallelForks = 2
+            // THE SCREENSHOT HARNESS RUNS ALONE, in its own invocation: `-Pevidence` runs only it,
+            // and the ordinary run excludes it. It draws real Views with animations off, and a
+            // Compose test sharing its JVM afterwards never goes idle -- three MediaAboveTheFoldTest
+            // failures on PR #143, the day a new class shifted the fork grouping. The reasons are in
+            // the header of EvidenceScreenshots.kt. CI runs both.
+            if (project.hasProperty("evidence")) {
+                it.filter.includeTestsMatching("com.showup.fit.EvidenceScreenshots")
+            } else {
+                it.filter.excludeTestsMatching("com.showup.fit.EvidenceScreenshots")
+            }
         }
     }
 }

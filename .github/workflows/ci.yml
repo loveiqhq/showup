@@ -176,6 +176,13 @@ jobs:
         working-directory: mobile/welcome-screen/android-preview-project
         run: ./gradlew :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest --no-daemon
 
+      # The screenshot harness, on its own: the run above excludes it, because a Compose test that
+      # shares its JVM afterwards never goes idle (PR #143). Its own invocation is its own JVM.
+      # It still runs here because its counts are the tickets' "evidence of done" check.
+      - name: Render the evidence screenshots
+        working-directory: mobile/welcome-screen/android-preview-project
+        run: ./gradlew :app:testDebugUnitTest -Pevidence --no-daemon
+
       # The design conformance checkers. Pure Python, a couple of seconds, and they read BOTH
       # platforms' sources, so a rule changed on one and not the other is caught even when both
       # suites pass. The iOS half is compiled and tested in the `ios` job below.
