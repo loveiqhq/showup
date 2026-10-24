@@ -71,7 +71,13 @@ fun StartupScreen(
     sessionEnded: Boolean = false,
     onSessionNoticeDismissed: () -> Unit = {},
 ) {
-    WelcomeScaffold {
+    // SCROLL ONLY AS A LAST RESORT (`scrollWhenTight`), since the 22 Oct 2026 device audit. A small
+    // Android with 3-button navigation -- 360 x 640 less a 48 dp button bar, 568 dp usable, 24 less
+    // than any phone measured before -- cannot fit this screen even with the gap at its 64 floor,
+    // and without it the bottom band was SQUEEZED: "Log in" came out 32.5 dp tall, a target nobody
+    // can hit. Floored at the viewport, the column is byte-for-byte the old layout wherever the
+    // content fits, and on that one frame it scrolls a few dp instead of shrinking a control.
+    WelcomeScaffold(scrollWhenTight = true) {
         // Where the gap has to yield. The handoff is explicit that 375 x 667 is NOT one of those
         // frames -- there the two spacers below collapse to about 20 each and the 132 survives --
         // so the test is 667, not the 700 it used to be, which yielded one whole frame too early.

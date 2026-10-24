@@ -67,6 +67,9 @@ import org.robolectric.annotation.GraphicsMode
 import java.time.LocalDateTime
 import kotlin.math.abs
 
+/** The tallest phone the six tickets name (430 x 932). Their "every phone" claims are about these. */
+private const val TALLEST_IN_MATRIX = 932
+
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w600dp-h1200dp-xhdpi")
@@ -264,7 +267,12 @@ class CheckInFitTest {
         for (d in DEVICES) {
             val over = overflow(d.width to d.safeHeight) { CheckInVibeScreen(picked = emptySet()) }
             if (d.inAcceptanceCriteria) println("DIAG vibe @$d: ${over}dp past the region")
-            if (over <= 0f) failures += "vibe fits at $d -- the ticket says the groups scroll everywhere"
+            // The ticket's "everywhere" is its matrix, 375 x 667 to 430 x 932. A taller phone (the
+            // Z Flip's 958 dp, added 22 Oct 2026) holds every group, and fitting is right there --
+            // its clipping and off-screen checks are the sweep's, on every device.
+            if (over <= 0f && d.height <= TALLEST_IN_MATRIX) {
+                failures += "vibe fits at $d -- the ticket says the groups scroll everywhere"
+            }
         }
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
@@ -300,7 +308,11 @@ class CheckInFitTest {
             val s = shoot(d.width, d.safeHeight - 300) { CheckInUpliftScreen(text = "I have 2 tickets for the Berghain garden tonight") }
             val cta = s.tag(CHECK_IN_CTA_TAG)
             if (cta.bottom > s.frame + 0.5f) failures += "$d  Find my date under the keyboard (${cta.bottom} > ${s.frame})"
-            if (s.overflow <= 0f) failures += "$d  the body does not scroll with the keyboard up"
+            // Only where the body cannot fit is there anything to scroll: on a phone taller than the
+            // matrix it fits even with the keyboard up, and the CTA check above is what must hold.
+            if (s.overflow <= 0f && d.height <= TALLEST_IN_MATRIX) {
+                failures += "$d  the body does not scroll with the keyboard up"
+            }
         }
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
