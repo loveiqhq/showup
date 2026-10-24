@@ -18,6 +18,7 @@ import {
 import { ProfilesService } from './profiles.service';
 import { STORAGE, type StorageService } from './storage/storage.interface';
 import { VISIBLE_PHOTO_STATUSES } from './util/photo-visibility';
+import { stripImageMetadata } from './util/image-metadata';
 
 const ALLOWED_TYPES = new Map<string, string>([
   ['image/jpeg', 'jpg'],
@@ -65,7 +66,13 @@ export class PhotosService {
     }
 
     const key = `${userId}/${randomUUID()}.${ext}`;
-    await this.storage.save(key, file.buffer, file.mimetype);
+    // Metadata out before the bytes are stored: a photo is shown to other people (Search), and a
+    // camera's EXIF holds where it was taken. See `util/image-metadata.ts`.
+    await this.storage.save(
+      key,
+      stripImageMetadata(file.buffer, file.mimetype),
+      file.mimetype,
+    );
 
     const photo = await this.photos.save(
       this.photos.create({

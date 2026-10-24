@@ -12,6 +12,8 @@
  */
 package com.showup.checkin
 
+import com.showup.api.Outcome
+import com.showup.api.CallFailure
 import com.showup.analytics.JsonNull
 import com.showup.analytics.RecordingAnalytics
 import com.showup.profile.ProfileScreen
@@ -23,6 +25,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
@@ -598,6 +601,120 @@ class CheckInViewModelTest {
         assertEquals(CheckInCopy.FILTERS_TOAST, state.toast)
     }
 
+    // ── 05 from Search's top bar (SHOWUP-184) ───────────────────────────────────────────────────
+
+    /** A committed Check-In and its settings read: the user is on Search. */
+    private fun TestScope.inSearch() {
+        store.held = store.held.copy(active = true, filters = CheckInFilters(setOf("woman"), distanceKm = 20))
+        model.refresh()
+        advanceUntilIdle()
+        analytics.clear()
+    }
+
+    private fun TestScope.filtersFromSearch() {
+        model.searchFiltersOpened()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `Filters from Search opens on the saved settings and is a screen, never a Check-In step`() = runTest(dispatcher) {
+        inSearch()
+        filtersFromSearch()
+        assertEquals(CheckInFilters(setOf("woman"), distanceKm = 20), state.filters)
+        assertEquals(listOf("screen_viewed"), analytics.names())
+        assertEquals("checkin_filters", props("screen_viewed")["screen_id"])
+        assertEquals("search_profile", props("screen_viewed")["referrer_screen_id"])
+    }
+
+    @Test
+    fun `its Continue saves, and goes back only once the save has landed`() = runTest(dispatcher) {
+        inSearch()
+        filtersFromSearch()
+        analytics.clear()
+        model.distanceMoved(5)
+        store.filterScript += 500L to true
+        var back = false
+        model.searchFiltersContinue { back = true }
+        advanceTimeBy(100)
+        assertFalse("a queue read now would still be under the old settings", back)
+        assertTrue(state.saving)
+        advanceUntilIdle()
+        assertTrue(back)
+        assertFalse(state.saving)
+        assertEquals(CheckInFilters(setOf("woman"), distanceKm = 5), store.filters.single())
+        assertEquals(5, state.server!!.filters.distanceKm)
+        assertEquals("the funnel's step event is not fired from Search", listOf("check_in_filters_changed"), analytics.names())
+        assertEquals("distance_km", props("check_in_filters_changed")["filters_changed"])
+    }
+
+    @Test
+    fun `a refused save keeps Filters on screen with its toast, and Continue works again`() = runTest(dispatcher) {
+        inSearch()
+        filtersFromSearch()
+        model.distanceMoved(5)
+        store.filterSaves = false
+        var back = false
+        model.searchFiltersContinue { back = true }
+        // The answer, not the toast's own timer: run what is due, nothing later.
+        runCurrent()
+        assertFalse(back)
+        assertEquals(CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED, state.toast)
+        assertFalse(state.saving)
+        store.filterSaves = true
+        model.searchFiltersContinue { back = true }
+        advanceUntilIdle()
+        assertTrue(back)
+    }
+
+    @Test
+    fun `back and the X drop the edits and never discard the committed Check-In`() = runTest(dispatcher) {
+        inSearch()
+        filtersFromSearch()
+        model.distanceMoved(5)
+        var back = false
+        model.searchFiltersLeft { back = true }
+        assertTrue(back)
+        assertEquals(20, state.filters!!.distanceKm)
+        assertTrue("nothing saved", store.filters.isEmpty())
+        assertTrue(analytics.names().none { it == "check_in_closed" })
+        assertTrue(state.server!!.active)
+        // And the screen is left: its controls no longer act.
+        model.distanceMoved(9)
+        assertEquals(20, state.filters!!.distanceKm)
+    }
+
+    @Test
+    fun `unchanged settings go back with no save, reported as none`() = runTest(dispatcher) {
+        inSearch()
+        filtersFromSearch()
+        var back = false
+        model.searchFiltersContinue { back = true }
+        advanceUntilIdle()
+        assertTrue(back)
+        assertTrue(store.filters.isEmpty())
+        assertEquals("none", props("check_in_filters_changed")["filters_changed"])
+    }
+
+    @Test
+    fun `offline from the start, a stand-in is never saved over the user's settings`() = runTest(dispatcher) {
+        store.reads = false
+        filtersFromSearch()
+        assertEquals(emptySet<String>(), state.filters!!.genders)
+        model.genderTapped("man")
+        var back = false
+        model.searchFiltersContinue { back = true }
+        runCurrent()
+        assertFalse(back)
+        assertTrue(store.filters.isEmpty())
+        assertEquals(CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED, state.toast)
+        // Back online: the read resolves the stand-in -- the edit over the server's -- then it saves.
+        store.reads = true
+        model.searchFiltersContinue { back = true }
+        advanceUntilIdle()
+        assertTrue(back)
+        assertEquals(CheckInFilters(setOf("man")), store.filters.single())
+    }
+
     @Test
     fun `an offline start still gives Filters a working stand-in, replaced by a late read if untouched`() = runTest(dispatcher) {
         store.reads = false
@@ -670,7 +787,7 @@ class CheckInViewModelTest {
     fun `the field is empty on every entry, cut at 100 graphemes, and back keeps it`() = runTest(dispatcher) {
         walkTo(CheckInStep.Uplift)
         assertEquals("", state.uplift)
-        model.upliftChanged("😀".repeat(130))
+        model.upliftChanged("\uD83D\uDE00".repeat(130))
         assertEquals(100, graphemeCount(state.uplift))
         model.upliftChanged("boat")
         model.backPressed(CheckInStep.Uplift) {}
@@ -734,6 +851,43 @@ class CheckInViewModelTest {
             request.slots,
         )
         assertEquals("written", analytics.of("check_in_step_answered").last().properties["answer_value"])
+    }
+
+    // ── the place Search measures from (SHOWUP-184) ─────────────────────────────────────────────
+
+    @Test
+    fun `the commit carries the phone's place, read once per flow, again in a new one`() = runTest(dispatcher) {
+        var reads = 0
+        val here = CheckInPlace(52.4811, 13.4352, "Neukölln, Berlin")
+        model = CheckInViewModel(
+            store, analytics, clock = { now }, zone = { ZoneOffset.UTC }, millis = { ms },
+            places = { reads++; here },
+        )
+        walkTo(CheckInStep.Uplift)
+        store.commitAnswers.add(CommitResult.Network)
+        model.findMyDate {}
+        advanceUntilIdle()
+        model.findMyDate {}
+        advanceUntilIdle()
+        assertEquals(listOf(here, here), store.commits.map { it.place })
+        assertEquals("a retry reuses the fix rather than waiting on another", 1, reads)
+        model.beginFlow()
+        advanceUntilIdle()
+        walkTo(CheckInStep.Uplift)
+        model.findMyDate {}
+        advanceUntilIdle()
+        assertEquals("a new flow reads again", 2, reads)
+    }
+
+    @Test
+    fun `no location, no place -- the commit still goes`() = runTest(dispatcher) {
+        model = CheckInViewModel(store, analytics, clock = { now }, zone = { ZoneOffset.UTC }, millis = { ms }, places = { null })
+        walkTo(CheckInStep.Uplift)
+        var landed = false
+        model.findMyDate { landed = true }
+        advanceUntilIdle()
+        assertTrue(landed)
+        assertNull(store.commits.single().place)
     }
 
     @Test

@@ -45,6 +45,8 @@ struct CommitRequest: Equatable, Sendable {
     let vibes: Set<String>
     /// Trimmed; nil when empty -- the server stores no uplift, never "".
     let uplift: String?
+    /// Where the phone is, and its district: what Search measures from. Nil without location.
+    var place: CheckInPlace? = nil
 }
 
 /// How a commit ended -- each maps to one state of the Uplift screen (story 06).
@@ -154,6 +156,9 @@ struct CheckInRepository: CheckInStoring {
             return .server
         }
         let body = Components.Schemas.CommitCheckInDto(
+            district: request.place?.district,
+            latitude: request.place?.latitude,
+            longitude: request.place?.longitude,
             motivation: Components.Schemas.CommitCheckInDto.motivationPayload(value1: motivation),
             slots: request.slots.map { slot in
                 Components.Schemas.CheckInSlotDto(

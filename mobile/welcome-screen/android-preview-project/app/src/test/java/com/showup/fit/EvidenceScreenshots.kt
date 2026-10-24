@@ -67,6 +67,9 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import kotlin.math.roundToInt
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -215,6 +218,12 @@ class EvidenceScreenshots {
          * AFTER LAYOUT, necessarily: `maxValue` does not exist until the content is measured.
          */
         scrolled: ScrollState? = null,
+        /**
+         * Cuts the image to the content's own height: for a full-length capture, whose frame is
+         * only an upper bound. A fixed tall frame either cut the bottom off or left a band of
+         * nothing under it, and which one depended on how long the content happened to be.
+         */
+        trimToContent: Boolean = false,
         content: @Composable () -> Unit,
     ) {
         // ANIMATIONS OFF, FOR THE WHOLE HARNESS.
@@ -242,6 +251,7 @@ class EvidenceScreenshots {
                 activity.setContentView(view)
                 var widthPx = 0
                 var heightPx = 0
+                var contentPx = 0
                 view.setContent {
                     val cfg = android.content.res.Configuration(LocalConfiguration.current).apply {
                         screenWidthDp = device.width
@@ -261,7 +271,10 @@ class EvidenceScreenshots {
                     ) {
                         Box(
                             Modifier.requiredSize(device.width.dp, device.safeHeight.dp),
-                        ) { content() }
+                        ) {
+                            // A Box hands its child no minimum, so this is the content's natural height.
+                            Box(Modifier.onSizeChanged { contentPx = it.height }) { content() }
+                        }
                     }
                 }
                 // Compose schedules its first composition on the main looper; nothing is laid out
@@ -281,10 +294,12 @@ class EvidenceScreenshots {
                     settle()
                 }
 
-                val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+                val shotPx = if (trimToContent) contentPx.coerceIn(1, heightPx) else heightPx
+                val bitmap = Bitmap.createBitmap(widthPx, shotPx, Bitmap.Config.ARGB_8888)
                 view.draw(Canvas(bitmap))
                 val suffix = if (fontScale == 1f) "" else "_fontScale$fontScale"
-                val name = "${ticket}_${state}_${device.width}x${device.height}$suffix.png"
+                val tall = if (trimToContent) (shotPx / view.resources.displayMetrics.density).roundToInt() else device.height
+                val name = "${ticket}_${state}_${device.width}x$tall$suffix.png"
                 written += name
                 File(out, name).outputStream().use {
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
@@ -908,5 +923,44 @@ class EvidenceScreenshots {
         }
         assertEquals(4, written.size)
         println("EVIDENCE SEARCH-SHELL: ${written.size} images in ${out.absolutePath}")
+    }
+
+    // SHOWUP-184's evidence of done: "screenshots of A, B, C, D and F at 375 x 667, 390 x 844 and
+    // 430 x 932 (fifteen images), plus E as a full-length capture at 390 wide".
+    @Test
+    fun `the search profile, every frame the ticket names`() {
+        val zone = com.showup.search.SearchSamples.ZONE
+        val rest = com.showup.search.SearchSamples.rest()
+        val draft = com.showup.search.messageDraft("Leonie", "today")
+        shoot("SHOWUP-184", "A-rest") { com.showup.search.SearchProfileScreen(rest, zone) }
+        shoot("SHOWUP-184", "B-be-sure") {
+            com.showup.search.SearchProfileScreen(rest.copy(sheet = com.showup.search.LikeSheet.Confirm), zone)
+        }
+        shoot("SHOWUP-184", "C-message") {
+            com.showup.search.SearchProfileScreen(rest.copy(sheet = com.showup.search.LikeSheet.Message, draft = draft), zone)
+        }
+        shoot("SHOWUP-184", "D-minimum") {
+            com.showup.search.SearchProfileScreen(com.showup.search.SearchSamples.rest(com.showup.search.SearchSamples.MINIMUM), zone)
+        }
+        shoot("SHOWUP-184", "F-coach") { com.showup.search.SearchProfileScreen(rest.copy(coach = true), zone) }
+        // E: the whole stack, top bar to TabBar, unscrolled -- the sheet's `tall` frame. Cream painted
+        // here because the screen's frame, which paints it, is what this capture leaves out.
+        val tall = listOf(Device("full length", 390, 8000, 0, 0))
+        shoot("SHOWUP-184", "E-full", devices = tall, trimToContent = true) {
+            androidx.compose.foundation.layout.Column(Modifier.background(com.showup.designsystem.Cream)) {
+                com.showup.search.SearchTopBar(likes = 2, onLikes = {}, onFilters = {})
+                com.showup.search.SearchProfileStack(
+                    profile = com.showup.search.SearchSamples.FULL,
+                    viewer = com.showup.search.SearchSamples.VIEWER,
+                    zone = zone, playback = null, player = null, onOpenPhoto = {}, onTogglePlay = {},
+                )
+                com.showup.designsystem.TabBar(active = com.showup.designsystem.Tab.Search, onTab = {}, likes = 2)
+            }
+        }
+        val atTicketSize = written.filter { it.startsWith("SHOWUP-184") && !it.contains("E-full") }
+        assertEquals("SHOWUP-184 asks for 15 images", 15, atTicketSize.size)
+        assertTrue(written.any { it.contains("E-full") })
+        written.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+        println("EVIDENCE 184: ${written.size} images in ${out.absolutePath}")
     }
 }

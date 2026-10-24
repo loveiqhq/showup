@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -70,7 +71,13 @@ enum class Tab(val label: String, val icon: BrandIcon, val trackingValue: String
 }
 
 /** Fit-harness anchor for one tab. */
-internal fun tabTag(tab: Tab) = "tab-${tab.name.lowercase()}"
+/** Every tab's test tag starts with this. */
+const val TAB_TAG_PREFIX = "tab-"
+
+/** The bar itself, top rule included -- what screens' fit tests measure their bottom edge against. */
+const val TAB_BAR_TAG = "tab-bar"
+
+internal fun tabTag(tab: Tab) = "$TAB_TAG_PREFIX${tab.name.lowercase()}"
 
 /** What the badge reads: the count, capped at `99+` (SHOWUP-186 ②). Null for none at all. */
 fun likesBadgeText(count: Int): String? = when {
@@ -91,7 +98,7 @@ fun likesBadgeLabel(count: Int): String = if (count == 1) "1 open like" else "$c
  */
 @Composable
 fun TabBar(active: Tab, onTab: (Tab) -> Unit, modifier: Modifier = Modifier, likes: Int = 0) {
-    Column(modifier.fillMaxWidth().background(TabBarGlass)) {
+    Column(modifier.fillMaxWidth().background(TabBarGlass).testTag(TAB_BAR_TAG)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(BorderSoft))
         Row(
             Modifier
@@ -149,6 +156,13 @@ fun TabBar(active: Tab, onTab: (Tab) -> Unit, modifier: Modifier = Modifier, lik
  */
 @Composable
 private fun LikesBadge(text: String) {
+    // THE DIGITS DO NOT SCALE WITH THE SYSTEM FONT, on purpose (the Search fit sweep, 22 Oct 2026):
+    // the pill is a fixed 18 tall by spec, and at 2x type an `sp` digit was cut in half inside it.
+    // The count is not lost to anyone -- it is spoken in full in the tab's label ("Likes, 2 open
+    // likes") -- so the badge is drawn like the wordmark, as a mark of a fixed size.
+    val density = LocalDensity.current
+    val digit = with(density) { 10.5.dp.toSp() }
+    val line = with(density) { 18.dp.toSp() }
     Box(
         Modifier
             .layout { measurable, constraints ->
@@ -169,9 +183,9 @@ private fun LikesBadge(text: String) {
             color = Color.White,
             fontFamily = Manrope,
             fontWeight = FontWeight.ExtraBold,
-            fontSize = 10.5.sp,
+            fontSize = digit,
             textAlign = TextAlign.Center,
-            style = TextStyle(fontFeatureSettings = "tnum", lineHeight = 18.sp),
+            style = TextStyle(fontFeatureSettings = "tnum", lineHeight = line),
             maxLines = 1,
         )
     }

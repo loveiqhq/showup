@@ -93,6 +93,13 @@ const PROTECTED: Route[] = [
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },
   { method: 'get', path: '/me/matches' },
+  // search.controller.ts (SHOWUP-184) -- the Search queue carries other people's profiles, and the
+  // dev plan switch is authenticated too: outside production it is a real endpoint, not a public one.
+  { method: 'get', path: '/search/queue' },
+  { method: 'post', path: '/search/passes' },
+  { method: 'post', path: '/me/search-coach/hide' },
+  { method: 'get', path: '/me/likes/open-count' },
+  { method: 'put', path: '/dev/plan-tier' },
   // notification-preferences.controller.ts
   { method: 'get', path: '/me/notification-preferences' },
   { method: 'patch', path: '/me/notification-preferences' },

@@ -27,13 +27,14 @@ actor DevCheckInStore: CheckInStoring {
     private var state: CheckInState
     private var committedWindow: String?
 
-    init(latencyMs: Int = 900, commitMode: DevCommitMode = .saves, introPassed: Bool = false) {
+    /// `active`: already committed -- a jump straight to Search, which the gate would otherwise take back.
+    init(latencyMs: Int = 900, commitMode: DevCommitMode = .saves, introPassed: Bool = false, active: Bool = false) {
         latency = UInt64(max(latencyMs, 0)) * 1_000_000
         self.commitMode = commitMode
         state = CheckInState(
             windowId: UUID().uuidString.lowercased(),
             introPassed: introPassed,
-            active: false,
+            active: active,
             firstCheckIn: true,
             lastMotivation: nil,
             lastVibes: [],
@@ -90,7 +91,7 @@ struct DevState: Identifiable, Equatable, Sendable {
     let label: String
 }
 
-/// Every frame of SHOWUP-178 to 183's evidence, in ticket order -- plus How it works open.
+/// Every frame of SHOWUP-178 to 184's evidence, in ticket order -- plus the states between them.
 /// Android's `DEV_STATES`, row for row.
 let devStates: [DevState] = [
     DevState(id: "178A", ticket: "SHOWUP-178 Intro + gate", label: "A · Intro"),
@@ -116,6 +117,16 @@ let devStates: [DevState] = [
     DevState(id: "183C", ticket: "SHOWUP-183 Uplift", label: "C · Contact info, blocked"),
     DevState(id: "183D", ticket: "SHOWUP-183 Uplift", label: "D · Saving"),
     DevState(id: "183E", ticket: "SHOWUP-183 Uplift", label: "E · Save failed"),
+    DevState(id: "184A", ticket: "SHOWUP-184 Search profile", label: "A · At rest, full profile"),
+    DevState(id: "184B", ticket: "SHOWUP-184 Search profile", label: "B · Be sure"),
+    DevState(id: "184C", ticket: "SHOWUP-184 Search profile", label: "C · Optional message"),
+    DevState(id: "184D", ticket: "SHOWUP-184 Search profile", label: "D · Minimum content"),
+    DevState(id: "184F", ticket: "SHOWUP-184 Search profile", label: "F · Actions coach"),
+    DevState(id: "184-voice", ticket: "SHOWUP-184 Search profile", label: "Voice note playing"),
+    DevState(id: "184-viewer", ticket: "SHOWUP-184 Search profile", label: "Photo viewer, photo 3"),
+    DevState(id: "184-loading", ticket: "SHOWUP-184 Search profile", label: "Loading"),
+    DevState(id: "184-failed", ticket: "SHOWUP-184 Search profile", label: "Could not load (offline)"),
+    DevState(id: "184-empty", ticket: "SHOWUP-184 Search profile", label: "No results (proposed copy)"),
 ]
 
 /// The tickets, in the order their frames are listed.
@@ -132,6 +143,8 @@ enum DevFrame: Equatable, CaseIterable {
     case vibeEmpty, vibeToast, vibeThree, vibeFive, vibeFiveEnd
     case filtersPrefilled, filtersNoGender, filtersNarrowed
     case upliftEmpty, upliftTyping, upliftBlocked, upliftSaving, upliftFailed
+    case searchRest, searchBeSure, searchMessage, searchMinimum, searchCoach
+    case searchVoice, searchViewer, searchLoading, searchFailed, searchEmpty
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -158,6 +171,16 @@ enum DevFrame: Equatable, CaseIterable {
         case "183C": return .upliftBlocked
         case "183D": return .upliftSaving
         case "183E": return .upliftFailed
+        case "184A": return .searchRest
+        case "184B": return .searchBeSure
+        case "184C": return .searchMessage
+        case "184D": return .searchMinimum
+        case "184F": return .searchCoach
+        case "184-voice": return .searchVoice
+        case "184-viewer": return .searchViewer
+        case "184-loading": return .searchLoading
+        case "184-failed": return .searchFailed
+        case "184-empty": return .searchEmpty
         default: return nil
         }
     }
@@ -169,6 +192,13 @@ private let fiveVibes: Set<String> = ["coffee_chat", "sunset", "deep_talk", "pla
 private let typingText = "I have 2 tickets for the Berghain garden tonight and nobody to go with"
 private let contactText = "Text me on 0176 2345 6789 and we'll grab a drink tonight"
 private let writtenText = "I'll take you on a rafting tour on Wannsee — picnic included"
+
+/// The Search profile at rest with one change -- a sheet, the coach, a playing card.
+private func searchFrame(_ change: (inout SearchUiState) -> Void) -> SearchUiState {
+    var s = SearchSamples.rest()
+    change(&s)
+    return s
+}
 
 /// The frame for one `devStates` id.
 struct CheckInGalleryFrame: View {
@@ -212,6 +242,26 @@ struct CheckInGalleryFrame: View {
             CheckInUpliftView(text: contactText, blocked: true, toast: CheckInCopy.contactError, toastTick: 1, onBack: leave, onClose: leave)
         case .upliftSaving?: CheckInUpliftView(text: writtenText, saving: true, onBack: leave, onClose: leave)
         case .upliftFailed?: CheckInUpliftView(text: writtenText, saveFailed: true, onBack: leave, onClose: leave)
+        case .searchRest?: SearchProfileView(state: SearchSamples.rest(), zone: SearchSamples.zone)
+        case .searchBeSure?:
+            SearchProfileView(state: searchFrame { $0.sheet = .confirm }, zone: SearchSamples.zone, onCancelConfirm: leave)
+        case .searchMessage?:
+            SearchProfileView(state: searchFrame { $0.sheet = .message; $0.draft = messageDraft("Leonie", "today") },
+                              zone: SearchSamples.zone, onDismissMessage: leave)
+        case .searchMinimum?: SearchProfileView(state: SearchSamples.rest(SearchSamples.minimum), zone: SearchSamples.zone)
+        case .searchCoach?:
+            SearchProfileView(state: searchFrame { $0.coach = true }, zone: SearchSamples.zone, onCoachDone: { _, _ in leave() })
+        case .searchVoice?:
+            SearchProfileView(state: searchFrame { $0.playback = SearchPlayback(kind: .voice, positionMs: 6_000, durationMs: 14_000) },
+                              zone: SearchSamples.zone)
+        case .searchViewer?:
+            SearchProfileView(state: searchFrame { $0.viewerAt = 2 }, zone: SearchSamples.zone, onCloseViewer: leave)
+        case .searchLoading?: SearchProfileView(state: SearchUiState(), zone: SearchSamples.zone)
+        case .searchFailed?:
+            SearchProfileView(state: { var s = SearchUiState(); s.loading = false; s.failure = .network; return s }(),
+                              zone: SearchSamples.zone)
+        case .searchEmpty?:
+            SearchProfileView(state: { var s = SearchUiState(); s.loading = false; return s }(), zone: SearchSamples.zone)
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
             Text("Unknown state \(state)")

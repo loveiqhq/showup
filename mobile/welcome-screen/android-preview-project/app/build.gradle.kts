@@ -224,6 +224,14 @@ dependencies {
     // kotlinx.serialization, which the build already has; it matches lifecycle 2.8.7 and BOM 2024.10.
     implementation("androidx.navigation:navigation-compose:2.8.3")
 
+    // ── other people's photos (Date search, SHOWUP-184) ─────────────────────────
+    //
+    // The first screen that shows photos from a URL: everything before drew the user's own picks
+    // from local URIs. Coil 2.7 rather than 3: it fetches over OkHttp 4.12, the version the API
+    // client already ships, so nothing here pulls a second HTTP stack or upgrades Compose (it is
+    // built against 1.6, under the 2024.10 BOM). It brings its own R8 rules.
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
     // Google's libphonenumber — Apache 2.0, free, offline. It carries the real numbering rules for
     // every country, which is what makes a full country list possible: hand-writing length and
     // mobile-prefix rules for 250 countries would mean guessing, and a wrong guess rejects a real

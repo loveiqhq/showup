@@ -106,8 +106,11 @@ final class FlowScreenTests: XCTestCase {
         // The 48hrs Check-In (SHOWUP-178 to 183) adds ten, for forty: the gate, the intro, the six
         // steps, and the two tab placeholders Search and Settings. The No hours today? confirm and
         // How it works are states of Today, not positions.
-        XCTAssertEqual(FlowScreen.allCases.count, 40)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 40)
+        //
+        // Search 01 (SHOWUP-184) adds one, for forty-one: searchFilters, Check-In 05's Filters
+        // reached from Search's filter button -- its own position, because the way back is Search.
+        XCTAssertEqual(FlowScreen.allCases.count, 41)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 41)
     }
 
     /// The Check-In walks forward in step order and every back reads backward; the gate sits
@@ -127,7 +130,8 @@ final class FlowScreenTests: XCTestCase {
     func testWhichScreensAreTheCheckInAndWhichAreItsSteps() {
         let checkIn = FlowScreen.allCases.filter(\.isCheckIn)
         XCTAssertEqual(checkIn, [.checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
-                                 .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings])
+                                 .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters,
+                                 .checkInSettings])
         XCTAssertEqual(FlowScreen.allCases.filter(\.isCheckInStep),
                        [.checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation, .checkInVibe,
                         .checkInFilters, .checkInUplift])

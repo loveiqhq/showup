@@ -75,6 +75,7 @@ fun FlowScreen.devSection(): DevSection = when (this) {
     FlowScreen.CheckInFilters,
     FlowScreen.CheckInUplift,
     FlowScreen.CheckInSearch,
+    FlowScreen.SearchFilters,
     FlowScreen.CheckInSettings,
     -> DevSection.CheckIn
     FlowScreen.Home -> DevSection.Home
@@ -119,7 +120,8 @@ fun FlowScreen.devLabel(): String = when (this) {
     FlowScreen.CheckInVibe -> "4 · Vibe"
     FlowScreen.CheckInFilters -> "5 · Filters"
     FlowScreen.CheckInUplift -> "6 · Uplift + Find my date"
-    FlowScreen.CheckInSearch -> "Search, unlocked (placeholder)"
+    FlowScreen.CheckInSearch -> "Search 01 · Profile"
+    FlowScreen.SearchFilters -> "Search · Filters"
     FlowScreen.CheckInSettings -> "Settings (placeholder)"
     FlowScreen.Home -> "Home (placeholder)"
 }
@@ -198,7 +200,7 @@ fun devJump(
  */
 data class DevState(val id: String, val ticket: String, val label: String)
 
-/** Every frame of SHOWUP-178 to 183's evidence, in ticket order -- plus How it works open. */
+/** Every frame of SHOWUP-178 to 184's evidence, in ticket order -- plus the states between them. */
 val DEV_STATES: List<DevState> = listOf(
     DevState("178A", "SHOWUP-178 Intro + gate", "A · Intro"),
     DevState("178B", "SHOWUP-178 Intro + gate", "B · Date search not available"),
@@ -223,6 +225,16 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("183C", "SHOWUP-183 Uplift", "C · Contact info, blocked"),
     DevState("183D", "SHOWUP-183 Uplift", "D · Saving"),
     DevState("183E", "SHOWUP-183 Uplift", "E · Save failed"),
+    DevState("184A", "SHOWUP-184 Search profile", "A · At rest, full profile"),
+    DevState("184B", "SHOWUP-184 Search profile", "B · Be sure"),
+    DevState("184C", "SHOWUP-184 Search profile", "C · Optional message"),
+    DevState("184D", "SHOWUP-184 Search profile", "D · Minimum content"),
+    DevState("184F", "SHOWUP-184 Search profile", "F · Actions coach"),
+    DevState("184-voice", "SHOWUP-184 Search profile", "Voice note playing"),
+    DevState("184-viewer", "SHOWUP-184 Search profile", "Photo viewer, photo 3"),
+    DevState("184-loading", "SHOWUP-184 Search profile", "Loading"),
+    DevState("184-failed", "SHOWUP-184 Search profile", "Could not load (offline)"),
+    DevState("184-empty", "SHOWUP-184 Search profile", "No results (proposed copy)"),
 )
 
 /** The gallery activity, named by string: it exists in debug builds only, so main code cannot import it. */

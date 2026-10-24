@@ -267,6 +267,9 @@ export class CheckInFlowService {
       window.motivation = dto.motivation;
       window.vibes = canonicalVibes(dto.vibes);
       window.uplift = uplift;
+      // Only with a place: a district with no location would name somewhere nothing measures from.
+      window.district =
+        dto.latitude != null ? dto.district?.trim() || null : null;
       window = await windows.save(window);
 
       // The answers committed are the last answers, too.

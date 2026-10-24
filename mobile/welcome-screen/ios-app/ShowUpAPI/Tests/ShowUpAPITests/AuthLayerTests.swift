@@ -30,7 +30,7 @@ final class AuthLayerTests: XCTestCase {
         {"accessToken":"new-access","refreshToken":"new-refresh","tokenType":"Bearer",\
         "expiresIn":900,"user":{"id":"u1","phone":"+4917612345678","email":null,\
         "displayName":null,"status":"active","phoneVerified":true,"emailVerified":false,\
-        "createdAt":"2026-09-04T10:00:00Z"}}
+        "createdAt":"2026-09-04T10:00:00Z","planTier":"freemium","searchCoachHidden":false}}
         """
 
     private static let otpChallenge = """

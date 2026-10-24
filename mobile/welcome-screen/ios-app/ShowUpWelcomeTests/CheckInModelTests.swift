@@ -99,6 +99,20 @@ private actor FakeStore: CheckInStoring {
     }
 }
 
+/// A place reader that answers from memory and counts its reads.
+@MainActor
+private final class FakePlaces: PlaceReading {
+    let place: CheckInPlace?
+    private(set) var reads = 0
+
+    init(_ place: CheckInPlace?) { self.place = place }
+
+    func here() async -> CheckInPlace? {
+        reads += 1
+        return place
+    }
+}
+
 @MainActor
 final class CheckInModelTests: XCTestCase {
 
@@ -686,6 +700,153 @@ final class CheckInModelTests: XCTestCase {
                        "the gender the user ticked, the ages and distance they never saw")
         let commits = await store.commits
         XCTAssertEqual(commits.count, 1)
+    }
+
+    // MARK: - 05 from Search's top bar (SHOWUP-184)
+
+    /// A committed Check-In and its settings read: the user is on Search.
+    private func inSearch() async {
+        var held = await store.held
+        held.active = true
+        held.filters = CheckInFilters(genders: ["woman"], distanceKm: 20)
+        await store.setHeld(held)
+        model.refresh()
+        await settle()
+        analytics.clear()
+    }
+
+    private func filtersFromSearch() async {
+        model.searchFiltersOpened()
+        await settle()
+    }
+
+    func testFiltersFromSearchOpensOnTheSavedSettingsAndIsAScreenNeverACheckInStep() async {
+        await inSearch()
+        await filtersFromSearch()
+        XCTAssertEqual(state.filters, CheckInFilters(genders: ["woman"], distanceKm: 20))
+        XCTAssertEqual(analytics.names, ["screen_viewed"])
+        XCTAssertEqual(props("screen_viewed")["screen_id"] as? String, "checkin_filters")
+        XCTAssertEqual(props("screen_viewed")["referrer_screen_id"] as? String, "search_profile")
+    }
+
+    func testItsContinueSavesAndGoesBackOnlyOnceTheSaveHasLanded() async {
+        await inSearch()
+        await filtersFromSearch()
+        analytics.clear()
+        model.distanceMoved(5)
+        await store.scriptFilterSaves([(300_000_000, true)])
+        var back = false
+        model.searchFiltersContinue { back = true }
+        await settle(0.05)
+        XCTAssertFalse(back, "a queue read now would still be under the old settings")
+        XCTAssertTrue(state.saving)
+        await settle(0.4)
+        XCTAssertTrue(back)
+        XCTAssertFalse(state.saving)
+        let bodies = await store.filterBodies
+        XCTAssertEqual(bodies, [CheckInFilters(genders: ["woman"], distanceKm: 5)])
+        XCTAssertEqual(state.server?.filters.distanceKm, 5)
+        XCTAssertEqual(analytics.names, ["check_in_filters_changed"], "the funnel's step event is not fired from Search")
+        XCTAssertEqual(props("check_in_filters_changed")["filters_changed"] as? String, "distance_km")
+    }
+
+    func testARefusedSaveKeepsFiltersOnScreenWithItsToastAndContinueWorksAgain() async {
+        await inSearch()
+        await filtersFromSearch()
+        model.distanceMoved(5)
+        await store.setFilterSaves(false)
+        var back = false
+        model.searchFiltersContinue { back = true }
+        await settle(0.05)
+        XCTAssertFalse(back)
+        XCTAssertEqual(state.toast, CheckInCopy.filtersSaveErrorProposed)
+        XCTAssertFalse(state.saving)
+        await store.setFilterSaves(true)
+        model.searchFiltersContinue { back = true }
+        await settle()
+        XCTAssertTrue(back)
+    }
+
+    func testBackAndTheCloseDropTheEditsAndNeverDiscardTheCommittedCheckIn() async {
+        await inSearch()
+        await filtersFromSearch()
+        model.distanceMoved(5)
+        var back = false
+        model.searchFiltersLeft { back = true }
+        XCTAssertTrue(back)
+        XCTAssertEqual(state.filters?.distanceKm, 20)
+        let bodies = await store.filterBodies
+        XCTAssertTrue(bodies.isEmpty, "nothing saved")
+        XCTAssertFalse(analytics.names.contains("check_in_closed"))
+        XCTAssertEqual(state.server?.active, true)
+        // And the screen is left: its controls no longer act.
+        model.distanceMoved(9)
+        XCTAssertEqual(state.filters?.distanceKm, 20)
+    }
+
+    func testUnchangedSettingsGoBackWithNoSaveReportedAsNone() async {
+        await inSearch()
+        await filtersFromSearch()
+        var back = false
+        model.searchFiltersContinue { back = true }
+        await settle()
+        XCTAssertTrue(back)
+        let bodies = await store.filterBodies
+        XCTAssertTrue(bodies.isEmpty)
+        XCTAssertEqual(props("check_in_filters_changed")["filters_changed"] as? String, "none")
+    }
+
+    func testOfflineFromTheStartAStandInIsNeverSavedOverTheUsersSettings() async {
+        await store.setReads(false)
+        await filtersFromSearch()
+        XCTAssertEqual(state.filters?.genders, [])
+        model.genderTapped("man")
+        var back = false
+        model.searchFiltersContinue { back = true }
+        await settle(0.05)
+        XCTAssertFalse(back)
+        var bodies = await store.filterBodies
+        XCTAssertTrue(bodies.isEmpty)
+        XCTAssertEqual(state.toast, CheckInCopy.filtersSaveErrorProposed)
+        // Back online: the read resolves the stand-in -- the edit over the server's -- then it saves.
+        await store.setReads(true)
+        model.searchFiltersContinue { back = true }
+        await settle()
+        XCTAssertTrue(back)
+        bodies = await store.filterBodies
+        XCTAssertEqual(bodies, [CheckInFilters(genders: ["man"])])
+    }
+
+    // MARK: - the place Search measures from (SHOWUP-184)
+
+    func testTheCommitCarriesThePhonesPlaceReadOncePerFlowAgainInANewOne() async {
+        let places = FakePlaces(CheckInPlace(latitude: 52.4811, longitude: 13.4352, district: "Neukölln, Berlin"))
+        model = CheckInModel(store: store, analytics: analytics,
+                             clock: { [unowned self] in self.now }, zone: { TimeZone(secondsFromGMT: 0) ?? .current },
+                             millis: { [unowned self] in self.ms }, toastSeconds: 0.5, places: places)
+        await walkTo(.uplift)
+        await store.answerCommits([.network])
+        await model.findMyDate {}
+        await model.findMyDate {}
+        let commits = await store.commits
+        XCTAssertEqual(commits.map(\.place), [places.place, places.place])
+        XCTAssertEqual(places.reads, 1, "a retry reuses the fix rather than waiting on another")
+        await walkTo(.uplift)
+        await model.findMyDate {}
+        XCTAssertEqual(places.reads, 2, "a new flow reads again")
+    }
+
+    func testNoLocationNoPlaceAndTheCommitStillGoes() async {
+        let places = FakePlaces(nil)
+        model = CheckInModel(store: store, analytics: analytics,
+                             clock: { [unowned self] in self.now }, zone: { TimeZone(secondsFromGMT: 0) ?? .current },
+                             millis: { [unowned self] in self.ms }, toastSeconds: 0.5, places: places)
+        await walkTo(.uplift)
+        var landed = false
+        await model.findMyDate { landed = true }
+        XCTAssertTrue(landed)
+        let commits = await store.commits
+        XCTAssertNil(commits.first?.place)
     }
 
     // MARK: - 06: uplift and the commit

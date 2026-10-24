@@ -26,6 +26,17 @@ export enum UserStatus {
   Deleted = 'deleted',
 }
 
+/**
+ * The plan, which picks the Search surface (Date search epic rule 2): Freemium gets one profile at
+ * a time (Search 01), Premium the grid and Likes received (02, 03). Nothing sells Premium yet -- the
+ * likes upsell and billing are their own stories -- so it is set only by a person, through the dev
+ * menu outside production. Epic 9's entitlements replace that setter, not this column.
+ */
+export enum PlanTier {
+  Freemium = 'freemium',
+  Premium = 'premium',
+}
+
 /** Authorization role. Minimal admin support (seeds Epic 19). */
 export enum UserRole {
   User = 'user',
@@ -105,6 +116,22 @@ export class User {
     default: ModerationStanding.Active,
   })
   moderationStanding: ModerationStanding;
+
+  @Column({
+    name: 'plan_tier',
+    type: 'enum',
+    enum: PlanTier,
+    enumName: 'users_plan_tier_enum',
+    default: PlanTier.Freemium,
+  })
+  planTier: PlanTier;
+
+  /**
+   * The Search actions coach's one stored act (Search 01, F): `Don't show again`. Server-side so it
+   * never shows again on any device. `Got it`, a scrim tap and Android back never set it.
+   */
+  @Column({ name: 'search_coach_hidden', type: 'boolean', default: false })
+  searchCoachHidden: boolean;
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;

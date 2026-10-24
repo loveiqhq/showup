@@ -55,7 +55,7 @@ import type {
  * value added to any of these sets would make every older app fail to load its own profile. A
  * string decodes whatever comes; the app maps the values it knows and treats the rest as unknown.
  */
-function answerSet(values: readonly string[]): string {
+export function answerSet(values: readonly string[]): string {
   return `One of: ${values.join(', ')}. Read tolerantly: a newer server may add values.`;
 }
 

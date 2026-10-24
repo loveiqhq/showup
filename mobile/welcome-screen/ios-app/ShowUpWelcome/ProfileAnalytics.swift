@@ -136,6 +136,8 @@ enum ProfileScreen: String {
     case checkinVibe = "checkin_vibe"
     case checkinFilters = "checkin_filters"
     case checkinUplift = "checkin_uplift"
+    /// Search 01 (SHOWUP-184): the Search tab with a committed Check-In -- the profile, one up.
+    case searchProfile = "search_profile"
 
     var screenId: String { rawValue }
 
@@ -173,6 +175,7 @@ enum ProfileScreen: String {
         case .checkinVibe: return "CheckinVibe"
         case .checkinFilters: return "CheckinFilters"
         case .checkinUplift: return "CheckinUplift"
+        case .searchProfile: return "Search - Profile"
         }
     }
 }

@@ -110,6 +110,8 @@ data class DevMenuFacts(
     val notificationsAsk: Boolean,
     val oldAndroid: Boolean,
     val location: LocationArrival,
+    /** The account's plan, as Search last read it -- `plan_tier`, Freemium until payments exist. */
+    val premium: Boolean = false,
 )
 
 private enum class DevTabPage { Screens, States, Events }
@@ -126,6 +128,8 @@ fun DevMenu(
     onTestServer: (FlowScreen) -> Unit = {},
     /** One ticket frame, opened in its exact state -- the States page. */
     onOpenState: (DevState) -> Unit = {},
+    /** The plan switch: the server's dev-only route, a 404 in production. */
+    onPremium: (Boolean) -> Unit = {},
 ) {
     var page by rememberSaveable { mutableStateOf(DevTabPage.Screens) }
     // A text field on the screen underneath keeps its keyboard up over the menu otherwise.
@@ -161,7 +165,7 @@ fun DevMenu(
             DevPageTab("Events (${events.size})", page == DevTabPage.Events) { page = DevTabPage.Events }
         }
         when (page) {
-            DevTabPage.Screens -> ScreensPage(facts, onJump, onTestServer, onHideTab)
+            DevTabPage.Screens -> ScreensPage(facts, onJump, onTestServer, onHideTab, onPremium)
             DevTabPage.States -> StatesPage(onOpenState)
             DevTabPage.Events -> EventsPage(events, onClearEvents)
         }
@@ -174,6 +178,7 @@ private fun ScreensPage(
     onJump: (FlowScreen) -> Unit,
     onTestServer: (FlowScreen) -> Unit,
     onHideTab: () -> Unit,
+    onPremium: (Boolean) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -189,6 +194,17 @@ private fun ScreensPage(
             ) {
                 Text("Hide the DEV tab until the app is next opened", color = Muted, fontFamily = Manrope, fontSize = 13.sp, modifier = Modifier.weight(1f))
                 Switch(checked = false, onCheckedChange = { if (it) onHideTab() })
+            }
+            // The account's plan, until payments exist (decided 21 Oct 2026). Signed in only: it is a
+            // write to this account on this server.
+            if (facts.signedIn == true) {
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = ComponentSizes.controlHeightMedium),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Premium plan (date search)", color = Muted, fontFamily = Manrope, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Switch(checked = facts.premium, onCheckedChange = onPremium)
+                }
             }
         }
         DevSection.entries.forEach { section ->

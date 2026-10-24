@@ -213,7 +213,10 @@ class FlowRestorationTest {
         // Ten with the 48hrs Check-In (SHOWUP-178 to SHOWUP-183), for forty: the gate, the intro, the
         // six steps, and the two tabs it hands over to (Search unlocked, Settings) -- none a resume
         // point; a launch past profile creation goes to the gate or Search by the server's state.
-        assertEquals(40, FlowScreen.entries.size)
+        //
+        // One with Search 01 (SHOWUP-184), for forty-one: SearchFilters, Check-In 05's Filters
+        // reached from Search's filter button -- its own position, because the way back is Search.
+        assertEquals(41, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

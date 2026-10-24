@@ -19,10 +19,10 @@ export enum PhotoModerationStatus {
  * A profile photo. The image bytes live in object storage (see StorageService); only metadata is
  * kept here — the storage key, content type, ordering, and moderation status.
  *
- * NOT YET STRIPPED: uploads are stored exactly as received, so a photo still carries whatever EXIF
- * the phone embedded — including GPS coordinates when location services were on. SHOWUP-34 required
- * this ("Photo metadata does not expose unsafe information") but nothing implements it. Stripping
- * falls out of re-encoding, so it arrives with the image-resizing work on SHOWUP-119.
+ * METADATA IS STRIPPED ON UPLOAD (`util/image-metadata.ts`, with Search 01, SHOWUP-184): EXIF,
+ * XMP and the text chunks -- where a camera writes the GPS position -- never reach storage.
+ * Re-encoding and resizing on the server still arrive with SHOWUP-119. Photos stored before
+ * 22 Oct 2026 were not stripped here; both apps re-encode before upload, which writes no EXIF.
  */
 @Entity('profile_photos')
 export class ProfilePhoto {

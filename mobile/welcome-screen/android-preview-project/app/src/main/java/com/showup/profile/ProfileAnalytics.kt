@@ -180,6 +180,14 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     CheckinVibe("checkin_vibe", "CheckinVibe"),
     CheckinFilters("checkin_filters", "CheckinFilters"),
     CheckinUplift("checkin_uplift", "CheckinUplift"),
+
+    /**
+     * Date search 01 (SHOWUP-184): the Search tab with an active Check-In. Registry 1.4.26 names it
+     * `Search - Profile`, not PascalCase like the rows above -- the registry is the authority.
+     * ONE VIEW PER VISIT: the next profile is the same screen (per-profile reach is
+     * `profile_card_viewed`).
+     */
+    SearchProfile("search_profile", "Search - Profile"),
 }
 
 /**
