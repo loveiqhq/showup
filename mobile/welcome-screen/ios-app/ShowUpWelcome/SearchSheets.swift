@@ -13,6 +13,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// `ModalShell`'s `backdrop-filter: blur(8px)` -- NOT `blurBehindSheet`'s 1.5, the profile flow's
 /// "softening". Borrowing that one put this sheet over a screen barely softened (the 184 evidence
@@ -26,10 +27,19 @@ private let loraNormalLine: CGFloat = 1.28
 /// The kit's `Button size="md"`: 48 tall, 15 type.
 private let sheetButtonHeight: CGFloat = 48
 
+/// The id at the very end of a sheet's surface, for `endOnKeyboard`. File scope because a generic
+/// type cannot hold a static stored property; a `let` String, so nothing for concurrency to question.
+private let searchSheetEnd = "search.sheet.end"
+
 /// Search's `ModalShell` surface inside the app's one sheet behaviour.
 struct SearchSheet<Content: View>: View {
     let label: String
     let onDismiss: (SheetDismissMethod) -> Void
+    /// When the keyboard comes up, scroll to the sheet's end -- Android's `endOnKeyboard`. On a short
+    /// phone the message sheet outgrows the space above the keys, and its two buttons would sit
+    /// behind them until the user thought to scroll; at the end, the field, the counter and both
+    /// buttons show together.
+    var endOnKeyboard = false
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -41,7 +51,13 @@ struct SearchSheet<Content: View>: View {
                     Spacer(minLength: 0)
                     ViewThatFits(in: .vertical) {
                         surface
-                        ScrollView { surface }.scrollBounceBehavior(.basedOnSize)
+                        ScrollViewReader { proxy in
+                            ScrollView { surface }
+                                .scrollBounceBehavior(.basedOnSize)
+                                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
+                                    if endOnKeyboard { proxy.scrollTo(searchSheetEnd, anchor: .bottom) }
+                                }
+                        }
                     }
                     .frame(maxHeight: cap)
                     .background(
@@ -67,6 +83,7 @@ struct SearchSheet<Content: View>: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) { content() }
                 .padding(24)
+            Color.clear.frame(height: 0).id(searchSheetEnd)
         }
         .frame(maxWidth: .infinity)
     }
@@ -157,7 +174,8 @@ struct MessageSheet: View {
     let onSend: () -> Void
 
     var body: some View {
-        SearchSheet(label: SearchCopy.messageTitleEmphasis + SearchCopy.messageTitleRest(name), onDismiss: onDismiss) {
+        SearchSheet(label: SearchCopy.messageTitleEmphasis + SearchCopy.messageTitleRest(name), onDismiss: onDismiss,
+                    endOnKeyboard: true) {
             // CSS `normal`, Lora's own 1.28: at 375 the title takes two lines.
             WashHeadline(parts: [(SearchCopy.messageTitleEmphasis, true), (SearchCopy.messageTitleRest(name), false)],
                          fontSize: 26, lineHeightMultiple: loraNormalLine, trackingEm: -0.01)

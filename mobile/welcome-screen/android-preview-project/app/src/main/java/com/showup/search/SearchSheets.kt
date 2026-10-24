@@ -18,7 +18,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -113,9 +117,28 @@ private const val LORA_NORMAL_LINE = 1.28f
 /** The kit's `Button size="md"`: 48 tall, 15 type. */
 private val SHEET_BUTTON_HEIGHT = 48.dp
 
-/** Search's `ModalShell` surface inside the app's one sheet behaviour. */
+/**
+ * Search's `ModalShell` surface inside the app's one sheet behaviour.
+ *
+ * @param endOnKeyboard while the keyboard is up, keep the sheet scrolled to its end. On a short
+ *   phone the message sheet outgrows the space above the keys, and its two buttons would sit behind
+ *   them until the user thought to scroll; held at the end, the field, the counter and both buttons
+ *   show together. Pinned again only when the scroll range changes -- the keyboard rising, the field
+ *   growing a line -- so a user who scrolls up to read keeps their place.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SearchSheet(label: String, onDismiss: (SheetDismissMethod) -> Unit, content: @Composable ColumnScope.() -> Unit) {
+private fun SearchSheet(
+    label: String,
+    onDismiss: (SheetDismissMethod) -> Unit,
+    endOnKeyboard: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val scroll = rememberScrollState()
+    val keyboard = endOnKeyboard && WindowInsets.isImeVisible
+    LaunchedEffect(keyboard) {
+        if (keyboard) snapshotFlow { scroll.maxValue }.collect { scroll.scrollTo(it) }
+    }
     SheetScaffold(onDismiss = onDismiss) {
         // The scaffold keeps the sheet above the gesture bar (or the keyboard); the kit's sheet runs
         // to the bottom edge, so its colour is painted down into that inset too -- otherwise a strip
@@ -135,7 +158,7 @@ private fun SearchSheet(label: String, onDismiss: (SheetDismissMethod) -> Unit, 
                     .roundedShadows(SolidColor(Cream), 28.dp, SheetLift)
                     // Square bottom corners: docked to the edge, so only the top two round.
                     .background(Cream, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scroll)
                     .semantics {
                         dialog()
                         paneTitle = label
@@ -245,7 +268,11 @@ fun MessageSheet(
     onSkip: () -> Unit,
     onSend: () -> Unit,
 ) {
-    SearchSheet(label = SearchCopy.MESSAGE_TITLE_EMPHASIS + SearchCopy.MESSAGE_TITLE_REST.format(name), onDismiss = onDismiss) {
+    SearchSheet(
+        label = SearchCopy.MESSAGE_TITLE_EMPHASIS + SearchCopy.MESSAGE_TITLE_REST.format(name),
+        onDismiss = onDismiss,
+        endOnKeyboard = true,
+    ) {
         WashHeadline(
             parts = listOf(SearchCopy.MESSAGE_TITLE_EMPHASIS to true, SearchCopy.MESSAGE_TITLE_REST.format(name) to false),
             fontSize = 26.sp,

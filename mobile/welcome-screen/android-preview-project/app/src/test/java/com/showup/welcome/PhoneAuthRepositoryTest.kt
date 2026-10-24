@@ -68,7 +68,8 @@ class PhoneAuthRepositoryTest {
         """{"accessToken":"$access","refreshToken":"$refresh","tokenType":"Bearer",""" +
             """"expiresIn":900,"user":{"id":"u1","phone":"+4917612345678",""" +
             """"email":"leo@hey.com","displayName":"Leo","status":"registered",""" +
-            """"phoneVerified":true,"emailVerified":false,"createdAt":"2026-09-10T10:00:00Z"}}"""
+            """"phoneVerified":true,"emailVerified":false,"createdAt":"2026-09-10T10:00:00Z",""" +
+            """"planTier":"freemium","searchCoachHidden":false}}"""
 
     private fun profile(isComplete: Boolean) =
         """{"id":"p1","displayName":"Leo","age":31,"gender":null,"lookingFor":null,""" +

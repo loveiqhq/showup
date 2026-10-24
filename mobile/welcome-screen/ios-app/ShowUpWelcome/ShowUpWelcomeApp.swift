@@ -338,6 +338,9 @@ private struct TutorialFlow: View {
     /// outside the app. A return from `.inactive` alone is a system alert -- our own permission
     /// sheet among them -- and is absorbed, never reported.
     @State private var leftForBackground = false
+    /// The same fact for Search, kept apart: the handler above resets its flag, and the order in
+    /// which two `onChange` closures on one value run is not something to rely on.
+    @State private var searchLeftForBackground = false
 
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
@@ -1537,12 +1540,18 @@ private struct TutorialFlow: View {
         }
         // SEARCH, LEFT FOR ANOTHER APP AND COME BACK TO. Backgrounding is the profile leaving the
         // screen: its card view reported with the dwell it had, its voice note or video stopped. The
-        // return starts a new dwell.
+        // return starts a new dwell -- only a return from the background, as Android's ON_START is:
+        // Control Center, a Face ID sheet or a call banner pass through `.inactive` without the
+        // profile ever leaving, and restarting the dwell there would zero `dwell_ms`.
         .onChange(of: scenePhase) { _, phase in
             guard screen == .checkInSearch else { return }
             switch phase {
-            case .background: search.leave()
-            case .active: search.resume()
+            case .background:
+                searchLeftForBackground = true
+                search.leave()
+            case .active:
+                if searchLeftForBackground { search.resume() }
+                searchLeftForBackground = false
             default: break
             }
         }
