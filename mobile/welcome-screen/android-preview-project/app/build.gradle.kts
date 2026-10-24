@@ -165,6 +165,16 @@ android {
             // Two at once on CI, which has 4 cores and 16 GB, to win that start-up back. One
             // locally: this machine reaps a Gradle run that asks for too much memory.
             if (System.getenv("CI") != null) it.maxParallelForks = 2
+            // THE SCREENSHOT HARNESS RUNS ALONE, in its own invocation: `-Pevidence` runs only it,
+            // and the ordinary run excludes it. It draws real Views with animations off, and a
+            // Compose test sharing its JVM afterwards never goes idle -- three MediaAboveTheFoldTest
+            // failures on PR #143, the day a new class shifted the fork grouping. The reasons are in
+            // the header of EvidenceScreenshots.kt. CI runs both.
+            if (project.hasProperty("evidence")) {
+                it.filter.includeTestsMatching("com.showup.fit.EvidenceScreenshots")
+            } else {
+                it.filter.excludeTestsMatching("com.showup.fit.EvidenceScreenshots")
+            }
         }
     }
 }
@@ -209,6 +219,10 @@ dependencies {
     // there, and bare collectAsState keeps collecting while the app is backgrounded.
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    // Navigation Compose, adopted at the Date search epic (SHOWUP-187) as CLAUDE.md prescribes: the
+    // shell first, the existing flow one destination (AppRoute.kt). 2.8 for type-safe routes over
+    // kotlinx.serialization, which the build already has; it matches lifecycle 2.8.7 and BOM 2024.10.
+    implementation("androidx.navigation:navigation-compose:2.8.3")
 
     // Google's libphonenumber — Apache 2.0, free, offline. It carries the real numbering rules for
     // every country, which is what makes a full country list possible: hand-writing length and

@@ -39,6 +39,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -62,6 +64,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import android.app.ActivityOptions
 import com.showup.analytics.AppAnalytics
+import com.showup.analytics.NavAnalytics
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.showup.api.EncryptedTokenStore
 import com.showup.dev.DevMenu
 import com.showup.dev.DevMenuFacts
@@ -236,6 +242,15 @@ class MainActivity : ComponentActivity() {
             // hold no references anything still reads. Saveable, so a process death keeps the
             // generation and therefore the drafts that belong to it.
             var account by rememberSaveable { mutableIntStateOf(0) }
+
+            // The NavHost's back stack (AppRoute.kt) -- not `nav`, the FlowNavigator above, which
+            // still decides the screen inside the flow destination. Saved with the activity.
+            val navController = rememberNavController()
+
+            // THE LIKES BADGE: open received likes, the one number the Likes tab and the Search
+            // likes chip both show (SHOWUP-187 rule 10). 0 -- no badge -- until the Search stories
+            // give it a source; every TabBar already reads it from here, so none of them changes then.
+            var likesOpen by rememberSaveable { mutableIntStateOf(0) }
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
             var outcome by rememberSaveable { mutableStateOf(SignUpOutcome.NewAccount) }
@@ -912,6 +927,11 @@ class MainActivity : ComponentActivity() {
             /** Every step's ✕: the flow is discarded and the gate shown. */
             fun closeCheckIn(step: CheckInStep) = checkIn.closePressed(step) { goTo(FlowScreen.CheckInGate) }
 
+            /** A TabBar tap while [active] shows: `tab_switched` for any other tab -- the nav act alone. */
+            fun tabTapped(active: Tab, tapped: Tab) {
+                NavAnalytics.tabSwitched(active, tapped)?.let { (event, properties) -> AppAnalytics.track(event, properties) }
+            }
+
             /** The gate's CTA, Search tab or Instant tab: the intro until it has been passed, Today after. */
             fun reopenCheckIn(target: CheckInAnalytics.GateTarget) =
                 checkIn.gateTapped(target) { step -> goTo(step.flowScreen()) }
@@ -1015,6 +1035,15 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(screen) { if (screen != FlowScreen.SignUp) sessionNotice = false }
 
             Box(Modifier.fillMaxSize()) {
+            // THE NAVHOST: the existing flow is one destination (see AppRoute.kt). No transition of
+            // its own -- the flow animates its screens itself, and a push from it brings its own.
+            NavHost(
+                navController = navController,
+                startDestination = AppRoute.Flow,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+            ) {
+            composable<AppRoute.Flow> {
             AnimatedContent(
                 targetState = screen,
                 label = "tutorialCard",
@@ -1743,8 +1772,19 @@ class MainActivity : ComponentActivity() {
                             if (onTop) checkIn.arrived(null, ProfileScreen.CheckinSearchUnavailable, profileScreenOf(cameFrom))
                         }
                         CheckInGateScreen(
-                            onCheckIn = { target -> reopenCheckIn(target) },
-                            onSettings = { goTo(FlowScreen.CheckInSettings) },
+                            onCheckIn = { target ->
+                                if (target == CheckInAnalytics.GateTarget.InstantTab) tabTapped(Tab.Search, Tab.Instant)
+                                reopenCheckIn(target)
+                            },
+                            onSettings = {
+                                tabTapped(Tab.Search, Tab.Settings)
+                                goTo(FlowScreen.CheckInSettings)
+                            },
+                            // Premium: Likes received (SHOWUP-186); Freemium: the likes upsell, its own
+                            // story. Neither is built, so the tap is the nav act alone -- and it never
+                            // opens Likes received for Freemium.
+                            onLikes = { tabTapped(Tab.Search, Tab.Likes) },
+                            likes = likesOpen,
                         )
                     }
                     FlowScreen.CheckInIntro -> {
@@ -1858,10 +1898,14 @@ class MainActivity : ComponentActivity() {
                         // Back returns to Search, the tab the gate is.
                         BackHandler { goTo(FlowScreen.CheckInGate) }
                         SettingsPlaceholderScreen(
+                            likes = likesOpen,
                             onTab = { tab ->
+                                tabTapped(Tab.Settings, tab)
                                 when (tab) {
                                     // Search with no Check-In IS the gate (story 01).
                                     Tab.Search -> goTo(FlowScreen.CheckInGate)
+                                    // As on the gate: nothing is built behind Likes yet.
+                                    Tab.Likes -> Unit
                                     // Instant is still gated: it opens the Check-In, as on the gate.
                                     Tab.Instant -> reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
                                     Tab.Settings -> Unit
@@ -1873,6 +1917,8 @@ class MainActivity : ComponentActivity() {
                     FlowScreen.Home ->
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
                 }
+            }
+            }
             }
 
             // The email code, on screen, in a debug build only.

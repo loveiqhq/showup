@@ -66,11 +66,11 @@ fun SearchUnlockedPlaceholderScreen() {
 }
 
 /**
- * Settings from the gate's tab bar. [onTab] gets Search and Instant -- the gate's two other tabs --
- * and Android back returns to Search, the tab the gate is.
+ * Settings from the gate's tab bar. [onTab] gets the other three tabs, and Android back returns to
+ * Search, the tab the gate is. [likes] is the Likes badge.
  */
 @Composable
-fun SettingsPlaceholderScreen(onTab: (Tab) -> Unit = {}) {
+fun SettingsPlaceholderScreen(onTab: (Tab) -> Unit = {}, likes: Int = 0) {
     Column(
         Modifier
             .fillMaxSize()
@@ -84,7 +84,7 @@ fun SettingsPlaceholderScreen(onTab: (Tab) -> Unit = {}) {
                 .weight(1f)
                 .fillMaxWidth(),
         )
-        TabBar(active = Tab.Settings, onTab = { if (it != Tab.Settings) onTab(it) })
+        TabBar(active = Tab.Settings, likes = likes, onTab = { if (it != Tab.Settings) onTab(it) })
     }
 }
 

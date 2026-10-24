@@ -175,8 +175,15 @@ erodes it by default rather than by decision.
 
 ```
 cd android-preview-project && ./gradlew :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest -Pevidence
 cd .. && for f in audit/verify-*.py audit/check-*.py; do python "$f"; done
 ```
+
+**The screenshot harness (`EvidenceScreenshots`) runs only with `-Pevidence`**, in its own
+invocation, and the ordinary run excludes it. It renders real Views with animations off, and a
+Compose test that shares its JVM afterwards never goes idle -- which `forkEvery(4)` made depend on
+how the classes happened to be grouped. `--tests '*EvidenceScreenshots*'` without the property
+finds nothing.
 
 **Say what was actually verified.** "Builds and tests pass" and "I have seen it render" are different
 claims. The wrong icon and the wrong eyebrow tone passed every automated check here, because both

@@ -340,7 +340,10 @@ enum Stamp {
     ///
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
-    static let fieldRegistryVersion = "1.4.25"
+    ///
+    /// 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186). No value an event
+    /// here sends moved between 1.4.25 and 1.4.29 - the stamp follows the file the code reads.
+    static let fieldRegistryVersion = "1.4.29"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
