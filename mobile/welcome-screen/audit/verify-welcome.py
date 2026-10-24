@@ -603,8 +603,9 @@ check("143 the flow does not decrement its own countdown (swift)", "cooldown -= 
 
 # ── the two fit matrices are one matrix ─────────────────────────────────────
 #
-# Devices.kt and FitDevices.swift each list the seventeen phones the app has to fit on, because
-# neither toolchain can read the other's source. A copy nobody compares is a copy that drifts, and
+# Devices.kt and FitDevices.swift each list the phones the app has to fit on -- twenty-three since
+# the 22 Oct 2026 device audit added the 3-button-navigation Androids, the Galaxy S24, the Z Flip,
+# the iPhone Air and the real 12/13 mini -- because neither toolchain can read the other's source. A copy nobody compares is a copy that drifts, and
 # a drifted row means one platform is measured on a phone the other never sees -- which is the
 # quiet version of "iOS was never measured at all".
 import re as _re
@@ -622,9 +623,10 @@ _sw_devices = _rows(
     read(SW_FIT, "FitDevices.swift"),
     r'FitDevice\(name: "([^"]+)", width: (\d+), height: (\d+), top: (\d+), bottom: (\d+)\)')
 
-check("fit matrix has all seventeen phones (kotlin)", len(_kt_devices) == 17)
-check("fit matrix has all seventeen phones (swift)", len(_sw_devices) == 17)
-check("the two fit matrices are the same seventeen phones", _kt_devices == _sw_devices)
+FIT_PHONES = 23
+check("fit matrix has all %d phones (kotlin)" % FIT_PHONES, len(_kt_devices) == FIT_PHONES)
+check("fit matrix has all %d phones (swift)" % FIT_PHONES, len(_sw_devices) == FIT_PHONES)
+check("the two fit matrices are the same %d phones" % FIT_PHONES, _kt_devices == _sw_devices)
 
 # ── the offline stand-in can never reach a release build ────────────────────
 #
