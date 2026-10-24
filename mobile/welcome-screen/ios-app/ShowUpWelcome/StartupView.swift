@@ -28,7 +28,11 @@ struct StartupView: View {
     @Environment(\.verticalSizeClass) private var vSize
 
     var body: some View {
-        WelcomeScaffold {
+        // SCROLL ONLY AS A LAST RESORT, the Android twin's change of 22 Oct 2026: on a small Android
+        // with 3-button navigation (568 usable) this screen cannot fit with the gap at its floor,
+        // and the bottom band was squeezed instead -- "Log in" at 32.5. Wherever it fits, this is
+        // the old layout exactly; on that frame it scrolls a few points.
+        WelcomeScaffold(scrollWhenTight: true) {
             Wordmark()
 
             // 132 is the only large fixed gap and the element that yields on short frames — never

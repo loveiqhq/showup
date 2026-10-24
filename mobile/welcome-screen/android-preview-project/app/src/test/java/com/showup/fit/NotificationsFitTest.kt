@@ -226,6 +226,10 @@ class NotificationsFitTest {
         val recorded = mapOf(
             "Galaxy Fold cover screen" to 169f,
             "small Android (HD)" to 98f,
+            // The 3-button rows of the 22 Oct 2026 device audit: the same phones with the 48 dp
+            // button bar, so 24 dp shorter than their gesture twins. The CTA stays pinned.
+            "small Android, 3-button nav" to 122f,
+            "Galaxy A, 3-button nav" to 22f,
             "iPhone SE (3rd gen)" to 5f,
         )
         val wrong = mutableListOf<String>()

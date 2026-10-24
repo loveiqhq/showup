@@ -85,7 +85,9 @@ struct ProfileVerifyEmailView: View {
     var body: some View {
         // Empty cta: the scaffold's single spacer then lands at the bottom, which IS the
         // bottom-slack layout. Adding a spacer here as well would make two.
-        BasicsScaffold(title: VerifyEmailCopy.section, leading: .back, onBack: onBack, content: {
+        // A long address on a small 3-button Android does not fit: scroll, never squeeze.
+        BasicsScaffold(title: VerifyEmailCopy.section, leading: .back, onBack: onBack,
+                       scrollWhenTight: true, content: {
             // current = 2, IDENTICAL to the email screen. The bar does not advance here.
             StepProgress(steps: 3, current: BasicsStep.emailVerify.progressSegment)
                 .padding(.bottom, 18)
