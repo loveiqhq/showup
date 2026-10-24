@@ -38,10 +38,10 @@ class DevStatesTest {
     }
 
     @Test
-    fun `the States page lists every frame the six tickets name, once`() {
+    fun `the States page lists every frame the seven tickets name, once`() {
         assertEquals(DEV_STATES.size, DEV_STATES.map { it.id }.toSet().size)
         val perTicket = DEV_STATES.groupingBy { it.id.take(3) }.eachCount()
-        assertEquals(mapOf("178" to 2, "179" to 5, "180" to 3, "181" to 5, "182" to 3, "183" to 5), perTicket)
+        assertEquals(mapOf("178" to 2, "179" to 5, "180" to 3, "181" to 5, "182" to 3, "183" to 5, "184" to 10), perTicket)
     }
 
     @Test

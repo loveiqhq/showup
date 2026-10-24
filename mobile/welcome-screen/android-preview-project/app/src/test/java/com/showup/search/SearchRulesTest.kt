@@ -6,6 +6,7 @@
  */
 package com.showup.search
 
+import com.showup.designsystem.showUpCountLabel
 import com.showup.profile.LifestyleField
 import com.showup.welcome.BrandIcon
 import org.junit.Assert.assertEquals
@@ -27,6 +28,20 @@ class SearchRulesTest {
         assertEquals("< 1 km · Neukölln, Berlin", distanceLine(0, "Neukölln, Berlin"))
         assertEquals("~3 km", distanceLine(3, null))
         assertEquals("~3 km", distanceLine(3, "   "))
+        // Three runs, drawn 6 apart as the sheet renders them; the line is their join.
+        assertEquals(listOf("~3 km", "·", "Kreuzberg"), distanceParts(3, " Kreuzberg "))
+        assertEquals(listOf("< 1 km"), distanceParts(0, null))
+    }
+
+    @Test
+    fun `filters_active names age and distance set away from Check-In 05's defaults, never gender`() {
+        val defaults = com.showup.checkin.CheckInFilters(genders = setOf("woman"))
+        assertEquals(emptyList<String>(), filtersActive(defaults))
+        assertEquals(emptyList<String>(), filtersActive(defaults.copy(genders = setOf("man", "woman"))))
+        assertEquals(listOf("age_range"), filtersActive(defaults.copy(minAge = 25)))
+        assertEquals(listOf("age_range"), filtersActive(defaults.copy(maxAge = 40)))
+        assertEquals(listOf("age_range", "distance_km"), filtersActive(defaults.copy(maxAge = 40, distanceKm = 25)))
+        assertEquals(listOf("distance_km"), filtersActive(defaults.copy(distanceKm = 5)))
     }
 
     @Test

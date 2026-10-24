@@ -99,6 +99,12 @@ open class SearchViewModel(
     /** The visit's reported `filters_active`, kept for a reload after Filters. */
     private var filtersActive: List<String> = emptyList()
 
+    /** A visit has been made, so a return from Filters is a return, not a first arrival. */
+    private var visited = false
+
+    /** Filters saved new settings: the return reads the queue again under them. */
+    private var reloadOnReturn = false
+
     // ── per profile, for `profile_card_viewed` ──────────────────────────────────────────────────
     private var shownAt = 0L
     private var photosSwiped = 0
@@ -111,21 +117,50 @@ open class SearchViewModel(
     // ── the visit ───────────────────────────────────────────────────────────────────────────────
 
     /**
+     * Search is on screen. A tab, a launch or `Find my date` is a VISIT ([visit]). The way back from
+     * Filters is not: no second coach, nobody already decided coming back, and the queue read again
+     * only if Filters saved new settings. It IS a `screen_viewed` -- without one, everything after it
+     * would be counted against Filters -- and so `position` starts again at the profile shown, as the
+     * ticket has it reset "on each screen_viewed".
+     */
+    fun arrived(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) {
+        if (!visited || referrer != ProfileScreen.CheckinFilters) {
+            visit(zone, filtersActive, referrer)
+            return
+        }
+        report(ProfileAnalytics.screenViewed(ProfileScreen.SearchProfile, referrer))
+        if (!reloadOnReturn) {
+            _state.update { it.copy(position = 1) }
+            resume()
+            return
+        }
+        reloadOnReturn = false
+        this.filtersActive = filtersActive
+        stopPlayback()
+        _state.update { it.copy(loading = true, failure = null, queue = emptyList(), position = 1, sheet = null, viewerAt = null) }
+        load(zone)
+    }
+
+    /** Filters saved new settings; the return to Search reads the queue under them. */
+    fun filtersSaved() {
+        reloadOnReturn = true
+    }
+
+    /**
      * A visit to the Search tab: `screen_viewed` once, the queue read, the coach armed.
      *
      * @param zone the phone's IANA zone, for the server's `today` / `tomorrow`.
-     * @param filtersActive the §10 filters narrowed from the defaults, for `search_viewed`.
+     * @param filtersActive the §10 filters set away from the defaults, for `search_viewed`.
      */
-    fun visit(zone: String, viewer: SearchViewer, filtersActive: List<String>, referrer: ProfileScreen?) {
+    fun visit(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) {
         report(ProfileAnalytics.screenViewed(ProfileScreen.SearchProfile, referrer))
+        visited = true
+        reloadOnReturn = false
         this.filtersActive = filtersActive
         coachShownThisVisit = false
         stopPlayback()
         _state.update {
-            it.copy(
-                loading = true, failure = null, queue = emptyList(), position = 1, sheet = null,
-                coach = false, viewerAt = null, viewer = viewer,
-            )
+            it.copy(loading = true, failure = null, queue = emptyList(), position = 1, sheet = null, coach = false, viewerAt = null)
         }
         load(zone)
     }
@@ -143,7 +178,9 @@ open class SearchViewModel(
             val countCall = async { store.likesOpenCount() }
             val queue = store.queue(zone)
             (sessionCall.await() as? Outcome.Ok)?.value?.let { s ->
-                coachHidden = s.coachHidden
+                // ONCE HIDDEN HERE, HIDDEN: a session read that left before `Don't show again` landed
+                // on the server still says false, and must not bring the coach back on this device.
+                coachHidden = coachHidden || s.coachHidden
                 _state.update { it.copy(premium = s.premium) }
             }
             (countCall.await() as? Outcome.Ok)?.value?.let { n -> _state.update { it.copy(likesOpen = n) } }
@@ -152,7 +189,7 @@ open class SearchViewModel(
                 is Outcome.Ok -> {
                     val profiles = queue.value.profiles.filterNot { it.userId in decided }
                     report(SearchAnalytics.searchViewed(queue.value.resultsCount, filtersActive))
-                    _state.update { it.copy(loading = false, failure = null, queue = profiles) }
+                    _state.update { it.copy(loading = false, failure = null, queue = profiles, viewer = queue.value.viewer) }
                     arrive()
                 }
             }

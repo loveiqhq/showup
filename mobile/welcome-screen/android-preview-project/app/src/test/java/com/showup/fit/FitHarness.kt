@@ -400,3 +400,84 @@ fun measureFit(
     }
     return found.distinctBy { it.element to it.problem }
 }
+
+
+// ── geometry shots ──────────────────────────────────────────────────────────────────────────────
+//
+// MOVED HERE FROM `CheckInFitTest` with Date search 01 (SHOWUP-184), the second suite to need it.
+// `measureFit` answers "is anything wrong"; this answers "where is everything", for the assertions a
+// ticket makes about geometry -- the CTA on screen, the coach above the buttons, one scroll region.
+
+/** A node's box, in dp from the frame's top-left. */
+data class FitRect(val top: Float, val bottom: Float, val left: Float, val right: Float) {
+    val height get() = bottom - top
+    val width get() = right - left
+}
+
+/** Where everything tagged landed in one render. */
+data class FitShot(
+    val frame: Float,
+    val width: Float,
+    val tags: Map<String, FitRect>,
+    /** How far the [scrollTag] region's content runs past it; 0 when it fits. */
+    val overflow: Float,
+    /** The lowest edge laid out OUTSIDE any scrolling region. */
+    val lowest: Float,
+    /** How many vertically scrolling regions the screen has. */
+    val scrollRegions: Int,
+) {
+    fun tag(t: String): FitRect = tags[t] ?: error("no node tagged $t")
+}
+
+/**
+ * Renders [content] into a [width] x [height] frame at [fontScale] and records every tagged node's
+ * box, the overflow of the region tagged [scrollTag], and how many scrolling regions there are.
+ */
+@OptIn(ExperimentalTestApi::class)
+fun shootGeometry(
+    width: Int,
+    height: Int,
+    fontScale: Float = 1f,
+    scrollTag: String? = null,
+    content: @Composable () -> Unit,
+): FitShot {
+    var shot: FitShot? = null
+    runComposeUiTest {
+        var density = 1f
+        setContent {
+            density = LocalDensity.current.density
+            val cfg = Configuration(LocalConfiguration.current).apply {
+                screenWidthDp = width
+                screenHeightDp = height
+                this.fontScale = fontScale
+            }
+            CompositionLocalProvider(
+                LocalConfiguration provides cfg,
+                LocalDensity provides Density(LocalDensity.current.density, fontScale),
+            ) {
+                Box(Modifier.testTag(FIT_ROOT).requiredSize(width.dp, height.dp)) { content() }
+            }
+        }
+        waitForIdle()
+        val root = onNodeWithTag(FIT_ROOT, useUnmergedTree = true).fetchSemanticsNode()
+        val tags = mutableMapOf<String, FitRect>()
+        var overflow = 0f
+        var lowest = 0f
+        var regions = 0
+        fun walk(n: SemanticsNode, inScroll: Boolean) {
+            val top = (n.positionInRoot.y - root.positionInRoot.y) / density
+            val left = (n.positionInRoot.x - root.positionInRoot.x) / density
+            val r = FitRect(top, top + n.size.height / density, left, left + n.size.width / density)
+            val tag = n.config.getOrNull(SemanticsProperties.TestTag)
+            if (tag != null && n.layoutInfo.isPlaced) tags[tag] = r
+            val range = n.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange)
+            if (range != null) regions++
+            if (range != null && (scrollTag == null || tag == scrollTag)) overflow = maxOf(overflow, range.maxValue() / density)
+            if (!inScroll && n.size.height > 0) lowest = maxOf(lowest, r.bottom)
+            n.children.forEach { walk(it, inScroll || range != null) }
+        }
+        walk(root, false)
+        shot = FitShot(height.toFloat(), width.toFloat(), tags, overflow, lowest, regions)
+    }
+    return shot!!
+}

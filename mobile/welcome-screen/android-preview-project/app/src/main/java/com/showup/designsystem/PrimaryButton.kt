@@ -103,6 +103,12 @@ fun PrimaryButton(
      * measured layout of every other screen in the app to fix one of them.
      */
     labelMaxLines: Int = 2,
+    /**
+     * The side padding: the kit's `lg` 28 everywhere it was written for. [ButtonPair] passes a
+     * compact one so two half-width buttons can hold their labels; the label is centred either way,
+     * so a roomy pair still reads with the padding the design draws.
+     */
+    horizontalPadding: Dp = 28.dp,
     leading: (@Composable () -> Unit)? = null,
     /** Mirrors [leading]. Used once: the tutorial CTA's trailing arrow. */
     trailing: (@Composable () -> Unit)? = null,
@@ -171,7 +177,7 @@ fun PrimaryButton(
                 interactionSource = interaction, indication = null,
                 enabled = enabled, role = Role.Button, onClick = onClick,
             )
-            .padding(horizontal = 28.dp),
+            .padding(horizontal = horizontalPadding),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {

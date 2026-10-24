@@ -15,6 +15,10 @@
  */
 package com.showup.search
 
+import com.showup.checkin.AGE_MAX
+import com.showup.checkin.AGE_MIN
+import com.showup.checkin.CheckInFilters
+import com.showup.checkin.DISTANCE_DEFAULT
 import com.showup.checkin.MotivationOption
 import com.showup.checkin.VibeGroup
 import com.showup.profile.DetailStep
@@ -30,7 +34,6 @@ import java.time.format.DateTimeFormatter
 /** The ticket's copy, one constant per string, so the verifier can quote each against it. */
 object SearchCopy {
     const val MEET_LABEL = "You could meet at:"
-    const val NEW_IN_APP = "New in the App"
     const val SHARED_VIBES_TITLE = "You and %s both want today"
     const val HIGHLIGHT_TITLE = "%s's highlight"
     const val VIBE_TODAY_TITLE = "%s's vibe today"
@@ -77,6 +80,17 @@ object SearchCopy {
     const val COACH_LABEL = "What the three buttons do"
     const val COACH_DONT_SHOW = "Don't show again"
     const val COACH_GOT_IT = "Got it"
+
+    // ── states the ticket does not draw ─────────────────────────────────────────────────────────
+    //
+    // PROPOSED, NOT TICKETED: the app's "We couldn't ... just now. Please try again." for a failed
+    // read, and the README's own name for the empty queue's screen ("No results · widen filters (one
+    // tap)"), whose story is not written. Each goes to Philipp; the verifier lists them as proposed.
+    const val LOADING_LABEL = "Loading profiles"
+    const val LOAD_FAILED_PROPOSED = "We couldn't load profiles just now. Please try again."
+    const val RETRY = "Retry"
+    const val NO_RESULTS_PROPOSED = "No results"
+    const val WIDEN_FILTERS_PROPOSED = "Widen filters"
 }
 
 /** Search's essentials row labels, in the ticket's order. */
@@ -114,9 +128,30 @@ const val SHARED_VIBES_SHOWN = 3
  */
 fun searchDistance(km: Int): String = if (km < 1) "< 1 km" else "~$km km"
 
-/** `< 1 km · {district}` / `~{n} km · {district}`, or the distance alone when no district was named. */
-fun distanceLine(km: Int, district: String?): String =
-    district?.trim()?.takeIf { it.isNotEmpty() }?.let { "${searchDistance(km)} · $it" } ?: searchDistance(km)
+/**
+ * The distance pill's runs: the distance, `·`, the district -- or the distance alone when no district
+ * was named. Separate because the reference writes `{distance} · {district}` straight into a flex row
+ * with a 6 gap, and the signed-off sheet renders each text node as its own item: 6 either side of
+ * the dot, not a word space (the 184 evidence review, 24 Oct 2026).
+ */
+fun distanceParts(km: Int, district: String?): List<String> =
+    district?.trim()?.takeIf { it.isNotEmpty() }?.let { listOf(searchDistance(km), "·", it) } ?: listOf(searchDistance(km))
+
+/** `< 1 km · {district}` / `~{n} km · {district}`: the pill as one line, which is what a screen reader hears. */
+fun distanceLine(km: Int, district: String?): String = distanceParts(km, district).joinToString(" ")
+
+/**
+ * `filters_active` on `search_viewed`: the §10 filters set away from Check-In 05's defaults, in §10
+ * order -- `age_range` when narrower than 18 to 65+, `distance_km` when not the default 10.
+ *
+ * NEVER `meet_gender`: its default is the user's own, worked out on the server from their gender and
+ * orientation, so the phone cannot tell a narrowed set from the pre-fill. An open tracking question
+ * (24 Oct 2026), not an oversight.
+ */
+fun filtersActive(filters: CheckInFilters): List<String> = buildList {
+    if (filters.minAge > AGE_MIN || filters.maxAge < AGE_MAX) add("age_range")
+    if (filters.distanceKm != DISTANCE_DEFAULT) add("distance_km")
+}
 
 /** `{name}, {age}`, or `{name}` when the age is hidden -- never a dangling comma. */
 fun nameLine(name: String, age: Int?): String = if (age != null) "$name, $age" else name
@@ -130,13 +165,6 @@ fun meetTime(meetAt: Instant, zone: ZoneId): String = MEET_TIME.format(meetAt.at
 
 /** `{HH:MM} {day}` -- `19:00 today`. The day is the server's, by the Check-In's 7am day. */
 fun meetLine(meetAt: Instant, day: String, zone: ZoneId): String = "${meetTime(meetAt, zone)} $day"
-
-/** `N dates attended` · `1 date attended` · `New in the App`. Never a percentage (epic rule 4). */
-fun showUpCountLabel(count: Int): String = when {
-    count <= 0 -> SearchCopy.NEW_IN_APP
-    count == 1 -> "1 date attended"
-    else -> "$count dates attended"
-}
 
 // ── the overlap ─────────────────────────────────────────────────────────────────────────────────
 
@@ -176,6 +204,17 @@ fun motivationOf(id: String?): MotivationOption? = MotivationOption.of(id)
 fun voiceSub(durationMs: Int): String = "Voice prompt · ${formatTakeLength(durationMs)}"
 
 fun videoSub(durationMs: Int): String = "Video prompt · ${formatTakeLength(durationMs)}"
+
+/**
+ * The voice card's 48 bars, as heights from 0 to 1 -- the reference's deterministic waveform: a sine
+ * envelope rising and falling across the card, with a fixed jitter, never below 0.12. The same every
+ * time, so the card never animates or reshuffles; it is a picture of a voice, not a reading of one.
+ */
+val VOICE_BARS: List<Float> = List(48) { i ->
+    val env = kotlin.math.sin(i / 47.0 * Math.PI)
+    val jitter = (kotlin.math.sin(i * 12.9898) * 43758.5453) % 1.0
+    maxOf(0.12, env * 0.85 + kotlin.math.abs(jitter) * 0.25).toFloat()
+}
 
 // ── Essentials and How I live ───────────────────────────────────────────────────────────────────
 

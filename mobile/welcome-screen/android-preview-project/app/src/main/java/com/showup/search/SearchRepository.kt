@@ -65,7 +65,11 @@ data class SearchProfile(
 data class Charm(val label: String, val star: Boolean)
 
 /** How many profiles the queue holds, and the next few in full. */
-data class SearchQueue(val resultsCount: Int, val profiles: List<SearchProfile>)
+/**
+ * One read of the queue. [viewer] is the user's own vibes and interests, from the same request, so
+ * shared ones are marked against what the server matched on -- also on a launch straight onto Search.
+ */
+data class SearchQueue(val resultsCount: Int, val profiles: List<SearchProfile>, val viewer: SearchViewer = SearchViewer())
 
 /** What the session says about Search: the plan and the coach's stored opt-out. */
 data class SearchSession(val premium: Boolean, val coachHidden: Boolean)
@@ -98,7 +102,11 @@ class SearchRepository(private val api: ShowUpApi) : SearchStore {
     override suspend fun queue(zone: String): Outcome<SearchQueue> = outcome {
         val response = api.search.getSearchQueue(zone)
         response.body()?.takeIf { response.isSuccessful }?.let { dto ->
-            SearchQueue(dto.resultsCount, dto.profiles.map { it.toProfile(api) })
+            SearchQueue(
+                dto.resultsCount,
+                dto.profiles.map { it.toProfile(api) },
+                SearchViewer(vibes = dto.viewer.vibes.toSet(), interests = dto.viewer.interests.toSet()),
+            )
         }
     }
 

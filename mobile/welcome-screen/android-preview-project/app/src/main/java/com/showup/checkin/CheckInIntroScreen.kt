@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.showup.welcome.WORDMARK_TAB_GAP
 import androidx.compose.ui.platform.LocalDensity
 import com.showup.designsystem.prettyWrap
 import androidx.compose.ui.text.TextStyle
@@ -185,7 +186,7 @@ fun CheckInGateScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // A logo, at 20 whatever the system font: in a fixed 52 row a 2x wordmark is clipped.
-            Wordmark(size = with(LocalDensity.current) { 20.dp.toSp() })
+            Wordmark(size = with(LocalDensity.current) { 20.dp.toSp() }, gapEm = WORDMARK_TAB_GAP)
         }
 
         // THE STATEMENT BLOCK -- the only flexible element, centred both ways. Floored at its own

@@ -299,4 +299,25 @@ class CheckInRulesTest {
         assertEquals(section("29"), CheckInAnalytics.NoHoursAction.entries.map { it.wire })
         assertEquals(section("32"), CheckInAnalytics.CommitFailure.entries.map { it.wire })
     }
+
+    @Test
+    fun `the district reads sub-locality then locality, as the sheet draws it, never one name twice`() {
+        assertEquals("Neukölln, Berlin", districtOf("Neukölln", "Berlin"))
+        assertEquals("Berlin", districtOf(null, "Berlin"))
+        assertEquals("Neukölln", districtOf(" Neukölln ", "  "))
+        assertEquals("Hamburg", districtOf("Hamburg", "hamburg"))
+        assertNull(districtOf(null, null))
+        assertNull(districtOf(" ", ""))
+    }
+
+    @Test
+    fun `a district never outgrows the server's 80, and is cut at a word`() {
+        val longCity = "Sankt " + "Ober".repeat(20)
+        assertEquals("Mitte", districtOf("Mitte", longCity))
+        val longSub = List(12) { "Kleinstadt" }.joinToString(" ")
+        val cut = districtOf(longSub, "Berlin")!!
+        assertTrue(cut.length <= DISTRICT_MAX)
+        assertFalse(cut.endsWith(" "))
+        assertTrue(longSub.startsWith(cut))
+    }
 }

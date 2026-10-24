@@ -56,6 +56,8 @@ data class CommitRequest(
     val vibes: Set<String>,
     /** Trimmed; null when empty -- the server stores no uplift, never "". */
     val uplift: String?,
+    /** Where the phone is, and its district: what Search measures from. Null without location. */
+    val place: CheckInPlace? = null,
 )
 
 /** How a commit ended -- each maps to one state of the Uplift screen (story 06). */
@@ -133,6 +135,9 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
                     motivation = WireMotivation.entries.first { it.value == request.motivation },
                     vibes = VIBE_ORDER.filter { it in request.vibes }.map { wireVibe(it) },
                     uplift = request.uplift,
+                    latitude = request.place?.latitude?.toBigDecimal(),
+                    longitude = request.place?.longitude?.toBigDecimal(),
+                    district = request.place?.district,
                 ),
             )
         } catch (e: CancellationException) {

@@ -150,7 +150,8 @@ check("wash tracks the run (swift)", "enumerateEnclosingRects" in shell_kt or
 # ── button — components/shared.jsx size lg ──────────────────────────────────
 check("button height 56 (kotlin)", "height: Dp = 56.dp" in btn_kt)
 check("button height 56 (swift)", "var height: CGFloat = 56" in btn_sw)
-check("button pad 28 (kotlin)", "horizontal = 28.dp" in btn_kt)
+# 28 by default; a pair of buttons side by side passes its own 10 (ButtonPair, SHOWUP-184).
+check("button pad 28 (kotlin)", "horizontalPadding: Dp = 28.dp" in btn_kt and "padding(horizontal = horizontalPadding)" in btn_kt)
 check("button pad 28 (swift)", ".padding(.horizontal, 28)" in btn_sw)
 check("button label 16 bold (kotlin)",
       "labelSize: TextUnit = 16.sp" in btn_kt
@@ -185,7 +186,10 @@ check("wordmark gradient not flat (swift)", "0xD05976" in shell_sw)
 # 0.04em, measured against the spec sheet -- see the reasoning at both Wordmark sites. Matched on
 # the full expression rather than the bare number: "0.18f" also appears in the backdrop's orb
 # placement, so the old check passed whatever the wordmark did.
-check("wordmark gap 0.04em (kotlin)", "size.toPx() * 0.04f" in shell_kt)
+# The launch screens' default; the two tab screens pass the kit's 0.18em, as their October sheets
+# render it (Check-In 01's gate and Search 01 share that top bar).
+check("wordmark gap 0.04em by default (kotlin)", "gapEm: Float = 0.04f" in shell_kt and "size.toPx() * gapEm" in shell_kt)
+check("tab screens' wordmark gap 0.18em (kotlin)", "const val WORDMARK_TAB_GAP = 0.18f" in shell_kt)
 check("wordmark gap 0.04em (swift)", "spacing: size * 0.04" in shell_sw)
 check("wordmark 26 (kotlin)", "26.sp" in shell_kt)
 check("wordmark 26 (swift)", "size: CGFloat = 26" in shell_sw)

@@ -64,6 +64,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import android.app.ActivityOptions
 import com.showup.analytics.AppAnalytics
+import com.showup.checkin.AndroidPlaceReader
+import java.time.ZoneId
+import com.showup.dev.DevSearchStore
+import com.showup.dev.DEV_SEARCH_STARTS
+import com.showup.search.filtersActive
+import com.showup.search.SearchProfileScreen
+import com.showup.search.SearchRepository
+import com.showup.search.SearchViewModel
 import com.showup.analytics.NavAnalytics
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -131,7 +139,6 @@ import com.showup.checkin.CheckInStep
 import com.showup.checkin.CheckInUpliftScreen
 import com.showup.checkin.CheckInVibeScreen
 import com.showup.checkin.CheckInViewModel
-import com.showup.checkin.SearchUnlockedPlaceholderScreen
 import com.showup.checkin.SettingsPlaceholderScreen
 import com.showup.dev.DEV_GALLERY_ACTIVITY
 import com.showup.dev.DevCheckInLaunch
@@ -247,10 +254,6 @@ class MainActivity : ComponentActivity() {
             // still decides the screen inside the flow destination. Saved with the activity.
             val navController = rememberNavController()
 
-            // THE LIKES BADGE: open received likes, the one number the Likes tab and the Search
-            // likes chip both show (SHOWUP-187 rule 10). 0 -- no badge -- until the Search stories
-            // give it a source; every TabBar already reads it from here, so none of them changes then.
-            var likesOpen by rememberSaveable { mutableIntStateOf(0) }
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
             var outcome by rememberSaveable { mutableStateOf(SignUpOutcome.NewAccount) }
@@ -451,9 +454,14 @@ class MainActivity : ComponentActivity() {
                 key = "checkin-$account",
                 factory = viewModelFactory {
                     initializer {
-                        val store = devCheckIn?.let { DevCheckInStore(it.latencyMs, it.commit, it.introPassed) }
+                        val store = devCheckIn?.let { DevCheckInStore(it.latencyMs, it.commit, it.introPassed, active = it.start in DEV_SEARCH_STARTS) }
                             ?: CheckInRepository(api)
-                        CheckInViewModel(store, analytics = AppAnalytics)
+                        CheckInViewModel(
+                            store,
+                            analytics = AppAnalytics,
+                            // Where Search measures from. The dev server ignores it, so it asks no fix.
+                            places = if (devCheckIn == null) AndroidPlaceReader(context) else null,
+                        )
                     }
                 },
             )
@@ -735,6 +743,30 @@ class MainActivity : ComponentActivity() {
             )
             val mediaState by media.state.collectAsStateWithLifecycle()
 
+            // ── date search (SHOWUP-184) ─────────────────────────────────────────
+            //
+            // One owner for the queue, the like flow, the coach and their events, keyed on the account
+            // like every other. It plays through the app's one player -- the media step and Search are
+            // never on screen together -- and a debug launch walks it on samples (dev/DevSearchStore.kt).
+            val search: SearchViewModel = viewModel(
+                key = "search-$account",
+                factory = viewModelFactory {
+                    initializer {
+                        SearchViewModel(
+                            store = devCheckIn?.let { DevSearchStore(it.latencyMs) } ?: SearchRepository(api),
+                            analytics = AppAnalytics,
+                            players = mediaPlayer,
+                        )
+                    }
+                },
+            )
+            val searchState by search.state.collectAsStateWithLifecycle()
+
+            // THE LIKES BADGE: open received likes, the one number the Likes tab and the Search likes
+            // chip both show (SHOWUP-187 rule 10) -- on the gate's and Settings' bars too, so it is
+            // read on every foreground of a tab screen, not only by a Search visit.
+            val likesOpen = searchState.likesOpen
+
             // Which prompt the user committed to, held across the permission round trip: the OS
             // alert takes the app out of the foreground, and the answer comes back with no memory
             // of what it was asked for.
@@ -875,6 +907,25 @@ class MainActivity : ComponentActivity() {
                     if (event == Lifecycle.Event.ON_RESUME && screen.isCheckIn) {
                         checkIn.evaluateClock()
                         checkIn.refresh()
+                        search.refreshLikesOpen()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+
+            // SEARCH, LEFT FOR ANOTHER APP AND COME BACK TO. Backgrounding is the profile leaving the
+            // screen: its card view reported with the dwell it had, its voice note or video stopped
+            // ("pauses when scrolled out of view" -- the app going away is the furthest out). The
+            // return starts a new dwell. ON_STOP / ON_START for the reason the media screen gives:
+            // a permission alert pauses the activity and is not the user leaving.
+            DisposableEffect(lifecycleOwner, search) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (screen != FlowScreen.CheckInSearch) return@LifecycleEventObserver
+                    when (event) {
+                        Lifecycle.Event.ON_STOP -> search.leave()
+                        Lifecycle.Event.ON_START -> search.resume()
+                        else -> Unit
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -926,6 +977,10 @@ class MainActivity : ComponentActivity() {
 
             /** Every step's ✕: the flow is discarded and the gate shown. */
             fun closeCheckIn(step: CheckInStep) = checkIn.closePressed(step) { goTo(FlowScreen.CheckInGate) }
+
+            /** The Search tab: Search with a committed Check-In, the gate without one (story 01). */
+            fun searchTab(): FlowScreen =
+                if (checkInState.server?.active == true) FlowScreen.CheckInSearch else FlowScreen.CheckInGate
 
             /** A TabBar tap while [active] shows: `tab_switched` for any other tab -- the nav act alone. */
             fun tabTapped(active: Tab, tapped: Tab) {
@@ -1892,22 +1947,91 @@ class MainActivity : ComponentActivity() {
                             onClose = { closeCheckIn(CheckInStep.Uplift) },
                         )
                     }
-                    FlowScreen.CheckInSearch -> SearchUnlockedPlaceholderScreen()
+                    FlowScreen.CheckInSearch -> {
+                        val zone = remember { ZoneId.systemDefault() }
+                        LaunchedEffect(onTop) {
+                            if (onTop) {
+                                val filters = checkInState.server?.filters
+                                search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom))
+                            } else {
+                                // Sliding away -- to Filters or another tab: the profile has left the screen.
+                                search.leave()
+                            }
+                        }
+                        SearchProfileScreen(
+                            state = searchState,
+                            zone = zone,
+                            player = mediaPlayer.surface,
+                            onLike = search::like,
+                            onPass = search::pass,
+                            onCoachDone = search::dismissCoach,
+                            onCancelConfirm = search::cancelConfirm,
+                            onContinue = search::continueToMessage,
+                            onDraft = search::editDraft,
+                            onDismissMessage = search::dismissMessage,
+                            onSkipMessage = search::skipMessage,
+                            onSendMessage = search::sendMessage,
+                            onOpenPhoto = search::openPhoto,
+                            onViewerPage = search::viewerPage,
+                            onCloseViewer = search::closeViewer,
+                            onTogglePlay = search::togglePlay,
+                            onScrolledOut = search::scrolledOut,
+                            onSectionSeen = search::sectionSeen,
+                            onFilters = { goTo(FlowScreen.SearchFilters) },
+                            // "A tap does not open Likes received (the upsell is its own story)."
+                            onLikesChip = {},
+                            onTab = { tab ->
+                                tabTapped(Tab.Search, tab)
+                                when (tab) {
+                                    Tab.Settings -> goTo(FlowScreen.CheckInSettings)
+                                    // Likes received (186) and the upsell, and Instant, are their own
+                                    // stories: the tap is the nav act alone, as on the gate.
+                                    Tab.Search, Tab.Likes, Tab.Instant -> Unit
+                                }
+                            },
+                            onRetry = { search.retry(zone.id) },
+                        )
+                    }
+                    FlowScreen.SearchFilters -> {
+                        LaunchedEffect(onTop) { if (onTop) checkIn.searchFiltersOpened() }
+                        val held = heldWhileLeaving(checkInState, onTop)
+                        val back = { checkIn.searchFiltersLeft { goTo(FlowScreen.CheckInSearch) } }
+                        CheckInFiltersScreen(
+                            filters = held.filters ?: CheckInFilters(genders = emptySet()),
+                            toast = held.toast,
+                            toastTick = held.toastTick,
+                            onGender = checkIn::genderTapped,
+                            onAge = checkIn::ageMoved,
+                            onDistance = checkIn::distanceMoved,
+                            onContinue = {
+                                checkIn.searchFiltersContinue {
+                                    search.filtersSaved()
+                                    goTo(FlowScreen.CheckInSearch)
+                                }
+                            },
+                            onBack = back,
+                            // Never the Check-In's ✕ here: a committed Check-In is not discarded from Search.
+                            onClose = back,
+                        )
+                    }
                     FlowScreen.CheckInSettings -> {
                         LaunchedEffect(onTop) { if (onTop) checkIn.atTabs() }
-                        // Back returns to Search, the tab the gate is.
-                        BackHandler { goTo(FlowScreen.CheckInGate) }
+                        // Back returns to Search -- the gate without a Check-In, Search with one.
+                        BackHandler { goTo(searchTab()) }
                         SettingsPlaceholderScreen(
                             likes = likesOpen,
                             onTab = { tab ->
                                 tabTapped(Tab.Settings, tab)
                                 when (tab) {
-                                    // Search with no Check-In IS the gate (story 01).
-                                    Tab.Search -> goTo(FlowScreen.CheckInGate)
+                                    // Search with no Check-In IS the gate (story 01); with one, Search.
+                                    Tab.Search -> goTo(searchTab())
                                     // As on the gate: nothing is built behind Likes yet.
                                     Tab.Likes -> Unit
-                                    // Instant is still gated: it opens the Check-In, as on the gate.
-                                    Tab.Instant -> reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                    // Instant is gated without a Check-In -- it opens one, as on the gate --
+                                    // and its own story with one.
+                                    Tab.Instant -> if (checkInState.server?.active != true) {
+                                        reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                    }
                                     Tab.Settings -> Unit
                                 }
                             },
@@ -1993,6 +2117,7 @@ class MainActivity : ComponentActivity() {
                             notificationsAsk = shouldShowAsk(notifications.read()),
                             oldAndroid = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU,
                             location = locationArrival(locationAccess.read()),
+                            premium = searchState.premium,
                         ),
                         events = devEvents,
                         onJump = {
@@ -2012,6 +2137,7 @@ class MainActivity : ComponentActivity() {
                         // The menu stays open behind the frame: back returns to the States list, so
                         // frame after frame can be looked at without reopening it.
                         onOpenState = { state -> openDevState(state) },
+                        onPremium = search::setPremium,
                     )
                     // Back closes the menu, never the screen under it.
                     BackHandler { devMenuOpen = false }
@@ -2198,6 +2324,8 @@ private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen)
     FlowScreen.CheckInVibe -> ProfileScreen.CheckinVibe
     FlowScreen.CheckInFilters -> ProfileScreen.CheckinFilters
     FlowScreen.CheckInUplift -> ProfileScreen.CheckinUplift
+    FlowScreen.CheckInSearch -> ProfileScreen.SearchProfile
+    FlowScreen.SearchFilters -> ProfileScreen.CheckinFilters
     else -> null
 }
 

@@ -403,15 +403,21 @@ fun CancelledNotice(provider: AuthMethod) {
     }
 }
 
-/** 18dp ring, 2dp stroke, one turn every 0.9s. Held still when the device asks for no motion. */
+/**
+ * 18dp ring, 2dp stroke, one turn every 0.9s. Held still when the device asks for no motion.
+ *
+ * THE TRANSITION IS NOT CREATED WHEN MOTION IS OFF -- the REC chip's rule (`MediaCaptureScreen.kt`),
+ * applied here on 22 Oct 2026 when Search's loading state became this spinner's second user. It
+ * used to create the transition and pin its target to 0, which gates the VALUE and not the
+ * ANIMATION: an infinite transition asks for a frame every frame however still its number is, so a
+ * screen told "no animations" kept the display pipeline awake, and a test of it never went idle.
+ */
 @Composable
 fun Spinner(tint: Color = Color.White, size: androidx.compose.ui.unit.Dp = 18.dp) {
     val motion = rememberMotion()
-    val angle by rememberInfiniteTransition(label = "spin").animateFloat(
-        initialValue = 0f, targetValue = if (motion.enabled) 360f else 0f,
-        animationSpec = infiniteRepeatable(tween(Motion.PULSE_SLOW, easing = LinearEasing), RepeatMode.Restart),
-        label = "angle",
-    )
+    // Calling a composable conditionally is legal here: the condition is a system setting whose
+    // change restarts the activity, so it is stable for the life of the composition.
+    val angle = if (motion.enabled) spinAngle() else 0f
     Canvas(Modifier.size(size).rotate(angle)) {
         val w = 2.dp.toPx()
         drawCircle(tint.copy(alpha = 0.30f), radius = (this.size.minDimension - w) / 2f, style = Stroke(w))
@@ -422,4 +428,15 @@ fun Spinner(tint: Color = Color.White, size: androidx.compose.ui.unit.Dp = 18.dp
             size = androidx.compose.ui.geometry.Size(this.size.width - w, this.size.height - w),
         )
     }
+}
+
+/** One turn every 0.9s. Its own composable so [Spinner] can decline to call it. */
+@Composable
+private fun spinAngle(): Float {
+    val angle by rememberInfiniteTransition(label = "spin").animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(Motion.PULSE_SLOW, easing = LinearEasing), RepeatMode.Restart),
+        label = "angle",
+    )
+    return angle
 }

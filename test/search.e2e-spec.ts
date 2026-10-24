@@ -49,6 +49,7 @@ describe('Date search 01 (e2e)', () => {
     ).body as {
       resultsCount: number;
       profiles: Array<Record<string, unknown>>;
+      viewer: { vibes: string[]; interests: string[] };
     };
 
   async function signUp(phone: string): Promise<{ token: string; id: string }> {
@@ -165,6 +166,7 @@ describe('Date search 01 (e2e)', () => {
       .expect(200);
     await db.query(
       `UPDATE "profiles" SET "display_name" = 'Max', "date_of_birth" = '1996-05-10',
+         "interests" = ARRAY['hiking', 'cooking']::"profiles_interest_enum"[],
          "is_complete" = true WHERE "user_id" = $1`,
       [maxId],
     );
@@ -263,6 +265,14 @@ describe('Date search 01 (e2e)', () => {
     const q = await queue();
     expect(q.resultsCount).toBe(2);
     expect(q.profiles.map((p) => p.name)).toEqual(['Leonie', 'Carla']);
+  });
+
+  it('sends what the viewer brings: their own vibes and interests, for marking what a profile shares', async () => {
+    const q = await queue();
+    expect(q.viewer).toEqual({
+      vibes: ['coffee_chat', 'sunset', 'no_rush'],
+      interests: ['hiking', 'cooking'],
+    });
   });
 
   it('sends the earliest shared hour and its day, in the zone the viewer sent', async () => {

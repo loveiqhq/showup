@@ -43,6 +43,7 @@ import {
   SearchMediaDto,
   SearchProfileDto,
   SearchQueueDto,
+  SearchViewerDto,
 } from './dto/search.dto';
 import { SearchPass, SearchPassType } from './entities/search-pass.entity';
 import { buildSearchProfile } from './util/search-profile';
@@ -106,9 +107,27 @@ export class SearchService {
     limit: number = SEARCH_QUEUE_PAGE,
   ): Promise<SearchQueueDto> {
     const tz = isTimeZone(zone) ? zone : 'UTC';
-    const ranked = await this.rankedQueue(viewerId, now);
+    const [ranked, viewer] = await Promise.all([
+      this.rankedQueue(viewerId, now),
+      this.viewerTraits(viewerId, now),
+    ]);
     const profiles = await this.loadProfiles(ranked.slice(0, limit), now, tz);
-    return { resultsCount: ranked.length, profiles };
+    return { resultsCount: ranked.length, profiles, viewer };
+  }
+
+  /** The viewer's own vibes and interests -- empty lists, never absent, when there are none. */
+  private async viewerTraits(
+    viewerId: string,
+    now: Date,
+  ): Promise<SearchViewerDto> {
+    const [window, profile] = await Promise.all([
+      this.activeWindow(viewerId, now),
+      this.db.getRepository(Profile).findOne({ where: { userId: viewerId } }),
+    ]);
+    return {
+      vibes: window?.vibes ?? [],
+      interests: profile?.interests ?? [],
+    };
   }
 
   /**

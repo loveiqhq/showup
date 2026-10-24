@@ -27,7 +27,6 @@ import com.showup.checkin.CheckInMotivationScreen
 import com.showup.checkin.CheckInStep
 import com.showup.checkin.CheckInUpliftScreen
 import com.showup.checkin.CheckInVibeScreen
-import com.showup.checkin.SearchUnlockedPlaceholderScreen
 import com.showup.checkin.SettingsPlaceholderScreen
 import com.showup.checkin.SlotTier
 import com.showup.checkin.checkInDays
@@ -939,7 +938,10 @@ class ScreenFitTest {
             }
             sweep("CheckIn/uplift D @$scale", fontScale = scale) { CheckInUpliftScreen(written, saving = true) }
             sweep("CheckIn/uplift E @$scale", fontScale = scale) { CheckInUpliftScreen(written, saveFailed = true) }
-            sweep("CheckIn/search placeholder @$scale", fontScale = scale) { SearchUnlockedPlaceholderScreen() }
+            // Filters opened from Search, its save refused: the longest toast the screen draws.
+            sweep("Search/filters save failed @$scale", fontScale = scale) {
+                CheckInFiltersScreen(CheckInFilters(setOf("woman")), toast = CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED)
+            }
             sweep("CheckIn/settings placeholder @$scale", fontScale = scale) { SettingsPlaceholderScreen() }
         }
         assertClean()

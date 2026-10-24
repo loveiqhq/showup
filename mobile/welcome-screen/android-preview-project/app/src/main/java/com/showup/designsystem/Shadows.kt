@@ -103,10 +103,51 @@ val ShadowViolet = listOf(
  * that shows. Use it in place of `background`, like [boxShadow].
  */
 fun Modifier.pillShadows(fill: Brush, shadows: List<CssShadow>): Modifier = drawBehind {
-    val r = size.height / 2f
+    drawShadowLayers(fill, size.height / 2f, shadows)
+}
+
+/**
+ * [pillShadows] for any corner: a rounded rectangle of [cornerRadius] filled with [fill] under a
+ * multi-layer `box-shadow` -- the kit's `Card` (`--liq-shadow-md`), the Search coach's lifted card,
+ * a sheet's upward shadow (a negative [CssShadow.offsetY]). One drawing routine for both, so a pill
+ * and a card can never disagree about how a layer is blurred. Use it in place of `background`.
+ */
+fun Modifier.roundedShadows(fill: Brush, cornerRadius: Dp, shadows: List<CssShadow>): Modifier = drawBehind {
+    drawShadowLayers(fill, cornerRadius.toPx(), shadows)
+}
+
+/**
+ * `--liq-shadow-md`: `0 4px 12px rgba(46,1,71,.06), 0 1px 3px rgba(46,1,71,.04)` -- the kit's `Card`.
+ */
+val ShadowMd = listOf(
+    CssShadow(Color(0x0F2E0147), offsetY = 4.dp, blur = 12.dp),
+    CssShadow(Color(0x0A2E0147), offsetY = 1.dp, blur = 3.dp),
+)
+
+/** `--liq-shadow-sm`: `0 1px 2px rgba(46,1,71,.04)` -- the outlined action buttons' lift. */
+val ShadowSm = listOf(CssShadow(Color(0x0A2E0147), offsetY = 1.dp, blur = 2.dp))
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShadowLayers(
+    fill: Brush,
+    r: Float,
+    shadows: List<CssShadow>,
+) {
+    // The fill rides on each shadow layer, so with no layers it has to be drawn on its own -- or a
+    // surface asked for no shadow would come out with no fill at all.
+    if (shadows.isEmpty()) {
+        val paint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            when (fill) {
+                is SolidColor -> color = fill.value.toArgb()
+                is ShaderBrush -> { color = android.graphics.Color.BLACK; shader = fill.createShader(size) }
+                else -> color = android.graphics.Color.BLACK
+            }
+        }
+        drawIntoCanvas { it.nativeCanvas.drawRoundRect(0f, 0f, size.width, size.height, r, r, paint) }
+        return
+    }
     shadows.asReversed().forEach { layer ->
-        val sigma = layer.blur.toPx() / 2f
-        val radius = ((sigma - 0.5f) / 0.57735f).coerceAtLeast(0.1f)
+        val radius = cssBlurToShadowRadius(layer.blur.toPx())
         val paint = android.graphics.Paint().apply {
             isAntiAlias = true
             when (fill) {
@@ -120,6 +161,13 @@ fun Modifier.pillShadows(fill: Brush, shadows: List<CssShadow>): Modifier = draw
     }
 }
 
+/**
+ * A CSS shadow's blur B, in px, as the radius Android's shadow layer takes -- the conversion in the
+ * header. Shared with text shadows (`Shadow.blurRadius` is the same shadow layer), which took the CSS
+ * number raw until the Search hero name did not (24 Oct 2026).
+ */
+internal fun cssBlurToShadowRadius(blurPx: Float): Float = ((blurPx / 2f - 0.5f) / 0.57735f).coerceAtLeast(0.1f)
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShadowed(
     fill: Color,
     r: Float,
@@ -127,8 +175,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShadowed(
     offsetY: Dp,
     blur: Dp,
 ) {
-    val sigma = blur.toPx() / 2f
-    val radius = ((sigma - 0.5f) / 0.57735f).coerceAtLeast(0.1f)
+    val radius = cssBlurToShadowRadius(blur.toPx())
     val paint = android.graphics.Paint().apply {
         isAntiAlias = true
         color = fill.toArgb()

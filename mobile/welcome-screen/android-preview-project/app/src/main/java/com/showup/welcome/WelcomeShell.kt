@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.showup.designsystem.balancedWidthPx
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -65,7 +66,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -301,6 +301,9 @@ private fun DrawScope.radial(center: Offset, radius: Float, color: Color, alpha:
 // ② Wordmark — 26 on both launch screens, identical position
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** `.su-wordmark { gap: 0.18em }` as the October sheets render it: the tab screens' top bar. */
+const val WORDMARK_TAB_GAP = 0.18f
+
 /**
  * `.su-wordmark` — Lora 700, tracking -0.02em, baseline-aligned, and the gap is 0.04em,
  * not the 0.18em this carried for months.
@@ -314,13 +317,20 @@ private fun DrawScope.radial(center: Offset, radius: Float, color: Color, alpha:
  * The two gaps differ from each other on their own: the period carries far more side bearing
  * than "U" does, so one spacing value reproduces the sheet's uneven pair without being told to.
  *
+ * THE TAB SCREENS DRAW IT WIDER, and on their own sheets' evidence: every spec sheet's CSS says
+ * 0.18em, and the October sheets RENDER it -- Check-In 01's closed gate and Search 01 both show
+ * ink gaps near 0.22em, the 0.18em spacing plus the side bearings. Those two share one top bar
+ * (the gate is the Search tab before a Check-In), so they pass [WORDMARK_TAB_GAP] together and
+ * the mark does not jump when the gate opens into Search. The launch screens keep the measured
+ * 0.04em. Two renderings of one mark is a design question, raised with the 184 work (24 Oct 2026).
+ *
  * "Up" is filled with `--su-grad-wordmark` (96°, violet → rose → orange) clipped to the glyphs, not
  * flat violet. Compose does this with a Brush on the TextStyle, which is the direct equivalent of
  * the CSS `background-clip: text`.
  */
 @Composable
-fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier) {
-    val gap = with(LocalDensity.current) { (size.toPx() * 0.04f).toDp() }
+fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier, gapEm: Float = 0.04f) {
+    val gap = with(LocalDensity.current) { (size.toPx() * gapEm).toDp() }
     Row(modifier, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(gap)) {
         val base = TextStyle(
             fontFamily = Lora, fontWeight = FontWeight.Bold,
@@ -592,22 +602,14 @@ fun WashHeadline(
             with(density) {
                 val full = available.roundToPx()
                 if (full <= 0) return@with available
-                fun linesAt(px: Int) = measurer.measure(
-                    textWithIcon, style,
-                    constraints = Constraints(maxWidth = px.coerceAtLeast(1)),
-                ).lineCount
-                val target = linesAt(full)
-                // A single line has nothing to balance, and narrowing it would only make two.
-                if (target <= 1) return@with available
-                // Pretty: Chrome's rule, shared with body copy (designsystem/PrettyWrap.kt).
-                if (!balance) return@with prettyWidthPx(measurer, textWithIcon, style, full).toDp()
-                var low = 1
-                var high = full
-                while (low < high) {
-                    val mid = (low + high) / 2
-                    if (linesAt(mid) <= target) high = mid else low = mid + 1
+                // Both rules live in designsystem/PrettyWrap.kt, shared with body copy. Either returns
+                // the full width for one line, which keeps the exact width the box was given.
+                val w = if (balance) {
+                    balancedWidthPx(measurer, textWithIcon, style, full)
+                } else {
+                    prettyWidthPx(measurer, textWithIcon, style, full)
                 }
-                low.toDp()
+                if (w == full) available else w.toDp()
             }
         }
         headline(Modifier.width(narrowest))

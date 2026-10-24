@@ -129,6 +129,9 @@ val MeterTrack = Color(0x141D1129)
 /** --liq-primary-600, #6B1D8F -- the availability summary's ranges (Check-In 02). */
 val Primary600 = Color(0xFF6B1D8F)
 
+/** `--liq-primary` #541475, the deepest violet: Search's `Be sure.` (callout 22). */
+val PrimaryDeep = Color(0xFF541475)
+
 /** The 2nd-tap "Available" tier and its legend pill: fill, ink and border (Check-In 02). */
 val TierAvailableFill = Color(0xFFF1ECF9)
 val TierAvailableInk = Color(0xFF7C6BA0)

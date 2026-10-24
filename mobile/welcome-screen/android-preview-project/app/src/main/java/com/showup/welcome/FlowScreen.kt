@@ -176,8 +176,15 @@ enum class FlowScreen {
     CheckInFilters,
     CheckInUplift,
 
-    /** Where `Find my date` lands, and a launch with an active Check-In: Search is not built yet. */
+    /** Search 01 (SHOWUP-184): where `Find my date` lands, and a launch with an active Check-In. */
     CheckInSearch,
+
+    /**
+     * Check-In 05's Filters, opened from Search's top bar -- outside any Check-In, so not one of its
+     * steps: its Continue saves and returns to Search, and back and the ✕ return without saving.
+     * After [CheckInSearch], so the way in reads forward and the way back backward.
+     */
+    SearchFilters,
 
     /** The gate's Settings tab: no Settings screen exists yet. */
     CheckInSettings,

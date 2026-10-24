@@ -104,7 +104,16 @@ open class CheckInViewModel(
     private val zone: () -> ZoneId = { ZoneId.systemDefault() },
     /** Milliseconds, for `time_to_answer_ms`. */
     private val millis: () -> Long = System::currentTimeMillis,
+    /** The phone's place at `Find my date` -- what Search measures every distance from (SHOWUP-184). */
+    private val places: PlaceReader? = null,
 ) : ViewModel() {
+
+    /**
+     * Read once per flow, at its first commit: a retry after a failed one reuses it rather than
+     * waiting on another fix, and a new flow reads again.
+     */
+    private var place: CheckInPlace? = null
+    private var placeRead = false
 
     private val _state = MutableStateFlow(CheckInUiState())
     val state: StateFlow<CheckInUiState> = _state.asStateFlow()
@@ -313,6 +322,8 @@ open class CheckInViewModel(
      */
     fun beginFlow() {
         flowAlive = true
+        place = null
+        placeRead = false
         prefillPending = true
         motivationTouched = false
         vibesTouched = false
@@ -636,6 +647,79 @@ open class CheckInViewModel(
         _state.update { s -> s.copy(server = s.server?.copy(filters = filters)) }
     }
 
+    // ── Filters opened from Search (SHOWUP-184) ────────────────────────────────────────────────
+    //
+    // "The filter button opens Check-In 05 Filters. Returning applies the filters to the queue." The
+    // same screen on the user's saved settings -- "shared with Search" (Check-In 05) -- but outside
+    // any Check-In, so it is not a step of one:
+    //
+    //   · Continue SAVES, and Search reloads only once the save has landed; a queue read before it
+    //     would still be under the old settings. A failed save keeps the screen, with a toast.
+    //   · Back and ✕ return to Search, the edits dropped. The ✕ never discards a committed Check-In.
+    //   · `screen_viewed` and `check_in_filters_changed` fire; the funnel's step events do not --
+    //     nobody is checking in, and counting this as a Check-In step would inflate that funnel.
+    //
+    // No ticket specifies this mode; these are decisions, raised with the 184 work (24 Oct 2026).
+
+    /** Filters is open from Search, and its exits go back there. */
+    private var filtersFromSearch = false
+
+    /** Search's filter button: Filters on the saved settings, never a half-made Check-In's edits. */
+    fun searchFiltersOpened() {
+        if (filtersFromSearch && currentStep == CheckInStep.Filters) return
+        filtersFromSearch = true
+        _state.update { s -> s.copy(filters = s.server?.filters ?: s.filters) }
+        arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, ProfileScreen.SearchProfile)
+    }
+
+    /** Continue on Filters from Search: saved, then [onSaved] -- Search, reading its queue again. */
+    fun searchFiltersContinue(onSaved: () -> Unit) {
+        if (!filtersFromSearch || !onScreen(CheckInStep.Filters)) return
+        val shown = _state.value.filters ?: return
+        if (shown.genders.isEmpty()) {
+            showToast(CheckInCopy.FILTERS_TOAST)
+            return
+        }
+        _state.update { it.copy(saving = true) }
+        viewModelScope.launch {
+            // A STAND-IN IS NEVER SAVED FROM HERE: its untouched settings are defaults, and saving
+            // them would overwrite what the user set before. The read resolves it -- their edits
+            // over the server's -- or, with no network, the save fails as any save would.
+            if (filtersStandIn) read()
+            val filters = _state.value.filters.takeUnless { filtersStandIn }
+            filtersSave?.join()
+            val saved = when {
+                filters == null -> Outcome.Failed(CallFailure.Network)
+                filters == _state.value.server?.filters -> Outcome.Ok(Unit)
+                else -> store.saveFilters(filters)
+            }
+            _state.update { it.copy(saving = false) }
+            if (saved !is Outcome.Ok || filters == null) {
+                showToast(CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED)
+                return@launch
+            }
+            filtersLanded(filters)
+            analytics?.report(CheckInAnalytics.filtersChanged(filtersOnEntry ?: filters, filters, windowId))
+            leaveSearchFilters()
+            onSaved()
+        }
+    }
+
+    /** Back, Android back or ✕ on Filters from Search: the edits dropped, Search shown again. */
+    fun searchFiltersLeft(onLeft: () -> Unit) {
+        if (!filtersFromSearch || !onScreen(CheckInStep.Filters)) return
+        _state.update { s -> s.copy(filters = s.server?.filters ?: filtersOnEntry) }
+        leaveSearchFilters()
+        onLeft()
+    }
+
+    private fun leaveSearchFilters() {
+        filtersFromSearch = false
+        filtersStandIn = false
+        standInEdits = emptySet()
+        leaveStep()
+    }
+
     // ── uplift and the commit (Check-In 06) ────────────────────────────────────────────────────
 
     /** The field changed: cut at 100 graphemes; an edit clears the save-failed card and a server refusal. */
@@ -738,7 +822,11 @@ open class CheckInViewModel(
         // The last hour may have started while the calls above were out.
         if (slots.isEmpty() && !commitMaybeSaved) return CommitResult.NoHours
         val uplift = s.uplift.trim().ifEmpty { null }
-        val result = store.commit(CommitRequest(windowId, slots, motivation, s.vibes, uplift))
+        if (!placeRead) {
+            place = places?.here()
+            placeRead = true
+        }
+        val result = store.commit(CommitRequest(windowId, slots, motivation, s.vibes, uplift, place))
         if (result == CommitResult.Network || result == CommitResult.Server) commitMaybeSaved = true
         return result
     }

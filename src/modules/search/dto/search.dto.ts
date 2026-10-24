@@ -212,6 +212,25 @@ export class SearchProfileDto {
 }
 
 /** The Search queue: how many profiles it holds, and the next few, in order. */
+/**
+ * What the viewer brings to the comparison: their own Check-In vibes and their interests. The phone
+ * marks a profile's shared vibes and interests against these, read in the same request as the queue,
+ * so a launch straight onto Search -- before any profile screen has loaded -- marks them right.
+ */
+export class SearchViewerDto {
+  @ApiProperty({
+    type: [String],
+    description: `The viewer's vibes in their active Check-In. ${answerSet(CHECK_IN_VIBES)}`,
+  })
+  vibes: string[];
+
+  @ApiProperty({
+    type: [String],
+    description: `The viewer's interests. ${answerSet(INTEREST_TAGS)}`,
+  })
+  interests: string[];
+}
+
 export class SearchQueueDto {
   @ApiProperty({
     type: 'integer',
@@ -225,6 +244,12 @@ export class SearchQueueDto {
     description: 'The first profiles of the queue, next one first',
   })
   profiles: SearchProfileDto[];
+
+  @ApiProperty({
+    type: SearchViewerDto,
+    description: 'The viewer, for marking what each profile shares with them',
+  })
+  viewer: SearchViewerDto;
 }
 
 /** `Not now` or `Not interested`. */

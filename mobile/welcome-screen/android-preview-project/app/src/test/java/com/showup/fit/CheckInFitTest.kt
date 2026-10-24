@@ -67,6 +67,10 @@ import org.robolectric.annotation.GraphicsMode
 import java.time.LocalDateTime
 import kotlin.math.abs
 
+/** The shared shot's types, under the names this suite has always used. */
+private typealias Rect = FitRect
+private typealias Shot = FitShot
+
 /** The tallest phone the six tickets name (430 x 932). Their "every phone" claims are about these. */
 private const val TALLEST_IN_MATRIX = 932
 
@@ -75,63 +79,9 @@ private const val TALLEST_IN_MATRIX = 932
 @Config(sdk = [34], qualifiers = "w600dp-h1200dp-xhdpi")
 class CheckInFitTest {
 
-    private data class Rect(val top: Float, val bottom: Float, val left: Float, val right: Float) {
-        val height get() = bottom - top
-        val width get() = right - left
-    }
-
-    private data class Shot(
-        val frame: Float,
-        val width: Float,
-        val tags: Map<String, Rect>,
-        /** How far the scrolling region's content runs past it; 0 when it fits. */
-        val overflow: Float,
-        /** The lowest edge laid out OUTSIDE the scrolling region. */
-        val lowest: Float,
-    ) {
-        fun tag(t: String): Rect = tags[t] ?: error("no node tagged $t")
-    }
-
-    @OptIn(ExperimentalTestApi::class)
-    private fun shoot(width: Int, height: Int, fontScale: Float = 1f, content: @Composable () -> Unit): Shot {
-        var shot: Shot? = null
-        runComposeUiTest {
-            var density = 1f
-            setContent {
-                density = LocalDensity.current.density
-                val cfg = android.content.res.Configuration(LocalConfiguration.current).apply {
-                    screenWidthDp = width
-                    screenHeightDp = height
-                    this.fontScale = fontScale
-                }
-                CompositionLocalProvider(
-                    LocalConfiguration provides cfg,
-                    LocalDensity provides Density(LocalDensity.current.density, fontScale),
-                ) {
-                    Box(Modifier.testTag(FIT_ROOT).requiredSize(width.dp, height.dp)) { content() }
-                }
-            }
-            waitForIdle()
-            val root = onNodeWithTag(FIT_ROOT, useUnmergedTree = true).fetchSemanticsNode()
-            val tags = mutableMapOf<String, Rect>()
-            var overflow = 0f
-            var lowest = 0f
-            fun walk(n: SemanticsNode, inScroll: Boolean) {
-                val top = (n.positionInRoot.y - root.positionInRoot.y) / density
-                val left = (n.positionInRoot.x - root.positionInRoot.x) / density
-                val r = Rect(top, top + n.size.height / density, left, left + n.size.width / density)
-                val tag = n.config.getOrNull(SemanticsProperties.TestTag)
-                if (tag != null && n.layoutInfo.isPlaced) tags[tag] = r
-                val range = n.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange)
-                if (tag == CHECK_IN_SCROLL_TAG && range != null) overflow = range.maxValue() / density
-                if (!inScroll && n.size.height > 0) lowest = maxOf(lowest, r.bottom)
-                n.children.forEach { walk(it, inScroll || range != null) }
-            }
-            walk(root, false)
-            shot = Shot(height.toFloat(), width.toFloat(), tags, overflow, lowest)
-        }
-        return shot!!
-    }
+    /** The shared geometry shot ([shootGeometry]), with this screen group's scroll region. */
+    private fun shoot(width: Int, height: Int, fontScale: Float = 1f, content: @Composable () -> Unit) =
+        shootGeometry(width, height, fontScale, scrollTag = CHECK_IN_SCROLL_TAG, content = content)
 
     private val SCALES = listOf(1f, 1.3f, 2f)
     private val SE = 375 to 647
