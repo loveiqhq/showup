@@ -788,6 +788,8 @@ the end of the list. Zero means it fits.
 | --- | --- | --- | --- |
 | Galaxy Fold cover screen 320 x 638 | **169** | 417 | 1094 |
 | small Android (HD) 360 x 592 | **98** | 327 | 992 |
+| small Android, 3-button nav 360 x 568 | **122** | — | — |
+| Galaxy A, 3-button nav 360 x 668 | **22** | — | — |
 | iPhone SE (3rd gen) 375 x 647 | **5** | 272 | 865 |
 | Galaxy A / common Android 360 x 692 | 0 | 227 | 892 |
 | iPhone 12 / 13 / 14 390 x 763 | 0 | 156 | 657 |
@@ -795,7 +797,9 @@ the end of the list. Zero means it fits.
 | the other eleven | 0 | 0–185 | 336–888 |
 
 So at the **default font three of seventeen frames scroll**; at 1.3x, thirteen; at 2.0x, all of
-them. The heights are safe-area heights, which is why 375 x 667 appears as 647 — an iPhone SE has
+them. The 22 Oct 2026 device audit added six frames (23 in all); two of them -- the small Android
+and the Galaxy A with **3-button navigation**, whose 48 dp button bar leaves 24 dp less than the
+gesture rows -- scroll at the default font too, by 122 and 22, under the same pinned CTA. The heights are safe-area heights, which is why 375 x 667 appears as 647 — an iPhone SE has
 a 20pt status bar and a home BUTTON, not the 585 a notched phone would leave. The ticket's "check
 375 x 667 first" is right, and 647 is the number to check against.
 

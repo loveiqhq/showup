@@ -30,21 +30,28 @@ struct FitDevice {
 let fitDevices: [FitDevice] = [
     FitDevice(name: "Galaxy Fold cover screen", width: 320, height: 686, top: 24, bottom: 24),
     FitDevice(name: "small Android (HD)", width: 360, height: 640, top: 24, bottom: 24),
+    // The twin of Devices.kt, row for row. See there for why each 22 Oct 2026 row exists.
+    FitDevice(name: "small Android, 3-button nav", width: 360, height: 640, top: 24, bottom: 48),
     FitDevice(name: "Galaxy A / common Android", width: 360, height: 740, top: 24, bottom: 24),
-    FitDevice(name: "iPhone 12 mini / 13 mini", width: 360, height: 780, top: 50, bottom: 34),
+    FitDevice(name: "Galaxy A, 3-button nav", width: 360, height: 740, top: 24, bottom: 48),
+    FitDevice(name: "compact 360 x 780, tall insets", width: 360, height: 780, top: 50, bottom: 34),
     FitDevice(name: "common modern Android", width: 360, height: 800, top: 24, bottom: 24),
     FitDevice(name: "iPhone SE (3rd gen)", width: 375, height: 667, top: 20, bottom: 0),
     FitDevice(name: "iPhone X / XS / 11 Pro", width: 375, height: 812, top: 44, bottom: 34),
+    FitDevice(name: "iPhone 12 mini / 13 mini", width: 375, height: 812, top: 50, bottom: 34),
+    FitDevice(name: "Galaxy S24 / S25", width: 384, height: 832, top: 24, bottom: 24),
     FitDevice(name: "iPhone 12 / 13 / 14", width: 390, height: 844, top: 47, bottom: 34),
     FitDevice(name: "Pixel 4a / 5", width: 393, height: 851, top: 24, bottom: 24),
     FitDevice(name: "iPhone 15 / 16", width: 393, height: 852, top: 59, bottom: 34),
-    FitDevice(name: "iPhone 16 Pro", width: 402, height: 874, top: 62, bottom: 34),
+    FitDevice(name: "iPhone 16 Pro / 17 / 17 Pro", width: 402, height: 874, top: 62, bottom: 34),
     FitDevice(name: "Pixel 6 / 7", width: 411, height: 891, top: 24, bottom: 24),
     FitDevice(name: "Pixel 7 Pro / 8 Pro", width: 412, height: 915, top: 24, bottom: 24),
+    FitDevice(name: "Galaxy Z Flip 5 / 6", width: 412, height: 1006, top: 24, bottom: 24),
     FitDevice(name: "iPhone XR / 11", width: 414, height: 896, top: 48, bottom: 34),
+    FitDevice(name: "iPhone Air", width: 420, height: 912, top: 68, bottom: 34),
     FitDevice(name: "iPhone 12/13/14 Pro Max", width: 428, height: 926, top: 47, bottom: 34),
     FitDevice(name: "iPhone 15/16 Pro Max", width: 430, height: 932, top: 59, bottom: 34),
-    FitDevice(name: "iPhone 16 Pro Max", width: 440, height: 956, top: 62, bottom: 34),
+    FitDevice(name: "iPhone 16 / 17 Pro Max", width: 440, height: 956, top: 62, bottom: 34),
 ]
 
 //  WHY THERE IS NO ELEMENT-LEVEL FIT HARNESS ON iOS

@@ -97,6 +97,10 @@ struct BasicsScaffold<Content: View, CTA: View>: View {
     let title: String
     var leading: HeaderLeading
     var onBack: () -> Void = {}
+    /// Scroll only as a last resort -- `WelcomeScaffold`'s rule, the Android twin's change of 22 Oct
+    /// 2026. Off by default, and off it is the layout below unchanged. Verify email turns it on: a
+    /// long address on a small 3-button Android did not fit, and the column squeezed its last row.
+    var scrollWhenTight: Bool = false
     @ViewBuilder var content: () -> Content
     @ViewBuilder var cta: () -> CTA
 
@@ -104,20 +108,33 @@ struct BasicsScaffold<Content: View, CTA: View>: View {
         VStack(spacing: 0) {
             AppHeader(title: title, leading: leading, onBack: onBack)
 
-            VStack(alignment: .leading, spacing: 0) {
-                content()
-
-                // The ONE spacer. Not two, and nothing else in this column is flexible.
-                Spacer(minLength: 0)
-
-                cta()
+            if scrollWhenTight {
+                GeometryReader { geo in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        column.frame(minHeight: geo.size.height, alignment: .top)
+                    }
+                    .modifier(NoBounceWhenItFits())
+                }
+            } else {
+                column.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            // Content pad-top 4, gutter 24, floor 0 — the CTA row carries its own bottom margin
-            // because it differs per screen (18 on name, 10 on email).
-            .padding(.init(top: 4, leading: 24, bottom: 0, trailing: 24))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.liqCream)
+    }
+
+    private var column: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content()
+
+            // The ONE spacer. Not two, and nothing else in this column is flexible.
+            Spacer(minLength: 0)
+
+            cta()
+        }
+        // Content pad-top 4, gutter 24, floor 0 — the CTA row carries its own bottom margin
+        // because it differs per screen (18 on name, 10 on email).
+        .padding(.init(top: 4, leading: 24, bottom: 0, trailing: 24))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

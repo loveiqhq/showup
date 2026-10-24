@@ -81,6 +81,24 @@ internal fun EmbraceBridgeShell(
         orangeAlpha = backdrop.orangeAlpha,
         violetAlpha = backdrop.violetAlpha,
         behindContent = behindContent,
+        // THE CTA IS PINNED AND THE BODY SCROLLS WHEN IT MUST, since the 22 Oct 2026 device audit:
+        // at the largest system font on a small Android with 3-button navigation (568 dp usable),
+        // a long name's greeting pushed the button into the bottom edge and its label was CLIPPED,
+        // two lines drawn in a box one line tall. `scrollWhenTight` alone would make the button
+        // reachable but not visible (the notifications ask's lesson), so it moves to [footer].
+        // Wherever the body fits, the spacer still takes the slack and the button sits exactly
+        // where it always did.
+        scrollWhenTight = true,
+        footer = {
+            PrimaryButton(
+                label = cta,
+                onClick = onContinue,
+                // The footer is full-bleed, so the 28 gutter is the button's own, with the 22 below.
+                modifier = Modifier.padding(start = 28.dp, end = 28.dp, bottom = 22.dp).testTag(BRIDGE_CTA_TAG),
+                variant = PrimaryButtonVariant.Sunset,
+                trailing = { Icon(BrandIcon.ArrowRight, 18.dp, tint = Color.White, strokeWidth = 2f) },
+            )
+        },
     ) {
         WashHeadline(
             parts = headline,
@@ -96,13 +114,5 @@ internal fun EmbraceBridgeShell(
 
         // THE ONLY FLEXIBLE ELEMENT. Never a hard-coded Y, and never a second spacer.
         Box(Modifier.weight(1f))
-
-        PrimaryButton(
-            label = cta,
-            onClick = onContinue,
-            modifier = Modifier.padding(bottom = 22.dp).testTag(BRIDGE_CTA_TAG),
-            variant = PrimaryButtonVariant.Sunset,
-            trailing = { Icon(BrandIcon.ArrowRight, 18.dp, tint = Color.White, strokeWidth = 2f) },
-        )
     }
 }

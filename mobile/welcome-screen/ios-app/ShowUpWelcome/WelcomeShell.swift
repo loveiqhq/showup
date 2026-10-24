@@ -299,7 +299,8 @@ extension WelcomeScaffold where Footer == EmptyView {
 /// This used to carry an `if #available(iOS 16.4)` fork, because the project deployed to 16.0.
 /// At a 17.0 floor the modifier is simply always there, so the fork and the second branch that had
 /// to be kept identical to the first are both gone.
-private struct NoBounceWhenItFits: ViewModifier {
+/// Internal since 22 Oct 2026: `BasicsScaffold`'s last-resort scroll uses it too.
+struct NoBounceWhenItFits: ViewModifier {
     func body(content: Content) -> some View {
         content.scrollBounceBehavior(.basedOnSize)
     }

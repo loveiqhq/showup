@@ -58,6 +58,9 @@ import com.showup.designsystem.Spacing
 import com.showup.designsystem.ComponentSizes
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 /** What the header's leading 36 slot holds. */
 enum class HeaderLeading {
@@ -181,6 +184,16 @@ fun BasicsScaffold(
     leading: HeaderLeading,
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
+    /**
+     * Scroll only as a last resort -- `WelcomeScaffold`'s rule, for the same reason. Off by default,
+     * and off it is the layout below unchanged.
+     *
+     * Added with the 22 Oct 2026 device audit for Verify email: with a long address on a small
+     * Android with 3-button navigation (568 dp usable) its content was taller than the frame, and
+     * the column SQUEEZED its last row -- "Change email address" answered in 19.5 dp. Floored at
+     * the viewport, the column is identical wherever the content fits, and scrolls where it cannot.
+     */
+    scrollWhenTight: Boolean = false,
     cta: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -193,19 +206,28 @@ fun BasicsScaffold(
     ) {
         AppHeader(title = title, leading = leading, onBack = onBack)
 
-        Column(
-            Modifier
-                .fillMaxSize()
-                // Content pad-top 4, gutter 24, floor 0 -- the CTA row carries its own bottom
-                // margin because it differs per screen (18 on name, 10 on email).
-                .padding(start = 24.dp, end = 24.dp, top = 4.dp),
-        ) {
+        // Content pad-top 4, gutter 24, floor 0 -- the CTA row carries its own bottom margin
+        // because it differs per screen (18 on name, 10 on email).
+        val region = Modifier
+            .fillMaxSize()
+            .padding(start = 24.dp, end = 24.dp, top = 4.dp)
+        val body: @Composable ColumnScope.() -> Unit = {
             content()
 
             // The ONE spacer. Not two, and nothing else in this column is flexible.
             Box(Modifier.weight(1f))
 
             cta()
+        }
+        if (scrollWhenTight) {
+            BoxWithConstraints(region) {
+                val viewport = maxHeight
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Column(Modifier.heightIn(min = viewport), content = body)
+                }
+            }
+        } else {
+            Column(region, content = body)
         }
     }
 }

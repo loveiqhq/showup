@@ -46,7 +46,21 @@ struct EmbraceBridgeShell<Content: View>: View {
             violetAlpha: backdrop.violetAlpha,
             topPadding: 64,
             gutter: 28,
-            behindContent: behindContent
+            // THE CTA IS PINNED AND THE BODY SCROLLS WHEN IT MUST -- the Android twin's change of
+            // 22 Oct 2026. At the largest type on a small Android with 3-button navigation a long
+            // name pushed the button into the bottom edge and clipped its label. The footer keeps
+            // it drawn; where the body fits, the spacer takes the slack and nothing moves.
+            scrollWhenTight: true,
+            behindContent: behindContent,
+            footer: {
+                PrimaryButton(
+                    label: cta,
+                    variant: .sunset,
+                    action: onContinue,
+                    trailing: { BrandIconView(icon: .arrowRight, size: 18, stroke: 2, tint: .white) }
+                )
+                .padding(.bottom, 22)
+            }
         ) {
             WashHeadline(parts: headline, fontSize: 34, lineHeightMultiple: 1.1, trackingEm: -0.015,
                          balance: balanceHeadline)
@@ -54,17 +68,8 @@ struct EmbraceBridgeShell<Content: View>: View {
 
             content()
 
-            // THE ONLY FLEXIBLE ELEMENT. `minLength: 0` so it may collapse on the shortest frame
-            // rather than force the CTA off the bottom.
+            // THE ONLY FLEXIBLE ELEMENT. `minLength: 0` so it may collapse on the shortest frame.
             Spacer(minLength: 0)
-
-            PrimaryButton(
-                label: cta,
-                variant: .sunset,
-                action: onContinue,
-                trailing: { BrandIconView(icon: .arrowRight, size: 18, stroke: 2, tint: .white) }
-            )
-            .padding(.bottom, 22)
         }
         // No back of any kind: there is nothing behind a bridge to return to.
         .navigationBarBackButtonHidden(true)

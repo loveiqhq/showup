@@ -154,6 +154,9 @@ fun ProfileVerifyEmailScreen(
         title = VerifyEmailCopy.SECTION,
         leading = HeaderLeading.Back,
         onBack = onBack,
+        // A long address on a small 3-button Android does not fit: scroll, never squeeze. See
+        // `BasicsScaffold.scrollWhenTight`.
+        scrollWhenTight = true,
         cta = {},
         content = {
             // current = 2, IDENTICAL to the email screen. The bar does not advance here.
