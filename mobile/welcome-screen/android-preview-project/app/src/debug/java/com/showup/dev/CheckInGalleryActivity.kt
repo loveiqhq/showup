@@ -18,6 +18,14 @@ package com.showup.dev
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.showup.search.messageDraft
+import com.showup.search.SearchUiState
+import com.showup.search.SearchSamples
+import com.showup.search.SearchProfileScreen
+import com.showup.search.SearchPlayback
+import com.showup.search.LikeSheet
+import com.showup.profile.MediaKind
+import com.showup.api.CallFailure
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ScrollState
 import androidx.compose.runtime.Composable
@@ -90,6 +98,21 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "183D" -> CheckInUpliftScreen(text = WRITTEN, saving = true, onBack = leave, onClose = leave)
         "183E" -> CheckInUpliftScreen(text = WRITTEN, saveFailed = true, onBack = leave, onClose = leave)
         // Loud, never a quiet fallback: a menu entry with no frame must be seen, not shown as the intro.
+        "184A" -> SearchProfileScreen(SearchSamples.rest(), SearchSamples.ZONE)
+        "184B" -> SearchProfileScreen(SearchSamples.rest().copy(sheet = LikeSheet.Confirm), SearchSamples.ZONE, onCancelConfirm = leave)
+        "184C" -> SearchProfileScreen(
+            SearchSamples.rest().copy(sheet = LikeSheet.Message, draft = messageDraft("Leonie", "today")),
+            SearchSamples.ZONE, onDismissMessage = leave,
+        )
+        "184D" -> SearchProfileScreen(SearchSamples.rest(SearchSamples.MINIMUM), SearchSamples.ZONE)
+        "184F" -> SearchProfileScreen(SearchSamples.rest().copy(coach = true), SearchSamples.ZONE, onCoachDone = { _, _ -> leave() })
+        "184-voice" -> SearchProfileScreen(
+            SearchSamples.rest().copy(playback = SearchPlayback(MediaKind.Voice, 6_000, 14_000)), SearchSamples.ZONE,
+        )
+        "184-viewer" -> SearchProfileScreen(SearchSamples.rest().copy(viewerAt = 2), SearchSamples.ZONE, onCloseViewer = leave)
+        "184-loading" -> SearchProfileScreen(SearchUiState(loading = true), SearchSamples.ZONE)
+        "184-failed" -> SearchProfileScreen(SearchUiState(loading = false, failure = CallFailure.Network), SearchSamples.ZONE)
+        "184-empty" -> SearchProfileScreen(SearchUiState(loading = false), SearchSamples.ZONE)
         else -> Text("Unknown state $state")
     }
 }

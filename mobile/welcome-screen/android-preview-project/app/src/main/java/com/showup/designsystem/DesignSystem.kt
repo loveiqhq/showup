@@ -129,6 +129,9 @@ val MeterTrack = Color(0x141D1129)
 /** --liq-primary-600, #6B1D8F -- the availability summary's ranges (Check-In 02). */
 val Primary600 = Color(0xFF6B1D8F)
 
+/** `--liq-primary` #541475, the deepest violet: Search's `Be sure.` (callout 22). */
+val PrimaryDeep = Color(0xFF541475)
+
 /** The 2nd-tap "Available" tier and its legend pill: fill, ink and border (Check-In 02). */
 val TierAvailableFill = Color(0xFFF1ECF9)
 val TierAvailableInk = Color(0xFF7C6BA0)
@@ -152,6 +155,17 @@ val DialogShadow = Color(0x57140C1C)
 
 /** The tab bar's glass, rgba(255,251,247,.92) (`components/shared.jsx` TabBar). */
 val TabBarGlass = Color(0xEBFFFBF7)
+
+// ── added for Search 01 (SHOWUP-184) ───────────────────────────────────────
+//
+// As with Check-In, a tint of a token (the meet tile, the prompt edge, the coach scrim) is written
+// `Orange.copy(alpha = ...)` where it is drawn; only a base value no token held comes here.
+
+/**
+ * rgb(46,1,71), the violet-black every `--liq-shadow-*` token is cast in -- the like sheets' upward
+ * lift at .18. [ToastShadow] and [ChipRest] are this ink at fixed alphas.
+ */
+val ShadowInk = Color(0xFF2E0147)
 
 /** --su-grad-sunset · 135°, midpoint at 38%. Not an even three-stop ramp. */
 val SunsetStops = listOf(0.00f to Color(0xFFFE6839), 0.38f to Color(0xFFD05976), 1.00f to Color(0xFF812AEC))
@@ -198,6 +212,16 @@ val LilacWash: Brush
     // diagonal. Sunset IS 135 and reads correctly that way, which is what made this easy to carry
     // over; lilac is 180 and did not. iOS had it right on every surface.
     get() = Brush.verticalGradient(colorStops = LilacStops.toTypedArray())
+
+/**
+ * `--su-grad-blush`, 180deg (`tokens/colors_and_type.css`): Search's highlight card and Be sure's
+ * header panel, and the grid's and Likes' surfaces after them -- four surfaces, one definition.
+ */
+val BlushStops = listOf(0.00f to Color(0xFFFDE7DC), 1.00f to Color(0xFFF5D9EA))
+
+/** [BlushStops] as a brush, vertical for the same reason [LilacWash] is. */
+val BlushWash: Brush
+    get() = Brush.verticalGradient(colorStops = BlushStops.toTypedArray())
 
 // ── Type ─────────────────────────────────────────────────────────────────
 //

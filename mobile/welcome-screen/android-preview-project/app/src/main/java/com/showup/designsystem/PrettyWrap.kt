@@ -17,6 +17,10 @@
  *
  * HOW, here: the widest width at which one more word reaches the last line, with the line count
  * unchanged. The paragraph is laid out at that width; everything else about it is untouched.
+ *
+ * `text-wrap: balance` lives here too, for the same reason: `WashHeadline` had it inline, and the
+ * Search prompt topic (SHOWUP-184) was its first plain Text -- a second copy is how the two would
+ * drift.
  */
 package com.showup.designsystem
 
@@ -63,6 +67,28 @@ fun prettyWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyl
 }
 
 /**
+ * The width, in px, at which [text] in [style] wraps as CSS `text-wrap: balance` would inside
+ * [maxPx]: the narrowest width that keeps the greedy line count, so the lines come out even. [maxPx]
+ * itself for a single line, which has nothing to balance and would only become two.
+ *
+ * A binary search -- eight measurements rather than a scan's three hundred, because a Text
+ * re-measures on every recomposition.
+ */
+fun balancedWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyle, maxPx: Int): Int {
+    if (maxPx <= 0) return maxPx
+    fun linesAt(px: Int) = measurer.measure(text, style, constraints = Constraints(maxWidth = px.coerceAtLeast(1))).lineCount
+    val target = linesAt(maxPx)
+    if (target <= 1) return maxPx
+    var low = 1
+    var high = maxPx
+    while (low < high) {
+        val mid = (low + high) / 2
+        if (linesAt(mid) <= target) high = mid else low = mid + 1
+    }
+    return low
+}
+
+/**
  * `text-wrap: pretty` on a Text node: lays it out at [prettyWidthPx] inside the width it is given,
  * and still takes the whole width, so the paragraph keeps its place -- start-aligned at the start,
  * [centered] in the middle, as CSS keeps the box and only moves the breaks.
@@ -71,7 +97,16 @@ fun prettyWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyl
  * breaks it makes.
  */
 @Composable
-fun Modifier.prettyWrap(text: AnnotatedString, style: TextStyle, centered: Boolean = false): Modifier {
+fun Modifier.prettyWrap(text: AnnotatedString, style: TextStyle, centered: Boolean = false): Modifier =
+    wrapAt(centered) { measurer, max -> prettyWidthPx(measurer, text, style, max) }
+
+/** `text-wrap: balance` on a Text node, as [prettyWrap] is `pretty`: the box keeps its width, the breaks move. */
+@Composable
+fun Modifier.balanceWrap(text: AnnotatedString, style: TextStyle, centered: Boolean = false): Modifier =
+    wrapAt(centered) { measurer, max -> balancedWidthPx(measurer, text, style, max) }
+
+@Composable
+private fun Modifier.wrapAt(centered: Boolean, widthPx: (TextMeasurer, Int) -> Int): Modifier {
     val measurer = rememberTextMeasurer()
     return layout { measurable, constraints ->
         if (!constraints.hasBoundedWidth) {
@@ -79,7 +114,7 @@ fun Modifier.prettyWrap(text: AnnotatedString, style: TextStyle, centered: Boole
             return@layout layout(p.width, p.height) { p.place(0, 0) }
         }
         val max = constraints.maxWidth
-        val w = prettyWidthPx(measurer, text, style, max)
+        val w = widthPx(measurer, max)
         val p = measurable.measure(constraints.copy(minWidth = minOf(constraints.minWidth, w), maxWidth = w))
         val width = if (w < max) max else p.width
         layout(width, p.height) { p.place(if (centered) (width - p.width) / 2 else 0, 0) }

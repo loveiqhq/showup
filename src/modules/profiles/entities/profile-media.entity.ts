@@ -30,10 +30,14 @@ export enum MediaModerationStatus {
  * is holding, and the server never observes them. If a row exists, the bytes are stored -- which is
  * the only status the server can honestly report.
  *
- * NOT MODERATED. `moderationStatus` exists and defaults to Pending, and nothing reads or advances
- * it. SHOWUP-161 puts moderation out of scope while stating that it must exist before media is
- * shown to other users; the column is here so the profile-view work has to look at it rather than
- * discover the gap. Do not render another user's media while this is Pending.
+ * NOT MODERATED YET, AND SHOWN UNLESS REJECTED. `moderationStatus` defaults to Pending and nothing
+ * advances it. Search 01 (SHOWUP-184) decided on 21 Oct 2026 that media follows the photos'
+ * post-moderation rule -- shown to others unless staff REJECT it -- so a reviewer can still take a
+ * recording down; this is the column that would do it.
+ *
+ * Metadata is not stripped from recordings: both apps record in-app (CameraX, AVFoundation), and
+ * neither writes a location unless asked to. Server-side stripping of MP4/QuickTime boxes belongs
+ * with the re-encoding work on SHOWUP-119.
  */
 @Entity('profile_media')
 @Unique('profile_media_user_kind_key', ['userId', 'kind'])

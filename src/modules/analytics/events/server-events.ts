@@ -14,11 +14,42 @@ export interface AnalyticsEventSpec {
 // ── Matching / liking ────────────────────────────────────────────────────────
 export const LIKE_SENT = 'like_sent';
 export const MATCH_CREATED = 'match_created';
+export const LIKE_WITHDRAWN = 'like_withdrawn';
 
+/**
+ * `like_sent` (registry 1.4.29): once per like saved -- never again for a retry of the same one.
+ * `surface` is always `profile`: every like is made on the full profile (§35; `grid_card` retired,
+ * `likes_received` is pass-only). `position` is the app's, 1-based in this Search visit, and absent
+ * when an older app did not send it. Show-up rides as `target_attended_count`, never a band.
+ */
 export function likeSentEvent(opts: {
   hasMessage: boolean;
+  targetAttendedCount: number;
+  position?: number | null;
 }): AnalyticsEventSpec {
-  return { eventName: LIKE_SENT, properties: { has_message: opts.hasMessage } };
+  return {
+    eventName: LIKE_SENT,
+    properties: {
+      ...(opts.position != null ? { position: opts.position } : {}),
+      target_attended_count: opts.targetAttendedCount,
+      has_message: opts.hasMessage,
+      surface: 'profile',
+    },
+  };
+}
+
+/**
+ * `like_withdrawn`: one per open like that closed without a decision (§36). `matched` carries the
+ * match that closed it; `no_overlap` has none.
+ */
+export function likeWithdrawnEvent(opts: {
+  matchId: string | null;
+  reason: 'matched' | 'no_overlap';
+}): AnalyticsEventSpec {
+  return {
+    eventName: LIKE_WITHDRAWN,
+    properties: { match_id: opts.matchId, reason: opts.reason },
+  };
 }
 
 export function matchCreatedEvent(opts: {

@@ -47,7 +47,7 @@ extension FlowScreen {
              .profileInterests, .profileLifeNow, .profileLifeAhead:
             return .details
         case .checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
-             .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings:
+             .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .checkInSettings:
             return .checkIn
         case .home: return .home
         }
@@ -93,7 +93,8 @@ extension FlowScreen {
         case .checkInVibe: return "4 · Vibe"
         case .checkInFilters: return "5 · Filters"
         case .checkInUplift: return "6 · Uplift + Find my date"
-        case .checkInSearch: return "Search, unlocked (placeholder)"
+        case .checkInSearch: return "Search 01 · Profile"
+        case .searchFilters: return "Search · Filters"
         case .checkInSettings: return "Settings (placeholder)"
         case .home: return "Home (placeholder)"
         }
@@ -163,6 +164,8 @@ struct DevMenuFacts {
     let signedIn: Bool?
     let notificationsAsk: Bool
     let location: LocationArrival
+    /// The account's plan, as Search last read it -- `plan_tier`, Freemium until payments exist.
+    var premium: Bool = false
 }
 
 /// The small "DEV" tab on the right edge.
@@ -201,6 +204,8 @@ struct DevMenu: View {
     let onClearEvents: () -> Void
     let onHideTab: () -> Void
     let onClose: () -> Void
+    /// The plan switch: the server's dev-only route, a 404 in production.
+    var onPremium: (Bool) -> Void = { _ in }
 
     private enum Page { case screens, states, events }
     @State private var page = Page.screens
@@ -245,6 +250,15 @@ struct DevMenu: View {
                     Text("Hide the DEV tab until the app is next opened")
                         .font(F.manrope(13, .semibold)).foregroundColor(.liqPurple)
                         .frame(minHeight: ComponentSizes.minTapTarget)
+                }
+                // The account's plan, until payments exist (decided 21 Oct 2026). Signed in only: it
+                // is a write to this account on this server.
+                if facts.signedIn == true {
+                    Toggle(isOn: Binding(get: { facts.premium }, set: { onPremium($0) })) {
+                        Text("Premium plan (date search)").font(F.manrope(13, .semibold)).foregroundColor(.liqMuted)
+                    }
+                    .tint(.liqPurple)
+                    .frame(minHeight: ComponentSizes.minTapTarget)
                 }
                 ForEach(DevSection.allCases, id: \.self) { section in
                     Text(section.rawValue.uppercased())

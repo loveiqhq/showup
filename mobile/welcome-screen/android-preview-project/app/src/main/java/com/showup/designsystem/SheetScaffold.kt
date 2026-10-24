@@ -58,6 +58,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import com.showup.profile.SheetDismissMethod
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
@@ -86,14 +88,19 @@ val SheetShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
  */
 val SheetMaxHeight = 660.dp
 
-/** The drag grabber. Decorative: a sheet is dismissed by the X, the scrim or the drag, not by this. */
+/**
+ * The drag grabber. Decorative: a sheet is dismissed by the X, the scrim or the drag, not by this.
+ *
+ * Two sizes in the design, both kept: the profile flow's 40 at 18% ink (the defaults), and Search's
+ * `ModalShell` 36 in `--liq-fg-faint` (SHOWUP-184). A tone per screen, not one tone for all.
+ */
 @Composable
-fun SheetGrabber() {
+fun SheetGrabber(width: Dp = 40.dp, color: Color = Fg.copy(alpha = 0.18f)) {
     Box(
         Modifier
-            .size(width = 40.dp, height = 4.dp)
+            .size(width = width, height = 4.dp)
             .clip(RoundedCornerShape(4.dp))
-            .background(Fg.copy(alpha = 0.18f))
+            .background(color)
             .clearAndSetSemantics {},
     )
 }

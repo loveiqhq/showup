@@ -1,7 +1,10 @@
+import { join } from 'path';
+
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
 
@@ -54,7 +57,9 @@ function setupSwagger(app: INestApplication, config: ConfigService) {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
 
   // Structured logging (Epic 16, SHOWUP-91): every existing `new Logger('Context')` call site now
   // produces a single-line JSON record carrying the request id, without any of them changing.
@@ -85,6 +90,18 @@ async function bootstrap() {
   app.enableCors({
     origin:
       corsOrigins === '*' ? true : corsOrigins.split(',').map((o) => o.trim()),
+  });
+
+  // The local storage adapter's "bucket": `LocalDiskStorage.publicUrl` hands out `/uploads/<key>`,
+  // and this answers it, the way a bucket URL would. Nothing else lives under it. Keys hold a random
+  // UUID, so a URL cannot be guessed, and photos are stored with their metadata stripped. A cloud
+  // adapter (SHOWUP-119) replaces both halves together. No directory listings, no dotfiles, and a
+  // miss is a 404 here rather than falling through to the API's own routes.
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
+    index: false,
+    dotfiles: 'deny',
+    fallthrough: false,
   });
 
   const env = config.get<string>('app.env');

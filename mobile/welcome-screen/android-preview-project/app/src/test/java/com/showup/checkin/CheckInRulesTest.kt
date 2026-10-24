@@ -212,9 +212,9 @@ class CheckInRulesTest {
 
     @Test
     fun `an emoji, a flag and a family each count as one character`() {
-        assertEquals(1, graphemeCount("😀"))
-        assertEquals(1, graphemeCount("🇩🇪"))
-        assertEquals(1, graphemeCount("👨‍👩‍👧"))
+        assertEquals(1, graphemeCount("\uD83D\uDE00"))
+        assertEquals(1, graphemeCount("\uD83C\uDDE9\uD83C\uDDEA"))
+        assertEquals(1, graphemeCount("\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67"))
         assertEquals(5, graphemeCount("hello"))
     }
 
@@ -222,7 +222,7 @@ class CheckInRulesTest {
     fun `input past 100 is not accepted and a paste is cut at 100 graphemes`() {
         val long = "a".repeat(150)
         assertEquals(100, clampUplift(long).length)
-        val emoji = "😀".repeat(120)
+        val emoji = "\uD83D\uDE00".repeat(120)
         val cut = clampUplift(emoji)
         assertEquals(100, graphemeCount(cut))
         assertEquals("an emoji is never split in half", 200, cut.length)
@@ -298,5 +298,26 @@ class CheckInRulesTest {
         assertEquals(section("27"), CheckInAnalytics.GateTarget.entries.map { it.wire })
         assertEquals(section("29"), CheckInAnalytics.NoHoursAction.entries.map { it.wire })
         assertEquals(section("32"), CheckInAnalytics.CommitFailure.entries.map { it.wire })
+    }
+
+    @Test
+    fun `the district reads sub-locality then locality, as the sheet draws it, never one name twice`() {
+        assertEquals("Neukölln, Berlin", districtOf("Neukölln", "Berlin"))
+        assertEquals("Berlin", districtOf(null, "Berlin"))
+        assertEquals("Neukölln", districtOf(" Neukölln ", "  "))
+        assertEquals("Hamburg", districtOf("Hamburg", "hamburg"))
+        assertNull(districtOf(null, null))
+        assertNull(districtOf(" ", ""))
+    }
+
+    @Test
+    fun `a district never outgrows the server's 80, and is cut at a word`() {
+        val longCity = "Sankt " + "Ober".repeat(20)
+        assertEquals("Mitte", districtOf("Mitte", longCity))
+        val longSub = List(12) { "Kleinstadt" }.joinToString(" ")
+        val cut = districtOf(longSub, "Berlin")!!
+        assertTrue(cut.length <= DISTRICT_MAX)
+        assertFalse(cut.endsWith(" "))
+        assertTrue(longSub.startsWith(cut))
     }
 }

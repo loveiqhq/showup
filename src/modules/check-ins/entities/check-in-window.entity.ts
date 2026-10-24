@@ -68,6 +68,15 @@ export class CheckInWindow {
   @Column({ type: 'text', nullable: true })
   uplift: string | null;
 
+  /**
+   * The neighbourhood Search names next to the distance (Search 01 hero, `~3 km · Kreuzberg`), as
+   * the phone's own geocoder named it at `Find my date`. Never geocoded here: the server holds no
+   * geocoding key and sends no coordinates anywhere. Null when the phone could not name one; the
+   * hero then shows the distance alone.
+   */
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  district: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

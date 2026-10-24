@@ -1,3 +1,5 @@
+import { UserStatus } from '../../users/entities/user.entity';
+
 /**
  * Epic 6 — matching primitives.
  *
@@ -6,11 +8,36 @@
  * either direction always maps to the same row and can never produce two matches for one couple.
  */
 
-/** Lifecycle of a like. "active" = pending; "matched" = it produced a match. */
+/**
+ * Lifecycle of a like. "active" = open; "matched" = it produced a match; "withdrawn" = it closed
+ * without a decision, for the `LikeCloseReason` stored with it (Date search epic rule 9).
+ */
 export enum LikeStatus {
   Active = 'active',
   Matched = 'matched',
+  Withdrawn = 'withdrawn',
 }
+
+/**
+ * Why an open like closed without a decision -- §36 `like_close_reason`, the `reason` on
+ * `like_withdrawn`. `matched`: either person's other like became mutual first (1 match = 1 date),
+ * shown to the recipient as Too late. `no_overlap`: the two Check-Ins have no meet time left,
+ * shown as Out of time.
+ */
+export enum LikeCloseReason {
+  Matched = 'matched',
+  NoOverlap = 'no_overlap',
+}
+
+/**
+ * Accounts that can never be liked or surfaced -- by discovery, the Search queue or a like. One list,
+ * so the three can never disagree about who is out.
+ */
+export const INELIGIBLE_USER_STATUSES = [
+  UserStatus.Suspended,
+  UserStatus.Deleted,
+  UserStatus.DeletionPending,
+];
 
 /** Lifecycle of a match. */
 export enum MatchStatus {

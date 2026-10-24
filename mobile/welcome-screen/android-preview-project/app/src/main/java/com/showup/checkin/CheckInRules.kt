@@ -492,4 +492,10 @@ object CheckInCopy {
     const val FIND_MY_DATE = "Find my date"
     const val CONTACT_ERROR = "No emails, phone numbers or links allowed."
     const val SAVE_ERROR = "Couldn't save your Check-in. Check your connection and try again."
+
+    /**
+     * PROPOSED -- no ticket has copy for it. Filters opened from Search could not save: the screen
+     * stays, with this toast, in the shape of [SAVE_ERROR].
+     */
+    const val FILTERS_SAVE_ERROR_PROPOSED = "Couldn't save your filters. Check your connection and try again."
 }

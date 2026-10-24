@@ -91,8 +91,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.media3.common.Player
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -363,29 +361,6 @@ private fun TopRowContent(
     }
 }
 
-/**
- * Frames, drawn by the player.
- *
- * The same component the filled video card uses, for the same reason: a player with nowhere to
- * draw plays a clip's audio underneath a still picture, which on a video is worse than not playing
- * at all. `useController = false` because the transport controls are ours -- an 88px glass circle
- * here, a 56px button on the card, and ExoPlayer's own bar is neither.
- */
-@Composable
-private fun VideoSurface(player: Player, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            PlayerView(context).apply {
-                useController = false
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
-            }
-        },
-        update = { it.player = player },
-        onRelease = { it.player = null },
-    )
-}
 
 /**
  * The live indicator. OURS, not the OS's -- we neither imitate nor compensate for those.

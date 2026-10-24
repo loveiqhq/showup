@@ -75,6 +75,10 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     /// third at the largest type on the narrowest phone. Declared before `action`, defaulted, so no
     /// call site changes.
     var labelLineLimit: Int = 2
+    /// The pill's side padding: 28 everywhere but a pair of buttons sharing a row, which pass
+    /// `pairButtonPadding` so a label keeps its half (`ButtonPair`, SHOWUP-184). Android's
+    /// `horizontalPadding`.
+    var horizontalPadding: CGFloat = 28
     var action: () -> Void
     @ViewBuilder var leading: () -> Leading
     /// Mirrors `leading`. Used once: the tutorial CTA's trailing arrow.
@@ -113,7 +117,7 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
             // phone numb...". Letting the pill grow keeps the type size, the padding and the
             // copy the design specifies.
             .frame(minHeight: height)
-            .padding(.horizontal, 28)
+            .padding(.horizontal, horizontalPadding)
             .background(background)
             .clipShape(Capsule())
             .overlay(
@@ -200,9 +204,10 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
 extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
     init(_ label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
          height: CGFloat = 56, labelSize: CGFloat = 16, labelLineLimit: Int = 2,
-         action: @escaping () -> Void) {
+         horizontalPadding: CGFloat = 28, action: @escaping () -> Void) {
         self.init(label: label, variant: variant, enabled: enabled, height: height,
-                  labelSize: labelSize, labelLineLimit: labelLineLimit, action: action,
+                  labelSize: labelSize, labelLineLimit: labelLineLimit,
+                  horizontalPadding: horizontalPadding, action: action,
                   leading: { EmptyView() }, trailing: { EmptyView() })
     }
 }
@@ -210,10 +215,10 @@ extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
 extension PrimaryButton where Trailing == EmptyView {
     init(label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
          height: CGFloat = 56, labelSize: CGFloat = 16,
-         labelWidth: CGFloat? = nil, action: @escaping () -> Void,
+         labelWidth: CGFloat? = nil, horizontalPadding: CGFloat = 28, action: @escaping () -> Void,
          @ViewBuilder leading: @escaping () -> Leading) {
         self.init(label: label, variant: variant, enabled: enabled, height: height,
-                  labelSize: labelSize, labelWidth: labelWidth,
+                  labelSize: labelSize, labelWidth: labelWidth, horizontalPadding: horizontalPadding,
                   action: action, leading: leading, trailing: { EmptyView() })
     }
 }

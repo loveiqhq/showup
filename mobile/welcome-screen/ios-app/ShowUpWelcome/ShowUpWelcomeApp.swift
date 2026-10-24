@@ -128,6 +128,7 @@ private struct TutorialFlow: View {
         _dobStored = SceneStorage(wrappedValue: "", SceneKey.scoped("basics.dob", epoch: epoch))
         _hideAgeStored = SceneStorage(wrappedValue: false,
                                       SceneKey.scoped("basics.hideAge", epoch: epoch))
+        _searchLikeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("search.like", epoch: epoch))
     }
 
     // SceneStorage, not State: a process death mid-tutorial should not silently drop the user back
@@ -274,7 +275,17 @@ private struct TutorialFlow: View {
     // clears the picks": a restored scene whose model is new restarts the Check-In at Today
     // (`checkInArrived`). Replaced by `beginNewAccount` like every account-scoped model.
     @State private var checkIn = CheckInModel(store: CheckInRepository(api: APIAccess.client),
-                                              analytics: AppAnalytics.shared)
+                                              analytics: AppAnalytics.shared, places: CLPlaceReader())
+
+    // ── date search (SHOWUP-184) ─────────────────────────────────────────────
+    //
+    // One owner for the queue, the like flow, the coach and their events -- `SearchModel`, Android's
+    // SearchViewModel. It plays through the app's one player: the media step and Search are never on
+    // screen together. Replaced by `beginNewAccount` like every account-scoped model.
+    @State private var search = SearchModel(store: SearchRepository(api: APIAccess.client),
+                                            analytics: AppAnalytics.shared, players: sharedMediaPlayer)
+    /// An open like sheet and its message, so a process the system ended reopens them (`attachSearch`).
+    @SceneStorage private var searchLikeStored: String
     /// Whether Embrace 2's confetti has started for this showing — so a scene restore onto the
     /// bridge does not replay it. Cleared by the push, never by the way out.
     @SceneStorage private var confettiPlayed: Bool
@@ -306,9 +317,14 @@ private struct TutorialFlow: View {
     @State private var navPath: [AppRoute] = []
 
     /// THE LIKES BADGE: open received likes, the one number the Likes tab and the Search likes chip
-    /// both show (SHOWUP-187 rule 10). 0 -- no badge -- until the Search stories give it a source;
-    /// every TabBar already reads it from here, so none of them changes then.
-    @State private var likesOpen = 0
+    /// both show (SHOWUP-187 rule 10) -- on the gate's and Settings' bars too, refreshed on every
+    /// foreground of a tab screen, not only by a Search visit.
+    private var likesOpen: Int { search.state.likesOpen }
+
+    /// The Search tab: Search with a committed Check-In, the gate without one (story 01).
+    private var searchTab: FlowScreen {
+        checkIn.state.server?.active == true ? .checkInSearch : .checkInGate
+    }
 
     @State private var permissions = PermissionReconciler(
         snapshot: ReaderPermissionSnapshot(notifications: UNNotificationAccess(),
@@ -322,6 +338,9 @@ private struct TutorialFlow: View {
     /// outside the app. A return from `.inactive` alone is a system alert -- our own permission
     /// sheet among them -- and is absorbed, never reported.
     @State private var leftForBackground = false
+    /// The same fact for Search, kept apart: the handler above resets its flag, and the order in
+    /// which two `onChange` closures on one value run is not something to rely on.
+    @State private var searchLeftForBackground = false
 
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
@@ -642,7 +661,10 @@ private struct TutorialFlow: View {
                           analytics: AppAnalytics.shared)
         location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client),
                                  analytics: AppAnalytics.shared)
-        checkIn = CheckInModel(store: CheckInRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        checkIn = CheckInModel(store: CheckInRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
+                               places: CLPlaceReader())
+        search = SearchModel(store: SearchRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
+                             players: sharedMediaPlayer)
         firstName = ""
         email = ""
         marketingConsent = false
@@ -652,6 +674,13 @@ private struct TutorialFlow: View {
         confettiPlayed = false
         dobStored = ""
         hideAgeStored = false
+        searchLikeStored = ""
+    }
+
+    /// Binds the Search model to scene storage -- idempotent, so every arrival can call it.
+    private func attachSearch() {
+        let stored = $searchLikeStored
+        search.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
     }
 
     /// Binds the details model to scene storage — idempotent, so every step can call it.
@@ -699,6 +728,8 @@ private struct TutorialFlow: View {
         case .checkInVibe: return .checkinVibe
         case .checkInFilters: return .checkinFilters
         case .checkInUplift: return .checkinUplift
+        case .checkInSearch: return .searchProfile
+        case .searchFilters: return .checkinFilters
         default: return nil
         }
     }
@@ -967,22 +998,77 @@ private struct TutorialFlow: View {
                 onClose: { closeCheckIn(.uplift) })
                 .onAppear { checkInArrived(.uplift) }
         case .checkInSearch:
-            SearchUnlockedPlaceholderView()
+            SearchProfileView(
+                state: search.state,
+                zone: .current,
+                player: sharedMediaPlayer.surface,
+                onLike: { search.like() },
+                onPass: { search.pass($0) },
+                onCoachDone: { search.dismissCoach($0, dontShowAgain: $1) },
+                onCancelConfirm: { search.cancelConfirm() },
+                onContinue: { search.continueToMessage() },
+                onDraft: { search.editDraft($0) },
+                onDismissMessage: { search.dismissMessage() },
+                onSkipMessage: { search.skipMessage() },
+                onSendMessage: { search.sendMessage() },
+                onOpenPhoto: { search.openPhoto($0) },
+                onViewerPage: { search.viewerPage($0) },
+                onCloseViewer: { search.closeViewer() },
+                onTogglePlay: { search.togglePlay($0) },
+                onScrolledOut: { search.scrolledOut($0) },
+                onSectionSeen: { search.sectionSeen($0) },
+                onFilters: { go(to: .searchFilters) },
+                // "A tap does not open Likes received (the upsell is its own story)."
+                onLikesChip: {},
+                onTab: { tab in
+                    tabTapped(active: .search, tapped: tab)
+                    // Likes received (186) and the upsell, and Instant, are their own stories: the
+                    // tap is the nav act alone, as on the gate.
+                    if tab == .settings { go(to: .checkInSettings) }
+                },
+                onRetry: { search.retry(zone: TimeZone.current.identifier) })
+                .onAppear {
+                    attachSearch()
+                    let filters = checkIn.state.server?.filters
+                    search.arrived(zone: TimeZone.current.identifier,
+                                   filtersActive: filters.map(filtersActive) ?? [],
+                                   referrer: profileScreen(of: cameFrom))
+                }
+                // Leaving -- to Filters or another tab: the profile has left the screen.
+                .onDisappear { search.leave() }
+        case .searchFilters:
+            CheckInFiltersView(
+                filters: s.filters ?? CheckInFilters(genders: []),
+                toast: s.toast, toastTick: s.toastTick,
+                onGender: { checkIn.genderTapped($0) },
+                onAge: { checkIn.ageMoved(thumb: $0, value: $1) },
+                onDistance: { checkIn.distanceMoved($0) },
+                onContinue: {
+                    checkIn.searchFiltersContinue {
+                        search.filtersSaved()
+                        go(to: .checkInSearch)
+                    }
+                },
+                onBack: { checkIn.searchFiltersLeft { go(to: .checkInSearch) } },
+                // Never the Check-In's close here: a committed Check-In is not discarded from Search.
+                onClose: { checkIn.searchFiltersLeft { go(to: .checkInSearch) } })
+                .onAppear { checkIn.searchFiltersOpened() }
         case .checkInSettings:
             SettingsPlaceholderView(onTab: { tab in
                 tabTapped(active: .settings, tapped: tab)
                 switch tab {
-                // Search with no Check-In IS the gate (story 01).
-                case .search: go(to: .checkInGate)
+                // Search with no Check-In IS the gate (story 01); with one, Search.
+                case .search: go(to: searchTab)
                 // As on the gate: nothing is built behind Likes yet.
                 case .likes: break
-                // Instant is still gated: it opens the Check-In, as on the gate.
-                case .instant: reopenCheckIn(.instantTab)
+                // Instant is gated without a Check-In -- it opens one, as on the gate -- and its own
+                // story with one.
+                case .instant: if checkIn.state.server?.active != true { reopenCheckIn(.instantTab) }
                 case .settings: break
                 }
             }, likes: likesOpen)
-            // Back returns to Search, the tab the gate is.
-            .modifier(EdgeSwipeBack(onBack: { go(to: .checkInGate) }))
+            // Back returns to Search -- the gate without a Check-In, Search with one.
+            .modifier(EdgeSwipeBack(onBack: { go(to: searchTab) }))
             .onAppear { checkIn.atTabs() }
         default:
             EmptyView()
@@ -1041,8 +1127,10 @@ private struct TutorialFlow: View {
     /// Past the intro, so the gate reopens at Today as a returning user's would; the intro row itself
     /// still opens the intro.
     private func startDevCheckIn(at target: FlowScreen) {
-        checkIn = CheckInModel(store: DevCheckInStore(introPassed: target != .checkInIntro),
+        checkIn = CheckInModel(store: DevCheckInStore(introPassed: target != .checkInIntro,
+                                                      active: target == .checkInSearch || target == .searchFilters),
                                analytics: AppAnalytics.shared)
+        search = SearchModel(store: DevSearchStore(), analytics: AppAnalytics.shared, players: sharedMediaPlayer)
         Task { await jumpFromDevMenu(to: target) }
     }
 
@@ -1068,7 +1156,8 @@ private struct TutorialFlow: View {
                     devTabHidden = true
                     devMenuOpen = false
                 },
-                onClose: { devMenuOpen = false }
+                onClose: { devMenuOpen = false },
+                onPremium: { search.setPremium($0) }
             )
             // Read each time the menu opens: a sign-in or a session end since last time changes
             // which screens can be reached, and a permission answered changes which are skipped.
@@ -1085,7 +1174,7 @@ private struct TutorialFlow: View {
         let locationStatus = await CLLocationAccess().read()
         devFacts = DevMenuFacts(current: screen, signedIn: signedIn,
                                 notificationsAsk: shouldShowAsk(notificationStatus),
-                                location: locationArrival(locationStatus))
+                                location: locationArrival(locationStatus), premium: search.state.premium)
     }
 
     /// A jump, through the SAME ways in the walk and the resume use — "behave like real":
@@ -1392,7 +1481,7 @@ private struct TutorialFlow: View {
 
                 // The 48hrs Check-In (SHOWUP-178 to SHOWUP-183).
                 case .checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
-                     .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings:
+                     .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .checkInSettings:
                     checkInScreen(screen)
 
                 case .home:
@@ -1446,6 +1535,24 @@ private struct TutorialFlow: View {
             if phase == .active && screen.isCheckIn {
                 checkIn.evaluateClock()
                 checkIn.refresh()
+                search.refreshLikesOpen()
+            }
+        }
+        // SEARCH, LEFT FOR ANOTHER APP AND COME BACK TO. Backgrounding is the profile leaving the
+        // screen: its card view reported with the dwell it had, its voice note or video stopped. The
+        // return starts a new dwell -- only a return from the background, as Android's ON_START is:
+        // Control Center, a Face ID sheet or a call banner pass through `.inactive` without the
+        // profile ever leaving, and restarting the dwell there would zero `dwell_ms`.
+        .onChange(of: scenePhase) { _, phase in
+            guard screen == .checkInSearch else { return }
+            switch phase {
+            case .background:
+                searchLeftForBackground = true
+                search.leave()
+            case .active:
+                if searchLeftForBackground { search.resume() }
+                searchLeftForBackground = false
+            default: break
             }
         }
         // THE SEARCH TAB FOLLOWS THE SERVER (`checkInTabTarget`).

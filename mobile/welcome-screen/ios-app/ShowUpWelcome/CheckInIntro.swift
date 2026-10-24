@@ -80,7 +80,7 @@ struct CheckInGateView: View {
             // The top row: 52, padding 4 / 16 / 8, the wordmark at 20 and nothing else -- 20 whatever
             // the type size: in a fixed 52 row a 2x wordmark is clipped.
             HStack(spacing: 0) {
-                Wordmark(size: 20)
+                Wordmark(size: 20, gapEm: wordmarkTabGap)
                     .dynamicTypeSize(.large)
                 Spacer(minLength: 0)
             }

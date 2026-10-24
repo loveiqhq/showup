@@ -19,10 +19,13 @@ import com.showup.checkin.CheckInState
 import com.showup.checkin.CheckInStore
 import com.showup.checkin.CommitRequest
 import com.showup.checkin.CommitResult
-import com.showup.checkin.Outcome
+import com.showup.api.Outcome
 import com.showup.checkin.upliftHasContact
 import kotlinx.coroutines.delay
 import java.util.UUID
+
+/** The jumps that land on Search, so the fake Check-In starts committed. */
+val DEV_SEARCH_STARTS = setOf("CheckInSearch", "SearchFilters")
 
 /** How the fake commit answers -- the four ends the Uplift screen draws. */
 enum class DevCommitMode { Saves, Network, Server, ContactInfo }
@@ -32,12 +35,14 @@ class DevCheckInStore(
     private val latencyMs: Long = 900,
     private val commitMode: DevCommitMode = DevCommitMode.Saves,
     introPassed: Boolean = false,
+    /** Already committed: a jump straight to Search, which the gate would otherwise take back. */
+    active: Boolean = false,
 ) : CheckInStore {
 
     private var state = CheckInState(
         windowId = UUID.randomUUID().toString(),
         introPassed = introPassed,
-        active = false,
+        active = active,
         firstCheckIn = true,
         lastMotivation = null,
         lastVibes = emptySet(),

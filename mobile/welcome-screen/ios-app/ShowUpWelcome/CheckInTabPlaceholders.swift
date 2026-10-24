@@ -1,33 +1,17 @@
 //
 //  CheckInTabPlaceholders.swift
-//  ShowUp · where the Check-In hands over to screens that are not built yet
+//  ShowUp · where the tabs hand over to a screen that is not built yet
 //
 //  The Swift twin of `checkin/CheckInTabPlaceholders.kt`. **Scaffolding, not product** -- the same
-//  standing as `HomePlaceholderView`. Two destinations the Check-In tickets name but do not build:
+//  standing as `HomePlaceholderView`. SETTINGS. Story 01: on the gate, "Settings navigates
+//  normally". There is no Settings screen yet; a tab that did nothing would be a dead control, so it
+//  lands here, with the tab bar, and Search and Instant behave as the gate's own tabs do.
 //
-//    · SEARCH, DATE SEARCH UNLOCKED. Story 06: "Find my date, saved -> Search, date search
-//      unlocked. No toast and no confirmation screen." Search is its own ticket. Without a
-//      destination the commit would land nowhere, so this screen says where the user is and that
-//      the real one is not built.
-//    · SETTINGS. Story 01: on the gate, "Settings navigates normally". There is no Settings screen
-//      yet; a tab that did nothing would be a dead control, so it lands here, with the tab bar, and
-//      Search and Instant behave as the gate's own tabs do.
-//
-//  Both say they are placeholders on screen, so neither can be mistaken for the product. Deleted
-//  when Search and Settings land; the host then routes to those instead.
+//  It says it is a placeholder on screen, so it cannot be mistaken for the product. Deleted when
+//  Settings lands. (Its twin for Search went with Search 01, SHOWUP-184.)
 //
 
 import SwiftUI
-
-/// Where a successful commit lands until Search is built.
-struct SearchUnlockedPlaceholderView: View {
-    var body: some View {
-        PlaceholderStatement(title: "Date search unlocked",
-                             line: "Your Check-in is saved. Search opens here once it is built.")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.liqCream.ignoresSafeArea())
-    }
-}
 
 /// Settings from the gate's tab bar. `onTab` gets the other three tabs; `likes` is the Likes badge.
 struct SettingsPlaceholderView: View {
@@ -81,5 +65,4 @@ private struct PlaceholderStatement: View {
     }
 }
 
-#Preview("Search unlocked (placeholder)") { SearchUnlockedPlaceholderView() }
 #Preview("Settings (placeholder)") { SettingsPlaceholderView() }
