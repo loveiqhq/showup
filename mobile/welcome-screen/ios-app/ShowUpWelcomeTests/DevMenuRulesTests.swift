@@ -134,7 +134,7 @@ final class DevMenuRulesTests: XCTestCase {
         XCTAssertEqual(Set(devStates.map(\.id)).count, devStates.count)
         var perTicket: [String: Int] = [:]
         for state in devStates { perTicket[String(state.id.prefix(3)), default: 0] += 1 }
-        XCTAssertEqual(perTicket, ["178": 2, "179": 5, "180": 3, "181": 5, "182": 3, "183": 5])
+        XCTAssertEqual(perTicket, ["178": 2, "179": 5, "180": 3, "181": 5, "182": 3, "183": 5, "184": 10])
         XCTAssertEqual(devStateTickets.count, 6)
     }
 

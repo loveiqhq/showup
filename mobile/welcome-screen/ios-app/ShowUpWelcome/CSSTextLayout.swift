@@ -114,6 +114,85 @@ enum CSSTextLayout {
     static func cssFirstBaseline(lineHeight: CGFloat, font: UIFont) -> CGFloat {
         lineHeight / 2 + (font.ascender + font.descender) / 2
     }
+
+    /// The width at which `text` wraps as CSS `text-wrap: balance` would inside `full`: the narrowest
+    /// width that keeps the greedy line count, so the lines come out even. `full` for one line.
+    /// Android's `balancedWidthPx`; in half points, as `prettyWidth` searches.
+    static func balancedWidth(_ text: NSAttributedString, within full: CGFloat) -> CGFloat {
+        guard full > 1 else { return full }
+        let target = lines(text, width: full).count
+        guard target > 1 else { return full }
+        var lo = 2
+        var hi = Int(full * 2)
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if lines(text, width: CGFloat(mid) / 2).count <= target { hi = mid } else { lo = mid + 1 }
+        }
+        return CGFloat(lo) / 2
+    }
+
+    /// The width the paragraph breaks at inside `full`: balanced, pretty, or all of it.
+    static func wrapWidth(_ text: NSAttributedString, within full: CGFloat, pretty: Bool, balance: Bool) -> CGFloat {
+        if balance { return balancedWidth(text, within: full) }
+        return pretty ? prettyWidth(text, within: full) : full
+    }
+}
+
+// MARK: - the CSS line box, for a SwiftUI Text
+
+/// A `Text` laid out as CSS lays out a block: n lines of `lineHeight`, its first baseline where CSS
+/// puts it. Android's `Modifier.cssLineBox`.
+///
+/// WHY: SwiftUI gives a text its font's own line height at the top of the first line and the bottom
+/// of the last, whatever line height is asked for -- and cannot set a line TIGHTER than the font at
+/// all. At `34 / 1` the Search name kept Lora's natural box, some 6 deeper than CSS's, and sat that
+/// much higher over its pill (the 184 evidence review, 24 Oct 2026). This reads the laid-out text's
+/// own baselines -- nothing about the font is assumed -- and reports the CSS box; the glyphs may draw
+/// outside it, as they do in CSS.
+///
+/// A line height below the font's own is honoured for the BOX, not between lines: SwiftUI will not
+/// draw lines closer than the font, so a second line of such text runs past the box's bottom. Every
+/// use in Search is a single line there (a name, a title, a count).
+struct CSSLineBox: Layout {
+    let lineHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let text = subviews.first else { return .zero }
+        let box = measure(text, proposal)
+        return CGSize(width: box.size.width, height: box.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let text = subviews.first else { return }
+        let box = measure(text, ProposedViewSize(width: bounds.width, height: nil))
+        text.place(at: CGPoint(x: bounds.minX, y: bounds.minY - box.shift),
+                   proposal: ProposedViewSize(width: bounds.width, height: box.size.height))
+    }
+
+    /// The text's own size, the CSS box's height, and how far up the text moves to sit in it.
+    private func measure(_ text: LayoutSubview, _ proposal: ProposedViewSize) -> (size: CGSize, height: CGFloat, shift: CGFloat) {
+        let width = ProposedViewSize(width: proposal.width, height: nil)
+        let size = text.sizeThatFits(width)
+        let d = text.dimensions(in: width)
+        let first = d[VerticalAlignment.firstTextBaseline]
+        let last = d[VerticalAlignment.lastTextBaseline]
+        let ascent = first
+        let descent = size.height - last
+        // The pitch SwiftUI used between lines: the line height asked for, or the font's own if that
+        // is taller -- it will not set lines closer.
+        let pitch = max(lineHeight, ascent + descent)
+        let lines = max(1, Int(((last - first) / pitch).rounded()) + 1)
+        let cssFirst = lineHeight / 2 + (ascent - descent) / 2
+        let height = max(lineHeight * CGFloat(lines), lineHeight)
+        return (size, height, ascent - cssFirst)
+    }
+}
+
+extension View {
+    /// This text laid out in CSS line boxes of `lineHeight` -- see `CSSLineBox`.
+    func cssLineBox(_ lineHeight: CGFloat) -> some View {
+        CSSLineBox(lineHeight: lineHeight) { self }
+    }
 }
 
 /// A paragraph of body copy with CSS `text-wrap: pretty` -- the No hours today? body, the gate's
@@ -135,6 +214,8 @@ struct PrettyText: UIViewRepresentable {
     var emphasisColor: Color? = nil
     var centered: Bool = false
     var pretty: Bool = true
+    /// `text-wrap: balance` instead -- the Search prompt topic (SHOWUP-184). Wins over `pretty`.
+    var balance: Bool = false
     /// As wide as its widest line when `pretty` did not narrow it -- a one-line toast shrinks to its
     /// text, as the reference's centred flex column and Android's `prettyWrap` do. Off, the
     /// paragraph keeps every point it is offered.
@@ -147,13 +228,14 @@ struct PrettyText: UIViewRepresentable {
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     init(_ text: String, font: UIFont, lineHeight: CGFloat, color: Color, centered: Bool = false,
-         hugs: Bool = false) {
+         hugs: Bool = false, balance: Bool = false) {
         self.runs = [(text, false)]
         self.font = font
         self.lineHeight = lineHeight
         self.color = color
         self.centered = centered
         self.hugs = hugs
+        self.balance = balance
     }
 
     init(runs: [(String, Bool)], font: UIFont, lineHeight: CGFloat, color: Color,
@@ -193,6 +275,7 @@ struct PrettyText: UIViewRepresentable {
         }
         v.attributedText = out
         v.pretty = pretty
+        v.balance = balance
         v.invalidateIntrinsicContentSize()
         v.setNeedsDisplay()
     }
@@ -201,7 +284,7 @@ struct PrettyText: UIViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, uiView v: PrettyLabel, context: Context) -> CGSize? {
         guard let width = proposal.width, width > 0, width < .infinity,
               let text = v.attributedText else { return nil }
-        let used = pretty ? CSSTextLayout.prettyWidth(text, within: width) : width
+        let used = CSSTextLayout.wrapWidth(text, within: width, pretty: pretty, balance: balance)
         let fit = v.sizeThatFits(CGSize(width: used, height: .greatestFiniteMagnitude))
         // Narrowed, it keeps the whole width and the label places the text inside it. Hugging and
         // not narrowed, every line already fits its widest one, so the breaks do not change.
@@ -213,10 +296,11 @@ struct PrettyText: UIViewRepresentable {
 /// Draws its paragraph inside its pretty width, placed as the paragraph's alignment says.
 final class PrettyLabel: UILabel {
     var pretty = true
+    var balance = false
 
     override func drawText(in rect: CGRect) {
-        guard pretty, let text = attributedText else { return super.drawText(in: rect) }
-        let used = CSSTextLayout.prettyWidth(text, within: rect.width)
+        guard pretty || balance, let text = attributedText else { return super.drawText(in: rect) }
+        let used = CSSTextLayout.wrapWidth(text, within: rect.width, pretty: pretty, balance: balance)
         guard used < rect.width else { return super.drawText(in: rect) }
         let centred = textAlignment == .center
             || (text.length > 0

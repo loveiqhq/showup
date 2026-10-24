@@ -67,14 +67,14 @@ import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline
 
 /** `0 16px 40px rgba(29,17,41,.28)` -- the coach card lifted over the scrim. */
-private val CoachLift = listOf(CssShadow(Color(0x471D1129), offsetY = 16.dp, blur = 40.dp))
+private val CoachLift = listOf(CssShadow(Fg.copy(alpha = 0.28f), offsetY = 16.dp, blur = 40.dp))
 
 /** Test anchors for the coach's two buttons. */
 const val COACH_GOT_IT_TAG = "coach-got-it"
 const val COACH_DONT_SHOW_TAG = "coach-dont-show"
 
 /** `rgba(251,50,59,.4)` -- the Not interested outline, the button's and its coach row's. */
-internal val DangerOutline = Color(0x66FB323B)
+internal val DangerOutline = Danger.copy(alpha = 0.4f)
 
 @Composable
 fun SearchActionsCoach(onDone: (dontShowAgain: Boolean) -> Unit, modifier: Modifier = Modifier) {

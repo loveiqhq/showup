@@ -55,10 +55,10 @@ fun showUpCountLabel(count: Int): String = when {
 }
 
 /** `rgba(129,42,236,.10)`, the `New in the App` fill. */
-private val NewFill = Color(0x1A812AEC)
+private val NewFill = Purple.copy(alpha = 0.10f)
 
 /** `showUpTone(100).softBg`, `rgba(0,171,85,.10)` -- a count's fill. Its ink is [SuccessFg]. */
-private val CountFill = Color(0x1A00AB55)
+private val CountFill = Success.copy(alpha = 0.10f)
 
 @Composable
 fun ShowUpCount(count: Int, modifier: Modifier = Modifier, size: ShowUpCountSize = ShowUpCountSize.Md) {

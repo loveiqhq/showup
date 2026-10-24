@@ -128,7 +128,9 @@ class SearchRulesTest {
 
     @Test
     fun `the message is counted and cut in graphemes, never splitting one`() {
-        val family = "👨‍👩‍👧" // one family emoji, five code points
+        // One family: a man, a woman and a girl joined by zero-width joiners -- five code points,
+        // spelled as escapes because the house style has no emoji in source.
+        val family = "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67"
         assertEquals(1, graphemes(family))
         val long = "a".repeat(99) + family + "b"
         assertEquals(101, graphemes(long))

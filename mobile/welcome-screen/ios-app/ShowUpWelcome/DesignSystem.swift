@@ -105,6 +105,10 @@ extension Color {
     static let liqDialogShadow = Color(hex: 0x140C1C).opacity(0.34)
     /// The tab bar's glass, rgba(255,251,247,.92) (`components/shared.jsx` TabBar).
     static let liqTabBarGlass = Color(hex: 0xFFFBF7).opacity(0.92)
+    /// `rgba(46,1,71)`: the kit's shadow ink, `--liq-shadow-md` and `-sm` at each layer's own alpha.
+    static let liqShadowInk = Color(hex: 0x2E0147)
+    /// `--liq-primary`, the deep violet: Search's `Be sure.` (SHOWUP-184). Android's `PrimaryDeep`.
+    static let liqPrimaryDeep = Color(hex: 0x541475)
 
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
@@ -119,6 +123,9 @@ extension Color {
     /// A pair of stops rather than a `LinearGradient`, so a call site can choose its own direction
     /// and shape — the same shape the Kotlin side's `LilacStops` has.
     static let suGradLilac: [Color] = [Color(hex: 0xF1E6FF), Color(hex: 0xE8DCF5)]
+
+    /// `--su-grad-blush`, 180°: Search's highlight card and Be sure's header panel (SHOWUP-184).
+    static let suGradBlush: [Color] = [Color(hex: 0xFDE7DC), Color(hex: 0xF5D9EA)]
 
     /// `--su-grad-sunset`, 135 degrees with its midpoint at 38% — not an even three-stop ramp.
     ///

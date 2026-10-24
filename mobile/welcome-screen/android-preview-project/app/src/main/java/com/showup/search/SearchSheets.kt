@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -61,6 +60,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.showup.designsystem.BlushWash
 import com.showup.designsystem.Cream
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.ButtonPair
@@ -80,6 +80,7 @@ import com.showup.designsystem.Purple
 import com.showup.designsystem.Raised
 import com.showup.designsystem.SheetGrabber
 import com.showup.designsystem.SheetScaffold
+import com.showup.designsystem.ShadowInk
 import com.showup.designsystem.roundedShadows
 import com.showup.profile.SheetDismissMethod
 import com.showup.welcome.BrandIcon
@@ -103,10 +104,11 @@ fun Modifier.blurBehindSearchSheet(fraction: Float): Modifier =
     if (fraction > 0f) blur(SearchSheetBlur * fraction) else this
 
 /** `0 -8px 32px rgba(46,1,71,.18)` -- the sheet's shadow, cast upward over the screen. */
-private val SheetLift = listOf(CssShadow(Color(0x2E2E0147), offsetY = (-8).dp, blur = 32.dp))
+private val SheetLift = listOf(CssShadow(ShadowInk.copy(alpha = 0.18f), offsetY = (-8).dp, blur = 32.dp))
 
-/** `--su-grad-blush`, 180deg: Be sure's header panel. */
-private val BlushPanel = Brush.verticalGradient(listOf(Color(0xFFFDE7DC), Color(0xFFF5D9EA)))
+
+/** CSS `line-height: normal` for Lora: its hhea ascent, descent and gap, 1006 + 274 + 0 per 1000. */
+private const val LORA_NORMAL_LINE = 1.28f
 
 /** The kit's `Button size="md"`: 48 tall, 15 type. */
 private val SHEET_BUTTON_HEIGHT = 48.dp
@@ -163,14 +165,18 @@ fun BeSureSheet(name: String, day: String, onCancel: (SheetDismissMethod) -> Uni
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(BlushPanel, RoundedCornerShape(14.dp))
+                .background(BlushWash, RoundedCornerShape(14.dp))
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // `<em>Be sure.</em>` -- the whole phrase is the italic run, washed, in --liq-primary.
+            // No line height and no letter spacing in the reference: CSS `normal` -- Lora's own 1.28
+            // (its hhea metrics) -- and 0, not WashHeadline's defaults of 1.05 and -0.02em.
             WashHeadline(
                 parts = listOf(SearchCopy.BE_SURE to true),
                 fontSize = 22.sp,
+                lineHeight = (22 * LORA_NORMAL_LINE).sp,
+                letterSpacing = 0.em,
                 color = PrimaryDeep,
                 textAlign = TextAlign.Center,
             )
@@ -243,6 +249,9 @@ fun MessageSheet(
         WashHeadline(
             parts = listOf(SearchCopy.MESSAGE_TITLE_EMPHASIS to true, SearchCopy.MESSAGE_TITLE_REST.format(name) to false),
             fontSize = 26.sp,
+            // CSS `normal`, Lora's own 1.28: at 375 the title takes two lines, and WashHeadline's 1.05
+            // set them 6 closer than the browser does.
+            lineHeight = (26 * LORA_NORMAL_LINE).sp,
             letterSpacing = (-0.01).em,
             modifier = Modifier.padding(bottom = 8.dp),
         )

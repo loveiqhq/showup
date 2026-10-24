@@ -107,6 +107,8 @@ final class FakeMediaPlayerMaker: MediaPlayerMaking {
     private let now: () -> Int64
     private let durationMs: Int
     private let failFor: Set<String>
+    /// How long a start takes to open the clip -- a real player's is never instant. 0: at once.
+    private let openingNanoseconds: UInt64
 
     /// Every player this maker has made, newest last. Tests assert against it.
     private(set) var players: [FakePlayer] = []
@@ -114,15 +116,17 @@ final class FakeMediaPlayerMaker: MediaPlayerMaking {
     init(
         now: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
         durationMs: Int = 9_400,
-        failFor: Set<String> = []
+        failFor: Set<String> = [],
+        openingNanoseconds: UInt64 = 0
     ) {
         self.now = now
         self.durationMs = durationMs
         self.failFor = failFor
+        self.openingNanoseconds = openingNanoseconds
     }
 
     func makePlayer(kind: MediaKind) -> any MediaPlaying {
-        let made = FakePlayer(now: now, durationMs: durationMs, failFor: failFor)
+        let made = FakePlayer(now: now, durationMs: durationMs, failFor: failFor, openingNanoseconds: openingNanoseconds)
         players.append(made)
         return made
     }
@@ -132,6 +136,7 @@ final class FakeMediaPlayerMaker: MediaPlayerMaking {
         private let now: () -> Int64
         private let durationMs: Int
         private let failFor: Set<String>
+        private let openingNanoseconds: UInt64
         private var startedAt: Int64?
 
         /// True between `start` and `stop`.
@@ -143,13 +148,15 @@ final class FakeMediaPlayerMaker: MediaPlayerMaking {
         /// see `MediaModel.cardPlayPressed` for why it does not.
         private(set) var didStart = false
 
-        init(now: @escaping () -> Int64, durationMs: Int, failFor: Set<String>) {
+        init(now: @escaping () -> Int64, durationMs: Int, failFor: Set<String>, openingNanoseconds: UInt64 = 0) {
             self.now = now
             self.durationMs = durationMs
             self.failFor = failFor
+            self.openingNanoseconds = openingNanoseconds
         }
 
         func start(path: String) async -> Bool {
+            if openingNanoseconds > 0 { try? await Task.sleep(nanoseconds: openingNanoseconds) }
             if failFor.contains(path) { return false }
             didStart = true
             startedAt = now()

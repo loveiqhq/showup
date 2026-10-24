@@ -106,6 +106,8 @@ class FakeMediaPlayer(
     private val now: () -> Long = System::currentTimeMillis,
     private val durationMs: Int = 9_400,
     private val failFor: Set<String> = emptySet(),
+    /** How long a start takes to open the clip -- a real player's is never instant. 0: at once. */
+    private val openingMs: Long = 0,
 ) : MediaPlayerFactory {
 
     /** Every session this factory has made, newest last. Tests assert against it. */
@@ -131,6 +133,7 @@ class FakeMediaPlayer(
             private set
 
         override suspend fun start(path: String): Boolean {
+            if (openingMs > 0) kotlinx.coroutines.delay(openingMs)
             if (path in failFor) return false
             didStart = true
             startedAt = now()

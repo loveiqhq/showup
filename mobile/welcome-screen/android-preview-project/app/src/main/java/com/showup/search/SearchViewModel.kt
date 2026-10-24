@@ -13,9 +13,15 @@
  * SENDS RUN IN THE BACKGROUND. A like or a pass moves to the next profile at once ("No toast, no
  * confirmation screen") and the request follows, retried silently: both are idempotent on the
  * server, so a retry after a timeout can never make a second like.
+ *
+ * WHAT SURVIVES A PROCESS DEATH. The queue does not need to: the server leaves out everyone already
+ * liked or passed, so reading it again lands on the same person. A like flow left open does -- which
+ * sheet, for whom, and the message as typed -- in [SavedStateHandle], as the profile drafts are kept.
+ * It comes back once, when the queue shows the same person first; anyone else, and it is dropped.
  */
 package com.showup.search
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
@@ -83,10 +89,15 @@ open class SearchViewModel(
     private val millis: () -> Long = System::currentTimeMillis,
     /** Between silent retries of a like or a pass. Short in tests. */
     private val retryDelaysMs: List<Long> = listOf(1_000, 3_000, 9_000, 27_000),
+    /** Where an open like flow is kept across a process death. */
+    private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
+
+    /** A like flow a process death cut off, waiting for the first queue that shows its person. */
+    private var unfinished: UnfinishedLike? = UnfinishedLike.from(saved)
 
     /** The stored opt-out: `Don't show again` once, on any device. */
     private var coachHidden = false
@@ -113,6 +124,8 @@ open class SearchViewModel(
     private var loadJob: Job? = null
     private var session: MediaPlayerSession? = null
     private var ticker: Job? = null
+    /** Every stop moves it on, so a play still opening when it moves knows it was superseded. */
+    private var playGeneration = 0
 
     // ── the visit ───────────────────────────────────────────────────────────────────────────────
 
@@ -189,7 +202,17 @@ open class SearchViewModel(
                 is Outcome.Ok -> {
                     val profiles = queue.value.profiles.filterNot { it.userId in decided }
                     report(SearchAnalytics.searchViewed(queue.value.resultsCount, filtersActive))
-                    _state.update { it.copy(loading = false, failure = null, queue = profiles, viewer = queue.value.viewer) }
+                    val reopened = unfinished?.takeIf { it.userId == profiles.firstOrNull()?.userId }
+                    unfinished = null
+                    _state.update {
+                        it.copy(
+                            loading = false, failure = null, queue = profiles, viewer = queue.value.viewer,
+                            sheet = reopened?.sheet, draft = reopened?.draft ?: it.draft,
+                        )
+                    }
+                    // The user had passed the coach to tap Like; it does not come back over their sheet.
+                    if (reopened != null) coachShownThisVisit = true
+                    keepLikeFlow()
                     arrive()
                 }
             }
@@ -255,6 +278,7 @@ open class SearchViewModel(
         stopPlayback()
         report(SearchAnalytics.likeTapped(s.position))
         _state.update { it.copy(sheet = LikeSheet.Confirm) }
+        keepLikeFlow()
         report(SearchAnalytics.likeConfirmShown(profile.attendedCount))
     }
 
@@ -263,6 +287,7 @@ open class SearchViewModel(
         val profile = _state.value.current ?: return
         if (_state.value.sheet != LikeSheet.Confirm) return
         _state.update { it.copy(sheet = null) }
+        keepLikeFlow()
         report(SearchAnalytics.likeConfirmAbandoned(SearchAnalytics.AbandonStage.Confirm, profile.attendedCount))
     }
 
@@ -271,11 +296,13 @@ open class SearchViewModel(
         val profile = _state.value.current ?: return
         if (_state.value.sheet != LikeSheet.Confirm) return
         _state.update { it.copy(sheet = LikeSheet.Message, draft = messageDraft(profile.name, profile.meetDay)) }
+        keepLikeFlow()
     }
 
     /** A keystroke or a paste: never more than 100, a paste cut at 100. Nothing is tracked per key. */
     fun editDraft(text: String) {
         _state.update { it.copy(draft = limitMessage(text)) }
+        keepLikeFlow()
     }
 
     /** A scrim tap or a swipe down on the message sheet: nothing is sent. */
@@ -283,6 +310,7 @@ open class SearchViewModel(
         val profile = _state.value.current ?: return
         if (_state.value.sheet != LikeSheet.Message) return
         _state.update { it.copy(sheet = null) }
+        keepLikeFlow()
         report(SearchAnalytics.likeConfirmAbandoned(SearchAnalytics.AbandonStage.Message, profile.attendedCount))
     }
 
@@ -302,6 +330,7 @@ open class SearchViewModel(
         if (s.sheet != LikeSheet.Message) return
         val position = s.position
         _state.update { it.copy(sheet = null) }
+        keepLikeFlow()
         decided += profile.userId
         sendInBackground { store.like(profile.userId, message, position) }
         next()
@@ -387,22 +416,35 @@ open class SearchViewModel(
         if (playing?.kind == kind) return
         val media = (if (kind == MediaKind.Voice) profile.voice else profile.video) ?: return
         val factory = players ?: return
+        val generation = playGeneration
         viewModelScope.launch {
             val next = factory.create(kind)
-            if (!next.start(media.url)) return@launch
+            val started = next.start(media.url)
+            // SUPERSEDED while the clip was opening -- a pass, a like, a sheet, the app leaving. Without
+            // this, a voice note tapped just before `Not now` played over the next profile.
+            if (generation != playGeneration) {
+                next.stop()
+                return@launch
+            }
+            if (!started) return@launch
             session = next
             _state.update { it.copy(playback = SearchPlayback(kind, 0, media.durationMs)) }
+            // BOUNDED by the clip's own length and a grace, as iOS's clock is: a player that never
+            // reports an ending cannot keep it alive.
             ticker = launch {
-                while (isActive) {
+                var waited = 0L
+                while (isActive && waited < media.durationMs + PLAY_CLOCK_GRACE_MS) {
                     delay(TICK_MS)
+                    waited += TICK_MS
                     val position = next.positionMs()
                     if (next.hasFinished()) {
                         _state.update { st -> st.playback?.let { st.copy(playback = it.copy(positionMs = it.durationMs)) } ?: st }
                         stopPlayback()
-                        break
+                        return@launch
                     }
                     _state.update { st -> st.playback?.let { st.copy(playback = it.copy(positionMs = position)) } ?: st }
                 }
+                if (isActive) stopPlayback()
             }
         }
     }
@@ -417,13 +459,14 @@ open class SearchViewModel(
      * playback stops (end, pause, scrolled out, profile changed)".
      */
     private fun stopPlayback() {
-        val playing = _state.value.playback ?: return
+        playGeneration++
         ticker?.cancel()
         ticker = null
         val ending = session
         session = null
+        if (ending != null) viewModelScope.launch { ending.stop() }
+        val playing = _state.value.playback ?: return
         _state.update { it.copy(playback = null) }
-        viewModelScope.launch { ending?.stop() }
         val prompt = if (playing.kind == MediaKind.Voice) SearchAnalytics.Prompt.Voice else SearchAnalytics.Prompt.Video
         val pct = (playing.progress * 100.0).let { Math.round(it * 10) / 10.0 }
         report(SearchAnalytics.promptPlayed(prompt, _state.value.position, pct))
@@ -462,6 +505,15 @@ open class SearchViewModel(
         }
     }
 
+    /** The like flow as it stands, into [saved]: an open sheet kept, a closed one forgotten. */
+    private fun keepLikeFlow() {
+        val s = _state.value
+        val profile = s.current
+        val sheet = s.sheet
+        if (profile == null || sheet == null) UnfinishedLike.forget(saved)
+        else UnfinishedLike(profile.userId, sheet, if (sheet == LikeSheet.Message) s.draft else "").keep(saved)
+    }
+
     private fun report(event: Pair<String, Map<String, Any>>) {
         analytics?.track(event.first, event.second)
     }
@@ -474,5 +526,35 @@ open class SearchViewModel(
     private companion object {
         /** How often a playing card's readout moves. */
         const val TICK_MS = 100L
+        /** How long the clock keeps polling past a clip's stated length: a backstop, not a timing rule. */
+        const val PLAY_CLOCK_GRACE_MS = 1_000L
+    }
+}
+
+/** An open like flow, as [SavedStateHandle] keeps it: three plain values, so nothing needs a Parcelable. */
+private data class UnfinishedLike(val userId: String, val sheet: LikeSheet, val draft: String) {
+    fun keep(saved: SavedStateHandle) {
+        saved[KEY_FOR] = userId
+        saved[KEY_SHEET] = sheet.name
+        saved[KEY_DRAFT] = draft
+    }
+
+    companion object {
+        private const val KEY_FOR = "search.like.for"
+        private const val KEY_SHEET = "search.like.sheet"
+        private const val KEY_DRAFT = "search.like.draft"
+
+        /** What a process death left, or null -- also for a sheet name this build no longer has. */
+        fun from(saved: SavedStateHandle): UnfinishedLike? {
+            val userId = saved.get<String>(KEY_FOR) ?: return null
+            val sheet = LikeSheet.entries.firstOrNull { it.name == saved.get<String>(KEY_SHEET) } ?: return null
+            return UnfinishedLike(userId, sheet, saved.get<String>(KEY_DRAFT).orEmpty())
+        }
+
+        fun forget(saved: SavedStateHandle) {
+            saved.remove<String>(KEY_FOR)
+            saved.remove<String>(KEY_SHEET)
+            saved.remove<String>(KEY_DRAFT)
+        }
     }
 }

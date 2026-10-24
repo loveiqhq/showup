@@ -49,7 +49,7 @@ import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 
 /** `rgba(255,255,255,.16)` -- the close disc on the dark viewer. */
-private val CloseDisc = Color(0x29FFFFFF)
+private val CloseDisc = Color.White.copy(alpha = 0.16f)
 
 @Composable
 fun PhotoViewer(

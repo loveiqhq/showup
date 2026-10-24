@@ -10,6 +10,7 @@
  */
 package com.showup.search
 
+import androidx.lifecycle.SavedStateHandle
 import com.showup.analytics.RecordingAnalytics
 import com.showup.api.CallFailure
 import com.showup.api.Outcome
@@ -90,14 +91,15 @@ class SearchViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun TestScope.vm(players: FakeMediaPlayer? = null) = SearchViewModel(
+    private fun TestScope.vm(players: FakeMediaPlayer? = null, saved: SavedStateHandle = SavedStateHandle()) = SearchViewModel(
         store, events, players,
         millis = { testScheduler.currentTime },
         retryDelaysMs = listOf(10, 20, 40),
+        saved = saved,
     )
 
-    private fun TestScope.visited(players: FakeMediaPlayer? = null): SearchViewModel {
-        val vm = vm(players)
+    private fun TestScope.visited(players: FakeMediaPlayer? = null, saved: SavedStateHandle = SavedStateHandle()): SearchViewModel {
+        val vm = vm(players, saved)
         vm.visit("Europe/Berlin", listOf("distance_km"), ProfileScreen.CheckinUplift)
         advanceUntilIdle()
         return vm
@@ -437,6 +439,19 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun `a play still opening when the profile moves on never plays over the next one`() = runTest(dispatcher) {
+        val players = FakeMediaPlayer(now = { testScheduler.currentTime }, durationMs = 14_000, openingMs = 500)
+        val vm = uncoached(players)
+        vm.togglePlay(MediaKind.Voice)
+        advanceTimeBy(100)
+        vm.pass(SearchAnalytics.PassType.NotNow)
+        advanceUntilIdle()
+        assertNull(vm.state.value.playback)
+        assertFalse("the superseded clip was stopped, not left running", players.sessions.single().running)
+        assertTrue("nothing was heard, so no play is reported", events.of(SearchAnalytics.VOICE_PROMPT_PLAYED).isEmpty())
+    }
+
+    @Test
     fun `opening Be sure stops playback`() = runTest(dispatcher) {
         val players = FakeMediaPlayer(now = { testScheduler.currentTime }, durationMs = 14_000)
         val vm = uncoached(players)
@@ -479,5 +494,77 @@ class SearchViewModelTest {
         )
         assertTrue(events.names().filter { it in forbidden }.toString(), events.names().none { it in forbidden })
         assertEquals("screen_viewed fires once per visit, not per profile", 1, events.of("screen_viewed").size)
+    }
+
+    // ── process death ───────────────────────────────────────────────────────────────────────────
+    //
+    // A second view model on the same handle is what Android builds after a process death: the
+    // handle's values come back from the saved bundle, everything else starts again.
+
+    /** A visit with the coach dismissed and the message sheet open, `typed` in it. */
+    private fun TestScope.writingTo(saved: SavedStateHandle, typed: String): SearchViewModel {
+        val vm = visited(saved = saved)
+        vm.dismissCoach(SearchAnalytics.CoachDismiss.Close, dontShowAgain = false)
+        vm.like()
+        vm.continueToMessage()
+        vm.editDraft(typed)
+        return vm
+    }
+
+    @Test
+    fun `an open message sheet and its draft survive a process death, and nothing fires twice`() = runTest(dispatcher) {
+        val saved = SavedStateHandle()
+        writingTo(saved, "See you at the lake")
+        val after = visited(saved = saved)
+        assertEquals(LikeSheet.Message, after.state.value.sheet)
+        assertEquals("See you at the lake", after.state.value.draft)
+        assertFalse("no coach over a sheet the user opened past it", after.state.value.coach)
+        assertEquals(1, events.of(SearchAnalytics.SEARCH_COACH_SHOWN).size)
+        assertEquals(1, events.of(SearchAnalytics.LIKE_TAPPED).size)
+        assertEquals(1, events.of(SearchAnalytics.LIKE_CONFIRM_SHOWN).size)
+        after.sendMessage()
+        advanceUntilIdle()
+        assertEquals(Triple(SearchSamples.FULL.userId, "See you at the lake", 1), store.likes.single())
+        assertNull("a sent like leaves nothing to restore", visited(saved = saved).state.value.sheet)
+    }
+
+    @Test
+    fun `Be sure survives too, and a closed sheet leaves nothing behind`() = runTest(dispatcher) {
+        val saved = SavedStateHandle()
+        visited(saved = saved).apply {
+            dismissCoach(SearchAnalytics.CoachDismiss.Close, dontShowAgain = false)
+            like()
+        }
+        val after = visited(saved = saved)
+        assertEquals(LikeSheet.Confirm, after.state.value.sheet)
+        assertEquals("", after.state.value.draft)
+        after.cancelConfirm()
+        val again = visited(saved = saved)
+        assertNull(again.state.value.sheet)
+        assertTrue("an ordinary visit, so the coach is back", again.state.value.coach)
+    }
+
+    @Test
+    fun `a kept like flow is dropped when somebody else is first in the queue`() = runTest(dispatcher) {
+        val saved = SavedStateHandle()
+        writingTo(saved, "Hello")
+        store.profiles = SearchSamples.NEXT
+        assertNull(visited(saved = saved).state.value.sheet)
+        store.profiles = listOf(SearchSamples.FULL) + SearchSamples.NEXT
+        assertNull("dropped for good, not waiting for that person to come back", visited(saved = saved).state.value.sheet)
+    }
+
+    @Test
+    fun `a queue that cannot be read keeps the like flow for the Retry that can`() = runTest(dispatcher) {
+        val saved = SavedStateHandle()
+        writingTo(saved, "Hello")
+        store.queueFailure = CallFailure.Network
+        val after = visited(saved = saved)
+        assertNull(after.state.value.sheet)
+        store.queueFailure = null
+        after.retry("Europe/Berlin")
+        advanceUntilIdle()
+        assertEquals(LikeSheet.Message, after.state.value.sheet)
+        assertEquals("Hello", after.state.value.draft)
     }
 }

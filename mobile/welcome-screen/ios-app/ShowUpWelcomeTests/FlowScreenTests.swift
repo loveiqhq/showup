@@ -127,7 +127,8 @@ final class FlowScreenTests: XCTestCase {
     func testWhichScreensAreTheCheckInAndWhichAreItsSteps() {
         let checkIn = FlowScreen.allCases.filter(\.isCheckIn)
         XCTAssertEqual(checkIn, [.checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
-                                 .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .checkInSettings])
+                                 .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters,
+                                 .checkInSettings])
         XCTAssertEqual(FlowScreen.allCases.filter(\.isCheckInStep),
                        [.checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation, .checkInVibe,
                         .checkInFilters, .checkInUplift])

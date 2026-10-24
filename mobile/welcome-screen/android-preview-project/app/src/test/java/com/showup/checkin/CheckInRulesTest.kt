@@ -212,9 +212,9 @@ class CheckInRulesTest {
 
     @Test
     fun `an emoji, a flag and a family each count as one character`() {
-        assertEquals(1, graphemeCount("😀"))
-        assertEquals(1, graphemeCount("🇩🇪"))
-        assertEquals(1, graphemeCount("👨‍👩‍👧"))
+        assertEquals(1, graphemeCount("\uD83D\uDE00"))
+        assertEquals(1, graphemeCount("\uD83C\uDDE9\uD83C\uDDEA"))
+        assertEquals(1, graphemeCount("\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67"))
         assertEquals(5, graphemeCount("hello"))
     }
 
@@ -222,7 +222,7 @@ class CheckInRulesTest {
     fun `input past 100 is not accepted and a paste is cut at 100 graphemes`() {
         val long = "a".repeat(150)
         assertEquals(100, clampUplift(long).length)
-        val emoji = "😀".repeat(120)
+        val emoji = "\uD83D\uDE00".repeat(120)
         val cut = clampUplift(emoji)
         assertEquals(100, graphemeCount(cut))
         assertEquals("an emoji is never split in half", 200, cut.length)

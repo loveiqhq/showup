@@ -333,11 +333,19 @@ struct NoBounceWhenItFits: ViewModifier {
 /// resolves across that text's own bounds — so "Up" still ramps violet to orange over "Up" alone,
 /// not over the whole wordmark, which is what concatenating the three runs would have done. The
 /// text stays text, so the baseline is real and the widths are the font's.
+/// `.su-wordmark { gap: 0.18em }` as the October sheets render it: the tab screens' top bar. The
+/// launch screens keep the 0.04em measured off the Startup sheet; `WelcomeShell.kt`'s `Wordmark`
+/// holds the reasoning for both.
+let wordmarkTabGap: CGFloat = 0.18
+
 struct Wordmark: View {
     var size: CGFloat = 26
+    /// The gap between `Show`, `Up` and the dot, in ems: 0.04 by default, `wordmarkTabGap` on the
+    /// Check-In gate and Search, whose shared top bar their sheets draw at the kit's 0.18em.
+    var gapEm: CGFloat = 0.04
 
     var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: size * 0.04) {
+        HStack(alignment: .lastTextBaseline, spacing: size * gapEm) {
             Text("Show").foregroundColor(.liqFg)
             Text("Up")
                 .font(loraItalic)

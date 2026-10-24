@@ -44,7 +44,7 @@ enum class ChipSize(val height: Dp, val fontSize: TextUnit, val sidePadding: Dp,
 }
 
 /** `rgba(254,104,57,.10)` -- the orange tone's selected fill. A fill of the chip's own. */
-private val OrangeChipFill = Color(0x1AFE6839)
+private val OrangeChipFill = Orange.copy(alpha = 0.10f)
 
 /**
  * @param leading drawn before the label, in the chip's ink -- `SharedChip`'s check.

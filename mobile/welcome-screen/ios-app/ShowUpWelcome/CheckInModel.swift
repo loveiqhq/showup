@@ -193,7 +193,8 @@ final class CheckInModel {
         clock: @escaping () -> CivilDateTime = { CivilDateTime(Date(), in: .current) },
         zone: @escaping () -> TimeZone = { .current },
         millis: @escaping () -> Int = { Int(Date().timeIntervalSince1970 * 1000) },
-        toastSeconds: TimeInterval = Motion.toast
+        toastSeconds: TimeInterval = Motion.toast,
+        places: (any PlaceReading)? = nil
     ) {
         self.store = store
         self.analytics = analytics
@@ -201,8 +202,19 @@ final class CheckInModel {
         self.zone = zone
         self.millis = millis
         self.toastSeconds = toastSeconds
+        self.places = places
         evaluateClock()
     }
+
+    /// The phone's place at `Find my date` -- what Search measures every distance from (SHOWUP-184).
+    private let places: (any PlaceReading)?
+    /// Read once per flow, at its first commit: a retry reuses it rather than waiting on another fix,
+    /// and a new flow reads again.
+    private var place: CheckInPlace?
+    private var placeRead = false
+
+    /// Filters is open from Search, and its exits go back there.
+    private var filtersFromSearch = false
 
     // MARK: the server and the clock
 
@@ -313,6 +325,8 @@ final class CheckInModel {
     /// uplift start empty; Motivation, Vibe and Filters start from the server's last answers.
     func beginFlow() {
         flowAlive = true
+        place = nil
+        placeRead = false
         prefillPending = true
         motivationTouched = false
         vibesTouched = false
@@ -651,6 +665,73 @@ final class CheckInModel {
         state.server?.filters = filters
     }
 
+    // MARK: Filters opened from Search (SHOWUP-184)
+    //
+    // "The filter button opens Check-In 05 Filters. Returning applies the filters to the queue." The
+    // same screen on the user's saved settings, outside any Check-In, so not one of its steps. Read
+    // `CheckInViewModel.kt` for the decisions: Continue saves and only then returns; back and the
+    // close return without saving and never discard the Check-In; the funnel's step events never fire.
+
+    /// Search's filter button: Filters on the saved settings, never a half-made Check-In's edits.
+    func searchFiltersOpened() {
+        if filtersFromSearch && currentStep == .filters { return }
+        filtersFromSearch = true
+        if let saved = state.server?.filters { state.filters = saved }
+        arrived(.filters, screen: .checkinFilters, referrer: .searchProfile)
+    }
+
+    /// Continue on Filters from Search: saved, then `onSaved` -- Search, reading its queue again.
+    func searchFiltersContinue(onSaved: @escaping () -> Void) {
+        guard filtersFromSearch, onScreen(.filters), let shown = state.filters else { return }
+        if shown.genders.isEmpty {
+            showToast(CheckInCopy.filtersToast)
+            return
+        }
+        state.saving = true
+        let store = self.store
+        Task { [weak self] in
+            guard let self else { return }
+            // A STAND-IN IS NEVER SAVED FROM HERE: its untouched settings are defaults. The read
+            // resolves it -- their edits over the server's -- or, with no network, the save fails.
+            if self.filtersStandIn { _ = await self.read() }
+            let filters = self.filtersStandIn ? nil : self.state.filters
+            await self.filtersSave?.value
+            let saved: Result<Void, CallFailure>
+            if let filters, filters == self.state.server?.filters {
+                saved = .success(())
+            } else if let filters {
+                saved = await store.saveFilters(filters)
+            } else {
+                saved = .failure(.network)
+            }
+            self.state.saving = false
+            guard case .success = saved, let filters else {
+                self.showToast(CheckInCopy.filtersSaveErrorProposed)
+                return
+            }
+            self.filtersLanded(filters)
+            self.analytics?.report(CheckInAnalytics.filtersChanged(entry: self.filtersOnEntry ?? filters,
+                                                                   now: filters, windowId: self.windowId))
+            self.leaveSearchFilters()
+            onSaved()
+        }
+    }
+
+    /// Back, the swipe or the close on Filters from Search: the edits dropped, Search shown again.
+    func searchFiltersLeft(onLeft: () -> Void) {
+        guard filtersFromSearch, onScreen(.filters) else { return }
+        state.filters = state.server?.filters ?? filtersOnEntry
+        leaveSearchFilters()
+        onLeft()
+    }
+
+    private func leaveSearchFilters() {
+        filtersFromSearch = false
+        filtersStandIn = false
+        standInEdits = []
+        leaveStep()
+    }
+
     // MARK: uplift and the commit (Check-In 06)
 
     /// The field changed: cut at 100 graphemes; an edit clears the save-failed card and a server
@@ -760,9 +841,14 @@ final class CheckInModel {
         // The last hour may have started while the calls above were out.
         if slots.isEmpty && !commitMaybeSaved { return .noHours }
         let trimmed = s.uplift.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !placeRead {
+            place = await places?.here()
+            placeRead = true
+            guard !Task.isCancelled else { return .network }
+        }
         let result = await store.commit(CommitRequest(
             windowId: windowId, slots: slots, motivation: motivation, vibes: s.vibes,
-            uplift: trimmed.isEmpty ? nil : trimmed))
+            uplift: trimmed.isEmpty ? nil : trimmed, place: place))
         if result == .network || result == .server { commitMaybeSaved = true }
         return result
     }

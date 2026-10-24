@@ -71,6 +71,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
@@ -107,7 +110,7 @@ import com.showup.welcome.Wordmark
 import java.time.ZoneId
 
 /** `rgba(29,17,41,.62)` -- the coach's scrim, over everything but the action bar. */
-private val CoachScrim = Color(0x9E1D1129)
+private val CoachScrim = Fg.copy(alpha = 0.62f)
 
 /** The action bar's fade: canvas from 0 through .95 at 35% to 1 (`linear-gradient(180deg, ...)`). */
 private val ActionFade = Brush.verticalGradient(
@@ -224,6 +227,7 @@ fun SearchProfileScreen(
                 {
                     SearchActionBar(
                         coach = state.coach,
+                        covered = state.coach || state.sheet != null,
                         onLike = onLike,
                         onPass = onPass,
                         onCoachDone = { dontShow -> onCoachDone(SearchAnalytics.CoachDismiss.Close, dontShow) },
@@ -362,7 +366,17 @@ fun SearchActionBar(
     onPass: (SearchAnalytics.PassType) -> Unit,
     onCoachDone: (dontShowAgain: Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    /** The coach or a like sheet is over the profile; when it closes, focus goes back to Like. */
+    covered: Boolean = coach,
 ) {
+    // "On close, focus goes to Like" -- for the coach and for both sheets. Requested on the closing
+    // edge only: Like taking focus on every recomposition would steal it from wherever the user was.
+    val likeFocus = remember { FocusRequester() }
+    val wasCovered = remember { mutableStateOf(covered) }
+    LaunchedEffect(covered) {
+        if (wasCovered.value && !covered) runCatching { likeFocus.requestFocus() }
+        wasCovered.value = covered
+    }
     Column(
         modifier
             .fillMaxWidth()
@@ -401,6 +415,7 @@ fun SearchActionBar(
                     .height(64.dp)
                     .pillShadows(Sunset, ShadowViolet)
                     .clip(RoundedCornerShape(percent = 50))
+                    .focusRequester(likeFocus)
                     .clickable(enabled = !coach, role = Role.Button, onClick = onLike)
                     .padding(horizontal = 24.dp)
                     .testTag(SEARCH_LIKE_TAG),

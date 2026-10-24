@@ -74,7 +74,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.showup.designsystem.BlushWash
 import com.showup.designsystem.Card
+import com.showup.designsystem.CssShadow
 import com.showup.designsystem.Chip
 import com.showup.designsystem.ChipTone
 import com.showup.designsystem.Elevated
@@ -104,23 +106,25 @@ import kotlin.math.sin
 // ── colours of this screen's own, each named for the reference value it carries ─────────────────
 
 /** `rgba(254,104,57,.12)` -- the meet card's clock tile. */
-private val MeetTileFill = Color(0x1FFE6839)
+private val MeetTileFill = Orange.copy(alpha = 0.12f)
 
 /** `rgba(255,255,255,.85)` -- the distance pill on the photo. */
-private val PhotoPillFill = Color(0xD9FFFFFF)
+private val PhotoPillFill = Color.White.copy(alpha = 0.85f)
 
 /** `rgba(255,255,255,.22)` and `.30` -- the motivation pill's glass and its edge. */
-private val GlassFill = Color(0x38FFFFFF)
-private val GlassEdge = Color(0x4DFFFFFF)
+private val GlassFill = Color.White.copy(alpha = 0.22f)
+private val GlassEdge = Color.White.copy(alpha = 0.30f)
 
 /** `rgba(129,42,236,.10)` -- the prompt card's edge. */
-private val PromptEdge = Color(0x1A812AEC)
+private val PromptEdge = Purple.copy(alpha = 0.10f)
 
 /** `rgba(29,17,41,.18)` -- a waveform bar not yet played. */
-private val BarRest = Color(0x2E1D1129)
+private val BarRest = Fg.copy(alpha = 0.18f)
 
-/** `--su-grad-blush`, 180deg: the highlight card. */
-private val BlushWash = Brush.verticalGradient(listOf(Color(0xFFFDE7DC), Color(0xFFF5D9EA)))
+/** `rgba(255,255,255,.92)` and `0 8px 24px rgba(0,0,0,.16)` -- the video's play disc. */
+private val VideoDiscFill = Color.White.copy(alpha = 0.92f)
+private val VideoDiscLift = listOf(CssShadow(Color.Black.copy(alpha = 0.16f), offsetY = 8.dp, blur = 24.dp))
+
 
 /**
  * The kit's six photo placeholders (`SEARCH_V2_PROFILE.photoColors`, 155deg): what a slot shows
@@ -291,7 +295,7 @@ private fun HeroName(profile: SearchProfile) {
                 color = Color.White, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 34.sp,
                 lineHeight = 34.sp, letterSpacing = (-0.01).em,
                 // `text-shadow: 0 2px 12px rgba(0,0,0,.35)`.
-                shadow = Shadow(Color(0x59000000), Offset(0f, 2f * density), cssBlurToShadowRadius(12f * density)),
+                shadow = Shadow(Color.Black.copy(alpha = 0.35f), Offset(0f, 2f * density), cssBlurToShadowRadius(12f * density)),
             ),
         )
         motivationOf(profile.motivation)?.let { MotivationPill(it.title, it.icon) }
@@ -686,7 +690,9 @@ fun VideoCard(
                 Box(
                     Modifier
                         .size(58.dp)
-                        .background(Color(0xEBFFFFFF), CircleShape),
+                        // `rgba(255,255,255,.92)`, lifted `0 8px 24px rgba(0,0,0,.16)` -- the shadow was
+                        // missing until the iOS port read the reference again (24 Oct 2026).
+                        .pillShadows(SolidColor(VideoDiscFill), VideoDiscLift),
                     contentAlignment = Alignment.Center,
                 ) { Box(Modifier.offset(x = 1.5.dp)) { Icon(BrandIcon.Play, 22.dp, tint = Fg) } }
             }

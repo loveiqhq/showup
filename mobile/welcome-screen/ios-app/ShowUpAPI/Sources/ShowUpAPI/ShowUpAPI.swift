@@ -16,6 +16,10 @@ public struct ShowUpAPI: Sendable {
     private let tokens: any TokenStoring
     private let bare: Client
 
+    /// Where the server lives, so a path it hands back -- `/uploads/...` from the local storage
+    /// adapter -- can be loaded. Android's `ShowUpApi.absoluteUrl`.
+    public let baseURL: URL
+
     /// Builds a client for an environment, with auth attached.
     ///
     /// - Parameters:
@@ -31,6 +35,7 @@ public struct ShowUpAPI: Sendable {
         onSessionEnded: @escaping @Sendable () -> Void = {}
     ) {
         self.tokens = tokens
+        self.baseURL = environment.baseURL
 
         // A client with NO auth attached, used only to refresh and to sign out.
         //
@@ -52,6 +57,13 @@ public struct ShowUpAPI: Sendable {
             transport: transport,
             middlewares: [AuthMiddleware(tokens: tokens, refresher: refresher)]
         )
+    }
+
+    /// A URL the server sent, made loadable: absolute as it came, or a path resolved against
+    /// `baseURL`. Nil only for text that is no URL at all.
+    public func absoluteURL(_ url: String) -> URL? {
+        if let absolute = URL(string: url), absolute.scheme != nil { return absolute }
+        return URL(string: url, relativeTo: baseURL)?.absoluteURL
     }
 
     /// Signs the user out: revokes the session server-side, then forgets the tokens locally.

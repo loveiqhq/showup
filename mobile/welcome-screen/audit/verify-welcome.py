@@ -152,7 +152,7 @@ check("button height 56 (kotlin)", "height: Dp = 56.dp" in btn_kt)
 check("button height 56 (swift)", "var height: CGFloat = 56" in btn_sw)
 # 28 by default; a pair of buttons side by side passes its own 10 (ButtonPair, SHOWUP-184).
 check("button pad 28 (kotlin)", "horizontalPadding: Dp = 28.dp" in btn_kt and "padding(horizontal = horizontalPadding)" in btn_kt)
-check("button pad 28 (swift)", ".padding(.horizontal, 28)" in btn_sw)
+check("button pad 28 (swift)", "var horizontalPadding: CGFloat = 28" in btn_sw and ".padding(.horizontal, horizontalPadding)" in btn_sw)
 check("button label 16 bold (kotlin)",
       "labelSize: TextUnit = 16.sp" in btn_kt
       and "else labelSize" in btn_kt
@@ -190,7 +190,8 @@ check("wordmark gradient not flat (swift)", "0xD05976" in shell_sw)
 # render it (Check-In 01's gate and Search 01 share that top bar).
 check("wordmark gap 0.04em by default (kotlin)", "gapEm: Float = 0.04f" in shell_kt and "size.toPx() * gapEm" in shell_kt)
 check("tab screens' wordmark gap 0.18em (kotlin)", "const val WORDMARK_TAB_GAP = 0.18f" in shell_kt)
-check("wordmark gap 0.04em (swift)", "spacing: size * 0.04" in shell_sw)
+check("wordmark gap 0.04em by default (swift)", "var gapEm: CGFloat = 0.04" in shell_sw and "spacing: size * gapEm" in shell_sw)
+check("tab screens' wordmark gap 0.18em (swift)", "let wordmarkTabGap: CGFloat = 0.18" in shell_sw)
 check("wordmark 26 (kotlin)", "26.sp" in shell_kt)
 check("wordmark 26 (swift)", "size: CGFloat = 26" in shell_sw)
 

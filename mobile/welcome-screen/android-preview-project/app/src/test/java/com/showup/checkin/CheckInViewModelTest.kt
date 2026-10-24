@@ -787,7 +787,7 @@ class CheckInViewModelTest {
     fun `the field is empty on every entry, cut at 100 graphemes, and back keeps it`() = runTest(dispatcher) {
         walkTo(CheckInStep.Uplift)
         assertEquals("", state.uplift)
-        model.upliftChanged("😀".repeat(130))
+        model.upliftChanged("\uD83D\uDE00".repeat(130))
         assertEquals(100, graphemeCount(state.uplift))
         model.upliftChanged("boat")
         model.backPressed(CheckInStep.Uplift) {}

@@ -756,6 +756,8 @@ class MainActivity : ComponentActivity() {
                             store = devCheckIn?.let { DevSearchStore(it.latencyMs) } ?: SearchRepository(api),
                             analytics = AppAnalytics,
                             players = mediaPlayer,
+                            // An open like sheet and its message survive a process death.
+                            saved = createSavedStateHandle(),
                         )
                     }
                 },
