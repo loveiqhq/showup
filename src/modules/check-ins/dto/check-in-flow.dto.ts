@@ -319,4 +319,17 @@ export class CommitCheckInDto {
   @Min(-180)
   @Max(180)
   longitude?: number;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    nullable: true,
+    maxLength: 80,
+    description:
+      "The neighbourhood the phone's own geocoder names for that place, shown next to the " +
+      'distance on Search. Trimmed; empty is no district. Never geocoded by the server.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  district?: string | null;
 }

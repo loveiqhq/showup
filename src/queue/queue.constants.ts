@@ -12,6 +12,9 @@ export const QUEUE_DATE_REMINDERS = 'date-reminders';
 /** Check-in expiry reminders (Epic 10, SHOWUP-70): one delayed job per check-in, before it ends. */
 export const QUEUE_CHECK_IN_EXPIRY_NOTIFY = 'check-in-expiry-notify';
 
+/** Like expiry (Search 03): closes open likes whose two Check-Ins have no meet hour left. */
+export const QUEUE_LIKE_EXPIRY = 'like-expiry';
+
 /**
  * Default options applied to every job (SHOWUP-94/95):
  *  - `attempts` + exponential `backoff`: a failed job is retried a few times, spaced further apart.

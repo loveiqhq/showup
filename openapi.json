@@ -384,6 +384,12 @@
       },
       "CommitCheckInDto": {
         "properties": {
+          "district": {
+            "description": "The neighbourhood the phone's own geocoder names for that place, shown next to the distance on Search. Trimmed; empty is no district. Never geocoded by the server.",
+            "maxLength": 80,
+            "nullable": true,
+            "type": "string"
+          },
           "latitude": {
             "description": "Where the phone is, if location is allowed. Sent with longitude or not at all.",
             "maximum": 90,
@@ -505,8 +511,12 @@
       "CreateLikeDto": {
         "properties": {
           "message": {
-            "description": "Optional short message to attach to the like (premium only, max 500 characters).",
+            "description": "The optional message, at most 100 characters. Trimmed; empty or whitespace only is no message. Any sender may write one; only a Premium recipient can read it.",
             "type": "string"
+          },
+          "position": {
+            "description": "The profile's 1-based position in this Search visit, for like_sent's payload",
+            "type": "integer"
           },
           "targetUserId": {
             "description": "The id of the user being liked",
@@ -564,6 +574,25 @@
           "reportedUserId",
           "context",
           "reason"
+        ],
+        "type": "object"
+      },
+      "CreateSearchPassDto": {
+        "properties": {
+          "passType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SearchPassType"
+              }
+            ]
+          },
+          "targetUserId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetUserId",
+          "passType"
         ],
         "type": "object"
       },
@@ -930,7 +959,8 @@
           "status": {
             "enum": [
               "active",
-              "matched"
+              "matched",
+              "withdrawn"
             ],
             "type": "string"
           }
@@ -939,6 +969,17 @@
           "likeId",
           "status",
           "matched"
+        ],
+        "type": "object"
+      },
+      "LikesOpenCountDto": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
         ],
         "type": "object"
       },
@@ -1413,6 +1454,13 @@
         ],
         "type": "object"
       },
+      "PlanTier": {
+        "enum": [
+          "freemium",
+          "premium"
+        ],
+        "type": "string"
+      },
       "Politics": {
         "enum": [
           "left",
@@ -1839,6 +1887,244 @@
         ],
         "type": "object"
       },
+      "SearchEssentialsDto": {
+        "properties": {
+          "datingLanguages": {
+            "description": "In list order. One of: german, english, spanish, italian, french, turkish, russian, arabic. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "education": {
+            "description": "One of: a_levels_abitur, apprenticeship, university_degree, phd. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "gender": {
+            "description": "One of: woman, man, non_binary, other. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "heightCm": {
+            "type": "integer"
+          },
+          "orientation": {
+            "description": "One of: straight, gay, lesbian, bisexual, pansexual, other. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "politics": {
+            "description": "One of: left, mid_left, middle, mid_right, right, conservative, libertarian, apolitical. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "religion": {
+            "description": "One of: protestant, catholic, orthodox, muslim, jewish, buddhist, hindu, atheist, spiritual_other. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SearchHowILiveDto": {
+        "properties": {
+          "activity": {
+            "description": "One of: couch_lover, moderately_active, active, sport_is_my_life. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "alcohol": {
+            "description": "One of: never, rarely, socially, regularly. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "diet": {
+            "description": "One of: everything, flexitarian, vegetarian, vegan. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "rhythm": {
+            "description": "One of: early_bird, night_owl. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "smoking": {
+            "description": "One of: no, sometimes, yes. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "social": {
+            "description": "One of: cozy_at_home, balanced, always_out. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SearchMediaDto": {
+        "properties": {
+          "durationMs": {
+            "type": "integer"
+          },
+          "promptId": {
+            "description": "The media prompt's id (section 20), never its text",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "durationMs",
+          "promptId"
+        ],
+        "type": "object"
+      },
+      "SearchPassType": {
+        "enum": [
+          "not_now",
+          "not_interested"
+        ],
+        "type": "string"
+      },
+      "SearchPhotoDto": {
+        "properties": {
+          "url": {
+            "description": "Where the app loads the photo from",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
+      "SearchProfileDto": {
+        "properties": {
+          "age": {
+            "description": "Absent when the person hides their age: the name then stands alone",
+            "type": "integer"
+          },
+          "attendedCount": {
+            "description": "Dates both people confirmed. 0 is shown as New in the App.",
+            "type": "integer"
+          },
+          "distanceKm": {
+            "description": "Rounded: 0 means under one km (\"< 1 km\"), otherwise whole km (\"~N km\"). Never exact.",
+            "type": "integer"
+          },
+          "district": {
+            "description": "The neighbourhood their phone named at Find my date",
+            "type": "string"
+          },
+          "essentials": {
+            "$ref": "#/components/schemas/SearchEssentialsDto"
+          },
+          "howILive": {
+            "$ref": "#/components/schemas/SearchHowILiveDto"
+          },
+          "interests": {
+            "description": "What they are into, in list order. One of: gym, running, hyrox_crossfit, yoga_pilates, bouldering, cycling, swimming, hiking, team_sports, tennis_padel, martial_arts, winter_sports, cooking, baking, trying_new_restaurants, brunch, street_food_markets, wine, craft_beer, coffee_spots, cocktail_bars, live_music, museums_exhibitions, theatre, cinema, reading, comedy, festivals, making_art_music, tv_series, movie_nights, gaming, board_games, podcasts, plants_gardening, bars, clubbing, dinner_parties, quiz_nights, karaoke, concerts_with_friends, volunteering, city_breaks, road_trips, beach_relax, all_inclusive, backpacking, surf_adventure, wellness_spa, camping, cruises. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "meetAt": {
+            "description": "The earliest hour both Check-Ins hold that has not started",
+            "format": "date-time",
+            "type": "string"
+          },
+          "meetDay": {
+            "description": "today or tomorrow, by the Check-In's 7am day in the zone the viewer sent. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "motivation": {
+            "description": "One of: long_term, non_monogamy, short_term, casual, friends. Read tolerantly: a newer server may add values.",
+            "type": "string"
+          },
+          "name": {
+            "description": "First name",
+            "type": "string"
+          },
+          "photos": {
+            "description": "In profile order; a rejected photo is never sent",
+            "items": {
+              "$ref": "#/components/schemas/SearchPhotoDto"
+            },
+            "type": "array"
+          },
+          "prompts": {
+            "description": "In profile order, 1 to 3",
+            "items": {
+              "$ref": "#/components/schemas/SearchPromptDto"
+            },
+            "type": "array"
+          },
+          "uplift": {
+            "description": "Their Check-In highlight, while that Check-In is active",
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vibes": {
+            "description": "Vibe today, in list order. One of: coffee_chat, casual_drink, grab_food, nature_walk, bouldering_table_tennis, workout, sunset, drinks_music, calm, deep_talk, playful, cozy, spontaneous, curious, quick_hello, low_key, high_energy, no_rush, early_night, meet_now. Read tolerantly: a newer server may add values.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "video": {
+            "$ref": "#/components/schemas/SearchMediaDto"
+          },
+          "voice": {
+            "$ref": "#/components/schemas/SearchMediaDto"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "distanceKm",
+          "meetAt",
+          "meetDay",
+          "attendedCount",
+          "vibes",
+          "photos",
+          "prompts",
+          "essentials",
+          "howILive",
+          "interests"
+        ],
+        "type": "object"
+      },
+      "SearchPromptDto": {
+        "properties": {
+          "answer": {
+            "type": "string"
+          },
+          "topicId": {
+            "description": "The topic's id from the app's prompt list, never its text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topicId",
+          "answer"
+        ],
+        "type": "object"
+      },
+      "SearchQueueDto": {
+        "properties": {
+          "profiles": {
+            "description": "The first profiles of the queue, next one first",
+            "items": {
+              "$ref": "#/components/schemas/SearchProfileDto"
+            },
+            "type": "array"
+          },
+          "resultsCount": {
+            "description": "Every profile in the queue right now (search_viewed results_count)",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "resultsCount",
+          "profiles"
+        ],
+        "type": "object"
+      },
       "SendChatMessageDto": {
         "properties": {
           "body": {
@@ -1876,6 +2162,21 @@
         },
         "required": [
           "status"
+        ],
+        "type": "object"
+      },
+      "SetPlanTierDto": {
+        "properties": {
+          "planTier": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanTier"
+              }
+            ]
+          }
+        },
+        "required": [
+          "planTier"
         ],
         "type": "object"
       },
@@ -2296,6 +2597,13 @@
           "phoneVerified": {
             "type": "boolean"
           },
+          "planTier": {
+            "description": "freemium or premium. Read tolerantly: a newer server may add values (treat as freemium).",
+            "type": "string"
+          },
+          "searchCoachHidden": {
+            "type": "boolean"
+          },
           "status": {
             "enum": [
               "registered",
@@ -2316,7 +2624,9 @@
           "status",
           "phoneVerified",
           "emailVerified",
-          "createdAt"
+          "createdAt",
+          "planTier",
+          "searchCoachHidden"
         ],
         "type": "object"
       },
@@ -4246,6 +4556,66 @@
         ]
       }
     },
+    "/dev/plan-tier": {
+      "put": {
+        "operationId": "setDevPlanTier",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPlanTierDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
     "/discovery": {
       "get": {
         "operationId": "listDiscoveryProfiles",
@@ -5313,6 +5683,53 @@
         "summary": "",
         "tags": [
           "check-in"
+        ]
+      }
+    },
+    "/me/likes/open-count": {
+      "get": {
+        "operationId": "getLikesOpenCount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikesOpenCountDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "search"
         ]
       }
     },
@@ -6617,6 +7034,46 @@
         ]
       }
     },
+    "/me/search-coach/hide": {
+      "post": {
+        "operationId": "hideSearchCoach",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "search"
+        ]
+      }
+    },
     "/me/verification": {
       "get": {
         "operationId": "getSelfieVerification",
@@ -6798,6 +7255,133 @@
         "summary": "",
         "tags": [
           "safety"
+        ]
+      }
+    },
+    "/search/passes": {
+      "post": {
+        "operationId": "passSearchProfile",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSearchPassDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/search/queue": {
+      "get": {
+        "operationId": "getSearchQueue",
+        "parameters": [
+          {
+            "description": "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchQueueDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "search"
         ]
       }
     }

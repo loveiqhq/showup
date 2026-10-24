@@ -42,5 +42,7 @@ import { STORAGE } from './storage/storage.interface';
     AdminGuard,
     { provide: STORAGE, useClass: LocalDiskStorage },
   ],
+  // Search builds photo and media URLs for other people's profiles (SHOWUP-184).
+  exports: [STORAGE],
 })
 export class ProfilesModule {}
