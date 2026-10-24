@@ -5,11 +5,13 @@ import com.showup.api.generated.api.AccountApi
 import com.showup.api.generated.api.AuthApi
 import com.showup.api.generated.api.CheckInApi
 import com.showup.api.generated.api.CheckInsApi
+import com.showup.api.generated.api.DevApi
 import com.showup.api.generated.api.MatchingApi
 import com.showup.api.generated.api.NotificationsApi
 import com.showup.api.generated.api.PermissionsApi
 import com.showup.api.generated.api.ProfilesApi
 import com.showup.api.generated.api.SafetyApi
+import com.showup.api.generated.api.SearchApi
 import com.showup.api.generated.infrastructure.ApiClient
 import com.showup.api.generated.model.LogoutDto
 import com.showup.api.generated.model.RefreshDto
@@ -99,6 +101,25 @@ class ShowUpApi(
      * notifications off is not sent pushes it would never show.
      */
     val permissions: PermissionsApi by lazy { client.createService(PermissionsApi::class.java) }
+
+    /** Date search (SHOWUP-184): the queue, passes, the coach flag and the open-likes count. */
+    val search: SearchApi by lazy { client.createService(SearchApi::class.java) }
+
+    /**
+     * The dev menu's plan switch. A 404 in production, where the endpoint does not exist; here so
+     * the Premium surfaces can be seen before billing does.
+     */
+    val dev: DevApi by lazy { client.createService(DevApi::class.java) }
+
+    /**
+     * A URL the server handed out, made loadable. The local storage adapter answers with a path
+     * (`/uploads/<key>`), which only means something against this API's own host -- and that host
+     * is the one place the base URL lives. An absolute URL (a bucket's, later) is returned as is.
+     */
+    fun absoluteUrl(url: String): String {
+        if (url.startsWith("http://") || url.startsWith("https://")) return url
+        return baseUrl.trimEnd('/') + "/" + url.trimStart('/')
+    }
 
     /**
      * Signs the user out: revokes the session server-side, then forgets the tokens locally.

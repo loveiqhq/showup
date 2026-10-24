@@ -12,6 +12,8 @@
  */
 package com.showup.checkin
 
+import com.showup.api.Outcome
+import com.showup.api.CallFailure
 import com.showup.analytics.JsonNull
 import com.showup.analytics.RecordingAnalytics
 import com.showup.profile.ProfileScreen

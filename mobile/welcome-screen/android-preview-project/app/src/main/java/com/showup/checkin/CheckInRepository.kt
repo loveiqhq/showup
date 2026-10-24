@@ -7,7 +7,11 @@
  */
 package com.showup.checkin
 
+import com.showup.api.CallFailure
+import com.showup.api.Outcome
 import com.showup.api.ShowUpApi
+import com.showup.api.callCatching
+import com.showup.api.outcome
 import com.showup.api.generated.model.CheckInSlotDto
 import com.showup.api.generated.model.CheckInSlotTier
 import com.showup.api.generated.model.CheckInStateDto
@@ -73,18 +77,6 @@ sealed interface CommitResult {
      * device's. Not a failed save: the user picks again.
      */
     data object NoHours : CommitResult
-}
-
-/** Why a call did not land: no response (§32 `network`), or one that is not a success (`server`). */
-enum class CallFailure { Network, Server }
-
-/**
- * A read, or a write the commit depends on: its value, or why it failed. The commit reports which
- * of the two it was, so a 500 on the filter save is never logged as the user being offline.
- */
-sealed interface Outcome<out T> {
-    data class Ok<out T>(val value: T) : Outcome<T>
-    data class Failed(val why: CallFailure) : Outcome<Nothing>
 }
 
 interface CheckInStore {
@@ -172,25 +164,6 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
      * screen's scope into a failed save -- and a failed filter save inside the commit into a reported
      * `check_in_commit_failed` for a commit nobody is waiting on.
      */
-    private inline fun <T> callCatching(block: () -> T): Result<T> = try {
-        Result.success(block())
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Result.failure(e)
-    }
-
-    /** [block]'s value; null from it is a response that was not a success. */
-    private inline fun <T : Any> outcome(block: () -> T?): Outcome<T> = try {
-        block()?.let { Outcome.Ok(it) } ?: Outcome.Failed(CallFailure.Server)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: IOException) {
-        Outcome.Failed(CallFailure.Network)
-    } catch (e: Exception) {
-        Outcome.Failed(CallFailure.Server)
-    }
-
     private companion object {
         /** The API's error code for an uplift refused for contact info (`check-in-flow.ts`). */
         const val CONTACT_INFO_ERROR = "uplift_contact_info"

@@ -764,7 +764,11 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  users, home,
                  // The 48hrs Check-In (SHOWUP-178 to 183): the tab bar's `search · zap · settings`
                  // and Motivation's `flame`, read from the kit's own `d` strings (SVGPath.swift).
-                 search, zap, settings, flame }
+                 search, zap, settings, flame,
+                 // Date search 01 (SHOWUP-184): the kit's filter, send, shield-check, user, star,
+                 // gift and pause, and SEARCH_ICONS' section marks -- each from its `d` string.
+                 filter, send, shieldCheck, user, star, gift, pause,
+                 globe, bookOpen, faith, vote, wine, cigarette, leaf }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -1336,6 +1340,48 @@ struct BrandIconView: View {
             case .flame:
                 filled = false
                 p = Self.flamePath
+            case .filter:
+                filled = false
+                p = Self.filterPath
+            case .send:
+                filled = false
+                p = Self.sendPath
+            case .shieldCheck:
+                filled = false
+                p = Self.shieldCheckPath
+            case .user:
+                filled = false
+                p = Self.userPath
+            case .star:
+                filled = false
+                p = Self.starPath
+            case .gift:
+                filled = false
+                p = Self.giftPath
+            case .pause:
+                filled = false
+                p = Self.pausePath
+            case .globe:
+                filled = false
+                p = Self.globePath
+            case .bookOpen:
+                filled = false
+                p = Self.bookOpenPath
+            case .faith:
+                filled = false
+                p = Self.faithPath
+            case .vote:
+                filled = false
+                p = Self.votePath
+            case .wine:
+                filled = false
+                p = Self.winePath
+            case .cigarette:
+                filled = false
+                p = Self.cigarettePath
+            case .leaf:
+                filled = false
+                p = Self.leafPath
             case .phone:
                 filled = false
                 p = Self.phonePath
@@ -1380,6 +1426,34 @@ struct BrandIconView: View {
     )
 
     /// Motivation's `flame` (Short-term fun).
+    /// `filter`.
+    static let filterPath = SVGPath.parse("M22 3L2 3L10 12.46L10 19L14 21L14 12.46L22 3Z")
+    /// `send`.
+    static let sendPath = SVGPath.parse("M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z")
+    /// `shield-check`.
+    static let shieldCheckPath = SVGPath.parse("M12 2L4 5V11C4 16 7.4 20.5 12 22C16.6 20.5 20 16 20 11V5L12 2ZM9 12L11 14L15 10")
+    /// `user`.
+    static let userPath = SVGPath.parse("M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M16 7a4 4 0 1 1-8 0a4 4 0 1 1 8 0Z")
+    /// `star`.
+    static let starPath = SVGPath.parse("M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z")
+    /// `gift`.
+    static let giftPath = SVGPath.parse("M20 12L20 22L4 22L4 12M2 7H22V12H2ZM12 22L12 7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7ZM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z")
+    /// `pause`.
+    static let pausePath = SVGPath.parse("M6 4H10V20H6ZM14 4H18V20H14Z")
+    /// `globe`.
+    static let globePath = SVGPath.parse("M22 12a10 10 0 1 1-20 0a10 10 0 1 1 20 0ZM2 12L22 12M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z")
+    /// `book-open`.
+    static let bookOpenPath = SVGPath.parse("M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2ZM22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7Z")
+    /// `faith`.
+    static let faithPath = SVGPath.parse("M12 3L12 21M7 9L17 9")
+    /// `vote`.
+    static let votePath = SVGPath.parse("M3 19h18M5 19V9l7-5 7 5v10M9 14L11 16L15 12")
+    /// `wine`.
+    static let winePath = SVGPath.parse("M7 3h10l-1 6a4 4 0 0 1-8 0ZM12 13L12 20M8 20L16 20")
+    /// `cigarette`.
+    static let cigarettePath = SVGPath.parse("M3 12H15a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V13a1 1 0 0 1 1-1ZM6 12L6 16M18 8c0-2 1-3 2-3M22 8c0-2-1-3-2-3M18 12L22 12M18 16L22 16")
+    /// `leaf`.
+    static let leafPath = SVGPath.parse("M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2c1 3.5.5 8-3 11-2.5 2.5-6 2.5-7.5 1M2 21c0-3 1.85-5.36 5.08-6")
     static let flamePath = SVGPath.parse(
         "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 " +
         "1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"

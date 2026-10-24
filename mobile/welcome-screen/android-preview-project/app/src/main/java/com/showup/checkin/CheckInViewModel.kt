@@ -27,6 +27,8 @@
  */
 package com.showup.checkin
 
+import com.showup.api.Outcome
+import com.showup.api.CallFailure
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker

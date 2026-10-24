@@ -19,7 +19,7 @@ import com.showup.checkin.CheckInState
 import com.showup.checkin.CheckInStore
 import com.showup.checkin.CommitRequest
 import com.showup.checkin.CommitResult
-import com.showup.checkin.Outcome
+import com.showup.api.Outcome
 import com.showup.checkin.upliftHasContact
 import kotlinx.coroutines.delay
 import java.util.UUID
