@@ -149,6 +149,11 @@ enum FlowScreen: String, CaseIterable, Comparable {
     /// After `checkInSearch`, so the way in reads forward and the way back backward.
     case searchFilters
 
+    /// Search 03 (SHOWUP-186): the Likes tab for a Premium user -- a tab root, no back button. After
+    /// Search and before Settings, its place in the TabBar, so a tab change reads in the bar's
+    /// direction.
+    case likesReceived
+
     /// The gate's Settings tab: no Settings screen exists yet.
     case checkInSettings
 

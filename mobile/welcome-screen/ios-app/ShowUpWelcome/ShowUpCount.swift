@@ -10,6 +10,10 @@
 //  800. `New` is 10% violet on violet with `sparkles`; a count is the kit's `good` tone (10% green on
 //  #0A7A47) with `shield-check`. The icon is the type size + 1, and grows with the type.
 //
+//  `variant="dark"` (the Premium grid card, SHOWUP-185): over a photo, a count on `showUpTone(100)`'s
+//  dark pill, `New in the App` on white at .92, both over a backdrop blur of 8 -- `glass`, what that
+//  blur sees, drawn by the caller, who knows the photo.
+//
 
 import SwiftUI
 
@@ -31,16 +35,23 @@ func showUpCountLabel(_ count: Int) -> String {
     return count == 1 ? "1 date attended" : "\(count) dates attended"
 }
 
-struct ShowUpCount: View {
+struct ShowUpCount<Glass: View>: View {
     let count: Int
     var size: ShowUpCountSize = .md
+    /// `variant="dark"`, over a photo.
+    var dark = false
+    /// Behind the fill, clipped to the pill: the photo under it, blurred.
+    @ViewBuilder var glass: () -> Glass
 
     /// The type size the user chose, as a factor of the default -- the icon follows the type.
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
         let isNew = count <= 0
-        let ink: Color = isNew ? .liqPurple : .liqSuccessFg
+        let ink: Color = isNew ? .liqPurple : (dark ? .liqShowUpDarkInk : .liqSuccessFg)
+        let fill: Color = dark
+            ? (isNew ? Color.liqElevated.opacity(0.92) : .liqShowUpDarkFill)
+            : (isNew ? Color.liqPurple.opacity(0.10) : Color.liqSuccess.opacity(0.10))
         let fs = size.fontSize
         HStack(spacing: 6) {
             BrandIconView(icon: isNew ? .sparkles : .shieldCheck, size: (fs + 1) * typeScale, stroke: 2.2, tint: ink)
@@ -54,7 +65,7 @@ struct ShowUpCount: View {
         }
         .padding(.horizontal, size.horizontal)
         .padding(.vertical, size.vertical)
-        .background(Capsule().fill(isNew ? Color.liqPurple.opacity(0.10) : Color.liqSuccess.opacity(0.10)))
+        .background(ZStack { glass(); Capsule().fill(fill) }.clipShape(Capsule()))
         // One element for VoiceOver: the sentence, not an icon and two runs of text.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(showUpCountLabel(count)))
@@ -65,5 +76,12 @@ struct ShowUpCount: View {
         if isNew { return Text(showUpNew).font(F.manrope(fs, .bold)) }
         let rest = showUpCountLabel(count).dropFirst(String(count).count)
         return Text(String(count)).font(F.manrope(fs, .heavy)) + Text(String(rest)).font(F.manrope(fs, .bold))
+    }
+}
+
+extension ShowUpCount where Glass == EmptyView {
+    /// The count with nothing behind its fill: every use but the photo card's.
+    init(count: Int, size: ShowUpCountSize = .md, dark: Bool = false) {
+        self.init(count: count, size: size, dark: dark, glass: { EmptyView() })
     }
 }

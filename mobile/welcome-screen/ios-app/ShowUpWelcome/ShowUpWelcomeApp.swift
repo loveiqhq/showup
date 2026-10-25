@@ -313,13 +313,23 @@ private struct TutorialFlow: View {
     /// background, for the life of the app -- not only while a permission screen is up: a
     /// permission turned off in Settings next week must still reach the server and the analytics.
     /// Built on the same readers the screens use; see PermissionReconciler.swift.
-    /// The app's back stack (AppRoute.swift): what is pushed over the flow.
-    @State private var navPath: [AppRoute] = []
+    /// The grid or the Likes list has settled under a profile that closed: the pop has finished, so a
+    /// card waiting to fly out may go -- "t = 0 when the back transition has settled".
+    @State private var listSettled = true
+
+    /// THE APP'S BACK STACK (AppRoute.swift) FOLLOWS THE SEARCH MODEL: the profile opened from the grid
+    /// or the Likes list is pushed while the model holds it open, and popped when it closes -- one
+    /// source of truth, so a profile can never be on screen that the model does not hold. The system's
+    /// own back is hidden on it; its back pill and the edge swipe ask the model.
+    private var navPath: Binding<[AppRoute]> {
+        Binding(get: { search.state.opened != nil ? [.searchProfile] : [] },
+                set: { path in if path.isEmpty { search.backFromProfile() } })
+    }
 
     /// THE LIKES BADGE: open received likes, the one number the Likes tab and the Search likes chip
     /// both show (SHOWUP-187 rule 10) -- on the gate's and Settings' bars too, refreshed on every
     /// foreground of a tab screen, not only by a Search visit.
-    private var likesOpen: Int { search.state.likesOpen }
+    private var likesOpen: Int { search.state.likesBadge }
 
     /// The Search tab: Search with a committed Check-In, the gate without one (story 01).
     private var searchTab: FlowScreen {
@@ -345,6 +355,8 @@ private struct TutorialFlow: View {
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
     private func go(to next: FlowScreen) {
+        // Any move inside the flow is a real arrival, never the reappearance under a popped profile.
+        search.clearReturn()
         cameFromRaw = screen.rawValue
         forward = next > screen
         if reduceMotion {
@@ -728,8 +740,10 @@ private struct TutorialFlow: View {
         case .checkInVibe: return .checkinVibe
         case .checkInFilters: return .checkinFilters
         case .checkInUplift: return .checkinUplift
-        case .checkInSearch: return .searchProfile
+        // The Search tab's layout: the grid is `search_grid`, the queue `search_profile`.
+        case .checkInSearch: return search.state.layout == .grid ? .searchGrid : .searchProfile
         case .searchFilters: return .checkinFilters
+        case .likesReceived: return .likesReceived
         default: return nil
         }
     }
@@ -894,6 +908,101 @@ private struct TutorialFlow: View {
         checkIn.gateTapped(target) { go(to: $0.flowScreen) }
     }
 
+    /// Search 01, the Freemium queue: one profile at a time.
+    private var freemiumSearch: some View {
+        SearchProfileView(
+            state: search.state,
+            zone: .current,
+            player: sharedMediaPlayer.surface,
+            onLike: { search.like() },
+            onPass: { search.pass($0) },
+            onCoachDone: { search.dismissCoach($0, dontShowAgain: $1) },
+            onCancelConfirm: { search.cancelConfirm() },
+            onContinue: { search.continueToMessage() },
+            onDraft: { search.editDraft($0) },
+            onDismissMessage: { search.dismissMessage() },
+            onSkipMessage: { search.skipMessage() },
+            onSendMessage: { search.sendMessage() },
+            onOpenPhoto: { search.openPhoto($0) },
+            onViewerPage: { search.viewerPage($0) },
+            onCloseViewer: { search.closeViewer() },
+            onTogglePlay: { search.togglePlay($0) },
+            onScrolledOut: { search.scrolledOut($0) },
+            onSectionSeen: { search.sectionSeen($0) },
+            onFilters: { go(to: .searchFilters) },
+            // Freemium: the likes upsell, its own story -- never Likes received.
+            onLikesChip: {},
+            onTab: { tab in
+                tabTapped(active: .search, tapped: tab)
+                // The upsell (Freemium) and Instant are their own stories: the tap is the nav act
+                // alone, as on the gate.
+                if tab == .settings { go(to: .checkInSettings) }
+            },
+            onRetry: { search.retry(zone: TimeZone.current.identifier) })
+    }
+
+    /// THE PROFILE, OPENED FROM THE GRID OR THE LIKES LIST (SHOWUP-185, 186): Search 01's screen,
+    /// extended, pushed over the flow. The list keeps its scroll position underneath.
+    private var openedProfile: some View {
+        let fromLikes = search.state.opened?.from == .likes
+        let here: AppTab = fromLikes ? .likes : .search
+        return SearchProfileView(
+            state: search.state,
+            zone: .current,
+            player: sharedMediaPlayer.surface,
+            onLike: { search.like() },
+            onPass: { search.pass($0) },
+            onCoachDone: { search.dismissCoach($0, dontShowAgain: $1) },
+            onCancelConfirm: { search.cancelConfirm() },
+            onContinue: { search.continueToMessage() },
+            onDraft: { search.editDraft($0) },
+            onDismissMessage: { search.dismissMessage() },
+            onSkipMessage: { search.skipMessage() },
+            onSendMessage: { search.sendMessage() },
+            onOpenPhoto: { search.openPhoto($0) },
+            onViewerPage: { search.viewerPage($0) },
+            onCloseViewer: { search.closeViewer() },
+            onTogglePlay: { search.togglePlay($0) },
+            onScrolledOut: { search.scrolledOut($0) },
+            onSectionSeen: { search.sectionSeen($0) },
+            onFilters: {
+                search.closeProfileForElsewhere()
+                go(to: .searchFilters)
+            },
+            onLikesChip: {
+                search.closeProfileForElsewhere()
+                go(to: .likesReceived)
+            },
+            onTab: { tab in
+                guard tab != here else { return }
+                tabTapped(active: here, tapped: tab)
+                switch tab {
+                case .search:
+                    search.closeProfileForElsewhere()
+                    go(to: searchTab)
+                case .likes:
+                    search.closeProfileForElsewhere()
+                    go(to: .likesReceived)
+                case .settings:
+                    search.closeProfileForElsewhere()
+                    go(to: .checkInSettings)
+                // As on the list under it: the nav act alone with a Check-In; without one it opens one.
+                case .instant:
+                    if checkIn.state.server?.active != true {
+                        search.closeProfileForElsewhere()
+                        reopenCheckIn(.instantTab)
+                    }
+                }
+            },
+            onBack: { search.backFromProfile() },
+            onConfirmDate: { search.confirmDate() },
+            onRefusedDone: { search.refusedDone() })
+            .toolbar(.hidden, for: .navigationBar)
+            // The model's back, not the system's: the back pill and the edge swipe ask it, and it keeps
+            // the profile while a sheet, the viewer or the coach is over it.
+            .navigationBarBackButtonHidden(true)
+    }
+
     /// The Check-In's screens. Each takes the model's state and returns its taps as model calls;
     /// the model decides, the host only routes.
     @ViewBuilder private func checkInScreen(_ screen: FlowScreen) -> some View {
@@ -909,10 +1018,13 @@ private struct TutorialFlow: View {
                     tabTapped(active: .search, tapped: .settings)
                     go(to: .checkInSettings)
                 },
-                // Premium: Likes received (SHOWUP-186); Freemium: the likes upsell, its own story.
-                // Neither is built, so the tap is the nav act alone -- and it never opens Likes
-                // received for Freemium.
-                onLikes: { tabTapped(active: .search, tapped: .likes) },
+                // Premium: Likes received (SHOWUP-186); Freemium: the likes upsell, its own story,
+                // not built -- so the tap is the nav act alone, and never opens Likes received for
+                // Freemium.
+                onLikes: {
+                    tabTapped(active: .search, tapped: .likes)
+                    if search.state.premium { go(to: .likesReceived) }
+                },
                 likes: likesOpen)
                 .onAppear {
                     checkIn.arrived(nil, screen: .checkinSearchUnavailable, referrer: profileScreen(of: cameFrom))
@@ -998,44 +1110,78 @@ private struct TutorialFlow: View {
                 onClose: { closeCheckIn(.uplift) })
                 .onAppear { checkInArrived(.uplift) }
         case .checkInSearch:
-            SearchProfileView(
+            // One view whatever the layout, so the arrival below fires once a visit: the plan is read
+            // at the start of the visit, and the grid can replace the loading queue inside it.
+            ZStack {
+                if search.state.layout == .grid {
+                    SearchGridView(
+                        state: search.state,
+                        zone: .current,
+                        settled: search.state.opened == nil && listSettled,
+                        onOpen: { search.openCard(.grid, userId: $0) },
+                        onLeft: { search.cardLeft(.grid, userId: $0) },
+                        onUndo: { search.undo() },
+                        onUndoFocus: { search.undoFocus($0) },
+                        onFilters: { go(to: .searchFilters) },
+                        // Premium: the likes chip opens the Likes tab (Search 02, restored 21 Oct).
+                        onLikesChip: { go(to: .likesReceived) },
+                        onTab: { tab in
+                            tabTapped(active: .search, tapped: tab)
+                            switch tab {
+                            case .settings: go(to: .checkInSettings)
+                            case .likes: go(to: .likesReceived)
+                            // Instant is its own story: the tap is the nav act alone.
+                            case .search, .instant: break
+                            }
+                        },
+                        onRetry: { search.retry(zone: TimeZone.current.identifier) })
+                } else {
+                    freemiumSearch
+                }
+            }
+            .onAppear {
+                attachSearch()
+                // Under a profile that just closed, the grid has had its screen_viewed and re-check.
+                guard !search.takeReturn(.grid) else { return }
+                let filters = checkIn.state.server?.filters
+                search.arrived(zone: TimeZone.current.identifier,
+                               filtersActive: filters.map(filtersActive) ?? [],
+                               referrer: profileScreen(of: cameFrom))
+            }
+            // Leaving -- to Filters or another tab: the profile has left the screen. Not when a
+            // profile is pushed over the grid: that profile has just arrived.
+            .onDisappear { if search.state.opened == nil { search.leave() } }
+        case .likesReceived:
+            LikesReceivedView(
                 state: search.state,
                 zone: .current,
-                player: sharedMediaPlayer.surface,
-                onLike: { search.like() },
-                onPass: { search.pass($0) },
-                onCoachDone: { search.dismissCoach($0, dontShowAgain: $1) },
-                onCancelConfirm: { search.cancelConfirm() },
-                onContinue: { search.continueToMessage() },
-                onDraft: { search.editDraft($0) },
-                onDismissMessage: { search.dismissMessage() },
-                onSkipMessage: { search.skipMessage() },
-                onSendMessage: { search.sendMessage() },
-                onOpenPhoto: { search.openPhoto($0) },
-                onViewerPage: { search.viewerPage($0) },
-                onCloseViewer: { search.closeViewer() },
-                onTogglePlay: { search.togglePlay($0) },
-                onScrolledOut: { search.scrolledOut($0) },
-                onSectionSeen: { search.sectionSeen($0) },
-                onFilters: { go(to: .searchFilters) },
-                // "A tap does not open Likes received (the upsell is its own story)."
-                onLikesChip: {},
+                settled: search.state.opened == nil && listSettled,
+                onOpen: { search.openCard(.likes, userId: $0) },
+                onLeft: { search.cardLeft(.likes, userId: $0) },
+                onUndo: { search.undo() },
+                onUndoFocus: { search.undoFocus($0) },
+                onBackToSearch: { go(to: searchTab) },
                 onTab: { tab in
-                    tabTapped(active: .search, tapped: tab)
-                    // Likes received (186) and the upsell, and Instant, are their own stories: the
-                    // tap is the nav act alone, as on the gate.
-                    if tab == .settings { go(to: .checkInSettings) }
+                    tabTapped(active: .likes, tapped: tab)
+                    switch tab {
+                    case .search: go(to: searchTab)
+                    case .settings: go(to: .checkInSettings)
+                    // Gated without a Check-In -- it opens one, as on the gate -- and its own story with one.
+                    case .instant: if checkIn.state.server?.active != true { reopenCheckIn(.instantTab) }
+                    case .likes: break
+                    }
                 },
-                onRetry: { search.retry(zone: TimeZone.current.identifier) })
+                onRetry: { search.likesRetry(zone: TimeZone.current.identifier) })
                 .onAppear {
                     attachSearch()
-                    let filters = checkIn.state.server?.filters
-                    search.arrived(zone: TimeZone.current.identifier,
-                                   filtersActive: filters.map(filtersActive) ?? [],
-                                   referrer: profileScreen(of: cameFrom))
+                    guard !search.takeReturn(.likes) else { return }
+                    search.likesArrived(zone: TimeZone.current.identifier, referrer: profileScreen(of: cameFrom))
                 }
-                // Leaving -- to Filters or another tab: the profile has left the screen.
-                .onDisappear { search.leave() }
+                // Another tab: a decline waiting out its Undo is sent now.
+                .onDisappear { if search.state.opened == nil { search.leave() } }
+                // A tab root: no back button, and the swipe from the edge returns to Search, as from
+                // Settings.
+                .modifier(EdgeSwipeBack(onBack: { go(to: searchTab) }))
         case .searchFilters:
             CheckInFiltersView(
                 filters: s.filters ?? CheckInFilters(genders: []),
@@ -1059,8 +1205,8 @@ private struct TutorialFlow: View {
                 switch tab {
                 // Search with no Check-In IS the gate (story 01); with one, Search.
                 case .search: go(to: searchTab)
-                // As on the gate: nothing is built behind Likes yet.
-                case .likes: break
+                // Premium: Likes received. Freemium: the upsell, not built.
+                case .likes: if search.state.premium { go(to: .likesReceived) }
                 // Instant is gated without a Check-In -- it opens one, as on the gate -- and its own
                 // story with one.
                 case .instant: if checkIn.state.server?.active != true { reopenCheckIn(.instantTab) }
@@ -1232,8 +1378,22 @@ private struct TutorialFlow: View {
     /// THE NAVIGATIONSTACK (AppRoute.swift): the existing flow is its root, the navigation bar
     /// hidden so nothing about the flow changes. Search's drill-downs are pushed onto `navPath`.
     var body: some View {
-        NavigationStack(path: $navPath) {
+        NavigationStack(path: navPath) {
             flow.toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: AppRoute.self) { route in
+                    switch route {
+                    case .searchProfile: openedProfile
+                    }
+                }
+        }
+        // The profile closed onto its list: the pop runs, and the list settles once it has.
+        .onChange(of: search.state.opened == nil) { _, closed in
+            guard closed else { return }
+            listSettled = false
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64((Motion.screen + 0.08) * 1_000_000_000))
+                listSettled = true
+            }
         }
     }
 
@@ -1481,7 +1641,8 @@ private struct TutorialFlow: View {
 
                 // The 48hrs Check-In (SHOWUP-178 to SHOWUP-183).
                 case .checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
-                     .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .checkInSettings:
+                     .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .likesReceived,
+                     .checkInSettings:
                     checkInScreen(screen)
 
                 case .home:
@@ -1535,7 +1696,8 @@ private struct TutorialFlow: View {
             if phase == .active && screen.isCheckIn {
                 checkIn.evaluateClock()
                 checkIn.refresh()
-                search.refreshLikesOpen()
+                // The plan as well as the count: it decides where the Likes tab goes.
+                search.foregrounded()
             }
         }
         // SEARCH, LEFT FOR ANOTHER APP AND COME BACK TO. Backgrounding is the profile leaving the
@@ -1544,7 +1706,8 @@ private struct TutorialFlow: View {
         // Control Center, a Face ID sheet or a call banner pass through `.inactive` without the
         // profile ever leaving, and restarting the dwell there would zero `dwell_ms`.
         .onChange(of: scenePhase) { _, phase in
-            guard screen == .checkInSearch else { return }
+            // The Likes tab too: going to the background sends a decline waiting out its Undo.
+            guard screen == .checkInSearch || screen == .likesReceived else { return }
             switch phase {
             case .background:
                 searchLeftForBackground = true

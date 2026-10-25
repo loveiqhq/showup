@@ -71,6 +71,22 @@ enum Motion {
     /// One turn of the commit spinner, linear (SHOWUP-183). Android's `Motion.SPIN`.
     static let spin: TimeInterval = 0.8
 
+    /// The card fly-out (SHOWUP-185 20, reused by 186), named as the ticket names them: the hold that
+    /// shows the filled heart or the label (`GRID_LEAVE_HOLD_MS`), the flight to the bottom centre
+    /// (`GRID_LEAVE_MS`), and the rest of the list closing the gap (`GRID_REFLOW_MS`). Android's
+    /// `Motion.GRID_LEAVE_HOLD`, `GRID_LEAVE` and `GRID_REFLOW`.
+    static let gridLeaveHold: TimeInterval = 0.15
+    static let gridLeave: TimeInterval = 0.8
+    static let gridReflow: TimeInterval = 0.25
+
+    /// The fly-out with reduced motion: "a 200 ms fade, then the reflow". `reveal`'s length, its own
+    /// meaning.
+    static let gridLeaveReduced: TimeInterval = 0.2
+
+    /// How long a declined like can be undone (`LIKES_UNDO_MS`, SHOWUP-185 G / 186 D). A decision
+    /// window, not a reading time: the decline is sent when it ends.
+    static let likesUndo: TimeInterval = 6
+
     /// The brand curve, `cubic-bezier(.22,1,.36,1)` — Android's `ShowUpEasing`. Written inline at
     /// several older call sites; the Check-In reads it from here.
     static func brand(_ duration: TimeInterval) -> Animation {

@@ -1,6 +1,7 @@
 //
 //  SearchSheets.swift
-//  ShowUp · the like flow's two sheets: Be sure (callout 22) and the optional message (callout 23)
+//  ShowUp · the like flow's sheets: Be sure (Search 01 callout 22, and its mutual mode, Search 02 15),
+//  the optional message (callout 23), and the sorry sheet after a refused confirm (Search 02 18)
 //
 //  The Swift twin of `search/SearchSheets.kt`. Behaviour is `SheetScaffold`'s, the one bottom sheet in
 //  the app: the 42% scrim, a scrim tap as `backdrop`, the swipe down, and a bottom inset that clears
@@ -40,6 +41,8 @@ struct SearchSheet<Content: View>: View {
     /// behind them until the user thought to scroll; at the end, the field, the counter and both
     /// buttons show together.
     var endOnKeyboard = false
+    /// The content's padding: 24 all round for the like sheets, `20 24 24` for the sorry sheet.
+    var contentPadding = EdgeInsets(top: 24, leading: 24, bottom: 24, trailing: 24)
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -82,7 +85,7 @@ struct SearchSheet<Content: View>: View {
                 .padding(.top, 8)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) { content() }
-                .padding(24)
+                .padding(contentPadding)
             Color.clear.frame(height: 0).id(searchSheetEnd)
         }
         .frame(maxWidth: .infinity)
@@ -94,14 +97,29 @@ private struct SendMark: View {
     var body: some View { BrandIconView(icon: .send, size: 16, stroke: 2.2, tint: .white) }
 }
 
+/// Mutual Be sure's mark: `check` 16 / 2.2 (Search 02: "`Confirm date` + check icon").
+private struct CheckMark: View {
+    var body: some View { BrandIconView(icon: .check, size: 16, stroke: 2.2, tint: .white) }
+}
+
+/// What VoiceOver hears on `Confirm date` while the confirm is with the server. Not drawn.
+private let confirmingState = "Waiting for an answer"
+
 /// Be sure (callout 22): what a match commits to, before anything is sent. The line names `today` or
 /// `tomorrow` exactly as the meet card does. `Continue`, never "Send like": the like is sent from the
 /// message sheet.
+///
+/// MUTUAL (Search 02 15, on a profile that liked the viewer): `Confirm, and you and {name} have…`, the
+/// CTA `Confirm date` with a check, and no message step -- `onContinue` is the confirm itself. While it
+/// is with the server (`confirming`) the CTA stays drawn as it is and does nothing, and the sheet does
+/// not close: the model holds both.
 struct BeSureSheet: View {
     let name: String
     let day: String
     let onCancel: (SheetDismissMethod) -> Void
     let onContinue: () -> Void
+    var mutual = false
+    var confirming = false
 
     var body: some View {
         SearchSheet(label: SearchCopy.beSure, onDismiss: onCancel) {
@@ -110,7 +128,7 @@ struct BeSureSheet: View {
                 // No letter spacing in the reference: 0, not WashHeadline's default -0.02em.
                 WashHeadline(parts: [(SearchCopy.beSure, true)], fontSize: 22, lineHeightMultiple: loraNormalLine,
                              trackingEm: 0, color: .liqPrimaryDeep, centered: true)
-                (Text(SearchCopy.beSureLineLead(name))
+                (Text(mutual ? PremiumCopy.beSureMutualLead(name) : SearchCopy.beSureLineLead(name))
                     + Text(SearchCopy.beSureLineEmphasis(day)).font(F.manrope(14, .bold)).foregroundColor(.liqPurple)
                     + Text("."))
                     .font(F.manrope(14, .semibold))
@@ -154,10 +172,78 @@ struct BeSureSheet: View {
             ButtonPair {
                 PrimaryButton(SearchCopy.cancel, variant: .ghost, height: sheetButtonHeight, labelSize: 15,
                               horizontalPadding: pairButtonPadding) { onCancel(.close) }
-                PrimaryButton(label: SearchCopy.continue, variant: .sunset, height: sheetButtonHeight, labelSize: 15,
-                              horizontalPadding: pairButtonPadding, action: onContinue, leading: { SendMark() })
+                if mutual {
+                    PrimaryButton(label: PremiumCopy.confirmDate, variant: .sunset, height: sheetButtonHeight, labelSize: 15,
+                                  horizontalPadding: pairButtonPadding, action: { if !confirming { onContinue() } },
+                                  leading: { CheckMark() })
+                        // Inert while the server decides, and said so: VoiceOver hears it waiting.
+                        .accessibilityValue(Text(confirming ? confirmingState : ""))
+                } else {
+                    PrimaryButton(label: SearchCopy.continue, variant: .sunset, height: sheetButtonHeight, labelSize: 15,
+                                  horizontalPadding: pairButtonPadding, action: onContinue, leading: { SendMark() })
+                }
             }
             .padding(.top, 22)
+        }
+    }
+}
+
+/// The sorry sheet (Search 02 18): a confirm the server refused -- the like closed first. Over the
+/// profile, straight after Be sure; the person's photo and name keep them real, and the copy names the
+/// timing so it never reads as a fake profile.
+///
+/// Padding `20 24 24`, a centred column with gap 14: the photo 96, round, grayscale .6 at .85 with the
+/// reason pill over its bottom edge (a 96 x 108 box) -> the headline (Lora 700 / 24 / 1.2, `-0.01em`,
+/// the reason's last words in italic with the wash; 4 more above it) -> the body (14 / 1.5, at most 300)
+/// -> the violet line (700 / 14 / 1.45) -> one full-width sunset button, 6 more above it.
+///
+/// Every way out -- `buttonLabel` (`Find someone else` on the grid, `Back to likes` on the list), the
+/// scrim or a swipe down -- is the same `onDone`, and fires nothing.
+struct ConfirmRefusedSheet: View {
+    let name: String
+    let photo: URL?
+    let reason: CloseReason
+    let buttonLabel: String
+    let onDone: () -> Void
+
+    var body: some View {
+        SearchSheet(label: "\(reason.pill). \(name)", onDismiss: { _ in onDone() },
+                    contentPadding: EdgeInsets(top: 20, leading: 24, bottom: 24, trailing: 24)) {
+            VStack(spacing: 14) {
+                // 96 wide as drawn -- and wider only when the pill is, at a large type, so the reason
+                // is never cut to fit under the photo.
+                ZStack(alignment: .top) {
+                    PhotoBackdrop(url: photo, index: 0)
+                        .frame(width: 96, height: 96)
+                        .clipShape(Circle())
+                        .grayscale(0.6)
+                        .opacity(0.85)
+                    PillLabel(text: reason.pill)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+                .frame(height: 108)
+                .accessibilityHidden(true)
+                // `text-wrap: balance` on the headline, `pretty` on the two paragraphs, as the
+                // reference sets them: `We're really sorry,` / `Leonie confirmed a` / `date just before
+                // you did.`.
+                WashHeadline(parts: [(reason.sorryHeadLead(name), false), (reason.sorryEmphasis, true)],
+                             fontSize: 24, lineHeightMultiple: 1.2, trackingEm: -0.01, balance: true,
+                             centered: true, cssLineBox: true, heading: true)
+                    .padding(.top, 4)
+                PrettyText(reason.sorryBody(name),
+                           font: TypeMetrics.uiFont(PS.manropeRegular, 14, fallback: .systemFont(ofSize: 14)),
+                           lineHeight: 14 * 1.5, color: .liqNeutral, centered: true)
+                    .frame(maxWidth: 300)
+                PrettyText(PremiumCopy.sorryLine,
+                           font: TypeMetrics.uiFont(PS.manropeBold, 14, fallback: .systemFont(ofSize: 14, weight: .bold)),
+                           lineHeight: 14 * 1.45, color: .liqPurple, centered: true)
+                    .frame(maxWidth: 300)
+                PrimaryButton(buttonLabel, variant: .sunset, height: sheetButtonHeight, labelSize: 15,
+                              horizontalPadding: 22, action: onDone)
+                    .fitAnchor(FitAnchorID.sorryButton)
+                    .padding(.top, 6)
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 }

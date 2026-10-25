@@ -1,6 +1,13 @@
 //
 //  SearchProfileView.swift
 //  ShowUp · Date search 01, the Search tab for a Freemium user with a committed Check-In (SHOWUP-184)
+//  -- and the same profile opened from the Premium grid (185) or the Likes tab (186)
+//
+//  EXTENDED, NOT FORKED ("a second profile component is a bug"). Opened from a list (`state.opened`)
+//  the screen gains what the five reference props add: the Premium tag, the `All profiles` / `All
+//  likes` back pill under the top bar, the `Liked you` badge on the hero and `Confirm date` in place of
+//  Like, the Likes tab active with no filter and no chip, and every action returning to the list (the
+//  model's). With none of them -- the Freemium queue -- it is Search 01, unchanged.
 //
 //  The Swift twin of `search/SearchProfileScreen.kt`. StatusBar -> SearchTopBar (1) -> the stack, the
 //  only scroll container -> the action bar (2), sticky above the TabBar with its fade -> TabBar (3).
@@ -39,21 +46,38 @@ struct SearchProfileView: View {
     var onLikesChip: () -> Void = {}
     var onTab: (AppTab) -> Void = { _ in }
     var onRetry: () -> Void = {}
+    /// `All profiles` / `All likes`, and the swipe back with nothing over the profile.
+    var onBack: () -> Void = {}
+    /// `Confirm date` in mutual Be sure.
+    var onConfirmDate: () -> Void = {}
+    /// The sorry sheet closed, any way.
+    var onRefusedDone: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let profile = state.current
+        let opened = state.opened
+        let fromLikes = opened?.from == .likes
+        let activeTab: AppTab = fromLikes ? .likes : .search
         // Behind any modal, the screen is out of VoiceOver's reach -- the coach's three buttons too.
         let modal = state.coach || state.sheet != nil || state.viewerAt != nil
         ZStack {
             SearchFrameLayout {
-                SearchTopBar(likes: state.likesOpen, onLikes: onLikesChip, onFilters: onFilters)
-                    .accessibilityHidden(modal)
-                    .fitAnchor(FitAnchorID.searchTopBar)
+                VStack(spacing: 0) {
+                    // On the Likes tab: the wordmark and the tag only -- "the chip shows on the Search
+                    // and Instant tabs only, never on ... a profile opened from it".
+                    SearchTopBar(likes: state.likesBadge, onLikes: onLikesChip, onFilters: onFilters,
+                                 premium: opened != nil, filter: !fromLikes, chip: !fromLikes)
+                    if opened != nil {
+                        BackPill(label: fromLikes ? PremiumCopy.allLikes : PremiumCopy.allProfiles, onBack: onBack)
+                    }
+                }
+                .accessibilityHidden(modal)
+                .fitAnchor(FitAnchorID.searchTopBar)
                 region(profile)
                     .accessibilityHidden(modal)
-                TabBar(active: .search, onTab: onTab, likes: state.likesOpen)
+                TabBar(active: activeTab, onTab: onTab, likes: state.likesBadge)
                     .accessibilityHidden(modal)
                     .fitAnchor(FitAnchorID.tabBar)
                 scrim
@@ -67,7 +91,15 @@ struct SearchProfileView: View {
                 switch state.sheet {
                 case .some(.confirm):
                     BeSureSheet(name: profile.name, day: profile.meetDay,
-                                onCancel: { _ in onCancelConfirm() }, onContinue: onContinue)
+                                onCancel: { _ in onCancelConfirm() },
+                                onContinue: state.likedYou ? onConfirmDate : onContinue,
+                                mutual: state.likedYou, confirming: state.confirming)
+                case .some(.refused):
+                    if let reason = state.refused {
+                        ConfirmRefusedSheet(name: profile.name, photo: profile.photos.first ?? nil, reason: reason,
+                                            buttonLabel: fromLikes ? PremiumCopy.backToLikes : PremiumCopy.findSomeoneElse,
+                                            onDone: onRefusedDone)
+                    }
                 case .some(.message):
                     MessageSheet(name: profile.name, draft: state.draft, onDraft: onDraft,
                                  onDismiss: { _ in onDismissMessage() }, onSkip: onSkipMessage, onSend: onSendMessage)
@@ -81,6 +113,9 @@ struct SearchProfileView: View {
             }
         }
         .background(Color.liqCream.ignoresSafeArea())
+        // Opened from a list, with nothing over it: the swipe from the edge is the back pill. A sheet,
+        // the viewer and the coach each keep the swipe for themselves.
+        .modifier(EdgeSwipeBack(onBack: { if opened != nil && !modal { onBack() } }))
     }
 
     @ViewBuilder private func region(_ profile: SearchProfile?) -> some View {
@@ -130,7 +165,7 @@ struct SearchProfileView: View {
     @ViewBuilder private func actionBar(_ profile: SearchProfile?) -> some View {
         if profile != nil {
             SearchActionBar(coach: state.coach, covered: state.coach || state.sheet != nil,
-                            onLike: onLike, onPass: onPass,
+                            likedYou: state.likedYou, onLike: onLike, onPass: onPass,
                             onCoachDone: { dontShow in onCoachDone(.close, dontShow) })
                 .accessibilityHidden(state.sheet != nil || state.viewerAt != nil)
         } else {
@@ -167,46 +202,138 @@ private struct SearchFrameLayout: Layout {
 
 // MARK: - the top bar (callout 1)
 
-/// Wordmark at 20, then the likes chip and the filter button. Both draw smaller than 44 and answer at
-/// 44, without growing the bar. The chip shows the open-likes count -- the Likes badge's number -- and
-/// its tap is the likes upsell, its own story: until it ships the tap does nothing.
+/// Wordmark at 20, then -- for Premium -- the Premium tag at size 10, then the likes chip and the filter
+/// button, gap 10. Both buttons draw smaller than 44 and answer at 44, without growing the bar. The chip
+/// shows the open-likes count -- the Likes badge's number -- and its tap is the host's: Premium, the
+/// Likes tab; Freemium, the likes upsell, its own story, so nothing until it ships.
+///
+/// `premium`: the tag (Search 02 1), a label, not a control. `filter` / `chip` false on the Likes tab and
+/// a profile opened from it (Search 03 1).
 struct SearchTopBar: View {
     let likes: Int
     let onLikes: () -> Void
     let onFilters: () -> Void
+    var premium = false
+    var filter = true
+    var chip = true
 
     var body: some View {
-        let label = likes == 1 ? "1 like" : "\(likes) likes"
-        HStack(spacing: 10) {
+        // ONE ROW AS DRAWN: the wordmark at the start, the tag, the chip and the filter at the end, gap
+        // 10. Where they do not fit side by side -- the Premium bar on the 320 Fold cover screen, or any
+        // bar at a large type -- the trailing group drops to a second row, still at the end, rather than
+        // running off the screen or cutting the chip's count (the 185 fit sweep, 25 Oct 2026).
+        TopBarLayout {
             // A logo, at 20 whatever the type size, as on the gate.
             Wordmark(size: 20, gapEm: wordmarkTabGap)
                 .dynamicTypeSize(.large)
-            Spacer(minLength: 0)
-            Button(action: onLikes) {
-                HStack(spacing: 6) {
-                    BrandIconView(icon: .heartFilled, size: 13, tint: .white)
-                    Text(label).font(F.manrope(12, .bold)).foregroundColor(.white).lineLimit(1)
+            HStack(spacing: 10) {
+                if premium { PremiumTag(size: 10) }
+                if chip { likesChip }
+                if filter { filterButton }
+            }
+        }
+        .padding(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+        .background(Color.liqCream)
+    }
+
+    /// The likes chip: the sunset pill, padding `6 12`, the filled heart 13 and `{n} likes`, 700 / 12.
+    private var likesChip: some View {
+        let label = likes == 1 ? "1 like" : "\(likes) likes"
+        return Button(action: onLikes) {
+            HStack(spacing: 6) {
+                BrandIconView(icon: .heartFilled, size: 13, tint: .white)
+                Text(label).font(F.manrope(12, .bold)).foregroundColor(.white).lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Gradients.sunset(), in: Capsule())
+            .answersAt44()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(label))
+    }
+
+    /// The filter button: 36 round, white, 1px `--liq-border`, the filter icon 16. `Filters`.
+    private var filterButton: some View {
+        Button(action: onFilters) {
+            ZStack {
+                Circle().fill(Color.liqElevated)
+                Circle().strokeBorder(Color.liqBorder, lineWidth: 1)
+                BrandIconView(icon: .filter, size: 16, tint: .liqFg)
+            }
+            .frame(width: 36, height: 36)
+            .answersAt44()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(SearchCopy.filtersLabel))
+    }
+}
+
+/// The top bar's two parts: the mark at the start and the trailing group at the end of one row,
+/// centred on each other -- or, where they do not fit side by side, the group on a second row 8 below,
+/// still at the end.
+private struct TopBarLayout: Layout {
+    private let gap: CGFloat = 10
+    private let rowGap: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 2 else { return .zero }
+        let mark = subviews[0].sizeThatFits(.unspecified)
+        let tail = subviews[1].sizeThatFits(.unspecified)
+        let w = proposal.width ?? mark.width + gap + tail.width
+        if mark.width + gap + tail.width <= w { return CGSize(width: w, height: max(mark.height, tail.height)) }
+        return CGSize(width: w, height: mark.height + rowGap + tail.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        let mark = subviews[0].sizeThatFits(.unspecified)
+        let tail = subviews[1].sizeThatFits(.unspecified)
+        let w = bounds.width
+        if mark.width + gap + tail.width <= w {
+            let h = max(mark.height, tail.height)
+            subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY + (h - mark.height) / 2), proposal: ProposedViewSize(mark))
+            subviews[1].place(at: CGPoint(x: bounds.maxX - tail.width, y: bounds.minY + (h - tail.height) / 2),
+                              proposal: ProposedViewSize(tail))
+        } else {
+            subviews[0].place(at: bounds.origin, proposal: ProposedViewSize(mark))
+            subviews[1].place(at: CGPoint(x: max(bounds.minX, bounds.maxX - tail.width), y: bounds.minY + mark.height + rowGap),
+                              proposal: ProposedViewSize(tail))
+        }
+    }
+}
+
+/// The back pill (Search 02 13), under the top bar: padding `0 16 10`; a 36-tall pill, padding
+/// `0 14 0 8`, 1px `--liq-border` on white, the chevron 18 (stroke 2.2) and the label in Manrope 700 /
+/// 13, gap 2. Drawn at 36 -- taller only when a large type needs it -- answering at 44.
+private struct BackPill: View {
+    let label: String
+    let onBack: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: onBack) {
+                HStack(spacing: 2) {
+                    BrandIconView(icon: .chevronLeft, size: 18, stroke: 2.2, tint: .liqFg)
+                    Text(label)
+                        .font(F.manrope(13, .bold))
+                        .foregroundColor(.liqFg)
+                        .lineLimit(1)
+                        .fixedSize()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Gradients.sunset(), in: Capsule())
+                .padding(.leading, 8)
+                .padding(.trailing, 14)
+                .frame(minHeight: 36)
+                .background(Capsule().fill(Color.liqElevated))
+                .overlay(Capsule().strokeBorder(Color.liqBorder, lineWidth: 1))
                 .answersAt44()
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text(label))
-            Button(action: onFilters) {
-                ZStack {
-                    Circle().fill(Color.liqElevated)
-                    Circle().strokeBorder(Color.liqBorder, lineWidth: 1)
-                    BrandIconView(icon: .filter, size: 16, tint: .liqFg)
-                }
-                .frame(width: 36, height: 36)
-                .answersAt44()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(SearchCopy.filtersLabel))
+            .fitAnchor(FitAnchorID.backPill)
+            Spacer(minLength: 0)
         }
-        .padding(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+        .padding(EdgeInsets(top: 0, leading: 16, bottom: 10, trailing: 16))
         .background(Color.liqCream)
     }
 }
@@ -248,6 +375,8 @@ struct SearchActionBar: View {
     let coach: Bool
     /// The coach or a like sheet is over the profile; when it closes, focus goes back to Like.
     let covered: Bool
+    /// A profile that liked the viewer: the third button is `Confirm date` with a check.
+    var likedYou = false
     let onLike: () -> Void
     let onPass: (SearchAnalytics.PassType) -> Void
     let onCoachDone: (Bool) -> Void
@@ -269,16 +398,18 @@ struct SearchActionBar: View {
                 RoundAction(icon: .clock, label: SearchCopy.notNow, ink: .liqMuted, outline: .liqBorder) { onPass(.notNow) }
                 Button(action: onLike) {
                     HStack(spacing: 8) {
-                        BrandIconView(icon: .heart, size: 22, stroke: 2.4, tint: .white)
-                        Text(SearchCopy.like).font(F.manrope(14, .bold)).foregroundColor(.white)
+                        BrandIconView(icon: likedYou ? .check : .heart, size: 22, stroke: 2.4, tint: .white)
+                        ActionLabel(text: likedYou ? PremiumCopy.confirmDate : SearchCopy.like)
                     }
                     .padding(.horizontal, 24)
-                    .frame(height: 64)
+                    // A minimum: at the largest type `Confirm date` takes two lines, and the pill grows
+                    // to hold them rather than cutting the label.
+                    .frame(minHeight: 64)
                     .background(Gradients.sunset(), in: Capsule())
-                    .background(SunsetGlow())
+                    .background(CapsuleVioletGlow())
                 }
                 .buttonStyle(PressScale())
-                .accessibilityLabel(Text(SearchCopy.like))
+                .accessibilityLabel(Text(likedYou ? PremiumCopy.confirmDate : SearchCopy.like))
                 .accessibilityFocused($likeFocused)
                 .fitAnchor(FitAnchorID.searchLike)
             }
@@ -310,12 +441,23 @@ struct SearchActionBar: View {
     }
 }
 
-/// `--liq-shadow-violet` under the Like pill, each layer on its own capsule.
-private struct SunsetGlow: View {
+/// The primary action's label: one line wherever it fits, as drawn. Where it does not -- `Confirm date`
+/// at the largest type beside two round buttons on a narrow phone -- two lines, set just small enough
+/// that the longest word fits, so it is never cut and never broken inside a word (the 185 fit sweep,
+/// 25 Oct 2026).
+private struct ActionLabel: View {
+    let text: String
+
     var body: some View {
-        ZStack {
-            Capsule().fill(Color.liqPurple).shadow(color: Color.liqPurple.opacity(0.28), radius: 10, y: 8)
-            Capsule().fill(Color.liqPurple).shadow(color: Color.liqPurple.opacity(0.18), radius: 3, y: 2)
+        ViewThatFits(in: .horizontal) {
+            Text(text).font(F.manrope(14, .bold)).foregroundColor(.white).lineLimit(1).fixedSize()
+            Text(text)
+                .font(F.manrope(14, .bold))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.5)
+                .allowsTightening(true)
         }
     }
 }
@@ -362,7 +504,8 @@ private struct ScrollingStack: View {
         GeometryReader { g in
             ScrollView(.vertical, showsIndicators: false) {
                 SearchProfileStack(profile: profile, viewer: state.viewer, zone: zone, playback: state.playback,
-                                   player: player, onOpenPhoto: onOpenPhoto, onTogglePlay: onTogglePlay,
+                                   player: player, likedYou: state.likedYou,
+                                   onOpenPhoto: onOpenPhoto, onTogglePlay: onTogglePlay,
                                    visibility: { index, kind in
                                        SectionVisibility(index: index, kind: kind, viewport: g.size.height,
                                                          onSeen: onSectionSeen, onOut: onScrolledOut)
@@ -417,6 +560,8 @@ struct SearchProfileStack<Visibility: ViewModifier>: View {
     let zone: TimeZone
     let playback: SearchPlayback?
     let player: AVPlayer?
+    /// The hero's `Liked you` badge (Search 02).
+    var likedYou = false
     let onOpenPhoto: (Int) -> Void
     let onTogglePlay: (MediaKind) -> Void
     /// Each section's "it came into view": its index, and the media it carries.
@@ -431,7 +576,8 @@ struct SearchProfileStack<Visibility: ViewModifier>: View {
         let uplift = profile.uplift?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let order = StackSections(profile: profile, shared: shared, rows: rows, tiles: tiles, uplift: uplift)
         VStack(alignment: .leading, spacing: 14) {
-            SearchHero(profile: profile, zone: zone, onPhoto: onOpenPhoto).modifier(visibility(order.index(.hero), nil))
+            SearchHero(profile: profile, zone: zone, onPhoto: onOpenPhoto, likedYou: likedYou)
+                .modifier(visibility(order.index(.hero), nil))
             Color.clear.frame(height: 18)
 
             if order.has(.shared) {
@@ -502,9 +648,9 @@ struct SearchProfileStack<Visibility: ViewModifier>: View {
 extension SearchProfileStack where Visibility == NoVisibility {
     /// The stack with no visibility reporting.
     init(profile: SearchProfile, viewer: SearchViewer, zone: TimeZone, playback: SearchPlayback? = nil,
-         player: AVPlayer? = nil, onOpenPhoto: @escaping (Int) -> Void = { _ in },
+         player: AVPlayer? = nil, likedYou: Bool = false, onOpenPhoto: @escaping (Int) -> Void = { _ in },
          onTogglePlay: @escaping (MediaKind) -> Void = { _ in }) {
-        self.init(profile: profile, viewer: viewer, zone: zone, playback: playback, player: player,
+        self.init(profile: profile, viewer: viewer, zone: zone, playback: playback, player: player, likedYou: likedYou,
                   onOpenPhoto: onOpenPhoto, onTogglePlay: onTogglePlay, visibility: { _, _ in NoVisibility() })
     }
 }
@@ -553,7 +699,7 @@ private struct StackSections {
 
 // MARK: - loading, failed, no results
 
-private struct CentredStatement: View {
+struct CentredStatement: View {
     let text: String
     let action: String
     let onAction: () -> Void

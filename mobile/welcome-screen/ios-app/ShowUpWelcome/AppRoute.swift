@@ -13,9 +13,15 @@
 //  stories add are pushed over it and popped back to it: a real back stack, the system swipe-back
 //  and the back button's semantics, without a hand-rolled router.
 //
-//  No cases yet: each Search story adds the destination it needs, with its `navigationDestination`.
+//  Each Search story adds the destination it needs, with its `navigationDestination`.
 //
 
 import Foundation
 
-enum AppRoute: Hashable, Sendable {}
+enum AppRoute: Hashable, Sendable {
+    /// The profile, opened from the Premium grid (SHOWUP-185) or the Likes tab (SHOWUP-186). Which
+    /// profile, and from which list, is the search model's (`SearchUiState.opened`): the route carries
+    /// nothing, so a profile the model no longer holds -- after the process ended -- is popped rather
+    /// than drawn empty.
+    case searchProfile
+}

@@ -2199,12 +2199,25 @@ class MainActivity : ComponentActivity() {
                     onTab = { tab ->
                         if (tab != here) {
                             tabTapped(here, tab)
-                            search.closeProfileForElsewhere()
                             when (tab) {
-                                Tab.Search -> goTo(searchTab())
-                                Tab.Likes -> goTo(FlowScreen.LikesReceived)
-                                Tab.Settings -> goTo(FlowScreen.CheckInSettings)
-                                Tab.Instant -> Unit
+                                Tab.Search -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(searchTab())
+                                }
+                                Tab.Likes -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(FlowScreen.LikesReceived)
+                                }
+                                Tab.Settings -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(FlowScreen.CheckInSettings)
+                                }
+                                // As on the list under it: the nav act alone with a Check-In -- the
+                                // profile stays -- and without one it opens one.
+                                Tab.Instant -> if (checkInState.server?.active != true) {
+                                    search.closeProfileForElsewhere()
+                                    reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                }
                             }
                         }
                     },

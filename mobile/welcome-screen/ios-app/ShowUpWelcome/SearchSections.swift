@@ -91,7 +91,7 @@ struct SearchPhoto<Overlay: View>: View {
 /// What a photo slot shows under anything laid on it: the placeholder, the photo, and the kit's
 /// washes. Its own view because the hero's glass pills draw it a second time, blurred, behind
 /// themselves (`HeroGlass`).
-private struct PhotoBackdrop: View {
+struct PhotoBackdrop: View {
     let url: URL?
     let index: Int
 
@@ -155,15 +155,16 @@ extension EnvironmentValues {
     }
 }
 
-/// The hero's coordinate space; the photo is laid out at its origin.
-private let heroSpace = "searchHero"
+/// The hero's coordinate space; the photo is laid out at its origin. A Premium grid card is a space
+/// of the same name, its photo at its origin, so its count's glass is drawn the same way.
+let heroSpace = "searchHero"
 
 /// CSS gives the two pills `backdrop-filter: blur()`, and SwiftUI has no backdrop to filter. What is
 /// behind them is known, though -- only photo 1 -- so each pill draws it again at the photo's own size
 /// and place, blurs it whole, and is clipped to it by its caller: the same pixels a backdrop filter
 /// would blur. Blurring the whole photo rather than the pill's patch keeps the edges sampling the real
 /// neighbouring pixels. The radius is the CSS px, as `searchSheetBlur` is.
-private struct HeroGlass: View {
+struct HeroGlass: View {
     let blur: CGFloat
     @Environment(\.heroBackdrop) private var backdrop
 
@@ -192,6 +193,8 @@ struct SearchHero: View {
     let profile: SearchProfile
     let zone: TimeZone
     let onPhoto: (Int) -> Void
+    /// The `Liked you` badge (Search 02), at the other end of the distance pill's row.
+    var likedYou = false
 
     var body: some View {
         // The reader only hands the glass the photo's width; the photo is always 460 tall, and the
@@ -200,9 +203,14 @@ struct SearchHero: View {
             HeroLayout {
                 SearchPhoto(url: profile.photos.first ?? nil, index: 0, height: 460, radius: 28,
                             name: profile.name, onTap: { onPhoto(0) }) {
-                    DistancePill(parts: distanceParts(profile.distanceKm, profile.district),
-                                 label: distanceLine(profile.distanceKm, profile.district))
-                        .padding(16)
+                    // `top: 16, left: 16, right: 16`, space-between, gap 8: the distance pill, and on a
+                    // profile that liked the viewer the `Liked you` badge at the other end (Search 02).
+                    HeroTopRow {
+                        DistancePill(parts: distanceParts(profile.distanceKm, profile.district),
+                                     label: distanceLine(profile.distanceKm, profile.district))
+                        if likedYou { LikedYouBadge() }
+                    }
+                    .padding(16)
                 }
                 HeroName(profile: profile)
                 MeetCard(profile: profile, zone: zone)
@@ -212,6 +220,51 @@ struct SearchHero: View {
                                                        size: CGSize(width: g.size.width, height: 460)))
         }
         .frame(height: 460)
+    }
+}
+
+/// The hero's top row: the distance pill at the start and, on a profile that liked the viewer, the
+/// `Liked you` badge at the end -- `justify-content: space-between; gap: 8`, centred on one line. Where
+/// the pill at its natural width and the badge do not fit together (a long district, a large type, a
+/// narrow phone), the badge drops under the pill, at the end, 8 below -- rather than squeezing the
+/// district into a column one letter wide (the 186 fit sweep, 25 Oct 2026).
+private struct HeroTopRow: Layout {
+    private let gap: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? subviews.reduce(0) { $0 + $1.sizeThatFits(.unspecified).width }
+        return arrange(width: w, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let plan = arrange(width: bounds.width, subviews: subviews)
+        for (i, frame) in plan.frames.enumerated() where i < subviews.count {
+            subviews[i].place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                              proposal: ProposedViewSize(width: frame.width, height: frame.height))
+        }
+    }
+
+    private func arrange(width w: CGFloat, subviews: Subviews) -> (size: CGSize, frames: [CGRect]) {
+        guard let pillView = subviews.first else { return (.zero, []) }
+        guard subviews.count > 1 else {
+            let pill = pillView.sizeThatFits(ProposedViewSize(width: w, height: nil))
+            return (CGSize(width: w, height: pill.height), [CGRect(origin: .zero, size: pill)])
+        }
+        let badge = subviews[1].sizeThatFits(.unspecified)
+        let natural = pillView.sizeThatFits(.unspecified).width
+        if natural + gap + badge.width <= w {
+            let pill = pillView.sizeThatFits(ProposedViewSize(width: w - gap - badge.width, height: nil))
+            let h = max(pill.height, badge.height)
+            return (CGSize(width: w, height: h), [
+                CGRect(x: 0, y: (h - pill.height) / 2, width: pill.width, height: pill.height),
+                CGRect(x: w - badge.width, y: (h - badge.height) / 2, width: badge.width, height: badge.height),
+            ])
+        }
+        let pill = pillView.sizeThatFits(ProposedViewSize(width: w, height: nil))
+        return (CGSize(width: w, height: pill.height + gap + badge.height), [
+            CGRect(origin: .zero, size: pill),
+            CGRect(x: max(0, w - badge.width), y: pill.height + gap, width: badge.width, height: badge.height),
+        ])
     }
 }
 

@@ -110,6 +110,16 @@ extension Color {
     /// `--liq-primary`, the deep violet: Search's `Be sure.` (SHOWUP-184). Android's `PrimaryDeep`.
     static let liqPrimaryDeep = Color(hex: 0x541475)
 
+    // Added for the Premium grid and the Likes tab (SHOWUP-185, 186).
+    /// rgb(20,12,28), the plum-black the kit lays over photos and under floating surfaces: the grid
+    /// card's bottom scrim (0 at 42% to .66) and the undo toast's `0 8px 24px` shadow at .22. The No
+    /// hours today? dialog's shadow (`liqDialogShadow`) is this ink at .34. Android's `PhotoInk`.
+    static let liqPhotoInk = Color(hex: 0x140C1C)
+    /// `showUpTone(100)`'s dark pill -- `rgba(20,28,24,.78)` with `#3DE08A` ink -- the Show-up count
+    /// laid over a photo (`ShowUpCount variant="dark"`, the grid card). Android's `ShowUpDarkFill`.
+    static let liqShowUpDarkFill = Color(hex: 0x141C18).opacity(0.78)
+    static let liqShowUpDarkInk = Color(hex: 0x3DE08A)
+
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
     ///

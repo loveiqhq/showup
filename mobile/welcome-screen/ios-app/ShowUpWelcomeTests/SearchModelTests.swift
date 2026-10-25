@@ -84,6 +84,12 @@ private actor FakeStore: SearchStoring {
     }
 
     func setPremium(_ premium: Bool) async -> Result<Void, CallFailure> { .success(()) }
+
+    // The Premium calls: a Freemium session never makes them (`PremiumModelTests` does).
+    func grid(zone: String) async -> Result<SearchGrid, CallFailure> { .failure(.server) }
+    func availability(userIds: [String], zone: String) async -> Result<[String: CardStatus], CallFailure> { .success([:]) }
+    func likesReceived(zone: String) async -> Result<LikesReceived, CallFailure> { .failure(.server) }
+    func confirm(targetUserId: String, position: Int) async -> Result<ConfirmAnswer, CallFailure> { .failure(.server) }
 }
 
 @MainActor
