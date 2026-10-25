@@ -1,6 +1,6 @@
 /*
  * SearchRepository.kt
- * ShowUp · what Date search 01 reads and writes, behind one interface (SHOWUP-184)
+ * ShowUp · what Date search reads and writes, behind one interface (SHOWUP-184, 185, 186)
  *
  * The screen and its view model never see a generated type: the server's payload is read here into
  * the app's own [SearchProfile], and a value this app does not know is dropped rather than drawn.
@@ -15,7 +15,9 @@ import com.showup.api.ShowUpApi
 import com.showup.api.callCatching
 import com.showup.api.generated.model.CreateLikeDto
 import com.showup.api.generated.model.CreateSearchPassDto
+import com.showup.api.generated.model.LikeReceivedDto
 import com.showup.api.generated.model.PlanTier
+import com.showup.api.generated.model.SearchAvailabilityRequestDto
 import com.showup.api.generated.model.SearchMediaDto
 import com.showup.api.generated.model.SearchPassType
 import com.showup.api.generated.model.SearchProfileDto
@@ -74,6 +76,55 @@ data class SearchQueue(val resultsCount: Int, val profiles: List<SearchProfile>,
 /** What the session says about Search: the plan and the coach's stored opt-out. */
 data class SearchSession(val premium: Boolean, val coachHidden: Boolean)
 
+/** One card of the Premium grid (Search 02): the whole profile, and whether they liked the viewer. */
+data class GridCard(val profile: SearchProfile, val likedYou: Boolean)
+
+/** The Premium grid: the whole queue in queue order, only people still available. */
+data class SearchGrid(val resultsCount: Int, val cards: List<GridCard>, val viewer: SearchViewer = SearchViewer())
+
+/**
+ * One person's status on the re-check. A status this app does not know (a newer server) is not here
+ * at all, which the view model reads as "no change" -- never as closed.
+ */
+sealed interface CardStatus {
+    /** Still available: the earliest hour both hold, which may have moved. */
+    data class Available(val meetAt: Instant, val meetDay: String) : CardStatus
+
+    data class Closed(val reason: CloseReason) : CardStatus
+}
+
+/**
+ * One like the viewer received (Search 03). Open: [profile] to open, and the message if one was
+ * written. Closed: the name and photo only.
+ */
+data class LikeReceived(
+    val userId: String,
+    val name: String,
+    val age: Int?,
+    /** The first photo's URL, or empty for none (the slot draws its placeholder). */
+    val photo: String,
+    val closed: CloseReason?,
+    val message: String?,
+    val profile: SearchProfile?,
+)
+
+/** The Likes tab, as read once per visit, in the server's order. */
+data class LikesReceived(
+    val openCount: Int,
+    val closedCount: Int,
+    val cards: List<LikeReceived>,
+    val viewer: SearchViewer = SearchViewer(),
+)
+
+/** What the server said to a Confirm date (Search 02, 03). */
+sealed interface ConfirmAnswer {
+    /** The first confirm to arrive: a match. */
+    data object Won : ConfirmAnswer
+
+    /** The like had closed first; the sorry sheet says why. */
+    data class Refused(val reason: CloseReason) : ConfirmAnswer
+}
+
 interface SearchStore {
     /** The queue, with `meetDay` worked out in [zone] (an IANA id). */
     suspend fun queue(zone: String): Outcome<SearchQueue>
@@ -95,6 +146,22 @@ interface SearchStore {
 
     /** Dev menu only: the plan switch, a 404 in production. */
     suspend fun setPremium(premium: Boolean): Outcome<Unit>
+
+    /** The Premium grid, with `meetDay` worked out in [zone]. */
+    suspend fun grid(zone: String): Outcome<SearchGrid>
+
+    /** The availability re-check: every card on screen in one call. */
+    suspend fun availability(userIds: List<String>, zone: String): Outcome<Map<String, CardStatus>>
+
+    /** The Likes tab, once per visit. Reading it marks the closed cards on it seen. */
+    suspend fun likesReceived(zone: String): Outcome<LikesReceived>
+
+    /**
+     * `Confirm date`: a like to someone who liked the viewer, sent at once and waited for -- never
+     * in the background, because the sheet waits on the answer. Idempotent on the server, so a
+     * retry after a timeout answers with the like already made.
+     */
+    suspend fun confirm(targetUserId: String, position: Int): Outcome<ConfirmAnswer>
 }
 
 class SearchRepository(private val api: ShowUpApi) : SearchStore {
@@ -149,6 +216,73 @@ class SearchRepository(private val api: ShowUpApi) : SearchStore {
     }.fold(
         onSuccess = { ok -> if (ok) Outcome.Ok(Unit) else Outcome.Failed(CallFailure.Server) },
         onFailure = { Outcome.Failed(CallFailure.Network) },
+    )
+
+    override suspend fun grid(zone: String): Outcome<SearchGrid> = outcome {
+        val response = api.search.getSearchGrid(zone)
+        response.body()?.takeIf { response.isSuccessful }?.let { dto ->
+            SearchGrid(
+                dto.resultsCount,
+                dto.cards.map { GridCard(it.profile.toProfile(api), it.likedYou) },
+                SearchViewer(vibes = dto.viewer.vibes.toSet(), interests = dto.viewer.interests.toSet()),
+            )
+        }
+    }
+
+    override suspend fun availability(userIds: List<String>, zone: String): Outcome<Map<String, CardStatus>> = outcome {
+        val response = api.search.getSearchAvailability(SearchAvailabilityRequestDto(userIds), zone)
+        response.body()?.takeIf { response.isSuccessful }?.let { dto ->
+            dto.statuses.mapNotNull { s -> readStatus(s.status, s.meetAt?.toInstant(), s.meetDay)?.let { s.userId to it } }.toMap()
+        }
+    }
+
+    override suspend fun likesReceived(zone: String): Outcome<LikesReceived> = outcome {
+        val response = api.search.getLikesReceived(zone)
+        response.body()?.takeIf { response.isSuccessful }?.let { dto ->
+            LikesReceived(
+                openCount = dto.openCount,
+                closedCount = dto.closedCount,
+                // A card that is neither open (with its profile) nor closed for a known reason is
+                // one this app cannot draw: dropped, never guessed at.
+                cards = dto.cards.mapNotNull { it.toLike(api) },
+                viewer = SearchViewer(vibes = dto.viewer.vibes.toSet(), interests = dto.viewer.interests.toSet()),
+            )
+        }
+    }
+
+    override suspend fun confirm(targetUserId: String, position: Int): Outcome<ConfirmAnswer> = outcome {
+        val response = api.matching.likeProfile(CreateLikeDto(targetUserId = targetUserId, position = position))
+        response.body()?.takeIf { response.isSuccessful }?.let { dto -> confirmAnswer(dto.matched, dto.closed) }
+    }
+}
+
+/**
+ * A re-check status as the app reads it: `available` with its hour, or closed for a reason it knows.
+ * Anything else -- a value from a newer server, an available with no hour -- is null: no change.
+ */
+internal fun readStatus(status: String, meetAt: Instant?, meetDay: String?): CardStatus? = when (status) {
+    "available" -> if (meetAt != null && meetDay != null) CardStatus.Available(meetAt, meetDay) else null
+    else -> CloseReason.of(status)?.let { CardStatus.Closed(it) }
+}
+
+/**
+ * A confirm's answer. Not a match and no reason this app knows: the confirm did not make a date, and
+ * `no_overlap` is the one reason that never claims a match that did not happen.
+ */
+internal fun confirmAnswer(matched: Boolean, closed: String?): ConfirmAnswer =
+    if (matched) ConfirmAnswer.Won else ConfirmAnswer.Refused(CloseReason.of(closed) ?: CloseReason.NoOverlap)
+
+private fun LikeReceivedDto.toLike(api: ShowUpApi): LikeReceived? {
+    val reason = closed?.let { CloseReason.of(it) ?: return null }
+    val opened = if (reason == null) (profile?.toProfile(api) ?: return null) else null
+    return LikeReceived(
+        userId = userId,
+        name = name,
+        age = age,
+        photo = photo?.url?.let { api.absoluteUrl(it) }.orEmpty(),
+        closed = reason,
+        message = message?.takeIf { reason == null },
+        profile = opened,
     )
 }
 

@@ -179,6 +179,9 @@ class EvidenceScreenshots {
      */
     private val SETTLE_MS = 200L
 
+    /** Layout-and-settle passes after the first, before the shutter. */
+    private val SETTLE_PASSES = 3
+
     /**
      * Renders one state at each frame and writes the pixels.
      *
@@ -286,6 +289,13 @@ class EvidenceScreenshots {
                 )
                 view.layout(0, 0, widthPx, heightPx)
                 settle()
+                // MORE PASSES, for what the frames after layout change: state an effect sets once its
+                // node is laid out -- a frozen fly-out's flight (185 K, 186 H) -- is drawn only a frame
+                // or two later. Virtual time, so the frame captured is the same on every run.
+                repeat(SETTLE_PASSES) {
+                    view.layout(0, 0, widthPx, heightPx)
+                    settle()
+                }
 
                 if (scrolled != null) {
                     scrolled.dispatchRawDelta(100_000f)
@@ -344,6 +354,11 @@ class EvidenceScreenshots {
      * not end; a screenshot is not allowed to wait for one.
      */
     private fun settle() {
+        // State written outside composition -- in a layout callback, as a measured box is -- reaches
+        // the screens only once its writes are announced, which a device does every frame. Announced
+        // here, so what a frame would redraw is redrawn before the shutter (the 185 / 186 frozen
+        // fly-out frames, 25 Oct 2026).
+        androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
         shadowOf(Looper.getMainLooper()).idleFor(SETTLE_MS, TimeUnit.MILLISECONDS)
     }
 
@@ -962,5 +977,59 @@ class EvidenceScreenshots {
         assertTrue(written.any { it.contains("E-full") })
         written.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
         println("EVIDENCE 184: ${written.size} images in ${out.absolutePath}")
+    }
+
+    // SHOWUP-185's evidence of done: "screenshots of A-K at 375 x 667, 390 x 844 and 430 x 932
+    // (thirty-three images; K frozen with the same 440 ms offset)".
+    @Test
+    fun `the Premium grid, every frame the ticket names`() {
+        val zone = com.showup.search.SearchSamples.ZONE
+        val grid: @Composable (com.showup.search.SearchUiState, Int?) -> Unit = { s, freeze ->
+            com.showup.search.SearchGridScreen(state = s, zone = zone, freezeLeavingMs = freeze)
+        }
+        val profile: @Composable (com.showup.search.SearchUiState) -> Unit = { s -> com.showup.search.SearchProfileScreen(s, zone) }
+        shoot("SHOWUP-185", "A-rest") { grid(GridStates.rest, null) }
+        shoot("SHOWUP-185", "B-gone-and-not-now") { grid(GridStates.b, null) }
+        shoot("SHOWUP-185", "C-profile") { profile(GridStates.c) }
+        shoot("SHOWUP-185", "D-be-sure") { profile(GridStates.d) }
+        shoot("SHOWUP-185", "E-be-sure-mutual") { profile(GridStates.e) }
+        shoot("SHOWUP-185", "F-closed-in-place") { grid(GridStates.f, null) }
+        shoot("SHOWUP-185", "G-undo-toast") { grid(GridStates.g, null) }
+        shoot("SHOWUP-185", "H-sorry-matched") { profile(GridStates.h) }
+        shoot("SHOWUP-185", "I-sorry-no-overlap") { profile(GridStates.i) }
+        shoot("SHOWUP-185", "J-rechecked") { grid(GridStates.j, null) }
+        shoot("SHOWUP-185", "K-fly-out-440ms") { grid(GridStates.k, 440) }
+        val images = written.filter { it.startsWith("SHOWUP-185") }
+        assertEquals("SHOWUP-185 asks for 33 images", 33, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+        println("EVIDENCE 185: ${images.size} images in ${out.absolutePath}")
+    }
+
+    // SHOWUP-186's evidence of done: "screenshots of A-J at 375 x 667, 390 x 844 and 430 x 932
+    // (thirty images; H frozen at 440 ms), plus the Search grid showing the four-tab bar with a badge".
+    @Test
+    fun `the Likes tab, every frame the ticket names`() {
+        val zone = com.showup.search.SearchSamples.ZONE
+        val likes: @Composable (com.showup.search.SearchUiState, Int?) -> Unit = { s, freeze ->
+            com.showup.search.LikesReceivedScreen(state = s, zone = zone, freezeLeavingMs = freeze)
+        }
+        val profile: @Composable (com.showup.search.SearchUiState) -> Unit = { s -> com.showup.search.SearchProfileScreen(s, zone) }
+        shoot("SHOWUP-186", "A-likes-tab") { likes(LikesStates.rest, null) }
+        shoot("SHOWUP-186", "B-profile") { profile(LikesStates.b) }
+        shoot("SHOWUP-186", "C-be-sure-mutual") { profile(LikesStates.c) }
+        shoot("SHOWUP-186", "D-undo-toast") { likes(LikesStates.d, null) }
+        shoot("SHOWUP-186", "E-too-late") { likes(LikesStates.e, null) }
+        shoot("SHOWUP-186", "F-out-of-time") { likes(LikesStates.f, null) }
+        shoot("SHOWUP-186", "G-no-likes-yet") { likes(LikesStates.g, null) }
+        shoot("SHOWUP-186", "H-fly-out-440ms") { likes(LikesStates.h, 440) }
+        shoot("SHOWUP-186", "I-sorry") { profile(LikesStates.i) }
+        shoot("SHOWUP-186", "J-not-now") { likes(LikesStates.j, null) }
+        shoot("SHOWUP-186", "search-grid-four-tab-bar") {
+            com.showup.search.SearchGridScreen(state = GridStates.rest, zone = zone)
+        }
+        val images = written.filter { it.startsWith("SHOWUP-186") }
+        assertEquals("SHOWUP-186 asks for 30 images plus the grid at three sizes", 33, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+        println("EVIDENCE 186: ${images.size} images in ${out.absolutePath}")
     }
 }

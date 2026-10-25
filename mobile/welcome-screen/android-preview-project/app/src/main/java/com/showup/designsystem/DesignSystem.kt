@@ -223,6 +223,23 @@ val BlushStops = listOf(0.00f to Color(0xFFFDE7DC), 1.00f to Color(0xFFF5D9EA))
 val BlushWash: Brush
     get() = Brush.verticalGradient(colorStops = BlushStops.toTypedArray())
 
+// ── added for the Premium grid and the Likes tab (SHOWUP-185, 186) ─────────────────────────────
+
+/**
+ * rgb(20,12,28), the plum-black the kit lays over photos and under floating surfaces: the grid
+ * card's bottom scrim (0 at 42% to .66) and the undo toast's `0 8px 24px` shadow at .22. The No hours
+ * today? dialog's shadow ([DialogShadow]) is this ink at .34.
+ */
+val PhotoInk = Color(0xFF140C1C)
+
+/**
+ * `showUpTone(100)`'s dark pill -- `rgba(20,28,24,.78)` with `#3DE08A` ink -- the Show-up count laid
+ * over a photo (`ShowUpCount variant="dark"`, the grid card). The soft pill is [SuccessFg] on a
+ * green tint.
+ */
+val ShowUpDarkFill = Color(0xC7141C18)
+val ShowUpDarkInk = Color(0xFF3DE08A)
+
 // ── Type ─────────────────────────────────────────────────────────────────
 //
 // The .ttf files ship in ../../fonts/. Copy them into app/src/main/res/font/ under these exact

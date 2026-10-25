@@ -1,6 +1,14 @@
 /*
  * SearchProfileScreen.kt
  * ShowUp · Date search 01, the Search tab for a Freemium user with a committed Check-In (SHOWUP-184)
+ * -- and the same profile opened from the Premium grid (185) or the Likes tab (186)
+ *
+ * EXTENDED, NOT FORKED ("a second profile component is a bug"). Opened from a list ([SearchUiState.opened])
+ * the screen gains what the five reference props add: the Premium tag (`premium`), the `All profiles`
+ * / `All likes` back pill under the top bar (`onBack`, `backLabel`), the `Liked you` badge on the hero
+ * and `Confirm date` in place of Like (`likedYou`), the Likes tab active with no filter and no chip
+ * (`tab`), and every action returning to the list (`onAction`, the view model's). With none of them
+ * -- the Freemium queue -- it is Search 01, unchanged.
  *
  * StatusBar -> SearchTopBar (1) -> the stack, the only scroll container -> the action bar (2), sticky
  * above the TabBar with its fade -> TabBar (3). Values in, taps out: nothing here decides anything
@@ -29,6 +37,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +45,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -74,7 +84,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -90,6 +102,7 @@ import com.showup.designsystem.Motion
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.OverflowTapTarget
+import com.showup.designsystem.PremiumTag
 import com.showup.designsystem.PrimaryButton
 import com.showup.designsystem.PrimaryButtonVariant
 import com.showup.designsystem.Purple
@@ -153,8 +166,16 @@ fun SearchProfileScreen(
     onLikesChip: () -> Unit = {},
     onTab: (Tab) -> Unit = {},
     onRetry: () -> Unit = {},
+    /** `All profiles` / `All likes`, and Android back with nothing over the profile. */
+    onBack: () -> Unit = {},
+    /** `Confirm date` in mutual Be sure. */
+    onConfirmDate: () -> Unit = {},
+    /** The sorry sheet closed, any way. */
+    onRefusedDone: () -> Unit = {},
 ) {
     val profile = state.current
+    val opened = state.opened
+    val fromLikes = opened?.from == PremiumSurface.Likes
     val modal = state.coach || state.sheet != null || state.viewerAt != null
     // Behind any modal, the screen is out of a screen reader's reach -- the coach's three buttons too.
     val behind = if (modal) Modifier.clearAndSetSemantics {} else Modifier
@@ -173,7 +194,17 @@ fun SearchProfileScreen(
                 // The tag on a wrapper, outside the cleared semantics: a modal hides the bar from a
                 // screen reader, and the fit tests still have to find its edge.
                 Box(Modifier.testTag(SEARCH_TOP_BAR_TAG)) {
-                    SearchTopBar(state.likesOpen, onLikesChip, onFilters, behind.windowInsetsPadding(WindowInsets.statusBars))
+                    Column(behind.windowInsetsPadding(WindowInsets.statusBars)) {
+                        // On the Likes tab: the wordmark and the tag only -- "the chip shows on the
+                        // Search and Instant tabs only, never on ... a profile opened from it".
+                        SearchTopBar(
+                            state.likesBadge, onLikesChip, onFilters,
+                            premium = opened != null, filter = !fromLikes, chip = !fromLikes,
+                        )
+                        if (opened != null) {
+                            BackPill(if (fromLikes) PremiumCopy.ALL_LIKES else PremiumCopy.ALL_PROFILES, onBack)
+                        }
+                    }
                 }
             },
             region = {
@@ -205,7 +236,7 @@ fun SearchProfileScreen(
                 }
             },
             tabBar = {
-                TabBar(active = Tab.Search, onTab = onTab, modifier = behind, likes = state.likesOpen)
+                TabBar(active = if (fromLikes) Tab.Likes else Tab.Search, onTab = onTab, modifier = behind, likes = state.likesBadge)
             },
             scrim = if (state.coach) {
                 {
@@ -228,6 +259,7 @@ fun SearchProfileScreen(
                     SearchActionBar(
                         coach = state.coach,
                         covered = state.coach || state.sheet != null,
+                        likedYou = state.likedYou,
                         onLike = onLike,
                         onPass = onPass,
                         onCoachDone = { dontShow -> onCoachDone(SearchAnalytics.CoachDismiss.Close, dontShow) },
@@ -241,7 +273,22 @@ fun SearchProfileScreen(
 
         if (profile != null) {
             when (state.sheet) {
-                LikeSheet.Confirm -> BeSureSheet(profile.name, profile.meetDay, onCancel = { onCancelConfirm() }, onContinue = onContinue)
+                LikeSheet.Confirm -> BeSureSheet(
+                    profile.name, profile.meetDay,
+                    onCancel = { onCancelConfirm() },
+                    onContinue = if (state.likedYou) onConfirmDate else onContinue,
+                    mutual = state.likedYou,
+                    confirming = state.confirming,
+                )
+                LikeSheet.Refused -> state.refused?.let { reason ->
+                    ConfirmRefusedSheet(
+                        name = profile.name,
+                        photo = profile.photos.firstOrNull().orEmpty(),
+                        reason = reason,
+                        buttonLabel = if (fromLikes) PremiumCopy.BACK_TO_LIKES else PremiumCopy.FIND_SOMEONE_ELSE,
+                        onDone = onRefusedDone,
+                    )
+                }
                 LikeSheet.Message -> MessageSheet(
                     name = profile.name, draft = state.draft, onDraft = onDraft,
                     onDismiss = { _: SheetDismissMethod -> onDismissMessage() },
@@ -256,6 +303,41 @@ fun SearchProfileScreen(
         // Android back closes the coach as `system_back` -- Got it, never Don't show again.
         if (state.coach) {
             androidx.activity.compose.BackHandler { onCoachDone(SearchAnalytics.CoachDismiss.SystemBack, false) }
+        }
+        // Opened from a list, with nothing over it: Android back is the back pill. A sheet, the
+        // viewer and the coach each take back first (declared after this, they are asked first).
+        if (opened != null && !modal) {
+            androidx.activity.compose.BackHandler { onBack() }
+        }
+    }
+}
+
+/**
+ * The back pill (Search 02 13), under the top bar: padding `0 16 10`; a 36-tall pill, padding
+ * `0 14 0 8`, 1px `--liq-border` on white, the chevron 18 (stroke 2.2) and the label in Manrope 700 /
+ * 13, gap 2. Drawn at 36, answering at 44.
+ */
+@Composable
+private fun BackPill(label: String, onBack: () -> Unit) {
+    Box(Modifier.fillMaxWidth().background(Cream).padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+        OverflowTapTarget(
+            touch = Modifier
+                .clickable(role = Role.Button, onClick = onBack)
+                .semantics { contentDescription = label },
+        ) {
+            Row(
+                Modifier
+                    .height(36.dp)
+                    .background(Elevated, RoundedCornerShape(percent = 50))
+                    .border(1.dp, Border, RoundedCornerShape(percent = 50))
+                    .padding(start = 8.dp, end = 14.dp)
+                    .clearAndSetSemantics {},
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(BrandIcon.ChevronLeft, 18.dp, tint = Fg, strokeWidth = 2.2f)
+                Text(label, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, softWrap = false)
+            }
         }
     }
 }
@@ -301,54 +383,104 @@ private fun SearchFrame(
 // ── the top bar (callout 1) ─────────────────────────────────────────────────────────────────────
 
 /**
- * Wordmark at 20, then the likes chip and the filter button. Both draw smaller than 44 and answer at
- * 44. The chip shows the open-likes count -- the Likes badge's number -- and its tap is the likes
- * upsell, its own story: until it ships the tap does nothing, and never opens Likes received.
+ * Wordmark at 20, then -- for Premium -- the Premium tag at size 10, then the likes chip and the
+ * filter button, gap 10. Both buttons draw smaller than 44 and answer at 44. The chip shows the
+ * open-likes count -- the Likes badge's number -- and its tap is the host's: Premium, the Likes tab;
+ * Freemium, the likes upsell, its own story, so nothing until it ships and never Likes received.
+ *
+ * @param premium the tag (Search 02 1): a label, not a control.
+ * @param filter / [chip] false on the Likes tab and a profile opened from it (Search 03 1).
  */
 @Composable
-fun SearchTopBar(likes: Int, onLikes: () -> Unit, onFilters: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier
+fun SearchTopBar(
+    likes: Int,
+    onLikes: () -> Unit,
+    onFilters: () -> Unit,
+    modifier: Modifier = Modifier,
+    premium: Boolean = false,
+    filter: Boolean = true,
+    chip: Boolean = true,
+) {
+    // ONE ROW AS DRAWN: the wordmark at the start, the tag, the chip and the filter at the end, gap
+    // 10. Where they do not fit side by side -- the Premium bar on the 320 Fold cover screen, or any
+    // bar at a large type -- the trailing group drops to a second row, still at the end, rather than
+    // running off the screen or cutting the chip's count (the 185 fit sweep, 25 Oct 2026).
+    Layout(
+        contents = listOf(
+            { Wordmark(size = with(LocalDensity.current) { 20.dp.toSp() }, gapEm = WORDMARK_TAB_GAP) },
+            {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (premium) PremiumTag(size = 10f)
+                    if (chip) LikesChip(likes, onLikes)
+                    if (filter) FilterButton(onFilters)
+                }
+            },
+        ),
+        modifier = modifier
             .fillMaxWidth()
             .background(Cream)
             .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Wordmark(size = with(LocalDensity.current) { 20.dp.toSp() }, gapEm = WORDMARK_TAB_GAP)
-        Spacer(Modifier.weight(1f))
-        val label = if (likes == 1) "1 like" else "$likes likes"
-        OverflowTapTarget(
-            touch = Modifier
-                .clickable(role = Role.Button, onClick = onLikes)
-                .semantics { contentDescription = label },
-        ) {
-            Row(
-                Modifier
-                    .background(Sunset, RoundedCornerShape(percent = 50))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                    .clearAndSetSemantics {},
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(BrandIcon.HeartFilled, 13.dp, tint = Color.White)
-                Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+    ) { (mark, tail), constraints ->
+        val w = constraints.maxWidth
+        val gap = 10.dp.roundToPx()
+        val loose = Constraints(maxWidth = w)
+        val m = mark.first().measure(loose)
+        val t = tail.first().measure(loose)
+        if (m.width + gap + t.width <= w) {
+            val h = maxOf(m.height, t.height)
+            layout(w, h) {
+                m.place(0, (h - m.height) / 2)
+                t.place(w - t.width, (h - t.height) / 2)
+            }
+        } else {
+            val rowGap = 8.dp.roundToPx()
+            layout(w, m.height + rowGap + t.height) {
+                m.place(0, 0)
+                t.place((w - t.width).coerceAtLeast(0), m.height + rowGap)
             }
         }
-        OverflowTapTarget(
-            touch = Modifier
-                .clickable(role = Role.Button, onClick = onFilters)
-                .semantics { contentDescription = SearchCopy.FILTERS_LABEL },
+    }
+}
+
+/** The likes chip: the sunset pill, padding `6 12`, the filled heart 13 and `{n} likes`, 700 / 12. */
+@Composable
+private fun LikesChip(likes: Int, onLikes: () -> Unit) {
+    val label = if (likes == 1) "1 like" else "$likes likes"
+    OverflowTapTarget(
+        touch = Modifier
+            .clickable(role = Role.Button, onClick = onLikes)
+            .semantics { contentDescription = label },
+    ) {
+        Row(
+            Modifier
+                .background(Sunset, RoundedCornerShape(percent = 50))
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .clearAndSetSemantics {},
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(36.dp)
-                    .background(Elevated, CircleShape)
-                    .border(1.dp, Border, CircleShape)
-                    .clearAndSetSemantics {},
-                contentAlignment = Alignment.Center,
-            ) { Icon(BrandIcon.Filter, 16.dp, tint = Fg) }
+            Icon(BrandIcon.HeartFilled, 13.dp, tint = Color.White)
+            Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
         }
+    }
+}
+
+/** The filter button: 36 round, white, 1px `--liq-border`, the filter icon 16. `Filters`. */
+@Composable
+private fun FilterButton(onFilters: () -> Unit) {
+    OverflowTapTarget(
+        touch = Modifier
+            .clickable(role = Role.Button, onClick = onFilters)
+            .semantics { contentDescription = SearchCopy.FILTERS_LABEL },
+    ) {
+        Box(
+            Modifier
+                .size(36.dp)
+                .background(Elevated, CircleShape)
+                .border(1.dp, Border, CircleShape)
+                .clearAndSetSemantics {},
+            contentAlignment = Alignment.Center,
+        ) { Icon(BrandIcon.Filter, 16.dp, tint = Fg) }
     }
 }
 
@@ -368,6 +500,8 @@ fun SearchActionBar(
     modifier: Modifier = Modifier,
     /** The coach or a like sheet is over the profile; when it closes, focus goes back to Like. */
     covered: Boolean = coach,
+    /** A profile that liked the viewer: the third button is `Confirm date` with a check. */
+    likedYou: Boolean = false,
 ) {
     // "On close, focus goes to Like" -- for the coach and for both sheets. Requested on the closing
     // edge only: Like taking focus on every recomposition would steal it from wherever the user was.
@@ -412,7 +546,9 @@ fun SearchActionBar(
             }
             Row(
                 Modifier
-                    .height(64.dp)
+                    // A minimum: at the largest type `Confirm date` takes two lines, and the pill
+                    // grows to hold them rather than cutting the label.
+                    .heightIn(min = 64.dp)
                     .pillShadows(Sunset, ShadowViolet)
                     .clip(RoundedCornerShape(percent = 50))
                     .focusRequester(likeFocus)
@@ -422,9 +558,40 @@ fun SearchActionBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(BrandIcon.Heart, 22.dp, tint = Color.White, strokeWidth = 2.4f)
-                Text(SearchCopy.LIKE, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Icon(if (likedYou) BrandIcon.Check else BrandIcon.Heart, 22.dp, tint = Color.White, strokeWidth = 2.4f)
+                ActionLabel(
+                    if (likedYou) PremiumCopy.CONFIRM_DATE else SearchCopy.LIKE,
+                    TextStyle(color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp),
+                )
             }
+        }
+    }
+}
+
+/**
+ * The primary action's label: one line wherever it fits, as drawn. Where it does not -- `Confirm
+ * date` at the largest type beside two round buttons on a narrow phone -- two lines, set just small
+ * enough that the longest word fits, so it is never cut and never broken inside a word (the 185 fit
+ * sweep, 25 Oct 2026).
+ */
+@Composable
+private fun ActionLabel(text: String, style: TextStyle) {
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints {
+        val room = constraints.maxWidth
+        val oneLine = measurer.measure(text, style, maxLines = 1, softWrap = false).size.width
+        if (!constraints.hasBoundedWidth || oneLine <= room) {
+            Text(text, style = style, maxLines = 1, softWrap = false)
+        } else {
+            val longest = text.split(' ').maxOf { measurer.measure(it, style, maxLines = 1, softWrap = false).size.width }
+            val scale = (room.toFloat() / longest).coerceAtMost(1f)
+            val size = style.fontSize * scale
+            Text(
+                text,
+                style = style.copy(fontSize = size, lineHeight = size * 1.15f, textAlign = TextAlign.Center),
+                maxLines = 2,
+                softWrap = true,
+            )
         }
     }
 }
@@ -482,6 +649,7 @@ private fun ScrollingStack(
             player = player,
             onOpenPhoto = onOpenPhoto,
             onTogglePlay = onTogglePlay,
+            likedYou = state.likedYou,
             visibility = { index, kind ->
                 Modifier.onGloballyPositioned { c ->
                     val vp = viewport.value ?: return@onGloballyPositioned
@@ -519,6 +687,8 @@ fun SearchProfileStack(
     onOpenPhoto: (Int) -> Unit,
     onTogglePlay: (MediaKind) -> Unit,
     visibility: (index: Int, kind: MediaKind?) -> Modifier = { _, _ -> Modifier },
+    /** The hero's `Liked you` badge (Search 02). */
+    likedYou: Boolean = false,
 ) {
     val photos = profile.photos
     val prompts = profile.prompts
@@ -531,7 +701,7 @@ fun SearchProfileStack(
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Box(seen()) { SearchHero(profile, zone, onOpenPhoto) }
+        Box(seen()) { SearchHero(profile, zone, onOpenPhoto, likedYou) }
         Spacer(Modifier.height(18.dp))
 
         val shared = sharedVibesRow(sharedVibes(profile.vibes, viewer.vibes))
@@ -613,7 +783,7 @@ private fun NoResultsState(onFilters: () -> Unit) {
 }
 
 @Composable
-private fun CentredStatement(text: String, action: String, onAction: () -> Unit) {
+internal fun CentredStatement(text: String, action: String, onAction: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),

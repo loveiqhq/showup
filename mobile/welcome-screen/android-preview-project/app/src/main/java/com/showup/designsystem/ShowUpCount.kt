@@ -15,6 +15,7 @@ package com.showup.designsystem
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -60,16 +62,57 @@ private val NewFill = Purple.copy(alpha = 0.10f)
 /** `showUpTone(100).softBg`, `rgba(0,171,85,.10)` -- a count's fill. Its ink is [SuccessFg]. */
 private val CountFill = Success.copy(alpha = 0.10f)
 
+/** The dark variant's `New in the App`: `rgba(255,255,255,.92)`. */
+private val DarkNewFill = Elevated.copy(alpha = 0.92f)
+
+/**
+ * @param dark `variant="dark"`, over a photo (the Premium grid card): a count on `showUpTone(100)`'s
+ *   dark pill, `New in the App` on white at .92, both over a backdrop blur of 8.
+ * @param glass what that blur sees -- the photo under the pill, drawn again and blurred by the
+ *   caller, who knows the photo. Behind the fill, clipped to the pill.
+ */
 @Composable
-fun ShowUpCount(count: Int, modifier: Modifier = Modifier, size: ShowUpCountSize = ShowUpCountSize.Md) {
+fun ShowUpCount(
+    count: Int,
+    modifier: Modifier = Modifier,
+    size: ShowUpCountSize = ShowUpCountSize.Md,
+    dark: Boolean = false,
+    glass: (@Composable (Modifier) -> Unit)? = null,
+) {
     val isNew = count <= 0
-    val ink = if (isNew) Purple else SuccessFg
+    val ink = when {
+        isNew -> Purple
+        dark -> ShowUpDarkInk
+        else -> SuccessFg
+    }
+    val fill = when {
+        dark && isNew -> DarkNewFill
+        dark -> ShowUpDarkFill
+        isNew -> NewFill
+        else -> CountFill
+    }
     val label = showUpCountLabel(count)
     // The icon follows the type, as the reference's `fs + 1` does, so it scales with the font.
     val iconSize = with(LocalDensity.current) { (size.fontSize.value + 1).sp.toDp() }
+    val pill = RoundedCornerShape(percent = 50)
+    Box(modifier.clip(pill)) {
+        glass?.invoke(Modifier.matchParentSize())
+        ShowUpCountRow(count, isNew, ink, label, iconSize, size, Modifier.background(fill, pill))
+    }
+}
+
+@Composable
+private fun ShowUpCountRow(
+    count: Int,
+    isNew: Boolean,
+    ink: Color,
+    label: String,
+    iconSize: Dp,
+    size: ShowUpCountSize,
+    modifier: Modifier,
+) {
     Row(
         modifier
-            .background(if (isNew) NewFill else CountFill, RoundedCornerShape(percent = 50))
             .padding(horizontal = size.horizontal, vertical = size.vertical)
             // One node for a screen reader: the sentence, not an icon and two runs of text.
             .clearAndSetSemantics { contentDescription = label },

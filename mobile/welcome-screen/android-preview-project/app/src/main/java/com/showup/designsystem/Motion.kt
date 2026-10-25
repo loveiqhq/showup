@@ -88,6 +88,24 @@ object Motion {
 
     /** One turn of the commit spinner (`su-checkin-spin 800ms linear infinite`). SHOWUP-183. */
     const val SPIN = 800
+
+    /**
+     * The card fly-out (SHOWUP-185 20, reused by 186), named as the ticket names them: the hold
+     * that shows the filled heart or the label (`GRID_LEAVE_HOLD_MS`), the flight to the bottom
+     * centre (`GRID_LEAVE_MS`), and the rest of the list closing the gap (`GRID_REFLOW_MS`).
+     */
+    const val GRID_LEAVE_HOLD = 150
+    const val GRID_LEAVE = 800
+    const val GRID_REFLOW = 250
+
+    /** The fly-out with reduced motion: "a 200 ms fade, then the reflow". [REVEAL]'s length, its own meaning. */
+    const val GRID_LEAVE_REDUCED = 200
+
+    /**
+     * How long a declined like can be undone (`LIKES_UNDO_MS`, SHOWUP-185 G / 186 D). A decision
+     * window, not a reading time: the decline is sent when it ends.
+     */
+    const val LIKES_UNDO = 6000
 }
 
 /**

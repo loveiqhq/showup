@@ -215,7 +215,7 @@ fun SearchPhoto(
  * themselves ([HeroGlass]).
  */
 @Composable
-private fun PhotoBackdrop(url: String, index: Int, modifier: Modifier) {
+internal fun PhotoBackdrop(url: String, index: Int, modifier: Modifier) {
     val placeholder = PHOTO_PLACEHOLDERS[index % PHOTO_PLACEHOLDERS.size]
     Box(modifier.cssLinearGradient(155f, placeholder, PLACEHOLDER_STOPS[index % PLACEHOLDER_STOPS.size])) {
         if (url.isNotEmpty()) {
@@ -294,7 +294,12 @@ internal fun HeroGlass(backdrop: HeroBackdrop, blur: Dp, modifier: Modifier = Mo
         val placeable = if (photo != null && offset != null) {
             measurables.first().measure(Constraints.fixed(photo.size.width, photo.size.height))
         } else null
-        layout(constraints.maxWidth, constraints.maxHeight) {
+        // Its parent's size (`matchParentSize`) -- and nothing at all when asked for its intrinsic
+        // size, where the constraints are unbounded: the glass only fills what is already there.
+        layout(
+            if (constraints.hasBoundedWidth) constraints.maxWidth else constraints.minWidth,
+            if (constraints.hasBoundedHeight) constraints.maxHeight else constraints.minHeight,
+        ) {
             if (placeable != null && offset != null) placeable.place(-offset.x.roundToInt(), -offset.y.roundToInt())
         }
     }
@@ -309,7 +314,7 @@ internal fun HeroGlass(backdrop: HeroBackdrop, blur: Dp, modifier: Modifier = Mo
  * clear, exactly as the reference does.
  */
 @Composable
-fun SearchHero(profile: SearchProfile, zone: ZoneId, onPhoto: (Int) -> Unit) {
+fun SearchHero(profile: SearchProfile, zone: ZoneId, onPhoto: (Int) -> Unit, likedYou: Boolean = false) {
     // THE NAME SITS ABOVE THE CARD'S REAL TOP, not at a fixed `bottom: 80`. The reference's 80 is
     // "the card's top, less 44" for a card one line tall; at the largest type the card wraps and grows
     // upward (its bottom is pinned 22 below the photo), and a fixed 80 put the name under it. The
@@ -325,11 +330,18 @@ fun SearchHero(profile: SearchProfile, zone: ZoneId, onPhoto: (Int) -> Unit) {
                     name = profile.name, onClick = { onPhoto(0) },
                     modifier = Modifier.onGloballyPositioned { backdrop.photo = it },
                 ) {
-                    DistancePill(
-                        distanceParts(profile.distanceKm, profile.district),
-                        distanceLine(profile.distanceKm, profile.district),
-                        backdrop,
-                        Modifier.align(Alignment.TopStart).padding(16.dp),
+                    // `top: 16, left: 16, right: 16`, space-between, gap 8: the distance pill, and on a
+                    // profile that liked the viewer the `Liked you` badge at the other end (Search 02).
+                    HeroTopRow(
+                        pill = {
+                            DistancePill(
+                                distanceParts(profile.distanceKm, profile.district),
+                                distanceLine(profile.distanceKm, profile.district),
+                                backdrop,
+                            )
+                        },
+                        badge = if (likedYou) ({ LikedYouBadge() }) else null,
+                        modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().padding(16.dp),
                     )
                 }
             },
@@ -346,6 +358,45 @@ fun SearchHero(profile: SearchProfile, zone: ZoneId, onPhoto: (Int) -> Unit) {
             p.place(0, 0)
             n.place(18.dp.roundToPx(), cardY - gap.roundToPx() - n.height)
             c.place(16.dp.roundToPx(), cardY)
+        }
+    }
+}
+
+/**
+ * The hero's top row: the distance pill at the start and, on a profile that liked the viewer, the
+ * `Liked you` badge at the end -- `justify-content: space-between; gap: 8`, centred on one line. Where
+ * the pill at its natural width and the badge do not fit together (a long district, a large type,
+ * a narrow phone), the badge drops under the pill, at the end, 8 below -- rather than squeezing the
+ * district into a column one letter wide (the 186 fit sweep, 25 Oct 2026).
+ */
+@Composable
+private fun HeroTopRow(
+    pill: @Composable () -> Unit,
+    badge: (@Composable () -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Layout(contents = listOf(pill, badge ?: {}), modifier = modifier) { (p, b), constraints ->
+        val w = constraints.maxWidth
+        val gap = 8.dp.roundToPx()
+        val badgePlaceable = b.firstOrNull()?.measure(Constraints(maxWidth = w))
+        if (badgePlaceable == null) {
+            val pp = p.first().measure(Constraints(maxWidth = w))
+            return@Layout layout(w, pp.height) { pp.place(0, 0) }
+        }
+        val natural = p.first().maxIntrinsicWidth(constraints.maxHeight)
+        if (natural + gap + badgePlaceable.width <= w) {
+            val pp = p.first().measure(Constraints(maxWidth = w - gap - badgePlaceable.width))
+            val h = maxOf(pp.height, badgePlaceable.height)
+            layout(w, h) {
+                pp.place(0, (h - pp.height) / 2)
+                badgePlaceable.place(w - badgePlaceable.width, (h - badgePlaceable.height) / 2)
+            }
+        } else {
+            val pp = p.first().measure(Constraints(maxWidth = w))
+            layout(w, pp.height + gap + badgePlaceable.height) {
+                pp.place(0, 0)
+                badgePlaceable.place(w - badgePlaceable.width, pp.height + gap)
+            }
         }
     }
 }
