@@ -72,17 +72,7 @@ struct SearchPhoto<Overlay: View>: View {
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .topLeading) {
-                CSSLinearGradient(angle: 155,
-                                  colors: photoPlaceholders[index % photoPlaceholders.count],
-                                  stops: placeholderStops[index % placeholderStops.count])
-                if let url {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image { image.resizable().scaledToFill() }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                }
-                PhotoWashes()
+                PhotoBackdrop(url: url, index: index)
                 overlay()
             }
             .frame(maxWidth: .infinity)
@@ -95,6 +85,30 @@ struct SearchPhoto<Overlay: View>: View {
         .accessibilityLabel(Text("Photo \(index + 1) of \(name)"))
         .accessibilityHint(Text("Open photo"))
         .accessibilityAddTraits(.isImage)
+    }
+}
+
+/// What a photo slot shows under anything laid on it: the placeholder, the photo, and the kit's
+/// washes. Its own view because the hero's glass pills draw it a second time, blurred, behind
+/// themselves (`HeroGlass`).
+private struct PhotoBackdrop: View {
+    let url: URL?
+    let index: Int
+
+    var body: some View {
+        ZStack {
+            CSSLinearGradient(angle: 155,
+                              colors: photoPlaceholders[index % photoPlaceholders.count],
+                              stops: placeholderStops[index % placeholderStops.count])
+            if let url {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image { image.resizable().scaledToFill() }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+            }
+            PhotoWashes()
+        }
     }
 }
 
@@ -120,6 +134,54 @@ private struct PhotoWashes: View {
     }
 }
 
+// MARK: - the hero's glass (callouts 5 and 7)
+
+/// The hero photo, as its glass pills see it: what to draw and how big it is. The photo sits at the
+/// origin of `heroSpace`, so a pill's frame in that space is its offset over the photo.
+struct HeroBackdrop: Equatable, Sendable {
+    let url: URL?
+    let index: Int
+    let size: CGSize
+}
+
+private struct HeroBackdropKey: EnvironmentKey {
+    static let defaultValue: HeroBackdrop? = nil
+}
+
+extension EnvironmentValues {
+    var heroBackdrop: HeroBackdrop? {
+        get { self[HeroBackdropKey.self] }
+        set { self[HeroBackdropKey.self] = newValue }
+    }
+}
+
+/// The hero's coordinate space; the photo is laid out at its origin.
+private let heroSpace = "searchHero"
+
+/// CSS gives the two pills `backdrop-filter: blur()`, and SwiftUI has no backdrop to filter. What is
+/// behind them is known, though -- only photo 1 -- so each pill draws it again at the photo's own size
+/// and place, blurs it whole, and is clipped to it by its caller: the same pixels a backdrop filter
+/// would blur. Blurring the whole photo rather than the pill's patch keeps the edges sampling the real
+/// neighbouring pixels. The radius is the CSS px, as `searchSheetBlur` is.
+private struct HeroGlass: View {
+    let blur: CGFloat
+    @Environment(\.heroBackdrop) private var backdrop
+
+    var body: some View {
+        GeometryReader { g in
+            if let backdrop {
+                let origin = g.frame(in: .named(heroSpace)).origin
+                PhotoBackdrop(url: backdrop.url, index: backdrop.index)
+                    .frame(width: backdrop.size.width, height: backdrop.size.height)
+                    .offset(x: -origin.x, y: -origin.y)
+                    .blur(radius: blur)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - the hero (callouts 4 to 9)
 
 /// Photo 1 at 460 with the distance pill, the name and the motivation pill on it, and the meet card
@@ -132,16 +194,24 @@ struct SearchHero: View {
     let onPhoto: (Int) -> Void
 
     var body: some View {
-        HeroLayout {
-            SearchPhoto(url: profile.photos.first ?? nil, index: 0, height: 460, radius: 28,
-                        name: profile.name, onTap: { onPhoto(0) }) {
-                DistancePill(parts: distanceParts(profile.distanceKm, profile.district),
-                             label: distanceLine(profile.distanceKm, profile.district))
-                    .padding(16)
+        // The reader only hands the glass the photo's width; the photo is always 460 tall, and the
+        // meet card still hangs 22 below this frame, as the layout places it.
+        GeometryReader { g in
+            HeroLayout {
+                SearchPhoto(url: profile.photos.first ?? nil, index: 0, height: 460, radius: 28,
+                            name: profile.name, onTap: { onPhoto(0) }) {
+                    DistancePill(parts: distanceParts(profile.distanceKm, profile.district),
+                                 label: distanceLine(profile.distanceKm, profile.district))
+                        .padding(16)
+                }
+                HeroName(profile: profile)
+                MeetCard(profile: profile, zone: zone)
             }
-            HeroName(profile: profile)
-            MeetCard(profile: profile, zone: zone)
+            .coordinateSpace(name: heroSpace)
+            .environment(\.heroBackdrop, HeroBackdrop(url: profile.photos.first ?? nil, index: 0,
+                                                       size: CGSize(width: g.size.width, height: 460)))
         }
+        .frame(height: 460)
     }
 }
 
@@ -213,8 +283,8 @@ private struct DistancePill: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        // `rgba(255,255,255,.85)`.
-        .background(Capsule().fill(Color.white.opacity(0.85)))
+        // Callout 5: `rgba(255,255,255,.85) + blur 12` -- the blurred photo under an 85% white fill.
+        .background(ZStack { HeroGlass(blur: 12); Color.white.opacity(0.85) }.clipShape(Capsule()))
         // One phrase for VoiceOver, not three fragments and a lone dot.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(label))
@@ -232,8 +302,8 @@ private struct MotivationPill: View {
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 5)
-        // `rgba(255,255,255,.22)` with a `.30` edge -- the glass.
-        .background(Capsule().fill(Color.white.opacity(0.22)))
+        // Callout 7: `rgba(255,255,255,.22) + blur 10` with a `.30` edge -- the glass.
+        .background(ZStack { HeroGlass(blur: 10); Color.white.opacity(0.22) }.clipShape(Capsule()))
         .overlay(Capsule().strokeBorder(Color.white.opacity(0.30), lineWidth: 1))
     }
 }
@@ -489,10 +559,8 @@ private struct PromptQuote: View {
     }
 }
 
-/// Callout 16: the voice note. Plays on tap only; the played part of the waveform follows the
-/// playhead -- and only the playhead. The reference paints bars 0 to 17 violet at rest, a static
-/// picture of progress; drawn on a note nobody has played it would say 37% was heard. All grey until
-/// it plays, by decision (the 184 evidence review, 24 Oct 2026).
+/// Callout 16: the voice note. Plays on tap only. At rest the waveform is drawn as the reference draws
+/// it, bars 0 to 17 violet (`voiceVioletBars`); while it plays, the violet follows the playhead.
 struct VoiceCard: View {
     let name: String
     let media: SearchMedia
@@ -518,7 +586,7 @@ struct VoiceCard: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(playing != nil ? "Pause \(name)'s voice" : "Play \(name)'s voice"))
-                VoiceBars(progress: playing?.progress ?? 0)
+                VoiceBars(violet: voiceVioletBars(playing: playing != nil, progress: playing?.progress ?? 0))
                     .frame(height: 36)
                     .accessibilityHidden(true)
                 Text(formatTakeLength(media.durationMs))
@@ -543,15 +611,15 @@ private struct VioletGlow: View {
 
 /// The 48 bars, `gap: 2.5`, each `flex: 1` and its share of the 36, never under 4.
 private struct VoiceBars: View {
-    let progress: Double
+    /// How many bars, from the left, are violet.
+    let violet: Int
 
     var body: some View {
-        let played = Int(progress * Double(voiceBars.count))
         HStack(alignment: .center, spacing: 2.5) {
             ForEach(Array(voiceBars.enumerated()), id: \.offset) { i, v in
                 Capsule()
-                    // `rgba(29,17,41,.18)` for a bar not yet played.
-                    .fill(i < played ? Color.liqPurple : Color.liqFg.opacity(0.18))
+                    // `rgba(29,17,41,.18)` for a bar past the violet ones.
+                    .fill(i < violet ? Color.liqPurple : Color.liqFg.opacity(0.18))
                     .frame(maxWidth: .infinity)
                     .frame(height: max(4, 36 * v))
             }

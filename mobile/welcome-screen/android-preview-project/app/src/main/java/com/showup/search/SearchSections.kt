@@ -69,6 +69,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -118,7 +128,7 @@ private val GlassEdge = Color.White.copy(alpha = 0.30f)
 /** `rgba(129,42,236,.10)` -- the prompt card's edge. */
 private val PromptEdge = Purple.copy(alpha = 0.10f)
 
-/** `rgba(29,17,41,.18)` -- a waveform bar not yet played. */
+/** `rgba(29,17,41,.18)` -- a waveform bar past the violet ones. */
 private val BarRest = Fg.copy(alpha = 0.18f)
 
 /** `rgba(255,255,255,.92)` and `0 8px 24px rgba(0,0,0,.16)` -- the video's play disc. */
@@ -186,16 +196,28 @@ fun SearchPhoto(
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val shape = RoundedCornerShape(radius)
-    val placeholder = PHOTO_PLACEHOLDERS[index % PHOTO_PLACEHOLDERS.size]
     Box(
         modifier
             .fillMaxWidth()
             .height(height)
             .clip(shape)
-            .cssLinearGradient(155f, placeholder, PLACEHOLDER_STOPS[index % PLACEHOLDER_STOPS.size])
             .clickable(role = Role.Image, onClickLabel = "Open photo") { onClick() }
             .semantics { contentDescription = "Photo ${index + 1} of $name" },
     ) {
+        PhotoBackdrop(url, index, Modifier.fillMaxSize())
+        overlay()
+    }
+}
+
+/**
+ * What a photo slot shows under anything laid on it: the placeholder, the photo, and the kit's
+ * washes. Its own composable because the hero's glass pills draw it a second time, blurred, behind
+ * themselves ([HeroGlass]).
+ */
+@Composable
+private fun PhotoBackdrop(url: String, index: Int, modifier: Modifier) {
+    val placeholder = PHOTO_PLACEHOLDERS[index % PHOTO_PLACEHOLDERS.size]
+    Box(modifier.cssLinearGradient(155f, placeholder, PLACEHOLDER_STOPS[index % PLACEHOLDER_STOPS.size])) {
         if (url.isNotEmpty()) {
             AsyncImage(
                 model = url,
@@ -228,7 +250,53 @@ fun SearchPhoto(
                 )
             },
         )
-        overlay()
+    }
+}
+
+// ── the hero's glass (callouts 5 and 7) ─────────────────────────────────────────────────────────
+
+/**
+ * The hero photo, as the glass pills see it: what to draw, and where the photo is laid out.
+ *
+ * CSS gives the two pills `backdrop-filter: blur()`, and Compose has no backdrop to filter. What is
+ * behind them is known, though -- only photo 1 -- so each pill draws it again, at the photo's own size
+ * and position, blurs that, and clips it to itself: the same pixels a backdrop filter would blur.
+ */
+@Stable
+class HeroBackdrop(val content: @Composable (Modifier) -> Unit) {
+    /** Where the photo is laid out; the pills measure themselves against it. */
+    var photo: LayoutCoordinates? by mutableStateOf(null)
+}
+
+/** `blur(12px)` on the distance pill: sigma 12, as a RenderEffect radius -- (12 - 0.5) / 0.57735. */
+private val DistancePillBlur = 19.92.dp
+
+/** `blur(10px)` on the motivation pill: sigma 10, as a RenderEffect radius -- (10 - 0.5) / 0.57735. */
+private val MotivationPillBlur = 16.45.dp
+
+/**
+ * The blurred photo behind one pill: [HeroBackdrop.content] at the photo's size, placed so it lines up
+ * with the photo underneath, blurred whole and then cut to the pill by the caller's clip -- blurring
+ * the full photo rather than the pill's patch keeps the edges sampling the real neighbouring pixels.
+ * Below Android 12 Compose cannot blur, and the pill keeps its plain translucent fill.
+ */
+@Composable
+internal fun HeroGlass(backdrop: HeroBackdrop, blur: Dp, modifier: Modifier = Modifier) {
+    var at by remember { mutableStateOf<Offset?>(null) }
+    Layout(
+        content = { backdrop.content(Modifier.fillMaxSize().blur(blur, BlurredEdgeTreatment.Rectangle)) },
+        modifier = modifier.onGloballyPositioned { me ->
+            at = backdrop.photo?.takeIf { it.isAttached && me.isAttached }?.localPositionOf(me, Offset.Zero)
+        },
+    ) { measurables, constraints ->
+        val photo = backdrop.photo?.takeIf { it.isAttached }
+        val offset = at
+        val placeable = if (photo != null && offset != null) {
+            measurables.first().measure(Constraints.fixed(photo.size.width, photo.size.height))
+        } else null
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            if (placeable != null && offset != null) placeable.place(-offset.x.roundToInt(), -offset.y.roundToInt())
+        }
     }
 }
 
@@ -247,21 +315,25 @@ fun SearchHero(profile: SearchProfile, zone: ZoneId, onPhoto: (Int) -> Unit) {
     // upward (its bottom is pinned 22 below the photo), and a fixed 80 put the name under it. The
     // layout measures the card first and keeps the reference's 44 between them on every phone.
     val gap = 44.dp
+    val url = profile.photos.firstOrNull().orEmpty()
+    val backdrop = remember(url) { HeroBackdrop { m -> PhotoBackdrop(url, 0, m) } }
     Layout(
         contents = listOf(
             {
                 SearchPhoto(
-                    url = profile.photos.firstOrNull().orEmpty(), index = 0, height = 460.dp, radius = 28.dp,
+                    url = url, index = 0, height = 460.dp, radius = 28.dp,
                     name = profile.name, onClick = { onPhoto(0) },
+                    modifier = Modifier.onGloballyPositioned { backdrop.photo = it },
                 ) {
                     DistancePill(
                         distanceParts(profile.distanceKm, profile.district),
                         distanceLine(profile.distanceKm, profile.district),
+                        backdrop,
                         Modifier.align(Alignment.TopStart).padding(16.dp),
                     )
                 }
             },
-            { HeroName(profile) },
+            { HeroName(profile, backdrop) },
             { MeetCard(profile, zone) },
         ),
     ) { (photo, name, card), constraints ->
@@ -285,7 +357,7 @@ fun SearchHero(profile: SearchProfile, zone: ZoneId, onPhoto: (Int) -> Unit) {
  * deeper, so the name sat that much higher over the pill than the sheet draws it.
  */
 @Composable
-private fun HeroName(profile: SearchProfile) {
+private fun HeroName(profile: SearchProfile, backdrop: HeroBackdrop) {
     val density = LocalDensity.current.density
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -298,46 +370,54 @@ private fun HeroName(profile: SearchProfile) {
                 shadow = Shadow(Color.Black.copy(alpha = 0.35f), Offset(0f, 2f * density), cssBlurToShadowRadius(12f * density)),
             ),
         )
-        motivationOf(profile.motivation)?.let { MotivationPill(it.title, it.icon) }
+        motivationOf(profile.motivation)?.let { MotivationPill(it.title, it.icon, backdrop) }
     }
 }
 
+/** Callout 5: `rgba(255,255,255,.85) + blur 12` -- the blurred photo under an 85% white fill. */
 @Composable
-private fun DistancePill(parts: List<String>, label: String, modifier: Modifier = Modifier) {
-    Row(
+private fun DistancePill(parts: List<String>, label: String, backdrop: HeroBackdrop, modifier: Modifier = Modifier) {
+    val pill = RoundedCornerShape(percent = 50)
+    Box(
         modifier
-            .background(PhotoPillFill, RoundedCornerShape(percent = 50))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(pill)
             // One phrase for a screen reader, not three fragments and a lone dot.
             .clearAndSetSemantics { contentDescription = label },
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(BrandIcon.MapPin, 13.dp, tint = Fg, strokeWidth = 2.2f)
-        parts.forEachIndexed { i, part ->
-            val last = i == parts.lastIndex
-            // The district takes what is left and wraps there at the largest type, rather than being
-            // cut; the distance and the dot never break.
-            Text(
-                part, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.sp,
-                softWrap = last, modifier = if (last) Modifier.weight(1f, fill = false) else Modifier,
-            )
+        HeroGlass(backdrop, DistancePillBlur, Modifier.matchParentSize())
+        Row(
+            Modifier.background(PhotoPillFill).padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(BrandIcon.MapPin, 13.dp, tint = Fg, strokeWidth = 2.2f)
+            parts.forEachIndexed { i, part ->
+                val last = i == parts.lastIndex
+                // The district takes what is left and wraps there at the largest type, rather than being
+                // cut; the distance and the dot never break.
+                Text(
+                    part, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                    softWrap = last, modifier = if (last) Modifier.weight(1f, fill = false) else Modifier,
+                )
+            }
         }
     }
 }
 
+/** Callout 7: `rgba(255,255,255,.22) + blur 10`, a `.30` edge -- the glass the name sits over. */
 @Composable
-private fun MotivationPill(label: String, icon: BrandIcon) {
-    Row(
-        Modifier
-            .background(GlassFill, RoundedCornerShape(percent = 50))
-            .border(1.dp, GlassEdge, RoundedCornerShape(percent = 50))
-            .padding(horizontal = 11.dp, vertical = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, 13.dp, tint = Color.White, strokeWidth = 2.2f)
-        Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.02.sp)
+private fun MotivationPill(label: String, icon: BrandIcon, backdrop: HeroBackdrop) {
+    val pill = RoundedCornerShape(percent = 50)
+    Box(Modifier.clip(pill).border(1.dp, GlassEdge, pill)) {
+        HeroGlass(backdrop, MotivationPillBlur, Modifier.matchParentSize())
+        Row(
+            Modifier.background(GlassFill).padding(horizontal = 11.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, 13.dp, tint = Color.White, strokeWidth = 2.2f)
+            Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.02.sp)
+        }
     }
 }
 
@@ -587,15 +667,14 @@ private fun PromptQuote(promptId: String) {
 }
 
 /**
- * Callout 16: the voice note. Plays on tap only; the played part of the waveform follows the
- * playhead -- and only the playhead. The reference paints bars 0 to 17 violet at rest (`i < 18`), a
- * static picture of progress; drawn on a note nobody has played it would say 37% was heard. All
- * grey until it plays, by decision (the 184 evidence review, 24 Oct 2026). The button is the 46 sunset disc with its violet glow, answering at 46 (over the 44
- * floor), labelled for what it does.
+ * Callout 16: the voice note. Plays on tap only. At rest the waveform is drawn as the reference draws
+ * it, bars 0 to 17 violet ([voiceVioletBars]); while it plays, the violet follows the playhead. The
+ * button is the 46 sunset disc with its violet glow, answering at 46 (over the 44 floor), labelled
+ * for what it does.
  */
 @Composable
 fun VoiceCard(name: String, media: SearchMedia, playing: SearchPlayback?, onToggle: () -> Unit) {
-    val progress = playing?.progress ?: 0f
+    val violet = voiceVioletBars(playing != null, playing?.progress ?: 0f)
     Card {
         SectionTitle(SearchCopy.VOICE_TITLE.format(name), voiceSub(media.durationMs))
         Row(
@@ -624,14 +703,13 @@ fun VoiceCard(name: String, media: SearchMedia, playing: SearchPlayback?, onTogg
                 horizontalArrangement = Arrangement.spacedBy(2.5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                val played = (progress * VOICE_BARS.size).toInt()
                 VOICE_BARS.forEachIndexed { i, v ->
                     Box(
                         Modifier
                             .weight(1f)
                             .fillMaxHeight(v)
                             .heightIn(min = 4.dp)
-                            .background(if (i < played) Purple else BarRest, RoundedCornerShape(percent = 50)),
+                            .background(if (i < violet) Purple else BarRest, RoundedCornerShape(percent = 50)),
                     )
                 }
             }

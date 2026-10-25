@@ -80,6 +80,16 @@ final class SearchRulesTests: XCTestCase {
         XCTAssertEqual(videoSub(10_000), "Video prompt · 0:10")
     }
 
+    func testAtRestTheWaveformIsTheReferences18VioletBarsWhilePlayingItFollowsThePlayhead() {
+        XCTAssertEqual(voiceBars.count, 48)
+        XCTAssertEqual(voiceVioletBars(playing: false, progress: 0), 18)
+        XCTAssertEqual(voiceVioletBars(playing: false, progress: 0.9), 18)
+        XCTAssertEqual(voiceVioletBars(playing: true, progress: 0), 0)
+        XCTAssertEqual(voiceVioletBars(playing: true, progress: 0.5), 24)
+        XCTAssertEqual(voiceVioletBars(playing: true, progress: 1), 48)
+        XCTAssertEqual(voiceVioletBars(playing: true, progress: 1.4), 48)
+    }
+
     func testEssentialsAreInTheTicketsOrderAndAMissingOrUnknownAnswerDropsItsRow() {
         let rows = essentials(EssentialAnswers(
             heightCm: 172, gender: "woman", orientation: "straight",
