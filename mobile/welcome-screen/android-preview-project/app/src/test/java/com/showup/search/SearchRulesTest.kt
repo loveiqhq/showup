@@ -99,6 +99,17 @@ class SearchRulesTest {
     }
 
     @Test
+    fun `at rest the waveform is the reference's 18 violet bars, while playing it follows the playhead`() {
+        assertEquals(48, VOICE_BARS.size)
+        assertEquals(18, voiceVioletBars(playing = false, progress = 0f))
+        assertEquals(18, voiceVioletBars(playing = false, progress = 0.9f))
+        assertEquals(0, voiceVioletBars(playing = true, progress = 0f))
+        assertEquals(24, voiceVioletBars(playing = true, progress = 0.5f))
+        assertEquals(48, voiceVioletBars(playing = true, progress = 1f))
+        assertEquals(48, voiceVioletBars(playing = true, progress = 1.4f))
+    }
+
+    @Test
     fun `essentials are in the ticket's order, and a missing or unknown answer drops its row`() {
         val rows = essentials(
             EssentialAnswers(

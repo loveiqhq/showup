@@ -264,6 +264,15 @@ let voiceBars: [Double] = (0..<48).map { i in
     return max(0.12, env * 0.85 + abs(jitter) * 0.25)
 }
 
+/// At rest the reference paints the first 18 of the 48 bars violet (`i < 18`); the card is drawn so.
+let voiceRestVioletBars = 18
+
+/// How many bars, from the left, are violet. At rest: the reference's 18, as the spec sheet draws the
+/// card. While playing -- a state the sheet does not draw -- the violet follows the playhead.
+func voiceVioletBars(playing: Bool, progress: Double) -> Int {
+    playing ? Int(min(1, max(0, progress)) * Double(voiceBars.count)) : voiceRestVioletBars
+}
+
 // MARK: - Essentials and How I live
 
 /// One Essentials row: what is drawn.

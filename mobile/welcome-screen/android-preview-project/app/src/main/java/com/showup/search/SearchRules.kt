@@ -216,6 +216,16 @@ val VOICE_BARS: List<Float> = List(48) { i ->
     maxOf(0.12, env * 0.85 + kotlin.math.abs(jitter) * 0.25).toFloat()
 }
 
+/** At rest the reference paints the first 18 of the 48 bars violet (`i < 18`); the card is drawn so. */
+const val VOICE_REST_VIOLET_BARS = 18
+
+/**
+ * How many bars, from the left, are violet. At rest: the reference's 18, as the spec sheet draws the
+ * card. While playing -- a state the sheet does not draw -- the violet follows the playhead.
+ */
+fun voiceVioletBars(playing: Boolean, progress: Float): Int =
+    if (playing) (progress.coerceIn(0f, 1f) * VOICE_BARS.size).toInt() else VOICE_REST_VIOLET_BARS
+
 // ── Essentials and How I live ───────────────────────────────────────────────────────────────────
 
 /** One Essentials row: what is drawn. */
