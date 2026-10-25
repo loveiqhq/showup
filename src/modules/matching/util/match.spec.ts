@@ -20,6 +20,8 @@ describe('status enums', () => {
   it('exposes the like statuses', () => {
     expect(LikeStatus.Active).toBe('active');
     expect(LikeStatus.Matched).toBe('matched');
+    expect(LikeStatus.Withdrawn).toBe('withdrawn');
+    expect(LikeStatus.Declined).toBe('declined');
   });
 
   it('exposes the match statuses', () => {

@@ -10,12 +10,15 @@ import { UserStatus } from '../../users/entities/user.entity';
 
 /**
  * Lifecycle of a like. "active" = open; "matched" = it produced a match; "withdrawn" = it closed
- * without a decision, for the `LikeCloseReason` stored with it (Date search epic rule 9).
+ * without a decision, for the `LikeCloseReason` stored with it (Date search epic rule 9);
+ * "declined" = the recipient said `Not interested` (Search 02, 03) -- closed for good, by a
+ * decision, so it has no reason, fires no `like_withdrawn`, and the liker is not told.
  */
 export enum LikeStatus {
   Active = 'active',
   Matched = 'matched',
   Withdrawn = 'withdrawn',
+  Declined = 'declined',
 }
 
 /**

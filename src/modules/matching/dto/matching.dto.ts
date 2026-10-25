@@ -9,12 +9,22 @@ import { Like } from '../entities/like.entity';
 import { Match } from '../entities/match.entity';
 import { LikeStatus, MatchStatus } from '../util/match';
 
+/**
+ * The statuses a like's SENDER is ever shown. `declined` is not one of them: a declined like is
+ * reported to its sender as still open -- "the liker is not told" (Search 02, 03).
+ */
+const SENDER_LIKE_STATUSES = [
+  LikeStatus.Active,
+  LikeStatus.Matched,
+  LikeStatus.Withdrawn,
+];
+
 /** Result of sending a like: the like itself, and whether it produced a match. */
 export class LikeResultDto {
   @ApiProperty()
   likeId: string;
 
-  @ApiProperty({ enum: LikeStatus })
+  @ApiProperty({ enum: SENDER_LIKE_STATUSES })
   status: LikeStatus;
 
   @ApiProperty({ description: 'True if this like completed a mutual match' })
@@ -25,12 +35,27 @@ export class LikeResultDto {
   })
   matchId?: string;
 
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      'Set when the like was closed at once because the person is no longer available: matched ' +
+      '(they have a date with someone else) or no_overlap (no time left to meet). A plain like ' +
+      'shows success anyway; a Confirm date shows the sorry sheet for it. Read tolerantly.',
+  })
+  closed?: string;
+
   static from(like: Like, match?: Match): LikeResultDto {
+    const closed =
+      like.status === LikeStatus.Withdrawn
+        ? (like.closedReason ?? undefined)
+        : undefined;
     return {
       likeId: like.id,
-      status: like.status,
+      status:
+        like.status === LikeStatus.Declined ? LikeStatus.Active : like.status,
       matched: Boolean(match),
       matchId: match?.id,
+      ...(closed ? { closed } : {}),
     };
   }
 }
