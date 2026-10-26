@@ -30,12 +30,19 @@ actor DevSearchStore: SearchStoring {
     private var closedSeen = false
     /// The first re-check is the staged one.
     private var rechecks = 0
+    /// Who the first re-check closes, `matched`: Sofia, as frame J has it.
+    private let stageClose: String
+    /// Who a re-check closed: their like closed with them, off the badge and closed on the list.
+    private var closedByRecheck: Set<String> = []
 
-    /// - Parameter premium: the plan the walk starts on -- `-dev_premium` in the launch arguments, as
-    ///   Android's `dev_premium` extra; the dev menu's switch still changes it.
-    init(latencyMs: Int = 900, premium: Bool = false) {
+    /// - Parameters:
+    ///   - premium: the plan the walk starts on -- `-dev_premium` in the launch arguments, as Android's
+    ///     `dev_premium` extra; the dev menu's switch still changes it.
+    ///   - stageClose: who the first re-check closes, as Android's `dev_stage_close`.
+    init(latencyMs: Int = 900, premium: Bool = false, stageClose: String = "sample-sofia") {
         latency = UInt64(max(latencyMs, 0)) * 1_000_000
         self.premium = premium
+        self.stageClose = stageClose
     }
 
     func queue(zone: String) async -> Result<SearchQueue, CallFailure> {
@@ -63,7 +70,9 @@ actor DevSearchStore: SearchStoring {
     }
 
     func likesOpenCount() async -> Result<Int, CallFailure> {
-        .success(SearchSamples.likes.filter { $0.closed == nil && !answered.contains($0.userId) }.count)
+        .success(SearchSamples.likes.filter {
+            $0.closed == nil && !answered.contains($0.userId) && !closedByRecheck.contains($0.userId)
+        }.count)
     }
 
     func session() async -> Result<SearchSession, CallFailure> {
@@ -88,8 +97,9 @@ actor DevSearchStore: SearchStoring {
         var statuses: [String: CardStatus] = [:]
         for id in userIds {
             let profile = SearchSamples.grid.first { $0.profile.userId == id }?.profile
-            if staged && id == "sample-sofia" {
+            if staged && id == stageClose {
                 statuses[id] = .closed(.matched)
+                closedByRecheck.insert(id)
             } else if staged, id == "sample-anna", let profile {
                 statuses[id] = .available(meetAt: profile.meetAt.addingTimeInterval(24 * 3600), meetDay: "tomorrow")
             } else if let profile {
@@ -103,7 +113,9 @@ actor DevSearchStore: SearchStoring {
 
     func likesReceived(zone: String) async -> Result<LikesReceived, CallFailure> {
         try? await Task.sleep(nanoseconds: latency)
-        let open = SearchSamples.likes.filter { $0.closed == nil && !answered.contains($0.userId) }
+        let open = SearchSamples.likes.filter {
+            $0.closed == nil && !answered.contains($0.userId) && !closedByRecheck.contains($0.userId)
+        }
         let closed = closedSeen ? [] : SearchSamples.likes.filter { $0.closed != nil }
         closedSeen = true
         return .success(LikesReceived(openCount: open.count, closedCount: closed.count, cards: open + closed,
