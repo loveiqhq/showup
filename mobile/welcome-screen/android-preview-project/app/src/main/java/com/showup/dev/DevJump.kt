@@ -174,7 +174,7 @@ fun devJump(
     oldAndroid: Boolean,
     location: LocationArrival,
 ): DevJump {
-    if (target.devSection() == DevSection.CheckIn && !signedIn) return DevJump.TestServer(target)
+    if (target.devSection() == DevSection.CheckIn) return DevJump.TestServer(target)
     if (target.needsAccount && !signedIn) return DevJump.NeedsLogIn
     return when (target) {
         FlowScreen.ProfileNotifications ->

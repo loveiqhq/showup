@@ -147,7 +147,8 @@ class DevMenuRulesTest {
     fun `every other screen lands where asked`() {
         val special = setOf(FlowScreen.ProfileNotifications, FlowScreen.ProfileLocation)
         for (screen in FlowScreen.entries - special) {
-            assertEquals(screen.name, DevJump.Lands(screen), jump(screen))
+            val expected = if (screen.devSection() == DevSection.CheckIn) DevJump.TestServer(screen) else DevJump.Lands(screen)
+            assertEquals(screen.name, expected, jump(screen))
         }
     }
 }
