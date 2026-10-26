@@ -116,6 +116,9 @@ data class PremiumList(
 /** The profile on screen, opened from a list. */
 data class Opened(val from: PremiumSurface, val userId: String)
 
+/** Where the Likes list was: its first visible item, and how far into it. */
+data class LikesScroll(val index: Int = 0, val offset: Int = 0)
+
 /** A declined like's Undo window: whose, from which list, at which position. */
 data class UndoToast(val userId: String, val name: String, val from: PremiumSurface, val position: Int)
 
@@ -208,6 +211,32 @@ open class SearchViewModel(
     /** Who has been decided on this session, so a refill never brings them back mid-request. */
     private val decided = mutableSetOf<String>()
 
+    /**
+     * Who got a FINAL answer this session -- a like, a confirm, a decline, Not interested: never back
+     * on the Likes list. Narrower than [decided]: a `Not now` leaves a received like open, on the
+     * list ("it stays open in the Likes tab until it closes"). Both cover the moment a read returns
+     * before the answer it raced has landed on the server.
+     */
+    private val answered = mutableSetOf<String>()
+
+    /**
+     * How long a declined like can be undone: [Motion.LIKES_UNDO], or longer when the phone's
+     * accessibility settings ask for more time to act (`setUndoWindow`).
+     */
+    private var undoWindowMs = Motion.LIKES_UNDO.toLong()
+
+    /**
+     * Where the Likes list was when its tab was left, for the next visit -- back at the top when the
+     * list read back different. Not state: nothing redraws for it.
+     */
+    var likesScroll = LikesScroll()
+        private set
+
+    /** The Likes list moved. */
+    fun likesScrolled(at: LikesScroll) {
+        likesScroll = at
+    }
+
     /** The visit's reported `filters_active`, kept for a reload after Filters. */
     private var filtersActive: List<String> = emptyList()
 
@@ -271,6 +300,7 @@ open class SearchViewModel(
             _state.update { it.copy(loading = true, failure = null, queue = emptyList(), position = 1, sheet = null, viewerAt = null) }
             load(zone)
         }
+        keepLikeFlow()
     }
 
     /** Filters saved new settings; the return to Search reads the queue or the grid under them. */
@@ -303,6 +333,9 @@ open class SearchViewModel(
                 layout = if (it.premium) SearchAnalytics.Layout.Grid else SearchAnalytics.Layout.OneUp,
             )
         }
+        // The sheet the reset closed is forgotten too. One a process death left is still held in
+        // [unfinished], and is kept again when its person comes back.
+        keepLikeFlow()
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             val countCall = async { store.likesOpenCount() }
@@ -376,7 +409,10 @@ open class SearchViewModel(
             is Outcome.Failed -> _state.update { it.copy(loading = false, grid = it.grid.copy(loading = false, failure = grid.why)) }
             is Outcome.Ok -> {
                 report(SearchAnalytics.searchViewed(grid.value.resultsCount, filtersActive, SearchAnalytics.Layout.Grid))
-                val cards = grid.value.cards.map { c ->
+                // Nobody already decided this session, as the queue: a `Not now` card is gone on the
+                // next visit (the Search 01 pool rules), and an answer still on its way to the server
+                // does not bring its card back.
+                val cards = grid.value.cards.filterNot { it.profile.userId in decided }.map { c ->
                     PremiumCard(
                         userId = c.profile.userId, name = c.profile.name, age = c.profile.age,
                         photo = c.profile.photos.firstOrNull().orEmpty(), profile = c.profile, likedYou = c.likedYou,
@@ -423,17 +459,23 @@ open class SearchViewModel(
                 is Outcome.Failed -> _state.update { it.copy(likes = it.likes.copy(loading = false, failure = read.why)) }
                 is Outcome.Ok -> {
                     val l = read.value
-                    report(SearchAnalytics.likesReceivedViewed(l.openCount, l.closedCount))
-                    val cards = l.cards.map { c ->
+                    // Nobody given a final answer this session: a decline or a confirm still on its
+                    // way to the server leaves no card behind. The counts are the list's, as drawn --
+                    // "the badge equals the open cards on the list".
+                    val kept = l.cards.filterNot { it.userId in answered }
+                    val openCount = kept.count { it.closed == null }
+                    report(SearchAnalytics.likesReceivedViewed(openCount, kept.size - openCount))
+                    val cards = kept.map { c ->
                         PremiumCard(
                             userId = c.userId, name = c.name, age = c.age, photo = c.photo, profile = c.profile,
                             likedYou = true, message = c.message, closed = c.closed,
                         )
                     }
+                    val same = _state.value.likes.cards.map { c -> c.userId to c.closed } == cards.map { c -> c.userId to c.closed }
+                    if (!same) likesScroll = LikesScroll()
                     _state.update {
-                        val same = it.likes.cards.map { c -> c.userId to c.closed } == cards.map { c -> c.userId to c.closed }
                         it.copy(
-                            likesOpen = l.openCount,
+                            likesOpen = openCount,
                             viewer = l.viewer,
                             likes = PremiumList(
                                 loading = false, cards = cards,
@@ -732,6 +774,7 @@ open class SearchViewModel(
         _state.update { it.copy(sheet = null) }
         keepLikeFlow()
         decided += profile.userId
+        answered += profile.userId
         sendInBackground { store.like(profile.userId, message, position) }
         if (s.opened != null) returnToList { it.copy(leaving = Leave.Liked) } else next()
     }
@@ -756,8 +799,16 @@ open class SearchViewModel(
                 is Outcome.Ok -> when (val a = answer.value) {
                     ConfirmAnswer.Won -> {
                         decided += opened.userId
-                        returnToList { c ->
+                        answered += opened.userId
+                        val won: (PremiumCard) -> PremiumCard = { c ->
                             if (opened.from == PremiumSurface.Grid) c.copy(leaving = Leave.Liked) else c.copy(gone = true)
+                        }
+                        if (_state.value.opened == opened) {
+                            returnToList(won)
+                        } else {
+                            // The profile closed while the server decided: the match stands, and its
+                            // card leaves the list all the same.
+                            updateList(opened.from) { list -> list.copy(cards = list.cards.map { c -> if (c.userId == opened.userId) won(c).copy(leaving = null, gone = true) else c }) }
                         }
                         refreshLikesOpen()
                     }
@@ -808,6 +859,7 @@ open class SearchViewModel(
         }
         report(SearchAnalytics.passSent(position, type))
         decided += profile.userId
+        if (type == SearchAnalytics.PassType.NotInterested) answered += profile.userId
         sendInBackground { store.pass(profile.userId, type) }
         when {
             opened == null -> next()
@@ -855,8 +907,18 @@ open class SearchViewModel(
     private fun startUndo(toast: UndoToast) {
         flushDecline()
         _state.update { it.copy(undo = toast) }
-        undoLeftMs = Motion.LIKES_UNDO.toLong()
+        undoLeftMs = undoWindowMs
         runUndoClock()
+    }
+
+    /**
+     * The Undo window, as the phone's accessibility settings want it: the user's "time to take
+     * action", and the whole time the list is on screen while TalkBack is on -- its focus is not a
+     * focus this app can see, and "while focus is on it, the 6 s does not run out". Never shorter
+     * than the ticket's 6 s. The host sets it, from the platform.
+     */
+    fun setUndoWindow(ms: Long) {
+        undoWindowMs = ms.coerceAtLeast(Motion.LIKES_UNDO.toLong())
     }
 
     private fun runUndoClock() {
@@ -911,6 +973,7 @@ open class SearchViewModel(
         undoJob = null
         _state.update { it.copy(undo = null) }
         decided += toast.userId
+        answered += toast.userId
         report(SearchAnalytics.passSent(toast.position, SearchAnalytics.PassType.NotInterested, toast.surface()))
         viewModelScope.launch {
             if (sendWithRetries { store.pass(toast.userId, SearchAnalytics.PassType.NotInterested) }) refreshLikesOpenNow()

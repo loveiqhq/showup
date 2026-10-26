@@ -144,11 +144,17 @@ enum Leave: Equatable, Sendable { case liked, notInterested }
 
 /// A grid card's accessible name, mark included (Search 02: "a marked card announces its mark as part
 /// of its name; the mark is never colour-only"). The closed card is not a control and has its own.
-func gridCardLabel(_ name: String, notNow: Bool, leaving: Leave?) -> String {
+///
+/// `likedYou`: the `Liked you` badge, read as part of the card ("read as part of its card") -- what a
+/// sighted user sees on it, VoiceOver says. Only while the badge is drawn: a marked card has none, and
+/// during the fly-out the card's own mark is the news.
+func gridCardLabel(_ name: String, notNow: Bool, leaving: Leave?, likedYou: Bool = false) -> String {
     switch leaving {
     case .liked: return PremiumCopy.cardLabelLiked(name)
     case .notInterested: return "\(PremiumCopy.cardLabel(name)), \(PremiumCopy.notInterestedLabel.lowercased())"
-    case nil: return notNow ? PremiumCopy.cardLabelNotNow(name) : PremiumCopy.cardLabel(name)
+    case nil:
+        if notNow { return PremiumCopy.cardLabelNotNow(name) }
+        return likedYou ? "\(PremiumCopy.cardLabel(name)), \(PremiumCopy.likedYou.lowercased())" : PremiumCopy.cardLabel(name)
     }
 }
 

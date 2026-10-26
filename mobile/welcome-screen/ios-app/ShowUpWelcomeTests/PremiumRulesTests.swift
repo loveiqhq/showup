@@ -54,6 +54,9 @@ final class PremiumRulesTests: XCTestCase {
         XCTAssertEqual(gridCardLabel("Leonie", notNow: false, leaving: .liked), "Open Leonie's profile, liked")
         XCTAssertEqual(gridCardLabel("Leonie", notNow: true, leaving: nil), "Open Leonie's profile, not now")
         XCTAssertEqual(gridCardLabel("Leonie", notNow: false, leaving: .notInterested), "Open Leonie's profile, not interested")
+        XCTAssertEqual(gridCardLabel("Leonie", notNow: false, leaving: nil, likedYou: true), "Open Leonie's profile, liked you")
+        XCTAssertEqual(gridCardLabel("Leonie", notNow: true, leaving: nil, likedYou: true), "Open Leonie's profile, not now",
+                       "the user's own mark wins")
         XCTAssertEqual(likesPhotoLabel("Anna", notNow: false), "Open Anna's profile")
         XCTAssertEqual(likesPhotoLabel("Anna", notNow: true), "Open Anna's profile, not now")
     }

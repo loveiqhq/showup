@@ -73,11 +73,13 @@ export type { AvailabilityOf };
 export const SEARCH_QUEUE_PAGE = 3;
 
 /**
- * How many cards the Premium grid carries at most. The grid is the queue (Search 02), and a queue
- * beyond this is not a grid anyone scrolls to the end of -- while every card carries its whole
- * profile, so the bound is also the response's size.
+ * How many cards the Premium grid carries at most. The grid is the queue (Search 02) -- every card at
+ * once, no paging -- and every card carries its whole profile, so a bound is the response's size.
+ * It is the availability re-check's own bound (`SearchAvailabilityRequestDto`, 100 ids), so every
+ * card a grid shows can be re-checked in the one call a return makes. A queue longer than this is
+ * listed for product (it has no ticketed answer); the first 100 in queue order are the grid.
  */
-export const SEARCH_GRID_LIMIT = 60;
+export const SEARCH_GRID_LIMIT = 100;
 
 /** One person the viewer could meet, before their profile is loaded. */
 interface Candidate {

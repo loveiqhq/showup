@@ -57,6 +57,8 @@ class PremiumRulesTest {
         assertEquals("Open Leonie's profile, liked", gridCardLabel("Leonie", notNow = false, leaving = Leave.Liked))
         assertEquals("Open Leonie's profile, not now", gridCardLabel("Leonie", notNow = true, leaving = null))
         assertEquals("Open Leonie's profile, not interested", gridCardLabel("Leonie", notNow = false, leaving = Leave.NotInterested))
+        assertEquals("Open Leonie's profile, liked you", gridCardLabel("Leonie", notNow = false, leaving = null, likedYou = true))
+        assertEquals("the user's own mark wins", "Open Leonie's profile, not now", gridCardLabel("Leonie", notNow = true, leaving = null, likedYou = true))
         assertEquals("Open Anna's profile", likesPhotoLabel("Anna", notNow = false))
         assertEquals("Open Anna's profile, not now", likesPhotoLabel("Anna", notNow = true))
     }

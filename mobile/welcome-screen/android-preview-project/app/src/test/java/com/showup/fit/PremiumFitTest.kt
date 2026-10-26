@@ -182,6 +182,15 @@ class PremiumFitTest {
      * past the edge while it is drawn well inside. Its own position is checked exactly in
      * [the frozen fly-out frame is where the motion puts it]; everything else on the frame is swept.
      */
+    /**
+     * The grid card's motivation is "on one line with ellipsis" (Search 02): where a long label meets a
+     * narrow card or a large type, its ellipsis is the ticket's, not a fault.
+     */
+    private val motivationTitles = SearchSamples.GRID.mapNotNull { com.showup.search.motivationOf(it.profile.motivation)?.title }.toSet()
+
+    private fun ticketedEllipsis(finding: String): Boolean =
+        finding.contains("truncated, over its maxLines") && motivationTitles.any { finding.contains("\"$it\"") }
+
     private fun frozenArtefact(state: SearchUiState, finding: String): Boolean {
         val leaving = (state.grid.cards + state.likes.cards).filter { it.leaving != null }.map { it.userId }
         return leaving.any { id -> finding.contains("card-$id>") || finding.contains("<fly-$id>") } && finding.contains("OFF THE")
@@ -196,7 +205,7 @@ class PremiumFitTest {
                     measureFit(d, "$label/$name @$scale", fontScale = scale) { render(state) }
                         .filterNot { it.advisory }
                         .map { "$it" }
-                        .filterNot { frozenArtefact(state, it) }
+                        .filterNot { frozenArtefact(state, it) || ticketedEllipsis(it) }
                         .forEach { fresh += it }
                 }
             }

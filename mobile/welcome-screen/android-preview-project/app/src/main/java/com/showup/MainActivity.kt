@@ -63,6 +63,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import android.app.ActivityOptions
 import com.showup.analytics.AppAnalytics
 import com.showup.checkin.AndroidPlaceReader
@@ -260,13 +261,6 @@ class MainActivity : ComponentActivity() {
             // The NavHost's back stack (AppRoute.kt) -- not `nav`, the FlowNavigator above, which
             // still decides the screen inside the flow destination. Saved with the activity.
             val navController = rememberNavController()
-
-            // THE LIST UNDER A POPPED PROFILE IS NOT ARRIVING. Popping the profile destination brings
-            // the flow destination back into composition, and with it every screen's arrival effect;
-            // the grid or the Likes list it returns to has already fired its `screen_viewed` and
-            // started its re-check (SearchViewModel.returnToList). Set by the pop, cleared by the
-            // arrival it suppresses -- or by any navigation inside the flow, which is a real arrival.
-            var poppedFromProfile by remember { mutableStateOf(false) }
 
             // Kept only so the placeholder home screen can name the rule that sent the user
             // there, which is what makes SHOWUP-146 demonstrable. Not product state.
@@ -492,10 +486,7 @@ class MainActivity : ComponentActivity() {
             val cameFrom by nav::cameFrom
 
             /** Every navigation into and within the new screens goes through here. */
-            fun goTo(next: FlowScreen) {
-                poppedFromProfile = false
-                nav.goTo(next)
-            }
+            fun goTo(next: FlowScreen) = nav.goTo(next)
 
             /**
              * Into location, through the arrival matrix: switch off -> C, not determined -> A,
@@ -781,6 +772,26 @@ class MainActivity : ComponentActivity() {
             )
             val searchState by search.state.collectAsStateWithLifecycle()
 
+            // THE UNDO WINDOW AS THE PHONE'S ACCESSIBILITY SETTINGS WANT IT (SHOWUP-186: "while focus
+            // is on it, the 6 s does not run out"). TalkBack's focus is not a focus the app can see, so
+            // while TalkBack is on the window holds until the list is left; otherwise it is the user's
+            // "time to take action", never less than 6 s. Followed live: TalkBack can be switched on
+            // with the app open.
+            val accessibility = LocalAccessibilityManager.current
+            DisposableEffect(search, accessibility) {
+                val platform = context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+                fun apply() {
+                    val recommended = accessibility?.calculateRecommendedTimeoutMillis(
+                        Motion.LIKES_UNDO.toLong(), containsIcons = false, containsText = true, containsControls = true,
+                    ) ?: Motion.LIKES_UNDO.toLong()
+                    search.setUndoWindow(if (platform?.isTouchExplorationEnabled == true) Long.MAX_VALUE else recommended)
+                }
+                apply()
+                val listener = android.view.accessibility.AccessibilityManager.TouchExplorationStateChangeListener { apply() }
+                platform?.addTouchExplorationStateChangeListener(listener)
+                onDispose { platform?.removeTouchExplorationStateChangeListener(listener) }
+            }
+
             // THE LIKES BADGE: open received likes, the one number the Likes tab and the Search likes
             // chip both show (SHOWUP-187 rule 10) -- on the gate's and Settings' bars too, so it is
             // read on every foreground of a tab screen, not only by a Search visit.
@@ -795,10 +806,7 @@ class MainActivity : ComponentActivity() {
                 val onProfile = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.SearchProfile>() == true
                 when {
                     profileOpen && !onProfile -> navController.navigate(AppRoute.SearchProfile) { launchSingleTop = true }
-                    !profileOpen && onProfile -> {
-                        poppedFromProfile = true
-                        navController.popBackStack()
-                    }
+                    !profileOpen && onProfile -> navController.popBackStack()
                 }
             }
 
@@ -1989,15 +1997,22 @@ class MainActivity : ComponentActivity() {
                     }
                     FlowScreen.CheckInSearch -> {
                         val zone = remember { ZoneId.systemDefault() }
+                        // ARRIVED HERE ALREADY: the screen coming back with this visit still in the
+                        // view model is not arriving -- the pop of a profile pushed over it (which
+                        // fired the grid's screen_viewed and started its re-check itself), or the
+                        // activity recreated by a system change (font size, dark mode). Saved with
+                        // the destination, so both bring it back; a new view model after a process
+                        // death has no visit, so that one arrives. Cleared when the screen slides
+                        // away, so every other way in is an arrival.
+                        var arrivedHere by rememberSaveable { mutableStateOf(false) }
                         LaunchedEffect(onTop) {
                             if (onTop) {
-                                if (poppedFromProfile && search.hasVisited) {
-                                    poppedFromProfile = false
-                                } else {
-                                    val filters = checkInState.server?.filters
-                                    search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom, searchState.layout))
-                                }
+                                if (arrivedHere && search.hasVisited) return@LaunchedEffect
+                                arrivedHere = true
+                                val filters = checkInState.server?.filters
+                                search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom, searchState.layout))
                             } else {
+                                arrivedHere = false
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
                                 search.leave()
                             }
@@ -2061,14 +2076,16 @@ class MainActivity : ComponentActivity() {
                     }
                     FlowScreen.LikesReceived -> {
                         val zone = remember { ZoneId.systemDefault() }
+                        // As on Search: the pop of a profile or a recreated activity is not an
+                        // arrival while the view model still holds the list.
+                        var arrivedHere by rememberSaveable { mutableStateOf(false) }
                         LaunchedEffect(onTop) {
                             if (onTop) {
-                                if (poppedFromProfile && !searchState.likes.loading) {
-                                    poppedFromProfile = false
-                                } else {
-                                    search.likesArrived(zone.id, profileScreenOf(cameFrom, searchState.layout))
-                                }
+                                if (arrivedHere && !searchState.likes.loading) return@LaunchedEffect
+                                arrivedHere = true
+                                search.likesArrived(zone.id, profileScreenOf(cameFrom, searchState.layout))
                             } else {
+                                arrivedHere = false
                                 // Another tab: a decline waiting out its Undo is sent now.
                                 search.leave()
                             }
@@ -2096,6 +2113,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onRetry = { search.likesRetry(zone.id) },
+                            scrollStart = search.likesScroll,
+                            onScrolled = search::likesScrolled,
                         )
                     }
                     FlowScreen.SearchFilters -> {
@@ -2164,10 +2183,17 @@ class MainActivity : ComponentActivity() {
                 },
             ) {
                 val zone = remember { ZoneId.systemDefault() }
-                val fromLikes = searchState.opened?.from == PremiumSurface.Likes
+                // AS IT LEAVES, THE PROFILE IT WAS: the last state with the profile open, its sheets,
+                // viewer and coach closed. Drawn live, the popped screen slid away showing the empty
+                // queue under the grid -- "No results", the wrong tab, no back pill.
+                val open = searchState.opened != null
+                val shown = heldWhileLeaving(searchState, open).let { held ->
+                    if (open) held else held.copy(sheet = null, viewerAt = null, coach = false, confirming = false)
+                }
+                val fromLikes = shown.opened?.from == PremiumSurface.Likes
                 val here = if (fromLikes) Tab.Likes else Tab.Search
                 SearchProfileScreen(
-                    state = searchState,
+                    state = shown,
                     zone = zone,
                     player = mediaPlayer.surface,
                     onLike = search::like,

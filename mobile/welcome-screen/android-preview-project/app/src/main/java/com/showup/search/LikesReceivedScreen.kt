@@ -41,9 +41,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,7 +90,6 @@ import com.showup.designsystem.ShowUpCountSize
 import com.showup.designsystem.Tab
 import com.showup.designsystem.TabBar
 import com.showup.designsystem.cssLineBox
-import com.showup.designsystem.rememberMotion
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline
@@ -116,6 +117,10 @@ fun LikesReceivedScreen(
     onTab: (Tab) -> Unit = {},
     onRetry: () -> Unit = {},
     freezeLeavingMs: Int? = null,
+    /** Where the list was when the tab was left: first visible item, and how far into it. */
+    scrollStart: LikesScroll = LikesScroll(),
+    /** The list moved, for [scrollStart] next time. */
+    onScrolled: (LikesScroll) -> Unit = {},
 ) {
     val likes = state.likes
     Box(Modifier.fillMaxSize().background(Cream)) {
@@ -134,7 +139,7 @@ fun LikesReceivedScreen(
                     likes.failure != null && likes.cards.isEmpty() ->
                         CentredStatement(PremiumCopy.LIKES_LOAD_FAILED_PROPOSED, SearchCopy.RETRY, onRetry)
                     likes.empty -> EmptyLikes(onBackToSearch)
-                    else -> LikesList(likes, zone, settled, onOpen, onLeft, freezeLeavingMs)
+                    else -> LikesList(likes, zone, settled, onOpen, onLeft, freezeLeavingMs, scrollStart, onScrolled)
                 }
             },
             tabBar = { TabBar(active = Tab.Likes, onTab = onTab, likes = state.likesBadge) },
@@ -151,11 +156,19 @@ private fun LikesList(
     onOpen: (String) -> Unit,
     onLeft: (String) -> Unit,
     freezeLeavingMs: Int?,
+    scrollStart: LikesScroll,
+    onScrolled: (LikesScroll) -> Unit,
 ) {
-    val motion = rememberMotion()
-    // Kept across a tab switch and a profile, started again when the list read back different.
+    // KEPT ACROSS A TAB SWITCH AND A PROFILE, started again when the list read back different
+    // ("Switching tabs and coming back restores the scroll position unless the list reloaded"). The
+    // view model holds it: switching tabs takes this screen out of composition, and its scroll state
+    // with it.
     key(likes.generation) {
-        val scroll = rememberLazyListState()
+        val scroll = rememberLazyListState(scrollStart.index, scrollStart.offset)
+        LaunchedEffect(scroll) {
+            snapshotFlow { LikesScroll(scroll.firstVisibleItemIndex, scroll.firstVisibleItemScrollOffset) }
+                .collect { onScrolled(it) }
+        }
         val host = remember { FlyOutHost() }
         Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -171,7 +184,7 @@ private fun LikesList(
             item(key = "intro") { LikesIntro() }
             items(likes.shown, key = { it.userId }) { card ->
                 val cardModifier = Modifier
-                    .animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = gridReflowSpec(motion.enabled))
+                    .animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = gridReflowSpec())
                     .cardFlyOut(
                         host = host,
                         key = card.userId,

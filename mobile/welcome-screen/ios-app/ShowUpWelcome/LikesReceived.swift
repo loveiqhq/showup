@@ -27,6 +27,10 @@ struct LikesReceivedView: View {
     var onRetry: () -> Void = {}
     /// Previews only: frame H, every leaving card held this far into its flight, in milliseconds.
     var freezeLeavingMs: Double? = nil
+    /// Where the list was when the tab was left: the first card showing.
+    var scrollAnchor: String? = nil
+    /// The list moved, for `scrollAnchor` next time.
+    var onScrolled: (String?) -> Void = { _ in }
 
     var body: some View {
         let likes = state.likes
@@ -43,7 +47,7 @@ struct LikesReceivedView: View {
                     EmptyLikes(onBackToSearch: onBackToSearch)
                 } else {
                     LikesList(likes: likes, zone: zone, settled: settled, onOpen: onOpen, onLeft: onLeft,
-                              freezeLeavingMs: freezeLeavingMs)
+                              freezeLeavingMs: freezeLeavingMs, scrollAnchor: scrollAnchor, onScrolled: onScrolled)
                         // Kept across a tab switch and a profile, started again when the list read
                         // back different.
                         .id(likes.generation)
@@ -64,9 +68,10 @@ private struct LikesList: View {
     let onOpen: (String) -> Void
     let onLeft: (String) -> Void
     let freezeLeavingMs: Double?
+    let scrollAnchor: String?
+    let onScrolled: (String?) -> Void
 
     @State private var host = FlyOutHost()
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { g in
@@ -90,10 +95,14 @@ private struct LikesList: View {
                             }
                     }
                 }
+                .scrollTargetLayout()
                 // `8 16 88`: the 88 keeps the last card clear of the toast.
                 .padding(EdgeInsets(top: 8, leading: 16, bottom: toastClearance, trailing: 16))
-                .animation(reduceMotion ? nil : gridReflowAnimation, value: likes.shown.map(\.userId))
+                .animation(gridReflowAnimation, value: likes.shown.map(\.userId))
             }
+            // KEPT ACROSS A TAB SWITCH, by the model: switching tabs takes this screen away, and its
+            // scroll position with it. Back at the top when the list read back different.
+            .scrollPosition(id: Binding(get: { scrollAnchor }, set: { onScrolled($0) }))
             .coordinateSpace(name: premiumListSpace)
             .overlay {
                 FlyOutLayer(host: host, onLeft: onLeft,

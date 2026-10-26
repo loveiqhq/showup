@@ -84,8 +84,6 @@ import com.showup.designsystem.TabBar
 import com.showup.designsystem.cssBlurToShadowRadius
 import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.pillShadows
-import com.showup.designsystem.rememberMotion
-import com.showup.designsystem.shrinkToFit
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import java.time.ZoneId
@@ -164,7 +162,6 @@ private fun GridList(
     onLeft: (String) -> Unit,
     freezeLeavingMs: Int?,
 ) {
-    val motion = rememberMotion()
     // EVERY CARD THE SAME HEIGHT: 248 as drawn, and at a larger type the height the tallest card's
     // info block needs, so the cards grow together and a row stays level. The info blocks are measured
     // first, at the column's width, before the grid is laid out with that height.
@@ -177,7 +174,7 @@ private fun GridList(
         val needed = (tallest + INFO_INSET.roundToPx() + TOP_RESERVE.roundToPx()).toDp()
         val cardHeight = maxOf(GRID_CARD_HEIGHT, needed)
         val list = subcompose("grid") {
-            GridCards(grid, zone, settled, onOpen, onLeft, freezeLeavingMs, cardHeight, motion.enabled)
+            GridCards(grid, zone, settled, onOpen, onLeft, freezeLeavingMs, cardHeight)
         }.first().measure(constraints)
         layout(list.width, list.height) { list.place(0, 0) }
     }
@@ -198,7 +195,6 @@ private fun GridCards(
     onLeft: (String) -> Unit,
     freezeLeavingMs: Int?,
     cardHeight: androidx.compose.ui.unit.Dp,
-    motionEnabled: Boolean,
 ) {
     // A new read of the grid is a new scroll position; a return from a profile keeps the old one
     // ("Returning restores the grid's scroll position"), saved with the screen.
@@ -227,7 +223,7 @@ private fun GridCards(
                     height = cardHeight,
                     modifier = Modifier
                         // The reflow: the rest move into their new slots, a FLIP of [Motion.GRID_REFLOW].
-                        .animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = gridReflowSpec(motionEnabled))
+                        .animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = gridReflowSpec())
                         .cardFlyOut(
                             host = host,
                             key = card.userId,
@@ -303,7 +299,7 @@ fun PremiumGridCard(
                         Modifier
                             .clip(shape)
                             .then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier)
-                            .clearAndSetSemantics { contentDescription = gridCardLabel(card.name, card.notNow, card.leaving) }
+                            .clearAndSetSemantics { contentDescription = gridCardLabel(card.name, card.notNow, card.leaving, card.likedYou) }
                     },
                 ),
         ) {
@@ -349,7 +345,6 @@ private fun DrawScope.drawLikedRing() {
 @Composable
 private fun CardInfo(card: PremiumCard, zone: ZoneId, backdrop: HeroBackdrop?, modifier: Modifier) {
     val density = LocalDensity.current.density
-    val enlarged = LocalDensity.current.fontScale > 1f
     val closed = card.closed
     val profile = card.profile
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -377,42 +372,19 @@ private fun CardInfo(card: PremiumCard, zone: ZoneId, backdrop: HeroBackdrop?, m
                 val meet = meetLine(profile.meetAt, profile.meetDay, zone)
                 val distance = searchDistance(profile.distanceKm)
                 MetaLine(gridMetaLine(profile, zone), meet, distance, Modifier.testTag(GRID_META_TAG_PREFIX + card.userId))
-                motivationOf(profile.motivation)?.let { m -> MotivationLine(m.title, enlarged) }
+                motivationOf(profile.motivation)?.let { m ->
+                    // "The motivation label on one line with ellipsis" (Search 02): the whole label is
+                    // on the profile one tap away.
+                    Text(m.title, style = MotivationStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }
 }
 
-/** How far the motivation label shrinks to stay on one line before it wraps instead. */
-private const val MOTIVATION_MIN_SCALE = 0.85f
-
 private val MotivationStyle = TextStyle(
     color = Color.White.copy(alpha = 0.92f), fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 11.5.sp,
 )
-
-/**
- * The motivation, "on one line": as drawn wherever it fits; a little smaller where it nearly does (a
- * long label on a narrow card); and on a second line where even that would cut it, or at a larger
- * type -- an ellipsis would hide words the user is meant to read, and enlarged text is text the
- * user asked to read (the 185 fit sweep, 25 Oct 2026).
- */
-@Composable
-private fun MotivationLine(title: String, enlarged: Boolean) {
-    val measurer = rememberTextMeasurer()
-    BoxWithConstraints {
-        val natural = measurer.measure(title, MotivationStyle, maxLines = 1, softWrap = false).size.width
-        val room = constraints.maxWidth
-        when {
-            enlarged || !constraints.hasBoundedWidth -> Text(title, style = MotivationStyle)
-            natural <= room -> Text(title, style = MotivationStyle, maxLines = 1, softWrap = false)
-            natural * MOTIVATION_MIN_SCALE <= room -> Text(
-                title, style = MotivationStyle, maxLines = 1, softWrap = false,
-                modifier = Modifier.shrinkToFit(MOTIVATION_MIN_SCALE, origin = 0f),
-            )
-            else -> Text(title, style = MotivationStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
 
 private val MetaStyle = TextStyle(color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
 

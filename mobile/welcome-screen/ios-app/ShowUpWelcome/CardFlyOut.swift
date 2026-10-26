@@ -25,12 +25,14 @@ import SwiftUI
 /// The list's own coordinate space -- its visible box, so a slot's frame in it moves as it scrolls.
 let premiumListSpace = "premiumList"
 
-/// `cubic-bezier(.55,0,.8,.2)`: the fly-out accelerates away. Reduced motion: a linear fade.
+/// `cubic-bezier(.55,0,.8,.2)`: the fly-out accelerates away. Reduced motion: the reference's fade, 200
+/// ms on the same curve.
 func gridLeaveAnimation(reduced: Bool) -> Animation {
-    reduced ? .linear(duration: Motion.gridLeaveReduced) : .timingCurve(0.55, 0, 0.8, 0.2, duration: Motion.gridLeave)
+    .timingCurve(0.55, 0, 0.8, 0.2, duration: reduced ? Motion.gridLeaveReduced : Motion.gridLeave)
 }
 
-/// `cubic-bezier(.2,.7,.2,1)`: the reflow settles in -- the rest moving into the gap a card left.
+/// `cubic-bezier(.2,.7,.2,1)`: the reflow settles in -- the rest moving into the gap a card left. With
+/// reduced motion too: "a 200 ms fade, then the reflow".
 let gridReflowAnimation: Animation = .timingCurve(0.2, 0.7, 0.2, 1, duration: Motion.gridReflow)
 
 /// What a list's cards in flight share with the layer that draws them: one per list, held by it, read
@@ -78,10 +80,13 @@ private struct CardFlyOut: ViewModifier {
             // The slot's box until its flight starts -- then it is the flight's starting point and
             // holds still. The WHOLE box, not the part of it the list shows: a card half below the
             // fold flies at its own size (the 185 fit sweep, 25 Oct 2026).
+            //
+            // Only a LEAVING card's box is kept: every card writing its box on every scroll frame
+            // redrew the layer over the list that many times, for slots nobody flies from.
             .background(GeometryReader { g in
                 let frame = g.frame(in: .named(premiumListSpace))
                 Color.clear
-                    .onAppear { record(frame) }
+                    .onChange(of: leaving, initial: true) { _, _ in record(frame) }
                     .onChange(of: frame) { _, now in record(now) }
             })
             .opacity(inFlight ? 0 : 1)
@@ -90,13 +95,27 @@ private struct CardFlyOut: ViewModifier {
                 guard leaving, settled, !frozen else { return }
                 try? await Task.sleep(nanoseconds: UInt64(Motion.gridLeaveHold * 1_000_000_000))
                 // Not before both boxes are laid out: taken any earlier, the flight has nowhere to aim.
-                guard !Task.isCancelled, leaving, let slot = host.slots[key], host.viewport != .zero else { return }
+                // Waited for, a frame at a time and for half a second at most, never given up on at
+                // the first look -- a card that never flies stays on the list, still leaving.
+                var slot = host.slots[key]
+                var looks = 0
+                while (slot == nil || host.viewport == .zero) && looks < 30 && !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 16_000_000)
+                    slot = host.slots[key]
+                    looks += 1
+                }
+                guard !Task.isCancelled, leaving, let slot, host.viewport != .zero else { return }
                 host.reduced = reduceMotion
                 host.targets[key] = flyOutTarget(card: slot, view: CGRect(origin: .zero, size: host.viewport))
             }
     }
 
     private func record(_ frame: CGRect) {
+        guard leaving else {
+            // A write, even of nothing, is a change the layer redraws for: only when there is one.
+            if host.slots[key] != nil { host.slots[key] = nil }
+            return
+        }
         if !host.isFlying(key) { host.slots[key] = frame }
     }
 }

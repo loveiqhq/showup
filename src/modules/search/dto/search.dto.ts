@@ -300,7 +300,7 @@ export class SearchGridDto {
 
   @ApiProperty({
     type: [SearchGridCardDto],
-    description: 'In queue order, at most 60',
+    description: 'In queue order, at most 100: the availability re-check bound',
   })
   cards: SearchGridCardDto[];
 

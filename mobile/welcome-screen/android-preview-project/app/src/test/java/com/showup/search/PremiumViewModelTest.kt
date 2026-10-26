@@ -687,4 +687,98 @@ class PremiumViewModelTest {
         val after = onGrid(saved)
         assertNull(after.state.value.opened)
     }
+
+    // ── the audit of 26 Oct 2026 ────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `a card answered this session never comes back on the next read, even before the server has it`() = runTest(dispatcher) {
+        val vm = onGrid()
+        vm.open(PremiumSurface.Grid, sofia)
+        vm.like()
+        vm.continueToMessage()
+        vm.skipMessage()
+        vm.open(PremiumSurface.Grid, "sample-maya")
+        vm.pass(SearchAnalytics.PassType.NotNow)
+        advanceUntilIdle()
+        // The fake server still lists both: the read raced the answers.
+        vm.visit("Europe/Berlin", emptyList(), null)
+        advanceUntilIdle()
+        val ids = vm.state.value.grid.cards.map { it.userId }
+        assertFalse("a liked card", sofia in ids)
+        assertFalse("a Not now card is gone on the next visit, as the pool rules have it", "sample-maya" in ids)
+    }
+
+    @Test
+    fun `a declined like never comes back on the list, and a Not now one stays, open`() = runTest(dispatcher) {
+        val vm = onLikes()
+        vm.openCard(PremiumSurface.Likes, anna)
+        vm.pass(SearchAnalytics.PassType.NotInterested)
+        vm.leave()
+        vm.openCard(PremiumSurface.Likes, leonie)
+        vm.pass(SearchAnalytics.PassType.NotNow)
+        advanceUntilIdle()
+        events.clear()
+        vm.likesArrived("Europe/Berlin", ProfileScreen.SearchGrid)
+        advanceUntilIdle()
+        assertEquals(listOf(leonie, clara), vm.state.value.likes.cards.map { it.userId })
+        assertEquals("the counts are the list's", 1, props(SearchAnalytics.LIKES_RECEIVED_VIEWED)["open_count"])
+        assertEquals(1, props(SearchAnalytics.LIKES_RECEIVED_VIEWED)["closed_count"])
+        assertEquals(1, vm.state.value.likesBadge)
+    }
+
+    @Test
+    fun `a won confirm that lands after the profile closed still takes the card off its list`() = runTest(dispatcher) {
+        val vm = onLikes()
+        vm.openCard(PremiumSurface.Likes, anna)
+        vm.like()
+        vm.confirmDate()
+        vm.closeProfileForElsewhere()
+        advanceUntilIdle()
+        assertTrue(vm.card(PremiumSurface.Likes, anna).gone)
+        assertNull(vm.state.value.opened)
+    }
+
+    @Test
+    fun `a visit forgets the like flow it closed, so a later process death cannot reopen it`() = runTest(dispatcher) {
+        val saved = SavedStateHandle()
+        val vm = onGrid(saved)
+        vm.open(PremiumSurface.Grid, sofia)
+        vm.like()
+        assertNotNull(saved.get<String>("search.like.for"))
+        vm.visit("Europe/Berlin", emptyList(), null)
+        assertNull(saved.get<String>("search.like.for"))
+    }
+
+    @Test
+    fun `the Undo window follows the phone's accessibility settings, never under 6 s`() = runTest(dispatcher) {
+        val vm = onGrid()
+        vm.setUndoWindow(20_000)
+        vm.open(PremiumSurface.Grid, anna)
+        vm.pass(SearchAnalytics.PassType.NotInterested)
+        runCurrent()
+        advanceTimeBy(19_000)
+        assertNotNull(vm.state.value.undo)
+        advanceTimeBy(1_001)
+        advanceUntilIdle()
+        assertNull(vm.state.value.undo)
+        vm.setUndoWindow(1_000)
+        vm.open(PremiumSurface.Grid, leonie)
+        vm.pass(SearchAnalytics.PassType.NotInterested)
+        runCurrent()
+        advanceTimeBy(5_999)
+        assertNotNull("never shorter than the ticket's 6 s", vm.state.value.undo)
+    }
+
+    @Test
+    fun `the Likes list's place is kept for the next visit, back at the top when the list changed`() = runTest(dispatcher) {
+        val vm = onLikes()
+        vm.likesScrolled(LikesScroll(2, 40))
+        vm.likesArrived("Europe/Berlin", ProfileScreen.SearchGrid)
+        advanceUntilIdle()
+        assertEquals(LikesScroll(2, 40), vm.likesScroll)
+        store.likesList = SearchSamples.LIKES.take(2)
+        vm.likesArrived("Europe/Berlin", ProfileScreen.SearchGrid)
+        advanceUntilIdle()
+        assertEquals(LikesScroll(), vm.likesScroll)
+    }
 }

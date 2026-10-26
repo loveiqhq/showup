@@ -89,7 +89,6 @@ private struct GridCards: View {
 
     @State private var host = FlyOutHost()
     @State private var tallest: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { g in
@@ -113,7 +112,7 @@ private struct GridCards: View {
                 }
                 .padding(EdgeInsets(top: 4, leading: 16, bottom: 16, trailing: 16))
                 // The reflow: the rest move into their new slots, `Motion.gridReflow`.
-                .animation(reduceMotion ? nil : gridReflowAnimation, value: grid.shown.map(\.userId))
+                .animation(gridReflowAnimation, value: grid.shown.map(\.userId))
             }
             .coordinateSpace(name: premiumListSpace)
             .overlay {
@@ -179,13 +178,15 @@ struct PremiumGridCard: View {
                 Button(action: onOpen) { tile(dim: dim, ring: ring) }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(Text(gridCardLabel(card.name, notNow: card.notNow, leaving: card.leaving)))
+                    .accessibilityLabel(Text(gridCardLabel(card.name, notNow: card.notNow, leaving: card.leaving,
+                                                           likedYou: card.likedYou)))
                     .accessibilityAddTraits(.isButton)
             } else {
                 tile(dim: dim, ring: ring)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text(closed.map { $0.gridLabel(card.name) }
-                                             ?? gridCardLabel(card.name, notNow: card.notNow, leaving: card.leaving)))
+                                             ?? gridCardLabel(card.name, notNow: card.notNow, leaving: card.leaving,
+                                                              likedYou: card.likedYou)))
             }
             if dim {
                 PillLabel(text: closed?.pill ?? (card.notNow ? PremiumCopy.notNowLabel : PremiumCopy.notInterestedLabel))
@@ -277,8 +278,17 @@ private struct CardInfo: View {
                 MetaLine(full: gridMetaLine(profile, zone: zone),
                          time: meetLine(profile.meetAt, day: profile.meetDay, zone: zone),
                          distance: searchDistance(profile.distanceKm))
-                    .fitAnchor(FitAnchorID.gridMeta(card.userId))
-                if let m = motivationOf(profile.motivation) { MotivationLine(title: m.title) }
+                    // The card's own, not the height probe's copy of it, is the one the fit tests read.
+                    .fitAnchor(glass ? FitAnchorID.gridMeta(card.userId) : "probe-meta-\(card.userId)")
+                if let m = motivationOf(profile.motivation) {
+                    // "The motivation label on one line with ellipsis" (Search 02): the whole label is
+                    // on the profile one tap away.
+                    Text(m.title)
+                        .font(F.manrope(11.5, .medium))
+                        .foregroundColor(Color.white.opacity(0.92))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -304,32 +314,6 @@ private struct MetaLine: View {
 
     private func line(_ text: String) -> Text {
         Text(text).font(F.manrope(11.5, .bold)).foregroundColor(.white)
-    }
-}
-
-/// The motivation, "on one line": as drawn wherever it fits; a little smaller where it nearly does (a
-/// long label on a narrow card); and on a second line where even that would cut it, or at a larger type
-/// -- an ellipsis would hide words the user is meant to read, and enlarged text is text the user asked
-/// to read (the 185 fit sweep, 25 Oct 2026).
-private struct MotivationLine: View {
-    let title: String
-
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    var body: some View {
-        if typeSize > .large {
-            label(11.5)
-        } else {
-            ViewThatFits(in: .horizontal) {
-                label(11.5).lineLimit(1).fixedSize()
-                label(11.5 * 0.85).lineLimit(1).fixedSize()
-                label(11.5).lineLimit(2)
-            }
-        }
-    }
-
-    private func label(_ size: CGFloat) -> Text {
-        Text(title).font(F.manrope(size, .medium)).foregroundColor(Color.white.opacity(0.92))
     }
 }
 

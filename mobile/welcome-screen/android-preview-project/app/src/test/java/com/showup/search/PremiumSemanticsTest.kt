@@ -62,7 +62,10 @@ class PremiumSemanticsTest {
     @Test
     fun `every grid card is one button named Open name's profile, and the heart is not a second control`() = runComposeUiTest {
         setContent { SearchGridScreen(grid, SearchSamples.ZONE) }
-        for (c in grid.grid.cards) onNode(button("Open ${c.name}'s profile")).assertExists()
+        // A card that liked the viewer says so: its badge is read as part of it.
+        for (c in grid.grid.cards) {
+            onNode(button(if (c.likedYou) "Open ${c.name}'s profile, liked you" else "Open ${c.name}'s profile")).assertExists()
+        }
         // Six cards, six buttons -- nothing else in the grid takes a tap.
         val cards = onAllNodes(hasClickAction() and hasContentDescription("profile", substring = true)).fetchSemanticsNodes()
         assertEquals(6, cards.size)

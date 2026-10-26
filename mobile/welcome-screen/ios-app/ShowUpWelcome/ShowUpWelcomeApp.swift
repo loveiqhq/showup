@@ -316,6 +316,9 @@ private struct TutorialFlow: View {
     /// The grid or the Likes list has settled under a profile that closed: the pop has finished, so a
     /// card waiting to fly out may go -- "t = 0 when the back transition has settled".
     @State private var listSettled = true
+    /// The profile last opened from a list, kept after it closes so the popped screen slides away
+    /// showing that profile -- not the empty queue under the grid (`openedProfile`).
+    @State private var heldOpened: Opened?
 
     /// THE APP'S BACK STACK (AppRoute.swift) FOLLOWS THE SEARCH MODEL: the profile opened from the grid
     /// or the Likes list is pushed while the model holds it open, and popped when it closes -- one
@@ -944,10 +947,21 @@ private struct TutorialFlow: View {
     /// THE PROFILE, OPENED FROM THE GRID OR THE LIKES LIST (SHOWUP-185, 186): Search 01's screen,
     /// extended, pushed over the flow. The list keeps its scroll position underneath.
     private var openedProfile: some View {
-        let fromLikes = search.state.opened?.from == .likes
+        // AS IT LEAVES, THE PROFILE IT WAS, its sheets, viewer and coach closed. Drawn live, the popped
+        // screen slid away showing the empty queue under the grid -- "No results", the wrong tab, no
+        // back pill.
+        var shown = search.state
+        if shown.opened == nil, let held = heldOpened {
+            shown.opened = held
+            shown.sheet = nil
+            shown.viewerAt = nil
+            shown.coach = false
+            shown.confirming = false
+        }
+        let fromLikes = shown.opened?.from == .likes
         let here: AppTab = fromLikes ? .likes : .search
         return SearchProfileView(
-            state: search.state,
+            state: shown,
             zone: .current,
             player: sharedMediaPlayer.surface,
             onLike: { search.like() },
@@ -1171,7 +1185,9 @@ private struct TutorialFlow: View {
                     case .likes: break
                     }
                 },
-                onRetry: { search.likesRetry(zone: TimeZone.current.identifier) })
+                onRetry: { search.likesRetry(zone: TimeZone.current.identifier) },
+                scrollAnchor: search.likesScrollAnchor,
+                onScrolled: { search.likesScrolled($0) })
                 .onAppear {
                     attachSearch()
                     guard !search.takeReturn(.likes) else { return }
@@ -1385,6 +1401,9 @@ private struct TutorialFlow: View {
                     case .searchProfile: openedProfile
                     }
                 }
+        }
+        .onChange(of: search.state.opened) { _, now in
+            if let now { heldOpened = now }
         }
         // The profile closed onto its list: the pop runs, and the list settles once it has.
         .onChange(of: search.state.opened == nil) { _, closed in

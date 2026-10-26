@@ -199,6 +199,12 @@ final class SearchModel {
     /// Who has been decided on this session, so a refill never brings them back mid-request.
     private var decided: Set<String> = []
 
+    /// Who got a FINAL answer this session -- a like, a confirm, a decline, Not interested: never back
+    /// on the Likes list. Narrower than `decided`: a `Not now` leaves a received like open, on the list
+    /// ("it stays open in the Likes tab until it closes"). Both cover the moment a read returns before
+    /// the answer it raced has landed on the server.
+    private var answered: Set<String> = []
+
     /// The visit's reported `filters_active`, kept for a reload after Filters.
     private var filtersActive: [String] = []
 
@@ -214,6 +220,11 @@ final class SearchModel {
     /// The list a profile just closed onto, which has had its `screen_viewed` and its re-check: its
     /// screen appearing again under the popped profile is not an arrival (`takeReturn`).
     private var returnedTo: PremiumSurface?
+
+    /// Where the Likes list was when its tab was left -- the first card showing -- for the next visit;
+    /// nil, the top, once the list read back different ("Switching tabs and coming back restores the
+    /// scroll position unless the list reloaded").
+    private(set) var likesScrollAnchor: String?
 
     // Per profile, for `profile_card_viewed`.
     private var shownAt = 0
@@ -323,6 +334,7 @@ final class SearchModel {
             state.viewerAt = nil
             loadQueue(zone: zone)
         }
+        keepLikeFlow()
     }
 
     /// Filters saved new settings; the return to Search reads the queue or the grid under them.
@@ -354,6 +366,9 @@ final class SearchModel {
         // The plan last read (at the last foreground) draws the loading frame; the session read below
         // confirms it before anything but the spinner is shown.
         state.layout = state.premium ? .grid : .oneUp
+        // The sheet the reset closed is forgotten too. One the process lost is still held in
+        // `unfinished`, and is kept again when its person comes back.
+        keepLikeFlow()
         loadTask?.cancel()
         let store = self.store
         loadTask = Task { [weak self] in
@@ -444,7 +459,10 @@ final class SearchModel {
             state.grid.failure = why
         case .success(let g):
             report(SearchAnalytics.searchViewed(resultsCount: g.resultsCount, filtersActive: filtersActive, layout: .grid))
-            let cards = g.cards.map { c in
+            // Nobody already decided this session, as the queue: a `Not now` card is gone on the next
+            // visit (the Search 01 pool rules), and an answer still on its way to the server does not
+            // bring its card back.
+            let cards = g.cards.filter { !decided.contains($0.profile.userId) }.map { c in
                 PremiumCard(userId: c.profile.userId, name: c.profile.name, age: c.profile.age,
                             photo: c.profile.photos.first ?? nil, profile: c.profile, likedYou: c.likedYou)
             }
@@ -472,6 +490,11 @@ final class SearchModel {
         readLikes(zone: zone)
     }
 
+    /// The Likes list moved: the first card showing.
+    func likesScrolled(_ anchor: String?) {
+        likesScrollAnchor = anchor
+    }
+
     /// `Retry` on the list's failed state.
     func likesRetry(zone: String) {
         state.likes.loading = true
@@ -490,14 +513,20 @@ final class SearchModel {
                 self.state.likes.loading = false
                 self.state.likes.failure = why
             case .success(let l):
-                self.report(SearchAnalytics.likesReceivedViewed(openCount: l.openCount, closedCount: l.closedCount))
-                let cards = l.cards.map { c in
+                // Nobody given a final answer this session: a decline or a confirm still on its way to
+                // the server leaves no card behind. The counts are the list's, as drawn -- "the badge
+                // equals the open cards on the list".
+                let kept = l.cards.filter { !self.answered.contains($0.userId) }
+                let openCount = kept.filter { $0.closed == nil }.count
+                self.report(SearchAnalytics.likesReceivedViewed(openCount: openCount, closedCount: kept.count - openCount))
+                let cards = kept.map { c in
                     PremiumCard(userId: c.userId, name: c.name, age: c.age, photo: c.photo, profile: c.profile,
                                 likedYou: true, message: c.message, closed: c.closed)
                 }
                 let old = self.state.likes.cards
                 let same = old.map(\.userId) == cards.map(\.userId) && old.map(\.closed) == cards.map(\.closed)
-                self.state.likesOpen = l.openCount
+                if !same { self.likesScrollAnchor = nil }
+                self.state.likesOpen = openCount
                 self.state.viewer = l.viewer
                 self.state.likes = PremiumList(loading: false, cards: cards,
                                                generation: same ? self.state.likes.generation : self.state.likes.generation + 1)
@@ -795,6 +824,7 @@ final class SearchModel {
         state.sheet = nil
         keepLikeFlow()
         decided.insert(profile.userId)
+        answered.insert(profile.userId)
         let store = self.store
         let target = profile.userId
         sendInBackground { await store.like(targetUserId: target, message: message, position: position) }
@@ -824,11 +854,23 @@ final class SearchModel {
                 self.state.confirming = false
             case .success(.won):
                 self.decided.insert(opened.userId)
-                self.returnToList { card in
-                    if opened.from == .grid {
-                        card.leaving = .liked
-                    } else {
-                        card.gone = true
+                self.answered.insert(opened.userId)
+                if self.state.opened == opened {
+                    self.returnToList { card in
+                        if opened.from == .grid {
+                            card.leaving = .liked
+                        } else {
+                            card.gone = true
+                        }
+                    }
+                } else {
+                    // The profile closed while the server decided: the match stands, and its card
+                    // leaves the list all the same.
+                    self.updateList(opened.from) { list in
+                        if let i = list.cards.firstIndex(where: { $0.userId == opened.userId }) {
+                            list.cards[i].leaving = nil
+                            list.cards[i].gone = true
+                        }
                     }
                 }
                 self.refreshLikesOpen()
@@ -871,6 +913,7 @@ final class SearchModel {
         }
         report(SearchAnalytics.passSent(position: position, passType: type))
         decided.insert(profile.userId)
+        if type == .notInterested { answered.insert(profile.userId) }
         let store = self.store
         let target = profile.userId
         sendInBackground { await store.pass(targetUserId: target, type: type) }
@@ -970,6 +1013,7 @@ final class SearchModel {
         undoTask = nil
         state.undo = nil
         decided.insert(toast.userId)
+        answered.insert(toast.userId)
         report(SearchAnalytics.passSent(position: toast.position, passType: .notInterested, surface: toast.surface))
         let store = self.store
         let delays = retryDelays

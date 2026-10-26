@@ -128,11 +128,16 @@ enum class Leave { Liked, NotInterested }
 /**
  * A grid card's accessible name, mark included (Search 02: "a marked card announces its mark as part
  * of its name; the mark is never colour-only"). The closed card is not a control and has its own.
+ *
+ * [likedYou]: the `Liked you` badge, read as part of the card ("read as part of its card") -- what a
+ * sighted user sees on it, a screen reader hears. Only while the badge is drawn: a marked card has
+ * none, and during the fly-out the card's own mark is the news.
  */
-fun gridCardLabel(name: String, notNow: Boolean, leaving: Leave?): String = when {
+fun gridCardLabel(name: String, notNow: Boolean, leaving: Leave?, likedYou: Boolean = false): String = when {
     leaving == Leave.Liked -> PremiumCopy.CARD_LABEL_LIKED.format(name)
     leaving == Leave.NotInterested -> "${PremiumCopy.CARD_LABEL.format(name)}, ${PremiumCopy.NOT_INTERESTED_LABEL.lowercase()}"
     notNow -> PremiumCopy.CARD_LABEL_NOT_NOW.format(name)
+    likedYou -> "${PremiumCopy.CARD_LABEL.format(name)}, ${PremiumCopy.LIKED_YOU.lowercase()}"
     else -> PremiumCopy.CARD_LABEL.format(name)
 }
 

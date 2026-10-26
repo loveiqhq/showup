@@ -28,10 +28,10 @@ package com.showup.search
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import com.showup.designsystem.Motion
 import com.showup.designsystem.rememberMotion
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -71,9 +72,11 @@ val GridLeaveEasing = CubicBezierEasing(0.55f, 0f, 0.8f, 0.2f)
 /** `cubic-bezier(.2,.7,.2,1)`: the reflow settles in. */
 val GridReflowEasing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)
 
-/** The reflow, as a lazy list's item placement takes it. */
-fun gridReflowSpec(motionEnabled: Boolean): FiniteAnimationSpec<IntOffset> =
-    tween(if (motionEnabled) Motion.GRID_REFLOW else 0, easing = GridReflowEasing)
+/**
+ * The reflow, as a lazy list's item placement takes it. With reduced motion too ("a 200 ms fade, then
+ * the reflow"); the system's own animation scale shortens it, to nothing when animations are off.
+ */
+fun gridReflowSpec(): FiniteAnimationSpec<IntOffset> = tween(Motion.GRID_REFLOW, easing = GridReflowEasing)
 
 /** How far into a frozen flight [freezeMs] is, eased; null for a live list. */
 fun frozenProgress(freezeMs: Int?): Float? =
@@ -122,6 +125,7 @@ fun Modifier.cardFlyOut(
     val motion = rememberMotion()
     val progress = remember { Animatable(0f) }
     val left by rememberUpdatedState(onLeft)
+    val leavingNow by rememberUpdatedState(leaving)
     val frozen = freezeMs != null
 
     LaunchedEffect(leaving, settled, freezeMs) {
@@ -138,12 +142,33 @@ fun Modifier.cardFlyOut(
         host.shrinks = motion.enabled
         progress.snapTo(0f)
         host.flights[key] = 0f
-        progress.animateTo(
-            1f,
-            if (motion.enabled) tween(Motion.GRID_LEAVE, easing = GridLeaveEasing) else tween(Motion.GRID_LEAVE_REDUCED, easing = LinearEasing),
-        ) { host.flights[key] = value }
-        host.flights.remove(key)
+        try {
+            progress.animateTo(
+                1f,
+                // Reduced motion: the reference's fade, 200 ms on the flight's own curve.
+                tween(if (motion.enabled) Motion.GRID_LEAVE else Motion.GRID_LEAVE_REDUCED, easing = GridLeaveEasing),
+            ) { host.flights[key] = value }
+        } catch (stopped: CancellationException) {
+            // INTERRUPTED -- Undo, or the list no longer the settled screen. The copy goes with the
+            // flight, never left frozen half-faded over the list; the card is drawn in its slot again
+            // and, still leaving, flies again once the list settles.
+            host.flights.remove(key)
+            throw stopped
+        }
+        // LANDED. The copy stays, invisible at the end of its flight, until the card has left the
+        // list: removed first, the slot was drawn again for the frame before `onLeft` landed.
         left()
+    }
+
+    // The card leaving the screen while on its way out -- scrolled away mid-flight, or the list
+    // itself going -- finishes it at once, as opening another card does: no copy is left behind for
+    // a slot that is no longer there.
+    DisposableEffect(key) {
+        onDispose {
+            host.flights.remove(key)
+            host.slots.remove(key)
+            if (leavingNow) left()
+        }
     }
 
     // Hidden while a copy of it flies -- live, or frozen for the evidence frame.

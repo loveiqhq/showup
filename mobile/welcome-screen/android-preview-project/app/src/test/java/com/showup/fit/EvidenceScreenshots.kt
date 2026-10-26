@@ -1032,4 +1032,32 @@ class EvidenceScreenshots {
         images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
         println("EVIDENCE 186: ${images.size} images in ${out.absolutePath}")
     }
+
+    /**
+     * The grid and the Likes tab where they are tightest: the 320-wide Fold cover screen at a common
+     * enlarged type and at the largest. The fit sweep measures what it can -- text cut at its foot,
+     * nodes off the screen -- but not a single line cut at its END, which only a picture shows.
+     */
+    @Test
+    fun `the Premium grid and the Likes tab, at the narrowest phone and enlarged type`() {
+        val zone = com.showup.search.SearchSamples.ZONE
+        val tight = listOf(DEVICES.first { it.width == 320 })
+        for (scale in listOf(1.3f, 2f)) {
+            shoot("TIGHT", "185-grid", fontScale = scale, devices = tight) {
+                com.showup.search.SearchGridScreen(state = GridStates.b, zone = zone)
+            }
+            shoot("TIGHT", "185-profile-confirm-date", fontScale = scale, devices = tight) {
+                com.showup.search.SearchProfileScreen(GridStates.c, zone)
+            }
+            shoot("TIGHT", "185-sorry", fontScale = scale, devices = tight) {
+                com.showup.search.SearchProfileScreen(GridStates.h, zone)
+            }
+            shoot("TIGHT", "186-likes", fontScale = scale, devices = tight) {
+                com.showup.search.LikesReceivedScreen(state = LikesStates.d, zone = zone)
+            }
+            shoot("TIGHT", "186-closed", fontScale = scale, devices = tight) {
+                com.showup.search.LikesReceivedScreen(state = LikesStates.e, zone = zone)
+            }
+        }
+    }
 }

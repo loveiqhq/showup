@@ -774,4 +774,72 @@ final class PremiumModelTests: XCTestCase {
         m.clearReturn()
         XCTAssertFalse(m.takeReturn(.grid), "a move inside the flow forgets it")
     }
+
+    // MARK: - the audit of 26 Oct 2026
+
+    func testACardAnsweredThisSessionNeverComesBackOnTheNextReadEvenBeforeTheServerHasIt() async {
+        let m = await onGrid()
+        open(m, .grid, sofia)
+        m.like()
+        m.continueToMessage()
+        m.skipMessage()
+        open(m, .grid, maya)
+        m.pass(.notNow)
+        await settle()
+        // The fake server still lists both: the read raced the answers.
+        m.visit(zone: "Europe/Berlin", filtersActive: [], referrer: nil)
+        await settle()
+        let ids = m.state.grid.cards.map(\.userId)
+        XCTAssertFalse(ids.contains(sofia), "a liked card")
+        XCTAssertFalse(ids.contains(maya), "a Not now card is gone on the next visit, as the pool rules have it")
+    }
+
+    func testADeclinedLikeNeverComesBackOnTheListAndANotNowOneStaysOpen() async {
+        let m = await onLikes()
+        m.openCard(.likes, userId: anna)
+        m.pass(.notInterested)
+        m.leave()
+        m.openCard(.likes, userId: leonie)
+        m.pass(.notNow)
+        await settle()
+        events.clear()
+        m.likesArrived(zone: "Europe/Berlin", referrer: .searchGrid)
+        await settle()
+        XCTAssertEqual(m.state.likes.cards.map(\.userId), [leonie, clara])
+        XCTAssertEqual(props(SearchAnalytics.likesReceivedViewedName)["open_count"] as? Int, 1, "the counts are the list's")
+        XCTAssertEqual(props(SearchAnalytics.likesReceivedViewedName)["closed_count"] as? Int, 1)
+        XCTAssertEqual(m.state.likesBadge, 1)
+    }
+
+    func testAWonConfirmThatLandsAfterTheProfileClosedStillTakesTheCardOffItsList() async {
+        let m = await onLikes()
+        m.openCard(.likes, userId: anna)
+        m.like()
+        m.confirmDate()
+        m.closeProfileForElsewhere()
+        await settle()
+        XCTAssertEqual(card(m, .likes, anna)?.gone, true)
+        XCTAssertNil(m.state.opened)
+    }
+
+    func testAVisitForgetsTheLikeFlowItClosedSoALaterRestartCannotReopenIt() async {
+        let m = await onGrid()
+        open(m, .grid, sofia)
+        m.like()
+        XCTAssertFalse(stored.isEmpty)
+        m.visit(zone: "Europe/Berlin", filtersActive: [], referrer: nil)
+        XCTAssertEqual(stored, "")
+    }
+
+    func testTheLikesListsPlaceIsKeptForTheNextVisitBackAtTheTopWhenTheListChanged() async {
+        let m = await onLikes()
+        m.likesScrolled(leonie)
+        m.likesArrived(zone: "Europe/Berlin", referrer: .searchGrid)
+        await settle()
+        XCTAssertEqual(m.likesScrollAnchor, leonie)
+        await store.setLikesList(Array(SearchSamples.likes.prefix(2)))
+        m.likesArrived(zone: "Europe/Berlin", referrer: .searchGrid)
+        await settle()
+        XCTAssertNil(m.likesScrollAnchor)
+    }
 }
