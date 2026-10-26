@@ -41,4 +41,17 @@ enum FitAnchorID {
     static let searchMeetLine = "search-meet-line"
     static let searchMeetCount = "search-meet-count"
     static let tabBar = "tab-bar"
+
+    // The Premium grid and the Likes tab (SHOWUP-185, 186).
+    static let searchGrid = "search-grid"
+    static let likesList = "likes-list"
+    static let likesEmpty = "likes-empty"
+    static let likesEmptyAction = "likes-empty-action"
+    static let undoToast = "undo-toast"
+    static let sorryButton = "sorry-button"
+    static let backPill = "back-pill"
+    static let viewProfile = "view-profile"
+    static func gridCard(_ userId: String) -> String { "grid-card-\(userId)" }
+    static func gridMeta(_ userId: String) -> String { "grid-meta-\(userId)" }
+    static func likesCard(_ userId: String) -> String { "likes-card-\(userId)" }
 }

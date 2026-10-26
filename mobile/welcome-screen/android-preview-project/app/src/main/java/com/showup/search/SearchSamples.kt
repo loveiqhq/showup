@@ -111,4 +111,68 @@ object SearchSamples {
         likesOpen = likes,
         viewer = VIEWER,
     )
+
+    // ── the Premium grid and the Likes tab (SHOWUP-185, 186) ────────────────────────────────────
+
+    /** `HH:MM` in [ZONE] on 22 Oct 2026 (today) or the 23rd (tomorrow): the reference's meet times. */
+    private fun meet(hhmm: String, tomorrow: Boolean = false): Instant =
+        java.time.LocalDateTime.parse("2026-10-${if (tomorrow) 23 else 22}T$hhmm").atZone(ZONE).toInstant()
+
+    /** A card opened as the full profile: Leonie's sections, the card's own fields (`premiumProfile`). */
+    private fun person(
+        id: String, name: String, age: Int?, km: Int, motivation: String, hhmm: String, tomorrow: Boolean, attended: Int,
+    ) = FULL.copy(
+        userId = id, name = name, age = age, distanceKm = km, motivation = motivation,
+        meetAt = meet(hhmm, tomorrow), meetDay = if (tomorrow) "tomorrow" else "today", attendedCount = attended,
+    )
+
+    /**
+     * `PREMIUM_GRID`, in its order: Leonie and Anna liked the viewer. Distances as the server rounds
+     * the reference's 1.2 / 2.4 / 0.6 / 1.8 / 4.0 / 2.0 km.
+     */
+    val GRID: List<GridCard> = listOf(
+        GridCard(person("sample-leonie", "Leonie", 28, 1, "long_term", "19:00", false, 4), likedYou = true),
+        GridCard(person("sample-sofia", "Sofia", 31, 2, "casual", "20:00", false, 2), likedYou = false),
+        GridCard(person("sample-maya", "Maya", null, 0, "non_monogamy", "18:00", true, 0), likedYou = false),
+        GridCard(person("sample-anna", "Anna", 27, 2, "long_term", "18:00", false, 9), likedYou = true),
+        GridCard(person("sample-emma", "Emma", 32, 4, "friends", "21:00", false, 1), likedYou = false),
+        GridCard(person("sample-liv", "Liv", 30, 2, "short_term", "17:30", true, 0), likedYou = false),
+    )
+
+    /** Leonie's message, as `LIKES_RECEIVED` writes it. */
+    const val LEONIE_MESSAGE = "I love that you're into cooking too. Coffee at Bonanza?"
+
+    /**
+     * `likesOrder(LIKES_RECEIVED)`: earliest meet time first (Anna 18:00, Leonie 19:00), then Clara's
+     * closed like -- she matched someone else. The badge counts the two open ones.
+     */
+    val LIKES: List<LikeReceived> = listOf(
+        GRID[3].profile.let { LikeReceived(it.userId, it.name, it.age, "", closed = null, message = null, profile = it) },
+        GRID[0].profile.let { LikeReceived(it.userId, it.name, it.age, "", closed = null, message = LEONIE_MESSAGE, profile = it) },
+        LikeReceived("sample-clara", "Clara", 29, "", closed = CloseReason.Matched, message = null, profile = null),
+    )
+
+    /** The grid as the view model holds it after a load. */
+    fun gridCards(): List<PremiumCard> = GRID.map { c ->
+        PremiumCard(c.profile.userId, c.profile.name, c.profile.age, c.profile.photos.firstOrNull().orEmpty(), c.profile, c.likedYou)
+    }
+
+    /** The likes list as the view model holds it after a load. */
+    fun likeCards(): List<PremiumCard> = LIKES.map { l ->
+        PremiumCard(l.userId, l.name, l.age, l.photo, l.profile, likedYou = true, message = l.message, closed = l.closed)
+    }
+
+    /** The grid at rest (A), for previews and the evidence frames. */
+    fun gridRest(likes: Int = 2) = SearchUiState(
+        loading = false, likesOpen = likes, premium = true, viewer = VIEWER,
+        layout = SearchAnalytics.Layout.Grid,
+        grid = PremiumList(loading = false, cards = gridCards()),
+    )
+
+    /** The Likes tab at rest (A). */
+    fun likesRest() = SearchUiState(
+        loading = false, likesOpen = 2, premium = true, viewer = VIEWER,
+        layout = SearchAnalytics.Layout.Grid,
+        likes = PremiumList(loading = false, cards = likeCards()),
+    )
 }

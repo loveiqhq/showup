@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsUUID } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEnum, IsUUID } from 'class-validator';
 
 import {
   CHECK_IN_MOTIVATIONS,
@@ -267,6 +267,164 @@ export class CreateSearchPassDto {
 export class LikesOpenCountDto {
   @ApiProperty({ type: 'integer' })
   count: number;
+}
+
+// ── Search 02, the Premium grid (SHOWUP-185) ─────────────────────────────────────────────────────
+
+/**
+ * One card of the Premium grid: the Search 01 profile, whole, and whether this person liked the
+ * viewer. The card draws the first photo, name, age, distance, meet time, motivation and
+ * `attendedCount`; the rest is what the profile shows when the card is opened -- carried here so it
+ * opens with no second request, and so its photos and recordings load only then.
+ */
+export class SearchGridCardDto {
+  @ApiProperty({ type: SearchProfileDto })
+  profile: SearchProfileDto;
+
+  @ApiProperty({
+    description:
+      'This person has an open like to the viewer: the Liked you badge, and Like on their profile ' +
+      'becomes Confirm date',
+  })
+  likedYou: boolean;
+}
+
+/** The Premium grid: the whole queue, in queue order, with only people still available. */
+export class SearchGridDto {
+  @ApiProperty({
+    type: 'integer',
+    description:
+      'Every profile in the queue right now (search_viewed results_count)',
+  })
+  resultsCount: number;
+
+  @ApiProperty({
+    type: [SearchGridCardDto],
+    description: 'In queue order, at most 100: the availability re-check bound',
+  })
+  cards: SearchGridCardDto[];
+
+  @ApiProperty({ type: SearchViewerDto })
+  viewer: SearchViewerDto;
+}
+
+/** The availability re-check: every card on screen, in one call. */
+export class SearchAvailabilityRequestDto {
+  @ApiProperty({ type: [String], maxItems: 100 })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  userIds: string[];
+}
+
+/** One person's status, as the re-check reads it. */
+export class SearchAvailabilityDto {
+  @ApiProperty()
+  userId: string;
+
+  @ApiProperty({
+    type: String,
+    description:
+      'available, matched (they have a date with someone else) or no_overlap (no time left to ' +
+      'meet). Read tolerantly: a newer server may add values, and an app treats one it does not ' +
+      'know as no change.',
+  })
+  status: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: 'date-time',
+    description:
+      'The earliest hour both can still meet in -- only when available',
+  })
+  meetAt?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description: 'today or tomorrow for meetAt, in the zone the viewer sent',
+  })
+  meetDay?: string;
+}
+
+export class SearchAvailabilityListDto {
+  @ApiProperty({
+    type: [SearchAvailabilityDto],
+    description: 'One per id asked for, in the order asked',
+  })
+  statuses: SearchAvailabilityDto[];
+}
+
+// ── Search 03, the Likes tab (SHOWUP-186) ────────────────────────────────────────────────────────
+
+/**
+ * One like the viewer received. OPEN: everything the card shows, and `profile` to open it with.
+ * CLOSED (`closed` set): the name and the photo only -- the card has no actions, no distance and no
+ * meet time, because there is no time left to meet.
+ */
+export class LikeReceivedDto {
+  @ApiProperty()
+  userId: string;
+
+  @ApiProperty({ description: 'First name' })
+  name: string;
+
+  @ApiPropertyOptional({
+    type: 'integer',
+    description: 'Absent when the person hides their age',
+  })
+  age?: number;
+
+  @ApiPropertyOptional({
+    type: SearchPhotoDto,
+    description: 'Their first photo',
+  })
+  photo?: SearchPhotoDto;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      'Absent on an open like. matched (Too late) or no_overlap (Out of time) on a closed one. ' +
+      'Read tolerantly.',
+  })
+  closed?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Their optional message, as written -- open likes only. A Premium reader only: this list is.',
+  })
+  message?: string;
+
+  @ApiPropertyOptional({
+    type: SearchProfileDto,
+    description: 'Open likes only: the Search 01 profile the card opens',
+  })
+  profile?: SearchProfileDto;
+}
+
+/**
+ * The Likes tab, read once per visit: open likes, earliest meet time first, then the closed ones not
+ * yet seen on an earlier visit. Reading it marks those closed ones seen.
+ */
+export class LikesReceivedDto {
+  @ApiProperty({
+    type: 'integer',
+    description:
+      'Open likes on the list -- the badge, and likes_received_viewed open_count',
+  })
+  openCount: number;
+
+  @ApiProperty({
+    type: 'integer',
+    description:
+      'Closed cards on the list -- likes_received_viewed closed_count',
+  })
+  closedCount: number;
+
+  @ApiProperty({ type: [LikeReceivedDto] })
+  cards: LikeReceivedDto[];
+
+  @ApiProperty({ type: SearchViewerDto })
+  viewer: SearchViewerDto;
 }
 
 /** Dev menu only: switch this account's plan. 404 in production. */

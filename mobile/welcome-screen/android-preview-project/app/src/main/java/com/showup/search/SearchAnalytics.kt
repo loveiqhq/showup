@@ -1,6 +1,6 @@
 /*
  * SearchAnalytics.kt
- * ShowUp · Date search 01's events, family I (SHOWUP-184)
+ * ShowUp · Date search's events, family I (SHOWUP-184; the grid 185 and the Likes tab 186)
  *
  * Names and payloads exactly as `design_handoff_showup/tracking/events.json` (taxonomy 1.4.20,
  * registry 1.4.29) defines them; `SearchViewModelTest` asserts every row of the ticket's table, its
@@ -26,11 +26,24 @@ object SearchAnalytics {
     const val LIKE_CONFIRM_ABANDONED = "like_confirm_abandoned"
     const val LIKE_MESSAGE_ATTACHED = "like_message_attached"
     const val PASS_SENT = "pass_sent"
+    const val PASS_UNDONE = "pass_undone"
+    const val LIKE_CONFIRM_FAILED = "like_confirm_failed"
+    const val LIKES_RECEIVED_VIEWED = "likes_received_viewed"
     const val SEARCH_COACH_SHOWN = "search_coach_shown"
     const val SEARCH_COACH_DISMISSED = "search_coach_dismissed"
 
-    /** §35 `like_surface`: always `profile` on this screen (`grid_card` retired 21 Oct 2026). */
+    /** §35 `like_surface`: `profile` for every like (`grid_card` retired 21 Oct 2026). */
     const val SURFACE_PROFILE = "profile"
+
+    /**
+     * §35 `like_surface` as `pass_sent` and `pass_undone` use it: `profile`, or `likes_received` for
+     * a decline sent from the Likes list's toast ("because the decline is sent from the list's
+     * toast", Search 03).
+     */
+    enum class Surface(val wire: String) { Profile("profile"), LikesReceived("likes_received") }
+
+    /** §01's `search_viewed` `layout`: the Freemium queue or the Premium grid. */
+    enum class Layout(val wire: String) { OneUp("one_up"), Grid("grid") }
 
     /** §34 `search_pass_type`. One event, two values: never `not_now_tapped`. */
     enum class PassType(val wire: String) { NotNow("not_now"), NotInterested("not_interested") }
@@ -48,8 +61,8 @@ object SearchAnalytics {
      * The queue loaded: once per Search visit. `filters_active` names the §10 filters narrowed from
      * Check-In 05's defaults, never their values (`meet_gender` is Class 2).
      */
-    fun searchViewed(resultsCount: Int, filtersActive: List<String>) = SEARCH_VIEWED to buildMap<String, Any> {
-        put("layout", "one_up")
+    fun searchViewed(resultsCount: Int, filtersActive: List<String>, layout: Layout = Layout.OneUp) = SEARCH_VIEWED to buildMap<String, Any> {
+        put("layout", layout.wire)
         put("results_count", resultsCount)
         put("filters_active", filtersActive)
         putAll(Stamp.of(0))
@@ -96,19 +109,21 @@ object SearchAnalytics {
         putAll(Stamp.of(0))
     }
 
-    /** Be sure shown. `is_mutual` is false here: a confirm of a received like is Search 02/03's. */
-    fun likeConfirmShown(targetAttendedCount: Int) = LIKE_CONFIRM_SHOWN to buildMap<String, Any> {
+    /** Be sure shown. `is_mutual` when confirming a like the viewer received (Search 02, 03). */
+    fun likeConfirmShown(targetAttendedCount: Int, isMutual: Boolean = false) = LIKE_CONFIRM_SHOWN to buildMap<String, Any> {
         put("target_attended_count", targetAttendedCount)
-        put("is_mutual", false)
+        put("is_mutual", isMutual)
         putAll(Stamp.of(0))
     }
 
-    fun likeConfirmAbandoned(stage: AbandonStage, targetAttendedCount: Int) = LIKE_CONFIRM_ABANDONED to buildMap<String, Any> {
-        put("target_attended_count", targetAttendedCount)
-        put("stage", stage.wire)
-        put("is_mutual", false)
-        putAll(Stamp.of(0))
-    }
+    /** A mutual flow has no message step, so its only stage is `confirm`. */
+    fun likeConfirmAbandoned(stage: AbandonStage, targetAttendedCount: Int, isMutual: Boolean = false) =
+        LIKE_CONFIRM_ABANDONED to buildMap<String, Any> {
+            put("target_attended_count", targetAttendedCount)
+            put("stage", stage.wire)
+            put("is_mutual", isMutual)
+            putAll(Stamp.of(0))
+        }
 
     /** `Send message` with a non-empty trimmed text. The text itself is never sent, in any event. */
     fun likeMessageAttached(charCount: Int) = LIKE_MESSAGE_ATTACHED to buildMap<String, Any> {
@@ -116,11 +131,35 @@ object SearchAnalytics {
         putAll(Stamp.of(0))
     }
 
-    /** On the tap: there is no undo on this screen. */
-    fun passSent(position: Int, passType: PassType) = PASS_SENT to buildMap<String, Any> {
+    /**
+     * On the tap -- except a declined received like, which is sent when its 6 s Undo window ends
+     * (Search 02, 03). `position` is 1-based in the queue, the grid or the list for this visit.
+     */
+    fun passSent(position: Int, passType: PassType, surface: Surface = Surface.Profile) = PASS_SENT to buildMap<String, Any> {
         put("position", position)
         put("pass_type", passType.wire)
+        put("surface", surface.wire)
+        putAll(Stamp.of(0))
+    }
+
+    /** `Undo` on the decline toast: nothing was sent, and no `pass_sent` follows. */
+    fun passUndone(position: Int, surface: Surface) = PASS_UNDONE to buildMap<String, Any> {
+        put("position", position)
+        put("surface", surface.wire)
+        putAll(Stamp.of(0))
+    }
+
+    /** A confirm the server refused, once, when the sorry sheet opens. Always `surface: profile`. */
+    fun likeConfirmFailed(reason: CloseReason) = LIKE_CONFIRM_FAILED to buildMap<String, Any> {
+        put("reason", reason.wire)
         put("surface", SURFACE_PROFILE)
+        putAll(Stamp.of(0))
+    }
+
+    /** The Likes list loaded, once per visit: `0 / 0` on the empty state. */
+    fun likesReceivedViewed(openCount: Int, closedCount: Int) = LIKES_RECEIVED_VIEWED to buildMap<String, Any> {
+        put("open_count", openCount)
+        put("closed_count", closedCount)
         putAll(Stamp.of(0))
     }
 

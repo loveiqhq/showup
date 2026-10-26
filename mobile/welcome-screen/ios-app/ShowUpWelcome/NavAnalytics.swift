@@ -16,8 +16,10 @@ enum NavAnalytics {
     static let tabSwitchedName = "tab_switched"
 
     /// The event for a tap on `tapped` while `active` is showing, or nil when they are the same tab.
-    /// `tab` is §37 `nav_tab`.
+    /// `tab` is §37 `nav_tab`; stamped like every other row ("`sensitivity_class` is 0 on every
+    /// row", SHOWUP-186's tracking comment).
     static func tabSwitched(active: AppTab, tapped: AppTab) -> (String, [String: any Sendable])? {
-        tapped == active ? nil : (tabSwitchedName, ["tab": tapped.trackingValue])
+        tapped == active ? nil
+            : (tabSwitchedName, ["tab": tapped.trackingValue].merging(Stamp.of(0)) { a, _ in a })
     }
 }

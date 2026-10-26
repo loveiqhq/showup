@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   NotFoundException,
@@ -11,6 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -19,16 +21,38 @@ import {
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../users/entities/user.entity';
+import { PlanTier, User } from '../users/entities/user.entity';
 import {
   CreateSearchPassDto,
   LikesOpenCountDto,
+  LikesReceivedDto,
+  SearchAvailabilityListDto,
+  SearchAvailabilityRequestDto,
+  SearchGridDto,
   SearchQueueDto,
   SetPlanTierDto,
 } from './dto/search.dto';
 import { SearchService } from './search.service';
 
-/** Date search, story 01 (SHOWUP-184). */
+const TZ_QUERY = {
+  name: 'tz',
+  required: false,
+  description:
+    "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
+};
+
+/**
+ * The Premium surfaces show who liked the viewer, and the message they wrote -- "only a Premium
+ * recipient may read it". The plan is the server's, read on every request, so a Freemium app that
+ * asks anyway gets nothing.
+ */
+function requirePremium(user: User): void {
+  if (user.planTier !== PlanTier.Premium) {
+    throw new ForbiddenException('Premium only');
+  }
+}
+
+/** Date search: story 01 (SHOWUP-184), the Premium grid (185) and the Likes tab (186). */
 @ApiTags('search')
 @ApiBearerAuth()
 @Controller()
@@ -38,12 +62,7 @@ export class SearchController {
   /** The queue: how many profiles it holds, and the next few in full. */
   @Get('search/queue')
   @ApiOperation({ operationId: 'getSearchQueue' })
-  @ApiQuery({
-    name: 'tz',
-    required: false,
-    description:
-      "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
-  })
+  @ApiQuery(TZ_QUERY)
   @ApiOkResponse({ type: SearchQueueDto })
   queue(
     @CurrentUser() user: User,
@@ -52,7 +71,42 @@ export class SearchController {
     return this.search.queue(user.id, tz);
   }
 
-  /** `Not now` or `Not interested`. Idempotent; no undo on this screen. */
+  /** The Premium grid (Search 02): the whole queue, each card with whether that person liked you. */
+  @Get('search/grid')
+  @ApiOperation({ operationId: 'getSearchGrid' })
+  @ApiQuery(TZ_QUERY)
+  @ApiOkResponse({ type: SearchGridDto })
+  @ApiForbiddenResponse({ description: 'The account is not Premium' })
+  grid(
+    @CurrentUser() user: User,
+    @Query('tz') tz?: string,
+  ): Promise<SearchGridDto> {
+    requirePremium(user);
+    return this.search.grid(user.id, tz);
+  }
+
+  /**
+   * The availability re-check (Search 02, 03): every card on screen in one call, on each return
+   * from a profile. A read -- POST only because the list of ids is the body.
+   */
+  @Post('search/availability')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'getSearchAvailability' })
+  @ApiQuery(TZ_QUERY)
+  @ApiOkResponse({ type: SearchAvailabilityListDto })
+  @ApiForbiddenResponse({ description: 'The account is not Premium' })
+  async availability(
+    @CurrentUser() user: User,
+    @Body() dto: SearchAvailabilityRequestDto,
+    @Query('tz') tz?: string,
+  ): Promise<SearchAvailabilityListDto> {
+    requirePremium(user);
+    return {
+      statuses: await this.search.availability(user.id, dto.userIds, tz),
+    };
+  }
+
+  /** `Not now` or `Not interested`. Idempotent. `Not interested` on someone who liked you declines it. */
   @Post('search/passes')
   @HttpCode(204)
   @ApiOperation({ operationId: 'passSearchProfile' })
@@ -79,6 +133,23 @@ export class SearchController {
   @ApiOkResponse({ type: LikesOpenCountDto })
   async likesOpenCount(@CurrentUser() user: User): Promise<LikesOpenCountDto> {
     return { count: await this.search.likesOpenCount(user.id) };
+  }
+
+  /**
+   * The Likes tab (Search 03), once per visit: open likes, earliest meet time first, then the closed
+   * ones not yet seen -- which this read marks seen.
+   */
+  @Get('me/likes/received')
+  @ApiOperation({ operationId: 'getLikesReceived' })
+  @ApiQuery(TZ_QUERY)
+  @ApiOkResponse({ type: LikesReceivedDto })
+  @ApiForbiddenResponse({ description: 'The account is not Premium' })
+  likesReceived(
+    @CurrentUser() user: User,
+    @Query('tz') tz?: string,
+  ): Promise<LikesReceivedDto> {
+    requirePremium(user);
+    return this.search.likesReceived(user.id, tz);
   }
 }
 

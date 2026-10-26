@@ -188,6 +188,12 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
      * `profile_card_viewed`).
      */
     SearchProfile("search_profile", "Search - Profile"),
+
+    /** The Premium grid (SHOWUP-185, §11 `search_grid`). Again on every return from a profile. */
+    SearchGrid("search_grid", "Search - Grid"),
+
+    /** The Likes tab for a Premium user (SHOWUP-186, §11 `likes_received`). */
+    LikesReceived("likes_received", "Search - Likes received"),
 }
 
 /**

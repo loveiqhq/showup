@@ -1,6 +1,7 @@
 /*
  * SearchSheets.kt
- * ShowUp · the like flow's two sheets: Be sure (callout 22) and the optional message (callout 23)
+ * ShowUp · the like flow's sheets: Be sure (Search 01 callout 22, and its mutual mode, Search 02 15),
+ * the optional message (callout 23), and the sorry sheet after a refused confirm (Search 02 18)
  *
  * Behaviour is `SheetScaffold`'s, the one bottom sheet in the app: the 42% scrim, a scrim tap as
  * `backdrop`, the swipe down, Android back as `system_back`, and a bottom inset that clears the
@@ -26,11 +27,21 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -132,6 +143,8 @@ private fun SearchSheet(
     label: String,
     onDismiss: (SheetDismissMethod) -> Unit,
     endOnKeyboard: Boolean = false,
+    /** The content's padding: 24 all round for the like sheets, `20 24 24` for the sorry sheet. */
+    contentPadding: PaddingValues = PaddingValues(24.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scroll = rememberScrollState()
@@ -167,7 +180,7 @@ private fun SearchSheet(
                 Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
                     SheetGrabber(width = 36.dp, color = Faint)
                 }
-                Column(Modifier.padding(24.dp), content = content)
+                Column(Modifier.padding(contentPadding), content = content)
             }
         }
     }
@@ -177,13 +190,29 @@ private fun SearchSheet(
 @Composable
 private fun SendMark() = Icon(BrandIcon.Send, 16.dp, tint = Color.White, strokeWidth = 2.2f)
 
+/** Mutual Be sure's mark: `check` 16 / 2.2 (Search 02: "`Confirm date` + check icon"). */
+@Composable
+private fun CheckMark() = Icon(BrandIcon.Check, 16.dp, tint = Color.White, strokeWidth = 2.2f)
+
 /**
  * Be sure (callout 22): what a match commits to, before anything is sent. The line names `today` or
  * `tomorrow` exactly as the meet card does. `Continue`, never "Send like": the like is sent from the
  * message sheet.
+ *
+ * MUTUAL (Search 02 15, on a profile that liked the viewer): `Confirm, and you and {name} have…`, the
+ * CTA `Confirm date` with a check, and no message step -- [onContinue] is the confirm itself. While it
+ * is with the server ([confirming]) the CTA stays drawn as it is and does nothing, and the sheet does
+ * not close: the view model holds both.
  */
 @Composable
-fun BeSureSheet(name: String, day: String, onCancel: (SheetDismissMethod) -> Unit, onContinue: () -> Unit) {
+fun BeSureSheet(
+    name: String,
+    day: String,
+    onCancel: (SheetDismissMethod) -> Unit,
+    onContinue: () -> Unit,
+    mutual: Boolean = false,
+    confirming: Boolean = false,
+) {
     SearchSheet(label = SearchCopy.BE_SURE, onDismiss = onCancel) {
         Column(
             Modifier
@@ -205,7 +234,7 @@ fun BeSureSheet(name: String, day: String, onCancel: (SheetDismissMethod) -> Uni
             )
             Text(
                 buildAnnotatedString {
-                    append(SearchCopy.BE_SURE_LINE_LEAD.format(name))
+                    append((if (mutual) PremiumCopy.BE_SURE_MUTUAL_LEAD else SearchCopy.BE_SURE_LINE_LEAD).format(name))
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Purple)) {
                         append(SearchCopy.BE_SURE_LINE_EMPHASIS.format(day))
                     }
@@ -245,12 +274,102 @@ fun BeSureSheet(name: String, day: String, onCancel: (SheetDismissMethod) -> Uni
             },
             second = {
                 PrimaryButton(
-                    SearchCopy.CONTINUE, onContinue,
+                    if (mutual) PremiumCopy.CONFIRM_DATE else SearchCopy.CONTINUE,
+                    { if (!confirming) onContinue() },
+                    // Inert while the server decides, and said so: a screen reader hears it waiting.
+                    modifier = if (confirming) Modifier.semantics { stateDescription = CONFIRMING_STATE } else Modifier,
                     variant = PrimaryButtonVariant.Sunset, height = SHEET_BUTTON_HEIGHT, labelSize = 15.sp,
-                    horizontalPadding = PAIR_BUTTON_PADDING, leading = { SendMark() },
+                    horizontalPadding = PAIR_BUTTON_PADDING, leading = { if (mutual) CheckMark() else SendMark() },
                 )
             },
         )
+    }
+}
+
+/** The sorry sheet's one button, for the fit harness. */
+const val SORRY_BUTTON_TAG = "sorry-button"
+
+/** What a screen reader hears on `Confirm date` while the confirm is with the server. Not drawn. */
+private const val CONFIRMING_STATE = "Waiting for an answer"
+
+/**
+ * The sorry sheet (Search 02 18): a confirm the server refused -- the like closed first. Over the
+ * profile, straight after Be sure; the person's photo and name keep them real, and the copy names the
+ * timing so it never reads as a fake profile.
+ *
+ * Padding `20 24 24`, a centred column with gap 14: the photo 96, round, grayscale .6 at .85 with the
+ * reason pill over its bottom edge (a 96 x 108 box) -> the headline (Lora 700 / 24 / 1.2, `-0.01em`,
+ * the reason's last words in italic with the wash; 4 more above it) -> the body (14 / 1.5, at most
+ * 300) -> the violet line (700 / 14 / 1.45) -> one full-width sunset button, 6 more above it. Its
+ * height is its content.
+ *
+ * Every way out -- [buttonLabel] (`Find someone else` on the grid, `Back to likes` on the list), the
+ * scrim, a swipe down, Android back -- is the same [onDone], and fires nothing.
+ */
+@Composable
+fun ConfirmRefusedSheet(
+    name: String,
+    photo: String,
+    reason: CloseReason,
+    buttonLabel: String,
+    onDone: () -> Unit,
+) {
+    SearchSheet(
+        label = "${reason.pill}. $name",
+        onDismiss = { onDone() },
+        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
+    ) {
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // 96 wide as drawn -- and wider only when the pill is, at a large type, so the reason is
+            // never cut to fit under the photo.
+            Box(Modifier.height(108.dp).clearAndSetSemantics {}, contentAlignment = Alignment.TopCenter) {
+                Box(
+                    Modifier
+                        .size(96.dp)
+                        .clip(CircleShape)
+                        .cssGrayscale(0.6f)
+                        .graphicsLayer { alpha = 0.85f },
+                ) { PhotoBackdrop(photo, 0, Modifier.fillMaxSize()) }
+                PillLabel(reason.pill, Modifier.align(Alignment.BottomCenter))
+            }
+            // `text-wrap: balance` on the headline, `pretty` on the two paragraphs, as the reference
+            // sets them: `We're really sorry,` / `Leonie confirmed a` / `date just before you did.`.
+            WashHeadline(
+                parts = listOf(reason.sorryHeadLead(name) to false, reason.sorryEmphasis to true),
+                fontSize = 24.sp,
+                lineHeight = (24 * 1.2).sp,
+                letterSpacing = (-0.01).em,
+                color = Fg,
+                textAlign = TextAlign.Center,
+                balance = true,
+                modifier = Modifier.padding(top = 4.dp).semantics { heading() },
+            )
+            PrettyText(
+                reason.sorryBody(name),
+                TextStyle(color = Neutral, fontFamily = Manrope, fontSize = 14.sp, lineHeight = (14 * 1.5).sp, textAlign = TextAlign.Center),
+                Modifier.widthIn(max = 300.dp),
+                centered = true,
+            )
+            PrettyText(
+                PremiumCopy.SORRY_LINE,
+                TextStyle(
+                    color = Purple, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    lineHeight = (14 * 1.45).sp, textAlign = TextAlign.Center,
+                ),
+                Modifier.widthIn(max = 300.dp),
+                centered = true,
+            )
+            PrimaryButton(
+                buttonLabel, onDone,
+                modifier = Modifier.padding(top = 6.dp).testTag(SORRY_BUTTON_TAG),
+                variant = PrimaryButtonVariant.Sunset, height = SHEET_BUTTON_HEIGHT, labelSize = 15.sp,
+                horizontalPadding = 22.dp,
+            )
+        }
     }
 }
 

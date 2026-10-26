@@ -119,11 +119,12 @@ let notifyBenefits: [NotifyBenefit] = [
     ),
 ]
 
-/// The sunset `Premium` pill on row 2.
+/// The sunset `Premium` pill on row 2 -- this screen's own, plainer than the top bar's `PremiumTag`
+/// (no sparkles, no sheen), so it keeps its own name.
 ///
 /// A LABEL, NOT A CONTROL: not tappable, opens nothing, no paywall behind it. It reads as part of
 /// row 2's title rather than as a thing of its own.
-private struct PremiumTag: View {
+private struct NotificationsPremiumTag: View {
     var body: some View {
         Text(NotificationsCopy.premium.uppercased())
             .font(F.manrope(10, .heavy))
@@ -175,7 +176,7 @@ private struct BenefitRow: View {
                     // nothing overflowed so no fit sweep could see it. Stated rather than left to
                     // SwiftUI's flexibility arithmetic, which cannot be measured on this machine.
                     if benefit.tag != nil {
-                        PremiumTag().fixedSize(horizontal: true, vertical: false)
+                        NotificationsPremiumTag().fixedSize(horizontal: true, vertical: false)
                     }
                 }
                 Text(benefit.line)

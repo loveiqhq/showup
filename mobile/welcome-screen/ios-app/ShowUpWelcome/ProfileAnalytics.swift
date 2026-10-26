@@ -138,6 +138,10 @@ enum ProfileScreen: String {
     case checkinUplift = "checkin_uplift"
     /// Search 01 (SHOWUP-184): the Search tab with a committed Check-In -- the profile, one up.
     case searchProfile = "search_profile"
+    /// The Premium grid (SHOWUP-185, §11 `search_grid`). Again on every return from a profile.
+    case searchGrid = "search_grid"
+    /// The Likes tab for a Premium user (SHOWUP-186, §11 `likes_received`).
+    case likesReceived = "likes_received"
 
     var screenId: String { rawValue }
 
@@ -176,6 +180,8 @@ enum ProfileScreen: String {
         case .checkinFilters: return "CheckinFilters"
         case .checkinUplift: return "CheckinUplift"
         case .searchProfile: return "Search - Profile"
+        case .searchGrid: return "Search - Grid"
+        case .likesReceived: return "Search - Likes received"
         }
     }
 }

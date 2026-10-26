@@ -29,6 +29,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -62,6 +63,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import android.app.ActivityOptions
 import com.showup.analytics.AppAnalytics
 import com.showup.checkin.AndroidPlaceReader
@@ -69,10 +71,16 @@ import java.time.ZoneId
 import com.showup.dev.DevSearchStore
 import com.showup.dev.DEV_SEARCH_STARTS
 import com.showup.search.filtersActive
+import com.showup.search.LikesReceivedScreen
+import com.showup.search.PremiumSurface
+import com.showup.search.SearchAnalytics
+import com.showup.search.SearchGridScreen
 import com.showup.search.SearchProfileScreen
 import com.showup.search.SearchRepository
+import com.showup.search.SearchUiState
 import com.showup.search.SearchViewModel
 import com.showup.analytics.NavAnalytics
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -753,7 +761,7 @@ class MainActivity : ComponentActivity() {
                 factory = viewModelFactory {
                     initializer {
                         SearchViewModel(
-                            store = devCheckIn?.let { DevSearchStore(it.latencyMs) } ?: SearchRepository(api),
+                            store = devCheckIn?.let { DevSearchStore(it.latencyMs, it.premium) } ?: SearchRepository(api),
                             analytics = AppAnalytics,
                             players = mediaPlayer,
                             // An open like sheet and its message survive a process death.
@@ -764,10 +772,43 @@ class MainActivity : ComponentActivity() {
             )
             val searchState by search.state.collectAsStateWithLifecycle()
 
+            // THE UNDO WINDOW AS THE PHONE'S ACCESSIBILITY SETTINGS WANT IT (SHOWUP-186: "while focus
+            // is on it, the 6 s does not run out"). TalkBack's focus is not a focus the app can see, so
+            // while TalkBack is on the window holds until the list is left; otherwise it is the user's
+            // "time to take action", never less than 6 s. Followed live: TalkBack can be switched on
+            // with the app open.
+            val accessibility = LocalAccessibilityManager.current
+            DisposableEffect(search, accessibility) {
+                val platform = context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+                fun apply() {
+                    val recommended = accessibility?.calculateRecommendedTimeoutMillis(
+                        Motion.LIKES_UNDO.toLong(), containsIcons = false, containsText = true, containsControls = true,
+                    ) ?: Motion.LIKES_UNDO.toLong()
+                    search.setUndoWindow(if (platform?.isTouchExplorationEnabled == true) Long.MAX_VALUE else recommended)
+                }
+                apply()
+                val listener = android.view.accessibility.AccessibilityManager.TouchExplorationStateChangeListener { apply() }
+                platform?.addTouchExplorationStateChangeListener(listener)
+                onDispose { platform?.removeTouchExplorationStateChangeListener(listener) }
+            }
+
             // THE LIKES BADGE: open received likes, the one number the Likes tab and the Search likes
             // chip both show (SHOWUP-187 rule 10) -- on the gate's and Settings' bars too, so it is
             // read on every foreground of a tab screen, not only by a Search visit.
-            val likesOpen = searchState.likesOpen
+            val likesOpen = searchState.likesBadge
+
+            // THE PROFILE OPENED FROM A LIST IS A DESTINATION OF ITS OWN (AppRoute.SearchProfile),
+            // pushed over the flow and popped back to it. The view model says whether one is open and
+            // the back stack follows -- one source of truth, so a process death that restores the
+            // destination with nothing open pops it again rather than drawing an empty profile.
+            val profileOpen = searchState.opened != null
+            LaunchedEffect(profileOpen) {
+                val onProfile = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.SearchProfile>() == true
+                when {
+                    profileOpen && !onProfile -> navController.navigate(AppRoute.SearchProfile) { launchSingleTop = true }
+                    !profileOpen && onProfile -> navController.popBackStack()
+                }
+            }
 
             // Which prompt the user committed to, held across the permission round trip: the OS
             // alert takes the app out of the foreground, and the answer comes back with no memory
@@ -909,7 +950,8 @@ class MainActivity : ComponentActivity() {
                     if (event == Lifecycle.Event.ON_RESUME && screen.isCheckIn) {
                         checkIn.evaluateClock()
                         checkIn.refresh()
-                        search.refreshLikesOpen()
+                        // The plan as well as the count: it decides where the Likes tab goes.
+                        search.foregrounded()
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -923,7 +965,8 @@ class MainActivity : ComponentActivity() {
             // a permission alert pauses the activity and is not the user leaving.
             DisposableEffect(lifecycleOwner, search) {
                 val observer = LifecycleEventObserver { _, event ->
-                    if (screen != FlowScreen.CheckInSearch) return@LifecycleEventObserver
+                    // The Likes tab too: going to the background sends a decline waiting out its Undo.
+                    if (screen != FlowScreen.CheckInSearch && screen != FlowScreen.LikesReceived) return@LifecycleEventObserver
                     when (event) {
                         Lifecycle.Event.ON_STOP -> search.leave()
                         Lifecycle.Event.ON_START -> search.resume()
@@ -1826,7 +1869,7 @@ class MainActivity : ComponentActivity() {
                     // the outgoing step would visibly empty during its exit.
                     FlowScreen.CheckInGate -> {
                         LaunchedEffect(onTop) {
-                            if (onTop) checkIn.arrived(null, ProfileScreen.CheckinSearchUnavailable, profileScreenOf(cameFrom))
+                            if (onTop) checkIn.arrived(null, ProfileScreen.CheckinSearchUnavailable, profileScreenOf(cameFrom, searchState.layout))
                         }
                         CheckInGateScreen(
                             onCheckIn = { target ->
@@ -1838,9 +1881,12 @@ class MainActivity : ComponentActivity() {
                                 goTo(FlowScreen.CheckInSettings)
                             },
                             // Premium: Likes received (SHOWUP-186); Freemium: the likes upsell, its own
-                            // story. Neither is built, so the tap is the nav act alone -- and it never
-                            // opens Likes received for Freemium.
-                            onLikes = { tabTapped(Tab.Search, Tab.Likes) },
+                            // story, not built -- so the tap is the nav act alone, and never opens
+                            // Likes received for Freemium.
+                            onLikes = {
+                                tabTapped(Tab.Search, Tab.Likes)
+                                if (searchState.premium) goTo(FlowScreen.LikesReceived)
+                            },
                             likes = likesOpen,
                         )
                     }
@@ -1953,14 +1999,43 @@ class MainActivity : ComponentActivity() {
                         val zone = remember { ZoneId.systemDefault() }
                         LaunchedEffect(onTop) {
                             if (onTop) {
+                                // STILL HERE FROM BEFORE: the pop of a profile pushed over the grid
+                                // (which fired the grid's screen_viewed and started its re-check
+                                // itself), or the activity recreated by a system change. The view
+                                // model knows; see SearchViewModel.isOnScreen.
+                                if (search.isOnScreen(PremiumSurface.Grid)) return@LaunchedEffect
                                 val filters = checkInState.server?.filters
-                                search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom))
+                                search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom, searchState.layout))
                             } else {
+                                search.leftScreen(PremiumSurface.Grid)
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
                                 search.leave()
                             }
                         }
-                        SearchProfileScreen(
+                        if (searchState.layout == SearchAnalytics.Layout.Grid) {
+                            SearchGridScreen(
+                                state = searchState,
+                                zone = zone,
+                                settled = onTop && settledHere(),
+                                onOpen = { id -> search.openCard(PremiumSurface.Grid, id) },
+                                onLeft = { id -> search.cardLeft(PremiumSurface.Grid, id) },
+                                onUndo = search::undo,
+                                onUndoFocus = search::undoFocus,
+                                onFilters = { goTo(FlowScreen.SearchFilters) },
+                                // Premium: the likes chip opens the Likes tab (Search 02, restored 21 Oct).
+                                onLikesChip = { goTo(FlowScreen.LikesReceived) },
+                                onTab = { tab ->
+                                    tabTapped(Tab.Search, tab)
+                                    when (tab) {
+                                        Tab.Settings -> goTo(FlowScreen.CheckInSettings)
+                                        Tab.Likes -> goTo(FlowScreen.LikesReceived)
+                                        // Instant is its own story: the tap is the nav act alone.
+                                        Tab.Search, Tab.Instant -> Unit
+                                    }
+                                },
+                                onRetry = { search.retry(zone.id) },
+                            )
+                        } else SearchProfileScreen(
                             state = searchState,
                             zone = zone,
                             player = mediaPlayer.surface,
@@ -1980,18 +2055,59 @@ class MainActivity : ComponentActivity() {
                             onScrolledOut = search::scrolledOut,
                             onSectionSeen = search::sectionSeen,
                             onFilters = { goTo(FlowScreen.SearchFilters) },
-                            // "A tap does not open Likes received (the upsell is its own story)."
+                            // Freemium: the likes upsell, its own story -- never Likes received.
                             onLikesChip = {},
                             onTab = { tab ->
                                 tabTapped(Tab.Search, tab)
                                 when (tab) {
                                     Tab.Settings -> goTo(FlowScreen.CheckInSettings)
-                                    // Likes received (186) and the upsell, and Instant, are their own
-                                    // stories: the tap is the nav act alone, as on the gate.
+                                    // The upsell (Freemium) and Instant are their own stories: the tap
+                                    // is the nav act alone, as on the gate.
                                     Tab.Search, Tab.Likes, Tab.Instant -> Unit
                                 }
                             },
                             onRetry = { search.retry(zone.id) },
+                        )
+                    }
+                    FlowScreen.LikesReceived -> {
+                        val zone = remember { ZoneId.systemDefault() }
+                        LaunchedEffect(onTop) {
+                            if (onTop) {
+                                // As on Search: the pop of a profile or a recreated activity is not an
+                                // arrival while the view model has the list on screen.
+                                if (search.isOnScreen(PremiumSurface.Likes)) return@LaunchedEffect
+                                search.likesArrived(zone.id, profileScreenOf(cameFrom, searchState.layout))
+                            } else {
+                                search.leftScreen(PremiumSurface.Likes)
+                                // Another tab: a decline waiting out its Undo is sent now.
+                                search.leave()
+                            }
+                        }
+                        // A tab root: no back button, and back returns to Search, as from Settings.
+                        BackHandler { goTo(searchTab()) }
+                        LikesReceivedScreen(
+                            state = searchState,
+                            zone = zone,
+                            settled = onTop && settledHere(),
+                            onOpen = { id -> search.openCard(PremiumSurface.Likes, id) },
+                            onLeft = { id -> search.cardLeft(PremiumSurface.Likes, id) },
+                            onUndo = search::undo,
+                            onUndoFocus = search::undoFocus,
+                            onBackToSearch = { goTo(searchTab()) },
+                            onTab = { tab ->
+                                tabTapped(Tab.Likes, tab)
+                                when (tab) {
+                                    Tab.Search -> goTo(searchTab())
+                                    Tab.Settings -> goTo(FlowScreen.CheckInSettings)
+                                    Tab.Instant -> if (checkInState.server?.active != true) {
+                                        reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                    }
+                                    Tab.Likes -> Unit
+                                }
+                            },
+                            onRetry = { search.likesRetry(zone.id) },
+                            scrollStart = search.likesScroll,
+                            onScrolled = search::likesScrolled,
                         )
                     }
                     FlowScreen.SearchFilters -> {
@@ -2027,8 +2143,8 @@ class MainActivity : ComponentActivity() {
                                 when (tab) {
                                     // Search with no Check-In IS the gate (story 01); with one, Search.
                                     Tab.Search -> goTo(searchTab())
-                                    // As on the gate: nothing is built behind Likes yet.
-                                    Tab.Likes -> Unit
+                                    // Premium: Likes received. Freemium: the upsell, not built.
+                                    Tab.Likes -> if (searchState.premium) goTo(FlowScreen.LikesReceived)
                                     // Instant is gated without a Check-In -- it opens one, as on the gate --
                                     // and its own story with one.
                                     Tab.Instant -> if (checkInState.server?.active != true) {
@@ -2044,6 +2160,87 @@ class MainActivity : ComponentActivity() {
                         HomePlaceholderScreen(outcome, onStartOver = { screen = FlowScreen.SignUp })
                 }
             }
+            }
+
+            // THE PROFILE, OPENED FROM THE GRID OR THE LIKES LIST (SHOWUP-185, 186): Search 01's
+            // screen, extended. It slides in over the list and back off it; the list keeps its scroll
+            // position underneath, saved with the flow destination.
+            composable<AppRoute.SearchProfile>(
+                enterTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideInHorizontally(tween(ms)) { w -> w / 6 } + fadeIn(tween(if (motion.enabled) 220 else 0))
+                },
+                popExitTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideOutHorizontally(tween(ms)) { w -> w / 6 } + fadeOut(tween(if (motion.enabled) Motion.FAST else 0))
+                },
+            ) {
+                val zone = remember { ZoneId.systemDefault() }
+                // AS IT LEAVES, THE PROFILE IT WAS: the last state with the profile open, its sheets,
+                // viewer and coach closed. Drawn live, the popped screen slid away showing the empty
+                // queue under the grid -- "No results", the wrong tab, no back pill.
+                val open = searchState.opened != null
+                val shown = heldWhileLeaving(searchState, open).let { held ->
+                    if (open) held else held.copy(sheet = null, viewerAt = null, coach = false, confirming = false)
+                }
+                val fromLikes = shown.opened?.from == PremiumSurface.Likes
+                val here = if (fromLikes) Tab.Likes else Tab.Search
+                SearchProfileScreen(
+                    state = shown,
+                    zone = zone,
+                    player = mediaPlayer.surface,
+                    onLike = search::like,
+                    onPass = search::pass,
+                    onCoachDone = search::dismissCoach,
+                    onCancelConfirm = search::cancelConfirm,
+                    onContinue = search::continueToMessage,
+                    onDraft = search::editDraft,
+                    onDismissMessage = search::dismissMessage,
+                    onSkipMessage = search::skipMessage,
+                    onSendMessage = search::sendMessage,
+                    onOpenPhoto = search::openPhoto,
+                    onViewerPage = search::viewerPage,
+                    onCloseViewer = search::closeViewer,
+                    onTogglePlay = search::togglePlay,
+                    onScrolledOut = search::scrolledOut,
+                    onSectionSeen = search::sectionSeen,
+                    onBack = search::backFromProfile,
+                    onConfirmDate = search::confirmDate,
+                    onRefusedDone = search::refusedDone,
+                    onFilters = {
+                        search.closeProfileForElsewhere()
+                        goTo(FlowScreen.SearchFilters)
+                    },
+                    onLikesChip = {
+                        search.closeProfileForElsewhere()
+                        goTo(FlowScreen.LikesReceived)
+                    },
+                    onTab = { tab ->
+                        if (tab != here) {
+                            tabTapped(here, tab)
+                            when (tab) {
+                                Tab.Search -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(searchTab())
+                                }
+                                Tab.Likes -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(FlowScreen.LikesReceived)
+                                }
+                                Tab.Settings -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(FlowScreen.CheckInSettings)
+                                }
+                                // As on the list under it: the nav act alone with a Check-In -- the
+                                // profile stays -- and without one it opens one.
+                                Tab.Instant -> if (checkInState.server?.active != true) {
+                                    search.closeProfileForElsewhere()
+                                    reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                }
+                            }
+                        }
+                    },
+                )
             }
             }
 
@@ -2295,7 +2492,11 @@ private fun openLocationSettings(context: Context) {
 }
 
 /** The §11 screen a flow position is, for `referrer_screen_id`. Null where none is registered. */
-private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen) {
+private fun profileScreenOf(
+    screen: FlowScreen?,
+    /** The Search tab's layout: the grid is `search_grid`, the queue `search_profile`. */
+    searchLayout: SearchAnalytics.Layout = SearchAnalytics.Layout.OneUp,
+): ProfileScreen? = when (screen) {
     FlowScreen.ProfileName -> ProfileScreen.Name
     FlowScreen.ProfileEmail -> ProfileScreen.Email
     FlowScreen.ProfileVerifyEmail -> ProfileScreen.EmailVerification
@@ -2326,9 +2527,23 @@ private fun profileScreenOf(screen: FlowScreen?): ProfileScreen? = when (screen)
     FlowScreen.CheckInVibe -> ProfileScreen.CheckinVibe
     FlowScreen.CheckInFilters -> ProfileScreen.CheckinFilters
     FlowScreen.CheckInUplift -> ProfileScreen.CheckinUplift
-    FlowScreen.CheckInSearch -> ProfileScreen.SearchProfile
+    FlowScreen.CheckInSearch ->
+        if (searchLayout == SearchAnalytics.Layout.Grid) ProfileScreen.SearchGrid else ProfileScreen.SearchProfile
     FlowScreen.SearchFilters -> ProfileScreen.CheckinFilters
+    FlowScreen.LikesReceived -> ProfileScreen.LikesReceived
     else -> null
+}
+
+/**
+ * Whether the screen this is called from has SETTLED: its destination's lifecycle is resumed, which
+ * Navigation does only once a push or a pop transition has finished. The fly-out waits for it -- "t =
+ * 0 when the back transition has settled".
+ */
+@Composable
+private fun settledHere(): Boolean {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val state by lifecycle.currentStateAsState()
+    return state.isAtLeast(Lifecycle.State.RESUMED)
 }
 
 /**

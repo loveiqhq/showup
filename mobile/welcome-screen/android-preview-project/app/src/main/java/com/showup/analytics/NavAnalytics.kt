@@ -14,14 +14,16 @@
 package com.showup.analytics
 
 import com.showup.designsystem.Tab
+import com.showup.profile.Stamp
 
 object NavAnalytics {
     const val TAB_SWITCHED = "tab_switched"
 
     /**
      * The event for a tap on [tapped] while [active] is showing, or null when they are the same tab.
-     * `tab` is §37 `nav_tab`.
+     * `tab` is §37 `nav_tab`; stamped like every other row ("`sensitivity_class` is 0 on every
+     * row", SHOWUP-186's tracking comment).
      */
     fun tabSwitched(active: Tab, tapped: Tab): Pair<String, Map<String, Any>>? =
-        if (tapped == active) null else TAB_SWITCHED to mapOf("tab" to tapped.trackingValue)
+        if (tapped == active) null else TAB_SWITCHED to (mapOf<String, Any>("tab" to tapped.trackingValue) + Stamp.of(0))
 }

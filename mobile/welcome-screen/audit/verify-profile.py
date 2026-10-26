@@ -1045,8 +1045,8 @@ for _label, _txt in [
 
 # The Premium tag is a LABEL. Not tappable, opens nothing, no paywall behind it -- and it reads as
 # part of row 2's title rather than as a control of its own.
-_tag_kt = notify_kt.split("fun PremiumTag")[1].split("\n}")[0]
-_tag_sw = notify_sw.split("struct PremiumTag")[1].split("\n}")[0]
+_tag_kt = notify_kt.split("fun NotificationsPremiumTag")[1].split("\n}")[0]
+_tag_sw = notify_sw.split("struct NotificationsPremiumTag")[1].split("\n}")[0]
 check("162 Premium tag is not a control (kotlin)",
       "clickable" not in _tag_kt and "onClick" not in _tag_kt)
 check("162 Premium tag is not a control (swift)",

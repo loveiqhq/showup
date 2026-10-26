@@ -25,4 +25,13 @@ sealed interface AppRoute {
     /** Sign-up, tutorial, profile creation, the Check-In and the tabs: `FlowScreen` decides. */
     @Serializable
     data object Flow : AppRoute
+
+    /**
+     * The profile, opened from the Premium grid (SHOWUP-185) or the Likes tab (SHOWUP-186). Which
+     * profile, and from which list, is the search view model's (`SearchUiState.opened`): the route
+     * carries nothing, so a profile the view model no longer holds -- after a process death -- is
+     * popped rather than drawn empty.
+     */
+    @Serializable
+    data object SearchProfile : AppRoute
 }

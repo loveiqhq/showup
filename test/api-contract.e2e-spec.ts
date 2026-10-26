@@ -100,6 +100,10 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/me/search-coach/hide' },
   { method: 'get', path: '/me/likes/open-count' },
   { method: 'put', path: '/dev/plan-tier' },
+  // SHOWUP-185 / 186 -- who liked the viewer, and what they wrote: authenticated, then Premium.
+  { method: 'get', path: '/search/grid' },
+  { method: 'post', path: '/search/availability' },
+  { method: 'get', path: '/me/likes/received' },
   // notification-preferences.controller.ts
   { method: 'get', path: '/me/notification-preferences' },
   { method: 'patch', path: '/me/notification-preferences' },

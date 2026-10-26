@@ -76,6 +76,7 @@ fun FlowScreen.devSection(): DevSection = when (this) {
     FlowScreen.CheckInUplift,
     FlowScreen.CheckInSearch,
     FlowScreen.SearchFilters,
+    FlowScreen.LikesReceived,
     FlowScreen.CheckInSettings,
     -> DevSection.CheckIn
     FlowScreen.Home -> DevSection.Home
@@ -122,6 +123,7 @@ fun FlowScreen.devLabel(): String = when (this) {
     FlowScreen.CheckInUplift -> "6 · Uplift + Find my date"
     FlowScreen.CheckInSearch -> "Search 01 · Profile"
     FlowScreen.SearchFilters -> "Search · Filters"
+    FlowScreen.LikesReceived -> "Likes tab (Premium)"
     FlowScreen.CheckInSettings -> "Settings (placeholder)"
     FlowScreen.Home -> "Home (placeholder)"
 }

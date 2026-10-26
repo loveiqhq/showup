@@ -110,4 +110,102 @@ enum SearchSamples {
         s.viewer = viewer
         return s
     }
+
+    // MARK: - the Premium grid and the Likes tab (SHOWUP-185, 186)
+
+    /// `HH:MM` in `zone` on 22 Oct 2026 (today) or the 23rd (tomorrow): the reference's meet times.
+    private static func meet(_ hour: Int, _ minute: Int = 0, tomorrow: Bool = false) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = zone
+        let parts = DateComponents(year: 2026, month: 10, day: tomorrow ? 23 : 22, hour: hour, minute: minute)
+        return calendar.date(from: parts) ?? meetAt
+    }
+
+    /// A card opened as the full profile: Leonie's sections, the card's own fields (`premiumProfile`).
+    private static func person(_ id: String, _ name: String, _ age: Int?, km: Int, motivation: String,
+                               at hour: Int, _ minute: Int = 0, tomorrow: Bool, attended: Int) -> SearchProfile {
+        var p = full
+        p.userId = id
+        p.name = name
+        p.age = age
+        p.distanceKm = km
+        p.motivation = motivation
+        p.meetAt = meet(hour, minute, tomorrow: tomorrow)
+        p.meetDay = tomorrow ? "tomorrow" : "today"
+        p.attendedCount = attended
+        return p
+    }
+
+    /// `PREMIUM_GRID`, in its order: Leonie and Anna liked the viewer. Distances as the server rounds
+    /// the reference's 1.2 / 2.4 / 0.6 / 1.8 / 4.0 / 2.0 km.
+    static let grid: [GridCard] = [
+        GridCard(profile: person("sample-leonie", "Leonie", 28, km: 1, motivation: "long_term", at: 19, tomorrow: false, attended: 4),
+                 likedYou: true),
+        GridCard(profile: person("sample-sofia", "Sofia", 31, km: 2, motivation: "casual", at: 20, tomorrow: false, attended: 2),
+                 likedYou: false),
+        GridCard(profile: person("sample-maya", "Maya", nil, km: 0, motivation: "non_monogamy", at: 18, tomorrow: true, attended: 0),
+                 likedYou: false),
+        GridCard(profile: person("sample-anna", "Anna", 27, km: 2, motivation: "long_term", at: 18, tomorrow: false, attended: 9),
+                 likedYou: true),
+        GridCard(profile: person("sample-emma", "Emma", 32, km: 4, motivation: "friends", at: 21, tomorrow: false, attended: 1),
+                 likedYou: false),
+        GridCard(profile: person("sample-liv", "Liv", 30, km: 2, motivation: "short_term", at: 17, 30, tomorrow: true, attended: 0),
+                 likedYou: false),
+    ]
+
+    /// Leonie's message, as `LIKES_RECEIVED` writes it.
+    static let leonieMessage = "I love that you're into cooking too. Coffee at Bonanza?"
+
+    /// `likesOrder(LIKES_RECEIVED)`: earliest meet time first (Anna 18:00, Leonie 19:00), then Clara's
+    /// closed like -- she matched someone else. The badge counts the two open ones.
+    static let likes: [LikeReceived] = {
+        let anna = grid[3].profile
+        let leonie = grid[0].profile
+        return [
+            LikeReceived(userId: anna.userId, name: anna.name, age: anna.age, photo: nil, closed: nil, message: nil, profile: anna),
+            LikeReceived(userId: leonie.userId, name: leonie.name, age: leonie.age, photo: nil, closed: nil,
+                         message: leonieMessage, profile: leonie),
+            LikeReceived(userId: "sample-clara", name: "Clara", age: 29, photo: nil, closed: .matched, message: nil, profile: nil),
+        ]
+    }()
+
+    /// The grid as the model holds it after a load.
+    static func gridCards() -> [PremiumCard] {
+        grid.map { c in
+            PremiumCard(userId: c.profile.userId, name: c.profile.name, age: c.profile.age,
+                        photo: c.profile.photos.first ?? nil, profile: c.profile, likedYou: c.likedYou)
+        }
+    }
+
+    /// The likes list as the model holds it after a load.
+    static func likeCards() -> [PremiumCard] {
+        likes.map { l in
+            PremiumCard(userId: l.userId, name: l.name, age: l.age, photo: l.photo, profile: l.profile,
+                        likedYou: true, message: l.message, closed: l.closed)
+        }
+    }
+
+    /// The grid at rest (A), for previews and the fit sweep.
+    static func gridRest(likes: Int = 2) -> SearchUiState {
+        var s = SearchUiState()
+        s.loading = false
+        s.likesOpen = likes
+        s.premium = true
+        s.viewer = viewer
+        s.layout = .grid
+        s.grid = PremiumList(loading: false, cards: gridCards())
+        return s
+    }
+
+    /// The Likes tab at rest (A).
+    static func likesRest() -> SearchUiState {
+        var s = SearchUiState()
+        s.loading = false
+        s.likesOpen = 2
+        s.premium = true
+        s.viewer = viewer
+        s.layout = .grid
+        s.likes = PremiumList(loading: false, cards: likeCards())
+        return s
+    }
 }

@@ -17,7 +17,7 @@ import { DatesService } from '../dates/dates.service';
 import { LatLng } from '../location/location.geo';
 import { Profile } from '../profiles/entities/profile.entity';
 import { SafetyService } from '../safety/safety.service';
-import { SearchService } from '../search/search.service';
+import { Availability, SearchService } from '../search/search.service';
 import { earliestMeetAt } from '../search/util/search';
 import { isDiscoverable } from '../safety/util/safety';
 import { User } from '../users/entities/user.entity';
@@ -26,6 +26,7 @@ import { Like } from './entities/like.entity';
 import { Match } from './entities/match.entity';
 import {
   INELIGIBLE_USER_STATUSES,
+  LikeCloseReason,
   LikeStatus,
   MatchStatus,
   orderedUserPair,
@@ -60,6 +61,13 @@ export class MatchingService {
    *
    * A like that closed without a decision opens again when it is sent again: a new Check-In is a
    * new chance, and the Search queue shows that person again once their like is closed.
+   *
+   * A LIKE TO SOMEONE NO LONGER AVAILABLE IS ACCEPTED AND CLOSED AT ONCE (Search 02), with the
+   * reason in `closed`: they matched someone else, or the two have no hour left. For a plain like
+   * that is all -- it simply never becomes mutual, and the app shows success. For a CONFIRM (the
+   * person had liked the sender) it is the refusal: the app shows the sorry sheet for that reason.
+   * Confirms are serialised per person in `createMatch`, so of two confirms arriving together the
+   * first wins and the other answers `closed: matched`.
    */
   async sendLike(
     senderId: string,
@@ -108,7 +116,20 @@ export class MatchingService {
     }
     if (like.status !== LikeStatus.Active) return { like };
 
-    // A match needs the interest to be mutual...
+    // A match needs an hour both can still meet in, and the other person still free...
+    const now = new Date();
+    const availability = await this.search.availabilityOf(
+      senderId,
+      targetId,
+      now,
+    );
+    if (availability.status !== Availability.Available) {
+      return {
+        like: await this.closeAtOnce(like, targetId, availability.status, now),
+      };
+    }
+
+    // ...and the interest to be mutual.
     const reciprocal = await this.likes.findOne({
       where: {
         senderId: targetId,
@@ -118,19 +139,34 @@ export class MatchingService {
     });
     if (!reciprocal) return { like };
 
-    // ...and an hour both can still meet in.
-    if (!(await this.search.earliestMeetBetween(senderId, targetId))) {
-      return { like };
-    }
-
     const made = await this.createMatch(senderId, targetId, [
       like.id,
       reciprocal.id,
     ]);
-    // Lost the race: one of the two took another match first, which closed these likes.
+    // Lost the race: one of the two took another match first, which closed these likes -- or the
+    // hours ran out in between. Either way this confirm is refused, with the reason.
     if (!made) {
+      const reread =
+        (await this.likes.findOne({ where: { id: like.id } })) ?? like;
+      if (reread.status === LikeStatus.Withdrawn) {
+        await this.search.closeReceivedFrom(
+          senderId,
+          [{ senderId: targetId, status: Availability.Matched }],
+          now,
+          now,
+        );
+        return { like: reread };
+      }
+      const after = await this.search.availabilityOf(senderId, targetId, now);
       return {
-        like: (await this.likes.findOne({ where: { id: like.id } })) ?? like,
+        like: await this.closeAtOnce(
+          reread,
+          targetId,
+          after.status === Availability.NoOverlap
+            ? Availability.NoOverlap
+            : Availability.Matched,
+          now,
+        ),
       };
     }
     const { match, withdrawn } = made;
@@ -154,6 +190,48 @@ export class MatchingService {
       .catch(() => undefined);
 
     return { like, match };
+  }
+
+  /**
+   * Closes a like that has just landed on someone no longer available, with the reason, and fires
+   * `like_withdrawn` for it. The like that person had sent the sender, if any, closes for the same
+   * reason -- and the sender is shown it closed now (the sorry sheet, the card closed in place), so
+   * it counts as seen on the Likes tab.
+   */
+  private async closeAtOnce(
+    like: Like,
+    targetId: string,
+    status: Availability.Matched | Availability.NoOverlap,
+    now: Date,
+  ): Promise<Like> {
+    const reason =
+      status === Availability.Matched
+        ? LikeCloseReason.Matched
+        : LikeCloseReason.NoOverlap;
+    const matchId =
+      reason === LikeCloseReason.Matched
+        ? await this.activeMatchIdOf(targetId)
+        : null;
+    await this.search.closeLikes([like.id], reason, matchId, now);
+    await this.search.closeReceivedFrom(
+      like.senderId,
+      [{ senderId: targetId, status }],
+      now,
+      now,
+    );
+    return (await this.likes.findOne({ where: { id: like.id } })) ?? like;
+  }
+
+  /** The match that took this person, when they have one: what closed a like to them. */
+  private async activeMatchIdOf(userId: string): Promise<string | null> {
+    const match = await this.matches.findOne({
+      where: [
+        { userAId: userId, status: MatchStatus.Active },
+        { userBId: userId, status: MatchStatus.Active },
+      ],
+      order: { updatedAt: 'DESC' },
+    });
+    return match?.id ?? null;
   }
 
   /**
@@ -283,23 +361,12 @@ export class MatchingService {
         ) == null,
     );
     if (gone.length === 0) return 0;
-    const closed = await this.dataSource.query<Array<{ senderId: string }>>(
-      `WITH closed AS (
-         UPDATE "likes"
-            SET "status" = 'withdrawn', "closed_reason" = 'no_overlap', "closed_at" = $2,
-                "updated_at" = now()
-          WHERE "id" = ANY($1::uuid[]) AND "status" = 'active'
-          RETURNING "sender_id" AS "senderId"
-       ) SELECT * FROM closed`,
-      [gone.map((l) => l.id), now],
+    return this.search.closeLikes(
+      gone.map((l) => l.id),
+      LikeCloseReason.NoOverlap,
+      null,
+      now,
     );
-    for (const c of closed) {
-      void this.analytics.trackServerEvent({
-        userId: c.senderId,
-        ...likeWithdrawnEvent({ matchId: null, reason: 'no_overlap' }),
-      });
-    }
-    return closed.length;
   }
 
   /**

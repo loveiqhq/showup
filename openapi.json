@@ -943,8 +943,56 @@
         ],
         "type": "string"
       },
+      "LikeReceivedDto": {
+        "properties": {
+          "age": {
+            "description": "Absent when the person hides their age",
+            "type": "integer"
+          },
+          "closed": {
+            "description": "Absent on an open like. matched (Too late) or no_overlap (Out of time) on a closed one. Read tolerantly.",
+            "type": "string"
+          },
+          "message": {
+            "description": "Their optional message, as written -- open likes only. A Premium reader only: this list is.",
+            "type": "string"
+          },
+          "name": {
+            "description": "First name",
+            "type": "string"
+          },
+          "photo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SearchPhotoDto"
+              }
+            ],
+            "description": "Their first photo"
+          },
+          "profile": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SearchProfileDto"
+              }
+            ],
+            "description": "Open likes only: the Search 01 profile the card opens"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name"
+        ],
+        "type": "object"
+      },
       "LikeResultDto": {
         "properties": {
+          "closed": {
+            "description": "Set when the like was closed at once because the person is no longer available: matched (they have a date with someone else) or no_overlap (no time left to meet). A plain like shows success anyway; a Confirm date shows the sorry sheet for it. Read tolerantly.",
+            "type": "string"
+          },
           "likeId": {
             "type": "string"
           },
@@ -980,6 +1028,34 @@
         },
         "required": [
           "count"
+        ],
+        "type": "object"
+      },
+      "LikesReceivedDto": {
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/LikeReceivedDto"
+            },
+            "type": "array"
+          },
+          "closedCount": {
+            "description": "Closed cards on the list -- likes_received_viewed closed_count",
+            "type": "integer"
+          },
+          "openCount": {
+            "description": "Open likes on the list -- the badge, and likes_received_viewed open_count",
+            "type": "integer"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/SearchViewerDto"
+          }
+        },
+        "required": [
+          "openCount",
+          "closedCount",
+          "cards",
+          "viewer"
         ],
         "type": "object"
       },
@@ -1887,6 +1963,61 @@
         ],
         "type": "object"
       },
+      "SearchAvailabilityDto": {
+        "properties": {
+          "meetAt": {
+            "description": "The earliest hour both can still meet in -- only when available",
+            "format": "date-time",
+            "type": "string"
+          },
+          "meetDay": {
+            "description": "today or tomorrow for meetAt, in the zone the viewer sent",
+            "type": "string"
+          },
+          "status": {
+            "description": "available, matched (they have a date with someone else) or no_overlap (no time left to meet). Read tolerantly: a newer server may add values, and an app treats one it does not know as no change.",
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "SearchAvailabilityListDto": {
+        "properties": {
+          "statuses": {
+            "description": "One per id asked for, in the order asked",
+            "items": {
+              "$ref": "#/components/schemas/SearchAvailabilityDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "statuses"
+        ],
+        "type": "object"
+      },
+      "SearchAvailabilityRequestDto": {
+        "properties": {
+          "userIds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "userIds"
+        ],
+        "type": "object"
+      },
       "SearchEssentialsDto": {
         "properties": {
           "datingLanguages": {
@@ -1920,6 +2051,46 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "SearchGridCardDto": {
+        "properties": {
+          "likedYou": {
+            "description": "This person has an open like to the viewer: the Liked you badge, and Like on their profile becomes Confirm date",
+            "type": "boolean"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/SearchProfileDto"
+          }
+        },
+        "required": [
+          "profile",
+          "likedYou"
+        ],
+        "type": "object"
+      },
+      "SearchGridDto": {
+        "properties": {
+          "cards": {
+            "description": "In queue order, at most 100: the availability re-check bound",
+            "items": {
+              "$ref": "#/components/schemas/SearchGridCardDto"
+            },
+            "type": "array"
+          },
+          "resultsCount": {
+            "description": "Every profile in the queue right now (search_viewed results_count)",
+            "type": "integer"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/SearchViewerDto"
+          }
+        },
+        "required": [
+          "resultsCount",
+          "cards",
+          "viewer"
+        ],
         "type": "object"
       },
       "SearchHowILiveDto": {
@@ -5765,6 +5936,76 @@
         ]
       }
     },
+    "/me/likes/received": {
+      "get": {
+        "operationId": "getLikesReceived",
+        "parameters": [
+          {
+            "description": "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikesReceivedDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "403": {
+            "description": "The account is not Premium"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "search"
+        ]
+      }
+    },
     "/me/matches": {
       "get": {
         "operationId": "listMatches",
@@ -7287,6 +7528,156 @@
         "summary": "",
         "tags": [
           "safety"
+        ]
+      }
+    },
+    "/search/availability": {
+      "post": {
+        "operationId": "getSearchAvailability",
+        "parameters": [
+          {
+            "description": "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchAvailabilityRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchAvailabilityListDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "403": {
+            "description": "The account is not Premium"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/search/grid": {
+      "get": {
+        "operationId": "getSearchGrid",
+        "parameters": [
+          {
+            "description": "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchGridDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "403": {
+            "description": "The account is not Premium"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "search"
         ]
       }
     },
