@@ -76,11 +76,14 @@ private struct LikesList: View {
     var body: some View {
         GeometryReader { g in
             let frozen = freezeLeavingMs != nil
+            // The card's column beside the photo: the list less its 16 sides, the card's 14 padding,
+            // the 88 photo and the 14 gap.
+            let column = max(0, g.size.width - 32 - 28 - 88 - 14)
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     LikesIntro()
                     ForEach(likes.shown, id: \.userId) { card in
-                        likeCard(card, placeholder: likes.positionOf(card.userId) - 1,
+                        likeCard(card, placeholder: likes.positionOf(card.userId) - 1, column: column,
                                  onOpen: card.open && card.leaving == nil ? { onOpen(card.userId) } : nil)
                             .cardFlyOut(host: host, key: card.userId, leaving: card.leaving != nil,
                                         settled: settled, frozen: frozen)
@@ -109,7 +112,7 @@ private struct LikesList: View {
                             frozenKeys: frozen ? likes.shown.filter { $0.leaving != nil }.map(\.userId) : [],
                             frozenAt: freezeLeavingMs.map(frozenFlightProgress)) { id in
                     if let c = likes.card(id) {
-                        likeCard(c, placeholder: likes.positionOf(id) - 1, onOpen: nil)
+                        likeCard(c, placeholder: likes.positionOf(id) - 1, column: column, onOpen: nil)
                     }
                 }
             }
@@ -119,11 +122,12 @@ private struct LikesList: View {
         }
     }
 
-    @ViewBuilder private func likeCard(_ card: PremiumCard, placeholder: Int, onOpen: (() -> Void)?) -> some View {
+    @ViewBuilder private func likeCard(_ card: PremiumCard, placeholder: Int, column: CGFloat,
+                                       onOpen: (() -> Void)?) -> some View {
         if let closed = card.closed {
             ClosedLikeCard(card: card, reason: closed, placeholder: placeholder)
         } else {
-            OpenLikeCard(card: card, placeholder: placeholder, zone: zone, onOpen: onOpen)
+            OpenLikeCard(card: card, placeholder: placeholder, zone: zone, column: column, onOpen: onOpen)
         }
     }
 }
@@ -157,6 +161,8 @@ struct OpenLikeCard: View {
     let card: PremiumCard
     let placeholder: Int
     let zone: TimeZone
+    /// The column beside the photo: what the count has to fit.
+    var column: CGFloat? = nil
     let onOpen: (() -> Void)?
 
     var body: some View {
@@ -180,9 +186,10 @@ struct OpenLikeCard: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            if card.notNow { PillLabel(text: PremiumCopy.notNowLabel, compact: true) }
+                            // The label keeps its own width; the name and distance wrap in what it leaves.
+                            if card.notNow { PillLabel(text: PremiumCopy.notNowLabel, compact: true).layoutPriority(1) }
                         }
-                        ShowUpCount(count: profile.attendedCount, size: .xs)
+                        ShowUpCount(count: profile.attendedCount, size: .xs, fitWidth: column)
                         if let message = card.message, !message.trimmingCharacters(in: .whitespaces).isEmpty {
                             PrettyText(quotedMessage(message),
                                        font: TypeMetrics.uiFont(PS.loraItalic, 13.5, fallback: .italicSystemFont(ofSize: 13.5)),
@@ -234,10 +241,12 @@ private struct ViewProfileButton: View {
     let onOpen: (() -> Void)?
 
     var body: some View {
-        PrimaryButton(PremiumCopy.viewProfile, variant: .sunset, height: 36, labelSize: 14, horizontalPadding: 16) {
-            onOpen?()
+        // Its own width where that fits; at a large type on a narrow phone the column's, the label on
+        // two lines -- never wider than the card.
+        ViewThatFits(in: .horizontal) {
+            button.fixedSize()
+            button
         }
-        .fixedSize()
         .disabled(onOpen == nil)
         // The 4 above and below that make 44 answer the same tap; the layout keeps the drawn 36.
         .padding(.vertical, 4)
@@ -245,6 +254,12 @@ private struct ViewProfileButton: View {
         .onTapGesture { onOpen?() }
         .padding(.vertical, -4)
         .fitAnchor(FitAnchorID.viewProfile)
+    }
+
+    private var button: some View {
+        PrimaryButton(PremiumCopy.viewProfile, variant: .sunset, height: 36, labelSize: 14, horizontalPadding: 16) {
+            onOpen?()
+        }
     }
 }
 
@@ -307,17 +322,24 @@ private struct EmptyLikes: View {
                            font: TypeMetrics.uiFont(PS.manropeRegular, 14, fallback: .systemFont(ofSize: 14)),
                            lineHeight: 14 * 1.5, color: .liqNeutral, centered: true)
                     .frame(maxWidth: 290)
-                PrimaryButton(PremiumCopy.backToSearch, variant: .sunset, height: 48, labelSize: 15, horizontalPadding: 22,
-                              action: onBackToSearch)
-                    .fixedSize()
-                    .padding(.top, 8)
-                    .fitAnchor(FitAnchorID.likesEmptyAction)
+                // Its own width where that fits, the column's at a large type -- never past the 32 sides.
+                ViewThatFits(in: .horizontal) {
+                    backToSearch.fixedSize()
+                    backToSearch
+                }
+                .padding(.top, 8)
+                .fitAnchor(FitAnchorID.likesEmptyAction)
             }
             .frame(maxWidth: .infinity)
             .padding(EdgeInsets(top: 72, leading: 32, bottom: 24, trailing: 32))
         }
         .scrollBounceBehavior(.basedOnSize)
         .fitAnchor(FitAnchorID.likesEmpty)
+    }
+
+    private var backToSearch: some View {
+        PrimaryButton(PremiumCopy.backToSearch, variant: .sunset, height: 48, labelSize: 15, horizontalPadding: 22,
+                      action: onBackToSearch)
     }
 }
 

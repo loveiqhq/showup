@@ -47,7 +47,9 @@ struct PillLabel: View {
             .font(F.manrope(11, .heavy))
             .foregroundColor(.liqMuted)
             .lineLimit(1)
-            .fixedSize()
+            // Shrinks rather than runs past its card: `Not interested` at the largest type is wider
+            // than a grid card on a narrow phone. Its own width everywhere else.
+            .minimumScaleFactor(0.6)
             .padding(.horizontal, compact ? 9 : 10)
             .padding(.vertical, compact ? 4 : 5)
             .background(Capsule().fill(Color.liqElevated))

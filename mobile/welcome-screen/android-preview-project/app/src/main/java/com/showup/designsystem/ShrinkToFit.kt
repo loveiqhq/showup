@@ -59,3 +59,31 @@ fun Modifier.shrinkToFit(minScale: Float, origin: Float = 0.5f): Modifier = layo
         }
     }
 }
+
+/**
+ * Wrapping text that never breaks inside a word: laid out at its box's width, wrapping between words
+ * -- and where its longest word is wider than the box (a narrow card at the largest type), laid out
+ * at that word's width and drawn scaled down to the box, so every word stays whole. Nothing changes
+ * when the longest word fits. Apply it to a wrapping `Text`; [longestWord] is that word's width at
+ * full size, in px, measured by the caller.
+ *
+ * @param minScale the least it shrinks to; past it a word is broken as the text would break it.
+ */
+fun Modifier.fitWords(longestWord: Int, minScale: Float = 0.6f): Modifier = layout { measurable, constraints ->
+    if (!constraints.hasBoundedWidth || longestWord <= constraints.maxWidth) {
+        val p = measurable.measure(constraints)
+        return@layout layout(p.width, p.height) { p.place(0, 0) }
+    }
+    val box = constraints.maxWidth
+    val scale = maxOf(minScale, box.toFloat() / longestWord)
+    val p = measurable.measure(constraints.copy(minWidth = 0, maxWidth = (box / scale).toInt()))
+    val width = (p.width * scale).toInt().coerceIn(constraints.minWidth, box)
+    val height = (p.height * scale).toInt()
+    layout(width, height) {
+        p.placeWithLayer(0, 0) {
+            scaleX = scale
+            scaleY = scale
+            transformOrigin = TransformOrigin(0f, 0f)
+        }
+    }
+}

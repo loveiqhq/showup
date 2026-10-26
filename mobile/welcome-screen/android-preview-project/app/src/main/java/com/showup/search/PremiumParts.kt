@@ -127,7 +127,10 @@ fun PillLabel(text: String, modifier: Modifier = Modifier, compact: Boolean = fa
         modifier = modifier
             .background(Elevated, pill)
             .border(1.dp, Border, pill)
-            .padding(horizontal = if (compact) 9.dp else 10.dp, vertical = if (compact) 4.dp else 5.dp),
+            .padding(horizontal = if (compact) 9.dp else 10.dp, vertical = if (compact) 4.dp else 5.dp)
+            // Shrinks rather than cuts: `Not interested` at the largest type is wider than a grid card
+            // on a narrow phone.
+            .shrinkToFit(0.6f),
     )
 }
 

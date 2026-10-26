@@ -128,7 +128,7 @@ private struct GridCards: View {
             .background(alignment: .topLeading) {
                 ZStack(alignment: .topLeading) {
                     ForEach(grid.shown, id: \.userId) { card in
-                        CardInfo(card: card, zone: zone, glass: false)
+                        CardInfo(card: card, zone: zone, glass: false, width: max(0, column - 2 * infoInset))
                             .frame(width: max(0, column - 2 * infoInset))
                             .fixedSize(horizontal: false, vertical: true)
                             .background(GeometryReader { p in
@@ -222,7 +222,8 @@ struct PremiumGridCard: View {
                 }
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    CardInfo(card: card, zone: zone, glass: true).padding(infoInset)
+                    CardInfo(card: card, zone: zone, glass: true, width: max(0, g.size.width - 2 * infoInset))
+                        .padding(infoInset)
                 }
                 if !dim {
                     HStack(spacing: 0) {
@@ -251,6 +252,8 @@ private struct CardInfo: View {
     let card: PremiumCard
     let zone: TimeZone
     let glass: Bool
+    /// The block's width: what the count has to fit.
+    let width: CGFloat
 
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
@@ -258,9 +261,9 @@ private struct CardInfo: View {
         VStack(alignment: .leading, spacing: 5) {
             if card.closed == nil, let profile = card.profile {
                 if glass {
-                    ShowUpCount(count: profile.attendedCount, size: .xs, dark: true) { HeroGlass(blur: 8) }
+                    ShowUpCount(count: profile.attendedCount, size: .xs, dark: true, fitWidth: width) { HeroGlass(blur: 8) }
                 } else {
-                    ShowUpCount(count: profile.attendedCount, size: .xs, dark: true)
+                    ShowUpCount(count: profile.attendedCount, size: .xs, dark: true, fitWidth: width)
                 }
             }
             Text(nameLine(card.name, card.age))
