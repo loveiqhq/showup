@@ -1997,22 +1997,17 @@ class MainActivity : ComponentActivity() {
                     }
                     FlowScreen.CheckInSearch -> {
                         val zone = remember { ZoneId.systemDefault() }
-                        // ARRIVED HERE ALREADY: the screen coming back with this visit still in the
-                        // view model is not arriving -- the pop of a profile pushed over it (which
-                        // fired the grid's screen_viewed and started its re-check itself), or the
-                        // activity recreated by a system change (font size, dark mode). Saved with
-                        // the destination, so both bring it back; a new view model after a process
-                        // death has no visit, so that one arrives. Cleared when the screen slides
-                        // away, so every other way in is an arrival.
-                        var arrivedHere by rememberSaveable { mutableStateOf(false) }
                         LaunchedEffect(onTop) {
                             if (onTop) {
-                                if (arrivedHere && search.hasVisited) return@LaunchedEffect
-                                arrivedHere = true
+                                // STILL HERE FROM BEFORE: the pop of a profile pushed over the grid
+                                // (which fired the grid's screen_viewed and started its re-check
+                                // itself), or the activity recreated by a system change. The view
+                                // model knows; see SearchViewModel.isOnScreen.
+                                if (search.isOnScreen(PremiumSurface.Grid)) return@LaunchedEffect
                                 val filters = checkInState.server?.filters
                                 search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom, searchState.layout))
                             } else {
-                                arrivedHere = false
+                                search.leftScreen(PremiumSurface.Grid)
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
                                 search.leave()
                             }
@@ -2076,16 +2071,14 @@ class MainActivity : ComponentActivity() {
                     }
                     FlowScreen.LikesReceived -> {
                         val zone = remember { ZoneId.systemDefault() }
-                        // As on Search: the pop of a profile or a recreated activity is not an
-                        // arrival while the view model still holds the list.
-                        var arrivedHere by rememberSaveable { mutableStateOf(false) }
                         LaunchedEffect(onTop) {
                             if (onTop) {
-                                if (arrivedHere && !searchState.likes.loading) return@LaunchedEffect
-                                arrivedHere = true
+                                // As on Search: the pop of a profile or a recreated activity is not an
+                                // arrival while the view model has the list on screen.
+                                if (search.isOnScreen(PremiumSurface.Likes)) return@LaunchedEffect
                                 search.likesArrived(zone.id, profileScreenOf(cameFrom, searchState.layout))
                             } else {
-                                arrivedHere = false
+                                search.leftScreen(PremiumSurface.Likes)
                                 // Another tab: a decline waiting out its Undo is sent now.
                                 search.leave()
                             }

@@ -217,14 +217,18 @@ final class SearchModel {
     /// Filters saved new settings: the return reads the queue or the grid again under them.
     private var reloadOnReturn = false
 
-    /// The list a profile just closed onto, which has had its `screen_viewed` and its re-check: its
-    /// screen appearing again under the popped profile is not an arrival (`takeReturn`).
-    private var returnedTo: PremiumSurface?
+    /// The list screens arrived at and not left, this model's life: `.grid` for the Search tab (grid
+    /// or queue), `.likes` for the Likes tab. A screen appearing again while it is here -- under a
+    /// popped profile, which fired its own `screen_viewed` -- is not an arrival; leaving it
+    /// (`leftScreen`), or leaving a profile opened from it for somewhere else, makes the next showing
+    /// one. Android's `SearchViewModel.isOnScreen`, the same rule.
+    private var onScreen: Set<PremiumSurface> = []
 
     /// Where the Likes list was when its tab was left -- the first card showing -- for the next visit;
     /// nil, the top, once the list read back different ("Switching tabs and coming back restores the
-    /// scroll position unless the list reloaded").
-    private(set) var likesScrollAnchor: String?
+    /// scroll position unless the list reloaded"). Not observed: it is read when the list is built,
+    /// and a write on every card scrolled past must not redraw the app.
+    @ObservationIgnored private(set) var likesScrollAnchor: String?
 
     // Per profile, for `profile_card_viewed`.
     private var shownAt = 0
@@ -283,17 +287,12 @@ final class SearchModel {
     /// A Search visit has been made in this model's life -- a process that ended starts again.
     var hasVisited: Bool { visited }
 
-    /// The host's question when `surface`'s screen appears: is this the list a profile just closed
-    /// onto? Asked once -- the answer is used up -- so only the reappearance under the popped profile
-    /// is skipped. Android keeps the same fact in its host (`poppedFromProfile`), set by the pop.
-    func takeReturn(_ surface: PremiumSurface) -> Bool {
-        defer { returnedTo = nil }
-        return returnedTo == surface
-    }
+    /// The host's question when a list screen appears: is it still here from before?
+    func isOnScreen(_ surface: PremiumSurface) -> Bool { onScreen.contains(surface) }
 
-    /// Any navigation inside the flow is a real arrival: whatever return was not taken is forgotten.
-    func clearReturn() {
-        returnedTo = nil
+    /// The list screen went away: the next time it shows is an arrival.
+    func leftScreen(_ surface: PremiumSurface) {
+        onScreen.remove(surface)
     }
 
     // MARK: - the visit
@@ -304,6 +303,7 @@ final class SearchModel {
     /// everything after it would be counted against Filters -- and so `position` starts again at the
     /// profile shown, as the ticket has it reset "on each screen_viewed".
     func arrived(zone: String, filtersActive: [String], referrer: ProfileScreen?) {
+        onScreen.insert(.grid)
         guard visited, referrer == .checkinFilters else {
             visit(zone: zone, filtersActive: filtersActive, referrer: referrer)
             return
@@ -345,6 +345,7 @@ final class SearchModel {
     /// A visit to the Search tab: the session first, because the plan picks the layout; then
     /// `screen_viewed` for that layout, once, and the queue or the grid read.
     func visit(zone: String, filtersActive: [String], referrer: ProfileScreen?) {
+        onScreen.insert(.grid)
         visited = true
         reloadOnReturn = false
         self.zone = zone
@@ -480,6 +481,7 @@ final class SearchModel {
     /// position "unless the list reloaded" -- read again here, it keeps it when the same cards came
     /// back in the same order, and starts at the top when they did not.
     func likesArrived(zone: String, referrer: ProfileScreen?) {
+        onScreen.insert(.likes)
         self.zone = zone
         stopPlayback()
         flushDecline()
@@ -592,8 +594,9 @@ final class SearchModel {
     /// for its list: its view reported, playback stopped, the profile closed, and nothing fired for
     /// the list it is not returning to. The next screen fires its own `screen_viewed`.
     func closeProfileForElsewhere() {
-        guard state.opened != nil else { return }
-        returnedTo = nil
+        guard let opened = state.opened else { return }
+        // The list under it is not coming back: whenever it shows again, that is an arrival.
+        onScreen.remove(opened.from)
         stopPlayback()
         if !state.coach { reportCardViewed() }
         state.opened = nil
@@ -632,7 +635,6 @@ final class SearchModel {
     /// `search_profile`), and every card's availability read again.
     private func returnToList(_ change: (inout PremiumCard) -> Void) {
         guard let opened = state.opened else { return }
-        returnedTo = opened.from
         stopPlayback()
         reportCardViewed()
         updateList(opened.from) { list in

@@ -358,8 +358,6 @@ private struct TutorialFlow: View {
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
     private func go(to next: FlowScreen) {
-        // Any move inside the flow is a real arrival, never the reappearance under a popped profile.
-        search.clearReturn()
         cameFromRaw = screen.rawValue
         forward = next > screen
         if reduceMotion {
@@ -1155,8 +1153,9 @@ private struct TutorialFlow: View {
             }
             .onAppear {
                 attachSearch()
-                // Under a profile that just closed, the grid has had its screen_viewed and re-check.
-                guard !search.takeReturn(.grid) else { return }
+                // Still here from before -- under a profile that just closed, which fired the grid's
+                // screen_viewed and started its re-check: not an arrival (SearchModel.isOnScreen).
+                guard !search.isOnScreen(.grid) else { return }
                 let filters = checkIn.state.server?.filters
                 search.arrived(zone: TimeZone.current.identifier,
                                filtersActive: filters.map(filtersActive) ?? [],
@@ -1164,7 +1163,11 @@ private struct TutorialFlow: View {
             }
             // Leaving -- to Filters or another tab: the profile has left the screen. Not when a
             // profile is pushed over the grid: that profile has just arrived.
-            .onDisappear { if search.state.opened == nil { search.leave() } }
+            .onDisappear {
+                guard search.state.opened == nil else { return }
+                search.leftScreen(.grid)
+                search.leave()
+            }
         case .likesReceived:
             LikesReceivedView(
                 state: search.state,
@@ -1190,11 +1193,15 @@ private struct TutorialFlow: View {
                 onScrolled: { search.likesScrolled($0) })
                 .onAppear {
                     attachSearch()
-                    guard !search.takeReturn(.likes) else { return }
+                    guard !search.isOnScreen(.likes) else { return }
                     search.likesArrived(zone: TimeZone.current.identifier, referrer: profileScreen(of: cameFrom))
                 }
                 // Another tab: a decline waiting out its Undo is sent now.
-                .onDisappear { if search.state.opened == nil { search.leave() } }
+                .onDisappear {
+                    guard search.state.opened == nil else { return }
+                    search.leftScreen(.likes)
+                    search.leave()
+                }
                 // A tab root: no back button, and the swipe from the edge returns to Search, as from
                 // Settings.
                 .modifier(EdgeSwipeBack(onBack: { go(to: searchTab) }))
@@ -1290,9 +1297,14 @@ private struct TutorialFlow: View {
     /// still opens the intro.
     private func startDevCheckIn(at target: FlowScreen) {
         checkIn = CheckInModel(store: DevCheckInStore(introPassed: target != .checkInIntro,
-                                                      active: target == .checkInSearch || target == .searchFilters),
+                                                      active: target == .checkInSearch || target == .searchFilters
+                                                          || target == .likesReceived),
                                analytics: AppAnalytics.shared)
-        search = SearchModel(store: DevSearchStore(), analytics: AppAnalytics.shared, players: sharedMediaPlayer)
+        // `-dev_premium` in the scheme's launch arguments opens the grid and the Likes tab, as
+        // Android's `dev_premium` extra does; the dev menu's plan switch still changes it.
+        let premium = ProcessInfo.processInfo.arguments.contains("-dev_premium")
+        search = SearchModel(store: DevSearchStore(premium: premium), analytics: AppAnalytics.shared,
+                             players: sharedMediaPlayer)
         Task { await jumpFromDevMenu(to: target) }
     }
 

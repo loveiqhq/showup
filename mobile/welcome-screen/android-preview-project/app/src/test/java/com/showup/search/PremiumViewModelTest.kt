@@ -781,4 +781,29 @@ class PremiumViewModelTest {
         advanceUntilIdle()
         assertEquals(LikesScroll(), vm.likesScroll)
     }
+
+    @Test
+    fun `a profile left for Filters makes the grid's next showing an arrival, read under the new filters`() = runTest(dispatcher) {
+        val vm = onGrid()
+        assertTrue(vm.isOnScreen(PremiumSurface.Grid))
+        vm.open(PremiumSurface.Grid, sofia)
+        vm.backFromProfile()
+        advanceUntilIdle()
+        assertTrue("under a popped profile the grid is still here: not an arrival", vm.isOnScreen(PremiumSurface.Grid))
+        vm.open(PremiumSurface.Grid, "sample-maya")
+        vm.closeProfileForElsewhere()
+        assertFalse("left for Filters, the grid is not coming back under the profile", vm.isOnScreen(PremiumSurface.Grid))
+        vm.filtersSaved()
+        events.clear()
+        vm.arrived("Europe/Berlin", listOf("age_range"), ProfileScreen.CheckinFilters)
+        advanceUntilIdle()
+        assertTrue(vm.isOnScreen(PremiumSurface.Grid))
+        assertEquals("checkin_filters", props("screen_viewed")["referrer_screen_id"])
+        assertEquals(listOf("age_range"), props(SearchAnalytics.SEARCH_VIEWED)["filters_active"])
+        assertEquals("read again under the new filters", 2, store.gridReads)
+        vm.leftScreen(PremiumSurface.Grid)
+        assertFalse(vm.isOnScreen(PremiumSurface.Grid))
+        vm.likesArrived("Europe/Berlin", ProfileScreen.SearchGrid)
+        assertTrue(vm.isOnScreen(PremiumSurface.Likes))
+    }
 }

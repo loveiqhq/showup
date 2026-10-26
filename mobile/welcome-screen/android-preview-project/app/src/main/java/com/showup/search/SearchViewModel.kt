@@ -279,6 +279,7 @@ open class SearchViewModel(
      * profile shown, as the ticket has it reset "on each screen_viewed".
      */
     fun arrived(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) {
+        onScreen += PremiumSurface.Grid
         if (!visited || referrer != ProfileScreen.CheckinFilters) {
             visit(zone, filtersActive, referrer)
             return
@@ -316,6 +317,7 @@ open class SearchViewModel(
      * @param filtersActive the §10 filters set away from the defaults, for `search_viewed`.
      */
     fun visit(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) {
+        onScreen += PremiumSurface.Grid
         visited = true
         reloadOnReturn = false
         this.zone = zone
@@ -438,6 +440,7 @@ open class SearchViewModel(
      * back in the same order, and starts at the top when they did not.
      */
     fun likesArrived(zone: String, referrer: ProfileScreen?) {
+        onScreen += PremiumSurface.Likes
         this.zone = zone
         stopPlayback()
         flushDecline()
@@ -545,12 +548,33 @@ open class SearchViewModel(
     val hasVisited: Boolean get() = visited
 
     /**
+     * The list screens arrived at and not left, this view model's life: [PremiumSurface.Grid] for
+     * the Search tab (grid or queue), [PremiumSurface.Likes] for the Likes tab. A screen coming back
+     * while it is here -- under a popped profile, which fired its own `screen_viewed`, or in an
+     * activity a system change recreated -- is not an arrival. Leaving it ([leftScreen]), or leaving
+     * a profile opened from it for somewhere else, makes the next showing one. Here, not in the
+     * host's saved state: a marker saved there outlived the screen and swallowed a real return from
+     * Filters (the second 185/186 audit, 26 Oct 2026).
+     */
+    private val onScreen = mutableSetOf<PremiumSurface>()
+
+    /** The host's question when a list screen shows: is it still here from before? */
+    fun isOnScreen(surface: PremiumSurface): Boolean = surface in onScreen
+
+    /** The list screen slid away: the next time it shows is an arrival. */
+    fun leftScreen(surface: PremiumSurface) {
+        onScreen -= surface
+    }
+
+    /**
      * The opened profile is left for somewhere else -- another tab, Filters, the likes chip -- not for
      * its list: its view reported, playback stopped, the profile closed, and nothing fired for the
      * list it is not returning to. The next screen fires its own `screen_viewed`.
      */
     fun closeProfileForElsewhere() {
-        if (_state.value.opened == null) return
+        val opened = _state.value.opened ?: return
+        // The list under it is not coming back: whenever it shows again, that is an arrival.
+        onScreen -= opened.from
         stopPlayback()
         if (!_state.value.coach) reportCardViewed()
         _state.update { it.copy(opened = null, sheet = null, viewerAt = null, coach = false, refused = null, confirming = false) }

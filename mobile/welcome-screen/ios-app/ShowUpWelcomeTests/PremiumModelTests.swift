@@ -291,8 +291,7 @@ final class PremiumModelTests: XCTestCase {
         let asks = await store.availabilityAsks
         XCTAssertEqual(asks, [SearchSamples.grid.map(\.profile.userId)])
         XCTAssertTrue(events.of(SearchAnalytics.searchViewedName).isEmpty, "the grid did not reload")
-        XCTAssertTrue(m.takeReturn(.grid), "the grid's reappearance under the popped profile is not an arrival")
-        XCTAssertFalse(m.takeReturn(.grid), "asked once")
+        XCTAssertTrue(m.isOnScreen(.grid), "the grid's reappearance under the popped profile is not an arrival")
     }
 
     // MARK: - the actions, from a profile opened from the grid
@@ -763,16 +762,27 @@ final class PremiumModelTests: XCTestCase {
 
     /// Leaving a profile for somewhere else -- a tab, Filters -- is a real arrival there, and the list
     /// it came from is not waiting to reappear.
-    func testAProfileLeftForElsewhereLeavesNoReturnBehind() async {
+    /// Leaving a profile for somewhere else -- Filters, a tab -- is a real arrival wherever it goes,
+    /// and the grid it came from is no longer on screen: back from Filters, the grid arrives again,
+    /// with its screen_viewed and its read under the new filters.
+    func testAProfileLeftForFiltersMakesTheGridsNextShowingAnArrival() async {
         let m = await onGrid()
+        XCTAssertTrue(m.isOnScreen(.grid))
         open(m, .grid, sofia)
         m.closeProfileForElsewhere()
-        XCTAssertFalse(m.takeReturn(.grid))
         XCTAssertNil(m.state.opened)
-        open(m, .grid, maya)
-        m.backFromProfile()
-        m.clearReturn()
-        XCTAssertFalse(m.takeReturn(.grid), "a move inside the flow forgets it")
+        XCTAssertFalse(m.isOnScreen(.grid), "the grid is not coming back under the profile")
+        m.filtersSaved()
+        events.clear()
+        m.arrived(zone: "Europe/Berlin", filtersActive: ["age_range"], referrer: .checkinFilters)
+        await settle()
+        XCTAssertTrue(m.isOnScreen(.grid))
+        XCTAssertEqual(props("screen_viewed")["referrer_screen_id"] as? String, "checkin_filters")
+        XCTAssertEqual(props(SearchAnalytics.searchViewedName)["filters_active"] as? [String], ["age_range"])
+        let reads = await store.gridReads
+        XCTAssertEqual(reads, 2, "read again under the new filters")
+        m.leftScreen(.grid)
+        XCTAssertFalse(m.isOnScreen(.grid))
     }
 
     // MARK: - the audit of 26 Oct 2026

@@ -68,10 +68,25 @@ private struct LikesList: View {
     let onOpen: (String) -> Void
     let onLeft: (String) -> Void
     let freezeLeavingMs: Double?
-    let scrollAnchor: String?
     let onScrolled: (String?) -> Void
 
     @State private var host = FlyOutHost()
+    /// The first card showing, the scroll position's own state: seeded from the model's, reported
+    /// back to it on every change, so the binding the list scrolls by always says where it is.
+    @State private var topId: String?
+
+    init(likes: PremiumList, zone: TimeZone, settled: Bool, onOpen: @escaping (String) -> Void,
+         onLeft: @escaping (String) -> Void, freezeLeavingMs: Double?, scrollAnchor: String?,
+         onScrolled: @escaping (String?) -> Void) {
+        self.likes = likes
+        self.zone = zone
+        self.settled = settled
+        self.onOpen = onOpen
+        self.onLeft = onLeft
+        self.freezeLeavingMs = freezeLeavingMs
+        self.onScrolled = onScrolled
+        _topId = State(initialValue: scrollAnchor)
+    }
 
     var body: some View {
         GeometryReader { g in
@@ -105,7 +120,8 @@ private struct LikesList: View {
             }
             // KEPT ACROSS A TAB SWITCH, by the model: switching tabs takes this screen away, and its
             // scroll position with it. Back at the top when the list read back different.
-            .scrollPosition(id: Binding(get: { scrollAnchor }, set: { onScrolled($0) }))
+            .scrollPosition(id: $topId)
+            .onChange(of: topId) { _, now in onScrolled(now) }
             .coordinateSpace(name: premiumListSpace)
             .overlay {
                 FlyOutLayer(host: host, onLeft: onLeft,
