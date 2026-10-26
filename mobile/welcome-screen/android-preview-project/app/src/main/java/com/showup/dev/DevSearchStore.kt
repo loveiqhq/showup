@@ -35,12 +35,14 @@ import java.time.Duration
 class DevSearchStore(
     /** Milliseconds every call takes: long enough to see the loading state, short enough to walk. */
     private val latencyMs: Long = 900,
+    /** The plan the walk starts on (`dev_premium`); the dev menu's switch still changes it. */
+    premium: Boolean = false,
 ) : SearchStore {
 
     /** Leonie in full, then Mara and Ana. A like or a pass takes someone out, as the server does. */
     private val queue = (listOf(SearchSamples.FULL) + SearchSamples.NEXT).toMutableList()
     private var coachHidden = false
-    private var premium = false
+    private var premium = premium
 
     /** Who the viewer has answered: out of the next grid, and -- for a liker -- off the list. */
     private val answered = mutableSetOf<String>()

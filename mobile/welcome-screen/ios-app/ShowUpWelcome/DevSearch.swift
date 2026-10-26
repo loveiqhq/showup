@@ -31,8 +31,11 @@ actor DevSearchStore: SearchStoring {
     /// The first re-check is the staged one.
     private var rechecks = 0
 
-    init(latencyMs: Int = 900) {
+    /// - Parameter premium: the plan the walk starts on, as Android's `dev_premium`; the dev menu's
+    ///   switch still changes it.
+    init(latencyMs: Int = 900, premium: Bool = false) {
         latency = UInt64(max(latencyMs, 0)) * 1_000_000
+        self.premium = premium
     }
 
     func queue(zone: String) async -> Result<SearchQueue, CallFailure> {

@@ -25,7 +25,7 @@ import kotlinx.coroutines.delay
 import java.util.UUID
 
 /** The jumps that land on Search, so the fake Check-In starts committed. */
-val DEV_SEARCH_STARTS = setOf("CheckInSearch", "SearchFilters")
+val DEV_SEARCH_STARTS = setOf("CheckInSearch", "SearchFilters", "LikesReceived")
 
 /** How the fake commit answers -- the four ends the Uplift screen draws. */
 enum class DevCommitMode { Saves, Network, Server, ContactInfo }
@@ -98,12 +98,15 @@ class DevCheckInStore(
  *       --es dev_commit Network --el dev_latency 1500 --ez dev_intro_passed false
  *
  * `dev_start` is a [com.showup.welcome.FlowScreen] name. Read once, on a fresh launch only.
+ * `--ez dev_premium true` opens Search on the Premium plan -- the grid and the Likes tab -- with no
+ * trip to the dev menu's plan switch, so a walk or a recording starts where it is meant to.
  */
 data class DevCheckInLaunch(
     val start: String,
     val commit: DevCommitMode,
     val latencyMs: Long,
     val introPassed: Boolean,
+    val premium: Boolean = false,
 ) {
     companion object {
         const val EXTRA_ON = "dev_checkin"
@@ -111,6 +114,7 @@ data class DevCheckInLaunch(
         const val EXTRA_COMMIT = "dev_commit"
         const val EXTRA_LATENCY = "dev_latency"
         const val EXTRA_INTRO_PASSED = "dev_intro_passed"
+        const val EXTRA_PREMIUM = "dev_premium"
 
         fun from(intent: android.content.Intent?): DevCheckInLaunch? {
             if (intent?.getBooleanExtra(EXTRA_ON, false) != true) return null
@@ -120,6 +124,7 @@ data class DevCheckInLaunch(
                     .getOrDefault(DevCommitMode.Saves),
                 latencyMs = intent.getLongExtra(EXTRA_LATENCY, 900),
                 introPassed = intent.getBooleanExtra(EXTRA_INTRO_PASSED, false),
+                premium = intent.getBooleanExtra(EXTRA_PREMIUM, false),
             )
         }
     }
