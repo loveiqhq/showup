@@ -60,6 +60,13 @@ export class Like {
   @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
   closedAt: Date | null;
 
+  /**
+   * When the RECIPIENT was first shown this like as closed (Search 03): the Likes list leaves it out
+   * from the next load on. Set only on a closed like.
+   */
+  @Column({ name: 'closed_seen_at', type: 'timestamptz', nullable: true })
+  closedSeenAt: Date | null;
+
   /** The match that closed this like (reason `matched`), or the match it made (status `matched`). */
   @Column({ name: 'match_id', type: 'uuid', nullable: true })
   matchId: string | null;

@@ -1,6 +1,6 @@
 //
 //  SearchRepository.swift
-//  ShowUp · what Date search 01 reads and writes, behind one protocol (SHOWUP-184)
+//  ShowUp · what Date search reads and writes, behind one protocol (SHOWUP-184, 185, 186)
 //
 //  The Swift twin of `search/SearchRepository.kt`. The screen and its model never see a generated
 //  type: the server's payload is read here into the app's own `SearchProfile`, and a value this app
@@ -82,6 +82,56 @@ struct SearchSession: Equatable, Sendable {
     let coachHidden: Bool
 }
 
+/// One card of the Premium grid (Search 02): the whole profile, and whether they liked the viewer.
+struct GridCard: Equatable, Sendable {
+    let profile: SearchProfile
+    let likedYou: Bool
+}
+
+/// The Premium grid: the whole queue in queue order, only people still available.
+struct SearchGrid: Equatable, Sendable {
+    let resultsCount: Int
+    let cards: [GridCard]
+    var viewer = SearchViewer()
+}
+
+/// One person's status on the re-check. A status this app does not know (a newer server) is not here
+/// at all, which the model reads as "no change" -- never as closed.
+enum CardStatus: Equatable, Sendable {
+    /// Still available: the earliest hour both hold, which may have moved.
+    case available(meetAt: Date, meetDay: String)
+    case closed(CloseReason)
+}
+
+/// One like the viewer received (Search 03). Open: `profile` to open, and the message if one was
+/// written. Closed: the name and photo only.
+struct LikeReceived: Equatable, Sendable {
+    let userId: String
+    let name: String
+    let age: Int?
+    /// The first photo, or nil for none (the slot draws its placeholder).
+    let photo: URL?
+    let closed: CloseReason?
+    let message: String?
+    let profile: SearchProfile?
+}
+
+/// The Likes tab, as read once per visit, in the server's order.
+struct LikesReceived: Equatable, Sendable {
+    let openCount: Int
+    let closedCount: Int
+    let cards: [LikeReceived]
+    var viewer = SearchViewer()
+}
+
+/// What the server said to a Confirm date (Search 02, 03).
+enum ConfirmAnswer: Equatable, Sendable {
+    /// The first confirm to arrive: a match.
+    case won
+    /// The like had closed first; the sorry sheet says why.
+    case refused(CloseReason)
+}
+
 protocol SearchStoring: Sendable {
     /// The queue, with `meetDay` worked out in `zone` (an IANA id).
     func queue(zone: String) async -> Result<SearchQueue, CallFailure>
@@ -95,6 +145,16 @@ protocol SearchStoring: Sendable {
     func session() async -> Result<SearchSession, CallFailure>
     /// Dev menu only: the plan switch, a 404 in production.
     func setPremium(_ premium: Bool) async -> Result<Void, CallFailure>
+    /// The Premium grid, with `meetDay` worked out in `zone`.
+    func grid(zone: String) async -> Result<SearchGrid, CallFailure>
+    /// The availability re-check: every card on screen in one call.
+    func availability(userIds: [String], zone: String) async -> Result<[String: CardStatus], CallFailure>
+    /// The Likes tab, once per visit. Reading it marks the closed cards on it seen.
+    func likesReceived(zone: String) async -> Result<LikesReceived, CallFailure>
+    /// `Confirm date`: a like to someone who liked the viewer, sent at once and waited for -- never in
+    /// the background, because the sheet waits on the answer. Idempotent on the server, so a retry
+    /// after a timeout answers with the like already made.
+    func confirm(targetUserId: String, position: Int) async -> Result<ConfirmAnswer, CallFailure>
 }
 
 struct SearchRepository: SearchStoring {
@@ -185,9 +245,111 @@ struct SearchRepository: SearchStoring {
         }
     }
 
+    func grid(zone: String) async -> Result<SearchGrid, CallFailure> {
+        do {
+            if case .ok(let ok) = try await api.client.getSearchGrid(query: .init(tz: zone)) {
+                let dto = try ok.body.json
+                return .success(SearchGrid(
+                    resultsCount: dto.resultsCount,
+                    cards: dto.cards.map { GridCard(profile: SearchProfile($0.profile, api: api), likedYou: $0.likedYou) },
+                    viewer: SearchViewer(vibes: Set(dto.viewer.vibes), interests: Set(dto.viewer.interests))))
+            }
+            return .failure(.server)
+        } catch {
+            return .failure(Self.failure(error))
+        }
+    }
+
+    func availability(userIds: [String], zone: String) async -> Result<[String: CardStatus], CallFailure> {
+        let body = Components.Schemas.SearchAvailabilityRequestDto(userIds: userIds)
+        do {
+            if case .ok(let ok) = try await api.client.getSearchAvailability(query: .init(tz: zone), body: .json(body)) {
+                var statuses: [String: CardStatus] = [:]
+                for s in try ok.body.json.statuses {
+                    if let status = readStatus(s.status, meetAt: s.meetAt, meetDay: s.meetDay) { statuses[s.userId] = status }
+                }
+                return .success(statuses)
+            }
+            return .failure(.server)
+        } catch {
+            return .failure(Self.failure(error))
+        }
+    }
+
+    func likesReceived(zone: String) async -> Result<LikesReceived, CallFailure> {
+        do {
+            if case .ok(let ok) = try await api.client.getLikesReceived(query: .init(tz: zone)) {
+                let dto = try ok.body.json
+                return .success(LikesReceived(
+                    openCount: dto.openCount,
+                    closedCount: dto.closedCount,
+                    // A card that is neither open (with its profile) nor closed for a known reason is
+                    // one this app cannot draw: dropped, never guessed at.
+                    cards: dto.cards.compactMap { LikeReceived($0, api: api) },
+                    viewer: SearchViewer(vibes: Set(dto.viewer.vibes), interests: Set(dto.viewer.interests))))
+            }
+            return .failure(.server)
+        } catch {
+            return .failure(Self.failure(error))
+        }
+    }
+
+    func confirm(targetUserId: String, position: Int) async -> Result<ConfirmAnswer, CallFailure> {
+        let body = Components.Schemas.CreateLikeDto(message: nil, position: position, targetUserId: targetUserId)
+        do {
+            if case .created(let created) = try await api.client.likeProfile(body: .json(body)) {
+                let dto = try created.body.json
+                return .success(confirmAnswer(matched: dto.matched, closed: dto.closed))
+            }
+            return .failure(.server)
+        } catch {
+            return .failure(Self.failure(error))
+        }
+    }
+
     /// No response is `network`; a response that could not be read is the server's.
     private static func failure(_ error: any Error) -> CallFailure {
         ShowUpAPI.isNoResponse(error) ? .network : .server
+    }
+}
+
+/// A re-check status as the app reads it: `available` with its hour, or closed for a reason it knows.
+/// Anything else -- a value from a newer server, an available with no hour -- is nil: no change.
+func readStatus(_ status: String, meetAt: Date?, meetDay: String?) -> CardStatus? {
+    if status == "available" {
+        guard let meetAt, let meetDay else { return nil }
+        return .available(meetAt: meetAt, meetDay: meetDay)
+    }
+    return CloseReason.of(status).map { .closed($0) }
+}
+
+/// A confirm's answer. Not a match and no reason this app knows: the confirm did not make a date, and
+/// `no_overlap` is the one reason that never claims a match that did not happen.
+func confirmAnswer(matched: Bool, closed: String?) -> ConfirmAnswer {
+    matched ? .won : .refused(CloseReason.of(closed) ?? .noOverlap)
+}
+
+extension LikeReceived {
+    /// The payload, read into the app's own type -- or nil for a card this app cannot draw.
+    init?(_ dto: Components.Schemas.LikeReceivedDto, api: ShowUpAPI) {
+        var reason: CloseReason?
+        if let wire = dto.closed {
+            guard let known = CloseReason.of(wire) else { return nil }
+            reason = known
+        }
+        var opened: SearchProfile?
+        if reason == nil {
+            guard let profile = dto.profile?.value1 else { return nil }
+            opened = SearchProfile(profile, api: api)
+        }
+        self.init(
+            userId: dto.userId,
+            name: dto.name,
+            age: dto.age,
+            photo: dto.photo.flatMap { api.absoluteURL($0.value1.url) },
+            closed: reason,
+            message: reason == nil ? dto.message : nil,
+            profile: opened)
     }
 }
 

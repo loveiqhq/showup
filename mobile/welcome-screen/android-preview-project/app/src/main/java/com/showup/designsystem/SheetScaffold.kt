@@ -201,7 +201,10 @@ fun SheetScaffold(
     content: @Composable () -> Unit,
 ) {
     val motion = rememberMotion()
-    var shown by remember { mutableStateOf(false) }
+    // With animations off the sheet is simply THERE, from its first frame: it would rise over 0 ms
+    // anyway, but only on the frame after the effect below -- and that first frame, 28 low at 85%
+    // opacity, is what a screenshot caught (the 185 evidence review, 25 Oct 2026).
+    var shown by remember { mutableStateOf(!motion.enabled) }
     LaunchedEffect(Unit) { shown = true }
     val rise by animateFloatAsState(
         targetValue = if (shown) 0f else 28f,

@@ -38,6 +38,7 @@ final class TabBarTests: XCTestCase {
         let event = NavAnalytics.tabSwitched(active: .search, tapped: .likes)
         XCTAssertEqual(event?.0, "tab_switched")
         XCTAssertEqual(event?.1["tab"] as? String, "likes")
+        XCTAssertEqual(event?.1["sensitivity_class"] as? Int, 0, "sensitivity_class 0, as on every row")
         XCTAssertEqual(NavAnalytics.tabSwitched(active: .likes, tapped: .settings)?.1["tab"] as? String, "settings")
     }
 }

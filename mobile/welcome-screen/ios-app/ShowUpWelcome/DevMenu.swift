@@ -47,7 +47,8 @@ extension FlowScreen {
              .profileInterests, .profileLifeNow, .profileLifeAhead:
             return .details
         case .checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
-             .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .checkInSettings:
+             .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .likesReceived,
+             .checkInSettings:
             return .checkIn
         case .home: return .home
         }
@@ -95,6 +96,7 @@ extension FlowScreen {
         case .checkInUplift: return "6 · Uplift + Find my date"
         case .checkInSearch: return "Search 01 · Profile"
         case .searchFilters: return "Search · Filters"
+        case .likesReceived: return "Likes tab (Premium)"
         case .checkInSettings: return "Settings (placeholder)"
         case .home: return "Home (placeholder)"
         }

@@ -38,53 +38,15 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
 
-    /** A server that records every call and can be made to fail. */
-    private class FakeStore : SearchStore {
-        var profiles = listOf(SearchSamples.FULL) + SearchSamples.NEXT
-        var coachHidden = false
-        var queueFailure: CallFailure? = null
-        /** How many like calls fail before one lands. */
-        var likeFailures = 0
-        val likes = mutableListOf<Triple<String, String?, Int>>()
-        val passes = mutableListOf<Pair<String, SearchAnalytics.PassType>>()
-        var coachHides = 0
-        var queueReads = 0
-
-        override suspend fun queue(zone: String): Outcome<SearchQueue> {
-            queueReads++
-            queueFailure?.let { return Outcome.Failed(it) }
-            return Outcome.Ok(SearchQueue(profiles.size, profiles, SearchSamples.VIEWER))
-        }
-        override suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Unit> {
-            likes += Triple(targetUserId, message, position)
-            if (likeFailures > 0) { likeFailures--; return Outcome.Failed(CallFailure.Network) }
-            return Outcome.Ok(Unit)
-        }
-        override suspend fun pass(targetUserId: String, type: SearchAnalytics.PassType): Outcome<Unit> {
-            passes += targetUserId to type
-            return Outcome.Ok(Unit)
-        }
-        override suspend fun hideCoach(): Outcome<Unit> {
-            coachHides++
-            if (coachHideLands) coachHidden = true
-            return Outcome.Ok(Unit)
-        }
-
-        /** False: the server has not stored the flag yet when the next session read arrives. */
-        var coachHideLands = true
-        override suspend fun likesOpenCount(): Outcome<Int> = Outcome.Ok(2)
-        override suspend fun session(): Outcome<SearchSession> = Outcome.Ok(SearchSession(premium = false, coachHidden = coachHidden))
-        override suspend fun setPremium(premium: Boolean): Outcome<Unit> = Outcome.Ok(Unit)
-    }
 
     private val dispatcher = StandardTestDispatcher()
-    private lateinit var store: FakeStore
+    private lateinit var store: FakeSearchStore
     private lateinit var events: RecordingAnalytics
 
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        store = FakeStore()
+        store = FakeSearchStore()
         events = RecordingAnalytics()
     }
 

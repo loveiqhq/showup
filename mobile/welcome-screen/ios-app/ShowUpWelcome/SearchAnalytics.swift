@@ -1,6 +1,6 @@
 //
 //  SearchAnalytics.swift
-//  ShowUp · Date search 01's events, family I (SHOWUP-184)
+//  ShowUp · Date search's events, family I (SHOWUP-184; the grid 185 and the Likes tab 186)
 //
 //  The Swift twin of `search/SearchAnalytics.kt`. Names and payloads exactly as
 //  `design_handoff_showup/tracking/events.json` (taxonomy 1.4.20, registry 1.4.29) defines them;
@@ -25,11 +25,30 @@ enum SearchAnalytics {
     static let likeConfirmAbandonedName = "like_confirm_abandoned"
     static let likeMessageAttachedName = "like_message_attached"
     static let passSentName = "pass_sent"
+    static let passUndoneName = "pass_undone"
+    static let likeConfirmFailedName = "like_confirm_failed"
+    static let likesReceivedViewedName = "likes_received_viewed"
     static let searchCoachShownName = "search_coach_shown"
     static let searchCoachDismissedName = "search_coach_dismissed"
 
-    /// §35 `like_surface`: always `profile` on this screen (`grid_card` retired 21 Oct 2026).
+    /// §35 `like_surface`: `profile` for every like (`grid_card` retired 21 Oct 2026).
     static let surfaceProfile = "profile"
+
+    /// §35 `like_surface` as `pass_sent` and `pass_undone` use it: `profile`, or `likes_received` for a
+    /// decline sent from the Likes list's toast ("because the decline is sent from the list's toast",
+    /// Search 03).
+    enum Surface: String, Sendable {
+        case profile = "profile"
+        case likesReceived = "likes_received"
+        var wire: String { rawValue }
+    }
+
+    /// §01's `search_viewed` `layout`: the Freemium queue or the Premium grid.
+    enum Layout: String, Sendable {
+        case oneUp = "one_up"
+        case grid = "grid"
+        var wire: String { rawValue }
+    }
 
     /// §34 `search_pass_type`. One event, two values: never `not_now_tapped`.
     enum PassType: String, Sendable {
@@ -55,11 +74,12 @@ enum SearchAnalytics {
     /// The media a play was on.
     enum Prompt: Sendable { case voice, video }
 
-    /// The queue loaded: once per Search visit. `filters_active` names the §10 filters set away from
-    /// Check-In 05's defaults, never their values (`meet_gender` is Class 2).
-    static func searchViewed(resultsCount: Int, filtersActive: [String]) -> (String, [String: any Sendable]) {
+    /// The queue or the grid loaded: once per Search visit. `filters_active` names the §10 filters set
+    /// away from Check-In 05's defaults, never their values (`meet_gender` is Class 2).
+    static func searchViewed(resultsCount: Int, filtersActive: [String],
+                             layout: Layout = .oneUp) -> (String, [String: any Sendable]) {
         (searchViewedName, [
-            "layout": "one_up", "results_count": resultsCount, "filters_active": filtersActive,
+            "layout": layout.wire, "results_count": resultsCount, "filters_active": filtersActive,
         ].merging(Stamp.of(0)) { a, _ in a })
     }
 
@@ -90,16 +110,18 @@ enum SearchAnalytics {
         (likeTappedName, ["position": position, "surface": surfaceProfile].merging(Stamp.of(0)) { a, _ in a })
     }
 
-    /// Be sure shown. `is_mutual` is false here: a confirm of a received like is Search 02/03's.
-    static func likeConfirmShown(targetAttendedCount: Int) -> (String, [String: any Sendable]) {
+    /// Be sure shown. `is_mutual` when confirming a like the viewer received (Search 02, 03).
+    static func likeConfirmShown(targetAttendedCount: Int, isMutual: Bool = false) -> (String, [String: any Sendable]) {
         (likeConfirmShownName, [
-            "target_attended_count": targetAttendedCount, "is_mutual": false,
+            "target_attended_count": targetAttendedCount, "is_mutual": isMutual,
         ].merging(Stamp.of(0)) { a, _ in a })
     }
 
-    static func likeConfirmAbandoned(_ stage: AbandonStage, targetAttendedCount: Int) -> (String, [String: any Sendable]) {
+    /// A mutual flow has no message step, so its only stage is `confirm`.
+    static func likeConfirmAbandoned(_ stage: AbandonStage, targetAttendedCount: Int,
+                                     isMutual: Bool = false) -> (String, [String: any Sendable]) {
         (likeConfirmAbandonedName, [
-            "target_attended_count": targetAttendedCount, "stage": stage.wire, "is_mutual": false,
+            "target_attended_count": targetAttendedCount, "stage": stage.wire, "is_mutual": isMutual,
         ].merging(Stamp.of(0)) { a, _ in a })
     }
 
@@ -108,10 +130,29 @@ enum SearchAnalytics {
         (likeMessageAttachedName, ["char_count": charCount].merging(Stamp.of(0)) { a, _ in a })
     }
 
-    /// On the tap: there is no undo on this screen.
-    static func passSent(position: Int, passType: PassType) -> (String, [String: any Sendable]) {
+    /// On the tap -- except a declined received like, which is sent when its 6 s Undo window ends
+    /// (Search 02, 03). `position` is 1-based in the queue, the grid or the list for this visit.
+    static func passSent(position: Int, passType: PassType,
+                         surface: Surface = .profile) -> (String, [String: any Sendable]) {
         (passSentName, [
-            "position": position, "pass_type": passType.wire, "surface": surfaceProfile,
+            "position": position, "pass_type": passType.wire, "surface": surface.wire,
+        ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// `Undo` on the decline toast: nothing was sent, and no `pass_sent` follows.
+    static func passUndone(position: Int, surface: Surface) -> (String, [String: any Sendable]) {
+        (passUndoneName, ["position": position, "surface": surface.wire].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// A confirm the server refused, once, when the sorry sheet opens. Always `surface: profile`.
+    static func likeConfirmFailed(_ reason: CloseReason) -> (String, [String: any Sendable]) {
+        (likeConfirmFailedName, ["reason": reason.wire, "surface": surfaceProfile].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    /// The Likes list loaded, once per visit: `0 / 0` on the empty state.
+    static func likesReceivedViewed(openCount: Int, closedCount: Int) -> (String, [String: any Sendable]) {
+        (likesReceivedViewedName, [
+            "open_count": openCount, "closed_count": closedCount,
         ].merging(Stamp.of(0)) { a, _ in a })
     }
 

@@ -90,10 +90,11 @@ class TabBarTest {
     @Test
     fun `tab_switched fires for another tab, never for the one already showing`() {
         assertNull("a tap on the active tab is no nav act", NavAnalytics.tabSwitched(Tab.Search, Tab.Search))
-        assertEquals(
-            NavAnalytics.TAB_SWITCHED to mapOf("tab" to "likes"),
-            NavAnalytics.tabSwitched(Tab.Search, Tab.Likes),
-        )
-        assertEquals(mapOf("tab" to "settings"), NavAnalytics.tabSwitched(Tab.Likes, Tab.Settings)?.second)
+        val event = NavAnalytics.tabSwitched(Tab.Search, Tab.Likes)
+        assertEquals(NavAnalytics.TAB_SWITCHED, event?.first)
+        assertEquals("likes", event?.second?.get("tab"))
+        assertEquals("sensitivity_class 0, as on every row", 0, event?.second?.get("sensitivity_class"))
+        assertEquals(com.showup.profile.Stamp.of(0)["field_registry_version"], event?.second?.get("field_registry_version"))
+        assertEquals("settings", NavAnalytics.tabSwitched(Tab.Likes, Tab.Settings)?.second?.get("tab"))
     }
 }

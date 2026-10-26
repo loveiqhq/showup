@@ -109,8 +109,12 @@ final class FlowScreenTests: XCTestCase {
         //
         // Search 01 (SHOWUP-184) adds one, for forty-one: searchFilters, Check-In 05's Filters
         // reached from Search's filter button -- its own position, because the way back is Search.
-        XCTAssertEqual(FlowScreen.allCases.count, 41)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 41)
+        //
+        // Search 03 (SHOWUP-186) adds one, for forty-two: likesReceived, the Likes tab for Premium.
+        // The Premium grid (185) is a layout of the Search tab and the profile it opens a pushed
+        // destination (AppRoute), so neither is a position.
+        XCTAssertEqual(FlowScreen.allCases.count, 42)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 42)
     }
 
     /// The Check-In walks forward in step order and every back reads backward; the gate sits
@@ -131,7 +135,7 @@ final class FlowScreenTests: XCTestCase {
         let checkIn = FlowScreen.allCases.filter(\.isCheckIn)
         XCTAssertEqual(checkIn, [.checkInGate, .checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation,
                                  .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters,
-                                 .checkInSettings])
+                                 .likesReceived, .checkInSettings])
         XCTAssertEqual(FlowScreen.allCases.filter(\.isCheckInStep),
                        [.checkInIntro, .checkInToday, .checkInTomorrow, .checkInMotivation, .checkInVibe,
                         .checkInFilters, .checkInUplift])

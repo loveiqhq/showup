@@ -223,7 +223,7 @@ internal val NOTIFY_BENEFITS = listOf(
  * above merges its semantics rather than this drawing its own.
  */
 @Composable
-private fun PremiumTag(modifier: Modifier = Modifier) {
+private fun NotificationsPremiumTag(modifier: Modifier = Modifier) {
     Box(
         modifier
             // `transform: translateY(-1px)` in the reference, which is an OFFSET and not a
@@ -298,7 +298,7 @@ private fun BenefitRow(benefit: NotifyBenefit) {
                     fontSize = 16.sp, lineHeight = (16f * 1.2f).sp,
                     letterSpacing = (-0.005).em,
                 )
-                if (benefit.tag != null) PremiumTag(Modifier.alignByBaseline().testTag(TAG_TAG))
+                if (benefit.tag != null) NotificationsPremiumTag(Modifier.alignByBaseline().testTag(TAG_TAG))
             }
             Text(
                 benefit.line,
