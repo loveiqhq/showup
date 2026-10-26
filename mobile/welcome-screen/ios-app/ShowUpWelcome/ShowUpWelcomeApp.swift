@@ -1303,8 +1303,11 @@ private struct TutorialFlow: View {
         // `-dev_premium` in the scheme's launch arguments opens the grid and the Likes tab, as
         // Android's `dev_premium` extra does; the dev menu's plan switch still changes it.
         let premium = ProcessInfo.processInfo.arguments.contains("-dev_premium")
-        search = SearchModel(store: DevSearchStore(premium: premium), analytics: AppAnalytics.shared,
-                             players: sharedMediaPlayer)
+        // `-dev_stage_close sample-leonie` arrives through the launch arguments' defaults domain, as
+        // Android's `dev_stage_close` extra: who the first availability re-check closes.
+        let stageClose = UserDefaults.standard.string(forKey: "dev_stage_close") ?? "sample-sofia"
+        search = SearchModel(store: DevSearchStore(premium: premium, stageClose: stageClose),
+                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
         Task { await jumpFromDevMenu(to: target) }
     }
 

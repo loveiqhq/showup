@@ -761,7 +761,7 @@ class MainActivity : ComponentActivity() {
                 factory = viewModelFactory {
                     initializer {
                         SearchViewModel(
-                            store = devCheckIn?.let { DevSearchStore(it.latencyMs, it.premium) } ?: SearchRepository(api),
+                            store = devCheckIn?.let { DevSearchStore(it.latencyMs, it.premium, it.stageClose) } ?: SearchRepository(api),
                             analytics = AppAnalytics,
                             players = mediaPlayer,
                             // An open like sheet and its message survive a process death.
