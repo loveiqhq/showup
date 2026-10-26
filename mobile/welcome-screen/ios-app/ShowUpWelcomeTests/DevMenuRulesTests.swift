@@ -109,7 +109,7 @@ final class DevMenuRulesTests: XCTestCase {
         XCTAssertEqual(jump(.checkInToday, signedIn: false), .testServer(.checkInToday))
         XCTAssertEqual(jump(.checkInGate, signedIn: false), .testServer(.checkInGate))
         XCTAssertEqual(jump(.profileHeight, signedIn: false), .needsLogIn)
-        XCTAssertEqual(jump(.checkInToday), .lands(.checkInToday))
+        XCTAssertEqual(jump(.checkInToday), .testServer(.checkInToday))
     }
 
     func testTheCheckInScreensSitInTheirOwnSectionAndNeedAnAccount() {
@@ -141,7 +141,8 @@ final class DevMenuRulesTests: XCTestCase {
     func testEveryOtherScreenLandsWhereAsked() {
         let special: Set<FlowScreen> = [.profileNotifications, .profileLocation]
         for screen in FlowScreen.allCases where !special.contains(screen) {
-            XCTAssertEqual(jump(screen), .lands(screen), screen.rawValue)
+            let expected: DevJump = screen.devSection == .checkIn ? .testServer(screen) : .lands(screen)
+            XCTAssertEqual(jump(screen), expected, screen.rawValue)
         }
     }
 }

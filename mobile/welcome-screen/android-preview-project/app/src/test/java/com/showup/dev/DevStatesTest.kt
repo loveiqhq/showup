@@ -50,6 +50,6 @@ class DevStatesTest {
         assertTrue(devJump(FlowScreen.CheckInToday, signedIn = false, notificationsAsk = true, oldAndroid = false, location = off) is DevJump.TestServer)
         assertTrue(devJump(FlowScreen.CheckInGate, signedIn = false, notificationsAsk = true, oldAndroid = false, location = off) is DevJump.TestServer)
         assertEquals(DevJump.NeedsLogIn, devJump(FlowScreen.ProfileHeight, signedIn = false, notificationsAsk = true, oldAndroid = false, location = off))
-        assertEquals(DevJump.Lands(FlowScreen.CheckInToday), devJump(FlowScreen.CheckInToday, signedIn = true, notificationsAsk = true, oldAndroid = false, location = off))
+        assertEquals(DevJump.TestServer(FlowScreen.CheckInToday), devJump(FlowScreen.CheckInToday, signedIn = true, notificationsAsk = true, oldAndroid = false, location = off))
     }
 }

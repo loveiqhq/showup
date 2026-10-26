@@ -108,7 +108,7 @@ data class DevCheckInLaunch(
     val commit: DevCommitMode,
     val latencyMs: Long,
     val introPassed: Boolean,
-    val premium: Boolean = false,
+    val premium: Boolean = true,
     val stageClose: String = "sample-sofia",
 ) {
     companion object {
@@ -128,7 +128,7 @@ data class DevCheckInLaunch(
                     .getOrDefault(DevCommitMode.Saves),
                 latencyMs = intent.getLongExtra(EXTRA_LATENCY, 900),
                 introPassed = intent.getBooleanExtra(EXTRA_INTRO_PASSED, false),
-                premium = intent.getBooleanExtra(EXTRA_PREMIUM, false),
+                premium = intent.getBooleanExtra(EXTRA_PREMIUM, true),
                 stageClose = intent.getStringExtra(EXTRA_STAGE_CLOSE) ?: "sample-sofia",
             )
         }

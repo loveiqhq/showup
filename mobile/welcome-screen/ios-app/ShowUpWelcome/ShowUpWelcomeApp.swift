@@ -650,6 +650,9 @@ private struct TutorialFlow: View {
     /// view models on an account generation for the same reason. The sign-in model stays: it is
     /// the session that just began.
     private func beginNewAccount() {
+        #if DEBUG
+        devPreview = false
+        #endif
         // THE OLD MODELS LET GO OF SCENE STORAGE FIRST. A read still in flight on one of them ends
         // in a write through its `persist`, which would put the previous account's draft back into
         // the storage cleared below -- and the new model's first `attach` would restore it. `attach`
@@ -1279,6 +1282,7 @@ private struct TutorialFlow: View {
     /// For this launch only: hidden so a screenshot for design review is clean.
     @State private var devTabHidden = false
     @State private var devFacts: DevMenuFacts?
+    @State private var devPreview = false
     /// The ticket frame open over the app, from the States page.
     @State private var devState: DevState?
 
@@ -1296,13 +1300,12 @@ private struct TutorialFlow: View {
     /// Past the intro, so the gate reopens at Today as a returning user's would; the intro row itself
     /// still opens the intro.
     private func startDevCheckIn(at target: FlowScreen) {
+        devPreview = true
         checkIn = CheckInModel(store: DevCheckInStore(introPassed: target != .checkInIntro,
                                                       active: target == .checkInSearch || target == .searchFilters
                                                           || target == .likesReceived),
                                analytics: AppAnalytics.shared)
-        // `-dev_premium` in the scheme's launch arguments opens the grid and the Likes tab, as
-        // Android's `dev_premium` extra does; the dev menu's plan switch still changes it.
-        let premium = ProcessInfo.processInfo.arguments.contains("-dev_premium")
+        let premium = !ProcessInfo.processInfo.arguments.contains("-dev_freemium")
         // `-dev_stage_close sample-leonie` arrives through the launch arguments' defaults domain, as
         // Android's `dev_stage_close` extra: who the first availability re-check closes.
         let stageClose = UserDefaults.standard.string(forKey: "dev_stage_close") ?? "sample-sofia"
@@ -1340,7 +1343,7 @@ private struct TutorialFlow: View {
             // which screens can be reached, and a permission answered changes which are skipped.
             .task { await readDevFacts() }
         } else if !devTabHidden {
-            DevTab { devMenuOpen = true }
+            DevTab(demo: devPreview) { devMenuOpen = true }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
         }
     }
@@ -1351,7 +1354,7 @@ private struct TutorialFlow: View {
         let locationStatus = await CLLocationAccess().read()
         devFacts = DevMenuFacts(current: screen, signedIn: signedIn,
                                 notificationsAsk: shouldShowAsk(notificationStatus),
-                                location: locationArrival(locationStatus), premium: search.state.premium)
+                                location: locationArrival(locationStatus), premium: search.state.premium, demo: devPreview)
     }
 
     /// A jump, through the SAME ways in the walk and the resume use — "behave like real":
@@ -1368,7 +1371,7 @@ private struct TutorialFlow: View {
         checkIn.leftElsewhere()
         // A jump INTO a Check-In step begins a flow there, as the walk would have: pre-filled from
         // the server, availability and the uplift empty.
-        if target.isCheckInStep { checkIn.beginFlow() }
+        if target.isCheckInStep { checkIn.beginFlow(previewStep: devPreview ? target.checkInStep : nil) }
         switch target {
         case .profileNotifications: go(to: await afterMedia())
         case .profileLocation: await enterLocation()

@@ -1,5 +1,22 @@
 # Android preview project — SHOWUP-117 welcome card
 
+## Preview profiles, likes, and check-in
+
+In a debug build, open the **DEV** tab and choose **Preview check-in**, **Preview profiles**, or
+**Preview received likes**. These shortcuts work with or without a signed-in account or a running
+backend. They use the existing sample profiles and temporary data, enable Premium for the preview,
+and label the side tab **DEMO**. The plan switch remains available in the developer menu.
+The developer menu's check-in section also uses demo mode when signed in. Normal app navigation
+continues to use the real account and backend.
+
+Jumping to a later check-in step fills only the preceding steps with example answers so **Find my
+date** can complete. Beginning a check-in normally still starts with empty availability. Demo mode
+survives activity recreation; restarting the demo resets its temporary data.
+
+For a real account, start the backend from the repository root with `npm run start:dev` after
+starting Docker services and applying migrations (see the root README). The emulator connects to
+`http://10.0.2.2:3000/`. Real profile creation and check-in require that API; demo saves stay local.
+
 A minimal Android project whose only purpose is to render `WelcomeScreen.kt` so it can be looked at
 and screenshotted. It is **not** the ShowUp app — when the real Android app exists, the screen file
 moves there and this folder can be deleted.

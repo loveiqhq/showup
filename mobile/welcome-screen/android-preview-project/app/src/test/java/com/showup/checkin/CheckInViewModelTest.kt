@@ -121,6 +121,40 @@ class CheckInViewModelTest {
 
     private val state get() = model.state.value
 
+    @Test
+    fun `a direct uplift preview has the skipped answers and can commit`() = runTest(dispatcher) {
+        model.beginFlow(previewStep = CheckInStep.Uplift)
+        arrive(CheckInStep.Uplift)
+
+        var committed = false
+        model.findMyDate { committed = true }
+        advanceUntilIdle()
+
+        assertTrue(committed)
+        assertFalse(state.saveFailed)
+        val request = store.commits.single()
+        assertEquals("long_term", request.motivation)
+        assertEquals(setOf("calm"), request.vibes)
+        assertTrue(request.slots.single().startsAt.isAfter(now.toInstant(ZoneOffset.UTC)))
+        assertNull(request.uplift)
+    }
+
+    @Test
+    fun `preview answers are added only for skipped steps and cleared on a new real flow`() = runTest(dispatcher) {
+        for (step in CheckInStep.entries) {
+            model.beginFlow(previewStep = step)
+            advanceUntilIdle()
+            assertEquals(step.name, step.ordinal > CheckInStep.Tomorrow.ordinal, state.picks.isNotEmpty())
+            assertEquals(step.name, step.ordinal > CheckInStep.Motivation.ordinal, state.motivation != null)
+            assertEquals(step.name, step.ordinal > CheckInStep.Vibe.ordinal, state.vibes.isNotEmpty())
+        }
+
+        begin()
+        assertTrue(state.picks.isEmpty())
+        assertNull(state.motivation)
+        assertTrue(state.vibes.isEmpty())
+    }
+
     private fun TestScope.begin() {
         model.beginFlow()
         advanceUntilIdle()

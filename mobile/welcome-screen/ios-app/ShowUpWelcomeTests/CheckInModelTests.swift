@@ -145,6 +145,33 @@ final class CheckInModelTests: XCTestCase {
 
     private var state: CheckInUiState { model.state }
 
+    func testDirectUpliftPreviewHasSkippedAnswersAndCanCommit() async {
+        model.beginFlow(previewStep: .uplift)
+        await arrive(.uplift)
+
+        var committed = false
+        await model.findMyDate { committed = true }
+
+        XCTAssertTrue(committed)
+        XCTAssertFalse(state.saveFailed)
+        let commits = await store.commits
+        XCTAssertEqual(commits.count, 1)
+        XCTAssertEqual(commits.first?.motivation, "long_term")
+        XCTAssertEqual(commits.first?.vibes, ["calm"])
+        XCTAssertEqual(commits.first?.slots.count, 1)
+        XCTAssertNil(commits.first?.uplift)
+    }
+
+    func testRealFlowClearsPreviewAnswers() async {
+        model.beginFlow(previewStep: .uplift)
+        await settle()
+        await begin()
+
+        XCTAssertTrue(state.picks.isEmpty)
+        XCTAssertNil(state.motivation)
+        XCTAssertTrue(state.vibes.isEmpty)
+    }
+
     /// Lets the model's own tasks -- a read, a save -- run to the end.
     private func settle(_ seconds: Double = 0.05) async {
         try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))

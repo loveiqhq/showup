@@ -323,7 +323,7 @@ final class CheckInModel {
 
     /// A NEW flow begins -- from Profile 23 into the intro, or from the gate. Availability and the
     /// uplift start empty; Motivation, Vibe and Filters start from the server's last answers.
-    func beginFlow() {
+    func beginFlow(previewStep: CheckInStep? = nil) {
         flowAlive = true
         place = nil
         placeRead = false
@@ -350,6 +350,17 @@ final class CheckInModel {
         s.noHoursDialog = false
         state = s
         evaluateClock()
+        #if DEBUG
+        if let previewStep, let stepIndex = CheckInStep.allCases.firstIndex(of: previewStep) {
+            motivationTouched = [.vibe, .filters, .uplift].contains(previewStep)
+            vibesTouched = [.filters, .uplift].contains(previewStep)
+            if stepIndex > 2, let start = state.tomorrowGrid?.starts.first {
+                state.picks = [start: .preferred]
+            }
+            if motivationTouched { state.motivation = "long_term" }
+            if vibesTouched { state.vibes = ["calm"] }
+        }
+        #endif
         // The read may land after the flow begins -- or fail, and a later one land: whichever read
         // lands first pre-fills, untouched steps only (`applyRead`).
         refresh()

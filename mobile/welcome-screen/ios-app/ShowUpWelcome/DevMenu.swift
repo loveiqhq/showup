@@ -130,7 +130,7 @@ enum DevJump: Equatable {
 /// notification ask, and the location arrival matrix. iOS has no "older OS never asks" case.
 func devJump(_ target: FlowScreen, signedIn: Bool, notificationsAsk: Bool,
              location: LocationArrival) -> DevJump {
-    if target.devSection == .checkIn && !signedIn { return .testServer(target) }
+    if target.devSection == .checkIn { return .testServer(target) }
     if target.needsAccount && !signedIn { return .needsLogIn }
     switch target {
     case .profileNotifications:
@@ -168,6 +168,7 @@ struct DevMenuFacts {
     let location: LocationArrival
     /// The account's plan, as Search last read it -- `plan_tier`, Freemium until payments exist.
     var premium: Bool = false
+    var demo: Bool = false
 }
 
 /// The small "DEV" tab on the right edge.
@@ -176,11 +177,12 @@ struct DevMenuFacts {
 /// the gender step's last radio. Every screen keeps `Spacing.screenGutter` clear at its edges; this
 /// stays inside that strip, with the letters stacked.
 struct DevTab: View {
+    var demo = false
     let onOpen: () -> Void
 
     var body: some View {
         Button(action: onOpen) {
-            Text("D\nE\nV")
+            Text(demo ? "D\nE\nM\nO" : "D\nE\nV")
                 .font(F.manrope(9, .bold))
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
@@ -191,7 +193,7 @@ struct DevTab: View {
                 )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Developer menu")
+        .accessibilityLabel(demo ? "Developer menu. Demo with temporary sample data" : "Developer menu")
     }
 }
 
@@ -248,6 +250,15 @@ struct DevMenu: View {
             LazyVStack(alignment: .leading, spacing: 0) {
                 Text(signedInText)
                     .font(F.manrope(14, .semibold)).foregroundColor(.liqFg)
+                Text("Demo previews use sample people and temporary data. No backend needed.")
+                    .font(F.manrope(13, .semibold)).foregroundColor(.liqMuted)
+                    .padding(.top, Spacing.md)
+                Button("Preview check-in") { onTestServer(.checkInIntro) }
+                    .frame(minHeight: ComponentSizes.minTapTarget)
+                Button("Preview profiles") { onTestServer(.checkInSearch) }
+                    .frame(minHeight: ComponentSizes.minTapTarget)
+                Button("Preview received likes") { onTestServer(.likesReceived) }
+                    .frame(minHeight: ComponentSizes.minTapTarget)
                 Button(action: onHideTab) {
                     Text("Hide the DEV tab until the app is next opened")
                         .font(F.manrope(13, .semibold)).foregroundColor(.liqPurple)
@@ -255,7 +266,7 @@ struct DevMenu: View {
                 }
                 // The account's plan, until payments exist (decided 21 Oct 2026). Signed in only: it
                 // is a write to this account on this server.
-                if facts.signedIn == true {
+                if facts.signedIn == true || facts.demo {
                     Toggle(isOn: Binding(get: { facts.premium }, set: { onPremium($0) })) {
                         Text("Premium plan (date search)").font(F.manrope(13, .semibold)).foregroundColor(.liqMuted)
                     }
@@ -277,9 +288,10 @@ struct DevMenu: View {
     }
 
     private var signedInText: String {
+        if facts.demo { return "Demo mode. Sample people; changes last until the app restarts." }
         switch facts.signedIn {
         case nil: return "Checking sign-in..."
-        case true?: return "Signed in. Every screen saves to your real account."
+        case true?: return "Signed in. Profile setup screens save to your real account."
         case false?: return "Not signed in. Log in on Startup to reach the profile screens."
         }
     }
@@ -296,7 +308,7 @@ struct DevMenu: View {
             case nil: return "Checking sign-in..."
             case .needsLogIn?: return "Log in first"
             case .skipped(_, let why)?: return why
-            case .testServer?: return "Opens on a test server -- no account, nothing saved"
+            case .testServer?: return "Demo with sample people and temporary data"
             case .lands?: return nil
             }
         }()

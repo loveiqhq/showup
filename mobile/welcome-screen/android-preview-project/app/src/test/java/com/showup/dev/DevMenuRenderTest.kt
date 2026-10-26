@@ -29,6 +29,29 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class DevMenuRenderTest {
 
+    @Test
+    fun `demo launches enable likes by default and can still request freemium`() {
+        val intent = android.content.Intent().putExtra(DevCheckInLaunch.EXTRA_ON, true)
+        org.junit.Assert.assertTrue(DevCheckInLaunch.from(intent)!!.premium)
+
+        intent.putExtra(DevCheckInLaunch.EXTRA_PREMIUM, false)
+        org.junit.Assert.assertFalse(DevCheckInLaunch.from(intent)!!.premium)
+    }
+
+    @Test
+    fun `demo previews can open profiles and received likes without signing in`() {
+        val targets = mutableListOf<FlowScreen>()
+        compose.setContent {
+            DevMenu(facts(signedIn = false), emptyList(), onJump = {}, onClearEvents = {},
+                onHideTab = {}, onClose = {}, onTestServer = targets::add)
+        }
+
+        compose.onNodeWithText("Preview profiles").performClick()
+        compose.onNodeWithText("Preview received likes").performClick()
+
+        org.junit.Assert.assertEquals(listOf(FlowScreen.CheckInSearch, FlowScreen.LikesReceived), targets)
+    }
+
     @get:Rule
     val compose = createComposeRule()
 
