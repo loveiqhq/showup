@@ -100,13 +100,16 @@ class DevCheckInStore(
  * `dev_start` is a [com.showup.welcome.FlowScreen] name. Read once, on a fresh launch only.
  * `--ez dev_premium true` opens Search on the Premium plan -- the grid and the Likes tab -- with no
  * trip to the dev menu's plan switch, so a walk or a recording starts where it is meant to.
+ * `--es dev_stage_close sample-leonie` picks who the first availability re-check closes (Sofia by
+ * default, as frame J has it) -- Search 03's "another like (staged) closed" recording.
  */
 data class DevCheckInLaunch(
     val start: String,
     val commit: DevCommitMode,
     val latencyMs: Long,
     val introPassed: Boolean,
-    val premium: Boolean = false,
+    val premium: Boolean = true,
+    val stageClose: String = "sample-sofia",
 ) {
     companion object {
         const val EXTRA_ON = "dev_checkin"
@@ -115,6 +118,7 @@ data class DevCheckInLaunch(
         const val EXTRA_LATENCY = "dev_latency"
         const val EXTRA_INTRO_PASSED = "dev_intro_passed"
         const val EXTRA_PREMIUM = "dev_premium"
+        const val EXTRA_STAGE_CLOSE = "dev_stage_close"
 
         fun from(intent: android.content.Intent?): DevCheckInLaunch? {
             if (intent?.getBooleanExtra(EXTRA_ON, false) != true) return null
@@ -124,7 +128,8 @@ data class DevCheckInLaunch(
                     .getOrDefault(DevCommitMode.Saves),
                 latencyMs = intent.getLongExtra(EXTRA_LATENCY, 900),
                 introPassed = intent.getBooleanExtra(EXTRA_INTRO_PASSED, false),
-                premium = intent.getBooleanExtra(EXTRA_PREMIUM, false),
+                premium = intent.getBooleanExtra(EXTRA_PREMIUM, true),
+                stageClose = intent.getStringExtra(EXTRA_STAGE_CLOSE) ?: "sample-sofia",
             )
         }
     }

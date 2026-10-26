@@ -33,6 +33,8 @@
  */
 package com.showup.welcome
 
+import com.showup.checkin.CheckInStep
+
 /** Where in the app the user is. One flat list -- this flow is linear and has no side routes. */
 enum class FlowScreen {
     /** The whole pre-account flow. [SignUpFlow] owns its own internal step. */
@@ -228,6 +230,9 @@ enum class FlowScreen {
     /** One of the six steps or the intro: a screen whose flow lives in the Check-In's view model. */
     val isCheckInStep: Boolean
         get() = ordinal in CheckInIntro.ordinal..CheckInUplift.ordinal
+
+    val checkInStep: CheckInStep?
+        get() = if (isCheckInStep) CheckInStep.entries[ordinal - CheckInIntro.ordinal] else null
 
     val hasSystemBack: Boolean
         get() = ordinal in MeetInRealLife.ordinal..ShowUpEveryTime.ordinal ||

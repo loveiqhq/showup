@@ -83,7 +83,7 @@ import java.util.Locale
  * [Spacing.screenGutter] clear at its edges; this stays inside that strip, with the letters stacked.
  */
 @Composable
-fun BoxScope.DevTab(onOpen: () -> Unit) {
+fun BoxScope.DevTab(onOpen: () -> Unit, demo: Boolean = false) {
     Box(
         Modifier
             .align(Alignment.CenterEnd)
@@ -92,11 +92,11 @@ fun BoxScope.DevTab(onOpen: () -> Unit) {
             .height(ComponentSizes.controlHeight)
             .background(Fg.copy(alpha = 0.82f), RoundedCornerShape(topStart = Radius.errorBox, bottomStart = Radius.errorBox))
             .clickable(role = Role.Button, onClickLabel = "Open the developer menu", onClick = onOpen)
-            .semantics { contentDescription = "Developer menu" },
+            .semantics { contentDescription = if (demo) "Developer menu. Demo with temporary sample data" else "Developer menu" },
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "D\nE\nV", color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold,
+            if (demo) "D\nE\nM\nO" else "D\nE\nV", color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold,
             fontSize = 9.sp, lineHeight = 10.sp, textAlign = TextAlign.Center,
         )
     }
@@ -112,6 +112,7 @@ data class DevMenuFacts(
     val location: LocationArrival,
     /** The account's plan, as Search last read it -- `plan_tier`, Freemium until payments exist. */
     val premium: Boolean = false,
+    val demo: Boolean = false,
 )
 
 private enum class DevTabPage { Screens, States, Events }
@@ -182,12 +183,20 @@ private fun ScreensPage(
 ) {
     LazyColumn(Modifier.fillMaxSize()) {
         item {
-            val status = when (facts.signedIn) {
+            val status = if (facts.demo) "Demo mode. Sample people; changes last until the app restarts." else when (facts.signedIn) {
                 null -> "Checking sign-in..."
-                true -> "Signed in. Every screen saves to your real account."
+                true -> "Signed in. Profile setup screens save to your real account."
                 false -> "Not signed in. Log in on Startup to reach the profile screens."
             }
             Text(status, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(
+                "Demo previews use sample people and temporary data. No backend needed.",
+                color = Muted, fontFamily = Manrope, fontSize = 13.sp,
+                modifier = Modifier.padding(top = Spacing.md),
+            )
+            DevTextButton("Preview check-in") { onTestServer(FlowScreen.CheckInIntro) }
+            DevTextButton("Preview profiles") { onTestServer(FlowScreen.CheckInSearch) }
+            DevTextButton("Preview received likes") { onTestServer(FlowScreen.LikesReceived) }
             Row(
                 Modifier.fillMaxWidth().heightIn(min = ComponentSizes.controlHeightMedium),
                 verticalAlignment = Alignment.CenterVertically,
@@ -197,7 +206,7 @@ private fun ScreensPage(
             }
             // The account's plan, until payments exist (decided 21 Oct 2026). Signed in only: it is a
             // write to this account on this server.
-            if (facts.signedIn == true) {
+            if (facts.signedIn == true || facts.demo) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = ComponentSizes.controlHeightMedium),
                     verticalAlignment = Alignment.CenterVertically,
@@ -242,7 +251,7 @@ private fun ScreenRow(screen: FlowScreen, here: Boolean, jump: DevJump?, onJump:
         jump == null -> "Checking sign-in..."
         jump is DevJump.NeedsLogIn -> "Log in first"
         jump is DevJump.Skipped -> jump.why
-        jump is DevJump.TestServer -> "Opens on a test server -- no account, nothing saved"
+        jump is DevJump.TestServer -> "Demo with sample people and temporary data"
         else -> null
     }
     val enabled = !here && jump != null && jump !is DevJump.NeedsLogIn

@@ -31,6 +31,7 @@ import com.showup.api.Outcome
 import com.showup.api.CallFailure
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.showup.BuildConfig
 import com.showup.analytics.AnalyticsTracker
 import com.showup.designsystem.Motion
 import com.showup.profile.ProfileScreen
@@ -320,7 +321,7 @@ open class CheckInViewModel(
      * A NEW flow begins -- from Profile 23 into the intro, or from the gate. Availability and the
      * uplift start empty; Motivation, Vibe and Filters start from the server's last answers.
      */
-    fun beginFlow() {
+    fun beginFlow(previewStep: CheckInStep? = null) {
         flowAlive = true
         place = null
         placeRead = false
@@ -349,6 +350,20 @@ open class CheckInViewModel(
             )
         }
         evaluateClock()
+        if (BuildConfig.DEBUG && previewStep != null) {
+            motivationTouched = previewStep.ordinal > CheckInStep.Motivation.ordinal
+            vibesTouched = previewStep.ordinal > CheckInStep.Vibe.ordinal
+            val start = _state.value.tomorrowGrid?.starts?.firstOrNull()
+            _state.update {
+                it.copy(
+                    picks = if (previewStep.ordinal > CheckInStep.Tomorrow.ordinal && start != null) {
+                        mapOf(start to SlotTier.Preferred)
+                    } else emptyMap(),
+                    motivation = if (motivationTouched) "long_term" else it.motivation,
+                    vibes = if (vibesTouched) setOf("calm") else it.vibes,
+                )
+            }
+        }
         // The read may land after the flow begins -- or fail, and a later one land: whichever read
         // lands first pre-fills, untouched steps only (`applyRead`).
         refresh()

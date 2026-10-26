@@ -37,6 +37,8 @@ class DevSearchStore(
     private val latencyMs: Long = 900,
     /** The plan the walk starts on (`dev_premium`); the dev menu's switch still changes it. */
     premium: Boolean = false,
+    /** Who the first re-check closes, `matched` (`dev_stage_close`): Sofia, as frame J has it. */
+    private val stageClose: String = "sample-sofia",
 ) : SearchStore {
 
     /** Leonie in full, then Mara and Ana. A like or a pass takes someone out, as the server does. */
@@ -50,6 +52,8 @@ class DevSearchStore(
     private var closedSeen = false
     /** The first re-check is the staged one. */
     private var rechecks = 0
+    /** Who a re-check closed: their like closed with them, off the badge and closed on the list. */
+    private val closedByRecheck = mutableSetOf<String>()
 
     override suspend fun queue(zone: String): Outcome<SearchQueue> {
         delay(latencyMs)
@@ -76,7 +80,7 @@ class DevSearchStore(
     }
 
     override suspend fun likesOpenCount(): Outcome<Int> =
-        Outcome.Ok(SearchSamples.LIKES.count { it.closed == null && it.userId !in answered })
+        Outcome.Ok(SearchSamples.LIKES.count { it.closed == null && it.userId !in answered && it.userId !in closedByRecheck })
 
     override suspend fun session(): Outcome<SearchSession> = Outcome.Ok(SearchSession(premium = premium, coachHidden = coachHidden))
 
@@ -98,7 +102,7 @@ class DevSearchStore(
             userIds.associateWith { id ->
                 val profile = SearchSamples.GRID.firstOrNull { it.profile.userId == id }?.profile
                 when {
-                    staged && id == "sample-sofia" -> CardStatus.Closed(CloseReason.Matched)
+                    staged && id == stageClose -> CardStatus.Closed(CloseReason.Matched).also { closedByRecheck += id }
                     staged && id == "sample-anna" && profile != null ->
                         CardStatus.Available(profile.meetAt.plus(Duration.ofDays(1)), "tomorrow")
                     profile != null -> CardStatus.Available(profile.meetAt, profile.meetDay)
@@ -110,7 +114,8 @@ class DevSearchStore(
 
     override suspend fun likesReceived(zone: String): Outcome<LikesReceived> {
         delay(latencyMs)
-        val open = SearchSamples.LIKES.filter { it.closed == null && it.userId !in answered }
+        val open = SearchSamples.LIKES.filter { it.closed == null && it.userId !in answered && it.userId !in closedByRecheck }
+        // Closed in front of the user by the re-check: seen already, so not listed again.
         val closed = if (closedSeen) emptyList() else SearchSamples.LIKES.filter { it.closed != null }
         closedSeen = true
         return Outcome.Ok(LikesReceived(open.size, closed.size, open + closed, SearchSamples.VIEWER))

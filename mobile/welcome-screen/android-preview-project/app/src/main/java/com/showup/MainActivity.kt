@@ -454,9 +454,9 @@ class MainActivity : ComponentActivity() {
             // account like the others: a new sign-in must not inherit the last account's answers.
             // DEBUG ONLY: a launch with `dev_checkin` walks the Check-In on an in-memory server, so
             // every screen and failure state can be walked and recorded on a phone with no backend
-            // (dev/DevCheckInStore.kt). A fresh launch only; never in a release build.
-            val devCheckIn = remember {
-                if (BuildConfig.DEBUG && savedInstanceState == null) DevCheckInLaunch.from(intent) else null
+            // (dev/DevCheckInStore.kt). Never in a release build.
+            val devCheckIn = remember(account) {
+                if (BuildConfig.DEBUG && account == 0) DevCheckInLaunch.from(intent) else null
             }
             val checkIn: CheckInViewModel = viewModel(
                 key = "checkin-$account",
@@ -475,9 +475,10 @@ class MainActivity : ComponentActivity() {
             )
             val checkInState by checkIn.state.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) {
+                if (savedInstanceState != null) return@LaunchedEffect
                 val dev = devCheckIn ?: return@LaunchedEffect
                 val target = FlowScreen.entries.firstOrNull { it.name == dev.start } ?: FlowScreen.CheckInIntro
-                if (target.isCheckInStep) checkIn.beginFlow()
+                if (target.isCheckInStep) checkIn.beginFlow(previewStep = target.checkInStep)
                 screen = target
             }
 
@@ -761,7 +762,7 @@ class MainActivity : ComponentActivity() {
                 factory = viewModelFactory {
                     initializer {
                         SearchViewModel(
-                            store = devCheckIn?.let { DevSearchStore(it.latencyMs, it.premium) } ?: SearchRepository(api),
+                            store = devCheckIn?.let { DevSearchStore(it.latencyMs, it.premium, it.stageClose) } ?: SearchRepository(api),
                             analytics = AppAnalytics,
                             players = mediaPlayer,
                             // An open like sheet and its message survive a process death.
@@ -1110,7 +1111,7 @@ class MainActivity : ComponentActivity() {
                 checkIn.leftElsewhere()
                 // A jump INTO a Check-In step begins a flow there, as the walk would have: pre-filled
                 // from the server, availability and the uplift empty.
-                if (target.isCheckInStep) checkIn.beginFlow()
+                if (target.isCheckInStep) checkIn.beginFlow(previewStep = if (devCheckIn != null) target.checkInStep else null)
                 when (target) {
                     FlowScreen.ProfileNotifications -> goTo(afterMedia())
                     FlowScreen.ProfileLocation -> enterLocation()
@@ -2306,7 +2307,7 @@ class MainActivity : ComponentActivity() {
             }
 
             if (BuildConfig.DEBUG) {
-                if (!devTabHidden && !devMenuOpen) DevTab(onOpen = { devMenuOpen = true })
+                if (!devTabHidden && !devMenuOpen) DevTab(onOpen = { devMenuOpen = true }, demo = devCheckIn != null)
                 if (devMenuOpen) {
                     val devEvents by AppAnalytics.log.entries.collectAsStateWithLifecycle()
                     DevMenu(
@@ -2317,6 +2318,7 @@ class MainActivity : ComponentActivity() {
                             oldAndroid = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU,
                             location = locationArrival(locationAccess.read()),
                             premium = searchState.premium,
+                            demo = devCheckIn != null,
                         ),
                         events = devEvents,
                         onJump = {
@@ -2364,6 +2366,7 @@ class MainActivity : ComponentActivity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             .putExtra(DevCheckInLaunch.EXTRA_ON, true)
             .putExtra(DevCheckInLaunch.EXTRA_START, screen.name)
+            .putExtra(DevCheckInLaunch.EXTRA_PREMIUM, true)
             // Past the intro, so the gate reopens at Today as a returning user's would; the intro row
             // itself still opens the intro.
             .putExtra(DevCheckInLaunch.EXTRA_INTRO_PASSED, screen != FlowScreen.CheckInIntro)
