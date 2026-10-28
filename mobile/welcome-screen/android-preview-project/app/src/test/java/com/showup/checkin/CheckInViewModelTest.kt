@@ -679,6 +679,7 @@ class CheckInViewModelTest {
         assertEquals(5, state.server!!.filters.distanceKm)
         assertEquals("the funnel's step event is not fired from Search", listOf("check_in_filters_changed"), analytics.names())
         assertEquals("distance_km", props("check_in_filters_changed")["filters_changed"])
+        assertEquals("search", props("check_in_filters_changed")["opened_from"])
     }
 
     @Test
@@ -1279,7 +1280,10 @@ class CheckInViewModelTest {
         )
         seen.forEach { (name, entries) ->
             val expected = registry[name] ?: error("$name is not in events.json")
-            entries.forEach { assertEquals(name, expected, it.properties.keys - stamp) }
+            entries.forEach {
+                val optional = if (name == "check_in_filters_changed" && "opened_from" !in it.properties) setOf("opened_from") else emptySet()
+                assertEquals(name, expected - optional, it.properties.keys - stamp)
+            }
         }
     }
 

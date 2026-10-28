@@ -164,10 +164,10 @@ check("no raw Color(hex:) in Search outside the placeholder palette (Swift): %s"
 check("blush is the design-system token on both", "BlushWash" in kt and "suGradBlush" in sw
       and "0xFFFDE7DC" not in kt and "0xFDE7DC" not in sw)
 
-# ── proposed, not ticketed: listed, so nobody mistakes them for the ticket's ───────────────────
-for proposed in ["We couldn't load profiles just now. Please try again.", "No results", "Widen filters",
-                 "Couldn't save your filters. Check your connection and try again."]:
-    notes.append("PROPOSED copy, not in any ticket: %r" % proposed)
+for approved in ["Couldn't load profiles. Check your connection and try again.", "Try again", "Widen my search"]:
+    check("approved Search state copy (Kotlin): %r" % approved, approved in kt)
+    check("approved Search state copy (Swift): %r" % approved, approved in sw)
+check("search_empty_shown on both platforms", '"search_empty_shown"' in kt and '"search_empty_shown"' in sw)
 
 print("search conformance: %d checks" % count)
 for n in notes:

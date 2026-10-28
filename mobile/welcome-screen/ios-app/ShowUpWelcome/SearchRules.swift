@@ -67,16 +67,12 @@ enum SearchCopy {
     static let coachDontShow = "Don't show again"
     static let coachGotIt = "Got it"
 
-    // ── states the ticket does not draw ─────────────────────────────────────────────────────────
-    //
-    // PROPOSED, NOT TICKETED: the app's "We couldn't ... just now. Please try again." for a failed
-    // read, and the README's own name for the empty queue's screen ("No results · widen filters (one
-    // tap)"), whose story is not written. Each goes to Philipp; the verifier lists them as proposed.
     static let loadingLabel = "Loading profiles"
-    static let loadFailedProposed = "We couldn't load profiles just now. Please try again."
+    static let loadFailedProposed = "Couldn't load profiles. Check your connection and try again."
     static let retry = "Retry"
+    static let tryAgain = "Try again"
     static let noResultsProposed = "No results"
-    static let widenFiltersProposed = "Widen filters"
+    static let widenFiltersProposed = "Widen my search"
 }
 
 /// Search's essentials row labels, in the ticket's order.
@@ -175,15 +171,15 @@ func distanceParts(_ km: Int, _ district: String?) -> [String] {
 func distanceLine(_ km: Int, _ district: String?) -> String { distanceParts(km, district).joined(separator: " ") }
 
 /// `filters_active` on `search_viewed`: the §10 filters set away from Check-In 05's defaults, in §10
-/// order -- `age_range` when narrower than 18 to 65+, `distance_km` when not the default 10.
-///
-/// NEVER `meet_gender`: its default is the user's own, worked out on the server from their gender and
-/// orientation, so the phone cannot tell a narrowed set from the pre-fill. An open tracking question
-/// (24 Oct 2026), not an oversight.
-func filtersActive(_ filters: CheckInFilters) -> [String] {
+/// order. Gender is compared with the current profile's client-computed default; only field IDs,
+/// never gender values, are returned. Dealbreaker IDs are included only for true flags.
+func filtersActive(_ filters: CheckInFilters, defaultGenders: Set<String>? = nil,
+                   dealbreakers: [String: Bool] = [:]) -> [String] {
     var out: [String] = []
+    if let defaultGenders, filters.genders != defaultGenders { out.append("meet_gender") }
     if filters.minAge > ageMin || filters.maxAge < ageMax { out.append("age_range") }
     if filters.distanceKm != distanceDefault { out.append("distance_km") }
+    out.append(contentsOf: dealbreakers.filter { $0.value }.keys.sorted().filter { !out.contains($0) })
     return out
 }
 

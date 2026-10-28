@@ -239,6 +239,8 @@ open class SearchViewModel(
 
     /** The visit's reported `filters_active`, kept for a reload after Filters. */
     private var filtersActive: List<String> = emptyList()
+    private var resultsCount: Int? = null
+    private var emptyReported = false
 
     /** The phone's zone, for the server's `today` / `tomorrow` on a re-check. */
     private var zone: String = "UTC"
@@ -272,11 +274,8 @@ open class SearchViewModel(
     // ── the visit ───────────────────────────────────────────────────────────────────────────────
 
     /**
-     * Search is on screen. A tab, a launch or `Find my date` is a VISIT ([visit]). The way back from
-     * Filters is not: no second coach, nobody already decided coming back, and the queue or the grid
-     * read again only if Filters saved new settings. It IS a `screen_viewed` -- without one,
-     * everything after it would be counted against Filters -- and so `position` starts again at the
-     * profile shown, as the ticket has it reset "on each screen_viewed".
+     * Search is on screen. Returning from Filters starts a new visit with position 1, but keeps the
+     * coach suppressed and reloads the queue or grid only when settings changed (27 Oct 2026).
      */
     fun arrived(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) {
         onScreen += PremiumSurface.Grid
@@ -286,13 +285,19 @@ open class SearchViewModel(
         }
         this.zone = zone
         report(ProfileAnalytics.screenViewed(searchScreen(), referrer))
+        this.filtersActive = filtersActive
+        coachShownThisVisit = true
+        emptyReported = false
+        _state.update { it.copy(position = 1, coach = false) }
         if (!reloadOnReturn) {
-            _state.update { it.copy(position = 1) }
+            resultsCount?.let { report(SearchAnalytics.searchViewed(it, filtersActive, _state.value.layout)) }
+            reportEmptyIfNeeded()
             resume()
             return
         }
         reloadOnReturn = false
         this.filtersActive = filtersActive
+        resultsCount = null
         stopPlayback()
         if (_state.value.layout == SearchAnalytics.Layout.Grid) {
             _state.update { it.copy(grid = it.grid.copy(loading = true, failure = null), opened = null, sheet = null, viewerAt = null) }
@@ -322,7 +327,9 @@ open class SearchViewModel(
         reloadOnReturn = false
         this.zone = zone
         this.filtersActive = filtersActive
-        coachShownThisVisit = false
+        coachShownThisVisit = referrer == ProfileScreen.CheckinFilters
+        emptyReported = false
+        resultsCount = null
         stopPlayback()
         flushDecline()
         _state.update {
@@ -371,6 +378,15 @@ open class SearchViewModel(
     private fun searchScreen(): ProfileScreen =
         if (_state.value.layout == SearchAnalytics.Layout.Grid) ProfileScreen.SearchGrid else ProfileScreen.SearchProfile
 
+    private fun reportEmptyIfNeeded() {
+        val shown = _state.value
+        val empty = if (shown.layout == SearchAnalytics.Layout.Grid) shown.grid.empty else shown.empty
+        if (!emptyReported && empty && PremiumSurface.Grid in onScreen) {
+            emptyReported = true
+            report(SearchAnalytics.emptyShown())
+        }
+    }
+
     private fun load(zone: String) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch { readQueue(zone) }
@@ -381,6 +397,7 @@ open class SearchViewModel(
             is Outcome.Failed -> _state.update { it.copy(loading = false, failure = queue.why) }
             is Outcome.Ok -> {
                 val profiles = queue.value.profiles.filterNot { it.userId in decided }
+                resultsCount = queue.value.resultsCount
                 report(SearchAnalytics.searchViewed(queue.value.resultsCount, filtersActive))
                 val reopened = unfinished?.takeIf { it.from == null && it.userId == profiles.firstOrNull()?.userId }
                 if (unfinished?.from == null) unfinished = null
@@ -410,6 +427,7 @@ open class SearchViewModel(
         when (val grid = store.grid(zone)) {
             is Outcome.Failed -> _state.update { it.copy(loading = false, grid = it.grid.copy(loading = false, failure = grid.why)) }
             is Outcome.Ok -> {
+                resultsCount = grid.value.resultsCount
                 report(SearchAnalytics.searchViewed(grid.value.resultsCount, filtersActive, SearchAnalytics.Layout.Grid))
                 // Nobody already decided this session, as the queue: a `Not now` card is gone on the
                 // next visit (the Search 01 pool rules), and an answer still on its way to the server
@@ -427,6 +445,7 @@ open class SearchViewModel(
                     )
                 }
                 reopenUnfinished(PremiumSurface.Grid)
+                reportEmptyIfNeeded()
             }
         }
     }
@@ -661,6 +680,7 @@ open class SearchViewModel(
 
     private fun updateList(from: PremiumSurface, change: (PremiumList) -> PremiumList) {
         _state.update { if (from == PremiumSurface.Grid) it.copy(grid = change(it.grid)) else it.copy(likes = change(it.likes)) }
+        if (from == PremiumSurface.Grid) reportEmptyIfNeeded()
     }
 
     /** `position` for the profile on screen: in the queue, or the card's place in its list. */
@@ -672,6 +692,7 @@ open class SearchViewModel(
 
     /** A profile is on screen: its dwell starts, unless the coach is over it (counted from the dismissal). */
     private fun arrive() {
+        reportEmptyIfNeeded()
         val s = _state.value
         photosSwiped = 0
         sectionsSeen.clear()

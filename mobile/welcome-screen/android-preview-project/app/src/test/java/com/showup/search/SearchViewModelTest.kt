@@ -69,6 +69,49 @@ class SearchViewModelTest {
 
     private fun props(name: String, nth: Int = 0) = events.of(name)[nth].properties
 
+    @Test
+    fun `empty Search is reported once per visit and never for a failed load`() = runTest(dispatcher) {
+        store.profiles = emptyList()
+        val model = vm()
+        model.visit("Europe/Berlin", emptyList(), null)
+        advanceUntilIdle()
+        assertEquals(listOf("screen_viewed", SearchAnalytics.SEARCH_VIEWED, SearchAnalytics.SEARCH_EMPTY_SHOWN), events.names())
+        assertEquals("no_results", props(SearchAnalytics.SEARCH_EMPTY_SHOWN)["reason"])
+        model.resume()
+        model.resume()
+        assertEquals(1, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+        model.arrived("Europe/Berlin", emptyList(), ProfileScreen.CheckinFilters)
+        advanceUntilIdle()
+        assertEquals(2, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+        store.queueFailure = CallFailure.Network
+        model.visit("Europe/Berlin", emptyList(), null)
+        advanceUntilIdle()
+        assertEquals(2, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+    }
+
+    @Test
+    fun `an empty Premium grid reports the same no results event`() = runTest(dispatcher) {
+        store.premium = true
+        store.grid = emptyList()
+        val model = vm()
+        model.visit("Europe/Berlin", emptyList(), null)
+        advanceUntilIdle()
+        assertEquals("no_results", props(SearchAnalytics.SEARCH_EMPTY_SHOWN)["reason"])
+        assertEquals(1, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+    }
+
+    @Test
+    fun `runtime demo profiles keep Charms hidden on Search and received likes`() = runTest(dispatcher) {
+        val demo = com.showup.dev.DevSearchStore(latencyMs = 0, premium = true)
+        val queue = (demo.queue("UTC") as Outcome.Ok).value
+        val grid = (demo.grid("UTC") as Outcome.Ok).value
+        val likes = (demo.likesReceived("UTC") as Outcome.Ok).value
+        assertTrue(queue.profiles.isNotEmpty())
+        assertTrue(queue.profiles.all { it.charms.isEmpty() })
+        assertTrue(grid.cards.all { it.profile.charms.isEmpty() })
+        assertTrue(likes.cards.all { it.profile?.charms.isNullOrEmpty() })
+    }
+
     // ── the visit ───────────────────────────────────────────────────────────────────────────────
 
     @Test
@@ -149,10 +192,11 @@ class SearchViewModelTest {
         vm.arrived("Europe/Berlin", listOf("distance_km"), ProfileScreen.CheckinFilters)
         advanceUntilIdle()
         assertEquals(1, store.queueReads)
-        assertEquals(listOf("screen_viewed"), events.names())
+        assertEquals(listOf("screen_viewed", SearchAnalytics.SEARCH_VIEWED), events.names())
         assertFalse(vm.state.value.loading)
         assertEquals("Mara is still the one shown", "sample-mara", vm.state.value.current?.userId)
         assertEquals("position starts again with the screen_viewed", 1, vm.state.value.position)
+        assertFalse(vm.state.value.coach)
     }
 
     @Test

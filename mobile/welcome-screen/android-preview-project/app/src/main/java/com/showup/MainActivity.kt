@@ -71,6 +71,9 @@ import java.time.ZoneId
 import com.showup.dev.DevSearchStore
 import com.showup.dev.DEV_SEARCH_STARTS
 import com.showup.search.filtersActive
+import com.showup.checkin.checkinGenderDefault
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import com.showup.search.LikesReceivedScreen
 import com.showup.search.PremiumSurface
 import com.showup.search.SearchAnalytics
@@ -2006,7 +2009,10 @@ class MainActivity : ComponentActivity() {
                                 // model knows; see SearchViewModel.isOnScreen.
                                 if (search.isOnScreen(PremiumSurface.Grid)) return@LaunchedEffect
                                 val filters = checkInState.server?.filters
-                                search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom, searchState.layout))
+                                val defaultGenders = if (devCheckIn != null) checkinGenderDefault("man", "straight")
+                                else ProfileDetailsRepository(api).load()?.let { checkinGenderDefault(it.gender, it.orientation) }
+                                currentCoroutineContext().ensureActive()
+                                search.arrived(zone.id, filters?.let { filtersActive(it, defaultGenders) }.orEmpty(), profileScreenOf(cameFrom, searchState.layout))
                             } else {
                                 search.leftScreen(PremiumSurface.Grid)
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
@@ -2112,7 +2118,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     FlowScreen.SearchFilters -> {
-                        LaunchedEffect(onTop) { if (onTop) checkIn.searchFiltersOpened() }
+                        LaunchedEffect(onTop) { if (onTop) checkIn.searchFiltersOpened(profileScreenOf(cameFrom, searchState.layout) ?: ProfileScreen.SearchProfile) }
                         val held = heldWhileLeaving(checkInState, onTop)
                         val back = { checkIn.searchFiltersLeft { goTo(FlowScreen.CheckInSearch) } }
                         CheckInFiltersScreen(
@@ -2123,8 +2129,9 @@ class MainActivity : ComponentActivity() {
                             onAge = checkIn::ageMoved,
                             onDistance = checkIn::distanceMoved,
                             onContinue = {
+                                val previousFilters = checkIn.state.value.server?.filters
                                 checkIn.searchFiltersContinue {
-                                    search.filtersSaved()
+                                    if (checkIn.state.value.server?.filters != previousFilters) search.filtersSaved()
                                     goTo(FlowScreen.CheckInSearch)
                                 }
                             },

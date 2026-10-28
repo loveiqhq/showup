@@ -207,6 +207,8 @@ final class SearchModel {
 
     /// The visit's reported `filters_active`, kept for a reload after Filters.
     private var filtersActive: [String] = []
+    private var resultsCount: Int?
+    private var emptyReported = false
 
     /// The phone's zone, for the server's `today` / `tomorrow` on a re-check.
     private var zone = "UTC"
@@ -297,11 +299,8 @@ final class SearchModel {
 
     // MARK: - the visit
 
-    /// Search is on screen. A tab, a launch or `Find my date` is a VISIT (`visit`). The way back from
-    /// Filters is not: no second coach, nobody already decided coming back, and the queue or the grid
-    /// read again only if Filters saved new settings. It IS a `screen_viewed` -- without one,
-    /// everything after it would be counted against Filters -- and so `position` starts again at the
-    /// profile shown, as the ticket has it reset "on each screen_viewed".
+    /// Search is on screen. Returning from Filters starts a new visit with position 1, but keeps the
+    /// coach suppressed and reloads the queue or grid only when settings changed (27 Oct 2026).
     func arrived(zone: String, filtersActive: [String], referrer: ProfileScreen?) {
         onScreen.insert(.grid)
         guard visited, referrer == .checkinFilters else {
@@ -310,13 +309,20 @@ final class SearchModel {
         }
         self.zone = zone
         report(ProfileAnalytics.screenViewed(searchScreen, referrer: referrer))
+        self.filtersActive = filtersActive
+        coachShownThisVisit = true
+        emptyReported = false
+        state.position = 1
+        state.coach = false
         guard reloadOnReturn else {
-            state.position = 1
+            if let resultsCount { report(SearchAnalytics.searchViewed(resultsCount: resultsCount, filtersActive: filtersActive, layout: state.layout)) }
+            reportEmptyIfNeeded()
             resume()
             return
         }
         reloadOnReturn = false
         self.filtersActive = filtersActive
+        resultsCount = nil
         stopPlayback()
         if state.layout == .grid {
             state.grid.loading = true
@@ -350,7 +356,9 @@ final class SearchModel {
         reloadOnReturn = false
         self.zone = zone
         self.filtersActive = filtersActive
-        coachShownThisVisit = false
+        coachShownThisVisit = referrer == .checkinFilters
+        emptyReported = false
+        resultsCount = nil
         stopPlayback()
         flushDecline()
         state.loading = true
@@ -417,6 +425,14 @@ final class SearchModel {
         loadTask = Task { [weak self] in await self?.readQueue(zone: zone) }
     }
 
+    private func reportEmptyIfNeeded() {
+        let empty = state.layout == .grid ? state.grid.empty : state.empty
+        if !emptyReported, empty, onScreen.contains(.grid) {
+            emptyReported = true
+            report(SearchAnalytics.emptyShown())
+        }
+    }
+
     private func readQueue(zone: String) async {
         let queue = await store.queue(zone: zone)
         guard !Task.isCancelled else { return }
@@ -426,6 +442,7 @@ final class SearchModel {
             state.failure = why
         case .success(let q):
             let profiles = q.profiles.filter { !decided.contains($0.userId) }
+            resultsCount = q.resultsCount
             report(SearchAnalytics.searchViewed(resultsCount: q.resultsCount, filtersActive: filtersActive))
             let reopened = unfinished.flatMap { $0.from == nil && $0.userId == profiles.first?.userId ? $0 : nil }
             if unfinished?.from == nil { unfinished = nil }
@@ -459,6 +476,7 @@ final class SearchModel {
             state.grid.loading = false
             state.grid.failure = why
         case .success(let g):
+            resultsCount = g.resultsCount
             report(SearchAnalytics.searchViewed(resultsCount: g.resultsCount, filtersActive: filtersActive, layout: .grid))
             // Nobody already decided this session, as the queue: a `Not now` card is gone on the next
             // visit (the Search 01 pool rules), and an answer still on its way to the server does not
@@ -471,6 +489,7 @@ final class SearchModel {
             state.viewer = g.viewer
             state.grid = PremiumList(loading: false, cards: cards, generation: state.grid.generation + 1)
             reopenUnfinished(.grid)
+            reportEmptyIfNeeded()
         }
     }
 
@@ -700,6 +719,7 @@ final class SearchModel {
     private func updateList(_ from: PremiumSurface, _ change: (inout PremiumList) -> Void) {
         if from == .grid {
             change(&state.grid)
+            reportEmptyIfNeeded()
         } else {
             change(&state.likes)
         }
@@ -713,6 +733,7 @@ final class SearchModel {
 
     /// A profile is on screen: its dwell starts, unless the coach is over it (counted from the dismissal).
     private func present() {
+        reportEmptyIfNeeded()
         photosSwiped = 0
         sectionsSeen = []
         if shouldShowCoach(hiddenForever: coachHidden, shownThisVisit: coachShownThisVisit,

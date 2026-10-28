@@ -136,7 +136,7 @@ struct SearchProfileView: View {
                         .accessibilityLabel(Text(SearchCopy.loadingLabel))
                 } else if state.failure != nil {
                     // The words are PROPOSED, not ticketed.
-                    CentredStatement(text: SearchCopy.loadFailedProposed, action: SearchCopy.retry, onAction: onRetry)
+                    CentredStatement(text: SearchCopy.loadFailedProposed, action: SearchCopy.tryAgain, onAction: onRetry)
                 } else {
                     // The no results · widen filters screen is its own story; this stands in for it.
                     CentredStatement(text: SearchCopy.noResultsProposed, action: SearchCopy.widenFiltersProposed,

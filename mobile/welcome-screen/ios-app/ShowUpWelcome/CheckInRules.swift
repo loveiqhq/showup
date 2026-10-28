@@ -392,6 +392,17 @@ let distanceMax = 50
 let distanceDefault = 10
 
 /// The Filters step's values. `maxAge` at `ageMax` is "no upper limit".
+func checkinGenderDefault(_ gender: String?, _ orientation: String?) -> Set<String> {
+    let all = Set(CheckInGender.allCases.map(\.id))
+    guard gender == "woman" || gender == "man" else { return all }
+    switch orientation {
+    case "bisexual", "pansexual": return ["woman", "man"]
+    case "gay", "lesbian": return Set([gender].compactMap { $0 })
+    case "straight": return [gender == "man" ? "woman" : "man"]
+    default: return all
+    }
+}
+
 struct CheckInFilters: Equatable, Sendable {
     var genders: Set<String>
     var minAge: Int = ageMin

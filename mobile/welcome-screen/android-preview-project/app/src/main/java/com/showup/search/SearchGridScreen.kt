@@ -142,7 +142,7 @@ fun SearchGridScreen(
             region = {
                 when {
                     grid.loading && grid.cards.isEmpty() -> ListLoading(SearchCopy.LOADING_LABEL)
-                    grid.failure != null && grid.cards.isEmpty() -> CentredStatement(SearchCopy.LOAD_FAILED_PROPOSED, SearchCopy.RETRY, onRetry)
+                    grid.failure != null && grid.cards.isEmpty() -> CentredStatement(SearchCopy.LOAD_FAILED_PROPOSED, SearchCopy.TRY_AGAIN, onRetry)
                     grid.empty -> CentredStatement(SearchCopy.NO_RESULTS_PROPOSED, SearchCopy.WIDEN_FILTERS_PROPOSED, onFilters)
                     else -> GridList(grid, zone, settled, onOpen, onLeft, freezeLeavingMs)
                 }

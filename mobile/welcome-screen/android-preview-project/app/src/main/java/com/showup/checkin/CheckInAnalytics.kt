@@ -109,13 +109,14 @@ object CheckInAnalytics {
      * Once per accepted Continue, even when nothing changed. Never the genders (Class 2) -- only
      * WHETHER they changed, in `filters_changed`. `max_age` is null for 65+, never 65.
      */
-    fun filtersChanged(entry: CheckInFilters, now: CheckInFilters, windowId: String) =
+    fun filtersChanged(entry: CheckInFilters, now: CheckInFilters, windowId: String, openedFrom: String? = null) =
         CHECK_IN_FILTERS_CHANGED to buildMap<String, Any> {
             put("filters_changed", com.showup.checkin.filtersChanged(entry, now))
             put("min_age", now.minAge)
             put("max_age", now.maxAgeOrNull ?: JsonNull)
             put("distance_km", now.distanceKm)
             put("window_id", windowId)
+            if (openedFrom != null) put("opened_from", openedFrom)
             putAll(Stamp.of(0))
         }
 

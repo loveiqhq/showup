@@ -390,6 +390,35 @@ final class SearchModelTests: XCTestCase {
         XCTAssertEqual(props(SearchAnalytics.profileCardViewedName, 1)["dwell_ms"] as? Int, 500)
     }
 
+    func testEmptySearchIsReportedOncePerVisit() async {
+        await store.setProfiles([])
+        let model = self.model()
+        model.visit(zone: "Europe/Berlin", filtersActive: [], referrer: nil)
+        await settle()
+        XCTAssertEqual(props(SearchAnalytics.searchEmptyShownName)["reason"] as? String, "no_results")
+        model.resume()
+        model.resume()
+        XCTAssertEqual(events.of(SearchAnalytics.searchEmptyShownName).count, 1)
+        model.arrived(zone: "Europe/Berlin", filtersActive: [], referrer: .checkinFilters)
+        await settle()
+        XCTAssertEqual(events.of(SearchAnalytics.searchEmptyShownName).count, 2)
+        await store.setQueueFailure(.network)
+        model.visit(zone: "Europe/Berlin", filtersActive: [], referrer: nil)
+        await settle()
+        XCTAssertEqual(events.of(SearchAnalytics.searchEmptyShownName).count, 2)
+    }
+
+    func testRuntimeDemoProfilesKeepCharmsHidden() async throws {
+        let demo = DevSearchStore(latencyMs: 0, premium: true)
+        let queue = try await demo.queue(zone: "UTC").get()
+        let grid = try await demo.grid(zone: "UTC").get()
+        let likes = try await demo.likesReceived(zone: "UTC").get()
+        XCTAssertFalse(queue.profiles.isEmpty)
+        XCTAssertTrue(queue.profiles.allSatisfy { $0.charms.isEmpty })
+        XCTAssertTrue(grid.cards.allSatisfy { $0.profile.charms.isEmpty })
+        XCTAssertTrue(likes.cards.allSatisfy { $0.profile?.charms.isEmpty ?? true })
+    }
+
     // MARK: - the way back from Filters
 
     func testBackFromFiltersWithNewSettingsSavedTheQueueIsReadAgainAndTheVisitGoesOn() async {
@@ -420,9 +449,10 @@ final class SearchModelTests: XCTestCase {
         await settle()
         let reads = await store.queueReads
         XCTAssertEqual(reads, 1)
-        XCTAssertEqual(events.names, ["screen_viewed"])
+        XCTAssertEqual(events.names, ["screen_viewed", SearchAnalytics.searchViewedName])
         XCTAssertEqual(m.state.current?.userId, "sample-mara", "Mara is still the one shown")
         XCTAssertEqual(m.state.position, 1, "position starts again with the screen_viewed")
+        XCTAssertFalse(m.state.coach)
     }
 
     func testAnyOtherArrivalIsAVisitWithItsCoach() async {

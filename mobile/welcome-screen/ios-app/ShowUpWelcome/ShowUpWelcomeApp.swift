@@ -901,6 +901,14 @@ private struct TutorialFlow: View {
     }
 
     /// A TabBar tap while `active` shows: `tab_switched` for any other tab -- the nav act alone.
+    private func searchGenderDefault() async -> Set<String>? {
+        #if DEBUG
+        if devPreview { return checkinGenderDefault("man", "straight") }
+        #endif
+        guard let profile = await ProfileDetailsRepository(api: APIAccess.client).load() else { return nil }
+        return checkinGenderDefault(profile.gender, profile.orientation)
+    }
+
     private func tabTapped(active: AppTab, tapped: AppTab) {
         if let event = NavAnalytics.tabSwitched(active: active, tapped: tapped) {
             AppAnalytics.shared.report(event)
@@ -1154,14 +1162,16 @@ private struct TutorialFlow: View {
                     freemiumSearch
                 }
             }
-            .onAppear {
+            .task {
                 attachSearch()
                 // Still here from before -- under a profile that just closed, which fired the grid's
                 // screen_viewed and started its re-check: not an arrival (SearchModel.isOnScreen).
                 guard !search.isOnScreen(.grid) else { return }
                 let filters = checkIn.state.server?.filters
+                let defaultGenders = await searchGenderDefault()
+                guard !Task.isCancelled else { return }
                 search.arrived(zone: TimeZone.current.identifier,
-                               filtersActive: filters.map(filtersActive) ?? [],
+                               filtersActive: filters.map { filtersActive($0, defaultGenders: defaultGenders) } ?? [],
                                referrer: profileScreen(of: cameFrom))
             }
             // Leaving -- to Filters or another tab: the profile has left the screen. Not when a
@@ -1216,15 +1226,16 @@ private struct TutorialFlow: View {
                 onAge: { checkIn.ageMoved(thumb: $0, value: $1) },
                 onDistance: { checkIn.distanceMoved($0) },
                 onContinue: {
+                    let previousFilters = checkIn.state.server?.filters
                     checkIn.searchFiltersContinue {
-                        search.filtersSaved()
+                        if checkIn.state.server?.filters != previousFilters { search.filtersSaved() }
                         go(to: .checkInSearch)
                     }
                 },
                 onBack: { checkIn.searchFiltersLeft { go(to: .checkInSearch) } },
                 // Never the Check-In's close here: a committed Check-In is not discarded from Search.
                 onClose: { checkIn.searchFiltersLeft { go(to: .checkInSearch) } })
-                .onAppear { checkIn.searchFiltersOpened() }
+                .onAppear { checkIn.searchFiltersOpened(referrer: profileScreen(of: cameFrom) ?? .searchProfile) }
         case .checkInSettings:
             SettingsPlaceholderView(onTab: { tab in
                 tabTapped(active: .settings, tapped: tab)

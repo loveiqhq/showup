@@ -16,6 +16,7 @@ import Foundation
 
 enum SearchAnalytics {
     static let searchViewedName = "search_viewed"
+    static let searchEmptyShownName = "search_empty_shown"
     static let profileCardViewedName = "profile_card_viewed"
     static let profilePhotoOpenedName = "profile_photo_opened"
     static let voicePromptPlayedName = "voice_prompt_played"
@@ -154,6 +155,10 @@ enum SearchAnalytics {
         (likesReceivedViewedName, [
             "open_count": openCount, "closed_count": closedCount,
         ].merging(Stamp.of(0)) { a, _ in a })
+    }
+
+    static func emptyShown() -> (String, [String: any Sendable]) {
+        (searchEmptyShownName, ["reason": "no_results"].merging(Stamp.of(0)) { a, _ in a })
     }
 
     static func coachShown() -> (String, [String: any Sendable]) { (searchCoachShownName, Stamp.of(0)) }

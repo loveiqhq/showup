@@ -769,7 +769,7 @@ private fun LoadingState() {
 /** The queue could not be read -- offline or a server error. The words are PROPOSED, not ticketed. */
 @Composable
 private fun FailedState(onRetry: () -> Unit) {
-    CentredStatement(SearchCopy.LOAD_FAILED_PROPOSED, SearchCopy.RETRY, onRetry)
+    CentredStatement(SearchCopy.LOAD_FAILED_PROPOSED, SearchCopy.TRY_AGAIN, onRetry)
 }
 
 /**
