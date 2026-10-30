@@ -10,6 +10,12 @@
 import XCTest
 @testable import ShowUpWelcome
 
+/// How many times `filters_active` was worked out -- each one a profile request in the app.
+private actor FiltersActiveCalls {
+    private(set) var made = 0
+    func count() { made += 1 }
+}
+
 @MainActor
 private final class Recorder: AnalyticsTracking {
     var events: [(String, [String: any Sendable])] = []
@@ -453,6 +459,39 @@ final class SearchModelTests: XCTestCase {
         XCTAssertEqual(m.state.current?.userId, "sample-mara", "Mara is still the one shown")
         XCTAssertEqual(m.state.position, 1, "position starts again with the screen_viewed")
         XCTAssertFalse(m.state.coach)
+    }
+
+    func testTheQueueIsAskedForWhileFiltersActiveIsStillBeingWorkedOut() async {
+        let (profileRead, answer) = AsyncStream<[String]>.makeStream()
+        let m = model()
+        m.visit(zone: "Europe/Berlin", filtersActive: {
+            for await active in profileRead { return active }
+            return []
+        }, referrer: .checkinUplift)
+        await settle()
+        let reads = await store.queueReads
+        XCTAssertEqual(reads, 1, "not held back by the profile request")
+        XCTAssertEqual(events.names, ["screen_viewed"])
+        answer.yield(["meet_gender"])
+        await settle()
+        XCTAssertEqual(props(SearchAnalytics.searchViewedName)["filters_active"] as? [String], ["meet_gender"])
+        XCTAssertEqual(m.state.current?.userId, SearchSamples.full.userId)
+    }
+
+    func testBackFromFiltersWithNothingSavedWorksNothingOutAgain() async {
+        let calls = FiltersActiveCalls()
+        let m = model()
+        m.visit(zone: "Europe/Berlin", filtersActive: { await calls.count(); return ["meet_gender"] },
+                referrer: .checkinUplift)
+        await settle()
+        m.leave()
+        events.clear()
+        m.arrived(zone: "Europe/Berlin", filtersActive: { await calls.count(); return [] }, referrer: .checkinFilters)
+        await settle()
+        let made = await calls.made
+        XCTAssertEqual(made, 1, "no second profile request")
+        XCTAssertEqual(props(SearchAnalytics.searchViewedName)["filters_active"] as? [String], ["meet_gender"],
+                       "the settings did not change, so neither did this")
     }
 
     func testAnyOtherArrivalIsAVisitWithItsCoach() async {

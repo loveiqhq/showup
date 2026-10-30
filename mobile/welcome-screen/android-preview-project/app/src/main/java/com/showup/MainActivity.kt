@@ -72,8 +72,6 @@ import com.showup.dev.DevSearchStore
 import com.showup.dev.DEV_SEARCH_STARTS
 import com.showup.search.filtersActive
 import com.showup.checkin.checkinGenderDefault
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import com.showup.search.LikesReceivedScreen
 import com.showup.search.PremiumSurface
 import com.showup.search.SearchAnalytics
@@ -2009,10 +2007,12 @@ class MainActivity : ComponentActivity() {
                                 // model knows; see SearchViewModel.isOnScreen.
                                 if (search.isOnScreen(PremiumSurface.Grid)) return@LaunchedEffect
                                 val filters = checkInState.server?.filters
-                                val defaultGenders = if (devCheckIn != null) checkinGenderDefault("man", "straight")
-                                else ProfileDetailsRepository(api).load()?.let { checkinGenderDefault(it.gender, it.orientation) }
-                                currentCoroutineContext().ensureActive()
-                                search.arrived(zone.id, filters?.let { filtersActive(it, defaultGenders) }.orEmpty(), profileScreenOf(cameFrom, searchState.layout))
+                                val demo = devCheckIn != null
+                                // Worked out beside the queue read, never before it: the gender part
+                                // is a second request (SearchViewModel.filtersActiveLater).
+                                search.arrived(zone.id, {
+                                    filters?.let { filtersActive(it, searchGenderDefault(api, demo)) }.orEmpty()
+                                }, profileScreenOf(cameFrom, searchState.layout))
                             } else {
                                 search.leftScreen(PremiumSurface.Grid)
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
@@ -2500,6 +2500,16 @@ private fun openLocationSettings(context: Context) {
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(intent) }.onFailure { openAppSettings(context) }
 }
+
+/**
+ * The viewer's Check-In 05 gender pre-fill -- `checkinGenderDefault` on their current profile -- for
+ * `filters_active`'s `meet_gender` (27 Oct 2026). Null when the profile cannot be read, and then
+ * `meet_gender` is left out rather than guessed. The demo's viewer is a straight man, as its saved
+ * filters (women) are.
+ */
+private suspend fun searchGenderDefault(api: ShowUpApi, demo: Boolean): Set<String>? =
+    if (demo) checkinGenderDefault("man", "straight")
+    else ProfileDetailsRepository(api).load()?.let { checkinGenderDefault(it.gender, it.orientation) }
 
 /** The §11 screen a flow position is, for `referrer_screen_id`. Null where none is registered. */
 private fun profileScreenOf(

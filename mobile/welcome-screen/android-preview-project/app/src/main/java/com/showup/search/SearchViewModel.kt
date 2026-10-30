@@ -40,6 +40,8 @@ import com.showup.profile.MediaPlayerFactory
 import com.showup.profile.MediaPlayerSession
 import com.showup.profile.ProfileAnalytics
 import com.showup.profile.ProfileScreen
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -237,8 +239,21 @@ open class SearchViewModel(
         likesScroll = at
     }
 
-    /** The visit's reported `filters_active`, kept for a reload after Filters. */
+    /**
+     * The visit's reported `filters_active`, kept for a return from Filters that reads nothing again:
+     * the settings did not change, so neither did this. Taken from [filtersActiveLater] when the
+     * queue or the grid is read.
+     */
     private var filtersActive: List<String> = emptyList()
+
+    /**
+     * The visit's `filters_active` while it is worked out. Its gender part needs the viewer's own
+     * profile (27 Oct 2026), a second request, so it runs BESIDE the queue or grid read and is
+     * awaited where `search_viewed` is reported: the first profile waits for the slower of the two,
+     * never for both in a row. Sent first, the profile request held Search back by its own round
+     * trip, and by its whole timeout on a bad network, before the queue was even asked for.
+     */
+    private var filtersActiveLater: Deferred<List<String>> = CompletableDeferred(emptyList())
     private var resultsCount: Int? = null
     private var emptyReported = false
 
@@ -276,8 +291,10 @@ open class SearchViewModel(
     /**
      * Search is on screen. Returning from Filters starts a new visit with position 1, but keeps the
      * coach suppressed and reloads the queue or grid only when settings changed (27 Oct 2026).
+     *
+     * @param filtersActive works out `filters_active`; run only when the queue or grid is read again.
      */
-    fun arrived(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) {
+    fun arrived(zone: String, filtersActive: suspend () -> List<String>, referrer: ProfileScreen?) {
         onScreen += PremiumSurface.Grid
         if (!visited || referrer != ProfileScreen.CheckinFilters) {
             visit(zone, filtersActive, referrer)
@@ -285,18 +302,18 @@ open class SearchViewModel(
         }
         this.zone = zone
         report(ProfileAnalytics.screenViewed(searchScreen(), referrer))
-        this.filtersActive = filtersActive
         coachShownThisVisit = true
         emptyReported = false
         _state.update { it.copy(position = 1, coach = false) }
         if (!reloadOnReturn) {
-            resultsCount?.let { report(SearchAnalytics.searchViewed(it, filtersActive, _state.value.layout)) }
+            // The visit's own filters_active: nothing changed on Filters, so nothing is worked out again.
+            resultsCount?.let { report(SearchAnalytics.searchViewed(it, this.filtersActive, _state.value.layout)) }
             reportEmptyIfNeeded()
             resume()
             return
         }
         reloadOnReturn = false
-        this.filtersActive = filtersActive
+        workOutFiltersActive(filtersActive)
         resultsCount = null
         stopPlayback()
         if (_state.value.layout == SearchAnalytics.Layout.Grid) {
@@ -309,6 +326,10 @@ open class SearchViewModel(
         keepLikeFlow()
     }
 
+    /** [arrived] with `filters_active` already known. */
+    fun arrived(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) =
+        arrived(zone, { filtersActive }, referrer)
+
     /** Filters saved new settings; the return to Search reads the queue or the grid under them. */
     fun filtersSaved() {
         reloadOnReturn = true
@@ -319,14 +340,15 @@ open class SearchViewModel(
      * `screen_viewed` for that layout, once, and the queue or the grid read.
      *
      * @param zone the phone's IANA zone, for the server's `today` / `tomorrow`.
-     * @param filtersActive the §10 filters set away from the defaults, for `search_viewed`.
+     * @param filtersActive works out the §10 filters set away from the defaults, for `search_viewed`,
+     *   while the queue or the grid is read.
      */
-    fun visit(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) {
+    fun visit(zone: String, filtersActive: suspend () -> List<String>, referrer: ProfileScreen?) {
         onScreen += PremiumSurface.Grid
         visited = true
         reloadOnReturn = false
         this.zone = zone
-        this.filtersActive = filtersActive
+        workOutFiltersActive(filtersActive)
         coachShownThisVisit = referrer == ProfileScreen.CheckinFilters
         emptyReported = false
         resultsCount = null
@@ -361,6 +383,17 @@ open class SearchViewModel(
             (countCall.await() as? Outcome.Ok)?.value?.let { n -> _state.update { it.copy(likesOpen = n) } }
             if (layout == SearchAnalytics.Layout.Grid) readGrid(zone) else readQueue(zone)
         }
+    }
+
+    /** [visit] with `filters_active` already known. */
+    fun visit(zone: String, filtersActive: List<String>, referrer: ProfileScreen?) =
+        visit(zone, { filtersActive }, referrer)
+
+    /** Starts working out this visit's `filters_active`; one still running for an older read is dropped. */
+    private fun workOutFiltersActive(filtersActive: suspend () -> List<String>) {
+        filtersActiveLater.cancel()
+        // A statistic that fails is reported without, never in Search's way.
+        filtersActiveLater = viewModelScope.async { runCatching { filtersActive() }.getOrDefault(emptyList()) }
     }
 
     /** `Retry` on the failed state: the same visit, read again. */
@@ -398,6 +431,7 @@ open class SearchViewModel(
             is Outcome.Ok -> {
                 val profiles = queue.value.profiles.filterNot { it.userId in decided }
                 resultsCount = queue.value.resultsCount
+                filtersActive = filtersActiveLater.await()
                 report(SearchAnalytics.searchViewed(queue.value.resultsCount, filtersActive))
                 val reopened = unfinished?.takeIf { it.from == null && it.userId == profiles.firstOrNull()?.userId }
                 if (unfinished?.from == null) unfinished = null
@@ -428,6 +462,7 @@ open class SearchViewModel(
             is Outcome.Failed -> _state.update { it.copy(loading = false, grid = it.grid.copy(loading = false, failure = grid.why)) }
             is Outcome.Ok -> {
                 resultsCount = grid.value.resultsCount
+                filtersActive = filtersActiveLater.await()
                 report(SearchAnalytics.searchViewed(grid.value.resultsCount, filtersActive, SearchAnalytics.Layout.Grid))
                 // Nobody already decided this session, as the queue: a `Not now` card is gone on the
                 // next visit (the Search 01 pool rules), and an answer still on its way to the server

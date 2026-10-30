@@ -766,20 +766,20 @@ private fun LoadingState() {
     }
 }
 
-/** The queue could not be read -- offline or a server error. The words are PROPOSED, not ticketed. */
+/** The queue could not be read -- offline or a server error. Words approved 27 Oct 2026. */
 @Composable
 private fun FailedState(onRetry: () -> Unit) {
-    CentredStatement(SearchCopy.LOAD_FAILED_PROPOSED, SearchCopy.TRY_AGAIN, onRetry)
+    CentredStatement(SearchCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
 }
 
 /**
- * The queue ran dry: "the no results · widen filters screen (its own story)", not ticketed and not
- * drawn in this handoff. This stands in for it with the README's own words for it -- `No results`,
- * and `Widen filters` in one tap, which opens Check-In 05 -- until that story replaces it.
+ * The queue ran dry. Decided 27 Oct 2026: the kit's `search-empty` headline and body, and
+ * `Widen my search`, which opens Check-In 05 for now. The headline stands in until that kit file
+ * arrives (see [SearchCopy.NO_RESULTS_PROPOSED]).
  */
 @Composable
 private fun NoResultsState(onFilters: () -> Unit) {
-    CentredStatement(SearchCopy.NO_RESULTS_PROPOSED, SearchCopy.WIDEN_FILTERS_PROPOSED, onFilters)
+    CentredStatement(SearchCopy.NO_RESULTS_PROPOSED, SearchCopy.WIDEN_MY_SEARCH, onFilters)
 }
 
 @Composable

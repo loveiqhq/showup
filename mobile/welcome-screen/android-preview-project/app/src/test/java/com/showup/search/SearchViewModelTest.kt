@@ -17,6 +17,7 @@ import com.showup.api.Outcome
 import com.showup.profile.FakeMediaPlayer
 import com.showup.profile.MediaKind
 import com.showup.profile.ProfileScreen
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -197,6 +198,44 @@ class SearchViewModelTest {
         assertEquals("Mara is still the one shown", "sample-mara", vm.state.value.current?.userId)
         assertEquals("position starts again with the screen_viewed", 1, vm.state.value.position)
         assertFalse(vm.state.value.coach)
+    }
+
+    @Test
+    fun `the queue is asked for while filters_active is still being worked out`() = runTest(dispatcher) {
+        val profileRead = CompletableDeferred<List<String>>()
+        val vm = vm()
+        vm.visit("Europe/Berlin", { profileRead.await() }, ProfileScreen.CheckinUplift)
+        advanceUntilIdle()
+        assertEquals("not held back by the profile request", 1, store.queueReads)
+        assertEquals(listOf("screen_viewed"), events.names())
+        profileRead.complete(listOf("meet_gender"))
+        advanceUntilIdle()
+        assertEquals(listOf("meet_gender"), props(SearchAnalytics.SEARCH_VIEWED)["filters_active"])
+        assertEquals(SearchSamples.FULL.userId, vm.state.value.current?.userId)
+    }
+
+    @Test
+    fun `back from Filters with nothing saved works nothing out again`() = runTest(dispatcher) {
+        var workedOut = 0
+        val vm = vm()
+        vm.visit("Europe/Berlin", { workedOut++; listOf("meet_gender") }, ProfileScreen.CheckinUplift)
+        advanceUntilIdle()
+        vm.leave()
+        events.clear()
+        vm.arrived("Europe/Berlin", { workedOut++; emptyList() }, ProfileScreen.CheckinFilters)
+        advanceUntilIdle()
+        assertEquals("no second profile request", 1, workedOut)
+        assertEquals("the settings did not change, so neither did this",
+            listOf("meet_gender"), props(SearchAnalytics.SEARCH_VIEWED)["filters_active"])
+    }
+
+    @Test
+    fun `a statistic that fails never stops Search`() = runTest(dispatcher) {
+        val vm = vm()
+        vm.visit("Europe/Berlin", { error("profile unreadable") }, ProfileScreen.CheckinUplift)
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), props(SearchAnalytics.SEARCH_VIEWED)["filters_active"])
+        assertEquals(SearchSamples.FULL.userId, vm.state.value.current?.userId)
     }
 
     @Test

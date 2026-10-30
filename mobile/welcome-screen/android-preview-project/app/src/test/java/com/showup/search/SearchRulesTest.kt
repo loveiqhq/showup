@@ -59,7 +59,7 @@ class SearchRulesTest {
     }
 
     @Test
-    fun `gender defaults match the Check-In table and only true dealbreakers are active`() {
+    fun `gender defaults match the Check-In table and the server's pre-fill`() {
         assertEquals(setOf("woman"), com.showup.checkin.checkinGenderDefault("man", "straight"))
         assertEquals(setOf("man"), com.showup.checkin.checkinGenderDefault("man", "gay"))
         assertEquals(setOf("woman"), com.showup.checkin.checkinGenderDefault("woman", "lesbian"))
@@ -67,9 +67,9 @@ class SearchRulesTest {
         val all = setOf("woman", "man", "non_binary", "other")
         assertEquals(all, com.showup.checkin.checkinGenderDefault("non_binary", "straight"))
         assertEquals(all, com.showup.checkin.checkinGenderDefault("man", "other"))
+        // The server's `checkInGenderDefault`: an orientation not yet answered pre-fills everyone.
+        assertEquals(all, com.showup.checkin.checkinGenderDefault("woman", null))
         assertEquals(all, com.showup.checkin.checkinGenderDefault(null, null))
-        assertEquals(listOf("age_range"), filtersActive(com.showup.checkin.CheckInFilters(setOf("man")),
-            dealbreakers = mapOf("age_range" to true, "distance_km" to false)))
     }
 
     @Test

@@ -205,8 +205,15 @@ final class SearchModel {
     /// the answer it raced has landed on the server.
     private var answered: Set<String> = []
 
-    /// The visit's reported `filters_active`, kept for a reload after Filters.
+    /// The visit's reported `filters_active`, kept for a return from Filters that reads nothing again:
+    /// the settings did not change, so neither did this. Taken from `filtersActiveLater` when the
+    /// queue or the grid is read.
     private var filtersActive: [String] = []
+    /// The visit's `filters_active` while it is worked out. Its gender part needs the viewer's own
+    /// profile (27 Oct 2026), a second request, so it runs BESIDE the queue or grid read and is
+    /// awaited where `search_viewed` is reported: the first profile waits for the slower of the two,
+    /// never for both in a row. Android's `SearchViewModel.filtersActiveLater`, the same rule.
+    private var filtersActiveLater: Task<[String], Never>?
     private var resultsCount: Int?
     private var emptyReported = false
 
@@ -301,7 +308,10 @@ final class SearchModel {
 
     /// Search is on screen. Returning from Filters starts a new visit with position 1, but keeps the
     /// coach suppressed and reloads the queue or grid only when settings changed (27 Oct 2026).
-    func arrived(zone: String, filtersActive: [String], referrer: ProfileScreen?) {
+    ///
+    /// - Parameter filtersActive: works out `filters_active`; run only when the queue or grid is read
+    ///   again.
+    func arrived(zone: String, filtersActive: @escaping @Sendable () async -> [String], referrer: ProfileScreen?) {
         onScreen.insert(.grid)
         guard visited, referrer == .checkinFilters else {
             visit(zone: zone, filtersActive: filtersActive, referrer: referrer)
@@ -309,19 +319,19 @@ final class SearchModel {
         }
         self.zone = zone
         report(ProfileAnalytics.screenViewed(searchScreen, referrer: referrer))
-        self.filtersActive = filtersActive
         coachShownThisVisit = true
         emptyReported = false
         state.position = 1
         state.coach = false
         guard reloadOnReturn else {
-            if let resultsCount { report(SearchAnalytics.searchViewed(resultsCount: resultsCount, filtersActive: filtersActive, layout: state.layout)) }
+            // The visit's own filters_active: nothing changed on Filters, so nothing is worked out again.
+            if let resultsCount { report(SearchAnalytics.searchViewed(resultsCount: resultsCount, filtersActive: self.filtersActive, layout: state.layout)) }
             reportEmptyIfNeeded()
             resume()
             return
         }
         reloadOnReturn = false
-        self.filtersActive = filtersActive
+        workOutFiltersActive(filtersActive)
         resultsCount = nil
         stopPlayback()
         if state.layout == .grid {
@@ -343,6 +353,11 @@ final class SearchModel {
         keepLikeFlow()
     }
 
+    /// `arrived` with `filters_active` already known.
+    func arrived(zone: String, filtersActive: [String], referrer: ProfileScreen?) {
+        arrived(zone: zone, filtersActive: { filtersActive }, referrer: referrer)
+    }
+
     /// Filters saved new settings; the return to Search reads the queue or the grid under them.
     func filtersSaved() {
         reloadOnReturn = true
@@ -350,12 +365,15 @@ final class SearchModel {
 
     /// A visit to the Search tab: the session first, because the plan picks the layout; then
     /// `screen_viewed` for that layout, once, and the queue or the grid read.
-    func visit(zone: String, filtersActive: [String], referrer: ProfileScreen?) {
+    ///
+    /// - Parameter filtersActive: works out the §10 filters set away from the defaults, for
+    ///   `search_viewed`, while the queue or the grid is read.
+    func visit(zone: String, filtersActive: @escaping @Sendable () async -> [String], referrer: ProfileScreen?) {
         onScreen.insert(.grid)
         visited = true
         reloadOnReturn = false
         self.zone = zone
-        self.filtersActive = filtersActive
+        workOutFiltersActive(filtersActive)
         coachShownThisVisit = referrer == .checkinFilters
         emptyReported = false
         resultsCount = nil
@@ -404,6 +422,17 @@ final class SearchModel {
         }
     }
 
+    /// `visit` with `filters_active` already known.
+    func visit(zone: String, filtersActive: [String], referrer: ProfileScreen?) {
+        visit(zone: zone, filtersActive: { filtersActive }, referrer: referrer)
+    }
+
+    /// Starts working out this visit's `filters_active`; one still running for an older read is dropped.
+    private func workOutFiltersActive(_ filtersActive: @escaping @Sendable () async -> [String]) {
+        filtersActiveLater?.cancel()
+        filtersActiveLater = Task { await filtersActive() }
+    }
+
     /// `Retry` on the failed state: the same visit, read again.
     func retry(zone: String) {
         if state.layout == .grid {
@@ -441,6 +470,8 @@ final class SearchModel {
             state.loading = false
             state.failure = why
         case .success(let q):
+            if let later = filtersActiveLater { filtersActive = await later.value }
+            guard !Task.isCancelled else { return }
             let profiles = q.profiles.filter { !decided.contains($0.userId) }
             resultsCount = q.resultsCount
             report(SearchAnalytics.searchViewed(resultsCount: q.resultsCount, filtersActive: filtersActive))
@@ -476,6 +507,8 @@ final class SearchModel {
             state.grid.loading = false
             state.grid.failure = why
         case .success(let g):
+            if let later = filtersActiveLater { filtersActive = await later.value }
+            guard !Task.isCancelled else { return }
             resultsCount = g.resultsCount
             report(SearchAnalytics.searchViewed(resultsCount: g.resultsCount, filtersActive: filtersActive, layout: .grid))
             // Nobody already decided this session, as the queue: a `Not now` card is gone on the next

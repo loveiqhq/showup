@@ -900,15 +900,19 @@ private struct TutorialFlow: View {
         checkIn.closePressed(step) { go(to: .checkInGate) }
     }
 
-    /// A TabBar tap while `active` shows: `tab_switched` for any other tab -- the nav act alone.
-    private func searchGenderDefault() async -> Set<String>? {
-        #if DEBUG
-        if devPreview { return checkinGenderDefault("man", "straight") }
-        #endif
-        guard let profile = await ProfileDetailsRepository(api: APIAccess.client).load() else { return nil }
-        return checkinGenderDefault(profile.gender, profile.orientation)
+    /// `filters_active` for Search's `search_viewed`, with `meet_gender` judged against the viewer's
+    /// Check-In 05 gender pre-fill -- `checkinGenderDefault` on their current profile (27 Oct 2026).
+    /// When the profile cannot be read, `meet_gender` is left out rather than guessed. The demo's
+    /// viewer is a straight man, as its saved filters (women) are. Static, so the model can run it
+    /// beside its own read without holding the view.
+    private static func searchFiltersActive(_ filters: CheckInFilters?, demo: Bool) async -> [String] {
+        guard let filters else { return [] }
+        if demo { return filtersActive(filters, defaultGenders: checkinGenderDefault("man", "straight")) }
+        let profile = await ProfileDetailsRepository(api: APIAccess.client).load()
+        return filtersActive(filters, defaultGenders: profile.map { checkinGenderDefault($0.gender, $0.orientation) })
     }
 
+    /// A TabBar tap while `active` shows: `tab_switched` for any other tab -- the nav act alone.
     private func tabTapped(active: AppTab, tapped: AppTab) {
         if let event = NavAnalytics.tabSwitched(active: active, tapped: tapped) {
             AppAnalytics.shared.report(event)
@@ -1162,16 +1166,21 @@ private struct TutorialFlow: View {
                     freemiumSearch
                 }
             }
-            .task {
+            .onAppear {
                 attachSearch()
                 // Still here from before -- under a profile that just closed, which fired the grid's
                 // screen_viewed and started its re-check: not an arrival (SearchModel.isOnScreen).
                 guard !search.isOnScreen(.grid) else { return }
                 let filters = checkIn.state.server?.filters
-                let defaultGenders = await searchGenderDefault()
-                guard !Task.isCancelled else { return }
+                #if DEBUG
+                let demo = devPreview
+                #else
+                let demo = false
+                #endif
+                // Worked out beside the queue read, never before it: the gender part is a second
+                // request (SearchModel.filtersActiveLater).
                 search.arrived(zone: TimeZone.current.identifier,
-                               filtersActive: filters.map { filtersActive($0, defaultGenders: defaultGenders) } ?? [],
+                               filtersActive: { [demo] in await Self.searchFiltersActive(filters, demo: demo) },
                                referrer: profileScreen(of: cameFrom))
             }
             // Leaving -- to Filters or another tab: the profile has left the screen. Not when a

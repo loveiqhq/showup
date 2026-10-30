@@ -164,10 +164,17 @@ check("no raw Color(hex:) in Search outside the placeholder palette (Swift): %s"
 check("blush is the design-system token on both", "BlushWash" in kt and "suGradBlush" in sw
       and "0xFFFDE7DC" not in kt and "0xFDE7DC" not in sw)
 
+# ── the states the sheet does not draw: Philipp's answers in the ticket's comments, 27 Oct 2026 ──
 for approved in ["Couldn't load profiles. Check your connection and try again.", "Try again", "Widen my search"]:
     check("approved Search state copy (Kotlin): %r" % approved, approved in kt)
     check("approved Search state copy (Swift): %r" % approved, approved in sw)
 check("search_empty_shown on both platforms", '"search_empty_shown"' in kt and '"search_empty_shown"' in sw)
+# The save that fails on Filters opened from Search lives with the Check-In's copy, not Search's.
+save_failed = "Couldn't save your filters. Check your connection and try again."
+check("approved filter-save copy on both: %r" % save_failed,
+      save_failed in read_all(glob.glob(os.path.join(KT, "checkin", "*.kt")))
+      and save_failed in read_all(glob.glob(os.path.join(SW, "CheckIn*.swift"))))
+notes.append("PROPOSED headline, waiting on the kit's search-empty file: 'No results'")
 
 print("search conformance: %d checks" % count)
 for n in notes:

@@ -391,7 +391,11 @@ let distanceMin = 1
 let distanceMax = 50
 let distanceDefault = 10
 
-/// The Filters step's values. `maxAge` at `ageMax` is "no upper limit".
+/// Check-In 05's gender pre-fill from the profile's gender and orientation (`checkinGenderDefault` in
+/// the reference). The server pre-fills with its own copy, `checkInGenderDefault` in
+/// `src/modules/check-ins/util/check-in-flow.ts`; the two must agree, or `filters_active` reports a
+/// `meet_gender` change nobody made. Anything not a straight, gay, lesbian, bisexual or pansexual
+/// woman or man -- an unread profile included -- pre-fills every gender, as the server's does.
 func checkinGenderDefault(_ gender: String?, _ orientation: String?) -> Set<String> {
     let all = Set(CheckInGender.allCases.map(\.id))
     guard gender == "woman" || gender == "man" else { return all }
@@ -403,6 +407,7 @@ func checkinGenderDefault(_ gender: String?, _ orientation: String?) -> Set<Stri
     }
 }
 
+/// The Filters step's values. `maxAge` at `ageMax` is "no upper limit".
 struct CheckInFilters: Equatable, Sendable {
     var genders: Set<String>
     var minAge: Int = ageMin

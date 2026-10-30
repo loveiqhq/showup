@@ -44,7 +44,7 @@ final class SearchRulesTests: XCTestCase {
                                      defaultGenders: defaults), ["meet_gender", "age_range", "distance_km"])
     }
 
-    func testGenderDefaultsMatchTheCheckInTableAndOnlyTrueDealbreakersAreActive() {
+    func testGenderDefaultsMatchTheCheckInTableAndTheServersPreFill() {
         XCTAssertEqual(checkinGenderDefault("man", "straight"), ["woman"])
         XCTAssertEqual(checkinGenderDefault("man", "gay"), ["man"])
         XCTAssertEqual(checkinGenderDefault("woman", "lesbian"), ["woman"])
@@ -52,9 +52,9 @@ final class SearchRulesTests: XCTestCase {
         let all: Set<String> = ["woman", "man", "non_binary", "other"]
         XCTAssertEqual(checkinGenderDefault("non_binary", "straight"), all)
         XCTAssertEqual(checkinGenderDefault("man", "other"), all)
+        // The server's `checkInGenderDefault`: an orientation not yet answered pre-fills everyone.
+        XCTAssertEqual(checkinGenderDefault("woman", nil), all)
         XCTAssertEqual(checkinGenderDefault(nil, nil), all)
-        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["man"]),
-                                     dealbreakers: ["age_range": true, "distance_km": false]), ["age_range"])
     }
 
     func testAHiddenAgeLeavesTheNameAloneWithNoComma() {

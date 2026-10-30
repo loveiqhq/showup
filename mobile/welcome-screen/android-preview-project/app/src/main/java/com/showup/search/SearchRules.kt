@@ -81,12 +81,18 @@ object SearchCopy {
     const val COACH_DONT_SHOW = "Don't show again"
     const val COACH_GOT_IT = "Got it"
 
+    // ── states the sheet does not draw: approved by Philipp, 27 Oct 2026 ──────────────────────────
     const val LOADING_LABEL = "Loading profiles"
-    const val LOAD_FAILED_PROPOSED = "Couldn't load profiles. Check your connection and try again."
+    const val LOAD_FAILED = "Couldn't load profiles. Check your connection and try again."
     const val RETRY = "Retry"
     const val TRY_AGAIN = "Try again"
+    /**
+     * PROPOSED, NOT YET THE DESIGN'S: the empty state takes the headline and body of the kit's
+     * `search-empty` screen (27 Oct 2026), a file not in any handoff zip yet -- asked for 28 Oct.
+     */
     const val NO_RESULTS_PROPOSED = "No results"
-    const val WIDEN_FILTERS_PROPOSED = "Widen my search"
+    /** Opens Filters for now (27 Oct 2026); the kit's sub-line and `Adjust filters manually` are left out. */
+    const val WIDEN_MY_SEARCH = "Widen my search"
 }
 
 /** Search's essentials row labels, in the ticket's order. */
@@ -138,18 +144,18 @@ fun distanceLine(km: Int, district: String?): String = distanceParts(km, distric
 
 /**
  * `filters_active` on `search_viewed`: the §10 filters set away from Check-In 05's defaults, in §10
- * order. Gender is compared with the current profile's client-computed default; only field IDs,
- * never gender values, are returned. Dealbreaker IDs are included only for true flags.
+ * order. `meet_gender` when the saved genders, as a set, are not the viewer's own pre-fill
+ * ([defaultGenders], from their current profile, 27 Oct 2026) -- the IDs only, never a gender. Left
+ * out when that pre-fill is unknown: a guess would count every unread profile as a change.
+ *
+ * Philipp's answer also lists the dealbreakers "when true": the Age and Distance switches of
+ * Check-In 05b (SHOWUP-189), which add them to the filter settings. They join this list with that
+ * ticket; until then Filters has no such setting to report.
  */
-fun filtersActive(
-    filters: CheckInFilters,
-    defaultGenders: Set<String>? = null,
-    dealbreakers: Map<String, Boolean> = emptyMap(),
-): List<String> = buildList {
+fun filtersActive(filters: CheckInFilters, defaultGenders: Set<String>? = null): List<String> = buildList {
     if (defaultGenders != null && filters.genders != defaultGenders) add("meet_gender")
     if (filters.minAge > AGE_MIN || filters.maxAge < AGE_MAX) add("age_range")
     if (filters.distanceKm != DISTANCE_DEFAULT) add("distance_km")
-    addAll(dealbreakers.filterValues { it }.keys.sorted().filterNot { it in this })
 }
 
 /** `{name}, {age}`, or `{name}` when the age is hidden -- never a dangling comma. */
