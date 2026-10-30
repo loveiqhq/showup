@@ -775,6 +775,7 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(state.server?.filters.distanceKm, 5)
         XCTAssertEqual(analytics.names, ["check_in_filters_changed"], "the funnel's step event is not fired from Search")
         XCTAssertEqual(props("check_in_filters_changed")["filters_changed"] as? String, "distance_km")
+        XCTAssertEqual(props("check_in_filters_changed")["opened_from"] as? String, "search")
     }
 
     func testARefusedSaveKeepsFiltersOnScreenWithItsToastAndContinueWorksAgain() async {

@@ -42,7 +42,7 @@ class DevSearchStore(
 ) : SearchStore {
 
     /** Leonie in full, then Mara and Ana. A like or a pass takes someone out, as the server does. */
-    private val queue = (listOf(SearchSamples.FULL) + SearchSamples.NEXT).toMutableList()
+    private val queue = (listOf(SearchSamples.FULL) + SearchSamples.NEXT).map { it.copy(charms = emptyList()) }.toMutableList()
     private var coachHidden = false
     private var premium = premium
 
@@ -92,6 +92,7 @@ class DevSearchStore(
     override suspend fun grid(zone: String): Outcome<SearchGrid> {
         delay(latencyMs)
         val cards = SearchSamples.GRID.filter { it.profile.userId !in answered }
+            .map { it.copy(profile = it.profile.copy(charms = emptyList())) }
         return Outcome.Ok(SearchGrid(cards.size, cards, SearchSamples.VIEWER))
     }
 
@@ -118,7 +119,8 @@ class DevSearchStore(
         // Closed in front of the user by the re-check: seen already, so not listed again.
         val closed = if (closedSeen) emptyList() else SearchSamples.LIKES.filter { it.closed != null }
         closedSeen = true
-        return Outcome.Ok(LikesReceived(open.size, closed.size, open + closed, SearchSamples.VIEWER))
+        val cards = (open + closed).map { it.copy(profile = it.profile?.copy(charms = emptyList())) }
+        return Outcome.Ok(LikesReceived(open.size, closed.size, cards, SearchSamples.VIEWER))
     }
 
     override suspend fun confirm(targetUserId: String, position: Int): Outcome<ConfirmAnswer> {

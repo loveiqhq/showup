@@ -17,6 +17,7 @@ import com.showup.profile.Stamp
 
 object SearchAnalytics {
     const val SEARCH_VIEWED = "search_viewed"
+    const val SEARCH_EMPTY_SHOWN = "search_empty_shown"
     const val PROFILE_CARD_VIEWED = "profile_card_viewed"
     const val PROFILE_PHOTO_OPENED = "profile_photo_opened"
     const val VOICE_PROMPT_PLAYED = "voice_prompt_played"
@@ -160,6 +161,11 @@ object SearchAnalytics {
     fun likesReceivedViewed(openCount: Int, closedCount: Int) = LIKES_RECEIVED_VIEWED to buildMap<String, Any> {
         put("open_count", openCount)
         put("closed_count", closedCount)
+        putAll(Stamp.of(0))
+    }
+
+    fun emptyShown() = SEARCH_EMPTY_SHOWN to buildMap<String, Any> {
+        put("reason", "no_results")
         putAll(Stamp.of(0))
     }
 

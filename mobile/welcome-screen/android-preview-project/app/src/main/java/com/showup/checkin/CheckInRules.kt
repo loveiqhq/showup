@@ -250,6 +250,24 @@ const val DISTANCE_MIN = 1
 const val DISTANCE_MAX = 50
 const val DISTANCE_DEFAULT = 10
 
+/**
+ * Check-In 05's gender pre-fill from the profile's gender and orientation (`checkinGenderDefault` in
+ * the reference). The server pre-fills with its own copy, `checkInGenderDefault` in
+ * `src/modules/check-ins/util/check-in-flow.ts`; the two must agree, or `filters_active` reports a
+ * `meet_gender` change nobody made. Anything not a straight, gay, lesbian, bisexual or pansexual
+ * woman or man -- an unread profile included -- pre-fills every gender, as the server's does.
+ */
+fun checkinGenderDefault(gender: String?, orientation: String?): Set<String> {
+    val all = CheckInGender.entries.map { it.id }.toSet()
+    if (gender != "woman" && gender != "man") return all
+    return when (orientation) {
+        "bisexual", "pansexual" -> setOf("woman", "man")
+        "gay", "lesbian" -> setOf(gender)
+        "straight" -> setOf(if (gender == "man") "woman" else "man")
+        else -> all
+    }
+}
+
 /** The Filters step's values. [maxAge] [AGE_MAX] is "no upper limit". */
 data class CheckInFilters(
     val genders: Set<String>,

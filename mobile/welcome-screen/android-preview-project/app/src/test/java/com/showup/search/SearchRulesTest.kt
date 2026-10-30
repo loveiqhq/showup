@@ -34,7 +34,7 @@ class SearchRulesTest {
     }
 
     @Test
-    fun `filters_active names age and distance set away from Check-In 05's defaults, never gender`() {
+    fun `filters_active names age and distance when the profile default is unavailable`() {
         val defaults = com.showup.checkin.CheckInFilters(genders = setOf("woman"))
         assertEquals(emptyList<String>(), filtersActive(defaults))
         assertEquals(emptyList<String>(), filtersActive(defaults.copy(genders = setOf("man", "woman"))))
@@ -42,6 +42,34 @@ class SearchRulesTest {
         assertEquals(listOf("age_range"), filtersActive(defaults.copy(maxAge = 40)))
         assertEquals(listOf("age_range", "distance_km"), filtersActive(defaults.copy(maxAge = 40, distanceKm = 25)))
         assertEquals(listOf("distance_km"), filtersActive(defaults.copy(distanceKm = 5)))
+    }
+
+    @Test
+    fun `gender tracking compares sets with the current profile default without sending gender values`() {
+        val straightWoman = com.showup.checkin.checkinGenderDefault("woman", "straight")
+        assertEquals(setOf("man"), straightWoman)
+        val saved = com.showup.checkin.CheckInFilters(genders = setOf("man"))
+        assertEquals(emptyList<String>(), filtersActive(saved, straightWoman))
+        assertEquals(listOf("meet_gender"), filtersActive(saved.copy(genders = setOf("woman")), straightWoman))
+        val bisexual = com.showup.checkin.checkinGenderDefault("man", "bisexual")
+        assertEquals(emptyList<String>(), filtersActive(saved.copy(genders = linkedSetOf("man", "woman")), bisexual))
+        val active = filtersActive(saved.copy(genders = setOf("woman"), minAge = 25, distanceKm = 5), straightWoman)
+        assertEquals(listOf("meet_gender", "age_range", "distance_km"), active)
+        assertFalse(active.any { it in setOf("woman", "man", "straight", "bisexual") })
+    }
+
+    @Test
+    fun `gender defaults match the Check-In table and the server's pre-fill`() {
+        assertEquals(setOf("woman"), com.showup.checkin.checkinGenderDefault("man", "straight"))
+        assertEquals(setOf("man"), com.showup.checkin.checkinGenderDefault("man", "gay"))
+        assertEquals(setOf("woman"), com.showup.checkin.checkinGenderDefault("woman", "lesbian"))
+        assertEquals(setOf("woman", "man"), com.showup.checkin.checkinGenderDefault("woman", "pansexual"))
+        val all = setOf("woman", "man", "non_binary", "other")
+        assertEquals(all, com.showup.checkin.checkinGenderDefault("non_binary", "straight"))
+        assertEquals(all, com.showup.checkin.checkinGenderDefault("man", "other"))
+        // The server's `checkInGenderDefault`: an orientation not yet answered pre-fills everyone.
+        assertEquals(all, com.showup.checkin.checkinGenderDefault("woman", null))
+        assertEquals(all, com.showup.checkin.checkinGenderDefault(null, null))
     }
 
     @Test

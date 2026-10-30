@@ -71,6 +71,7 @@ import java.time.ZoneId
 import com.showup.dev.DevSearchStore
 import com.showup.dev.DEV_SEARCH_STARTS
 import com.showup.search.filtersActive
+import com.showup.checkin.checkinGenderDefault
 import com.showup.search.LikesReceivedScreen
 import com.showup.search.PremiumSurface
 import com.showup.search.SearchAnalytics
@@ -2006,7 +2007,12 @@ class MainActivity : ComponentActivity() {
                                 // model knows; see SearchViewModel.isOnScreen.
                                 if (search.isOnScreen(PremiumSurface.Grid)) return@LaunchedEffect
                                 val filters = checkInState.server?.filters
-                                search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom, searchState.layout))
+                                val demo = devCheckIn != null
+                                // Worked out beside the queue read, never before it: the gender part
+                                // is a second request (SearchViewModel.filtersActiveLater).
+                                search.arrived(zone.id, {
+                                    filters?.let { filtersActive(it, searchGenderDefault(api, demo)) }.orEmpty()
+                                }, profileScreenOf(cameFrom, searchState.layout))
                             } else {
                                 search.leftScreen(PremiumSurface.Grid)
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
@@ -2112,7 +2118,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     FlowScreen.SearchFilters -> {
-                        LaunchedEffect(onTop) { if (onTop) checkIn.searchFiltersOpened() }
+                        LaunchedEffect(onTop) { if (onTop) checkIn.searchFiltersOpened(profileScreenOf(cameFrom, searchState.layout) ?: ProfileScreen.SearchProfile) }
                         val held = heldWhileLeaving(checkInState, onTop)
                         val back = { checkIn.searchFiltersLeft { goTo(FlowScreen.CheckInSearch) } }
                         CheckInFiltersScreen(
@@ -2123,8 +2129,9 @@ class MainActivity : ComponentActivity() {
                             onAge = checkIn::ageMoved,
                             onDistance = checkIn::distanceMoved,
                             onContinue = {
+                                val previousFilters = checkIn.state.value.server?.filters
                                 checkIn.searchFiltersContinue {
-                                    search.filtersSaved()
+                                    if (checkIn.state.value.server?.filters != previousFilters) search.filtersSaved()
                                     goTo(FlowScreen.CheckInSearch)
                                 }
                             },
@@ -2493,6 +2500,16 @@ private fun openLocationSettings(context: Context) {
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(intent) }.onFailure { openAppSettings(context) }
 }
+
+/**
+ * The viewer's Check-In 05 gender pre-fill -- `checkinGenderDefault` on their current profile -- for
+ * `filters_active`'s `meet_gender` (27 Oct 2026). Null when the profile cannot be read, and then
+ * `meet_gender` is left out rather than guessed. The demo's viewer is a straight man, as its saved
+ * filters (women) are.
+ */
+private suspend fun searchGenderDefault(api: ShowUpApi, demo: Boolean): Set<String>? =
+    if (demo) checkinGenderDefault("man", "straight")
+    else ProfileDetailsRepository(api).load()?.let { checkinGenderDefault(it.gender, it.orientation) }
 
 /** The §11 screen a flow position is, for `referrer_screen_id`. Null where none is registered. */
 private fun profileScreenOf(

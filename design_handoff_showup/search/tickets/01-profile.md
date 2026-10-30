@@ -4,6 +4,17 @@
 **Attachments:** `search-01-profile-attachment.zip` (handoff folder for this ticket) · `search-01-profile-spec-sheet.png`
 **Blocked by:** **Check-In 06** (a committed Check-In unlocks date search, and the Uplift text feeds ⑫), **Check-In 03** (§30 motivations), **Check-In 04** (§31 vibes), **Profile 06–08 and 14–21** (the fields this screen shows). **Blocks:** every later date-search story. `ShowUpCount` is built here.
 
+## Decided 27 Oct 2026
+
+Product answers supplied by Philipp; taxonomy **1.4.24**.
+
+- **Active filters:** compare saved genders as a set with `checkinGenderDefault(gender, orientation)` computed from the viewer's current own profile in the app. Include `meet_gender` only when different; send no gender or orientation values. Include dealbreaker filter IDs only when their flags are true. No server change is required.
+- **Failed load:** `Couldn't load profiles. Check your connection and try again.` with `Try again`.
+- **No results:** use the headline and body from the kit's `ui_kits/show-up/screens-search-empty.jsx`. `Widen my search` opens Filters. Omit the sub-line and `Adjust filters manually`. Emit `search_empty_shown` with `reason: no_results` when the empty state is shown, never for a failed load.
+- **Failed filter save:** `Couldn't save your filters. Check your connection and try again.` is approved unchanged.
+- **Filters from Search:** report the Filters screen view. On a successful save, emit `check_in_filters_changed` with `opened_from: search`; emit no `check_in_step_answered` or `check_in_closed`. Returning from Filters starts a new Search visit (`screen_viewed`, then `search_viewed`), resets position to 1, and suppresses the coach on that return. Reload profiles only when the saved settings changed. This is an exception to the normal coach-per-visit rule.
+- **Charms:** keep runtime profiles without charms until the post-date rating story exists. Design owns that story; no new backend ticket is requested here.
+
 ## Description
 
 The Search tab for a Freemium user with a committed Check-In: **one profile at a time**. The user reads the profile, then does one of three things: **Like**, **Not now** or **Not interested**. Like opens a two-step flow (Be sure → optional message), and the like is only sent at the end of it.

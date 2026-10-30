@@ -1,5 +1,8 @@
 {
-  "taxonomy_version": "1.4.20",
+  "taxonomy_version": "1.4.24",
+  "changed_in_1_4_24": [
+    "Search 01 decisions, 27 Oct 2026: filters_active compares saved genders with checkinGenderDefault on the viewer's current profile and lists true dealbreakers; gender values are never sent. Search filter saves add opened_from: search to check_in_filters_changed without Check-In funnel events. Returning from Filters is a new Search visit, position resets to 1, and the coach remains suppressed. The no-results state emits search_empty_shown with reason no_results."
+  ],
   "reconciled_against": "loveiqhq/showup development @ 8540ee4",
   "generated": "2026-09-25",
   "event_count": 303,
@@ -2954,6 +2957,10 @@
           "tier": "T2",
           "payload": [
             {
+              "name": "opened_from",
+              "type": "optional str — search when Filters was opened from Search; omitted in the Check-In flow"
+            },
+            {
               "name": "filters_changed",
               "type": "str — the enums §10 filter_ids whose value differs from what the step showed on entry, in the order meet_gender,age_range,distance_km, comma-joined, no spaces; \"none\" when nothing changed"
             },
@@ -2976,7 +2983,7 @@
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "User taps Continue on checkin_filters and it is accepted — once per accepted Continue, after check_in_step_answered, including settings Continued unchanged (filters_changed \"none\"). Never per chip tap or slider drag; never on ✕; never for the no-gender toast. meet_gender values are never sent. Respecified 13 Oct 2026 (Check-In 05, taxonomy 1.4.15): was filter_id · value · is_premium_filter, per modification.",
+          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. From Search, includes opened_from: search, with no check_in_step_answered or check_in_closed. Never per chip tap or slider drag, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24).",
           "implemented": true
         },
         {
@@ -3483,8 +3490,8 @@
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "Zero results returned in search feed",
-          "implemented": false
+          "trigger": "The Search no-results state becomes visible, once per visit, with reason no_results; not for loading or a failed request. Returning from Filters begins a new visit. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24).",
+          "implemented": true
         },
         {
           "name": "radius_widened",

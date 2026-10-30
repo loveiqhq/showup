@@ -900,6 +900,18 @@ private struct TutorialFlow: View {
         checkIn.closePressed(step) { go(to: .checkInGate) }
     }
 
+    /// `filters_active` for Search's `search_viewed`, with `meet_gender` judged against the viewer's
+    /// Check-In 05 gender pre-fill -- `checkinGenderDefault` on their current profile (27 Oct 2026).
+    /// When the profile cannot be read, `meet_gender` is left out rather than guessed. The demo's
+    /// viewer is a straight man, as its saved filters (women) are. Static, so the model can run it
+    /// beside its own read without holding the view.
+    private static func searchFiltersActive(_ filters: CheckInFilters?, demo: Bool) async -> [String] {
+        guard let filters else { return [] }
+        if demo { return filtersActive(filters, defaultGenders: checkinGenderDefault("man", "straight")) }
+        let profile = await ProfileDetailsRepository(api: APIAccess.client).load()
+        return filtersActive(filters, defaultGenders: profile.map { checkinGenderDefault($0.gender, $0.orientation) })
+    }
+
     /// A TabBar tap while `active` shows: `tab_switched` for any other tab -- the nav act alone.
     private func tabTapped(active: AppTab, tapped: AppTab) {
         if let event = NavAnalytics.tabSwitched(active: active, tapped: tapped) {
@@ -1160,8 +1172,15 @@ private struct TutorialFlow: View {
                 // screen_viewed and started its re-check: not an arrival (SearchModel.isOnScreen).
                 guard !search.isOnScreen(.grid) else { return }
                 let filters = checkIn.state.server?.filters
+                #if DEBUG
+                let demo = devPreview
+                #else
+                let demo = false
+                #endif
+                // Worked out beside the queue read, never before it: the gender part is a second
+                // request (SearchModel.filtersActiveLater).
                 search.arrived(zone: TimeZone.current.identifier,
-                               filtersActive: filters.map(filtersActive) ?? [],
+                               filtersActive: { [demo] in await Self.searchFiltersActive(filters, demo: demo) },
                                referrer: profileScreen(of: cameFrom))
             }
             // Leaving -- to Filters or another tab: the profile has left the screen. Not when a
@@ -1216,15 +1235,16 @@ private struct TutorialFlow: View {
                 onAge: { checkIn.ageMoved(thumb: $0, value: $1) },
                 onDistance: { checkIn.distanceMoved($0) },
                 onContinue: {
+                    let previousFilters = checkIn.state.server?.filters
                     checkIn.searchFiltersContinue {
-                        search.filtersSaved()
+                        if checkIn.state.server?.filters != previousFilters { search.filtersSaved() }
                         go(to: .checkInSearch)
                     }
                 },
                 onBack: { checkIn.searchFiltersLeft { go(to: .checkInSearch) } },
                 // Never the Check-In's close here: a committed Check-In is not discarded from Search.
                 onClose: { checkIn.searchFiltersLeft { go(to: .checkInSearch) } })
-                .onAppear { checkIn.searchFiltersOpened() }
+                .onAppear { checkIn.searchFiltersOpened(referrer: profileScreen(of: cameFrom) ?? .searchProfile) }
         case .checkInSettings:
             SettingsPlaceholderView(onTab: { tab in
                 tabTapped(active: .settings, tapped: tab)

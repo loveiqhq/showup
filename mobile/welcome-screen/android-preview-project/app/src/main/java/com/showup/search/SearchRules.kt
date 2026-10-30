@@ -81,16 +81,18 @@ object SearchCopy {
     const val COACH_DONT_SHOW = "Don't show again"
     const val COACH_GOT_IT = "Got it"
 
-    // ── states the ticket does not draw ─────────────────────────────────────────────────────────
-    //
-    // PROPOSED, NOT TICKETED: the app's "We couldn't ... just now. Please try again." for a failed
-    // read, and the README's own name for the empty queue's screen ("No results · widen filters (one
-    // tap)"), whose story is not written. Each goes to Philipp; the verifier lists them as proposed.
+    // ── states the sheet does not draw: approved by Philipp, 27 Oct 2026 ──────────────────────────
     const val LOADING_LABEL = "Loading profiles"
-    const val LOAD_FAILED_PROPOSED = "We couldn't load profiles just now. Please try again."
+    const val LOAD_FAILED = "Couldn't load profiles. Check your connection and try again."
     const val RETRY = "Retry"
+    const val TRY_AGAIN = "Try again"
+    /**
+     * PROPOSED, NOT YET THE DESIGN'S: the empty state takes the headline and body of the kit's
+     * `search-empty` screen (27 Oct 2026), a file not in any handoff zip yet -- asked for 28 Oct.
+     */
     const val NO_RESULTS_PROPOSED = "No results"
-    const val WIDEN_FILTERS_PROPOSED = "Widen filters"
+    /** Opens Filters for now (27 Oct 2026); the kit's sub-line and `Adjust filters manually` are left out. */
+    const val WIDEN_MY_SEARCH = "Widen my search"
 }
 
 /** Search's essentials row labels, in the ticket's order. */
@@ -142,13 +144,16 @@ fun distanceLine(km: Int, district: String?): String = distanceParts(km, distric
 
 /**
  * `filters_active` on `search_viewed`: the §10 filters set away from Check-In 05's defaults, in §10
- * order -- `age_range` when narrower than 18 to 65+, `distance_km` when not the default 10.
+ * order. `meet_gender` when the saved genders, as a set, are not the viewer's own pre-fill
+ * ([defaultGenders], from their current profile, 27 Oct 2026) -- the IDs only, never a gender. Left
+ * out when that pre-fill is unknown: a guess would count every unread profile as a change.
  *
- * NEVER `meet_gender`: its default is the user's own, worked out on the server from their gender and
- * orientation, so the phone cannot tell a narrowed set from the pre-fill. An open tracking question
- * (24 Oct 2026), not an oversight.
+ * Philipp's answer also lists the dealbreakers "when true": the Age and Distance switches of
+ * Check-In 05b (SHOWUP-189), which add them to the filter settings. They join this list with that
+ * ticket; until then Filters has no such setting to report.
  */
-fun filtersActive(filters: CheckInFilters): List<String> = buildList {
+fun filtersActive(filters: CheckInFilters, defaultGenders: Set<String>? = null): List<String> = buildList {
+    if (defaultGenders != null && filters.genders != defaultGenders) add("meet_gender")
     if (filters.minAge > AGE_MIN || filters.maxAge < AGE_MAX) add("age_range")
     if (filters.distanceKm != DISTANCE_DEFAULT) add("distance_km")
 }

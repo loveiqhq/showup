@@ -684,11 +684,11 @@ final class CheckInModel {
     // close return without saving and never discard the Check-In; the funnel's step events never fire.
 
     /// Search's filter button: Filters on the saved settings, never a half-made Check-In's edits.
-    func searchFiltersOpened() {
+    func searchFiltersOpened(referrer: ProfileScreen = .searchProfile) {
         if filtersFromSearch && currentStep == .filters { return }
         filtersFromSearch = true
         if let saved = state.server?.filters { state.filters = saved }
-        arrived(.filters, screen: .checkinFilters, referrer: .searchProfile)
+        arrived(.filters, screen: .checkinFilters, referrer: referrer)
     }
 
     /// Continue on Filters from Search: saved, then `onSaved` -- Search, reading its queue again.
@@ -722,7 +722,7 @@ final class CheckInModel {
             }
             self.filtersLanded(filters)
             self.analytics?.report(CheckInAnalytics.filtersChanged(entry: self.filtersOnEntry ?? filters,
-                                                                   now: filters, windowId: self.windowId))
+                                                                   now: filters, windowId: self.windowId, openedFrom: "search"))
             self.leaveSearchFilters()
             onSaved()
         }

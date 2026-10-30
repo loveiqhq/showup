@@ -680,11 +680,11 @@ open class CheckInViewModel(
     private var filtersFromSearch = false
 
     /** Search's filter button: Filters on the saved settings, never a half-made Check-In's edits. */
-    fun searchFiltersOpened() {
+    fun searchFiltersOpened(referrer: ProfileScreen = ProfileScreen.SearchProfile) {
         if (filtersFromSearch && currentStep == CheckInStep.Filters) return
         filtersFromSearch = true
         _state.update { s -> s.copy(filters = s.server?.filters ?: s.filters) }
-        arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, ProfileScreen.SearchProfile)
+        arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, referrer)
     }
 
     /** Continue on Filters from Search: saved, then [onSaved] -- Search, reading its queue again. */
@@ -714,7 +714,7 @@ open class CheckInViewModel(
                 return@launch
             }
             filtersLanded(filters)
-            analytics?.report(CheckInAnalytics.filtersChanged(filtersOnEntry ?: filters, filters, windowId))
+            analytics?.report(CheckInAnalytics.filtersChanged(filtersOnEntry ?: filters, filters, windowId, openedFrom = "search"))
             leaveSearchFilters()
             onSaved()
         }

@@ -112,16 +112,18 @@ enum CheckInAnalytics {
     /// Once per accepted Continue, even when nothing changed. Never the genders (Class 2) -- only
     /// WHETHER they changed, in `filters_changed`. `max_age` is JSON null for 65+, never 65.
     static func filtersChanged(entry: CheckInFilters, now: CheckInFilters,
-                               windowId: String) -> (String, [String: any Sendable]) {
+                               windowId: String, openedFrom: String? = nil) -> (String, [String: any Sendable]) {
         let maxAge: any Sendable
         if let cap = now.maxAgeOrNil { maxAge = cap } else { maxAge = JSONNull() }
-        return (checkInFiltersChanged, [
+        var properties: [String: any Sendable] = [
             "filters_changed": filtersChangedValue(entry, now),
             "min_age": now.minAge,
             "max_age": maxAge,
             "distance_km": now.distanceKm,
             "window_id": windowId,
-        ].merging(Stamp.of(0)) { a, _ in a })
+        ].merging(Stamp.of(0)) { a, _ in a }
+        if let openedFrom { properties["opened_from"] = openedFrom }
+        return (checkInFiltersChanged, properties)
     }
 
     /// §32: why a commit did not save.
