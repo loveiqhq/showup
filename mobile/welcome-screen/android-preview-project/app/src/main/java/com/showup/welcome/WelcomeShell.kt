@@ -163,6 +163,11 @@ fun WelcomeBackdrop(
     orangeAlpha: Float = 0.32f,
     violetAlpha: Float = 0.28f,
     placement: OrbPlacement = OrbPlacement.Startup,
+    /**
+     * The peach wash's top alpha. 0.55 everywhere but the Search location gate's blocked states
+     * (SHOWUP-188 ①), which dial Profile 12's backdrop back to orbs .16 / .14 and a .28 wash.
+     */
+    washAlpha: Float = 0.55f,
 ) {
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
@@ -226,7 +231,7 @@ fun WelcomeBackdrop(
             val washH = (if (embrace2) 320 else 360).dp.toPx()
             drawRect(
                 brush = Brush.verticalGradient(
-                    0.0f to Color(0xFFFFE5D2).copy(alpha = 0.55f),
+                    0.0f to Color(0xFFFFE5D2).copy(alpha = washAlpha),
                     (if (embrace2) 0.6f else 0.7f) to Color(0x00FFFBF7),
                     1.0f to Color.Transparent,
                     startY = 0f, endY = washH,

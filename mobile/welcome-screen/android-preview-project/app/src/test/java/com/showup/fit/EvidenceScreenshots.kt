@@ -422,6 +422,28 @@ class EvidenceScreenshots {
         }
     }
 
+    /**
+     * The Search location gate (SHOWUP-188): A, B and C on the Search tab, D over a Likes profile in
+     * B as the sheet draws it -- at the ticket's three frames, "A and D at 375 x 667 first". Then the
+     * tightest: A and D's A on the narrowest phone at the largest system font.
+     */
+    @Test
+    fun `the location gate, A to D, at the ticket frames and the tight case`() {
+        fun gate(state: LocationState, fromLikes: Boolean = false) = @Composable {
+            com.showup.profile.LocationGateScreen(
+                state = state, tab = if (fromLikes) com.showup.designsystem.Tab.Likes else com.showup.designsystem.Tab.Search,
+                likes = 2, onTab = {}, onLikes = {}, onBack = if (fromLikes) ({}) else null,
+            )
+        }
+        shoot("188", "A-never-granted", content = gate(LocationState.Ask))
+        shoot("188", "B-off-for-show-up", content = gate(LocationState.Denied))
+        shoot("188", "C-off-on-the-phone", content = gate(LocationState.ServicesOff))
+        shoot("188", "D-from-likes", content = gate(LocationState.Denied, fromLikes = true))
+        val tight = listOf(DEVICES.first { it.width == 320 })
+        shoot("TIGHT", "gate-A", fontScale = 2f, devices = tight, content = gate(LocationState.Ask))
+        shoot("TIGHT", "gate-D-ask", fontScale = 2f, devices = tight, content = gate(LocationState.Ask, fromLikes = true))
+    }
+
     @Test
     fun `the tight states, at the narrowest phone and the largest system font`() {
         val tight = listOf(DEVICES.first { it.width == 320 })

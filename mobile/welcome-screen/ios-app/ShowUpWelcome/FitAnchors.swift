@@ -54,4 +54,8 @@ enum FitAnchorID {
     static func gridCard(_ userId: String) -> String { "grid-card-\(userId)" }
     static func gridMeta(_ userId: String) -> String { "grid-meta-\(userId)" }
     static func likesCard(_ userId: String) -> String { "likes-card-\(userId)" }
+
+    // The Search location gate (SHOWUP-188).
+    static let gateCta = "location-gate-cta"
+    static let gateHeadline = "location-gate-headline"
 }

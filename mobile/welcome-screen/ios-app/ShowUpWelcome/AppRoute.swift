@@ -24,4 +24,7 @@ enum AppRoute: Hashable, Sendable {
     /// nothing, so a profile the model no longer holds -- after the process ended -- is popped rather
     /// than drawn empty.
     case searchProfile
+    /// The location gate pushed over a profile opened from the Likes tab (SHOWUP-188 D): `Confirm date`
+    /// found location unavailable. Whether it is up is the gate model's (`LocationGateUiState.overProfile`).
+    case locationGate
 }

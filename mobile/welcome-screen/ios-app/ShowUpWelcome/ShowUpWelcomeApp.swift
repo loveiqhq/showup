@@ -294,6 +294,12 @@ private struct TutorialFlow: View {
                                                 analytics: AppAnalytics.shared)
     /// Held rather than built in `onAppear`, for the reason `reachabilityHost` gives.
     private let locationHost = AppLocationHost()
+    /// THE SEARCH LOCATION GATE (SHOWUP-188): its own rules, on Profile 12's reader, request and
+    /// Settings link. Read at launch and on every return from the background, whatever is on screen,
+    /// so the Search tab knows before it draws.
+    @State private var locationGate = LocationGateModel(analytics: AppAnalytics.shared)
+    /// The gate pushed over a Likes profile (D), as it last was -- drawn while it slides away lifted.
+    @State private var heldGate: LocationState = .denied
     /// Which state 12 opens in — decided by the arrival matrix BEFORE the push.
     @SceneStorage private var locationStartRaw: String
 
@@ -325,8 +331,18 @@ private struct TutorialFlow: View {
     /// source of truth, so a profile can never be on screen that the model does not hold. The system's
     /// own back is hidden on it; its back pill and the edge swipe ask the model.
     private var navPath: Binding<[AppRoute]> {
-        Binding(get: { search.state.opened != nil ? [.searchProfile] : [] },
-                set: { path in if path.isEmpty { search.backFromProfile() } })
+        Binding(get: {
+                    guard search.state.opened != nil else { return [] }
+                    // D (SHOWUP-188): the location gate pushed over that profile, and only over it.
+                    return locationGate.ui.overProfile ? [.searchProfile, .locationGate] : [.searchProfile]
+                },
+                set: { path in
+                    if path.isEmpty {
+                        search.backFromProfile()
+                    } else if path == [.searchProfile], locationGate.ui.overProfile {
+                        locationGate.backToProfile()
+                    }
+                })
     }
 
     /// THE LIKES BADGE: open received likes, the one number the Likes tab and the Search likes chip
@@ -677,6 +693,9 @@ private struct TutorialFlow: View {
                           analytics: AppAnalytics.shared)
         location = LocationModel(positions: FlowPositionReporter(api: APIAccess.client),
                                  analytics: AppAnalytics.shared)
+        locationGate = LocationGateModel(analytics: AppAnalytics.shared)
+        locationGate.attach(locationHost)
+        Task { await locationGate.refresh() }
         checkIn = CheckInModel(store: CheckInRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
                                places: CLPlaceReader())
         search = SearchModel(store: SearchRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
@@ -977,7 +996,13 @@ private struct TutorialFlow: View {
             state: shown,
             zone: .current,
             player: sharedMediaPlayer.surface,
-            onLike: { search.like() },
+            // D (SHOWUP-188): `Confirm date` on a profile opened from the Likes tab checks location
+            // BEFORE Be sure opens. Unavailable -> the gate goes over the profile, Be sure stays shut
+            // and nothing is sent. Browsing never checks.
+            onLike: {
+                guard fromLikes, shown.likedYou else { search.like(); return }
+                Task { if !(await locationGate.confirmNeedsLocation()) { search.like() } }
+            },
             onPass: { search.pass($0) },
             onCoachDone: { search.dismissCoach($0, dontShowAgain: $1) },
             onCancelConfirm: { search.cancelConfirm() },
@@ -1028,6 +1053,45 @@ private struct TutorialFlow: View {
             // The model's back, not the system's: the back pill and the edge swipe ask it, and it keeps
             // the profile while a sheet, the viewer or the coach is over it.
             .navigationBarBackButtonHidden(true)
+    }
+
+    /// D (SHOWUP-188): the location gate pushed over a profile opened from the Likes tab, with the
+    /// Likes tab active. The back pill and the edge swipe return to the profile, and so does the gate
+    /// lifting; the date is confirmed only when the user taps `Confirm date` again.
+    private var gateOverProfile: some View {
+        LocationGateView(
+            state: locationGate.ui.blocked ?? heldGate,
+            tab: .likes,
+            likes: likesOpen,
+            // As on the profile under it: Likes is where the user already is.
+            onTab: { tab in
+                guard tab != .likes else { return }
+                tabTapped(active: .likes, tapped: tab)
+                switch tab {
+                case .search:
+                    search.closeProfileForElsewhere()
+                    go(to: searchTab)
+                case .settings:
+                    search.closeProfileForElsewhere()
+                    go(to: .checkInSettings)
+                case .instant:
+                    if checkIn.state.server?.active != true {
+                        search.closeProfileForElsewhere()
+                        reopenCheckIn(.instantTab)
+                    }
+                case .likes: break
+                }
+            },
+            // No chip in D: the bar is the profile's.
+            onLikes: {},
+            onAllow: { Task { await locationGate.allowPressed() } },
+            onOpenSettings: { locationGate.openSettingsPressed() },
+            requesting: locationGate.ui.requesting,
+            onBack: { locationGate.backToProfile() })
+        .modifier(EdgeSwipeBack(onBack: { locationGate.backToProfile() }))
+        .toolbar(.hidden, for: .navigationBar)
+        .onAppear { locationGate.mounted(referrer: .searchProfile) }
+        .onDisappear { locationGate.left() }
     }
 
     /// The Check-In's screens. Each takes the model's state and returns its taps as model calls;
@@ -1137,6 +1201,34 @@ private struct TutorialFlow: View {
                 onClose: { closeCheckIn(.uplift) })
                 .onAppear { checkInArrived(.uplift) }
         case .checkInSearch:
+            // THE LOCATION GATE (SHOWUP-188), in the state table's order: no Check-In -> the Check-In
+            // gate, decided before this tab is reached; otherwise, location unavailable -> this gate
+            // INSTEAD of people. Until the first status read lands, neither: a frame of either could be
+            // the wrong one.
+            if !locationGate.ui.known {
+                Color.liqCream.ignoresSafeArea()
+            } else if let gate = locationGate.ui.blocked {
+                LocationGateView(
+                    state: gate,
+                    tab: .search,
+                    likes: likesOpen,
+                    // Likes and Settings stay usable. Premium: the Likes tab; Freemium: the likes
+                    // upsell, its own story -- the tap does nothing until it ships.
+                    onTab: { tab in
+                        tabTapped(active: .search, tapped: tab)
+                        switch tab {
+                        case .settings: go(to: .checkInSettings)
+                        case .likes: if search.state.premium { go(to: .likesReceived) }
+                        case .search, .instant: break
+                        }
+                    },
+                    onLikes: { if search.state.premium { go(to: .likesReceived) } },
+                    onAllow: { Task { await locationGate.allowPressed() } },
+                    onOpenSettings: { locationGate.openSettingsPressed() },
+                    requesting: locationGate.ui.requesting)
+                .onAppear { locationGate.mounted(referrer: profileScreen(of: cameFrom)) }
+                .onDisappear { locationGate.left() }
+            } else {
             // One view whatever the layout, so the arrival below fires once a visit: the plan is read
             // at the start of the visit, and the grid can replace the loading queue inside it.
             ZStack {
@@ -1179,16 +1271,19 @@ private struct TutorialFlow: View {
                 #endif
                 // Worked out beside the queue read, never before it: the gender part is a second
                 // request (SearchModel.filtersActiveLater).
+                // Reached from the gate, which just lifted in place: its referrer.
+                let referrer: ProfileScreen? = locationGate.takeLift() ? .searchLocationGate : profileScreen(of: cameFrom)
                 search.arrived(zone: TimeZone.current.identifier,
                                filtersActive: { [demo] in await Self.searchFiltersActive(filters, demo: demo) },
-                               referrer: profileScreen(of: cameFrom))
+                               referrer: referrer)
             }
-            // Leaving -- to Filters or another tab: the profile has left the screen. Not when a
-            // profile is pushed over the grid: that profile has just arrived.
+            // Leaving -- to Filters or another tab, or replaced by the gate: the profile has left the
+            // screen. Not when a profile is pushed over the grid: that profile has just arrived.
             .onDisappear {
                 guard search.state.opened == nil else { return }
                 search.leftScreen(.grid)
                 search.leave()
+            }
             }
         case .likesReceived:
             LikesReceivedView(
@@ -1437,11 +1532,15 @@ private struct TutorialFlow: View {
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
                     case .searchProfile: openedProfile
+                    case .locationGate: gateOverProfile
                     }
                 }
         }
         .onChange(of: search.state.opened) { _, now in
-            if let now { heldOpened = now }
+            if let now { heldOpened = now } else { locationGate.backToProfile() }
+        }
+        .onChange(of: locationGate.ui.blocked) { _, now in
+            if let now { heldGate = now }
         }
         // The profile closed onto its list: the pop runs, and the list settles once it has.
         .onChange(of: search.state.opened == nil) { _, closed in
@@ -1725,6 +1824,11 @@ private struct TutorialFlow: View {
         }
         // The reconciler's launch read, then one per return from the background.
         .task { await permissions.onStart(inFlow: screen.isProfileCreation) }
+        // The gate's first read, before the Search tab can draw (SHOWUP-188).
+        .task {
+            locationGate.attach(locationHost)
+            await locationGate.refresh()
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
@@ -1735,6 +1839,8 @@ private struct TutorialFlow: View {
                 let inFlow = screen.isProfileCreation
                 Task {
                     if outside {
+                        // Location turned on in Settings lifts the gate; a new reason swaps it.
+                        await locationGate.refresh()
                         await permissions.onStart(inFlow: inFlow)
                     } else {
                         // Our own permission sheet's answer: permission_result's act, never this event.
@@ -1765,12 +1871,21 @@ private struct TutorialFlow: View {
         .onChange(of: scenePhase) { _, phase in
             // The Likes tab too: going to the background sends a decline waiting out its Undo.
             guard screen == .checkInSearch || screen == .likesReceived else { return }
+            // A Search tab the gate blocks has no visit to leave or resume (SHOWUP-188).
+            let blocked = screen == .checkInSearch && locationGate.ui.blocked != nil
             switch phase {
             case .background:
                 searchLeftForBackground = true
-                search.leave()
+                if !blocked { search.leave() }
             case .active:
-                if searchLeftForBackground { search.resume() }
+                if searchLeftForBackground {
+                    // THE GATE FIRST: a Search tab that comes back blocked must not resume a profile
+                    // the gate is about to replace.
+                    Task {
+                        await locationGate.refresh()
+                        if screen != .checkInSearch || locationGate.ui.blocked == nil { search.resume() }
+                    }
+                }
                 searchLeftForBackground = false
             default: break
             }

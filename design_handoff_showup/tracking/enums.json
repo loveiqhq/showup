@@ -1,6 +1,15 @@
 {
-  "registry_version": "1.4.29",
+  "registry_version": "1.4.31",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_31": [
+    "§10 age_dealbreaker — NEW (bool, default false). Check-In 05b, 26 Oct 2026.",
+    "§10 distance_dealbreaker — NEW (bool, default false). Check-In 05b, 26 Oct 2026.",
+    "§10 meet_gender — unchanged; no dealbreaker, always strict."
+  ],
+  "changed_in_1_4_30": [
+    "§11 search_location_gate / Search - Location gate — NEW row, Search 04. 22 Oct 2026.",
+    "§26 location_unavailable_reason — note: the gate's three states map one-to-one (A not_determined · B denied · C services_off). Values unchanged."
+  ],
   "changed_in_1_4_29": [
     "§23 sheet dismiss_method — note: now also carried by search_coach_dismissed (Search 01 actions coach, 21 Oct 2026). Values unchanged."
   ],
@@ -817,10 +826,22 @@
               "notes": "Optional. Default the full range, shown as “Any age”. Thumbs may meet (one age). Free filter, on the Check-In step (Check-In 05) and in Search — one store."
             },
             {
+              "filter_id": "age_dealbreaker",
+              "values": "bool, default false",
+              "class": "0",
+              "notes": "NEW 26 Oct 2026 (Check-In 05b). true = nobody outside age_range is ever shown. false = age_range is a preference: matching may show people just outside it, ranked lower (soft range set in matching-plan.md). Same store as Search. Default false for every record, existing ones included."
+            },
+            {
               "filter_id": "distance_km",
               "values": "Integer 1–50, 1 km steps, default 10",
               "class": "0",
               "notes": "Measured from the device location when the search runs. Free filter, on the Check-In step (Check-In 05) and in Search — one store. Pairs with radius_widened in Family I."
+            },
+            {
+              "filter_id": "distance_dealbreaker",
+              "values": "bool, default false",
+              "class": "0",
+              "notes": "NEW 26 Oct 2026 (Check-In 05b). As age_dealbreaker, for distance_km. meet_gender has no dealbreaker: always strict."
             },
             {
               "filter_id": "dating_intent",
@@ -1192,6 +1213,14 @@
               "ticket": "Search 03",
               "status": "ticketed — not built",
               "notes": "Premium list of received likes, ScreenLikedMe. Added 20 Oct 2026 (registry 1.4.28). The root of the LIKES TAB (§37) for a Premium user (a Freemium tap opens the likes upsell, its own story): no back button; the tab badge = open likes. Earliest meet time first, closed cards (Too late / Out of time) last. likes_received_viewed fires once per visit with open_count / closed_count. Origins: any screen with the TabBar (tab_switched · likes). Exits: search_profile (a card's photo, View profile or Confirm date — referrer likes_received), the Search tab (Back to search on the empty state, or the TabBar). The Undo toast is NOT a screen."
+            },
+            {
+              "screen_id": "search_location_gate",
+              "screen_name": "Search - Location gate",
+              "flow": "Date search",
+              "ticket": "Search 04",
+              "status": "ticketed — not built",
+              "notes": "The app-wide location gate, ScreenLocationGate = ScreenProfileLocation context=\"app\" (Profile 12's screen, second context). Added 22 Oct 2026 (registry 1.4.30). ONE screen_id, three states = §26 location_unavailable_reason: A not_determined (Allow location access raises the OS dialog) · B denied · C services_off (Open Settings, routed per platform; copy is platform-neutral). Shown in place of Search when the user can search (committed Check-In, no active date) and location is unavailable — the Check-In gate (checkin_search_unavailable) wins over it. Also pushed over search_profile when Confirm date is tapped on a profile opened from the Likes tab without location (back pill → that profile, Likes tab active). No filter button. Lifts by itself on the foreground re-read: → search_profile (Freemium) / search_grid (Premium) with referrer_screen_id search_location_gate, or back to the Likes profile. Never fires profile_* events; Profile 12 never fires location_gate_shown."
             }
           ]
         }

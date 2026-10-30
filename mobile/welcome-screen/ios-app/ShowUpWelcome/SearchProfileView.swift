@@ -306,9 +306,12 @@ private struct TopBarLayout: Layout {
 /// The back pill (Search 02 13), under the top bar: padding `0 16 10`; a 36-tall pill, padding
 /// `0 14 0 8`, 1px `--liq-border` on white, the chevron 18 (stroke 2.2) and the label in Manrope 700 /
 /// 13, gap 2. Drawn at 36 -- taller only when a large type needs it -- answering at 44.
-private struct BackPill: View {
+/// The back pill (Search 02 13). `rowBackground` is the profile's cream band under its top bar; the
+/// location gate (SHOWUP-188 ⑪) puts the same pill straight on its backdrop and passes `.clear`.
+struct BackPill: View {
     let label: String
     let onBack: () -> Void
+    var rowBackground: Color = .liqCream
 
     var body: some View {
         HStack(spacing: 0) {
@@ -334,7 +337,7 @@ private struct BackPill: View {
             Spacer(minLength: 0)
         }
         .padding(EdgeInsets(top: 0, leading: 16, bottom: 10, trailing: 16))
-        .background(Color.liqCream)
+        .background(rowBackground)
     }
 }
 
