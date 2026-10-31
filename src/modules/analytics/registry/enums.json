@@ -1,7 +1,7 @@
 {
-  "registry_version": "1.4.29",
+  "registry_version": "1.4.31",
   "taxonomy_version": "1.2",
-  "source": "Cleaned/codegen-ready copy of the design handoff tracking/enums.json (06 Aug 2026; re-synced to 1.4.18 on 11 Oct 2026 with SHOWUP-174/175/176: How I live fields, the §3 tag_ids, the §4 life questions, habits retired; re-synced to 1.4.25 on 13 Oct 2026 with the 48hrs Check-In, SHOWUP-178 to 183: meet_orientation retired, the §30 motivation and §31 vibe sets; re-stamped 1.4.29 on 21 Oct 2026 with the Date search epic, SHOWUP-184 to 186, whose new sets e33 to e37 and changed e11/e23 are none of the ones carried here). sensitivity.spec.ts fails if field_id or step_id drift from the handoff file.",
+  "source": "Cleaned/codegen-ready copy of the design handoff tracking/enums.json (06 Aug 2026; re-synced to 1.4.18 on 11 Oct 2026 with SHOWUP-174/175/176: How I live fields, the §3 tag_ids, the §4 life questions, habits retired; re-synced to 1.4.25 on 13 Oct 2026 with the 48hrs Check-In, SHOWUP-178 to 183: meet_orientation retired, the §30 motivation and §31 vibe sets; re-stamped 1.4.29 on 21 Oct 2026 with the Date search epic, SHOWUP-184 to 186, whose new sets e33 to e37 and changed e11/e23 are none of the ones carried here). re-stamped 1.4.31 on 30 Oct 2026 with the Search location gate and Check-In 05b, SHOWUP-188 and 189, whose changes (e11 search_location_gate, e10 age_dealbreaker / distance_dealbreaker) are none of the ones carried here. sensitivity.spec.ts fails if field_id or step_id drift from the handoff file.",
   "_liq_revisions": {
     "format": "Every value set is a proper array of strings (the shipped file had several run-together, un-parseable lists). Values verified against the design component files where those exist.",
     "life_questions": "life_now and life_ahead are the handoff §4 rows, verbatim since registry 1.4.17/1.4.18 (the design and the registry agree now; the 06 Aug divergence is gone)."

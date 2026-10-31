@@ -120,6 +120,13 @@ extension Color {
     static let liqShowUpDarkFill = Color(hex: 0x141C18).opacity(0.78)
     static let liqShowUpDarkInk = Color(hex: 0x3DE08A)
 
+    // Added for the Search location gate (SHOWUP-188).
+    /// rgb(60,50,70), the slate the location radar is drawn in when location is off (`live={false}`):
+    /// rings at .22 / .14 / .08, the pin's fill .55 and outline .65, the slash .55. Android's `RadarSlate`.
+    static let liqRadarSlate = Color(hex: 0x3C3246)
+    /// rgba(245,243,240,.85), the muted pin's centre dot. Android's `RadarSlateDot`.
+    static let liqRadarSlateDot = Color(hex: 0xF5F3F0).opacity(0.85)
+
     /// `--su-grad-lilac`, 180°. The fill of every "this is ours, and it is a question" card:
     /// the age-confirmation card on screen 04 and the saved prompt cards on screen 07.
     ///

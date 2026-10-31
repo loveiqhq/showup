@@ -5,7 +5,22 @@
   ],
   "reconciled_against": "loveiqhq/showup development @ 8540ee4",
   "generated": "2026-09-25",
-  "event_count": 303,
+  "event_count": 305,
+  "changed_in_1_4_23": [
+    "Check-In 05b (Filters v2), 26 Oct 2026: check_in_filters_changed — age_dealbreaker NEW · distance_dealbreaker NEW (bool, §10). filters_changed order extended to meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker. Cadence unchanged: once per accepted Continue. A switch tap fires nothing."
+  ],
+  "changed_in_1_4_22": [
+    "Matching launch version, 26 Oct 2026 (matching-plan.md): search_feed_ranked NEW (server) — ranking context per feed load: ranker_version, eligible_count, and per profile score, its components, boosts, is_explore, soft_match.",
+    "feed_request_id NEW on profile_card_viewed · like_sent · pass_sent — joins every view and decision to the ranked feed it came from.",
+    "like_expired NEW (server) — a sent like that closes unanswered (check_in_ended · target_matched · out_of_time). Negative label for like-back.",
+    "Labels already present and reused by matching: arrival_confirmed (date happened), rating_submitted.would_meet_again (rematch rule), pass_sent.pass_type (not_now ×0.7 · not_interested = blocked).",
+    "event_count corrected to the real total (305; was 302 against 303 listed before this change)."
+  ],
+  "changed_in_1_4_21": [
+    "Search 04 (location gate), 22 Oct 2026: location_gate_shown — trigger RESPECIFIED (once per state shown; never on Profile 12). Payload unchanged (§26 reason).",
+    "permission_os_sheet_shown · permission_result · permission_settings_opened — NEW optional payload screen_id (§11): the gate sends search_location_gate; absent = profile_location, so the built Profile 12 is untouched.",
+    "permission_prompted and permission_denied_recovery_shown — trigger notes: NOT fired by the gate (location_gate_shown covers both)."
+  ],
   "changed_in_1_4_20": [
     "Search 01 revision, 21 Oct 2026 — actions coach (frame F): search_coach_shown NEW · search_coach_dismissed NEW (dismiss_method §23, dont_show_again, visible_ms). Shown on every Search visit, Freemium and Premium, until Don't show again — the only act stored, server-side per user. The coach is an overlay on search_profile, not a screen: no §11 row, no screen_viewed. profile_card_viewed.dwell_ms for that profile counts from the dismissal.",
     "Amended the same day, before hand-over: was \"once per account, flag set on any dismissal, Freemium only\"."
@@ -2459,7 +2474,7 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. From 25 Sep 2026 the notifications case is Stay reachable (Profile 10, profile_reachability): fires on view with type: \"notifications\" when the OS status is not_determined. Profile 09 NO LONGER fires it — 09 raises no sheet any more. Location (from 5 Oct 2026): Profile 12 (profile_location) fires it on view of the ask state with type: \"location\" — never on the denied or services_off states.",
+          "trigger": "Our own pre-permission surface shown, before any OS sheet — a modal OR a full screen. From 25 Sep 2026 the notifications case is Stay reachable (Profile 10, profile_reachability): fires on view with type: \"notifications\" when the OS status is not_determined. Profile 09 NO LONGER fires it — 09 raises no sheet any more. Location (from 5 Oct 2026): Profile 12 (profile_location) fires it on view of the ask state with type: \"location\" — never on the denied or services_off states. The location gate does NOT fire it — its pre-permission event is location_gate_shown with reason not_determined (22 Oct 2026).",
           "implemented": true
         },
         {
@@ -2471,11 +2486,16 @@
             {
               "name": "type",
               "type": "str"
+            },
+            {
+              "name": "screen_id",
+              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate. Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
+              "required": false
             }
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "System permission dialog triggers. Notifications: raised by Save preferences on Stay reachable (Profile 10), only when the push toggle is on and the status is not_determined — moved from Profile 09 on 25 Sep 2026. Location: raised by 'Allow location access' on Profile 12, type: \"location\".",
+          "trigger": "System permission dialog triggers. Notifications: raised by Save preferences on Stay reachable (Profile 10), only when the push toggle is on and the status is not_determined — moved from Profile 09 on 25 Sep 2026. Location: raised by 'Allow location access' on Profile 12, type: \"location\". Location gate (Search 04, 22 Oct 2026): raised by 'Allow location access' in state A, with screen_id: \"search_location_gate\".",
           "implemented": true
         },
         {
@@ -2491,11 +2511,16 @@
             {
               "name": "result",
               "type": "\"granted\"|\"denied\"|\"limited\""
+            },
+            {
+              "name": "screen_id",
+              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate. Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
+              "required": false
             }
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "User responds to OS permission dialog. Location: precise and approximate are both granted, and so is iOS Allow Once / Android Only this time; limited never applies.",
+          "trigger": "User responds to OS permission dialog. Location: precise and approximate are both granted, and so is iOS Allow Once / Android Only this time; limited never applies. Location gate: carries screen_id: \"search_location_gate\".",
           "implemented": true
         },
         {
@@ -2516,7 +2541,7 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Recovery banner shown after denial. Location: Profile 12's denied and services_off states, with reason.",
+          "trigger": "Recovery banner shown after denial. Location: Profile 12's denied and services_off states, with reason. NOT fired by the location gate — location_gate_shown with reason denied / services_off is that surface's event (22 Oct 2026).",
           "implemented": true
         },
         {
@@ -2528,11 +2553,16 @@
             {
               "name": "type",
               "type": "str"
+            },
+            {
+              "name": "screen_id",
+              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate. Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
+              "required": false
             }
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Deep-link to OS App Settings tapped",
+          "trigger": "Deep-link to OS App Settings tapped. Location: Profile 12 B/C and the location gate B/C (gate sends screen_id: \"search_location_gate\").",
           "implemented": true
         },
         {
@@ -3106,6 +3136,42 @@
           "implemented": false
         },
         {
+          "name": "search_feed_ranked",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T1",
+          "payload": [
+            {
+              "name": "feed_request_id",
+              "type": "str"
+            },
+            {
+              "name": "ranker_version",
+              "type": "str — config version of filters, weights and boosts (matching-plan.md)"
+            },
+            {
+              "name": "layout",
+              "type": "\"one_up\"|\"grid\""
+            },
+            {
+              "name": "is_premium",
+              "type": "bool"
+            },
+            {
+              "name": "eligible_count",
+              "type": "int — profiles left after the launch filters"
+            },
+            {
+              "name": "items",
+              "type": "obj[] — per ranked profile: profile_id · position · score · fit · motivation_fit · vibe_fit · profile_fit · time · reliability · distance (all 0–1) · boosts str[] (liked_you · new_user · not_now) · is_explore bool · soft_match bool (outside a non-dealbreaker age/distance preference)"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "Server returns a ranked feed — every load and every re-rank (the feed is re-ranked on each load). The training record for matching phases 1–2; without it no later phase can learn.",
+          "implemented": false
+        },
+        {
           "name": "profile_card_viewed",
           "code_anchor": null,
           "source": "client",
@@ -3134,6 +3200,10 @@
             {
               "name": "shared_interest_count",
               "type": "int — interests shared with the viewer (0–10). NEW 1.4.17"
+            },
+            {
+              "name": "feed_request_id",
+              "type": "str — joins to search_feed_ranked. NEW 1.4.22"
             }
           ],
           "sensitivity_class": 0,
@@ -3298,13 +3368,17 @@
             {
               "name": "surface",
               "type": "str — enums.json §35 like_surface (profile; grid_card RETIRED 1.4.19; likes_received is pass-only). NEW 1.4.18"
+            },
+            {
+              "name": "feed_request_id",
+              "type": "str — joins to search_feed_ranked. NEW 1.4.22"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Live",
           "trigger": "Like record saved in DB — after Skip message (has_message false) or Send message (has_message true) on the message sheet.",
           "implemented": true,
-          "code_delta": "Add position and showup_band_of_target. has_message ships already; like_message_attached keeps char_count."
+          "code_delta": "Add position and target_attended_count (replaces the never-shipped showup_band_of_target, 20 Oct 2026). has_message ships already; like_message_attached keeps char_count."
         },
         {
           "name": "like_withdrawn",
@@ -3324,6 +3398,26 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "One per open like that closed without a decision: matched = either person's other like became mutual first (1 match = 1 date); no_overlap = the two Check-Ins have no meet-time overlap left (Search 03). NEW 1.4.17 (Search 01); reason NEW 1.4.19.",
+          "implemented": false
+        },
+        {
+          "name": "like_expired",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "hours_open",
+              "type": "float"
+            },
+            {
+              "name": "reason",
+              "type": "\"check_in_ended\"|\"target_matched\"|\"out_of_time\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "A sent like closes without an answer. Negative label for the like-back estimate (matching phase 1+). Not fired for like_withdrawn or a declined like (pass_sent covers that).",
           "implemented": false
         },
         {
@@ -3359,6 +3453,10 @@
             {
               "name": "surface",
               "type": "str — enums.json §35 like_surface (profile · likes_received). NEW 1.4.19"
+            },
+            {
+              "name": "feed_request_id",
+              "type": "str — joins to search_feed_ranked. NEW 1.4.22"
             }
           ],
           "sensitivity_class": 0,
@@ -3474,8 +3572,8 @@
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Location required blocker displayed",
-          "implemented": false
+          "trigger": "The location gate (Search 04, screen_id search_location_gate) is shown: once on mount with the current §26 reason, and again only when the reason changes while it is mounted (e.g. the phone's Location turned on but the app still denied: services_off → denied). Not on every foreground. Never fired by Profile 12. Respecified 22 Oct 2026; was \"Location required blocker displayed\".",
+          "implemented": true
         },
         {
           "name": "search_empty_shown",
@@ -6217,7 +6315,7 @@
     }
   ],
   "reconciled_with_code": "Reconciled against both apps' shipped code, 12 October 2026: 94 events implemented -- 86 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names. 13 Oct 2026: merged into handoff registry 1.4.25 / taxonomy 1.4.16 (Check-In 01-06); the reconciliation above was carried over event by event, and event_count is the real count (the handoff file said one fewer). 19 Oct 2026: 11 more turned on, the 48hrs Check-In's ten client events and permission_status_changed (the shared permission reconciler), each fired by production code on both apps: 105 implemented, 97 client and 8 server. 19 Oct 2026, later: signup_code_verify_failed fires again (on a code the server refused, with its 1-based attempt), so it is implemented and its code_delta is gone: 106 implemented, 98 client.",
-  "implemented_count": 106,
+  "implemented_count": 108,
   "code_delta_count": 31,
   "screen_identity_note": "Two properties, on purpose. screen_id is the stable machine key and never changes. screen_name is the human label and is what a person searches for in the analytics tool. Only screen_viewed carries both; every other event carries screen_id alone and joins to it. Both values come from the enums.json §11 registry — never typed at a call site."
 }

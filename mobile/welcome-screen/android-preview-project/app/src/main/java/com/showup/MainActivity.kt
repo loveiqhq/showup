@@ -80,6 +80,7 @@ import com.showup.search.SearchProfileScreen
 import com.showup.search.SearchRepository
 import com.showup.search.SearchUiState
 import com.showup.search.SearchViewModel
+import com.showup.search.LocationGateViewModel
 import com.showup.analytics.NavAnalytics
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
@@ -181,6 +182,7 @@ import com.showup.profile.ProfileLifeNowScreen
 import com.showup.profile.ProfileEmbraceDetailsScreen
 import com.showup.profile.ProfileHeightScreen
 import com.showup.profile.ProfileLocationScreen
+import com.showup.profile.LocationGateScreen
 import androidx.compose.animation.EnterExitState
 import androidx.compose.runtime.Composable
 import com.showup.welcome.PhoneAuthRepository
@@ -448,6 +450,17 @@ class MainActivity : ComponentActivity() {
             )
             val locationState by location.state.collectAsStateWithLifecycle()
 
+            // THE SEARCH LOCATION GATE (SHOWUP-188). Its own rules, on Profile 12's reader, request
+            // and Settings intents. It reads the status when it is made and on every return to the
+            // foreground, whatever is on screen, so the Search tab knows before it draws.
+            val locationGate: LocationGateViewModel = viewModel(
+                key = "location-gate-$account",
+                factory = viewModelFactory {
+                    initializer { LocationGateViewModel(access = locationAccess, analytics = AppAnalytics) }
+                },
+            )
+            val gateState by locationGate.state.collectAsStateWithLifecycle()
+
             // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ───────────────
             //
             // One owner for the whole flow, built before its steps (epic, "Built once"): the step
@@ -526,6 +539,35 @@ class MainActivity : ComponentActivity() {
                 // Our own sheet: permission_result's act, never an outside change.
                 permissions.absorbOwnAnswer()
                 location.permissionAnswered(result.values.any { it }) { leaveLocation() }
+            }
+
+            // The gate's own launcher, with the same request and the same bookkeeping: an answer
+            // goes back to whoever asked, and AndroidX re-delivers it to the launcher registered
+            // under the same key after a rebuild -- so each asker keeps one of its own.
+            val askLocationForGate = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { result ->
+                if (result.isEmpty()) {
+                    locationGate.permissionCancelled()
+                    return@rememberLauncherForActivityResult
+                }
+                PermissionAskLog.recordAsked(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                permissions.absorbOwnAnswer()
+                locationGate.permissionAnswered(result.values.any { it })
+            }
+            DisposableEffect(locationGate) {
+                val host = object : LocationHost {
+                    override fun requestLocationPermission() {
+                        askLocationForGate.launch(LOCATION_PERMISSIONS)
+                    }
+
+                    // The gate's routing table: B -> our app page; C -> the system Location page.
+                    override fun openSettings(state: LocationState) {
+                        if (state == LocationState.ServicesOff) openLocationSettings(context) else openAppSettings(context)
+                    }
+                }
+                locationGate.attach(host)
+                onDispose { locationGate.detach(host) }
             }
 
             val prompts: PromptsViewModel = viewModel(
@@ -804,11 +846,23 @@ class MainActivity : ComponentActivity() {
             // the back stack follows -- one source of truth, so a process death that restores the
             // destination with nothing open pops it again rather than drawing an empty profile.
             val profileOpen = searchState.opened != null
-            LaunchedEffect(profileOpen) {
-                val onProfile = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.SearchProfile>() == true
+            // D (SHOWUP-188): the location gate pushed over that profile, and only ever over it.
+            val gateOverProfile = profileOpen && gateState.overProfile
+            LaunchedEffect(profileOpen, gateOverProfile) {
+                fun top() = navController.currentBackStackEntry?.destination
+                // Nothing open: back to the flow, whatever is stacked -- the profile, or the gate
+                // over it -- so a profile closed from under its gate never leaves a screen behind.
+                if (!profileOpen) {
+                    // The gate belonged to that profile: the next one opens without it.
+                    locationGate.backToProfile()
+                    if (top()?.hasRoute<AppRoute.Flow>() != true) navController.popBackStack(AppRoute.Flow, inclusive = false)
+                    return@LaunchedEffect
+                }
+                if (top()?.hasRoute<AppRoute.Flow>() == true) navController.navigate(AppRoute.SearchProfile) { launchSingleTop = true }
+                val onGate = top()?.hasRoute<AppRoute.LocationGate>() == true
                 when {
-                    profileOpen && !onProfile -> navController.navigate(AppRoute.SearchProfile) { launchSingleTop = true }
-                    !profileOpen && onProfile -> navController.popBackStack()
+                    gateOverProfile && !onGate -> navController.navigate(AppRoute.LocationGate) { launchSingleTop = true }
+                    !gateOverProfile && onGate -> navController.popBackStack()
                 }
             }
 
@@ -967,11 +1021,16 @@ class MainActivity : ComponentActivity() {
             // a permission alert pauses the activity and is not the user leaving.
             DisposableEffect(lifecycleOwner, search) {
                 val observer = LifecycleEventObserver { _, event ->
+                    // THE GATE FIRST, on every return, whatever is on screen (SHOWUP-188): location
+                    // turned on in Settings lifts it, a new reason swaps it -- and a Search tab that
+                    // comes back blocked must not resume a profile the gate is about to replace.
+                    if (event == Lifecycle.Event.ON_START) locationGate.refresh()
                     // The Likes tab too: going to the background sends a decline waiting out its Undo.
                     if (screen != FlowScreen.CheckInSearch && screen != FlowScreen.LikesReceived) return@LifecycleEventObserver
+                    val searchBlocked = screen == FlowScreen.CheckInSearch && locationGate.state.value.blocked != null
                     when (event) {
-                        Lifecycle.Event.ON_STOP -> search.leave()
-                        Lifecycle.Event.ON_START -> search.resume()
+                        Lifecycle.Event.ON_STOP -> if (!searchBlocked) search.leave()
+                        Lifecycle.Event.ON_START -> if (!searchBlocked) search.resume()
                         else -> Unit
                     }
                 }
@@ -1999,6 +2058,50 @@ class MainActivity : ComponentActivity() {
                     }
                     FlowScreen.CheckInSearch -> {
                         val zone = remember { ZoneId.systemDefault() }
+                        // THE LOCATION GATE (SHOWUP-188), in the state table's order: no Check-In ->
+                        // the Check-In gate, decided before this tab is reached at all; otherwise,
+                        // location unavailable -> this gate INSTEAD of people. Read before the tab
+                        // renders, so no frame of empty Search and no frame of the wrong state.
+                        val gate = gateState.blocked
+                        if (gate != null) {
+                            LaunchedEffect(onTop) {
+                                if (onTop) locationGate.mounted(profileScreenOf(cameFrom, searchState.layout)) else locationGate.left()
+                            }
+                            // Lifted in place, the gate leaves without its tab ever losing the top.
+                            DisposableEffect(Unit) { onDispose { locationGate.left() } }
+                            LocationGateScreen(
+                                state = gate,
+                                tab = Tab.Search,
+                                likes = likesOpen,
+                                requesting = gateState.requesting,
+                                onAllow = locationGate::allowPressed,
+                                onOpenSettings = locationGate::openSettingsPressed,
+                                // Premium: the Likes tab; Freemium: the likes upsell, its own story --
+                                // the tap does nothing until it ships, and never opens Likes received.
+                                onLikes = { if (searchState.premium) goTo(FlowScreen.LikesReceived) },
+                                // Likes and Settings stay usable; Instant is its own story.
+                                onTab = { tab ->
+                                    tabTapped(Tab.Search, tab)
+                                    when (tab) {
+                                        Tab.Settings -> goTo(FlowScreen.CheckInSettings)
+                                        Tab.Likes -> if (searchState.premium) goTo(FlowScreen.LikesReceived)
+                                        Tab.Search, Tab.Instant -> Unit
+                                    }
+                                },
+                            )
+                        } else {
+                        // A gate arriving over a visit (Location switched off while away) ends that
+                        // visit, so the lift that follows is a new arrival, not a resume.
+                        // Only while the visit is still on screen: a normal exit has left it already,
+                        // and a second leave() would report the profile's view twice.
+                        DisposableEffect(Unit) {
+                            onDispose {
+                                if (locationGate.state.value.blocked != null && search.isOnScreen(PremiumSurface.Grid)) {
+                                    search.leftScreen(PremiumSurface.Grid)
+                                    search.leave()
+                                }
+                            }
+                        }
                         LaunchedEffect(onTop) {
                             if (onTop) {
                                 // STILL HERE FROM BEFORE: the pop of a profile pushed over the grid
@@ -2008,11 +2111,14 @@ class MainActivity : ComponentActivity() {
                                 if (search.isOnScreen(PremiumSurface.Grid)) return@LaunchedEffect
                                 val filters = checkInState.server?.filters
                                 val demo = devCheckIn != null
+                                // Reached from the gate, which just lifted in place: its referrer.
+                                val referrer = if (locationGate.takeLift()) ProfileScreen.SearchLocationGate
+                                else profileScreenOf(cameFrom, searchState.layout)
                                 // Worked out beside the queue read, never before it: the gender part
                                 // is a second request (SearchViewModel.filtersActiveLater).
                                 search.arrived(zone.id, {
                                     filters?.let { filtersActive(it, searchGenderDefault(api, demo)) }.orEmpty()
-                                }, profileScreenOf(cameFrom, searchState.layout))
+                                }, referrer)
                             } else {
                                 search.leftScreen(PremiumSurface.Grid)
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
@@ -2075,6 +2181,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onRetry = { search.retry(zone.id) },
                         )
+                        }
                     }
                     FlowScreen.LikesReceived -> {
                         val zone = remember { ZoneId.systemDefault() }
@@ -2197,7 +2304,12 @@ class MainActivity : ComponentActivity() {
                     state = shown,
                     zone = zone,
                     player = mediaPlayer.surface,
-                    onLike = search::like,
+                    // D (SHOWUP-188): `Confirm date` on a profile opened from the Likes tab checks
+                    // location BEFORE Be sure opens. Unavailable -> the gate goes over the profile,
+                    // Be sure stays shut and nothing is sent. Browsing never checks.
+                    onLike = {
+                        if (!(fromLikes && shown.likedYou && locationGate.confirmNeedsLocation())) search.like()
+                    },
                     onPass = search::pass,
                     onCoachDone = search::dismissCoach,
                     onCancelConfirm = search::cancelConfirm,
@@ -2245,6 +2357,58 @@ class MainActivity : ComponentActivity() {
                                     search.closeProfileForElsewhere()
                                     reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
                                 }
+                            }
+                        }
+                    },
+                )
+            }
+            // D (SHOWUP-188): the location gate pushed over a profile opened from the Likes tab.
+            // Pushed and popped as the profile is, with the Likes tab active; back, the pill and the
+            // back gesture return to the profile, and so does the gate lifting.
+            composable<AppRoute.LocationGate>(
+                enterTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideInHorizontally(tween(ms)) { w -> w / 6 } + fadeIn(tween(if (motion.enabled) 220 else 0))
+                },
+                popExitTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideOutHorizontally(tween(ms)) { w -> w / 6 } + fadeOut(tween(if (motion.enabled) Motion.FAST else 0))
+                },
+            ) {
+                // AS IT LEAVES, THE STATE IT HAD: lifted, the gate slides away showing its last state
+                // rather than an empty one.
+                var last by remember { mutableStateOf(gateState.blocked ?: LocationState.Denied) }
+                LaunchedEffect(gateState.blocked) { gateState.blocked?.let { last = it } }
+                LaunchedEffect(Unit) { locationGate.mounted(ProfileScreen.SearchProfile) }
+                DisposableEffect(Unit) { onDispose { locationGate.left() } }
+                LocationGateScreen(
+                    state = gateState.blocked ?: last,
+                    tab = Tab.Likes,
+                    likes = likesOpen,
+                    requesting = gateState.requesting,
+                    onAllow = locationGate::allowPressed,
+                    onOpenSettings = locationGate::openSettingsPressed,
+                    // No chip in D: the bar is the profile's.
+                    onLikes = {},
+                    onBack = locationGate::backToProfile,
+                    // As on the profile under it: Likes is where the user already is.
+                    onTab = { tab ->
+                        if (tab != Tab.Likes) {
+                            tabTapped(Tab.Likes, tab)
+                            when (tab) {
+                                Tab.Search -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(searchTab())
+                                }
+                                Tab.Settings -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(FlowScreen.CheckInSettings)
+                                }
+                                Tab.Instant -> if (checkInState.server?.active != true) {
+                                    search.closeProfileForElsewhere()
+                                    reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                }
+                                Tab.Likes -> Unit
                             }
                         }
                     },

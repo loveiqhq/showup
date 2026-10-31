@@ -316,10 +316,13 @@ fun SearchProfileScreen(
  * The back pill (Search 02 13), under the top bar: padding `0 16 10`; a 36-tall pill, padding
  * `0 14 0 8`, 1px `--liq-border` on white, the chevron 18 (stroke 2.2) and the label in Manrope 700 /
  * 13, gap 2. Drawn at 36, answering at 44.
+ *
+ * [rowBackground] is the profile's cream band under its top bar. The location gate (SHOWUP-188 ⑪)
+ * puts the same pill straight on its backdrop, with no band, so it passes [Color.Transparent].
  */
 @Composable
-private fun BackPill(label: String, onBack: () -> Unit) {
-    Box(Modifier.fillMaxWidth().background(Cream).padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+internal fun BackPill(label: String, onBack: () -> Unit, rowBackground: Color = Cream) {
+    Box(Modifier.fillMaxWidth().background(rowBackground).padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
         OverflowTapTarget(
             touch = Modifier
                 .clickable(role = Role.Button, onClick = onBack)

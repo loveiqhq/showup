@@ -58,12 +58,14 @@ enum class LocationState {
 }
 
 /**
- * `enums.json` §26 `location_unavailable_reason` -- why B or C is showing.
+ * `enums.json` §26 `location_unavailable_reason` -- why location is unavailable.
  *
- * NEW in registry 1.4.7. `not_determined` is in the set too, for the app-wide location gate; screen
- * 12 never reports it, because its not-determined state is the ask, not a recovery.
+ * NEW in registry 1.4.7. Screen 12 reports only [Denied] and [ServicesOff] ([unavailableReason]):
+ * its not-determined state is the ask, not a recovery. The Search location gate (SHOWUP-188)
+ * reports all three ([gateReason]), because there the ask is a blocked state too.
  */
 enum class LocationUnavailableReason(val trackingValue: String) {
+    NotDetermined("not_determined"),
     Denied("denied"),
     ServicesOff("services_off"),
 }
@@ -94,6 +96,14 @@ fun locationArrival(status: LocationStatus): LocationArrival = when {
 val LocationState.unavailableReason: LocationUnavailableReason?
     get() = when (this) {
         LocationState.Ask -> null
+        LocationState.Denied -> LocationUnavailableReason.Denied
+        LocationState.ServicesOff -> LocationUnavailableReason.ServicesOff
+    }
+
+/** The §26 reason the Search location gate reports for a state: every state has one. */
+val LocationState.gateReason: LocationUnavailableReason
+    get() = when (this) {
+        LocationState.Ask -> LocationUnavailableReason.NotDetermined
         LocationState.Denied -> LocationUnavailableReason.Denied
         LocationState.ServicesOff -> LocationUnavailableReason.ServicesOff
     }

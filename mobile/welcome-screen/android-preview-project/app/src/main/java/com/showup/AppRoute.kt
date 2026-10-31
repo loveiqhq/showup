@@ -34,4 +34,12 @@ sealed interface AppRoute {
      */
     @Serializable
     data object SearchProfile : AppRoute
+
+    /**
+     * The location gate pushed over a profile opened from the Likes tab (SHOWUP-188 D): `Confirm
+     * date` found location unavailable. Whether it is up is the gate view model's
+     * (`LocationGateUiState.overProfile`), as the profile's is the search view model's.
+     */
+    @Serializable
+    data object LocationGate : AppRoute
 }
