@@ -71,6 +71,13 @@ export class Like {
   @Column({ name: 'match_id', type: 'uuid', nullable: true })
   matchId: string | null;
 
+  /**
+   * When this like last became open: the first send, and again each time a closed like is sent once
+   * more (the same row re-opens). `like_expired.hours_open` counts from here, not from `createdAt`.
+   */
+  @Column({ name: 'opened_at', type: 'timestamptz', default: () => 'now()' })
+  openedAt: Date;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

@@ -50,6 +50,7 @@ describe('Date search 01 (e2e)', () => {
       resultsCount: number;
       profiles: Array<Record<string, unknown>>;
       viewer: { vibes: string[]; interests: string[] };
+      feedRequestId: string;
     };
 
   async function signUp(phone: string): Promise<{ token: string; id: string }> {
@@ -201,12 +202,13 @@ describe('Date search 01 (e2e)', () => {
       hours: [4, 6],
       hidden: ['age', 'religion'],
     });
-    // Carla: 5 km, free only tomorrow.
+    // Carla: 5 km, free only tomorrow -- two hours, since Matching 01's filter 1 offers nobody with
+    // less than two of their chosen hours left.
     ids.carla = await person({
       phone: '+491700000001',
       name: 'Carla',
       north: 0.045,
-      hours: [27, 28],
+      hours: [26, 28],
     });
     // Never in Max's queue: too far, wants women only, blocked, an incomplete profile.
     ids.dana = await person({
@@ -243,6 +245,14 @@ describe('Date search 01 (e2e)', () => {
       hours: [4, 6],
       complete: false,
     });
+    // Elke: 11 km, just outside Max's 10 and inside its 12.5 soft range. This file runs with
+    // `filters_dealbreakers` off, where the soft range does not exist (Matching 01), so she is out.
+    ids.elke = await person({
+      phone: '+491700000006',
+      name: 'Elke',
+      north: 0.0989,
+      hours: [4, 6],
+    });
   });
 
   afterAll(async () => {
@@ -261,10 +271,17 @@ describe('Date search 01 (e2e)', () => {
 
   // ── the queue ───────────────────────────────────────────────────────────────
 
-  it('holds who Max can meet, earliest meet hour first, and nobody the rules keep out', async () => {
+  it('holds who Max can meet, best ranked first, and nobody the rules keep out', async () => {
     const q = await queue();
     expect(q.resultsCount).toBe(2);
+    // The same fit; Leonie is sooner and nearer, so she scores higher on Time and Distance.
     expect(q.profiles.map((p) => p.name)).toEqual(['Leonie', 'Carla']);
+  });
+
+  it('names each load of the feed, a new id every time', async () => {
+    const [a, b] = [await queue(), await queue()];
+    expect(a.feedRequestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(b.feedRequestId).not.toBe(a.feedRequestId);
   });
 
   it('sends what the viewer brings: their own vibes and interests, for marking what a profile shares', async () => {
@@ -279,7 +296,7 @@ describe('Date search 01 (e2e)', () => {
     const [leonie, carla] = (await queue()).profiles;
     expect(leonie.meetAt).toBe(hour(4).toISOString());
     expect(leonie.meetDay).toBe(meetDay(hour(4), new Date(), TZ));
-    expect(carla.meetAt).toBe(hour(27).toISOString());
+    expect(carla.meetAt).toBe(hour(26).toISOString());
     expect(carla.meetDay).toBe('tomorrow');
   });
 

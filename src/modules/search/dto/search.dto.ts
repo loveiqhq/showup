@@ -241,7 +241,7 @@ export class SearchQueueDto {
 
   @ApiProperty({
     type: [SearchProfileDto],
-    description: 'The first profiles of the queue, next one first',
+    description: 'The first profiles of the feed, in its ranked order',
   })
   profiles: SearchProfileDto[];
 
@@ -250,6 +250,14 @@ export class SearchQueueDto {
     description: 'The viewer, for marking what each profile shares with them',
   })
   viewer: SearchViewerDto;
+
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'This load of the feed (search_feed_ranked feed_request_id). The app sends it back on ' +
+      'profile_card_viewed, like_sent and pass_sent, so each joins to the ranking that placed it',
+  })
+  feedRequestId: string;
 }
 
 /** `Not now` or `Not interested`. */
@@ -300,12 +308,21 @@ export class SearchGridDto {
 
   @ApiProperty({
     type: [SearchGridCardDto],
-    description: 'In queue order, at most 100: the availability re-check bound',
+    description:
+      'In ranked order, at most 100: the availability re-check bound',
   })
   cards: SearchGridCardDto[];
 
   @ApiProperty({ type: SearchViewerDto })
   viewer: SearchViewerDto;
+
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'This load of the feed (search_feed_ranked feed_request_id). The app sends it back on ' +
+      'profile_card_viewed, like_sent and pass_sent, so each joins to the ranking that placed it',
+  })
+  feedRequestId: string;
 }
 
 /** The availability re-check: every card on screen, in one call. */
