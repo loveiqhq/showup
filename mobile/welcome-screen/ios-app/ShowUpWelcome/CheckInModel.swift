@@ -659,7 +659,7 @@ final class CheckInModel {
         let answer = filtersChanged(entry, filters) == "none" ? "prefilled" : "picked"
         analytics?.report(CheckInAnalytics.stepAnswered(.filters, answerValue: answer, timeToAnswerMs: millis() - viewedAt))
         analytics?.report(CheckInAnalytics.filtersChanged(entry: entry, now: filters, windowId: windowId,
-                                                          dealbreakers: dealbreakersShown))
+                                                          openedFrom: .checkIn, dealbreakers: dealbreakersShown))
         filtersTouched = true
         // Built on the stand-in, nothing is sent yet: the read that lands resolves and sends it, or
         // the commit reads first.
@@ -746,7 +746,7 @@ final class CheckInModel {
             }
             self.filtersLanded(filters)
             self.analytics?.report(CheckInAnalytics.filtersChanged(entry: self.filtersOnEntry ?? filters,
-                                                                   now: filters, windowId: self.windowId, openedFrom: "search",
+                                                                   now: filters, windowId: self.windowId, openedFrom: .search,
                                                                    dealbreakers: self.dealbreakersShown))
             self.leaveSearchFilters()
             onSaved()

@@ -775,14 +775,10 @@ private fun FailedState(onRetry: () -> Unit) {
     CentredStatement(SearchCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
 }
 
-/**
- * The queue ran dry. Decided 27 Oct 2026: the kit's `search-empty` headline and body, and
- * `Widen my search`, which opens Check-In 05 for now. The headline stands in until that kit file
- * arrives (see [SearchCopy.NO_RESULTS_PROPOSED]).
- */
+/** The queue ran dry: the interim no-results screen ([SearchEmptyState]); `Widen my search` opens Filters. */
 @Composable
 private fun NoResultsState(onFilters: () -> Unit) {
-    CentredStatement(SearchCopy.NO_RESULTS_PROPOSED, SearchCopy.WIDEN_MY_SEARCH, onFilters)
+    SearchEmptyState(onWiden = onFilters)
 }
 
 @Composable

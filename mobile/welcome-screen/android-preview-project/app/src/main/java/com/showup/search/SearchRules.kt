@@ -87,10 +87,13 @@ object SearchCopy {
     const val RETRY = "Retry"
     const val TRY_AGAIN = "Try again"
     /**
-     * PROPOSED, NOT YET THE DESIGN'S: the empty state takes the headline and body of the kit's
-     * `search-empty` screen (27 Oct 2026), a file not in any handoff zip yet -- asked for 28 Oct.
+     * The interim no-results screen (Copy -> States, 27 Oct 2026), the kit's `search-empty` in normal
+     * mode: the headline in three runs, `no people` washed.
      */
-    const val NO_RESULTS_PROPOSED = "No results"
+    const val NO_RESULTS_LEAD = "Unfortunately there are "
+    const val NO_RESULTS_EM = "no people"
+    const val NO_RESULTS_TAIL = " left matching your search filters."
+    const val NO_RESULTS_BODY = "Widen your search filters to find more people."
     /** Opens Filters for now (27 Oct 2026); the kit's sub-line and `Adjust filters manually` are left out. */
     const val WIDEN_MY_SEARCH = "Widen my search"
 }

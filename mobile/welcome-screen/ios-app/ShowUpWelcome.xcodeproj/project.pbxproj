@@ -7,240 +7,241 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FEED000000000000000000BE /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* ShowUpWelcomeApp.swift */; };
-		FEED000000000000000000BF /* APIAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* APIAccess.swift */; };
-		FEED000000000000000000C0 /* AVMediaCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* AVMediaCapture.swift */; };
-		FEED000000000000000000C1 /* AVMediaPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* AVMediaPlayer.swift */; };
-		FEED000000000000000000C2 /* AppAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* AppAnalytics.swift */; };
-		FEED000000000000000000C3 /* AppRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* AppRoute.swift */; };
-		FEED000000000000000000C4 /* AuthMethodList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* AuthMethodList.swift */; };
-		FEED000000000000000000C5 /* BasicsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* BasicsChrome.swift */; };
-		FEED000000000000000000C6 /* BasicsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* BasicsModel.swift */; };
-		FEED000000000000000000C7 /* BasicsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* BasicsRepository.swift */; };
-		FEED000000000000000000C8 /* BasicsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* BasicsStep.swift */; };
-		FEED000000000000000000C9 /* BridgeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* BridgeShell.swift */; };
-		FEED000000000000000000CA /* ButtonPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* ButtonPair.swift */; };
-		FEED000000000000000000CB /* CSSTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000024 /* CSSTextLayout.swift */; };
-		FEED000000000000000000CC /* Card.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000025 /* Card.swift */; };
-		FEED000000000000000000CD /* CardFlyOut.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000026 /* CardFlyOut.swift */; };
-		FEED000000000000000000CE /* CheckInAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000027 /* CheckInAnalytics.swift */; };
-		FEED000000000000000000CF /* CheckInAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000028 /* CheckInAvailability.swift */; };
-		FEED000000000000000000D0 /* CheckInAvailabilityChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000029 /* CheckInAvailabilityChrome.swift */; };
-		FEED000000000000000000D1 /* CheckInChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002A /* CheckInChrome.swift */; };
-		FEED000000000000000000D2 /* CheckInFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002B /* CheckInFilters.swift */; };
-		FEED000000000000000000D3 /* CheckInIntro.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002C /* CheckInIntro.swift */; };
-		FEED000000000000000000D4 /* CheckInModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002D /* CheckInModel.swift */; };
-		FEED000000000000000000D5 /* CheckInMotivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002E /* CheckInMotivation.swift */; };
-		FEED000000000000000000D6 /* CheckInNoHoursDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002F /* CheckInNoHoursDialog.swift */; };
-		FEED000000000000000000D7 /* CheckInPlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* CheckInPlace.swift */; };
-		FEED000000000000000000D8 /* CheckInRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* CheckInRepository.swift */; };
-		FEED000000000000000000D9 /* CheckInRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* CheckInRules.swift */; };
-		FEED000000000000000000DA /* CheckInTabPlaceholders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* CheckInTabPlaceholders.swift */; };
-		FEED000000000000000000DB /* CheckInUplift.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* CheckInUplift.swift */; };
-		FEED000000000000000000DC /* CheckInVibe.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* CheckInVibe.swift */; };
-		FEED000000000000000000DD /* CheckRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* CheckRow.swift */; };
-		FEED000000000000000000DE /* Chip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* Chip.swift */; };
-		FEED000000000000000000DF /* CodeSlotRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000038 /* CodeSlotRow.swift */; };
-		FEED000000000000000000E0 /* ComponentSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000039 /* ComponentSizes.swift */; };
-		FEED000000000000000000E1 /* ConfettiRain.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003A /* ConfettiRain.swift */; };
-		FEED000000000000000000E2 /* ConnectAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003B /* ConnectAccountView.swift */; };
-		FEED000000000000000000E3 /* ConsentSwitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003C /* ConsentSwitch.swift */; };
-		FEED000000000000000000E4 /* ControlPip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003D /* ControlPip.swift */; };
-		FEED000000000000000000E5 /* CountryCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003E /* CountryCodes.swift */; };
-		FEED000000000000000000E6 /* CountryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003F /* CountryPicker.swift */; };
-		FEED000000000000000000E7 /* Crashes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000040 /* Crashes.swift */; };
-		FEED000000000000000000E8 /* DateOfBirth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000041 /* DateOfBirth.swift */; };
-		FEED000000000000000000E9 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000042 /* DesignSystem.swift */; };
-		FEED000000000000000000EA /* DetailsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000043 /* DetailsChrome.swift */; };
-		FEED000000000000000000EB /* DetailsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000044 /* DetailsModel.swift */; };
-		FEED000000000000000000EC /* DevCheckIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000045 /* DevCheckIn.swift */; };
-		FEED000000000000000000ED /* DevMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000046 /* DevMenu.swift */; };
-		FEED000000000000000000EE /* DevOfflineAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000047 /* DevOfflineAuth.swift */; };
-		FEED000000000000000000EF /* DevSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000048 /* DevSearch.swift */; };
-		FEED000000000000000000F0 /* EmailVerification.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000049 /* EmailVerification.swift */; };
-		FEED000000000000000000F1 /* FitAnchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004A /* FitAnchors.swift */; };
-		FEED000000000000000000F2 /* FloatingField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004B /* FloatingField.swift */; };
-		FEED000000000000000000F3 /* FlowScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004C /* FlowScreen.swift */; };
-		FEED000000000000000000F4 /* HomePlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004D /* HomePlaceholderView.swift */; };
-		FEED000000000000000000F5 /* IconSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004E /* IconSizes.swift */; };
-		FEED000000000000000000F6 /* InputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004F /* InputField.swift */; };
-		FEED000000000000000000F7 /* InterestsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000050 /* InterestsChrome.swift */; };
-		FEED000000000000000000F8 /* LifeChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000051 /* LifeChrome.swift */; };
-		FEED000000000000000000F9 /* LikesReceived.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000052 /* LikesReceived.swift */; };
-		FEED000000000000000000FA /* LocationAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000053 /* LocationAccess.swift */; };
-		FEED000000000000000000FB /* LocationGateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000054 /* LocationGateModel.swift */; };
-		FEED000000000000000000FC /* LocationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000055 /* LocationModel.swift */; };
-		FEED000000000000000000FD /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000056 /* MatchMeansMeetView.swift */; };
-		FEED000000000000000000FE /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000057 /* MatchOnAvailabilityView.swift */; };
-		FEED000000000000000000FF /* MediaAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000058 /* MediaAccess.swift */; };
-		FEED00000000000000000100 /* MediaCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000059 /* MediaCapture.swift */; };
-		FEED00000000000000000101 /* MediaCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005A /* MediaCaptureView.swift */; };
-		FEED00000000000000000102 /* MediaCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005B /* MediaCards.swift */; };
-		FEED00000000000000000103 /* MediaModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005C /* MediaModel.swift */; };
-		FEED00000000000000000104 /* MediaPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005D /* MediaPlayback.swift */; };
-		FEED00000000000000000105 /* MediaPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005E /* MediaPromptSheet.swift */; };
-		FEED00000000000000000106 /* MediaPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005F /* MediaPrompts.swift */; };
-		FEED00000000000000000107 /* MediaRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000060 /* MediaRepository.swift */; };
-		FEED00000000000000000108 /* MediaState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000061 /* MediaState.swift */; };
-		FEED00000000000000000109 /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000062 /* MeetInRealLifeView.swift */; };
-		FEED0000000000000000010A /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000063 /* Motion.swift */; };
-		FEED0000000000000000010B /* NavAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000064 /* NavAnalytics.swift */; };
-		FEED0000000000000000010C /* NotificationAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000065 /* NotificationAccess.swift */; };
-		FEED0000000000000000010D /* NotificationsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000066 /* NotificationsModel.swift */; };
-		FEED0000000000000000010E /* OptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000067 /* OptionRow.swift */; };
-		FEED0000000000000000010F /* OtpPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000068 /* OtpPolicy.swift */; };
-		FEED00000000000000000110 /* PermissionReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000069 /* PermissionReconciler.swift */; };
-		FEED00000000000000000111 /* PhoneAuthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006A /* PhoneAuthModel.swift */; };
-		FEED00000000000000000112 /* PhoneAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006B /* PhoneAuthRepository.swift */; };
-		FEED00000000000000000113 /* PhoneNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006C /* PhoneNumberField.swift */; };
-		FEED00000000000000000114 /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006D /* PhoneVerificationView.swift */; };
-		FEED00000000000000000115 /* PhotoAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006E /* PhotoAccess.swift */; };
-		FEED00000000000000000116 /* PhotoGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006F /* PhotoGrid.swift */; };
-		FEED00000000000000000117 /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000070 /* PhotoPicker.swift */; };
-		FEED00000000000000000118 /* PhotoUpload.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000071 /* PhotoUpload.swift */; };
-		FEED00000000000000000119 /* PhotosModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000072 /* PhotosModel.swift */; };
-		FEED0000000000000000011A /* PhotosRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000073 /* PhotosRepository.swift */; };
-		FEED0000000000000000011B /* PickChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000074 /* PickChrome.swift */; };
-		FEED0000000000000000011C /* PickModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000075 /* PickModel.swift */; };
-		FEED0000000000000000011D /* PremiumParts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000076 /* PremiumParts.swift */; };
-		FEED0000000000000000011E /* PremiumRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000077 /* PremiumRules.swift */; };
-		FEED0000000000000000011F /* PremiumTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000078 /* PremiumTag.swift */; };
-		FEED00000000000000000120 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000079 /* PrimaryButton.swift */; };
-		FEED00000000000000000121 /* ProfileAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007A /* ProfileAnalytics.swift */; };
-		FEED00000000000000000122 /* ProfileBasics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007B /* ProfileBasics.swift */; };
-		FEED00000000000000000123 /* ProfileChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007C /* ProfileChoice.swift */; };
-		FEED00000000000000000124 /* ProfileDatingLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007D /* ProfileDatingLanguage.swift */; };
-		FEED00000000000000000125 /* ProfileDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007E /* ProfileDetails.swift */; };
-		FEED00000000000000000126 /* ProfileDetailsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007F /* ProfileDetailsRepository.swift */; };
-		FEED00000000000000000127 /* ProfileDob.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000080 /* ProfileDob.swift */; };
-		FEED00000000000000000128 /* ProfileEmbrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000081 /* ProfileEmbrace.swift */; };
-		FEED00000000000000000129 /* ProfileEmbraceDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000082 /* ProfileEmbraceDetails.swift */; };
-		FEED0000000000000000012A /* ProfileFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000083 /* ProfileFlow.swift */; };
-		FEED0000000000000000012B /* ProfileHeight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000084 /* ProfileHeight.swift */; };
-		FEED0000000000000000012C /* ProfileInterests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000085 /* ProfileInterests.swift */; };
-		FEED0000000000000000012D /* ProfileInterestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000086 /* ProfileInterestsView.swift */; };
-		FEED0000000000000000012E /* ProfileLife.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000087 /* ProfileLife.swift */; };
-		FEED0000000000000000012F /* ProfileLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000088 /* ProfileLocation.swift */; };
-		FEED00000000000000000130 /* ProfileMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000089 /* ProfileMedia.swift */; };
-		FEED00000000000000000131 /* ProfileNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008A /* ProfileNotifications.swift */; };
-		FEED00000000000000000132 /* ProfilePhotos.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008B /* ProfilePhotos.swift */; };
-		FEED00000000000000000133 /* ProfileProgressRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008C /* ProfileProgressRepository.swift */; };
-		FEED00000000000000000134 /* ProfilePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008D /* ProfilePrompts.swift */; };
-		FEED00000000000000000135 /* ProfileReachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008E /* ProfileReachability.swift */; };
-		FEED00000000000000000136 /* ProfileResume.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008F /* ProfileResume.swift */; };
-		FEED00000000000000000137 /* ProfileVerifyEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000090 /* ProfileVerifyEmail.swift */; };
-		FEED00000000000000000138 /* ProfileVisibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000091 /* ProfileVisibility.swift */; };
-		FEED00000000000000000139 /* ProhibitedFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000092 /* ProhibitedFields.swift */; };
-		FEED0000000000000000013A /* PromptTopics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000093 /* PromptTopics.swift */; };
-		FEED0000000000000000013B /* PromptsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000094 /* PromptsModel.swift */; };
-		FEED0000000000000000013C /* PromptsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000095 /* PromptsRepository.swift */; };
-		FEED0000000000000000013D /* PushRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000096 /* PushRegistration.swift */; };
-		FEED0000000000000000013E /* Radius.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000097 /* Radius.swift */; };
-		FEED0000000000000000013F /* RangeSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000098 /* RangeSlider.swift */; };
-		FEED00000000000000000140 /* ReachabilityHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000099 /* ReachabilityHost.swift */; };
-		FEED00000000000000000141 /* ReachabilityModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009A /* ReachabilityModel.swift */; };
-		FEED00000000000000000142 /* RealYouChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009B /* RealYouChrome.swift */; };
-		FEED00000000000000000143 /* SVGPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009C /* SVGPath.swift */; };
-		FEED00000000000000000144 /* SearchAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009D /* SearchAnalytics.swift */; };
-		FEED00000000000000000145 /* SearchCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009E /* SearchCoach.swift */; };
-		FEED00000000000000000146 /* SearchGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009F /* SearchGrid.swift */; };
-		FEED00000000000000000147 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A0 /* SearchModel.swift */; };
-		FEED00000000000000000148 /* SearchPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A1 /* SearchPhotoViewer.swift */; };
-		FEED00000000000000000149 /* SearchProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A2 /* SearchProfileView.swift */; };
-		FEED0000000000000000014A /* SearchRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A3 /* SearchRepository.swift */; };
-		FEED0000000000000000014B /* SearchRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A4 /* SearchRules.swift */; };
-		FEED0000000000000000014C /* SearchSamples.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A5 /* SearchSamples.swift */; };
-		FEED0000000000000000014D /* SearchSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A6 /* SearchSections.swift */; };
-		FEED0000000000000000014E /* SearchSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A7 /* SearchSheets.swift */; };
-		FEED0000000000000000014F /* SessionEnded.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A8 /* SessionEnded.swift */; };
-		FEED00000000000000000150 /* SheetScaffold.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A9 /* SheetScaffold.swift */; };
-		FEED00000000000000000151 /* ShowUpCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AA /* ShowUpCount.swift */; };
-		FEED00000000000000000152 /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AB /* ShowUpEveryTimeView.swift */; };
-		FEED00000000000000000153 /* SignUpAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AC /* SignUpAnalytics.swift */; };
-		FEED00000000000000000154 /* SignUpFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AD /* SignUpFlow.swift */; };
-		FEED00000000000000000155 /* SkipContinueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AE /* SkipContinueRow.swift */; };
-		FEED00000000000000000156 /* SkipLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AF /* SkipLink.swift */; };
-		FEED00000000000000000157 /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B0 /* Spacing.swift */; };
-		FEED00000000000000000158 /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B1 /* StartupView.swift */; };
-		FEED00000000000000000159 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B2 /* StatusBadge.swift */; };
-		FEED0000000000000000015A /* StepProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B3 /* StepProgress.swift */; };
-		FEED0000000000000000015B /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B4 /* TabBar.swift */; };
-		FEED0000000000000000015C /* TapTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B5 /* TapTarget.swift */; };
-		FEED0000000000000000015D /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B6 /* ThirtyMinutesView.swift */; };
-		FEED0000000000000000015E /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B7 /* TutorialAnalytics.swift */; };
-		FEED0000000000000000015F /* TutorialRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B8 /* TutorialRouting.swift */; };
-		FEED00000000000000000160 /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B9 /* TutorialShell.swift */; };
-		FEED00000000000000000161 /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BA /* WelcomeBackView.swift */; };
-		FEED00000000000000000162 /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BB /* WelcomeShell.swift */; };
-		FEED00000000000000000163 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BC /* WelcomeView.swift */; };
-		FEED00000000000000000164 /* WrapLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BD /* WrapLayout.swift */; };
+		FEED000000000000000000BF /* ShowUpWelcomeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000017 /* ShowUpWelcomeApp.swift */; };
+		FEED000000000000000000C0 /* APIAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000018 /* APIAccess.swift */; };
+		FEED000000000000000000C1 /* AVMediaCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000019 /* AVMediaCapture.swift */; };
+		FEED000000000000000000C2 /* AVMediaPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001A /* AVMediaPlayer.swift */; };
+		FEED000000000000000000C3 /* AppAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001B /* AppAnalytics.swift */; };
+		FEED000000000000000000C4 /* AppRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001C /* AppRoute.swift */; };
+		FEED000000000000000000C5 /* AuthMethodList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001D /* AuthMethodList.swift */; };
+		FEED000000000000000000C6 /* BasicsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001E /* BasicsChrome.swift */; };
+		FEED000000000000000000C7 /* BasicsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000001F /* BasicsModel.swift */; };
+		FEED000000000000000000C8 /* BasicsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000020 /* BasicsRepository.swift */; };
+		FEED000000000000000000C9 /* BasicsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000021 /* BasicsStep.swift */; };
+		FEED000000000000000000CA /* BridgeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000022 /* BridgeShell.swift */; };
+		FEED000000000000000000CB /* ButtonPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000023 /* ButtonPair.swift */; };
+		FEED000000000000000000CC /* CSSTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000024 /* CSSTextLayout.swift */; };
+		FEED000000000000000000CD /* Card.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000025 /* Card.swift */; };
+		FEED000000000000000000CE /* CardFlyOut.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000026 /* CardFlyOut.swift */; };
+		FEED000000000000000000CF /* CheckInAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000027 /* CheckInAnalytics.swift */; };
+		FEED000000000000000000D0 /* CheckInAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000028 /* CheckInAvailability.swift */; };
+		FEED000000000000000000D1 /* CheckInAvailabilityChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000029 /* CheckInAvailabilityChrome.swift */; };
+		FEED000000000000000000D2 /* CheckInChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002A /* CheckInChrome.swift */; };
+		FEED000000000000000000D3 /* CheckInFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002B /* CheckInFilters.swift */; };
+		FEED000000000000000000D4 /* CheckInIntro.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002C /* CheckInIntro.swift */; };
+		FEED000000000000000000D5 /* CheckInModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002D /* CheckInModel.swift */; };
+		FEED000000000000000000D6 /* CheckInMotivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002E /* CheckInMotivation.swift */; };
+		FEED000000000000000000D7 /* CheckInNoHoursDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000002F /* CheckInNoHoursDialog.swift */; };
+		FEED000000000000000000D8 /* CheckInPlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000030 /* CheckInPlace.swift */; };
+		FEED000000000000000000D9 /* CheckInRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000031 /* CheckInRepository.swift */; };
+		FEED000000000000000000DA /* CheckInRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000032 /* CheckInRules.swift */; };
+		FEED000000000000000000DB /* CheckInTabPlaceholders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000033 /* CheckInTabPlaceholders.swift */; };
+		FEED000000000000000000DC /* CheckInUplift.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000034 /* CheckInUplift.swift */; };
+		FEED000000000000000000DD /* CheckInVibe.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000035 /* CheckInVibe.swift */; };
+		FEED000000000000000000DE /* CheckRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000036 /* CheckRow.swift */; };
+		FEED000000000000000000DF /* Chip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000037 /* Chip.swift */; };
+		FEED000000000000000000E0 /* CodeSlotRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000038 /* CodeSlotRow.swift */; };
+		FEED000000000000000000E1 /* ComponentSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000039 /* ComponentSizes.swift */; };
+		FEED000000000000000000E2 /* ConfettiRain.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003A /* ConfettiRain.swift */; };
+		FEED000000000000000000E3 /* ConnectAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003B /* ConnectAccountView.swift */; };
+		FEED000000000000000000E4 /* ConsentSwitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003C /* ConsentSwitch.swift */; };
+		FEED000000000000000000E5 /* ControlPip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003D /* ControlPip.swift */; };
+		FEED000000000000000000E6 /* CountryCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003E /* CountryCodes.swift */; };
+		FEED000000000000000000E7 /* CountryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000003F /* CountryPicker.swift */; };
+		FEED000000000000000000E8 /* Crashes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000040 /* Crashes.swift */; };
+		FEED000000000000000000E9 /* DateOfBirth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000041 /* DateOfBirth.swift */; };
+		FEED000000000000000000EA /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000042 /* DesignSystem.swift */; };
+		FEED000000000000000000EB /* DetailsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000043 /* DetailsChrome.swift */; };
+		FEED000000000000000000EC /* DetailsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000044 /* DetailsModel.swift */; };
+		FEED000000000000000000ED /* DevCheckIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000045 /* DevCheckIn.swift */; };
+		FEED000000000000000000EE /* DevMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000046 /* DevMenu.swift */; };
+		FEED000000000000000000EF /* DevOfflineAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000047 /* DevOfflineAuth.swift */; };
+		FEED000000000000000000F0 /* DevSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000048 /* DevSearch.swift */; };
+		FEED000000000000000000F1 /* EmailVerification.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000049 /* EmailVerification.swift */; };
+		FEED000000000000000000F2 /* FitAnchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004A /* FitAnchors.swift */; };
+		FEED000000000000000000F3 /* FloatingField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004B /* FloatingField.swift */; };
+		FEED000000000000000000F4 /* FlowScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004C /* FlowScreen.swift */; };
+		FEED000000000000000000F5 /* HomePlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004D /* HomePlaceholderView.swift */; };
+		FEED000000000000000000F6 /* IconSizes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004E /* IconSizes.swift */; };
+		FEED000000000000000000F7 /* InputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000004F /* InputField.swift */; };
+		FEED000000000000000000F8 /* InterestsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000050 /* InterestsChrome.swift */; };
+		FEED000000000000000000F9 /* LifeChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000051 /* LifeChrome.swift */; };
+		FEED000000000000000000FA /* LikesReceived.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000052 /* LikesReceived.swift */; };
+		FEED000000000000000000FB /* LocationAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000053 /* LocationAccess.swift */; };
+		FEED000000000000000000FC /* LocationGateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000054 /* LocationGateModel.swift */; };
+		FEED000000000000000000FD /* LocationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000055 /* LocationModel.swift */; };
+		FEED000000000000000000FE /* MatchMeansMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000056 /* MatchMeansMeetView.swift */; };
+		FEED000000000000000000FF /* MatchOnAvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000057 /* MatchOnAvailabilityView.swift */; };
+		FEED00000000000000000100 /* MediaAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000058 /* MediaAccess.swift */; };
+		FEED00000000000000000101 /* MediaCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000059 /* MediaCapture.swift */; };
+		FEED00000000000000000102 /* MediaCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005A /* MediaCaptureView.swift */; };
+		FEED00000000000000000103 /* MediaCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005B /* MediaCards.swift */; };
+		FEED00000000000000000104 /* MediaModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005C /* MediaModel.swift */; };
+		FEED00000000000000000105 /* MediaPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005D /* MediaPlayback.swift */; };
+		FEED00000000000000000106 /* MediaPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005E /* MediaPromptSheet.swift */; };
+		FEED00000000000000000107 /* MediaPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000005F /* MediaPrompts.swift */; };
+		FEED00000000000000000108 /* MediaRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000060 /* MediaRepository.swift */; };
+		FEED00000000000000000109 /* MediaState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000061 /* MediaState.swift */; };
+		FEED0000000000000000010A /* MeetInRealLifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000062 /* MeetInRealLifeView.swift */; };
+		FEED0000000000000000010B /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000063 /* Motion.swift */; };
+		FEED0000000000000000010C /* NavAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000064 /* NavAnalytics.swift */; };
+		FEED0000000000000000010D /* NotificationAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000065 /* NotificationAccess.swift */; };
+		FEED0000000000000000010E /* NotificationsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000066 /* NotificationsModel.swift */; };
+		FEED0000000000000000010F /* OptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000067 /* OptionRow.swift */; };
+		FEED00000000000000000110 /* OtpPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000068 /* OtpPolicy.swift */; };
+		FEED00000000000000000111 /* PermissionReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000069 /* PermissionReconciler.swift */; };
+		FEED00000000000000000112 /* PhoneAuthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006A /* PhoneAuthModel.swift */; };
+		FEED00000000000000000113 /* PhoneAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006B /* PhoneAuthRepository.swift */; };
+		FEED00000000000000000114 /* PhoneNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006C /* PhoneNumberField.swift */; };
+		FEED00000000000000000115 /* PhoneVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006D /* PhoneVerificationView.swift */; };
+		FEED00000000000000000116 /* PhotoAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006E /* PhotoAccess.swift */; };
+		FEED00000000000000000117 /* PhotoGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000006F /* PhotoGrid.swift */; };
+		FEED00000000000000000118 /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000070 /* PhotoPicker.swift */; };
+		FEED00000000000000000119 /* PhotoUpload.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000071 /* PhotoUpload.swift */; };
+		FEED0000000000000000011A /* PhotosModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000072 /* PhotosModel.swift */; };
+		FEED0000000000000000011B /* PhotosRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000073 /* PhotosRepository.swift */; };
+		FEED0000000000000000011C /* PickChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000074 /* PickChrome.swift */; };
+		FEED0000000000000000011D /* PickModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000075 /* PickModel.swift */; };
+		FEED0000000000000000011E /* PremiumParts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000076 /* PremiumParts.swift */; };
+		FEED0000000000000000011F /* PremiumRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000077 /* PremiumRules.swift */; };
+		FEED00000000000000000120 /* PremiumTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000078 /* PremiumTag.swift */; };
+		FEED00000000000000000121 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000079 /* PrimaryButton.swift */; };
+		FEED00000000000000000122 /* ProfileAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007A /* ProfileAnalytics.swift */; };
+		FEED00000000000000000123 /* ProfileBasics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007B /* ProfileBasics.swift */; };
+		FEED00000000000000000124 /* ProfileChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007C /* ProfileChoice.swift */; };
+		FEED00000000000000000125 /* ProfileDatingLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007D /* ProfileDatingLanguage.swift */; };
+		FEED00000000000000000126 /* ProfileDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007E /* ProfileDetails.swift */; };
+		FEED00000000000000000127 /* ProfileDetailsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000007F /* ProfileDetailsRepository.swift */; };
+		FEED00000000000000000128 /* ProfileDob.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000080 /* ProfileDob.swift */; };
+		FEED00000000000000000129 /* ProfileEmbrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000081 /* ProfileEmbrace.swift */; };
+		FEED0000000000000000012A /* ProfileEmbraceDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000082 /* ProfileEmbraceDetails.swift */; };
+		FEED0000000000000000012B /* ProfileFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000083 /* ProfileFlow.swift */; };
+		FEED0000000000000000012C /* ProfileHeight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000084 /* ProfileHeight.swift */; };
+		FEED0000000000000000012D /* ProfileInterests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000085 /* ProfileInterests.swift */; };
+		FEED0000000000000000012E /* ProfileInterestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000086 /* ProfileInterestsView.swift */; };
+		FEED0000000000000000012F /* ProfileLife.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000087 /* ProfileLife.swift */; };
+		FEED00000000000000000130 /* ProfileLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000088 /* ProfileLocation.swift */; };
+		FEED00000000000000000131 /* ProfileMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000089 /* ProfileMedia.swift */; };
+		FEED00000000000000000132 /* ProfileNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008A /* ProfileNotifications.swift */; };
+		FEED00000000000000000133 /* ProfilePhotos.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008B /* ProfilePhotos.swift */; };
+		FEED00000000000000000134 /* ProfileProgressRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008C /* ProfileProgressRepository.swift */; };
+		FEED00000000000000000135 /* ProfilePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008D /* ProfilePrompts.swift */; };
+		FEED00000000000000000136 /* ProfileReachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008E /* ProfileReachability.swift */; };
+		FEED00000000000000000137 /* ProfileResume.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000008F /* ProfileResume.swift */; };
+		FEED00000000000000000138 /* ProfileVerifyEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000090 /* ProfileVerifyEmail.swift */; };
+		FEED00000000000000000139 /* ProfileVisibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000091 /* ProfileVisibility.swift */; };
+		FEED0000000000000000013A /* ProhibitedFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000092 /* ProhibitedFields.swift */; };
+		FEED0000000000000000013B /* PromptTopics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000093 /* PromptTopics.swift */; };
+		FEED0000000000000000013C /* PromptsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000094 /* PromptsModel.swift */; };
+		FEED0000000000000000013D /* PromptsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000095 /* PromptsRepository.swift */; };
+		FEED0000000000000000013E /* PushRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000096 /* PushRegistration.swift */; };
+		FEED0000000000000000013F /* Radius.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000097 /* Radius.swift */; };
+		FEED00000000000000000140 /* RangeSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000098 /* RangeSlider.swift */; };
+		FEED00000000000000000141 /* ReachabilityHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000099 /* ReachabilityHost.swift */; };
+		FEED00000000000000000142 /* ReachabilityModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009A /* ReachabilityModel.swift */; };
+		FEED00000000000000000143 /* RealYouChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009B /* RealYouChrome.swift */; };
+		FEED00000000000000000144 /* SVGPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009C /* SVGPath.swift */; };
+		FEED00000000000000000145 /* SearchAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009D /* SearchAnalytics.swift */; };
+		FEED00000000000000000146 /* SearchCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009E /* SearchCoach.swift */; };
+		FEED00000000000000000147 /* SearchEmpty.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000009F /* SearchEmpty.swift */; };
+		FEED00000000000000000148 /* SearchGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A0 /* SearchGrid.swift */; };
+		FEED00000000000000000149 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A1 /* SearchModel.swift */; };
+		FEED0000000000000000014A /* SearchPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A2 /* SearchPhotoViewer.swift */; };
+		FEED0000000000000000014B /* SearchProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A3 /* SearchProfileView.swift */; };
+		FEED0000000000000000014C /* SearchRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A4 /* SearchRepository.swift */; };
+		FEED0000000000000000014D /* SearchRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A5 /* SearchRules.swift */; };
+		FEED0000000000000000014E /* SearchSamples.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A6 /* SearchSamples.swift */; };
+		FEED0000000000000000014F /* SearchSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A7 /* SearchSections.swift */; };
+		FEED00000000000000000150 /* SearchSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A8 /* SearchSheets.swift */; };
+		FEED00000000000000000151 /* SessionEnded.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000A9 /* SessionEnded.swift */; };
+		FEED00000000000000000152 /* SheetScaffold.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AA /* SheetScaffold.swift */; };
+		FEED00000000000000000153 /* ShowUpCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AB /* ShowUpCount.swift */; };
+		FEED00000000000000000154 /* ShowUpEveryTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AC /* ShowUpEveryTimeView.swift */; };
+		FEED00000000000000000155 /* SignUpAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AD /* SignUpAnalytics.swift */; };
+		FEED00000000000000000156 /* SignUpFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AE /* SignUpFlow.swift */; };
+		FEED00000000000000000157 /* SkipContinueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000AF /* SkipContinueRow.swift */; };
+		FEED00000000000000000158 /* SkipLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B0 /* SkipLink.swift */; };
+		FEED00000000000000000159 /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B1 /* Spacing.swift */; };
+		FEED0000000000000000015A /* StartupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B2 /* StartupView.swift */; };
+		FEED0000000000000000015B /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B3 /* StatusBadge.swift */; };
+		FEED0000000000000000015C /* StepProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B4 /* StepProgress.swift */; };
+		FEED0000000000000000015D /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B5 /* TabBar.swift */; };
+		FEED0000000000000000015E /* TapTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B6 /* TapTarget.swift */; };
+		FEED0000000000000000015F /* ThirtyMinutesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B7 /* ThirtyMinutesView.swift */; };
+		FEED00000000000000000160 /* TutorialAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B8 /* TutorialAnalytics.swift */; };
+		FEED00000000000000000161 /* TutorialRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B9 /* TutorialRouting.swift */; };
+		FEED00000000000000000162 /* TutorialShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BA /* TutorialShell.swift */; };
+		FEED00000000000000000163 /* WelcomeBackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BB /* WelcomeBackView.swift */; };
+		FEED00000000000000000164 /* WelcomeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BC /* WelcomeShell.swift */; };
+		FEED00000000000000000165 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BD /* WelcomeView.swift */; };
+		FEED00000000000000000166 /* WrapLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000BE /* WrapLayout.swift */; };
 		FEED00000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000000A /* Assets.xcassets */; };
-		FEED0000000000000000016F /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000165 /* Lora-Bold.ttf */; };
-		FEED00000000000000000170 /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000166 /* Lora-BoldItalic.ttf */; };
-		FEED00000000000000000171 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000167 /* Lora-Italic.ttf */; };
-		FEED00000000000000000172 /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000168 /* Lora-MediumItalic.ttf */; };
-		FEED00000000000000000173 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000169 /* Lora-Regular.ttf */; };
-		FEED00000000000000000174 /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016A /* Manrope-Bold.ttf */; };
-		FEED00000000000000000175 /* Manrope-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016B /* Manrope-ExtraBold.ttf */; };
-		FEED00000000000000000176 /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016C /* Manrope-Medium.ttf */; };
-		FEED00000000000000000177 /* Manrope-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016D /* Manrope-Regular.ttf */; };
-		FEED00000000000000000178 /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016E /* Manrope-SemiBold.ttf */; };
+		FEED00000000000000000171 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000167 /* Lora-Bold.ttf */; };
+		FEED00000000000000000172 /* Lora-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000168 /* Lora-BoldItalic.ttf */; };
+		FEED00000000000000000173 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000169 /* Lora-Italic.ttf */; };
+		FEED00000000000000000174 /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016A /* Lora-MediumItalic.ttf */; };
+		FEED00000000000000000175 /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016B /* Lora-Regular.ttf */; };
+		FEED00000000000000000176 /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016C /* Manrope-Bold.ttf */; };
+		FEED00000000000000000177 /* Manrope-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016D /* Manrope-ExtraBold.ttf */; };
+		FEED00000000000000000178 /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016E /* Manrope-Medium.ttf */; };
+		FEED00000000000000000179 /* Manrope-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000016F /* Manrope-Regular.ttf */; };
+		FEED0000000000000000017A /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000170 /* Manrope-SemiBold.ttf */; };
 		FEED00000000000000000016 /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* Flags */; };
-		FEED000000000000000001CC /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A1 /* APIAccessTests.swift */; };
-		FEED000000000000000001CD /* BasicsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A2 /* BasicsRepositoryTests.swift */; };
-		FEED000000000000000001CE /* BasicsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A3 /* BasicsTrackingTests.swift */; };
-		FEED000000000000000001CF /* CheckInModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A4 /* CheckInModelTests.swift */; };
-		FEED000000000000000001D0 /* CheckInRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A5 /* CheckInRulesTests.swift */; };
-		FEED000000000000000001D1 /* ConfettiRainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A6 /* ConfettiRainTests.swift */; };
-		FEED000000000000000001D2 /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A7 /* CrashesTests.swift */; };
-		FEED000000000000000001D3 /* DateOfBirthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A8 /* DateOfBirthTests.swift */; };
-		FEED000000000000000001D4 /* DetailsModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A9 /* DetailsModelTests.swift */; };
-		FEED000000000000000001D5 /* DevMenuRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AA /* DevMenuRulesTests.swift */; };
-		FEED000000000000000001D6 /* EvidenceShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AB /* EvidenceShots.swift */; };
-		FEED000000000000000001D7 /* FitDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AC /* FitDevices.swift */; };
-		FEED000000000000000001D8 /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AD /* FlowScreenTests.swift */; };
-		FEED000000000000000001D9 /* GateFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AE /* GateFitTests.swift */; };
-		FEED000000000000000001DA /* LocationGateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AF /* LocationGateModelTests.swift */; };
-		FEED000000000000000001DB /* LocationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B0 /* LocationRulesTests.swift */; };
-		FEED000000000000000001DC /* MediaFlowRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B1 /* MediaFlowRegressionTests.swift */; };
-		FEED000000000000000001DD /* MediaPromptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B2 /* MediaPromptsTests.swift */; };
-		FEED000000000000000001DE /* MediaRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B3 /* MediaRulesTests.swift */; };
-		FEED000000000000000001DF /* NotificationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B4 /* NotificationRulesTests.swift */; };
-		FEED000000000000000001E0 /* PermissionReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B5 /* PermissionReconcilerTests.swift */; };
-		FEED000000000000000001E1 /* PhoneAuthRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B6 /* PhoneAuthRepositoryTests.swift */; };
-		FEED000000000000000001E2 /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B7 /* PhoneValidationTests.swift */; };
-		FEED000000000000000001E3 /* PhotoUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B8 /* PhotoUploadTests.swift */; };
-		FEED000000000000000001E4 /* PhotosReorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B9 /* PhotosReorderTests.swift */; };
-		FEED000000000000000001E5 /* PhotosTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BA /* PhotosTrackingTests.swift */; };
-		FEED000000000000000001E6 /* PickModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BB /* PickModelTests.swift */; };
-		FEED000000000000000001E7 /* PickRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BC /* PickRulesTests.swift */; };
-		FEED000000000000000001E8 /* PremiumFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BD /* PremiumFitTests.swift */; };
-		FEED000000000000000001E9 /* PremiumModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BE /* PremiumModelTests.swift */; };
-		FEED000000000000000001EA /* PremiumRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BF /* PremiumRulesTests.swift */; };
-		FEED000000000000000001EB /* ProfileAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C0 /* ProfileAnalyticsTests.swift */; };
-		FEED000000000000000001EC /* ProfileDetailsRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C1 /* ProfileDetailsRulesTests.swift */; };
-		FEED000000000000000001ED /* PromptsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C2 /* PromptsTrackingTests.swift */; };
-		FEED000000000000000001EE /* ReachabilityRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C3 /* ReachabilityRulesTests.swift */; };
-		FEED000000000000000001EF /* RealYouTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C4 /* RealYouTests.swift */; };
-		FEED000000000000000001F0 /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C5 /* ScreenFitTests.swift */; };
-		FEED000000000000000001F1 /* SearchFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C6 /* SearchFitTests.swift */; };
-		FEED000000000000000001F2 /* SearchModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C7 /* SearchModelTests.swift */; };
-		FEED000000000000000001F3 /* SearchRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C8 /* SearchRulesTests.swift */; };
-		FEED000000000000000001F4 /* TabBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C9 /* TabBarTests.swift */; };
-		FEED000000000000000001F5 /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001CA /* TapTargetTests.swift */; };
-		FEED000000000000000001F6 /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001CB /* TutorialRoutingTests.swift */; };
-		FEED00000000000000000185 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000184 /* PhoneNumberKit */; };
-		FEED0000000000000000018A /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000189 /* ShowUpAPI */; };
-		FEED0000000000000000018F /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000018E /* Sentry */; };
-		FEED00000000000000000194 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000193 /* OpenAPIRuntime */; };
-		FEED00000000000000000197 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000196 /* OpenAPIURLSession */; };
-		FEED0000000000000000019A /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000199 /* HTTPTypes */; };
+		FEED000000000000000001CE /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A3 /* APIAccessTests.swift */; };
+		FEED000000000000000001CF /* BasicsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A4 /* BasicsRepositoryTests.swift */; };
+		FEED000000000000000001D0 /* BasicsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A5 /* BasicsTrackingTests.swift */; };
+		FEED000000000000000001D1 /* CheckInModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A6 /* CheckInModelTests.swift */; };
+		FEED000000000000000001D2 /* CheckInRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A7 /* CheckInRulesTests.swift */; };
+		FEED000000000000000001D3 /* ConfettiRainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A8 /* ConfettiRainTests.swift */; };
+		FEED000000000000000001D4 /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001A9 /* CrashesTests.swift */; };
+		FEED000000000000000001D5 /* DateOfBirthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AA /* DateOfBirthTests.swift */; };
+		FEED000000000000000001D6 /* DetailsModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AB /* DetailsModelTests.swift */; };
+		FEED000000000000000001D7 /* DevMenuRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AC /* DevMenuRulesTests.swift */; };
+		FEED000000000000000001D8 /* EvidenceShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AD /* EvidenceShots.swift */; };
+		FEED000000000000000001D9 /* FitDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AE /* FitDevices.swift */; };
+		FEED000000000000000001DA /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001AF /* FlowScreenTests.swift */; };
+		FEED000000000000000001DB /* GateFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B0 /* GateFitTests.swift */; };
+		FEED000000000000000001DC /* LocationGateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B1 /* LocationGateModelTests.swift */; };
+		FEED000000000000000001DD /* LocationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B2 /* LocationRulesTests.swift */; };
+		FEED000000000000000001DE /* MediaFlowRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B3 /* MediaFlowRegressionTests.swift */; };
+		FEED000000000000000001DF /* MediaPromptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B4 /* MediaPromptsTests.swift */; };
+		FEED000000000000000001E0 /* MediaRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B5 /* MediaRulesTests.swift */; };
+		FEED000000000000000001E1 /* NotificationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B6 /* NotificationRulesTests.swift */; };
+		FEED000000000000000001E2 /* PermissionReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B7 /* PermissionReconcilerTests.swift */; };
+		FEED000000000000000001E3 /* PhoneAuthRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B8 /* PhoneAuthRepositoryTests.swift */; };
+		FEED000000000000000001E4 /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001B9 /* PhoneValidationTests.swift */; };
+		FEED000000000000000001E5 /* PhotoUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BA /* PhotoUploadTests.swift */; };
+		FEED000000000000000001E6 /* PhotosReorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BB /* PhotosReorderTests.swift */; };
+		FEED000000000000000001E7 /* PhotosTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BC /* PhotosTrackingTests.swift */; };
+		FEED000000000000000001E8 /* PickModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BD /* PickModelTests.swift */; };
+		FEED000000000000000001E9 /* PickRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BE /* PickRulesTests.swift */; };
+		FEED000000000000000001EA /* PremiumFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001BF /* PremiumFitTests.swift */; };
+		FEED000000000000000001EB /* PremiumModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C0 /* PremiumModelTests.swift */; };
+		FEED000000000000000001EC /* PremiumRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C1 /* PremiumRulesTests.swift */; };
+		FEED000000000000000001ED /* ProfileAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C2 /* ProfileAnalyticsTests.swift */; };
+		FEED000000000000000001EE /* ProfileDetailsRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C3 /* ProfileDetailsRulesTests.swift */; };
+		FEED000000000000000001EF /* PromptsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C4 /* PromptsTrackingTests.swift */; };
+		FEED000000000000000001F0 /* ReachabilityRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C5 /* ReachabilityRulesTests.swift */; };
+		FEED000000000000000001F1 /* RealYouTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C6 /* RealYouTests.swift */; };
+		FEED000000000000000001F2 /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C7 /* ScreenFitTests.swift */; };
+		FEED000000000000000001F3 /* SearchFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C8 /* SearchFitTests.swift */; };
+		FEED000000000000000001F4 /* SearchModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001C9 /* SearchModelTests.swift */; };
+		FEED000000000000000001F5 /* SearchRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001CA /* SearchRulesTests.swift */; };
+		FEED000000000000000001F6 /* TabBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001CB /* TabBarTests.swift */; };
+		FEED000000000000000001F7 /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001CC /* TapTargetTests.swift */; };
+		FEED000000000000000001F8 /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001CD /* TutorialRoutingTests.swift */; };
 		FEED00000000000000000187 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000186 /* PhoneNumberKit */; };
 		FEED0000000000000000018C /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000018B /* ShowUpAPI */; };
 		FEED00000000000000000191 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000190 /* Sentry */; };
-		FEED0000000000000000019C /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000019B /* OpenAPIRuntime */; };
-		FEED0000000000000000019E /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000019D /* OpenAPIURLSession */; };
-		FEED000000000000000001A0 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000019F /* HTTPTypes */; };
+		FEED00000000000000000196 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000195 /* OpenAPIRuntime */; };
+		FEED00000000000000000199 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000198 /* OpenAPIURLSession */; };
+		FEED0000000000000000019C /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000019B /* HTTPTypes */; };
+		FEED00000000000000000189 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000188 /* PhoneNumberKit */; };
+		FEED0000000000000000018E /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000018D /* ShowUpAPI */; };
+		FEED00000000000000000193 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000192 /* Sentry */; };
+		FEED0000000000000000019E /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000019D /* OpenAPIRuntime */; };
+		FEED000000000000000001A0 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = FEED0000000000000000019F /* OpenAPIURLSession */; };
+		FEED000000000000000001A2 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000001A1 /* HTTPTypes */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -381,94 +382,95 @@
 		FEED0000000000000000009C /* SVGPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVGPath.swift; sourceTree = "<group>"; };
 		FEED0000000000000000009D /* SearchAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchAnalytics.swift; sourceTree = "<group>"; };
 		FEED0000000000000000009E /* SearchCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchCoach.swift; sourceTree = "<group>"; };
-		FEED0000000000000000009F /* SearchGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchGrid.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A0 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A1 /* SearchPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPhotoViewer.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A2 /* SearchProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchProfileView.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A3 /* SearchRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRepository.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A4 /* SearchRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRules.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A5 /* SearchSamples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSamples.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A6 /* SearchSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSections.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A7 /* SearchSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSheets.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A8 /* SessionEnded.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionEnded.swift; sourceTree = "<group>"; };
-		FEED000000000000000000A9 /* SheetScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetScaffold.swift; sourceTree = "<group>"; };
-		FEED000000000000000000AA /* ShowUpCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpCount.swift; sourceTree = "<group>"; };
-		FEED000000000000000000AB /* ShowUpEveryTimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpEveryTimeView.swift; sourceTree = "<group>"; };
-		FEED000000000000000000AC /* SignUpAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpAnalytics.swift; sourceTree = "<group>"; };
-		FEED000000000000000000AD /* SignUpFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpFlow.swift; sourceTree = "<group>"; };
-		FEED000000000000000000AE /* SkipContinueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipContinueRow.swift; sourceTree = "<group>"; };
-		FEED000000000000000000AF /* SkipLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipLink.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B0 /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B1 /* StartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupView.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B2 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B3 /* StepProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepProgress.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B4 /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B5 /* TapTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTarget.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B6 /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B7 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B8 /* TutorialRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRouting.swift; sourceTree = "<group>"; };
-		FEED000000000000000000B9 /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
-		FEED000000000000000000BA /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
-		FEED000000000000000000BB /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
-		FEED000000000000000000BC /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
-		FEED000000000000000000BD /* WrapLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WrapLayout.swift; sourceTree = "<group>"; };
+		FEED0000000000000000009F /* SearchEmpty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEmpty.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A0 /* SearchGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchGrid.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A1 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A2 /* SearchPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPhotoViewer.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A3 /* SearchProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchProfileView.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A4 /* SearchRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRepository.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A5 /* SearchRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRules.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A6 /* SearchSamples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSamples.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A7 /* SearchSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSections.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A8 /* SearchSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSheets.swift; sourceTree = "<group>"; };
+		FEED000000000000000000A9 /* SessionEnded.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionEnded.swift; sourceTree = "<group>"; };
+		FEED000000000000000000AA /* SheetScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetScaffold.swift; sourceTree = "<group>"; };
+		FEED000000000000000000AB /* ShowUpCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpCount.swift; sourceTree = "<group>"; };
+		FEED000000000000000000AC /* ShowUpEveryTimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowUpEveryTimeView.swift; sourceTree = "<group>"; };
+		FEED000000000000000000AD /* SignUpAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpAnalytics.swift; sourceTree = "<group>"; };
+		FEED000000000000000000AE /* SignUpFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpFlow.swift; sourceTree = "<group>"; };
+		FEED000000000000000000AF /* SkipContinueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipContinueRow.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B0 /* SkipLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipLink.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B1 /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B2 /* StartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupView.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B3 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B4 /* StepProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepProgress.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B5 /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B6 /* TapTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTarget.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B7 /* ThirtyMinutesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyMinutesView.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B8 /* TutorialAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialAnalytics.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B9 /* TutorialRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRouting.swift; sourceTree = "<group>"; };
+		FEED000000000000000000BA /* TutorialShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialShell.swift; sourceTree = "<group>"; };
+		FEED000000000000000000BB /* WelcomeBackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBackView.swift; sourceTree = "<group>"; };
+		FEED000000000000000000BC /* WelcomeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeShell.swift; sourceTree = "<group>"; };
+		FEED000000000000000000BD /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		FEED000000000000000000BE /* WrapLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WrapLayout.swift; sourceTree = "<group>"; };
 		FEED00000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FEED0000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FEED00000000000000000015 /* Flags */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Flags; sourceTree = "<group>"; };
-		FEED00000000000000000165 /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000166 /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000167 /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000168 /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
-		FEED00000000000000000169 /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000016A /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000016B /* Manrope-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-ExtraBold.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000016C /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000016D /* Manrope-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Regular.ttf; sourceTree = "<group>"; };
-		FEED0000000000000000016E /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
-		FEED000000000000000001A1 /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A2 /* BasicsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsRepositoryTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A3 /* BasicsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsTrackingTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A4 /* CheckInModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInModelTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A5 /* CheckInRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A6 /* ConfettiRainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiRainTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A7 /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A8 /* DateOfBirthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirthTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001A9 /* DetailsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsModelTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001AA /* DevMenuRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevMenuRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001AB /* EvidenceShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvidenceShots.swift; sourceTree = "<group>"; };
-		FEED000000000000000001AC /* FitDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitDevices.swift; sourceTree = "<group>"; };
-		FEED000000000000000001AD /* FlowScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreenTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001AE /* GateFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateFitTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001AF /* LocationGateModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationGateModelTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B0 /* LocationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B1 /* MediaFlowRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFlowRegressionTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B2 /* MediaPromptsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPromptsTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B3 /* MediaRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B4 /* NotificationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B5 /* PermissionReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionReconcilerTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B6 /* PhoneAuthRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepositoryTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B7 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B8 /* PhotoUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUploadTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001B9 /* PhotosReorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosReorderTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001BA /* PhotosTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosTrackingTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001BB /* PickModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickModelTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001BC /* PickRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001BD /* PremiumFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumFitTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001BE /* PremiumModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumModelTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001BF /* PremiumRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C0 /* ProfileAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalyticsTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C1 /* ProfileDetailsRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailsRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C2 /* PromptsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsTrackingTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C3 /* ReachabilityRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReachabilityRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C4 /* RealYouTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C5 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C6 /* SearchFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFitTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C7 /* SearchModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModelTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C8 /* SearchRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRulesTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001C9 /* TabBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001CA /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
-		FEED000000000000000001CB /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000017A /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FEED00000000000000000167 /* Lora-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Bold.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000168 /* Lora-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-BoldItalic.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000169 /* Lora-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Italic.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000016A /* Lora-MediumItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-MediumItalic.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000016B /* Lora-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Lora-Regular.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000016C /* Manrope-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Bold.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000016D /* Manrope-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-ExtraBold.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000016E /* Manrope-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Medium.ttf; sourceTree = "<group>"; };
+		FEED0000000000000000016F /* Manrope-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-Regular.ttf; sourceTree = "<group>"; };
+		FEED00000000000000000170 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Manrope-SemiBold.ttf; sourceTree = "<group>"; };
+		FEED000000000000000001A3 /* APIAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccessTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001A4 /* BasicsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsRepositoryTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001A5 /* BasicsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicsTrackingTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001A6 /* CheckInModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInModelTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001A7 /* CheckInRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001A8 /* ConfettiRainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiRainTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001A9 /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001AA /* DateOfBirthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirthTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001AB /* DetailsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsModelTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001AC /* DevMenuRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevMenuRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001AD /* EvidenceShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvidenceShots.swift; sourceTree = "<group>"; };
+		FEED000000000000000001AE /* FitDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitDevices.swift; sourceTree = "<group>"; };
+		FEED000000000000000001AF /* FlowScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreenTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B0 /* GateFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateFitTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B1 /* LocationGateModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationGateModelTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B2 /* LocationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B3 /* MediaFlowRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFlowRegressionTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B4 /* MediaPromptsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPromptsTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B5 /* MediaRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B6 /* NotificationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B7 /* PermissionReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionReconcilerTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B8 /* PhoneAuthRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepositoryTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001B9 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001BA /* PhotoUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUploadTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001BB /* PhotosReorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosReorderTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001BC /* PhotosTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosTrackingTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001BD /* PickModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickModelTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001BE /* PickRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001BF /* PremiumFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumFitTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C0 /* PremiumModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumModelTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C1 /* PremiumRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C2 /* ProfileAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalyticsTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C3 /* ProfileDetailsRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailsRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C4 /* PromptsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsTrackingTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C5 /* ReachabilityRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReachabilityRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C6 /* RealYouTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C7 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C8 /* SearchFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFitTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001C9 /* SearchModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModelTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001CA /* SearchRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRulesTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001CB /* TabBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001CC /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
+		FEED000000000000000001CD /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000017C /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -476,25 +478,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000185 /* PhoneNumberKit in Frameworks */,
-				FEED0000000000000000018A /* ShowUpAPI in Frameworks */,
-				FEED0000000000000000018F /* Sentry in Frameworks */,
-				FEED00000000000000000194 /* OpenAPIRuntime in Frameworks */,
-				FEED00000000000000000197 /* OpenAPIURLSession in Frameworks */,
-				FEED0000000000000000019A /* HTTPTypes in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FEED0000000000000000017C /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 				FEED00000000000000000187 /* PhoneNumberKit in Frameworks */,
 				FEED0000000000000000018C /* ShowUpAPI in Frameworks */,
 				FEED00000000000000000191 /* Sentry in Frameworks */,
-				FEED0000000000000000019C /* OpenAPIRuntime in Frameworks */,
-				FEED0000000000000000019E /* OpenAPIURLSession in Frameworks */,
-				FEED000000000000000001A0 /* HTTPTypes in Frameworks */,
+				FEED00000000000000000196 /* OpenAPIRuntime in Frameworks */,
+				FEED00000000000000000199 /* OpenAPIURLSession in Frameworks */,
+				FEED0000000000000000019C /* HTTPTypes in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FEED0000000000000000017E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEED00000000000000000189 /* PhoneNumberKit in Frameworks */,
+				FEED0000000000000000018E /* ShowUpAPI in Frameworks */,
+				FEED00000000000000000193 /* Sentry in Frameworks */,
+				FEED0000000000000000019E /* OpenAPIRuntime in Frameworks */,
+				FEED000000000000000001A0 /* OpenAPIURLSession in Frameworks */,
+				FEED000000000000000001A2 /* HTTPTypes in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -505,7 +507,7 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000005 /* ShowUpWelcome */,
-				FEED00000000000000000179 /* ShowUpWelcomeTests */,
+				FEED0000000000000000017B /* ShowUpWelcomeTests */,
 				FEED00000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -649,37 +651,38 @@
 				FEED0000000000000000009C /* SVGPath.swift */,
 				FEED0000000000000000009D /* SearchAnalytics.swift */,
 				FEED0000000000000000009E /* SearchCoach.swift */,
-				FEED0000000000000000009F /* SearchGrid.swift */,
-				FEED000000000000000000A0 /* SearchModel.swift */,
-				FEED000000000000000000A1 /* SearchPhotoViewer.swift */,
-				FEED000000000000000000A2 /* SearchProfileView.swift */,
-				FEED000000000000000000A3 /* SearchRepository.swift */,
-				FEED000000000000000000A4 /* SearchRules.swift */,
-				FEED000000000000000000A5 /* SearchSamples.swift */,
-				FEED000000000000000000A6 /* SearchSections.swift */,
-				FEED000000000000000000A7 /* SearchSheets.swift */,
-				FEED000000000000000000A8 /* SessionEnded.swift */,
-				FEED000000000000000000A9 /* SheetScaffold.swift */,
-				FEED000000000000000000AA /* ShowUpCount.swift */,
-				FEED000000000000000000AB /* ShowUpEveryTimeView.swift */,
-				FEED000000000000000000AC /* SignUpAnalytics.swift */,
-				FEED000000000000000000AD /* SignUpFlow.swift */,
-				FEED000000000000000000AE /* SkipContinueRow.swift */,
-				FEED000000000000000000AF /* SkipLink.swift */,
-				FEED000000000000000000B0 /* Spacing.swift */,
-				FEED000000000000000000B1 /* StartupView.swift */,
-				FEED000000000000000000B2 /* StatusBadge.swift */,
-				FEED000000000000000000B3 /* StepProgress.swift */,
-				FEED000000000000000000B4 /* TabBar.swift */,
-				FEED000000000000000000B5 /* TapTarget.swift */,
-				FEED000000000000000000B6 /* ThirtyMinutesView.swift */,
-				FEED000000000000000000B7 /* TutorialAnalytics.swift */,
-				FEED000000000000000000B8 /* TutorialRouting.swift */,
-				FEED000000000000000000B9 /* TutorialShell.swift */,
-				FEED000000000000000000BA /* WelcomeBackView.swift */,
-				FEED000000000000000000BB /* WelcomeShell.swift */,
-				FEED000000000000000000BC /* WelcomeView.swift */,
-				FEED000000000000000000BD /* WrapLayout.swift */,
+				FEED0000000000000000009F /* SearchEmpty.swift */,
+				FEED000000000000000000A0 /* SearchGrid.swift */,
+				FEED000000000000000000A1 /* SearchModel.swift */,
+				FEED000000000000000000A2 /* SearchPhotoViewer.swift */,
+				FEED000000000000000000A3 /* SearchProfileView.swift */,
+				FEED000000000000000000A4 /* SearchRepository.swift */,
+				FEED000000000000000000A5 /* SearchRules.swift */,
+				FEED000000000000000000A6 /* SearchSamples.swift */,
+				FEED000000000000000000A7 /* SearchSections.swift */,
+				FEED000000000000000000A8 /* SearchSheets.swift */,
+				FEED000000000000000000A9 /* SessionEnded.swift */,
+				FEED000000000000000000AA /* SheetScaffold.swift */,
+				FEED000000000000000000AB /* ShowUpCount.swift */,
+				FEED000000000000000000AC /* ShowUpEveryTimeView.swift */,
+				FEED000000000000000000AD /* SignUpAnalytics.swift */,
+				FEED000000000000000000AE /* SignUpFlow.swift */,
+				FEED000000000000000000AF /* SkipContinueRow.swift */,
+				FEED000000000000000000B0 /* SkipLink.swift */,
+				FEED000000000000000000B1 /* Spacing.swift */,
+				FEED000000000000000000B2 /* StartupView.swift */,
+				FEED000000000000000000B3 /* StatusBadge.swift */,
+				FEED000000000000000000B4 /* StepProgress.swift */,
+				FEED000000000000000000B5 /* TabBar.swift */,
+				FEED000000000000000000B6 /* TapTarget.swift */,
+				FEED000000000000000000B7 /* ThirtyMinutesView.swift */,
+				FEED000000000000000000B8 /* TutorialAnalytics.swift */,
+				FEED000000000000000000B9 /* TutorialRouting.swift */,
+				FEED000000000000000000BA /* TutorialShell.swift */,
+				FEED000000000000000000BB /* WelcomeBackView.swift */,
+				FEED000000000000000000BC /* WelcomeShell.swift */,
+				FEED000000000000000000BD /* WelcomeView.swift */,
+				FEED000000000000000000BE /* WrapLayout.swift */,
 				FEED0000000000000000000A /* Assets.xcassets */,
 				FEED00000000000000000015 /* Flags */,
 				FEED00000000000000000006 /* Fonts */,
@@ -691,66 +694,66 @@
 		FEED00000000000000000006 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
-				FEED00000000000000000165 /* Lora-Bold.ttf */,
-				FEED00000000000000000166 /* Lora-BoldItalic.ttf */,
-				FEED00000000000000000167 /* Lora-Italic.ttf */,
-				FEED00000000000000000168 /* Lora-MediumItalic.ttf */,
-				FEED00000000000000000169 /* Lora-Regular.ttf */,
-				FEED0000000000000000016A /* Manrope-Bold.ttf */,
-				FEED0000000000000000016B /* Manrope-ExtraBold.ttf */,
-				FEED0000000000000000016C /* Manrope-Medium.ttf */,
-				FEED0000000000000000016D /* Manrope-Regular.ttf */,
-				FEED0000000000000000016E /* Manrope-SemiBold.ttf */,
+				FEED00000000000000000167 /* Lora-Bold.ttf */,
+				FEED00000000000000000168 /* Lora-BoldItalic.ttf */,
+				FEED00000000000000000169 /* Lora-Italic.ttf */,
+				FEED0000000000000000016A /* Lora-MediumItalic.ttf */,
+				FEED0000000000000000016B /* Lora-Regular.ttf */,
+				FEED0000000000000000016C /* Manrope-Bold.ttf */,
+				FEED0000000000000000016D /* Manrope-ExtraBold.ttf */,
+				FEED0000000000000000016E /* Manrope-Medium.ttf */,
+				FEED0000000000000000016F /* Manrope-Regular.ttf */,
+				FEED00000000000000000170 /* Manrope-SemiBold.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
 		};
-		FEED00000000000000000179 /* ShowUpWelcomeTests */ = {
+		FEED0000000000000000017B /* ShowUpWelcomeTests */ = {
 			isa = PBXGroup;
 			children = (
-				FEED000000000000000001A1 /* APIAccessTests.swift */,
-				FEED000000000000000001A2 /* BasicsRepositoryTests.swift */,
-				FEED000000000000000001A3 /* BasicsTrackingTests.swift */,
-				FEED000000000000000001A4 /* CheckInModelTests.swift */,
-				FEED000000000000000001A5 /* CheckInRulesTests.swift */,
-				FEED000000000000000001A6 /* ConfettiRainTests.swift */,
-				FEED000000000000000001A7 /* CrashesTests.swift */,
-				FEED000000000000000001A8 /* DateOfBirthTests.swift */,
-				FEED000000000000000001A9 /* DetailsModelTests.swift */,
-				FEED000000000000000001AA /* DevMenuRulesTests.swift */,
-				FEED000000000000000001AB /* EvidenceShots.swift */,
-				FEED000000000000000001AC /* FitDevices.swift */,
-				FEED000000000000000001AD /* FlowScreenTests.swift */,
-				FEED000000000000000001AE /* GateFitTests.swift */,
-				FEED000000000000000001AF /* LocationGateModelTests.swift */,
-				FEED000000000000000001B0 /* LocationRulesTests.swift */,
-				FEED000000000000000001B1 /* MediaFlowRegressionTests.swift */,
-				FEED000000000000000001B2 /* MediaPromptsTests.swift */,
-				FEED000000000000000001B3 /* MediaRulesTests.swift */,
-				FEED000000000000000001B4 /* NotificationRulesTests.swift */,
-				FEED000000000000000001B5 /* PermissionReconcilerTests.swift */,
-				FEED000000000000000001B6 /* PhoneAuthRepositoryTests.swift */,
-				FEED000000000000000001B7 /* PhoneValidationTests.swift */,
-				FEED000000000000000001B8 /* PhotoUploadTests.swift */,
-				FEED000000000000000001B9 /* PhotosReorderTests.swift */,
-				FEED000000000000000001BA /* PhotosTrackingTests.swift */,
-				FEED000000000000000001BB /* PickModelTests.swift */,
-				FEED000000000000000001BC /* PickRulesTests.swift */,
-				FEED000000000000000001BD /* PremiumFitTests.swift */,
-				FEED000000000000000001BE /* PremiumModelTests.swift */,
-				FEED000000000000000001BF /* PremiumRulesTests.swift */,
-				FEED000000000000000001C0 /* ProfileAnalyticsTests.swift */,
-				FEED000000000000000001C1 /* ProfileDetailsRulesTests.swift */,
-				FEED000000000000000001C2 /* PromptsTrackingTests.swift */,
-				FEED000000000000000001C3 /* ReachabilityRulesTests.swift */,
-				FEED000000000000000001C4 /* RealYouTests.swift */,
-				FEED000000000000000001C5 /* ScreenFitTests.swift */,
-				FEED000000000000000001C6 /* SearchFitTests.swift */,
-				FEED000000000000000001C7 /* SearchModelTests.swift */,
-				FEED000000000000000001C8 /* SearchRulesTests.swift */,
-				FEED000000000000000001C9 /* TabBarTests.swift */,
-				FEED000000000000000001CA /* TapTargetTests.swift */,
-				FEED000000000000000001CB /* TutorialRoutingTests.swift */,
+				FEED000000000000000001A3 /* APIAccessTests.swift */,
+				FEED000000000000000001A4 /* BasicsRepositoryTests.swift */,
+				FEED000000000000000001A5 /* BasicsTrackingTests.swift */,
+				FEED000000000000000001A6 /* CheckInModelTests.swift */,
+				FEED000000000000000001A7 /* CheckInRulesTests.swift */,
+				FEED000000000000000001A8 /* ConfettiRainTests.swift */,
+				FEED000000000000000001A9 /* CrashesTests.swift */,
+				FEED000000000000000001AA /* DateOfBirthTests.swift */,
+				FEED000000000000000001AB /* DetailsModelTests.swift */,
+				FEED000000000000000001AC /* DevMenuRulesTests.swift */,
+				FEED000000000000000001AD /* EvidenceShots.swift */,
+				FEED000000000000000001AE /* FitDevices.swift */,
+				FEED000000000000000001AF /* FlowScreenTests.swift */,
+				FEED000000000000000001B0 /* GateFitTests.swift */,
+				FEED000000000000000001B1 /* LocationGateModelTests.swift */,
+				FEED000000000000000001B2 /* LocationRulesTests.swift */,
+				FEED000000000000000001B3 /* MediaFlowRegressionTests.swift */,
+				FEED000000000000000001B4 /* MediaPromptsTests.swift */,
+				FEED000000000000000001B5 /* MediaRulesTests.swift */,
+				FEED000000000000000001B6 /* NotificationRulesTests.swift */,
+				FEED000000000000000001B7 /* PermissionReconcilerTests.swift */,
+				FEED000000000000000001B8 /* PhoneAuthRepositoryTests.swift */,
+				FEED000000000000000001B9 /* PhoneValidationTests.swift */,
+				FEED000000000000000001BA /* PhotoUploadTests.swift */,
+				FEED000000000000000001BB /* PhotosReorderTests.swift */,
+				FEED000000000000000001BC /* PhotosTrackingTests.swift */,
+				FEED000000000000000001BD /* PickModelTests.swift */,
+				FEED000000000000000001BE /* PickRulesTests.swift */,
+				FEED000000000000000001BF /* PremiumFitTests.swift */,
+				FEED000000000000000001C0 /* PremiumModelTests.swift */,
+				FEED000000000000000001C1 /* PremiumRulesTests.swift */,
+				FEED000000000000000001C2 /* ProfileAnalyticsTests.swift */,
+				FEED000000000000000001C3 /* ProfileDetailsRulesTests.swift */,
+				FEED000000000000000001C4 /* PromptsTrackingTests.swift */,
+				FEED000000000000000001C5 /* ReachabilityRulesTests.swift */,
+				FEED000000000000000001C6 /* RealYouTests.swift */,
+				FEED000000000000000001C7 /* ScreenFitTests.swift */,
+				FEED000000000000000001C8 /* SearchFitTests.swift */,
+				FEED000000000000000001C9 /* SearchModelTests.swift */,
+				FEED000000000000000001CA /* SearchRulesTests.swift */,
+				FEED000000000000000001CB /* TabBarTests.swift */,
+				FEED000000000000000001CC /* TapTargetTests.swift */,
+				FEED000000000000000001CD /* TutorialRoutingTests.swift */,
 			);
 			path = ShowUpWelcomeTests;
 			sourceTree = "<group>";
@@ -759,7 +762,7 @@
 			isa = PBXGroup;
 			children = (
 				FEED00000000000000000008 /* ShowUpWelcome.app */,
-				FEED0000000000000000017A /* ShowUpWelcomeTests.xctest */,
+				FEED0000000000000000017C /* ShowUpWelcomeTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -782,46 +785,46 @@
 			name = ShowUpWelcome;
 			productName = ShowUpWelcome;
 			packageProductDependencies = (
-				FEED00000000000000000184 /* PhoneNumberKit */,
-				FEED00000000000000000189 /* ShowUpAPI */,
-				FEED0000000000000000018E /* Sentry */,
-				FEED00000000000000000193 /* OpenAPIRuntime */,
-				FEED00000000000000000196 /* OpenAPIURLSession */,
-				FEED00000000000000000199 /* HTTPTypes */,
+				FEED00000000000000000186 /* PhoneNumberKit */,
+				FEED0000000000000000018B /* ShowUpAPI */,
+				FEED00000000000000000190 /* Sentry */,
+				FEED00000000000000000195 /* OpenAPIRuntime */,
+				FEED00000000000000000198 /* OpenAPIURLSession */,
+				FEED0000000000000000019B /* HTTPTypes */,
 			);
 			productReference = FEED00000000000000000008 /* ShowUpWelcome.app */;
 			productType = "com.apple.product-type.application";
 		};
 		FEED00000000000000000003 /* ShowUpWelcomeTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = FEED0000000000000000017E /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */;
+			buildConfigurationList = FEED00000000000000000180 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */;
 			buildPhases = (
-				FEED0000000000000000017B /* Sources */,
-				FEED0000000000000000017C /* Frameworks */,
-				FEED0000000000000000017D /* Resources */,
+				FEED0000000000000000017D /* Sources */,
+				FEED0000000000000000017E /* Frameworks */,
+				FEED0000000000000000017F /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				FEED00000000000000000182 /* PBXTargetDependency */,
+				FEED00000000000000000184 /* PBXTargetDependency */,
 			);
 			name = ShowUpWelcomeTests;
 			productName = ShowUpWelcomeTests;
 			packageProductDependencies = (
-				FEED00000000000000000186 /* PhoneNumberKit */,
-				FEED0000000000000000018B /* ShowUpAPI */,
-				FEED00000000000000000190 /* Sentry */,
-				FEED0000000000000000019B /* OpenAPIRuntime */,
-				FEED0000000000000000019D /* OpenAPIURLSession */,
-				FEED0000000000000000019F /* HTTPTypes */,
+				FEED00000000000000000188 /* PhoneNumberKit */,
+				FEED0000000000000000018D /* ShowUpAPI */,
+				FEED00000000000000000192 /* Sentry */,
+				FEED0000000000000000019D /* OpenAPIRuntime */,
+				FEED0000000000000000019F /* OpenAPIURLSession */,
+				FEED000000000000000001A1 /* HTTPTypes */,
 			);
-			productReference = FEED0000000000000000017A /* ShowUpWelcomeTests.xctest */;
+			productReference = FEED0000000000000000017C /* ShowUpWelcomeTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXContainerItemProxy section */
-		FEED00000000000000000181 /* PBXContainerItemProxy */ = {
+		FEED00000000000000000183 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FEED00000000000000000001 /* Project object */;
 			proxyType = 1;
@@ -831,10 +834,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
-		FEED00000000000000000182 /* PBXTargetDependency */ = {
+		FEED00000000000000000184 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FEED00000000000000000002 /* ShowUpWelcome */;
-			targetProxy = FEED00000000000000000181 /* PBXContainerItemProxy */;
+			targetProxy = FEED00000000000000000183 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -865,12 +868,12 @@
 			);
 			mainGroup = FEED00000000000000000004;
 			packageReferences = (
-				FEED00000000000000000183 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
-				FEED00000000000000000188 /* XCLocalSwiftPackageReference "ShowUpAPI" */,
-				FEED0000000000000000018D /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
-				FEED00000000000000000192 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
-				FEED00000000000000000195 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
-				FEED00000000000000000198 /* XCRemoteSwiftPackageReference "swift-http-types" */,
+				FEED00000000000000000185 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
+				FEED0000000000000000018A /* XCLocalSwiftPackageReference "ShowUpAPI" */,
+				FEED0000000000000000018F /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				FEED00000000000000000194 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
+				FEED00000000000000000197 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
+				FEED0000000000000000019A /* XCRemoteSwiftPackageReference "swift-http-types" */,
 			);
 			productRefGroup = FEED00000000000000000007 /* Products */;
 			projectDirPath = "";
@@ -889,20 +892,20 @@
 			files = (
 				FEED00000000000000000014 /* Assets.xcassets in Resources */,
 				FEED00000000000000000016 /* Flags in Resources */,
-				FEED0000000000000000016F /* Lora-Bold.ttf in Resources */,
-				FEED00000000000000000170 /* Lora-BoldItalic.ttf in Resources */,
-				FEED00000000000000000171 /* Lora-Italic.ttf in Resources */,
-				FEED00000000000000000172 /* Lora-MediumItalic.ttf in Resources */,
-				FEED00000000000000000173 /* Lora-Regular.ttf in Resources */,
-				FEED00000000000000000174 /* Manrope-Bold.ttf in Resources */,
-				FEED00000000000000000175 /* Manrope-ExtraBold.ttf in Resources */,
-				FEED00000000000000000176 /* Manrope-Medium.ttf in Resources */,
-				FEED00000000000000000177 /* Manrope-Regular.ttf in Resources */,
-				FEED00000000000000000178 /* Manrope-SemiBold.ttf in Resources */,
+				FEED00000000000000000171 /* Lora-Bold.ttf in Resources */,
+				FEED00000000000000000172 /* Lora-BoldItalic.ttf in Resources */,
+				FEED00000000000000000173 /* Lora-Italic.ttf in Resources */,
+				FEED00000000000000000174 /* Lora-MediumItalic.ttf in Resources */,
+				FEED00000000000000000175 /* Lora-Regular.ttf in Resources */,
+				FEED00000000000000000176 /* Manrope-Bold.ttf in Resources */,
+				FEED00000000000000000177 /* Manrope-ExtraBold.ttf in Resources */,
+				FEED00000000000000000178 /* Manrope-Medium.ttf in Resources */,
+				FEED00000000000000000179 /* Manrope-Regular.ttf in Resources */,
+				FEED0000000000000000017A /* Manrope-SemiBold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FEED0000000000000000017D /* Resources */ = {
+		FEED0000000000000000017F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -916,223 +919,224 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED000000000000000000BE /* ShowUpWelcomeApp.swift in Sources */,
-				FEED000000000000000000BF /* APIAccess.swift in Sources */,
-				FEED000000000000000000C0 /* AVMediaCapture.swift in Sources */,
-				FEED000000000000000000C1 /* AVMediaPlayer.swift in Sources */,
-				FEED000000000000000000C2 /* AppAnalytics.swift in Sources */,
-				FEED000000000000000000C3 /* AppRoute.swift in Sources */,
-				FEED000000000000000000C4 /* AuthMethodList.swift in Sources */,
-				FEED000000000000000000C5 /* BasicsChrome.swift in Sources */,
-				FEED000000000000000000C6 /* BasicsModel.swift in Sources */,
-				FEED000000000000000000C7 /* BasicsRepository.swift in Sources */,
-				FEED000000000000000000C8 /* BasicsStep.swift in Sources */,
-				FEED000000000000000000C9 /* BridgeShell.swift in Sources */,
-				FEED000000000000000000CA /* ButtonPair.swift in Sources */,
-				FEED000000000000000000CB /* CSSTextLayout.swift in Sources */,
-				FEED000000000000000000CC /* Card.swift in Sources */,
-				FEED000000000000000000CD /* CardFlyOut.swift in Sources */,
-				FEED000000000000000000CE /* CheckInAnalytics.swift in Sources */,
-				FEED000000000000000000CF /* CheckInAvailability.swift in Sources */,
-				FEED000000000000000000D0 /* CheckInAvailabilityChrome.swift in Sources */,
-				FEED000000000000000000D1 /* CheckInChrome.swift in Sources */,
-				FEED000000000000000000D2 /* CheckInFilters.swift in Sources */,
-				FEED000000000000000000D3 /* CheckInIntro.swift in Sources */,
-				FEED000000000000000000D4 /* CheckInModel.swift in Sources */,
-				FEED000000000000000000D5 /* CheckInMotivation.swift in Sources */,
-				FEED000000000000000000D6 /* CheckInNoHoursDialog.swift in Sources */,
-				FEED000000000000000000D7 /* CheckInPlace.swift in Sources */,
-				FEED000000000000000000D8 /* CheckInRepository.swift in Sources */,
-				FEED000000000000000000D9 /* CheckInRules.swift in Sources */,
-				FEED000000000000000000DA /* CheckInTabPlaceholders.swift in Sources */,
-				FEED000000000000000000DB /* CheckInUplift.swift in Sources */,
-				FEED000000000000000000DC /* CheckInVibe.swift in Sources */,
-				FEED000000000000000000DD /* CheckRow.swift in Sources */,
-				FEED000000000000000000DE /* Chip.swift in Sources */,
-				FEED000000000000000000DF /* CodeSlotRow.swift in Sources */,
-				FEED000000000000000000E0 /* ComponentSizes.swift in Sources */,
-				FEED000000000000000000E1 /* ConfettiRain.swift in Sources */,
-				FEED000000000000000000E2 /* ConnectAccountView.swift in Sources */,
-				FEED000000000000000000E3 /* ConsentSwitch.swift in Sources */,
-				FEED000000000000000000E4 /* ControlPip.swift in Sources */,
-				FEED000000000000000000E5 /* CountryCodes.swift in Sources */,
-				FEED000000000000000000E6 /* CountryPicker.swift in Sources */,
-				FEED000000000000000000E7 /* Crashes.swift in Sources */,
-				FEED000000000000000000E8 /* DateOfBirth.swift in Sources */,
-				FEED000000000000000000E9 /* DesignSystem.swift in Sources */,
-				FEED000000000000000000EA /* DetailsChrome.swift in Sources */,
-				FEED000000000000000000EB /* DetailsModel.swift in Sources */,
-				FEED000000000000000000EC /* DevCheckIn.swift in Sources */,
-				FEED000000000000000000ED /* DevMenu.swift in Sources */,
-				FEED000000000000000000EE /* DevOfflineAuth.swift in Sources */,
-				FEED000000000000000000EF /* DevSearch.swift in Sources */,
-				FEED000000000000000000F0 /* EmailVerification.swift in Sources */,
-				FEED000000000000000000F1 /* FitAnchors.swift in Sources */,
-				FEED000000000000000000F2 /* FloatingField.swift in Sources */,
-				FEED000000000000000000F3 /* FlowScreen.swift in Sources */,
-				FEED000000000000000000F4 /* HomePlaceholderView.swift in Sources */,
-				FEED000000000000000000F5 /* IconSizes.swift in Sources */,
-				FEED000000000000000000F6 /* InputField.swift in Sources */,
-				FEED000000000000000000F7 /* InterestsChrome.swift in Sources */,
-				FEED000000000000000000F8 /* LifeChrome.swift in Sources */,
-				FEED000000000000000000F9 /* LikesReceived.swift in Sources */,
-				FEED000000000000000000FA /* LocationAccess.swift in Sources */,
-				FEED000000000000000000FB /* LocationGateModel.swift in Sources */,
-				FEED000000000000000000FC /* LocationModel.swift in Sources */,
-				FEED000000000000000000FD /* MatchMeansMeetView.swift in Sources */,
-				FEED000000000000000000FE /* MatchOnAvailabilityView.swift in Sources */,
-				FEED000000000000000000FF /* MediaAccess.swift in Sources */,
-				FEED00000000000000000100 /* MediaCapture.swift in Sources */,
-				FEED00000000000000000101 /* MediaCaptureView.swift in Sources */,
-				FEED00000000000000000102 /* MediaCards.swift in Sources */,
-				FEED00000000000000000103 /* MediaModel.swift in Sources */,
-				FEED00000000000000000104 /* MediaPlayback.swift in Sources */,
-				FEED00000000000000000105 /* MediaPromptSheet.swift in Sources */,
-				FEED00000000000000000106 /* MediaPrompts.swift in Sources */,
-				FEED00000000000000000107 /* MediaRepository.swift in Sources */,
-				FEED00000000000000000108 /* MediaState.swift in Sources */,
-				FEED00000000000000000109 /* MeetInRealLifeView.swift in Sources */,
-				FEED0000000000000000010A /* Motion.swift in Sources */,
-				FEED0000000000000000010B /* NavAnalytics.swift in Sources */,
-				FEED0000000000000000010C /* NotificationAccess.swift in Sources */,
-				FEED0000000000000000010D /* NotificationsModel.swift in Sources */,
-				FEED0000000000000000010E /* OptionRow.swift in Sources */,
-				FEED0000000000000000010F /* OtpPolicy.swift in Sources */,
-				FEED00000000000000000110 /* PermissionReconciler.swift in Sources */,
-				FEED00000000000000000111 /* PhoneAuthModel.swift in Sources */,
-				FEED00000000000000000112 /* PhoneAuthRepository.swift in Sources */,
-				FEED00000000000000000113 /* PhoneNumberField.swift in Sources */,
-				FEED00000000000000000114 /* PhoneVerificationView.swift in Sources */,
-				FEED00000000000000000115 /* PhotoAccess.swift in Sources */,
-				FEED00000000000000000116 /* PhotoGrid.swift in Sources */,
-				FEED00000000000000000117 /* PhotoPicker.swift in Sources */,
-				FEED00000000000000000118 /* PhotoUpload.swift in Sources */,
-				FEED00000000000000000119 /* PhotosModel.swift in Sources */,
-				FEED0000000000000000011A /* PhotosRepository.swift in Sources */,
-				FEED0000000000000000011B /* PickChrome.swift in Sources */,
-				FEED0000000000000000011C /* PickModel.swift in Sources */,
-				FEED0000000000000000011D /* PremiumParts.swift in Sources */,
-				FEED0000000000000000011E /* PremiumRules.swift in Sources */,
-				FEED0000000000000000011F /* PremiumTag.swift in Sources */,
-				FEED00000000000000000120 /* PrimaryButton.swift in Sources */,
-				FEED00000000000000000121 /* ProfileAnalytics.swift in Sources */,
-				FEED00000000000000000122 /* ProfileBasics.swift in Sources */,
-				FEED00000000000000000123 /* ProfileChoice.swift in Sources */,
-				FEED00000000000000000124 /* ProfileDatingLanguage.swift in Sources */,
-				FEED00000000000000000125 /* ProfileDetails.swift in Sources */,
-				FEED00000000000000000126 /* ProfileDetailsRepository.swift in Sources */,
-				FEED00000000000000000127 /* ProfileDob.swift in Sources */,
-				FEED00000000000000000128 /* ProfileEmbrace.swift in Sources */,
-				FEED00000000000000000129 /* ProfileEmbraceDetails.swift in Sources */,
-				FEED0000000000000000012A /* ProfileFlow.swift in Sources */,
-				FEED0000000000000000012B /* ProfileHeight.swift in Sources */,
-				FEED0000000000000000012C /* ProfileInterests.swift in Sources */,
-				FEED0000000000000000012D /* ProfileInterestsView.swift in Sources */,
-				FEED0000000000000000012E /* ProfileLife.swift in Sources */,
-				FEED0000000000000000012F /* ProfileLocation.swift in Sources */,
-				FEED00000000000000000130 /* ProfileMedia.swift in Sources */,
-				FEED00000000000000000131 /* ProfileNotifications.swift in Sources */,
-				FEED00000000000000000132 /* ProfilePhotos.swift in Sources */,
-				FEED00000000000000000133 /* ProfileProgressRepository.swift in Sources */,
-				FEED00000000000000000134 /* ProfilePrompts.swift in Sources */,
-				FEED00000000000000000135 /* ProfileReachability.swift in Sources */,
-				FEED00000000000000000136 /* ProfileResume.swift in Sources */,
-				FEED00000000000000000137 /* ProfileVerifyEmail.swift in Sources */,
-				FEED00000000000000000138 /* ProfileVisibility.swift in Sources */,
-				FEED00000000000000000139 /* ProhibitedFields.swift in Sources */,
-				FEED0000000000000000013A /* PromptTopics.swift in Sources */,
-				FEED0000000000000000013B /* PromptsModel.swift in Sources */,
-				FEED0000000000000000013C /* PromptsRepository.swift in Sources */,
-				FEED0000000000000000013D /* PushRegistration.swift in Sources */,
-				FEED0000000000000000013E /* Radius.swift in Sources */,
-				FEED0000000000000000013F /* RangeSlider.swift in Sources */,
-				FEED00000000000000000140 /* ReachabilityHost.swift in Sources */,
-				FEED00000000000000000141 /* ReachabilityModel.swift in Sources */,
-				FEED00000000000000000142 /* RealYouChrome.swift in Sources */,
-				FEED00000000000000000143 /* SVGPath.swift in Sources */,
-				FEED00000000000000000144 /* SearchAnalytics.swift in Sources */,
-				FEED00000000000000000145 /* SearchCoach.swift in Sources */,
-				FEED00000000000000000146 /* SearchGrid.swift in Sources */,
-				FEED00000000000000000147 /* SearchModel.swift in Sources */,
-				FEED00000000000000000148 /* SearchPhotoViewer.swift in Sources */,
-				FEED00000000000000000149 /* SearchProfileView.swift in Sources */,
-				FEED0000000000000000014A /* SearchRepository.swift in Sources */,
-				FEED0000000000000000014B /* SearchRules.swift in Sources */,
-				FEED0000000000000000014C /* SearchSamples.swift in Sources */,
-				FEED0000000000000000014D /* SearchSections.swift in Sources */,
-				FEED0000000000000000014E /* SearchSheets.swift in Sources */,
-				FEED0000000000000000014F /* SessionEnded.swift in Sources */,
-				FEED00000000000000000150 /* SheetScaffold.swift in Sources */,
-				FEED00000000000000000151 /* ShowUpCount.swift in Sources */,
-				FEED00000000000000000152 /* ShowUpEveryTimeView.swift in Sources */,
-				FEED00000000000000000153 /* SignUpAnalytics.swift in Sources */,
-				FEED00000000000000000154 /* SignUpFlow.swift in Sources */,
-				FEED00000000000000000155 /* SkipContinueRow.swift in Sources */,
-				FEED00000000000000000156 /* SkipLink.swift in Sources */,
-				FEED00000000000000000157 /* Spacing.swift in Sources */,
-				FEED00000000000000000158 /* StartupView.swift in Sources */,
-				FEED00000000000000000159 /* StatusBadge.swift in Sources */,
-				FEED0000000000000000015A /* StepProgress.swift in Sources */,
-				FEED0000000000000000015B /* TabBar.swift in Sources */,
-				FEED0000000000000000015C /* TapTarget.swift in Sources */,
-				FEED0000000000000000015D /* ThirtyMinutesView.swift in Sources */,
-				FEED0000000000000000015E /* TutorialAnalytics.swift in Sources */,
-				FEED0000000000000000015F /* TutorialRouting.swift in Sources */,
-				FEED00000000000000000160 /* TutorialShell.swift in Sources */,
-				FEED00000000000000000161 /* WelcomeBackView.swift in Sources */,
-				FEED00000000000000000162 /* WelcomeShell.swift in Sources */,
-				FEED00000000000000000163 /* WelcomeView.swift in Sources */,
-				FEED00000000000000000164 /* WrapLayout.swift in Sources */,
+				FEED000000000000000000BF /* ShowUpWelcomeApp.swift in Sources */,
+				FEED000000000000000000C0 /* APIAccess.swift in Sources */,
+				FEED000000000000000000C1 /* AVMediaCapture.swift in Sources */,
+				FEED000000000000000000C2 /* AVMediaPlayer.swift in Sources */,
+				FEED000000000000000000C3 /* AppAnalytics.swift in Sources */,
+				FEED000000000000000000C4 /* AppRoute.swift in Sources */,
+				FEED000000000000000000C5 /* AuthMethodList.swift in Sources */,
+				FEED000000000000000000C6 /* BasicsChrome.swift in Sources */,
+				FEED000000000000000000C7 /* BasicsModel.swift in Sources */,
+				FEED000000000000000000C8 /* BasicsRepository.swift in Sources */,
+				FEED000000000000000000C9 /* BasicsStep.swift in Sources */,
+				FEED000000000000000000CA /* BridgeShell.swift in Sources */,
+				FEED000000000000000000CB /* ButtonPair.swift in Sources */,
+				FEED000000000000000000CC /* CSSTextLayout.swift in Sources */,
+				FEED000000000000000000CD /* Card.swift in Sources */,
+				FEED000000000000000000CE /* CardFlyOut.swift in Sources */,
+				FEED000000000000000000CF /* CheckInAnalytics.swift in Sources */,
+				FEED000000000000000000D0 /* CheckInAvailability.swift in Sources */,
+				FEED000000000000000000D1 /* CheckInAvailabilityChrome.swift in Sources */,
+				FEED000000000000000000D2 /* CheckInChrome.swift in Sources */,
+				FEED000000000000000000D3 /* CheckInFilters.swift in Sources */,
+				FEED000000000000000000D4 /* CheckInIntro.swift in Sources */,
+				FEED000000000000000000D5 /* CheckInModel.swift in Sources */,
+				FEED000000000000000000D6 /* CheckInMotivation.swift in Sources */,
+				FEED000000000000000000D7 /* CheckInNoHoursDialog.swift in Sources */,
+				FEED000000000000000000D8 /* CheckInPlace.swift in Sources */,
+				FEED000000000000000000D9 /* CheckInRepository.swift in Sources */,
+				FEED000000000000000000DA /* CheckInRules.swift in Sources */,
+				FEED000000000000000000DB /* CheckInTabPlaceholders.swift in Sources */,
+				FEED000000000000000000DC /* CheckInUplift.swift in Sources */,
+				FEED000000000000000000DD /* CheckInVibe.swift in Sources */,
+				FEED000000000000000000DE /* CheckRow.swift in Sources */,
+				FEED000000000000000000DF /* Chip.swift in Sources */,
+				FEED000000000000000000E0 /* CodeSlotRow.swift in Sources */,
+				FEED000000000000000000E1 /* ComponentSizes.swift in Sources */,
+				FEED000000000000000000E2 /* ConfettiRain.swift in Sources */,
+				FEED000000000000000000E3 /* ConnectAccountView.swift in Sources */,
+				FEED000000000000000000E4 /* ConsentSwitch.swift in Sources */,
+				FEED000000000000000000E5 /* ControlPip.swift in Sources */,
+				FEED000000000000000000E6 /* CountryCodes.swift in Sources */,
+				FEED000000000000000000E7 /* CountryPicker.swift in Sources */,
+				FEED000000000000000000E8 /* Crashes.swift in Sources */,
+				FEED000000000000000000E9 /* DateOfBirth.swift in Sources */,
+				FEED000000000000000000EA /* DesignSystem.swift in Sources */,
+				FEED000000000000000000EB /* DetailsChrome.swift in Sources */,
+				FEED000000000000000000EC /* DetailsModel.swift in Sources */,
+				FEED000000000000000000ED /* DevCheckIn.swift in Sources */,
+				FEED000000000000000000EE /* DevMenu.swift in Sources */,
+				FEED000000000000000000EF /* DevOfflineAuth.swift in Sources */,
+				FEED000000000000000000F0 /* DevSearch.swift in Sources */,
+				FEED000000000000000000F1 /* EmailVerification.swift in Sources */,
+				FEED000000000000000000F2 /* FitAnchors.swift in Sources */,
+				FEED000000000000000000F3 /* FloatingField.swift in Sources */,
+				FEED000000000000000000F4 /* FlowScreen.swift in Sources */,
+				FEED000000000000000000F5 /* HomePlaceholderView.swift in Sources */,
+				FEED000000000000000000F6 /* IconSizes.swift in Sources */,
+				FEED000000000000000000F7 /* InputField.swift in Sources */,
+				FEED000000000000000000F8 /* InterestsChrome.swift in Sources */,
+				FEED000000000000000000F9 /* LifeChrome.swift in Sources */,
+				FEED000000000000000000FA /* LikesReceived.swift in Sources */,
+				FEED000000000000000000FB /* LocationAccess.swift in Sources */,
+				FEED000000000000000000FC /* LocationGateModel.swift in Sources */,
+				FEED000000000000000000FD /* LocationModel.swift in Sources */,
+				FEED000000000000000000FE /* MatchMeansMeetView.swift in Sources */,
+				FEED000000000000000000FF /* MatchOnAvailabilityView.swift in Sources */,
+				FEED00000000000000000100 /* MediaAccess.swift in Sources */,
+				FEED00000000000000000101 /* MediaCapture.swift in Sources */,
+				FEED00000000000000000102 /* MediaCaptureView.swift in Sources */,
+				FEED00000000000000000103 /* MediaCards.swift in Sources */,
+				FEED00000000000000000104 /* MediaModel.swift in Sources */,
+				FEED00000000000000000105 /* MediaPlayback.swift in Sources */,
+				FEED00000000000000000106 /* MediaPromptSheet.swift in Sources */,
+				FEED00000000000000000107 /* MediaPrompts.swift in Sources */,
+				FEED00000000000000000108 /* MediaRepository.swift in Sources */,
+				FEED00000000000000000109 /* MediaState.swift in Sources */,
+				FEED0000000000000000010A /* MeetInRealLifeView.swift in Sources */,
+				FEED0000000000000000010B /* Motion.swift in Sources */,
+				FEED0000000000000000010C /* NavAnalytics.swift in Sources */,
+				FEED0000000000000000010D /* NotificationAccess.swift in Sources */,
+				FEED0000000000000000010E /* NotificationsModel.swift in Sources */,
+				FEED0000000000000000010F /* OptionRow.swift in Sources */,
+				FEED00000000000000000110 /* OtpPolicy.swift in Sources */,
+				FEED00000000000000000111 /* PermissionReconciler.swift in Sources */,
+				FEED00000000000000000112 /* PhoneAuthModel.swift in Sources */,
+				FEED00000000000000000113 /* PhoneAuthRepository.swift in Sources */,
+				FEED00000000000000000114 /* PhoneNumberField.swift in Sources */,
+				FEED00000000000000000115 /* PhoneVerificationView.swift in Sources */,
+				FEED00000000000000000116 /* PhotoAccess.swift in Sources */,
+				FEED00000000000000000117 /* PhotoGrid.swift in Sources */,
+				FEED00000000000000000118 /* PhotoPicker.swift in Sources */,
+				FEED00000000000000000119 /* PhotoUpload.swift in Sources */,
+				FEED0000000000000000011A /* PhotosModel.swift in Sources */,
+				FEED0000000000000000011B /* PhotosRepository.swift in Sources */,
+				FEED0000000000000000011C /* PickChrome.swift in Sources */,
+				FEED0000000000000000011D /* PickModel.swift in Sources */,
+				FEED0000000000000000011E /* PremiumParts.swift in Sources */,
+				FEED0000000000000000011F /* PremiumRules.swift in Sources */,
+				FEED00000000000000000120 /* PremiumTag.swift in Sources */,
+				FEED00000000000000000121 /* PrimaryButton.swift in Sources */,
+				FEED00000000000000000122 /* ProfileAnalytics.swift in Sources */,
+				FEED00000000000000000123 /* ProfileBasics.swift in Sources */,
+				FEED00000000000000000124 /* ProfileChoice.swift in Sources */,
+				FEED00000000000000000125 /* ProfileDatingLanguage.swift in Sources */,
+				FEED00000000000000000126 /* ProfileDetails.swift in Sources */,
+				FEED00000000000000000127 /* ProfileDetailsRepository.swift in Sources */,
+				FEED00000000000000000128 /* ProfileDob.swift in Sources */,
+				FEED00000000000000000129 /* ProfileEmbrace.swift in Sources */,
+				FEED0000000000000000012A /* ProfileEmbraceDetails.swift in Sources */,
+				FEED0000000000000000012B /* ProfileFlow.swift in Sources */,
+				FEED0000000000000000012C /* ProfileHeight.swift in Sources */,
+				FEED0000000000000000012D /* ProfileInterests.swift in Sources */,
+				FEED0000000000000000012E /* ProfileInterestsView.swift in Sources */,
+				FEED0000000000000000012F /* ProfileLife.swift in Sources */,
+				FEED00000000000000000130 /* ProfileLocation.swift in Sources */,
+				FEED00000000000000000131 /* ProfileMedia.swift in Sources */,
+				FEED00000000000000000132 /* ProfileNotifications.swift in Sources */,
+				FEED00000000000000000133 /* ProfilePhotos.swift in Sources */,
+				FEED00000000000000000134 /* ProfileProgressRepository.swift in Sources */,
+				FEED00000000000000000135 /* ProfilePrompts.swift in Sources */,
+				FEED00000000000000000136 /* ProfileReachability.swift in Sources */,
+				FEED00000000000000000137 /* ProfileResume.swift in Sources */,
+				FEED00000000000000000138 /* ProfileVerifyEmail.swift in Sources */,
+				FEED00000000000000000139 /* ProfileVisibility.swift in Sources */,
+				FEED0000000000000000013A /* ProhibitedFields.swift in Sources */,
+				FEED0000000000000000013B /* PromptTopics.swift in Sources */,
+				FEED0000000000000000013C /* PromptsModel.swift in Sources */,
+				FEED0000000000000000013D /* PromptsRepository.swift in Sources */,
+				FEED0000000000000000013E /* PushRegistration.swift in Sources */,
+				FEED0000000000000000013F /* Radius.swift in Sources */,
+				FEED00000000000000000140 /* RangeSlider.swift in Sources */,
+				FEED00000000000000000141 /* ReachabilityHost.swift in Sources */,
+				FEED00000000000000000142 /* ReachabilityModel.swift in Sources */,
+				FEED00000000000000000143 /* RealYouChrome.swift in Sources */,
+				FEED00000000000000000144 /* SVGPath.swift in Sources */,
+				FEED00000000000000000145 /* SearchAnalytics.swift in Sources */,
+				FEED00000000000000000146 /* SearchCoach.swift in Sources */,
+				FEED00000000000000000147 /* SearchEmpty.swift in Sources */,
+				FEED00000000000000000148 /* SearchGrid.swift in Sources */,
+				FEED00000000000000000149 /* SearchModel.swift in Sources */,
+				FEED0000000000000000014A /* SearchPhotoViewer.swift in Sources */,
+				FEED0000000000000000014B /* SearchProfileView.swift in Sources */,
+				FEED0000000000000000014C /* SearchRepository.swift in Sources */,
+				FEED0000000000000000014D /* SearchRules.swift in Sources */,
+				FEED0000000000000000014E /* SearchSamples.swift in Sources */,
+				FEED0000000000000000014F /* SearchSections.swift in Sources */,
+				FEED00000000000000000150 /* SearchSheets.swift in Sources */,
+				FEED00000000000000000151 /* SessionEnded.swift in Sources */,
+				FEED00000000000000000152 /* SheetScaffold.swift in Sources */,
+				FEED00000000000000000153 /* ShowUpCount.swift in Sources */,
+				FEED00000000000000000154 /* ShowUpEveryTimeView.swift in Sources */,
+				FEED00000000000000000155 /* SignUpAnalytics.swift in Sources */,
+				FEED00000000000000000156 /* SignUpFlow.swift in Sources */,
+				FEED00000000000000000157 /* SkipContinueRow.swift in Sources */,
+				FEED00000000000000000158 /* SkipLink.swift in Sources */,
+				FEED00000000000000000159 /* Spacing.swift in Sources */,
+				FEED0000000000000000015A /* StartupView.swift in Sources */,
+				FEED0000000000000000015B /* StatusBadge.swift in Sources */,
+				FEED0000000000000000015C /* StepProgress.swift in Sources */,
+				FEED0000000000000000015D /* TabBar.swift in Sources */,
+				FEED0000000000000000015E /* TapTarget.swift in Sources */,
+				FEED0000000000000000015F /* ThirtyMinutesView.swift in Sources */,
+				FEED00000000000000000160 /* TutorialAnalytics.swift in Sources */,
+				FEED00000000000000000161 /* TutorialRouting.swift in Sources */,
+				FEED00000000000000000162 /* TutorialShell.swift in Sources */,
+				FEED00000000000000000163 /* WelcomeBackView.swift in Sources */,
+				FEED00000000000000000164 /* WelcomeShell.swift in Sources */,
+				FEED00000000000000000165 /* WelcomeView.swift in Sources */,
+				FEED00000000000000000166 /* WrapLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FEED0000000000000000017B /* Sources */ = {
+		FEED0000000000000000017D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED000000000000000001CC /* APIAccessTests.swift in Sources */,
-				FEED000000000000000001CD /* BasicsRepositoryTests.swift in Sources */,
-				FEED000000000000000001CE /* BasicsTrackingTests.swift in Sources */,
-				FEED000000000000000001CF /* CheckInModelTests.swift in Sources */,
-				FEED000000000000000001D0 /* CheckInRulesTests.swift in Sources */,
-				FEED000000000000000001D1 /* ConfettiRainTests.swift in Sources */,
-				FEED000000000000000001D2 /* CrashesTests.swift in Sources */,
-				FEED000000000000000001D3 /* DateOfBirthTests.swift in Sources */,
-				FEED000000000000000001D4 /* DetailsModelTests.swift in Sources */,
-				FEED000000000000000001D5 /* DevMenuRulesTests.swift in Sources */,
-				FEED000000000000000001D6 /* EvidenceShots.swift in Sources */,
-				FEED000000000000000001D7 /* FitDevices.swift in Sources */,
-				FEED000000000000000001D8 /* FlowScreenTests.swift in Sources */,
-				FEED000000000000000001D9 /* GateFitTests.swift in Sources */,
-				FEED000000000000000001DA /* LocationGateModelTests.swift in Sources */,
-				FEED000000000000000001DB /* LocationRulesTests.swift in Sources */,
-				FEED000000000000000001DC /* MediaFlowRegressionTests.swift in Sources */,
-				FEED000000000000000001DD /* MediaPromptsTests.swift in Sources */,
-				FEED000000000000000001DE /* MediaRulesTests.swift in Sources */,
-				FEED000000000000000001DF /* NotificationRulesTests.swift in Sources */,
-				FEED000000000000000001E0 /* PermissionReconcilerTests.swift in Sources */,
-				FEED000000000000000001E1 /* PhoneAuthRepositoryTests.swift in Sources */,
-				FEED000000000000000001E2 /* PhoneValidationTests.swift in Sources */,
-				FEED000000000000000001E3 /* PhotoUploadTests.swift in Sources */,
-				FEED000000000000000001E4 /* PhotosReorderTests.swift in Sources */,
-				FEED000000000000000001E5 /* PhotosTrackingTests.swift in Sources */,
-				FEED000000000000000001E6 /* PickModelTests.swift in Sources */,
-				FEED000000000000000001E7 /* PickRulesTests.swift in Sources */,
-				FEED000000000000000001E8 /* PremiumFitTests.swift in Sources */,
-				FEED000000000000000001E9 /* PremiumModelTests.swift in Sources */,
-				FEED000000000000000001EA /* PremiumRulesTests.swift in Sources */,
-				FEED000000000000000001EB /* ProfileAnalyticsTests.swift in Sources */,
-				FEED000000000000000001EC /* ProfileDetailsRulesTests.swift in Sources */,
-				FEED000000000000000001ED /* PromptsTrackingTests.swift in Sources */,
-				FEED000000000000000001EE /* ReachabilityRulesTests.swift in Sources */,
-				FEED000000000000000001EF /* RealYouTests.swift in Sources */,
-				FEED000000000000000001F0 /* ScreenFitTests.swift in Sources */,
-				FEED000000000000000001F1 /* SearchFitTests.swift in Sources */,
-				FEED000000000000000001F2 /* SearchModelTests.swift in Sources */,
-				FEED000000000000000001F3 /* SearchRulesTests.swift in Sources */,
-				FEED000000000000000001F4 /* TabBarTests.swift in Sources */,
-				FEED000000000000000001F5 /* TapTargetTests.swift in Sources */,
-				FEED000000000000000001F6 /* TutorialRoutingTests.swift in Sources */,
+				FEED000000000000000001CE /* APIAccessTests.swift in Sources */,
+				FEED000000000000000001CF /* BasicsRepositoryTests.swift in Sources */,
+				FEED000000000000000001D0 /* BasicsTrackingTests.swift in Sources */,
+				FEED000000000000000001D1 /* CheckInModelTests.swift in Sources */,
+				FEED000000000000000001D2 /* CheckInRulesTests.swift in Sources */,
+				FEED000000000000000001D3 /* ConfettiRainTests.swift in Sources */,
+				FEED000000000000000001D4 /* CrashesTests.swift in Sources */,
+				FEED000000000000000001D5 /* DateOfBirthTests.swift in Sources */,
+				FEED000000000000000001D6 /* DetailsModelTests.swift in Sources */,
+				FEED000000000000000001D7 /* DevMenuRulesTests.swift in Sources */,
+				FEED000000000000000001D8 /* EvidenceShots.swift in Sources */,
+				FEED000000000000000001D9 /* FitDevices.swift in Sources */,
+				FEED000000000000000001DA /* FlowScreenTests.swift in Sources */,
+				FEED000000000000000001DB /* GateFitTests.swift in Sources */,
+				FEED000000000000000001DC /* LocationGateModelTests.swift in Sources */,
+				FEED000000000000000001DD /* LocationRulesTests.swift in Sources */,
+				FEED000000000000000001DE /* MediaFlowRegressionTests.swift in Sources */,
+				FEED000000000000000001DF /* MediaPromptsTests.swift in Sources */,
+				FEED000000000000000001E0 /* MediaRulesTests.swift in Sources */,
+				FEED000000000000000001E1 /* NotificationRulesTests.swift in Sources */,
+				FEED000000000000000001E2 /* PermissionReconcilerTests.swift in Sources */,
+				FEED000000000000000001E3 /* PhoneAuthRepositoryTests.swift in Sources */,
+				FEED000000000000000001E4 /* PhoneValidationTests.swift in Sources */,
+				FEED000000000000000001E5 /* PhotoUploadTests.swift in Sources */,
+				FEED000000000000000001E6 /* PhotosReorderTests.swift in Sources */,
+				FEED000000000000000001E7 /* PhotosTrackingTests.swift in Sources */,
+				FEED000000000000000001E8 /* PickModelTests.swift in Sources */,
+				FEED000000000000000001E9 /* PickRulesTests.swift in Sources */,
+				FEED000000000000000001EA /* PremiumFitTests.swift in Sources */,
+				FEED000000000000000001EB /* PremiumModelTests.swift in Sources */,
+				FEED000000000000000001EC /* PremiumRulesTests.swift in Sources */,
+				FEED000000000000000001ED /* ProfileAnalyticsTests.swift in Sources */,
+				FEED000000000000000001EE /* ProfileDetailsRulesTests.swift in Sources */,
+				FEED000000000000000001EF /* PromptsTrackingTests.swift in Sources */,
+				FEED000000000000000001F0 /* ReachabilityRulesTests.swift in Sources */,
+				FEED000000000000000001F1 /* RealYouTests.swift in Sources */,
+				FEED000000000000000001F2 /* ScreenFitTests.swift in Sources */,
+				FEED000000000000000001F3 /* SearchFitTests.swift in Sources */,
+				FEED000000000000000001F4 /* SearchModelTests.swift in Sources */,
+				FEED000000000000000001F5 /* SearchRulesTests.swift in Sources */,
+				FEED000000000000000001F6 /* TabBarTests.swift in Sources */,
+				FEED000000000000000001F7 /* TapTargetTests.swift in Sources */,
+				FEED000000000000000001F8 /* TutorialRoutingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1241,7 +1245,7 @@
 			};
 			name = Release;
 		};
-		FEED0000000000000000017F /* Debug */ = {
+		FEED00000000000000000181 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -1259,7 +1263,7 @@
 			};
 			name = Debug;
 		};
-		FEED00000000000000000180 /* Release */ = {
+		FEED00000000000000000182 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -1298,11 +1302,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		FEED0000000000000000017E /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */ = {
+		FEED00000000000000000180 /* Build configuration list for PBXNativeTarget "ShowUpWelcomeTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FEED0000000000000000017F /* Debug */,
-				FEED00000000000000000180 /* Release */,
+				FEED00000000000000000181 /* Debug */,
+				FEED00000000000000000182 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -1310,7 +1314,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FEED00000000000000000183 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+		FEED00000000000000000185 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/PhoneNumberKit/PhoneNumberKit.git";
 			requirement = {
@@ -1318,7 +1322,7 @@
 				minimumVersion = 5.0.8;
 			};
 		};
-		FEED0000000000000000018D /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+		FEED0000000000000000018F /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/getsentry/sentry-cocoa.git";
 			requirement = {
@@ -1326,7 +1330,7 @@
 				minimumVersion = 8.44.0;
 			};
 		};
-		FEED00000000000000000192 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
+		FEED00000000000000000194 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-runtime";
 			requirement = {
@@ -1334,7 +1338,7 @@
 				minimumVersion = 1.5.0;
 			};
 		};
-		FEED00000000000000000195 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
+		FEED00000000000000000197 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-urlsession";
 			requirement = {
@@ -1342,7 +1346,7 @@
 				minimumVersion = 1.0.2;
 			};
 		};
-		FEED00000000000000000198 /* XCRemoteSwiftPackageReference "swift-http-types" */ = {
+		FEED0000000000000000019A /* XCRemoteSwiftPackageReference "swift-http-types" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-http-types";
 			requirement = {
@@ -1353,45 +1357,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		FEED00000000000000000188 /* XCLocalSwiftPackageReference "ShowUpAPI" */ = {
+		FEED0000000000000000018A /* XCLocalSwiftPackageReference "ShowUpAPI" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ShowUpAPI;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FEED00000000000000000184 /* PhoneNumberKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000183 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
-			productName = PhoneNumberKit;
-		};
-		FEED00000000000000000189 /* ShowUpAPI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ShowUpAPI;
-		};
-		FEED0000000000000000018E /* Sentry */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED0000000000000000018D /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
-			productName = Sentry;
-		};
-		FEED00000000000000000193 /* OpenAPIRuntime */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000192 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
-			productName = OpenAPIRuntime;
-		};
-		FEED00000000000000000196 /* OpenAPIURLSession */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000195 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
-			productName = OpenAPIURLSession;
-		};
-		FEED00000000000000000199 /* HTTPTypes */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000198 /* XCRemoteSwiftPackageReference "swift-http-types" */;
-			productName = HTTPTypes;
-		};
 		FEED00000000000000000186 /* PhoneNumberKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000183 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			package = FEED00000000000000000185 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
 			productName = PhoneNumberKit;
 		};
 		FEED0000000000000000018B /* ShowUpAPI */ = {
@@ -1400,22 +1375,51 @@
 		};
 		FEED00000000000000000190 /* Sentry */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED0000000000000000018D /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			package = FEED0000000000000000018F /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
 		};
-		FEED0000000000000000019B /* OpenAPIRuntime */ = {
+		FEED00000000000000000195 /* OpenAPIRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000192 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			package = FEED00000000000000000194 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
 			productName = OpenAPIRuntime;
 		};
-		FEED0000000000000000019D /* OpenAPIURLSession */ = {
+		FEED00000000000000000198 /* OpenAPIURLSession */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000195 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			package = FEED00000000000000000197 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
 			productName = OpenAPIURLSession;
 		};
-		FEED0000000000000000019F /* HTTPTypes */ = {
+		FEED0000000000000000019B /* HTTPTypes */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FEED00000000000000000198 /* XCRemoteSwiftPackageReference "swift-http-types" */;
+			package = FEED0000000000000000019A /* XCRemoteSwiftPackageReference "swift-http-types" */;
+			productName = HTTPTypes;
+		};
+		FEED00000000000000000188 /* PhoneNumberKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000185 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = PhoneNumberKit;
+		};
+		FEED0000000000000000018D /* ShowUpAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShowUpAPI;
+		};
+		FEED00000000000000000192 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED0000000000000000018F /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+		FEED0000000000000000019D /* OpenAPIRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000194 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			productName = OpenAPIRuntime;
+		};
+		FEED0000000000000000019F /* OpenAPIURLSession */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED00000000000000000197 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			productName = OpenAPIURLSession;
+		};
+		FEED000000000000000001A1 /* HTTPTypes */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FEED0000000000000000019A /* XCRemoteSwiftPackageReference "swift-http-types" */;
 			productName = HTTPTypes;
 		};
 /* End XCSwiftPackageProductDependency section */

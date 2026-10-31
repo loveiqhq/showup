@@ -676,6 +676,8 @@ class CheckInViewModelTest {
             "age_range,age_dealbreaker,distance_dealbreaker", changed["filters_changed"])
         assertEquals(true, changed["age_dealbreaker"])
         assertEquals(true, changed["distance_dealbreaker"])
+        // The registry types it "checkin" | "search" (1.4.24): the Check-In step says so too.
+        assertEquals("checkin", changed["opened_from"])
         assertEquals(true, store.filters.last().ageDealbreaker)
         assertEquals(listOf(true), store.withDealbreakers)
     }
@@ -1393,10 +1395,7 @@ class CheckInViewModelTest {
         )
         seen.forEach { (name, entries) ->
             val expected = registry[name] ?: error("$name is not in events.json")
-            entries.forEach {
-                val optional = if (name == "check_in_filters_changed" && "opened_from" !in it.properties) setOf("opened_from") else emptySet()
-                assertEquals(name, expected - optional, it.properties.keys - stamp)
-            }
+            entries.forEach { assertEquals(name, expected, it.properties.keys - stamp) }
         }
     }
 

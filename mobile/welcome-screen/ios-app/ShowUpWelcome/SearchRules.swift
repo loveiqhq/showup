@@ -72,9 +72,12 @@ enum SearchCopy {
     static let loadFailed = "Couldn't load profiles. Check your connection and try again."
     static let retry = "Retry"
     static let tryAgain = "Try again"
-    /// PROPOSED, NOT YET THE DESIGN'S: the empty state takes the headline and body of the kit's
-    /// `search-empty` screen (27 Oct 2026), a file not in any handoff zip yet -- asked for 28 Oct.
-    static let noResultsProposed = "No results"
+    /// The interim no-results screen (Copy -> States, 27 Oct 2026), the kit's `search-empty` in normal
+    /// mode: the headline in three runs, `no people` washed.
+    static let noResultsLead = "Unfortunately there are "
+    static let noResultsEm = "no people"
+    static let noResultsTail = " left matching your search filters."
+    static let noResultsBody = "Widen your search filters to find more people."
     /// Opens Filters for now (27 Oct 2026); the kit's sub-line and `Adjust filters manually` are left out.
     static let widenMySearch = "Widen my search"
 }

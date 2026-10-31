@@ -136,4 +136,18 @@ final class EvidenceShots: XCTestCase {
         let mid = try XCTUnwrap(frames.first { $0.width == 390 })
         try shoot(CheckInFiltersView(filters: CheckInFilters(genders: ["woman"])), "A-flag-off", on: mid, into: dir)
     }
+
+    /// SHOWUP-184: the interim no-results screen (27 Oct 2026), the kit's search-empty in normal mode,
+    /// in the Freemium queue and the Premium grid.
+    func testSearchNoResultsEvidence() throws {
+        let dir = try folder("184-no-results")
+        var queue = SearchUiState()
+        queue.loading = false
+        var grid = SearchSamples.gridRest()
+        grid.grid = PremiumList(loading: false)
+        for device in frames {
+            try shoot(SearchProfileView(state: queue, zone: SearchSamples.zone), "queue", on: device, into: dir)
+            try shoot(SearchGridView(state: grid, zone: SearchSamples.zone), "grid", on: device, into: dir)
+        }
+    }
 }

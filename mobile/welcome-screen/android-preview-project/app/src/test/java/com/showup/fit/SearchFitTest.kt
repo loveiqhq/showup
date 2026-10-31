@@ -25,7 +25,12 @@ import com.showup.search.LikeSheet
 import com.showup.search.MEET_LINE_TAG
 import com.showup.search.MEET_COUNT_TAG
 import com.showup.search.SEARCH_ACTION_BAR_TAG
+import com.showup.search.PremiumList
 import com.showup.search.SEARCH_COACH_TAG
+import com.showup.search.SEARCH_EMPTY_CTA_TAG
+import com.showup.search.SEARCH_EMPTY_HEADLINE_TAG
+import com.showup.search.SEARCH_EMPTY_SCROLL_TAG
+import com.showup.search.SearchGridScreen
 import com.showup.search.SEARCH_LIKE_TAG
 import com.showup.search.SEARCH_STACK_TAG
 import com.showup.search.SEARCH_TOP_BAR_TAG
@@ -85,6 +90,44 @@ class SearchFitTest {
         // cut long before it ends.
         java.io.File("build/search-fit-findings.txt").writeText(fresh.joinToString("\n"))
         assertTrue("Search layout problems (${fresh.size}):\n" + fresh.take(60).joinToString("\n") { "  $it" }, fresh.isEmpty())
+    }
+
+    /**
+     * The interim no-results screen (27 Oct 2026), in the queue and the grid: `Widen my search` sits
+     * in normal flow "directly above the tab bar, always visible" -- 22 above it at every size and
+     * type scale; the headline is never under the top bar; and at the default type the content never
+     * scrolls on any phone, the radar giving way first (`EmptyFit`).
+     */
+    @Test
+    fun `no results keeps Widen my search 22 above the TabBar on every phone, in the queue and the grid`() {
+        val failures = mutableListOf<String>()
+        val screens: List<Pair<String, @Composable () -> Unit>> = listOf(
+            "queue" to { render(SearchUiState(loading = false)) },
+            "grid" to {
+                SearchGridScreen(state = GridStates.rest.copy(grid = PremiumList(loading = false)), zone = SearchSamples.ZONE)
+            },
+        )
+        for ((name, screen) in screens) {
+            for (scale in listOf(1f, 1.3f, 2f)) {
+                DEVICES.forEach { d ->
+                    val s = shootGeometry(d.width, d.safeHeight, scale, scrollTag = SEARCH_EMPTY_SCROLL_TAG) { screen() }
+                    val cta = s.tag(SEARCH_EMPTY_CTA_TAG)
+                    val tab = s.tag(TAB_BAR_TAG)
+                    val top = s.tag(SEARCH_TOP_BAR_TAG)
+                    val headline = s.tag(SEARCH_EMPTY_HEADLINE_TAG)
+                    val at = "$name $d @$scale"
+                    if (kotlin.math.abs(tab.top - cta.bottom - 22f) > 1f) failures += "$at  CTA bottom ${cta.bottom} is not 22 above the TabBar's ${tab.top}"
+                    if (cta.top < top.bottom - 0.5f) failures += "$at  the CTA reaches the top bar"
+                    if (cta.bottom > s.frame + 0.5f) failures += "$at  the CTA is off the screen"
+                    if (scale == 1f) {
+                        if (headline.top < top.bottom - 0.5f) failures += "$at  the headline is under the top bar"
+                        if (headline.bottom > cta.top) failures += "$at  the headline runs into the CTA"
+                        if (s.overflow > 0.5f) failures += "$at  the content scrolls ${s.overflow} at the default type"
+                    }
+                }
+            }
+        }
+        assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
 
     @Test
