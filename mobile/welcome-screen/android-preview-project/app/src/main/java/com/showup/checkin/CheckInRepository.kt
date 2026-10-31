@@ -43,6 +43,11 @@ data class CheckInState(
     val lastVibes: Set<String>,
     /** The saved filter settings, or the profile pre-fill for a user with none. */
     val filters: CheckInFilters,
+    /**
+     * The remote flag `filters_dealbreakers` (Check-In 05b), from our own server: whether Filters
+     * shows its two Dealbreaker switches. Off until matching applies the soft range.
+     */
+    val filtersDealbreakers: Boolean = false,
 )
 
 /** One picked hour on the wire: the instant it starts and its tier. */
@@ -85,7 +90,8 @@ interface CheckInStore {
     suspend fun load(): Outcome<CheckInState>
     suspend fun markIntroPassed(): Boolean
     suspend fun saveAnswers(motivation: String?, vibes: Set<String>?): Boolean
-    suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit>
+    /** [withDealbreakers]: the remote flag is on, so the two switches are sent; off, they are left out. */
+    suspend fun saveFilters(filters: CheckInFilters, withDealbreakers: Boolean = false): Outcome<Unit>
     suspend fun commit(request: CommitRequest): CommitResult
 }
 
@@ -108,7 +114,7 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
         ).isSuccessful
     }.getOrDefault(false)
 
-    override suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit> = outcome {
+    override suspend fun saveFilters(filters: CheckInFilters, withDealbreakers: Boolean): Outcome<Unit> = outcome {
         api.checkIn.saveFilterSettings(
             SaveFilterSettingsDto(
                 meetGender = CheckInGender.entries.filter { it.id in filters.genders }
@@ -116,6 +122,9 @@ class CheckInRepository(private val api: ShowUpApi) : CheckInStore {
                 minAge = filters.minAge,
                 maxAge = filters.maxAgeOrNull,
                 distanceKm = filters.distanceKm,
+                // "With the flag off ... the fields are not sent": the server keeps what it has.
+                ageDealbreaker = filters.ageDealbreaker.takeIf { withDealbreakers },
+                distanceDealbreaker = filters.distanceDealbreaker.takeIf { withDealbreakers },
             ),
         ).takeIf { it.isSuccessful }?.let { }
     }
@@ -191,5 +200,8 @@ internal fun CheckInStateDto.toState() = CheckInState(
         minAge = filters.minAge,
         maxAge = filters.maxAge ?: AGE_MAX,
         distanceKm = filters.distanceKm,
+        ageDealbreaker = filters.ageDealbreaker,
+        distanceDealbreaker = filters.distanceDealbreaker,
     ),
+    filtersDealbreakers = filtersDealbreakers,
 )

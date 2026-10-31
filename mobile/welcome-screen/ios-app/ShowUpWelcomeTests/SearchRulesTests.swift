@@ -44,6 +44,15 @@ final class SearchRulesTests: XCTestCase {
                                      defaultGenders: defaults), ["meet_gender", "age_range", "distance_km"])
     }
 
+    func testTrueDealbreakersAreListedBesideTheFilterEachHardens() {
+        let f = CheckInFilters(genders: ["woman"])
+        XCTAssertEqual(filtersActive(f), [])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], ageDealbreaker: true)), ["age_dealbreaker"])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], minAge: 25, distanceKm: 5,
+                                                    ageDealbreaker: true, distanceDealbreaker: true)),
+                       ["age_range", "age_dealbreaker", "distance_km", "distance_dealbreaker"])
+    }
+
     func testGenderDefaultsMatchTheCheckInTableAndTheServersPreFill() {
         XCTAssertEqual(checkinGenderDefault("man", "straight"), ["woman"])
         XCTAssertEqual(checkinGenderDefault("man", "gay"), ["man"])

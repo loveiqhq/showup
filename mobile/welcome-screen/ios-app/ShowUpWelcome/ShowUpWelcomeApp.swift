@@ -1186,6 +1186,10 @@ private struct TutorialFlow: View {
                 onGender: { checkIn.genderTapped($0) },
                 onAge: { checkIn.ageMoved(thumb: $0, value: $1) },
                 onDistance: { checkIn.distanceMoved($0) },
+                // Check-In 05b: the switches show only while the server's flag is on.
+                dealbreakers: checkIn.state.server?.filtersDealbreakers == true,
+                onAgeDealbreaker: { checkIn.ageDealbreakerToggled($0) },
+                onDistanceDealbreaker: { checkIn.distanceDealbreakerToggled($0) },
                 onContinue: { checkIn.filtersContinue { go(to: .checkInUplift) } },
                 onBack: { checkIn.backPressed(.filters) { go(to: .checkInVibe) } },
                 onClose: { closeCheckIn(.filters) })
@@ -1329,6 +1333,10 @@ private struct TutorialFlow: View {
                 onGender: { checkIn.genderTapped($0) },
                 onAge: { checkIn.ageMoved(thumb: $0, value: $1) },
                 onDistance: { checkIn.distanceMoved($0) },
+                // Check-In 05b: the switches show only while the server's flag is on.
+                dealbreakers: checkIn.state.server?.filtersDealbreakers == true,
+                onAgeDealbreaker: { checkIn.ageDealbreakerToggled($0) },
+                onDistanceDealbreaker: { checkIn.distanceDealbreakerToggled($0) },
                 onContinue: {
                     let previousFilters = checkIn.state.server?.filters
                     checkIn.searchFiltersContinue {
@@ -1418,7 +1426,9 @@ private struct TutorialFlow: View {
         devPreview = true
         checkIn = CheckInModel(store: DevCheckInStore(introPassed: target != .checkInIntro,
                                                       active: target == .checkInSearch || target == .searchFilters
-                                                          || target == .likesReceived),
+                                                          || target == .likesReceived,
+                                                      dealbreakers: ProcessInfo.processInfo.arguments
+                                                          .contains("-dev_dealbreakers")),
                                analytics: AppAnalytics.shared)
         let premium = !ProcessInfo.processInfo.arguments.contains("-dev_freemium")
         // `-dev_stage_close sample-leonie` arrives through the launch arguments' defaults domain, as

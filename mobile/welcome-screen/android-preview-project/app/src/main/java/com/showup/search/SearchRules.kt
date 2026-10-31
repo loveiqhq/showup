@@ -148,14 +148,15 @@ fun distanceLine(km: Int, district: String?): String = distanceParts(km, distric
  * ([defaultGenders], from their current profile, 27 Oct 2026) -- the IDs only, never a gender. Left
  * out when that pre-fill is unknown: a guess would count every unread profile as a change.
  *
- * Philipp's answer also lists the dealbreakers "when true": the Age and Distance switches of
- * Check-In 05b (SHOWUP-189), which add them to the filter settings. They join this list with that
- * ticket; until then Filters has no such setting to report.
+ * And the dealbreakers "when true" (Philipp, 27 Oct 2026): Check-In 05b's Age and Distance switches
+ * (SHOWUP-189), each listed when it is on, in §10's order beside the filter it hardens.
  */
 fun filtersActive(filters: CheckInFilters, defaultGenders: Set<String>? = null): List<String> = buildList {
     if (defaultGenders != null && filters.genders != defaultGenders) add("meet_gender")
     if (filters.minAge > AGE_MIN || filters.maxAge < AGE_MAX) add("age_range")
+    if (filters.ageDealbreaker) add("age_dealbreaker")
     if (filters.distanceKm != DISTANCE_DEFAULT) add("distance_km")
+    if (filters.distanceDealbreaker) add("distance_dealbreaker")
 }
 
 /** `{name}, {age}`, or `{name}` when the age is hidden -- never a dangling comma. */

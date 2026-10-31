@@ -476,7 +476,7 @@ class MainActivity : ComponentActivity() {
                 key = "checkin-$account",
                 factory = viewModelFactory {
                     initializer {
-                        val store = devCheckIn?.let { DevCheckInStore(it.latencyMs, it.commit, it.introPassed, active = it.start in DEV_SEARCH_STARTS) }
+                        val store = devCheckIn?.let { DevCheckInStore(it.latencyMs, it.commit, it.introPassed, active = it.start in DEV_SEARCH_STARTS, dealbreakers = it.dealbreakers) }
                             ?: CheckInRepository(api)
                         CheckInViewModel(
                             store,
@@ -2034,6 +2034,10 @@ class MainActivity : ComponentActivity() {
                             onGender = checkIn::genderTapped,
                             onAge = checkIn::ageMoved,
                             onDistance = checkIn::distanceMoved,
+                            // Check-In 05b: the switches show only while the server's flag is on.
+                            dealbreakers = checkInState.server?.filtersDealbreakers == true,
+                            onAgeDealbreaker = checkIn::ageDealbreakerToggled,
+                            onDistanceDealbreaker = checkIn::distanceDealbreakerToggled,
                             onContinue = { checkIn.filtersContinue { goTo(FlowScreen.CheckInUplift) } },
                             onBack = { checkIn.backPressed(CheckInStep.Filters) { goTo(FlowScreen.CheckInVibe) } },
                             onClose = { closeCheckIn(CheckInStep.Filters) },
@@ -2235,6 +2239,10 @@ class MainActivity : ComponentActivity() {
                             onGender = checkIn::genderTapped,
                             onAge = checkIn::ageMoved,
                             onDistance = checkIn::distanceMoved,
+                            // Check-In 05b: the switches show only while the server's flag is on.
+                            dealbreakers = checkInState.server?.filtersDealbreakers == true,
+                            onAgeDealbreaker = checkIn::ageDealbreakerToggled,
+                            onDistanceDealbreaker = checkIn::distanceDealbreakerToggled,
                             onContinue = {
                                 val previousFilters = checkIn.state.value.server?.filters
                                 checkIn.searchFiltersContinue {

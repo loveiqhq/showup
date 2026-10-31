@@ -444,6 +444,26 @@ class EvidenceScreenshots {
         shoot("TIGHT", "gate-D-ask", fontScale = 2f, devices = tight, content = gate(LocationState.Ask, fromLikes = true))
     }
 
+    /**
+     * Check-In 05b, Filters v2 (SHOWUP-189): A both switches off, B two genders with age a
+     * dealbreaker, C both on -- the remote flag on, at the ticket's three frames, 375 x 667 first --
+     * and A with the flag off at 390 x 844, Check-In 05's layout plus the gender change.
+     */
+    @Test
+    fun `filters v2, A to C with the flag on and A with it off`() {
+        val a = com.showup.checkin.CheckInFilters(setOf("woman"))
+        val b = com.showup.checkin.CheckInFilters(setOf("woman", "non_binary"), 28, 35, ageDealbreaker = true)
+        val c = com.showup.checkin.CheckInFilters(
+            setOf("woman", "man", "non_binary"), 25, 40, 15, ageDealbreaker = true, distanceDealbreaker = true,
+        )
+        shoot("189", "A-both-off") { com.showup.checkin.CheckInFiltersScreen(a, dealbreakers = true) }
+        shoot("189", "B-two-genders-age-strict") { com.showup.checkin.CheckInFiltersScreen(b, dealbreakers = true) }
+        shoot("189", "C-both-strict") { com.showup.checkin.CheckInFiltersScreen(c, dealbreakers = true) }
+        shoot("189", "A-flag-off", devices = DEVICES.filter { it.width == 390 && it.inAcceptanceCriteria }) {
+            com.showup.checkin.CheckInFiltersScreen(a)
+        }
+    }
+
     @Test
     fun `the tight states, at the narrowest phone and the largest system font`() {
         val tight = listOf(DEVICES.first { it.width == 320 })

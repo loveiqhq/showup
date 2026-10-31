@@ -309,6 +309,10 @@
             ],
             "description": "The filter settings the Filters step opens with: the saved ones, or -- for a user with none yet -- the first-Check-In pre-fill from the profile (story 05), any age, 10 km."
           },
+          "filtersDealbreakers": {
+            "description": "The remote flag `filters_dealbreakers` (Check-In 05b): whether the Filters step shows its two Dealbreaker switches. Off until matching applies the soft range (Matching 01) -- without it the off line (\"People just outside may appear\") would be untrue. Off: the switches are not drawn and their fields are not sent.",
+            "type": "boolean"
+          },
           "filtersSaved": {
             "description": "Whether `filters` are saved settings rather than the profile pre-fill.",
             "type": "boolean"
@@ -352,7 +356,8 @@
           "lastMotivation",
           "lastVibes",
           "filters",
-          "filtersSaved"
+          "filtersSaved",
+          "filtersDealbreakers"
         ],
         "type": "object"
       },
@@ -746,6 +751,14 @@
       },
       "FilterSettingsDto": {
         "properties": {
+          "ageDealbreaker": {
+            "description": "Registry §10 age_dealbreaker (Check-In 05b): true, nobody outside the age range is ever shown; false, the range is a preference people just outside may appear past. Default false.",
+            "type": "boolean"
+          },
+          "distanceDealbreaker": {
+            "description": "Registry §10 distance_dealbreaker (Check-In 05b): as ageDealbreaker, for the distance. Default false.",
+            "type": "boolean"
+          },
           "distanceKm": {
             "maximum": 50,
             "minimum": 1,
@@ -777,7 +790,9 @@
           "meetGender",
           "minAge",
           "maxAge",
-          "distanceKm"
+          "distanceKm",
+          "ageDealbreaker",
+          "distanceDealbreaker"
         ],
         "type": "object"
       },
@@ -1905,6 +1920,14 @@
       },
       "SaveFilterSettingsDto": {
         "properties": {
+          "ageDealbreaker": {
+            "description": "Registry §10 age_dealbreaker (Check-In 05b). Left out -- as the apps do while `filters_dealbreakers` is off -- it keeps its stored value (false for everyone until then).",
+            "type": "boolean"
+          },
+          "distanceDealbreaker": {
+            "description": "Registry §10 distance_dealbreaker (Check-In 05b). Left out, it keeps its stored value.",
+            "type": "boolean"
+          },
           "distanceKm": {
             "maximum": 50,
             "minimum": 1,

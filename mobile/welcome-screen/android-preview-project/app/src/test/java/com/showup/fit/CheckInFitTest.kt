@@ -125,6 +125,10 @@ class CheckInFitTest {
             "A" to { CheckInFiltersScreen(CheckInFilters(setOf("woman"))) },
             "B" to { CheckInFiltersScreen(CheckInFilters(emptySet()), toast = CheckInCopy.FILTERS_TOAST) },
             "C" to { CheckInFiltersScreen(narrowed) },
+            // Check-In 05b (SHOWUP-189) with the remote flag on: the sheet's A, B and C.
+            "05b A" to { CheckInFiltersScreen(CheckInFilters(setOf("woman")), dealbreakers = true) },
+            "05b B" to { CheckInFiltersScreen(filters05bB, dealbreakers = true) },
+            "05b C" to { CheckInFiltersScreen(filters05bC, dealbreakers = true) },
         ),
         "uplift" to listOf(
             "A" to { CheckInUpliftScreen(text = "") },
@@ -236,6 +240,42 @@ class CheckInFitTest {
         println("DIAG filters: @375 overflow ${se.overflow}, distance row visible before scrolling: $distanceVisible · @390 ${-mid} spare")
         assertTrue("filters must fit at 390: $mid", mid <= 0.5f)
         assertTrue("filters must fit at 430: $max", max <= 0.5f)
+    }
+
+    /** 05b's B and C as the sheet draws them. */
+    private val filters05bB = CheckInFilters(setOf("woman", "non_binary"), 28, 35, ageDealbreaker = true)
+    private val filters05bC =
+        CheckInFilters(setOf("woman", "man", "non_binary"), 25, 40, 15, ageDealbreaker = true, distanceDealbreaker = true)
+
+    @Test
+    fun `05b -- with both switches, filters fit at 390 and 430 and scroll inside themselves at 375`() {
+        val mid = overflow(MID) { CheckInFiltersScreen(filters05bC, dealbreakers = true) }
+        val max = overflow(MAX) { CheckInFiltersScreen(filters05bC, dealbreakers = true) }
+        val se = overflow(SE) { CheckInFiltersScreen(filters05bC, dealbreakers = true) }
+        println("DIAG filters 05b: @375 the list scrolls $se · @390 ${-mid} spare · @430 ${-max} spare")
+        assertTrue("05b must fit at 390 with both switches: $mid", mid <= 0.5f)
+        assertTrue("05b must fit at 430: $max", max <= 0.5f)
+        assertTrue("05b scrolls inside itself at 375: $se", se > 0f)
+    }
+
+    @Test
+    fun `05b -- the switches sit 12 under their sliders and never shrink, on every phone and type size`() {
+        val failures = mutableListOf<String>()
+        for (d in DEVICES) for (scale in SCALES) {
+            val s = shoot(d.width, d.safeHeight, scale) { CheckInFiltersScreen(filters05bB, dealbreakers = true) }
+            val age = s.tags[com.showup.checkin.AGE_DEALBREAKER_TAG]
+            if (age == null) {
+                failures += "$d @$scale  no age row"
+                continue
+            }
+            val ageSlider = s.tag(com.showup.checkin.AGE_SLIDER_BOX_TAG)
+            if (abs(age.top - ageSlider.bottom - 12f) > 0.6f) failures += "$d @$scale  age row ${age.top - ageSlider.bottom} under its slider"
+            if (age.right > s.width + 0.5f || age.left < -0.5f) failures += "$d @$scale  age row off the screen sideways"
+        }
+        // With the flag off the layout is Check-In 05's: no Dealbreaker row at all.
+        val off = shoot(MID.first, MID.second) { CheckInFiltersScreen(filters05bB) }
+        if (com.showup.checkin.AGE_DEALBREAKER_TAG in off.tags) failures += "a Dealbreaker row with the flag off"
+        assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
 
     @Test

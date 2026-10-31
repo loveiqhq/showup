@@ -932,6 +932,21 @@ class ScreenFitTest {
                 CheckInFiltersScreen(CheckInFilters(emptySet()), toast = CheckInCopy.FILTERS_TOAST)
             }
             sweep("CheckIn/filters C @$scale", fontScale = scale) { CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"), 25, 35, 15)) }
+            // Check-In 05b (SHOWUP-189), the switches shown: the sheet's three frames.
+            sweep("CheckIn/filters 05b A @$scale", fontScale = scale) {
+                CheckInFiltersScreen(CheckInFilters(setOf("woman")), dealbreakers = true)
+            }
+            sweep("CheckIn/filters 05b B @$scale", fontScale = scale) {
+                CheckInFiltersScreen(
+                    CheckInFilters(setOf("woman", "non_binary"), 28, 35, ageDealbreaker = true), dealbreakers = true,
+                )
+            }
+            sweep("CheckIn/filters 05b C @$scale", fontScale = scale) {
+                CheckInFiltersScreen(
+                    CheckInFilters(setOf("woman", "man", "non_binary"), 25, 40, 15, ageDealbreaker = true, distanceDealbreaker = true),
+                    dealbreakers = true,
+                )
+            }
             sweep("CheckIn/uplift A @$scale", fontScale = scale) { CheckInUpliftScreen("") }
             sweep("CheckIn/uplift C @$scale", fontScale = scale) {
                 CheckInUpliftScreen("Text me on 0176 2345 6789 and we'll grab a drink tonight", blocked = true, toast = CheckInCopy.CONTACT_ERROR)

@@ -5,6 +5,7 @@ import {
   ArrayMinSize,
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -71,6 +72,20 @@ export class FilterSettingsDto {
     maximum: FILTER_DISTANCE_MAX,
   })
   distanceKm: number;
+
+  @ApiProperty({
+    description:
+      'Registry §10 age_dealbreaker (Check-In 05b): true, nobody outside the age range is ever ' +
+      'shown; false, the range is a preference people just outside may appear past. Default false.',
+  })
+  ageDealbreaker: boolean;
+
+  @ApiProperty({
+    description:
+      'Registry §10 distance_dealbreaker (Check-In 05b): as ageDealbreaker, for the distance. ' +
+      'Default false.',
+  })
+  distanceDealbreaker: boolean;
 }
 
 /**
@@ -139,6 +154,15 @@ export class CheckInStateDto {
       'Whether `filters` are saved settings rather than the profile pre-fill.',
   })
   filtersSaved: boolean;
+
+  @ApiProperty({
+    description:
+      'The remote flag `filters_dealbreakers` (Check-In 05b): whether the Filters step shows its two ' +
+      'Dealbreaker switches. Off until matching applies the soft range (Matching 01) -- without it the ' +
+      'off line ("People just outside may appear") would be untrue. Off: the switches are not drawn ' +
+      'and their fields are not sent.',
+  })
+  filtersDealbreakers: boolean;
 }
 
 /** The last accepted answer of a step, saved on its Continue (stories 03 and 04). */
@@ -217,6 +241,23 @@ export class SaveFilterSettingsDto {
   @Min(FILTER_DISTANCE_MIN)
   @Max(FILTER_DISTANCE_MAX)
   distanceKm: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Registry §10 age_dealbreaker (Check-In 05b). Left out -- as the apps do while ' +
+      '`filters_dealbreakers` is off -- it keeps its stored value (false for everyone until then).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  ageDealbreaker?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Registry §10 distance_dealbreaker (Check-In 05b). Left out, it keeps its stored value.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  distanceDealbreaker?: boolean;
 }
 
 /** One picked hour of the availability grid (story 02). */

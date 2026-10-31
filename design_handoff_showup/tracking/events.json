@@ -2992,7 +2992,7 @@
             },
             {
               "name": "filters_changed",
-              "type": "str — the enums §10 filter_ids whose value differs from what the step showed on entry, in the order meet_gender,age_range,distance_km, comma-joined, no spaces; \"none\" when nothing changed"
+              "type": "str — the enums §10 filter_ids whose value differs from what the step showed on entry, in the order meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker, comma-joined, no spaces; \"none\" when nothing changed. Order extended 1.4.23"
             },
             {
               "name": "min_age",
@@ -3007,13 +3007,21 @@
               "type": "int — 1–50"
             },
             {
+              "name": "age_dealbreaker",
+              "type": "bool — enums §10. NEW 1.4.23"
+            },
+            {
+              "name": "distance_dealbreaker",
+              "type": "bool — enums §10. NEW 1.4.23"
+            },
+            {
               "name": "window_id",
               "type": "str"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. From Search, includes opened_from: search, with no check_in_step_answered or check_in_closed. Never per chip tap or slider drag, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24).",
+          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. From Search, includes opened_from: search, with no check_in_step_answered or check_in_closed. age_dealbreaker and distance_dealbreaker go on every accepted Continue, changed or not -- false for both while the filters_dealbreakers flag is off. Never per chip tap, slider drag or switch tap, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24); dealbreakers 26 Oct 2026 (Check-In 05b, taxonomy 1.4.23).",
           "implemented": true
         },
         {

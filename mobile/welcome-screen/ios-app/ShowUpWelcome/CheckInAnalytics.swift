@@ -111,8 +111,10 @@ enum CheckInAnalytics {
 
     /// Once per accepted Continue, even when nothing changed. Never the genders (Class 2) -- only
     /// WHETHER they changed, in `filters_changed`. `max_age` is JSON null for 65+, never 65.
+    /// - Parameter dealbreakers: the remote flag `filters_dealbreakers`; off, both booleans go as false.
     static func filtersChanged(entry: CheckInFilters, now: CheckInFilters,
-                               windowId: String, openedFrom: String? = nil) -> (String, [String: any Sendable]) {
+                               windowId: String, openedFrom: String? = nil,
+                               dealbreakers: Bool = false) -> (String, [String: any Sendable]) {
         let maxAge: any Sendable
         if let cap = now.maxAgeOrNil { maxAge = cap } else { maxAge = JSONNull() }
         var properties: [String: any Sendable] = [
@@ -120,6 +122,9 @@ enum CheckInAnalytics {
             "min_age": now.minAge,
             "max_age": maxAge,
             "distance_km": now.distanceKm,
+            // Both on every accepted Continue, changed or not (taxonomy 1.4.23); a tap sends nothing.
+            "age_dealbreaker": dealbreakers && now.ageDealbreaker,
+            "distance_dealbreaker": dealbreakers && now.distanceDealbreaker,
             "window_id": windowId,
         ].merging(Stamp.of(0)) { a, _ in a }
         if let openedFrom { properties["opened_from"] = openedFrom }
