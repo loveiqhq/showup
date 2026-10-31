@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { graphemeLength } from '../check-ins/util/check-in-flow';
 import { PROMPT_MAX_CHARS, PROMPTS_MAX } from './dto/prompt.dto';
 import { ProfilePrompt } from './entities/profile-prompt.entity';
 
@@ -50,9 +51,11 @@ export class PromptsService {
       // 2c says. `MinLength(1)` on the DTO cannot see this: " " has length 1.
       throw new BadRequestException('An answer cannot be blank.');
     }
-    if (answer.length > PROMPT_MAX_CHARS) {
-      // Unreachable through the DTO, and kept because this method is also the one a future import
-      // or admin tool would call.
+    if (graphemeLength(answer) > PROMPT_MAX_CHARS) {
+      // GRAPHEMES, what a person sees, so an emoji or a flag is one -- as iOS, Android and the
+      // Check-in uplift count. A JS length counts UTF-16 units, and refused a full answer of emoji
+      // that the iPhone counter had accepted (SHOWUP-191 item 6). The DTO only walls off an absurd
+      // body, so this is where the cap is enforced.
       throw new BadRequestException(
         `An answer is at most ${PROMPT_MAX_CHARS} characters.`,
       );

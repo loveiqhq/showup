@@ -676,7 +676,7 @@ private fun WritePromptSheet(
     onSave: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val length = draft.length
+    val length = answerLength(draft)
     val atCap = length >= PROMPT_MAX_CHARS
     val isEmpty = promptAnswerIsEmpty(draft)
     val showCounter = length >= PROMPT_COUNTER_FROM

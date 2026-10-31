@@ -33,6 +33,9 @@
  */
 package com.showup.profile
 
+import com.showup.checkin.graphemeCount
+import com.showup.checkin.takeGraphemes
+
 /** One topic: a stable id and the question the user sees. */
 data class PromptTopic(val id: String, val text: String)
 
@@ -47,6 +50,13 @@ data class TopicGroup(val id: String, val label: String, val topics: List<Prompt
 
 /** How long an answer may be. A hard cap, and a quiet one — reaching it is not a failure. */
 const val PROMPT_MAX_CHARS = 160
+
+/**
+ * How long an answer is, as the cap, the counter and the tracking count it: graphemes, so an emoji
+ * or a flag is one -- as iOS (`String.count`) and the server count it (SHOWUP-191 item 6). A
+ * `String.length` counts UTF-16 units, so 80 emoji read 160/160 here and 80/160 on an iPhone.
+ */
+fun answerLength(answer: String): Int = graphemeCount(answer)
 
 /**
  * Where the character counter starts existing.
@@ -230,5 +240,7 @@ fun promptAnswerIsEmpty(answer: String): Boolean = answer.isBlank()
  * paste over the limit is truncated silently." Silently is the operative word — a paste that
  * lands at 400 characters is a user who wrote something elsewhere, and an alert at that moment
  * tells them off for it.
+ *
+ * Cut on a grapheme boundary, never `take(160)`, which could split an emoji and store half of it.
  */
-fun cappedAnswer(answer: String): String = answer.take(PROMPT_MAX_CHARS)
+fun cappedAnswer(answer: String): String = takeGraphemes(answer, PROMPT_MAX_CHARS)

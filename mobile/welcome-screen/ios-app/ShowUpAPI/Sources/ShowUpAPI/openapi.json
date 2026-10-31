@@ -2803,8 +2803,9 @@
       "UpsertPromptDto": {
         "properties": {
           "answer": {
+            "description": "At most 160 characters (graphemes, so an emoji is one), after trimming.",
             "example": "Talk about anything real.",
-            "maxLength": 160,
+            "maxLength": 1000,
             "type": "string"
           }
         },

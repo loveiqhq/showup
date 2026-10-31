@@ -365,13 +365,16 @@ fun graphemeCount(text: String): Int {
     return count
 }
 
-/** [text] cut at [UPLIFT_MAX] graphemes -- "input past 100 is not accepted, and a paste is cut at 100". */
-fun clampUplift(text: String): String {
+/**
+ * The first [max] graphemes of [text], cut on a boundary so a flag or a family is never split.
+ * Shared with the prompt answer's cap (SHOWUP-191 item 6), which counts the same way.
+ */
+fun takeGraphemes(text: String, max: Int): String {
     val it = BreakIterator.getCharacterInstance()
     it.setText(text)
     var end = 0
     var count = 0
-    while (count < UPLIFT_MAX) {
+    while (count < max) {
         val next = it.next()
         if (next == BreakIterator.DONE) return text
         end = next
@@ -379,6 +382,9 @@ fun clampUplift(text: String): String {
     }
     return text.substring(0, end)
 }
+
+/** [text] cut at [UPLIFT_MAX] graphemes -- "input past 100 is not accepted, and a paste is cut at 100". */
+fun clampUplift(text: String): String = takeGraphemes(text, UPLIFT_MAX)
 
 /** `{n} characters left` -- `1 character left` at one. */
 fun upliftCounterLabel(text: String): String {
