@@ -52,13 +52,14 @@ export class ProfilePrompt {
   topicId: string;
 
   /**
-   * 160 is the product cap and 200 is the column.
+   * 160 graphemes is the product cap and 1,000 is the column.
    *
-   * The extra 40 is deliberate: a `varchar(160)` would make a request one character over the limit
-   * a database error rather than a validation error, and the two produce very different responses.
-   * The DTO rejects at 160 long before this is reached.
+   * The column matches the DTO's wall (`PROMPT_MAX_UNITS`), not the cap: varchar counts code
+   * points, and 160 graphemes can be many more of those -- a flag is two. Sized to the wall, a
+   * request that passes validation can never become a database error instead
+   * (`1717000031000-PromptAnswerGraphemes`).
    */
-  @Column({ type: 'varchar', length: 200 })
+  @Column({ type: 'varchar', length: 1000 })
   answer: string;
 
   /**

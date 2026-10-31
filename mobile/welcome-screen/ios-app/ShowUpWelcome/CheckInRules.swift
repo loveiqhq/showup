@@ -667,8 +667,8 @@ enum CheckInCopy {
     ]
     static let findMyDate = "Find my date"
     static let contactError = "No emails, phone numbers or links allowed."
-    /// PROPOSED -- no ticket has copy for it. Filters opened from Search could not save: the screen
-    /// stays, with this toast, in the shape of `saveError`.
-    static let filtersSaveErrorProposed = "Couldn't save your filters. Check your connection and try again."
+    /// Filters opened from Search could not save: the screen stays, changes kept, with this toast in
+    /// the shape of `saveError`. Approved by Philipp 27 Oct 2026; SHOWUP-184 Copy -> States.
+    static let filtersSaveError = "Couldn't save your filters. Check your connection and try again."
     static let saveError = "Couldn't save your Check-in. Check your connection and try again."
 }

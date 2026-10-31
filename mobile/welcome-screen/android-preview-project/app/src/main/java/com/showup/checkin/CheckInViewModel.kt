@@ -740,7 +740,7 @@ open class CheckInViewModel(
             }
             _state.update { it.copy(saving = false) }
             if (saved !is Outcome.Ok || filters == null) {
-                showToast(CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED)
+                showToast(CheckInCopy.FILTERS_SAVE_ERROR)
                 return@launch
             }
             filtersLanded(filters)

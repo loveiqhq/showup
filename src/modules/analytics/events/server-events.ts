@@ -15,17 +15,85 @@ export interface AnalyticsEventSpec {
 export const LIKE_SENT = 'like_sent';
 export const MATCH_CREATED = 'match_created';
 export const LIKE_WITHDRAWN = 'like_withdrawn';
+export const LIKE_EXPIRED = 'like_expired';
+export const SEARCH_FEED_RANKED = 'search_feed_ranked';
+
+/** One ranked profile in `search_feed_ranked.items`: ids and 0-1 numbers, never a motivation or vibe. */
+export interface SearchFeedItem {
+  profile_id: string;
+  position: number;
+  /** The BASE score, before multipliers. The final one is reproducible from this, `boosts`,
+   * `soft_match` and the config of `ranker_version`; there is deliberately no second score field. */
+  score: number;
+  fit: number;
+  motivation_fit: number;
+  vibe_fit: number;
+  profile_fit: number;
+  time: number;
+  reliability: number;
+  distance: number;
+  boosts: Array<'liked_you' | 'new_user' | 'not_now'>;
+  is_explore: boolean;
+  soft_match: boolean;
+}
+
+/**
+ * `search_feed_ranked` (Matching 01, family I): once per feed load and re-rank, for the viewer. The
+ * training record for the later matching phases. `eligible_count` is after the filters and before the
+ * gate, so held-back profiles count. Server-side only; the client never computes or logs a score.
+ */
+export function searchFeedRankedEvent(opts: {
+  feedRequestId: string;
+  rankerVersion: string;
+  layout: 'one_up' | 'grid';
+  isPremium: boolean;
+  eligibleCount: number;
+  items: SearchFeedItem[];
+}): AnalyticsEventSpec {
+  return {
+    eventName: SEARCH_FEED_RANKED,
+    properties: {
+      feed_request_id: opts.feedRequestId,
+      ranker_version: opts.rankerVersion,
+      layout: opts.layout,
+      is_premium: opts.isPremium,
+      eligible_count: opts.eligibleCount,
+      items: opts.items,
+    },
+  };
+}
+
+/**
+ * `like_expired` (family I, T2): a sent like closed without an answer -- the negative label for the
+ * like-back estimate. For the sender. Not fired for a declined like (`pass_sent` covers that), nor when
+ * the SENDER's own match closed it: that is their withdrawal, not the target leaving it unanswered.
+ */
+export function likeExpiredEvent(opts: {
+  hoursOpen: number;
+  reason: 'check_in_ended' | 'target_matched' | 'out_of_time';
+}): AnalyticsEventSpec {
+  return {
+    eventName: LIKE_EXPIRED,
+    properties: {
+      hours_open: Math.round(opts.hoursOpen * 100) / 100,
+      reason: opts.reason,
+    },
+  };
+}
 
 /**
  * `like_sent` (registry 1.4.29): once per like saved -- never again for a retry of the same one.
  * `surface` is always `profile`: every like is made on the full profile (§35; `grid_card` retired,
  * `likes_received` is pass-only). `position` is the app's, 1-based in this Search visit, and absent
  * when an older app did not send it. Show-up rides as `target_attended_count`, never a band.
+ * `feed_request_id` (1.4.22) joins the like to the `search_feed_ranked` that placed the profile;
+ * absent, like `position`, until the app sends it.
  */
 export function likeSentEvent(opts: {
   hasMessage: boolean;
   targetAttendedCount: number;
   position?: number | null;
+  feedRequestId?: string | null;
 }): AnalyticsEventSpec {
   return {
     eventName: LIKE_SENT,
@@ -34,6 +102,7 @@ export function likeSentEvent(opts: {
       target_attended_count: opts.targetAttendedCount,
       has_message: opts.hasMessage,
       surface: 'profile',
+      ...(opts.feedRequestId ? { feed_request_id: opts.feedRequestId } : {}),
     },
   };
 }

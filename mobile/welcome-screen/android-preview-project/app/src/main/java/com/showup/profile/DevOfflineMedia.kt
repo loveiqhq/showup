@@ -14,12 +14,9 @@
  *   3. IT SAYS SO -- an offline recording carries an `offline-` id, so nothing downstream can
  *      mistake it for something that is stored.
  *
- * WHY THIS ONE ALSO FAILS, like the photo stand-in
- *
- * The card's failed state cannot be reached by doing anything wrong -- it needs an upload to fail
- * -- so a stand-in that always succeeded would leave it unwalkable without unplugging a router at
- * exactly the right moment. Every third upload fails, deterministically: a state you cannot
- * reproduce on demand is not one you can demonstrate, and a flaky stand-in is worse than none.
+ * IT NEVER FAILS ON ITS OWN, like the photo stand-in -- see `DevOfflinePhotos.kt` for why it
+ * used to fail every third upload and why that was taken out (SHOWUP-156, 31 Oct 2026). The
+ * card's failed state is covered by the unit tests and previews, which render it directly.
  *
  * THE PREVIEW ALWAYS READS `fallback` HERE, and that is honest rather than lazy: there is no
  * ranking job in this process, so there is nothing that could have ranked. Serving `ranked` would
@@ -43,9 +40,6 @@ object DevOfflineMedia {
     /** How many steps the progress takes. The real one reports per 16 KiB chunk. */
     private const val STEPS = 20
 
-    /** Every third upload fails, so the failed card is reachable. See the header. */
-    private const val FAIL_EVERY = 3
-
     fun load(): MediaSnapshot = MediaSnapshot(
         items = stored.values.toList(),
         // Nothing published, because nothing here could have published it.
@@ -65,7 +59,6 @@ object DevOfflineMedia {
             delay(UPLOAD_MILLIS / STEPS)
             onProgress((step + 1).toFloat() / STEPS)
         }
-        if (n % FAIL_EVERY == 0) return UploadMediaResult.Failed(null)
         val media = StoredMedia(
             id = "offline-$n",
             kind = kind,

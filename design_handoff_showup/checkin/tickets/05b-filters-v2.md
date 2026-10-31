@@ -131,4 +131,4 @@ The matching logic behind the switches (soft range, ranking). Dealbreakers on an
 
 ## Open (not blocking this build)
 
-- **Soft-range values** — how far outside the age range and the distance a profile may be when the switch is off. Decided in the matching ticket; blocks only turning the flag on.
+- **Soft-range values** — how far outside the age range and the distance a profile may be when the switch is off. ✅ Set in **Matching 01** (`matching-01-ranking-ticket.md`, 27 Oct 2026): ±3 years / +25% of the radius, confirmed 27 Oct 2026. Blocks only turning the flag on.

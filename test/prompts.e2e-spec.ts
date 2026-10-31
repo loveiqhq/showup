@@ -199,6 +199,23 @@ describe('Prompts (e2e)', () => {
     expect(res.body.answer).toHaveLength(160);
   });
 
+  it('counts 160 in graphemes, so 160 flags save (SHOWUP-191 item 6)', async () => {
+    // Each flag is one character, two code points and four UTF-16 units: past the old DTO cap and
+    // the old varchar(200) column both, and exactly what an iPhone counter shows as 160.
+    const flags = '\u{1F1E9}\u{1F1EA}'.repeat(160);
+    const res = await request(server)
+      .put(`/me/prompts/${TOPIC_A}`)
+      .set('Authorization', bearer())
+      .send({ answer: flags })
+      .expect(200);
+    expect(res.body.answer).toBe(flags);
+    await request(server)
+      .put(`/me/prompts/${TOPIC_A}`)
+      .set('Authorization', bearer())
+      .send({ answer: flags + '\u{1F600}' })
+      .expect(400);
+  });
+
   it('refuses a whitespace-only answer', async () => {
     // `MinLength(1)` cannot see this — " " has length 1. Whitespace-only counts as empty on both
     // clients and it has to mean the same thing here.

@@ -3175,9 +3175,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
+          "backend_status": "Built (SHOWUP-190)",
           "trigger": "Server returns a ranked feed — every load and every re-rank (the feed is re-ranked on each load). The training record for matching phases 1–2; without it no later phase can learn.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "profile_card_viewed",
@@ -3424,9 +3424,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
+          "backend_status": "Built (SHOWUP-190)",
           "trigger": "A sent like closes without an answer. Negative label for the like-back estimate (matching phase 1+). Not fired for like_withdrawn or a declined like (pass_sent covers that).",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "like_message_attached",

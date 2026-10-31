@@ -883,7 +883,7 @@ final class CheckInModelTests: XCTestCase {
         model.searchFiltersContinue { back = true }
         await settle(0.05)
         XCTAssertFalse(back)
-        XCTAssertEqual(state.toast, CheckInCopy.filtersSaveErrorProposed)
+        XCTAssertEqual(state.toast, CheckInCopy.filtersSaveError)
         XCTAssertFalse(state.saving)
         await store.setFilterSaves(true)
         model.searchFiltersContinue { back = true }
@@ -931,7 +931,7 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertFalse(back)
         var bodies = await store.filterBodies
         XCTAssertTrue(bodies.isEmpty)
-        XCTAssertEqual(state.toast, CheckInCopy.filtersSaveErrorProposed)
+        XCTAssertEqual(state.toast, CheckInCopy.filtersSaveError)
         // Back online: the read resolves the stand-in -- the edit over the server's -- then it saves.
         await store.setReads(true)
         model.searchFiltersContinue { back = true }

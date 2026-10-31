@@ -7,6 +7,7 @@ import { ProfilesModule } from '../profiles/profiles.module';
 import { SafetyModule } from '../safety/safety.module';
 import { SearchPass } from './entities/search-pass.entity';
 import { SearchController, SearchDevController } from './search.controller';
+import { RankerConfigService } from './ranker/ranker-config.service';
 import { SearchService } from './search.service';
 
 /**
@@ -22,7 +23,7 @@ import { SearchService } from './search.service';
     AnalyticsModule,
   ],
   controllers: [SearchController, SearchDevController],
-  providers: [SearchService],
+  providers: [SearchService, RankerConfigService],
   exports: [SearchService],
 })
 export class SearchModule {}

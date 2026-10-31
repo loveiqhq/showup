@@ -515,6 +515,11 @@
       },
       "CreateLikeDto": {
         "properties": {
+          "feedRequestId": {
+            "description": "The feedRequestId of the Search load the profile was liked from, for like_sent (Matching 01)",
+            "format": "uuid",
+            "type": "string"
+          },
           "message": {
             "description": "The optional message, at most 100 characters. Trimmed; empty or whitespace only is no message. Any sender may write one; only a Premium recipient can read it.",
             "type": "string"
@@ -2095,11 +2100,16 @@
       "SearchGridDto": {
         "properties": {
           "cards": {
-            "description": "In queue order, at most 100: the availability re-check bound",
+            "description": "In ranked order, at most 100: the availability re-check bound",
             "items": {
               "$ref": "#/components/schemas/SearchGridCardDto"
             },
             "type": "array"
+          },
+          "feedRequestId": {
+            "description": "This load of the feed (search_feed_ranked feed_request_id). The app sends it back on profile_card_viewed, like_sent and pass_sent, so each joins to the ranking that placed it",
+            "format": "uuid",
+            "type": "string"
           },
           "resultsCount": {
             "description": "Every profile in the queue right now (search_viewed results_count)",
@@ -2112,7 +2122,8 @@
         "required": [
           "resultsCount",
           "cards",
-          "viewer"
+          "viewer",
+          "feedRequestId"
         ],
         "type": "object"
       },
@@ -2301,8 +2312,13 @@
       },
       "SearchQueueDto": {
         "properties": {
+          "feedRequestId": {
+            "description": "This load of the feed (search_feed_ranked feed_request_id). The app sends it back on profile_card_viewed, like_sent and pass_sent, so each joins to the ranking that placed it",
+            "format": "uuid",
+            "type": "string"
+          },
           "profiles": {
-            "description": "The first profiles of the queue, next one first",
+            "description": "The first profiles of the feed, in its ranked order",
             "items": {
               "$ref": "#/components/schemas/SearchProfileDto"
             },
@@ -2324,7 +2340,8 @@
         "required": [
           "resultsCount",
           "profiles",
-          "viewer"
+          "viewer",
+          "feedRequestId"
         ],
         "type": "object"
       },
@@ -2786,8 +2803,9 @@
       "UpsertPromptDto": {
         "properties": {
           "answer": {
+            "description": "At most 160 characters (graphemes, so an emoji is one), after trimming.",
             "example": "Talk about anything real.",
-            "maxLength": 160,
+            "maxLength": 1000,
             "type": "string"
           }
         },

@@ -91,6 +91,21 @@ describe('PromptsService', () => {
     expect(saved.answer).toHaveLength(PROMPT_MAX_CHARS);
   });
 
+  it('counts the cap in graphemes, so an emoji or a flag is one character', async () => {
+    // SHOWUP-191 item 6: iOS counts what a person sees, and a JS length counts UTF-16 units, so a
+    // full answer of emoji passed the iPhone counter and was refused here as 320 "characters".
+    const smile = '\u{1F600}'; // two UTF-16 units
+    const flag = '\u{1F1E9}\u{1F1EA}'; // four UTF-16 units, one character
+    const saved = await write(
+      'first_date',
+      smile.repeat(PROMPT_MAX_CHARS - 1) + flag,
+    );
+    expect(saved.answer).toHaveLength(PROMPT_MAX_CHARS * 2 + 2);
+    await expect(
+      write('first_date', smile.repeat(PROMPT_MAX_CHARS + 1)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('is idempotent on the topic: a second save overwrites rather than adding', async () => {
     // What "Save overwrites" means on the write sheet, and what stops a double-tap writing two
     // rows for one question.

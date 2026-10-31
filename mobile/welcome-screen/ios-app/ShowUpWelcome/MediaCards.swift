@@ -535,8 +535,13 @@ private struct RecordedControls: View {
         // A WRAPPING layout, so the controls drop to a second line on a narrow screen rather than
         // the label losing its end. The Android fit harness caught the truncation at 320 wide and
         // rejects ellipsised copy, which is right: the LAYOUT yields, not the words.
+        //
+        // ZERO stack spacing, so the Spacer's minimum is the WHOLE gap. HStack spacing also applies
+        // either side of a Spacer, so `spacing: Spacing.md` made the one-line form need 24 between
+        // the label and the pills, where Android's row and the reference need 8 -- and iOS wrapped
+        // the pills onto a second line on phones that had room for one.
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: Spacing.md) {
+            HStack(spacing: 0) {
                 statusGroup
                 Spacer(minLength: Spacing.md)
                 pips
@@ -546,6 +551,7 @@ private struct RecordedControls: View {
                 HStack { pips; Spacer() }
             }
         }
+        .fitAnchor(FitAnchorID.mediaRecordedRow)
         .padding(.leading, Spacing.md)
         .padding(.trailing, Spacing.sm)
         .padding(.vertical, 2)
@@ -563,6 +569,7 @@ private struct RecordedControls: View {
             case .confirmed:
                 CheckDot(diameter: 18, glyph: 11)
                 Text(label).font(F.manrope(13.5, .semibold)).foregroundColor(.liqFg)
+                    .fitAnchor(FitAnchorID.mediaRecordedLabel)
             default:
                 // Queued or in flight. The card is already filled -- optimistically -- so this says
                 // what is happening rather than pretending the artefact is not there.
@@ -577,7 +584,9 @@ private struct RecordedControls: View {
     private var pips: some View {
         HStack(spacing: Spacing.md) {
             ControlPip(icon: .refresh, label: MediaCopy.retake, action: onRetake)
+                .fitAnchor(FitAnchorID.mediaRetake)
             ControlPip(icon: .trash, label: MediaCopy.delete, tone: .danger, action: onDelete)
+                .fitAnchor(FitAnchorID.mediaDelete)
         }
     }
 }

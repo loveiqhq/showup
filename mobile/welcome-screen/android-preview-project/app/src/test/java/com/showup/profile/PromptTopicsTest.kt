@@ -105,6 +105,20 @@ class PromptTopicsTest {
     }
 
     @Test
+    fun `the cap counts what a person sees, so an emoji or a flag is one character`() {
+        // SHOWUP-191 item 6. iOS counts graphemes and this counted UTF-16 units, so the same 80
+        // emoji read 80/160 on an iPhone and 160/160 here -- and `take(160)` could cut an emoji in
+        // half, leaving a broken character in the answer.
+        val smile = "😀"
+        val flag = "🇩🇪"
+        assertEquals(160, answerLength(smile.repeat(159) + flag))
+        val capped = cappedAnswer(smile.repeat(400))
+        assertEquals(160, answerLength(capped))
+        assertEquals(smile.repeat(160), capped)
+        assertEquals(160, answerLength(cappedAnswer(flag.repeat(200))))
+    }
+
+    @Test
     fun `the at-cap sample is actually at the cap`() {
         // State G is "at the cap", and a sample one character short is state F wearing its name.
         // The fit sweep and the evidence screenshots both carried a shortened paraphrase once, and
