@@ -173,9 +173,8 @@ struct MediaRepository: MediaRepositoring {
 /// first for the argument; the three rules are identical and so are the reasons: DEBUG only, only
 /// when nothing answered, and it says so with an `offline-` id.
 ///
-/// WHY THIS ONE ALSO FAILS. The card's failed state cannot be reached by doing anything wrong — it
-/// needs an upload to fail — so a stand-in that always succeeded would leave it unwalkable without
-/// unplugging a router at exactly the right moment. Every third upload fails, deterministically.
+/// IT NEVER FAILS ON ITS OWN, like `DevOfflinePhotos` -- see there for why it used to fail every
+/// third upload and why that was taken out (SHOWUP-156, 31 Oct 2026).
 ///
 /// THE PREVIEW ALWAYS READS `fallback` HERE, and that is honest rather than lazy: there is no
 /// ranking job in this process, so there is nothing that could have ranked.
@@ -187,7 +186,6 @@ actor DevOfflineMedia {
 
     private let uploadSeconds = 1.6
     private let steps = 20
-    private let failEvery = 3
 
     func load() -> MediaSnapshot {
         MediaSnapshot(items: Array(stored.values), previewVideoId: nil, previewVoiceId: nil,
@@ -202,7 +200,6 @@ actor DevOfflineMedia {
             try? await Task.sleep(nanoseconds: UInt64(uploadSeconds / Double(steps) * 1_000_000_000))
             onProgress(Double(step + 1) / Double(steps))
         }
-        if n % failEvery == 0 { return .failed }
         let media = StoredMedia(
             id: "offline-\(n)", kind: kind,
             // No bytes were sent anywhere, so there is no URL that could serve them. The card plays
