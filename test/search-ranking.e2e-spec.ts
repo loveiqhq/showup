@@ -467,9 +467,9 @@ describe('Matching 01, the ranker (e2e)', () => {
 
   it('closes a like with no hour left as like_expired: out_of_time, or check_in_ended', async () => {
     await db.query(
-      `INSERT INTO "likes" ("sender_id", "receiver_id", "status", "created_at")
-       VALUES ($1, $3, 'active', now() - interval '5 hours'),
-              ($2, $3, 'active', now() - interval '2 hours')`,
+      `INSERT INTO "likes" ("sender_id", "receiver_id", "status", "created_at", "opened_at")
+       VALUES ($1, $3, 'active', now() - interval '5 hours', now() - interval '5 hours'),
+              ($2, $3, 'active', now() - interval '4 days', now() - interval '2 hours')`,
       [ids.ivy, ids.jo, maxId],
     );
     const spy = jest.spyOn(app.get(AnalyticsService), 'trackServerEvent');
@@ -484,6 +484,35 @@ describe('Matching 01, the ranker (e2e)', () => {
     expect(bySender[ids.ivy]).toMatchObject({ reason: 'out_of_time' });
     expect(bySender[ids.jo]).toMatchObject({ reason: 'check_in_ended' });
     expect(bySender[ids.ivy]?.hours_open as number).toBeGreaterThanOrEqual(4.9);
+    // Jo's like was first sent four days ago and re-opened two hours ago: open for two hours.
+    expect(bySender[ids.jo]?.hours_open as number).toBeGreaterThanOrEqual(1.9);
+    expect(bySender[ids.jo]?.hours_open as number).toBeLessThan(2.5);
+  });
+
+  it('restarts the clock of a closed like sent again, and keeps when it was first sent', async () => {
+    await db.query(
+      `INSERT INTO "likes" ("sender_id", "receiver_id", "status", "closed_reason", "closed_at",
+         "created_at", "opened_at")
+       VALUES ($1, $2, 'withdrawn', 'no_overlap', now() - interval '3 days',
+               now() - interval '4 days', now() - interval '4 days')`,
+      [maxId, ids.eva],
+    );
+    await request(server)
+      .post('/likes')
+      .set('Authorization', as(maxToken))
+      .send({ targetUserId: ids.eva })
+      .expect(201);
+    const [row] = await db.query(
+      `SELECT "status", now() - "opened_at" < interval '1 minute' AS "fresh",
+              now() - "created_at" > interval '3 days' AS "first_kept"
+         FROM "likes" WHERE "sender_id" = $1 AND "receiver_id" = $2`,
+      [maxId, ids.eva],
+    );
+    expect(row).toMatchObject({
+      status: 'active',
+      fresh: true,
+      first_kept: true,
+    });
   });
 
   it("closes a like to someone who just matched as target_matched, and not the matched pair's own", async () => {

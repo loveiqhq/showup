@@ -612,7 +612,7 @@ export class SearchService {
     // A CTE so the driver hands back the rows: a bare UPDATE ... RETURNING comes back as a
     // [rows, count] pair from `query`.
     const closed = await this.db.query<
-      Array<{ senderId: string; receiverId: string; createdAt: Date }>
+      Array<{ senderId: string; receiverId: string; openedAt: Date }>
     >(
       `WITH closed AS (
          UPDATE "likes"
@@ -620,7 +620,7 @@ export class SearchService {
                 "closed_at" = $3, "closed_seen_at" = $4, "match_id" = $5, "updated_at" = now()
           WHERE "id" = ANY($1::uuid[]) AND "status" = $7
           RETURNING "sender_id" AS "senderId", "receiver_id" AS "receiverId",
-                    "created_at" AS "createdAt"
+                    "opened_at" AS "openedAt"
        ) SELECT * FROM closed`,
       [
         likeIds,
@@ -649,7 +649,7 @@ export class SearchService {
    * leaving it unanswered -- and never for a declined like, which does not close here.
    */
   private async reportExpired(
-    closed: Array<{ senderId: string; receiverId: string; createdAt: Date }>,
+    closed: Array<{ senderId: string; receiverId: string; openedAt: Date }>,
     reason: LikeCloseReason,
     now: Date,
   ): Promise<void> {
@@ -693,7 +693,7 @@ export class SearchService {
         userId: c.senderId,
         ...likeExpiredEvent({
           hoursOpen:
-            (now.getTime() - new Date(c.createdAt).getTime()) / 3_600_000,
+            (now.getTime() - new Date(c.openedAt).getTime()) / 3_600_000,
           reason: expired,
         }),
       });

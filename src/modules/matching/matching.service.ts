@@ -189,7 +189,7 @@ export class MatchingService {
           userId: w.senderId,
           ...likeExpiredEvent({
             hoursOpen:
-              (now.getTime() - new Date(w.createdAt).getTime()) / 3_600_000,
+              (now.getTime() - new Date(w.openedAt).getTime()) / 3_600_000,
             reason: 'target_matched',
           }),
         });
@@ -267,6 +267,7 @@ export class MatchingService {
       existing.closedAt = null;
       existing.matchId = null;
       existing.message = message;
+      existing.openedAt = new Date();
       return { like: await this.likes.save(existing), created: true };
     }
     if (existing) return { like: existing, created: false };
@@ -303,7 +304,7 @@ export class MatchingService {
     likeIds: string[],
   ): Promise<{
     match: Match;
-    withdrawn: Array<{ senderId: string; receiverId: string; createdAt: Date }>;
+    withdrawn: Array<{ senderId: string; receiverId: string; openedAt: Date }>;
   } | null> {
     const [userAId, userBId] = orderedUserPair(u1, u2);
     return this.dataSource.transaction(async (manager) => {
@@ -340,7 +341,7 @@ export class MatchingService {
       // A CTE so the driver hands back the rows: a bare UPDATE ... RETURNING comes back as a
       // [rows, count] pair from `query`.
       const withdrawn = await manager.query<
-        Array<{ senderId: string; receiverId: string; createdAt: Date }>
+        Array<{ senderId: string; receiverId: string; openedAt: Date }>
       >(
         `WITH closed AS (
            UPDATE "likes"
@@ -350,7 +351,7 @@ export class MatchingService {
               AND ("sender_id" = ANY($2::uuid[]) OR "receiver_id" = ANY($2::uuid[]))
               AND "id" <> ALL($3::uuid[])
             RETURNING "sender_id" AS "senderId", "receiver_id" AS "receiverId",
-                      "created_at" AS "createdAt"
+                      "opened_at" AS "openedAt"
          ) SELECT * FROM closed`,
         [match.id, [userAId, userBId], likeIds],
       );
