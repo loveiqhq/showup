@@ -91,16 +91,6 @@ val CONNECT_METHODS = listOf(AuthMethod.Apple, AuthMethod.Google, AuthMethod.Fac
 val LOGIN_METHODS = listOf(AuthMethod.Phone, AuthMethod.Apple, AuthMethod.Google, AuthMethod.Facebook)
 
 /**
- * The methods that can actually sign somebody in today, which is what Log in is told to show.
- *
- * Phone only. Apple, Google and Facebook have no SDK sign-in yet (SHOWUP-144's sub-tasks), and
- * SHOWUP-145 hides a provider whose setup is not finished rather than drawing a button that does
- * nothing -- which is what a device test found on 30 Oct 2026 (SHOWUP-191 item 9). Add a provider
- * here in the same change that wires its sign-in; iOS holds the same set.
- */
-val SIGN_IN_READY: Set<AuthMethod> = setOf(AuthMethod.Phone)
-
-/**
  * One row per method: the button label, the mark, the hint used on Welcome back, and the short name
  * that gets interpolated into "Connecting to X…" and "Try X again".
  */

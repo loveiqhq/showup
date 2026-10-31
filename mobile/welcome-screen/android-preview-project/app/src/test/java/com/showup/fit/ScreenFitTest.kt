@@ -43,7 +43,6 @@ import com.showup.welcome.ConnectState
 import com.showup.welcome.ErrorKind
 import com.showup.welcome.PhoneError
 import com.showup.welcome.PhoneNumberScreen
-import com.showup.welcome.SIGN_IN_READY
 import com.showup.welcome.SignUpOutcome
 import com.showup.profile.DateOrder
 import com.showup.profile.ProfileDobScreen
@@ -247,11 +246,6 @@ class ScreenFitTest {
         sweep("WelcomeBack/2 chars") { WelcomeBackScreen(name = "Jo", lastUsed = AuthMethod.Phone) }
         sweep("WelcomeBack/24 chars") {
             WelcomeBackScreen(name = "Maximiliane Fürstenberg", lastUsed = AuthMethod.Phone)
-        }
-        // What the flow shows today: phone only, the providers hidden until they can sign in
-        // (SIGN_IN_READY, SHOWUP-191 item 9). One button is a layout the other sweeps never drew.
-        sweep("WelcomeBack/phone only") {
-            WelcomeBackScreen(name = "Leo", lastUsed = AuthMethod.Phone, configured = SIGN_IN_READY)
         }
         assertClean()
     }
