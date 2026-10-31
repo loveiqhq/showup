@@ -658,7 +658,11 @@ open class CheckInViewModel(
         val entry = filtersOnEntry ?: filters
         val answer = if (filtersChanged(entry, filters) == "none") "prefilled" else "picked"
         analytics?.report(CheckInAnalytics.stepAnswered(CheckInStep.Filters, answer, millis() - viewedAt))
-        analytics?.report(CheckInAnalytics.filtersChanged(entry, filters, windowId, dealbreakers = dealbreakersShown))
+        analytics?.report(
+            CheckInAnalytics.filtersChanged(
+                entry, filters, windowId, CheckInAnalytics.FiltersOpenedFrom.CheckIn, dealbreakers = dealbreakersShown,
+            ),
+        )
         filtersTouched = true
         // Built on the stand-in, nothing is sent yet: the read that lands resolves and sends it, or
         // the commit reads first.
@@ -742,7 +746,8 @@ open class CheckInViewModel(
             filtersLanded(filters)
             analytics?.report(
                 CheckInAnalytics.filtersChanged(
-                    filtersOnEntry ?: filters, filters, windowId, openedFrom = "search", dealbreakers = dealbreakersShown,
+                    filtersOnEntry ?: filters, filters, windowId, CheckInAnalytics.FiltersOpenedFrom.Search,
+                    dealbreakers = dealbreakersShown,
                 ),
             )
             leaveSearchFilters()

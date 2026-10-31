@@ -143,7 +143,8 @@ fun SearchGridScreen(
                 when {
                     grid.loading && grid.cards.isEmpty() -> ListLoading(SearchCopy.LOADING_LABEL)
                     grid.failure != null && grid.cards.isEmpty() -> CentredStatement(SearchCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
-                    grid.empty -> CentredStatement(SearchCopy.NO_RESULTS_PROPOSED, SearchCopy.WIDEN_MY_SEARCH, onFilters)
+                    // The kit's search-empty covers "the 1-up / grid view" running dry: one screen for both.
+                    grid.empty -> SearchEmptyState(onWiden = onFilters)
                     else -> GridList(grid, zone, settled, onOpen, onLeft, freezeLeavingMs)
                 }
             },

@@ -144,6 +144,29 @@ final class PremiumFitTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, failures.joined(separator: " · "))
     }
 
+    /// The grid runs dry into the same interim no-results screen as the queue (27 Oct 2026):
+    /// `Widen my search` 22 above the TabBar and on screen, on every phone and type size.
+    func testAGridThatRanDryKeepsWidenMySearch22AboveTheTabBar() {
+        var state = SearchSamples.gridRest()
+        state.grid = PremiumList(loading: false)
+        var failures: [String] = []
+        for device in fitDevices {
+            for type in sizes {
+                let f = layout(grid(state), on: device, type: type)
+                guard let cta = f[FitAnchorID.searchEmptyCta], let tab = f[FitAnchorID.tabBar] else {
+                    failures.append("\(device.described) \(type): an anchor is missing"); continue
+                }
+                if abs(tab.minY - cta.maxY - 22) > 1 {
+                    failures.append("\(device.described) \(type): CTA \(cta.maxY) not 22 above the TabBar \(tab.minY)")
+                }
+                if cta.maxY > device.height - device.bottom + 0.5 {
+                    failures.append("\(device.described) \(type): the CTA is off the screen")
+                }
+            }
+        }
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: " · "))
+    }
+
     func testTheUndoToastFloats16FromEachSideAnd12AboveTheTabBar() {
         var state = SearchSamples.gridRest()
         state.grid.cards[3].gone = true

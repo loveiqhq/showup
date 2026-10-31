@@ -464,6 +464,23 @@ class EvidenceScreenshots {
         }
     }
 
+    /**
+     * Search 01's interim no-results screen (27 Oct 2026), the kit's search-empty in normal mode: in
+     * the Freemium queue and the Premium grid, at the ticket's three frames.
+     */
+    @Test
+    fun `search 01 no results, in the queue and the grid`() {
+        shoot("184", "no-results-queue") {
+            com.showup.search.SearchProfileScreen(com.showup.search.SearchUiState(loading = false), zone = com.showup.search.SearchSamples.ZONE)
+        }
+        shoot("184", "no-results-grid") {
+            com.showup.search.SearchGridScreen(
+                state = GridStates.rest.copy(grid = com.showup.search.PremiumList(loading = false)),
+                zone = com.showup.search.SearchSamples.ZONE,
+            )
+        }
+    }
+
     @Test
     fun `the tight states, at the narrowest phone and the largest system font`() {
         val tight = listOf(DEVICES.first { it.width == 320 })

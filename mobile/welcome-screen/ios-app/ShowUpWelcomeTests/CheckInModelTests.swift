@@ -692,6 +692,8 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(changed["filters_changed"] as? String, "age_range,age_dealbreaker,distance_dealbreaker")
         XCTAssertEqual(changed["age_dealbreaker"] as? Bool, true)
         XCTAssertEqual(changed["distance_dealbreaker"] as? Bool, true)
+        // The registry types it "checkin" | "search" (1.4.24): the Check-In step says so too.
+        XCTAssertEqual(changed["opened_from"] as? String, "checkin")
         let sent = await store.withDealbreakers
         XCTAssertEqual(sent, [true])
         let saved = await store.filterBodies.last
@@ -1400,7 +1402,7 @@ final class CheckInModelTests: XCTestCase {
             "motivation_selected": ["motivation_id", "window_id"],
             "vibe_selected": ["vibe_ids", "vibe_count", "window_id"],
             "check_in_filters_changed": ["filters_changed", "min_age", "max_age", "distance_km", "age_dealbreaker",
-                                         "distance_dealbreaker", "window_id"],
+                                         "distance_dealbreaker", "window_id", "opened_from"],
             "check_in_commit_failed": ["reason", "attempt", "window_id"],
         ]
         let stamp: Set<String> = ["sensitivity_class", "field_registry_version"]

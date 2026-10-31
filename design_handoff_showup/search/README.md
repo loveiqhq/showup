@@ -5,9 +5,11 @@ search/
   screen-search-profile-reference.jsx  ← screen 01: Freemium profile + Like. Read values from here.
   screen-search-grid-reference.jsx     ← screen 02: Premium grid (extends 01's ScreenSearchProfile)
   screen-search-likes-reference.jsx    ← screen 03: Likes received (consumes 02, adds no profile prop)
+  screen-location-gate-reference.jsx   ← screen 04: location gate = Profile 12's screen, context="app"
+  screen-search-empty-reference.jsx    ← screen 01 interim no-results (kit search-empty, normal mode)
   tickets/00-epic.md                   ← flow shape, built-once inventory, flow-level rules
   tickets/01-profile.md                ← scope, copy strings, AC, tracking
-  spec-sheets/01-profile.png · 02-grid.png · 03-likes-received.png
+  spec-sheets/01-profile.png · 02-grid.png · 03-likes-received.png · 04-location-gate.png
 ```
 
 | # | Screen | States | Status |
@@ -15,10 +17,32 @@ search/
 | 01 | Freemium profile + Like | A at rest · B Be sure · C message · D minimum · E full scroll · F actions coach | ticketed — not built |
 | 02 | Premium grid | A at rest · B marked · C card or heart → profile · D Like on the profile → Be sure · E liked-you → Confirm date · F refused → closed in place · G liked-you declined → Undo · H/I refused → sorry sheet · J availability re-check · K fly-out | ticketed — not built |
 | 03 | Likes tab — likes received (Premium) | A list · B View profile → profile · C Be sure · D Not interested on the profile → Undo toast · E refused → Too late · F Out of time · G empty · H fly-out · I sorry sheet · J Not now label | ticketed — not built |
+| 04 | Location gate | A never granted · B off for Show Up · C off on the phone · D from Likes, Confirm date | ticketed — not built |
 | 00 | Epic | — | written 21 Oct 2026 · `tickets/00-epic.md` |
 
 Kit source: `ui_kits/show-up/screens-search-profile.jsx` (v2, 14 Oct 2026) · section **05 · Date search**.
 Artboards: `search-v2-1up` · `search-v2-coach` (actions coach, every visit until Don't show again) · `search-v2-full` (all content) · `search-v2-min` (minimum content) · `search-v2-confirm` · `search-v2-msg` · `search-empty`.
+
+## Decided 27 Oct 2026 — Search 01 developer answers (SHOWUP-184)
+
+- **Gender is tracked in `filters_active`** against `checkinGenderDefault(gender, orientation)` of the viewer's current profile, computed on the client. No server change; only *that* it differs is sent.
+- **Filters opened from Search**: same `check_in_filters_changed`, new `opened_from: "search"`. No `check_in_step_answered` / `check_in_closed`.
+- **Back from Filters is a new Search visit** (`screen_viewed`, `search_viewed`, `position` from 1). Changed filters reload the queue. **No coach** on that return.
+- **Three states get copy** (ticket → Copy → *States*): load failed, no results (interim, kit `search-empty` normal mode, `Widen my search` opens Filters), filter save failed.
+- **Charms stay hidden** (`charms` null) until the post-date rating story, written by design.
+- Taxonomy **1.4.24**.
+
+## Decided 22 Oct 2026 — Search 04 location gate
+
+- **The gate is Profile 12's screen in a second context** (`ScreenProfileLocation context="app"`, wrapper `ScreenLocationGate`). One radar, one privacy note, one status reader. Profile 12 is built and unchanged.
+- **Three states = §26:** A never granted (`Allow location access` → OS dialog) · B off for Show Up · C off on the phone (both `Open Settings`).
+- **No platform copy on the gate**; the button routes per platform. iOS C can only open our app page — accepted.
+- **Order:** active date never reaches Search · no Check-In → Check-In 01 wins · then the gate. The 24h lockout is undecided and not in the order.
+- **No filter button.** TabBar live: Likes and Settings reachable.
+- **Likes without location:** browsing works; `Confirm date` pushes the gate over the profile (D). After granting, the user taps `Confirm date` again.
+- **No Not now, no retry link** — foreground re-read lifts the gate.
+- Instant: same gate, Instant header — Instant not built, so not ticketed.
+- Tracking: §11 `search_location_gate` (registry 1.4.30); permission events gain optional `screen_id` (taxonomy 1.4.21) — absent = Profile 12.
 
 ## Decided 20 Oct 2026 — Freemium 1-up profile
 

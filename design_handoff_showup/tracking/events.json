@@ -2988,7 +2988,7 @@
           "payload": [
             {
               "name": "opened_from",
-              "type": "optional str — search when Filters was opened from Search; omitted in the Check-In flow"
+              "type": "\"checkin\" | \"search\" — where the Filters screen was opened: the Check-In step, or the Search top-bar filter button. NEW 1.4.24"
             },
             {
               "name": "filters_changed",
@@ -3021,7 +3021,7 @@
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. From Search, includes opened_from: search, with no check_in_step_answered or check_in_closed. age_dealbreaker and distance_dealbreaker go on every accepted Continue, changed or not -- false for both while the filters_dealbreakers flag is off. Never per chip tap, slider drag or switch tap, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24); dealbreakers 26 Oct 2026 (Check-In 05b, taxonomy 1.4.23).",
+          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. opened_from on every accepted save: checkin from the Check-In step, search from Search's filter button (1.4.24); from Search, with no check_in_step_answered or check_in_closed. age_dealbreaker and distance_dealbreaker go on every accepted Continue, changed or not -- false for both while the filters_dealbreakers flag is off. Never per chip tap, slider drag or switch tap, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24); dealbreakers 26 Oct 2026 (Check-In 05b, taxonomy 1.4.23).",
           "implemented": true
         },
         {
@@ -3135,7 +3135,7 @@
             },
             {
               "name": "filters_active",
-              "type": "str[]"
+              "type": "str[] — enums §10 filter_ids whose saved value differs from the start value, in the order meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker. meet_gender start = checkinGenderDefault(current profile gender × orientation), computed on the client; age_range start = 18 → 65+; distance_km start = 10; dealbreakers listed when true. Empty array when none. Gender values never sent. DEFINED 1.4.24"
             }
           ],
           "sensitivity_class": 0,
