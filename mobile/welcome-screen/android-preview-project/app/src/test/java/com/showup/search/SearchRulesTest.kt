@@ -45,6 +45,15 @@ class SearchRulesTest {
     }
 
     @Test
+    fun `true dealbreakers are listed beside the filter each hardens, false ones never`() {
+        val f = com.showup.checkin.CheckInFilters(setOf("woman"))
+        assertEquals(emptyList<String>(), filtersActive(f))
+        assertEquals(listOf("age_dealbreaker"), filtersActive(f.copy(ageDealbreaker = true)))
+        assertEquals(listOf("age_range", "age_dealbreaker", "distance_km", "distance_dealbreaker"),
+            filtersActive(f.copy(minAge = 25, distanceKm = 5, ageDealbreaker = true, distanceDealbreaker = true)))
+    }
+
+    @Test
     fun `gender tracking compares sets with the current profile default without sending gender values`() {
         val straightWoman = com.showup.checkin.checkinGenderDefault("woman", "straight")
         assertEquals(setOf("man"), straightWoman)

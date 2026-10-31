@@ -305,4 +305,25 @@ final class CheckInRulesTests: XCTestCase {
                        ["continue_tomorrow", "pick_today", "dismissed"])
         XCTAssertEqual(CheckInAnalytics.CommitFailure.allCases.map(\.wire), ["network", "server", "contact_info"])
     }
+
+    // MARK: - 05b (SHOWUP-189)
+
+    func testFiltersChangedPutsEachSwitchRightAfterTheFilterItHardens() {
+        let entry = CheckInFilters(genders: ["woman"])
+        var age = entry
+        age.ageDealbreaker = true
+        XCTAssertEqual(filtersChanged(entry, age), "age_dealbreaker")
+        let all = CheckInFilters(genders: ["man"], minAge: 25, maxAge: 35, distanceKm: 15,
+                                 ageDealbreaker: true, distanceDealbreaker: true)
+        XCTAssertEqual(filtersChanged(entry, all), "meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker")
+    }
+
+    func testASwitchSetOnTheStandInSurvivesTheServersSettings() {
+        let server = CheckInFilters(genders: ["man"], minAge: 25, maxAge: 35, distanceKm: 15,
+                                    ageDealbreaker: true, distanceDealbreaker: false)
+        let local = CheckInFilters(genders: ["woman"], distanceDealbreaker: true)
+        var expected = server
+        expected.distanceDealbreaker = true
+        XCTAssertEqual(filtersOverStandIn(local, server: server, edited: [.distanceDealbreaker]), expected)
+    }
 }

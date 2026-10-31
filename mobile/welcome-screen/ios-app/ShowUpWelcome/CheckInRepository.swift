@@ -29,6 +29,9 @@ struct CheckInState: Equatable, Sendable {
     var lastVibes: Set<String>
     /// The saved filter settings, or the profile pre-fill for a user with none.
     var filters: CheckInFilters
+    /// The remote flag `filters_dealbreakers` (Check-In 05b), from our own server: whether Filters
+    /// shows its two Dealbreaker switches. Off until matching applies the soft range.
+    var filtersDealbreakers: Bool = false
 }
 
 /// One picked hour on the wire: the instant it starts and its tier.
@@ -72,7 +75,8 @@ protocol CheckInStoring: Sendable {
     func load() async -> Result<CheckInState, CallFailure>
     func markIntroPassed() async -> Bool
     func saveAnswers(motivation: String?, vibes: Set<String>?) async -> Bool
-    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure>
+    /// `withDealbreakers`: the remote flag is on, so the two switches are sent; off, they are left out.
+    func saveFilters(_ filters: CheckInFilters, withDealbreakers: Bool) async -> Result<Void, CallFailure>
     func commit(_ request: CommitRequest) async -> CommitResult
 }
 
@@ -128,13 +132,16 @@ struct CheckInRepository: CheckInStoring {
         }
     }
 
-    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure> {
+    func saveFilters(_ filters: CheckInFilters, withDealbreakers: Bool) async -> Result<Void, CallFailure> {
         let genders = CheckInGender.allCases.filter { filters.genders.contains($0.id) }
         let wireGenders = genders.compactMap { Components.Schemas.MeetGender(rawValue: $0.id) }
         // Every gender or none: a save of fewer genders than the user picked is not their settings.
         guard wireGenders.count == genders.count else { return .failure(.server) }
         // Arguments in the schema's declared order, which Swift requires.
+        // "With the flag off ... the fields are not sent": nil, and the server keeps what it has.
         let body = Components.Schemas.SaveFilterSettingsDto(
+            ageDealbreaker: withDealbreakers ? filters.ageDealbreaker : nil,
+            distanceDealbreaker: withDealbreakers ? filters.distanceDealbreaker : nil,
             distanceKm: filters.distanceKm,
             maxAge: filters.maxAgeOrNil,
             meetGender: wireGenders,
@@ -226,7 +233,10 @@ extension CheckInState {
                 genders: Set(filters.meetGender.map(\.rawValue)),
                 minAge: filters.minAge,
                 maxAge: filters.maxAge ?? ageMax,
-                distanceKm: filters.distanceKm))
+                distanceKm: filters.distanceKm,
+                ageDealbreaker: filters.ageDealbreaker,
+                distanceDealbreaker: filters.distanceDealbreaker),
+            filtersDealbreakers: dto.filtersDealbreakers)
     }
 
     /// `windowId` as the generated response types it -- see `CheckInRepository.wire`.

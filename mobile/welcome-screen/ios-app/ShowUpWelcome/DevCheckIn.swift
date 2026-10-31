@@ -28,7 +28,10 @@ actor DevCheckInStore: CheckInStoring {
     private var committedWindow: String?
 
     /// `active`: already committed -- a jump straight to Search, which the gate would otherwise take back.
-    init(latencyMs: Int = 900, commitMode: DevCommitMode = .saves, introPassed: Bool = false, active: Bool = false) {
+    /// `dealbreakers`: Check-In 05b's switches shown, as the server's `filters_dealbreakers` will --
+    /// `-dev_dealbreakers` in the launch arguments, as Android's `dev_dealbreakers` extra.
+    init(latencyMs: Int = 900, commitMode: DevCommitMode = .saves, introPassed: Bool = false, active: Bool = false,
+         dealbreakers: Bool = false) {
         latency = UInt64(max(latencyMs, 0)) * 1_000_000
         self.commitMode = commitMode
         state = CheckInState(
@@ -39,7 +42,8 @@ actor DevCheckInStore: CheckInStoring {
             lastMotivation: nil,
             lastVibes: [],
             // The profile pre-fill a straight man would get: women, any age, 10 km.
-            filters: CheckInFilters(genders: ["woman"]))
+            filters: CheckInFilters(genders: ["woman"]),
+            filtersDealbreakers: dealbreakers)
     }
 
     func load() async -> Result<CheckInState, CallFailure> {
@@ -58,8 +62,14 @@ actor DevCheckInStore: CheckInStoring {
         return true
     }
 
-    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure> {
-        state.filters = filters
+    func saveFilters(_ filters: CheckInFilters, withDealbreakers: Bool) async -> Result<Void, CallFailure> {
+        // As the server does: a switch left out keeps what is stored.
+        var next = filters
+        if !withDealbreakers {
+            next.ageDealbreaker = state.filters.ageDealbreaker
+            next.distanceDealbreaker = state.filters.distanceDealbreaker
+        }
+        state.filters = next
         return .success(())
     }
 

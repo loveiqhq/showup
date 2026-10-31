@@ -112,4 +112,24 @@ final class EvidenceShots: XCTestCase {
             }
         }
     }
+
+    /// SHOWUP-189: Filters v2 -- A both off, B two genders with age a dealbreaker, C both on; and A with
+    /// the remote flag off at 390 x 844, Check-In 05's layout plus the gender change.
+    func testFiltersV2Evidence() throws {
+        let dir = try folder("189-filters-v2")
+        let shots: [(String, CheckInFilters)] = [
+            ("A-both-off", CheckInFilters(genders: ["woman"])),
+            ("B-two-genders-age-strict", CheckInFilters(genders: ["woman", "non_binary"], minAge: 28, maxAge: 35,
+                                                        ageDealbreaker: true)),
+            ("C-both-strict", CheckInFilters(genders: ["woman", "man", "non_binary"], minAge: 25, maxAge: 40,
+                                             distanceKm: 15, ageDealbreaker: true, distanceDealbreaker: true)),
+        ]
+        for device in frames {
+            for (name, filters) in shots {
+                try shoot(CheckInFiltersView(filters: filters, dealbreakers: true), name, on: device, into: dir)
+            }
+        }
+        let mid = try XCTUnwrap(frames.first { $0.width == 390 })
+        try shoot(CheckInFiltersView(filters: CheckInFilters(genders: ["woman"])), "A-flag-off", on: mid, into: dir)
+    }
 }

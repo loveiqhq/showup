@@ -9,6 +9,8 @@
  */
 package com.showup.checkin
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
@@ -134,6 +136,39 @@ class CheckInSemanticsTest {
         assertEquals(25f..65f, max.getOrNull(SemanticsProperties.ProgressBarRangeInfo)!!.range)
         assertEquals("15", thumb(CheckInCopy.SLIDER_DISTANCE).getOrNull(SemanticsProperties.StateDescription))
         assertEquals(4, onAllNodes(roleOf(Role.Checkbox)).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `05b -- each gender is a checkbox in a group named Gender, pick all that apply`() = runComposeUiTest {
+        setContent { CheckInFiltersScreen(CheckInFilters(setOf("woman", "non_binary"))) }
+        val boxes = onAllNodes(roleOf(Role.Checkbox)).fetchSemanticsNodes()
+        assertEquals(4, boxes.size)
+        val checked = boxes.filter { it.config.getOrNull(SemanticsProperties.ToggleableState) == ToggleableState.On }
+        assertEquals(listOf("Women", "Non-binary"), checked.map { it.config[SemanticsProperties.ContentDescription].single() })
+        assertNotNull(onNode(hasContentDescription(CheckInCopy.FILTER_GENDER_GROUP)).fetchSemanticsNode())
+        // The hint is the group's name already: not a second thing to swipe to.
+        assertEquals(0, onAllNodesWithText(CheckInCopy.FILTER_GENDER_HINT).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `05b -- each Dealbreaker is a named switch, its line read after it, and none without the flag`() = runComposeUiTest {
+        var flag by androidx.compose.runtime.mutableStateOf(true)
+        setContent {
+            CheckInFiltersScreen(CheckInFilters(setOf("woman"), ageDealbreaker = true), dealbreakers = flag)
+        }
+        val switches = onAllNodes(roleOf(Role.Switch)).fetchSemanticsNodes()
+        assertEquals(listOf(CheckInCopy.DEALBREAKER_AGE_LABEL, CheckInCopy.DEALBREAKER_DISTANCE_LABEL),
+            switches.map { it.config[SemanticsProperties.ContentDescription].single() })
+        assertEquals(ToggleableState.On, switches[0].config.getOrNull(SemanticsProperties.ToggleableState))
+        assertEquals(ToggleableState.Off, switches[1].config.getOrNull(SemanticsProperties.ToggleableState))
+        // The strict line under the age switch, the preference line under distance's.
+        assertEquals(1, onAllNodesWithText(CheckInCopy.DEALBREAKER_ON_AGE).fetchSemanticsNodes().size)
+        assertEquals(1, onAllNodesWithText(CheckInCopy.DEALBREAKER_OFF).fetchSemanticsNodes().size)
+        // The visible title is the switch's name: not read twice.
+        assertEquals(0, onAllNodesWithText(CheckInCopy.DEALBREAKER).fetchSemanticsNodes().size)
+        flag = false
+        waitForIdle()
+        assertEquals("hidden, not disabled", 0, onAllNodes(roleOf(Role.Switch)).fetchSemanticsNodes().size)
     }
 
     @Test

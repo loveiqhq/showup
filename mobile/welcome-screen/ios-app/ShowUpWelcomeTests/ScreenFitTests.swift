@@ -550,6 +550,19 @@ final class ScreenFitTests: XCTestCase {
                     CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "non_binary"],
                                                                minAge: 25, maxAge: 35, distanceKm: 15)),
                     on: device), .violet),
+                // Check-In 05b (SHOWUP-189), the remote flag on: the sheet's A, B and C.
+                ("Check-In Filters 05b A", try render(
+                    CheckInFiltersView(filters: CheckInFilters(genders: ["woman"]), dealbreakers: true),
+                    on: device), .violet),
+                ("Check-In Filters 05b B", try render(
+                    CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "non_binary"], minAge: 28, maxAge: 35,
+                                                               ageDealbreaker: true), dealbreakers: true),
+                    on: device), .violet),
+                ("Check-In Filters 05b C", try render(
+                    CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "man", "non_binary"], minAge: 25,
+                                                               maxAge: 40, distanceKm: 15, ageDealbreaker: true,
+                                                               distanceDealbreaker: true), dealbreakers: true),
+                    on: device), .violet),
                 ("Check-In Uplift empty", try render(CheckInUpliftView(text: ""), on: device), .violet),
                 ("Check-In Uplift saving", try render(
                     CheckInUpliftView(text: "will take you out on my boat on Wannsee", saving: true),

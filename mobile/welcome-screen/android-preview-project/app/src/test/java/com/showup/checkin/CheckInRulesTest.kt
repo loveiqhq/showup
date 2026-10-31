@@ -208,6 +208,27 @@ class CheckInRulesTest {
         assertEquals("age_range", filtersChanged(entry, entry.copy(maxAge = 64)))
     }
 
+    @Test
+    fun `05b extends the order -- each switch right after the filter it hardens`() {
+        val entry = CheckInFilters(setOf("woman"))
+        assertEquals("age_dealbreaker", filtersChanged(entry, entry.copy(ageDealbreaker = true)))
+        assertEquals("distance_dealbreaker", filtersChanged(entry, entry.copy(distanceDealbreaker = true)))
+        assertEquals(
+            "meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker",
+            filtersChanged(entry, CheckInFilters(setOf("man"), 25, 35, 15, ageDealbreaker = true, distanceDealbreaker = true)),
+        )
+        // The switch is independent of the value: Any age with the switch on is a valid, distinct state.
+        assertEquals("age_dealbreaker", filtersChanged(entry, entry.copy(ageDealbreaker = true)))
+    }
+
+    @Test
+    fun `a switch set on the offline stand-in survives the server's settings, one untouched does not`() {
+        val server = CheckInFilters(setOf("man"), 25, 35, 15, ageDealbreaker = true, distanceDealbreaker = false)
+        val local = CheckInFilters(setOf("woman"), distanceDealbreaker = true)
+        val merged = filtersOverStandIn(local, server, setOf(FilterField.DistanceDealbreaker))
+        assertEquals(server.copy(distanceDealbreaker = true), merged)
+    }
+
     // ── uplift (06) ─────────────────────────────────────────────────────────────────────────────
 
     @Test

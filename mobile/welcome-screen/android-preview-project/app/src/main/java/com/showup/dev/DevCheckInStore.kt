@@ -37,6 +37,8 @@ class DevCheckInStore(
     introPassed: Boolean = false,
     /** Already committed: a jump straight to Search, which the gate would otherwise take back. */
     active: Boolean = false,
+    /** The remote flag `filters_dealbreakers` (Check-In 05b): `dev_dealbreakers` shows the switches. */
+    dealbreakers: Boolean = false,
 ) : CheckInStore {
 
     private var state = CheckInState(
@@ -48,6 +50,7 @@ class DevCheckInStore(
         lastVibes = emptySet(),
         // The profile pre-fill a straight man would get: women, any age, 10 km.
         filters = CheckInFilters(genders = setOf("woman")),
+        filtersDealbreakers = dealbreakers,
     )
     private var committedWindow: String? = null
 
@@ -69,8 +72,13 @@ class DevCheckInStore(
         return true
     }
 
-    override suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit> {
-        state = state.copy(filters = filters)
+    override suspend fun saveFilters(filters: CheckInFilters, withDealbreakers: Boolean): Outcome<Unit> {
+        // As the server does: a switch left out keeps what is stored.
+        val stored = state.filters
+        state = state.copy(
+            filters = if (withDealbreakers) filters
+            else filters.copy(ageDealbreaker = stored.ageDealbreaker, distanceDealbreaker = stored.distanceDealbreaker),
+        )
         return Outcome.Ok(Unit)
     }
 
@@ -102,6 +110,8 @@ class DevCheckInStore(
  * trip to the dev menu's plan switch, so a walk or a recording starts where it is meant to.
  * `--es dev_stage_close sample-leonie` picks who the first availability re-check closes (Sofia by
  * default, as frame J has it) -- Search 03's "another like (staged) closed" recording.
+ * `--ez dev_dealbreakers true` shows Check-In 05b's Dealbreaker switches, as the server's remote flag
+ * `filters_dealbreakers` will once matching applies the soft range -- so they can be walked first.
  */
 data class DevCheckInLaunch(
     val start: String,
@@ -110,6 +120,8 @@ data class DevCheckInLaunch(
     val introPassed: Boolean,
     val premium: Boolean = true,
     val stageClose: String = "sample-sofia",
+    /** Check-In 05b's switches shown, as the server's `filters_dealbreakers` would. Off by default. */
+    val dealbreakers: Boolean = false,
 ) {
     companion object {
         const val EXTRA_ON = "dev_checkin"
@@ -119,6 +131,7 @@ data class DevCheckInLaunch(
         const val EXTRA_INTRO_PASSED = "dev_intro_passed"
         const val EXTRA_PREMIUM = "dev_premium"
         const val EXTRA_STAGE_CLOSE = "dev_stage_close"
+        const val EXTRA_DEALBREAKERS = "dev_dealbreakers"
 
         fun from(intent: android.content.Intent?): DevCheckInLaunch? {
             if (intent?.getBooleanExtra(EXTRA_ON, false) != true) return null
@@ -130,6 +143,7 @@ data class DevCheckInLaunch(
                 introPassed = intent.getBooleanExtra(EXTRA_INTRO_PASSED, false),
                 premium = intent.getBooleanExtra(EXTRA_PREMIUM, true),
                 stageClose = intent.getStringExtra(EXTRA_STAGE_CLOSE) ?: "sample-sofia",
+                dealbreakers = intent.getBooleanExtra(EXTRA_DEALBREAKERS, false),
             )
         }
     }

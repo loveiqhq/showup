@@ -116,7 +116,11 @@ describe('the 48hrs Check-In flow (e2e)', () => {
       minAge: 18,
       maxAge: null,
       distanceKm: 10,
+      ageDealbreaker: false,
+      distanceDealbreaker: false,
     });
+    // Check-In 05b's switches stay hidden until matching applies the soft range.
+    expect(s.filtersDealbreakers).toBe(false);
   });
 
   // ── the intro and the last answers ─────────────────────────────────────────
@@ -181,10 +185,47 @@ describe('the 48hrs Check-In flow (e2e)', () => {
       minAge: 25,
       maxAge: null,
       distanceKm: 15,
+      ageDealbreaker: false,
+      distanceDealbreaker: false,
     });
     const s = await state();
     expect(s.filtersSaved).toBe(true);
     expect(s.filters.meetGender).toEqual(['woman', 'non_binary']);
+  });
+
+  it('stores the Dealbreaker switches, and keeps them through a save that leaves them out', async () => {
+    const put = (body: Record<string, unknown>) =>
+      request(server)
+        .put('/me/filter-settings')
+        .set('Authorization', bearer())
+        .send(body)
+        .expect(200);
+    const base = {
+      meetGender: ['woman'],
+      minAge: 25,
+      maxAge: 35,
+      distanceKm: 15,
+    };
+    expect(
+      (await put({ ...base, ageDealbreaker: true, distanceDealbreaker: false }))
+        .body,
+    ).toMatchObject({
+      ageDealbreaker: true,
+      distanceDealbreaker: false,
+    });
+    expect((await put(base)).body).toMatchObject({
+      ageDealbreaker: true,
+      distanceDealbreaker: false,
+    });
+    expect((await state()).filters).toMatchObject({
+      ageDealbreaker: true,
+      distanceDealbreaker: false,
+    });
+    await request(server)
+      .put('/me/filter-settings')
+      .set('Authorization', bearer())
+      .send({ ...base, ageDealbreaker: 'yes' })
+      .expect(400);
   });
 
   it('refuses no gender, a maximum below the minimum, and out-of-range values', async () => {
