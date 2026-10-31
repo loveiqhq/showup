@@ -5,7 +5,11 @@
 //  The tickets ask for screenshots on iOS and Android at 375 x 667, 390 x 844 and 430 x 932. Android's
 //  come from `EvidenceScreenshots.kt`; nobody building these screens has a Mac, so these come from
 //  the macOS runner: each frame is hosted in a window with that iPhone's exact insets, drawn through
-//  `drawHierarchy` at 3x -- what the screen shows, not a layer dump -- and written as a PNG.
+//  the window's layer tree at 3x, and written as a PNG.
+//
+//  THE LAYER TREE, NOT `drawHierarchy`: offscreen there are no screen updates to be after, so
+//  `drawHierarchy(afterScreenUpdates:)` draws nothing -- `ScreenFitTests` found that first, and the
+//  first CI run of this file wrote twelve pure-white PNGs and passed. A flat picture now fails.
 //
 //  ONLY WHEN ASKED: the folder comes from `SHOWUP_EVIDENCE_DIR` (CI passes it as
 //  `TEST_RUNNER_SHOWUP_EVIDENCE_DIR`). Without it the test is skipped, so an ordinary run writes
@@ -33,7 +37,7 @@ final class EvidenceShots: XCTestCase {
         return dir
     }
 
-    /// `view` on `device`, as the phone draws it, saved as `<state>-<w>x<h>.png` in `dir`.
+    /// `view` on `device`, saved as `<state>-<w>x<h>.png` in `dir`; a picture of one flat colour fails.
     private func shoot(_ view: some View, _ state: String, on device: FitDevice, into dir: URL) throws {
         let controller = UIHostingController(rootView: AnyView(view))
         controller.overrideUserInterfaceStyle = .light
@@ -47,12 +51,31 @@ final class EvidenceShots: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 3
-        let image = UIGraphicsImageRenderer(size: window.bounds.size, format: format).image { _ in
-            _ = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        let image = UIGraphicsImageRenderer(size: window.bounds.size, format: format).image { ctx in
+            window.layer.render(in: ctx.cgContext)
         }
         window.isHidden = true
+        let picture = try XCTUnwrap(image.cgImage, "\(state) on \(device.described): nothing rendered")
+        XCTAssertFalse(isOneColour(picture), "\(state) on \(device.described): one flat colour, nothing drawn")
         let data = try XCTUnwrap(image.pngData(), "\(state) on \(device.described): nothing rendered")
         try data.write(to: dir.appendingPathComponent("\(state)-\(Int(device.width))x\(Int(device.height)).png"))
+    }
+
+    /// Whether `image`, sampled on a 24 x 24 grid, is a single colour -- what a failed draw leaves.
+    private func isOneColour(_ image: CGImage) -> Bool {
+        let side = 24
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        let drawn = pixels.withUnsafeMutableBytes { raw -> Bool in
+            guard let ctx = CGContext(data: raw.baseAddress, width: side, height: side, bitsPerComponent: 8,
+                                      bytesPerRow: side * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            ctx.interpolationQuality = .none
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
+            return true
+        }
+        guard drawn else { return true }
+        let first = Array(pixels[0..<4])
+        return stride(from: 0, to: pixels.count, by: 4).allSatisfy { Array(pixels[$0..<($0 + 4)]) == first }
     }
 
     /// SHOWUP-188: A, B and C on the Search tab, D over a Likes profile in B as the sheet draws it.
