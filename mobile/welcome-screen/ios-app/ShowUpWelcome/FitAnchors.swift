@@ -63,6 +63,8 @@ enum FitAnchorID {
     static let mediaRecordedLabel = "media-recorded-label"
     static let mediaRetake = "media-retake"
     static let mediaDelete = "media-delete"
+    /// That whole row, inside its padding: the width the one-line form has to fit.
+    static let mediaRecordedRow = "media-recorded-row"
 
     // Search 01's interim no-results screen (27 Oct 2026).
     static let searchEmptyCta = "search-empty-cta"
