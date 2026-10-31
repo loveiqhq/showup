@@ -33,8 +33,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -67,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -704,7 +703,6 @@ private fun CheckDot(diameter: Dp, glyph: Dp) {
  * ALSO THE CARD'S FAILURE SURFACE. An upload that did not land says so HERE, never as a modal, and
  * never in a way that blocks leaving the screen -- "a dropped upload never blocks the flow".
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RecordedControls(
     label: String,
@@ -713,22 +711,19 @@ private fun RecordedControls(
     onDelete: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    // A FLOW ROW, so the controls drop to a second line rather than the label losing its end.
+    // THE REFERENCE'S ROW: `display: flex; alignItems: center; justifyContent: space-between` --
+    // what it is on the left, the two pills together on the right, 8 apart, everything on ONE
+    // centre line. [ControlsLayout] places exactly that whenever it fits.
     //
-    // On every screen 360 and wider this is exactly the Row the reference draws -- one line, label
-    // left, pills right. At 320 the three do not fit, and the two honest answers are "truncate the
-    // words" and "use another line". The fit harness rejects the first in as many words, and it is
-    // right to: `Your video` ellipsised to `Your v...` on the narrowest phone is the copy giving
-    // way to the layout, which is backwards.
-    FlowRow(
+    // When it does not -- 320 wide, or large type -- the words never give way to the layout
+    // (`Your v...` is the copy losing to the box): the label takes its own line and the pills go
+    // under it, left-aligned, as iOS's ViewThatFits does; at 320 with the largest type, one pill a
+    // line. It was a FlowRow, which tops its items and spreads all three apart: `Your video` sat 13
+    // above the pills' centre and Retake 24 from Delete at 390, measured (SHOWUP-191 item 4).
+    ControlsLayout(
         Modifier
             .fillMaxWidth()
             .padding(start = Spacing.md, end = Spacing.sm, top = 2.dp, bottom = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        // No per-item cross-axis alignment in this Compose version, so each child centres its own
-        // contents and the two land on the same line naturally -- the pills' 44 touch height is
-        // the tallest thing in the row either way.
-        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
@@ -748,6 +743,7 @@ private fun RecordedControls(
                     CheckDot(18.dp, 11.dp)
                     Text(
                         label,
+                        modifier = Modifier.testTag(MEDIA_RECORDED_LABEL_TAG),
                         color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
                         fontSize = 13.5.sp,
                     )
@@ -763,11 +759,50 @@ private fun RecordedControls(
                 }
             }
         }
-        // DIRECT CHILDREN OF THE FLOW ROW, not a nested Row. Nested, the two pips were a single
-        // item and could only move to the next line together -- and at 320 with the largest system
-        // font there is no line they both fit on. As siblings they wrap one at a time.
-        ControlPip(BrandIcon.Refresh, MediaCopy.RETAKE, onRetake)
-        ControlPip(BrandIcon.Trash, MediaCopy.DELETE, onDelete, tone = ControlPipTone.Danger)
+        ControlPip(BrandIcon.Refresh, MediaCopy.RETAKE, onRetake, Modifier.testTag(MEDIA_RETAKE_TAG))
+        ControlPip(BrandIcon.Trash, MediaCopy.DELETE, onDelete, Modifier.testTag(MEDIA_DELETE_TAG), ControlPipTone.Danger)
+    }
+}
+
+/**
+ * Places its three children -- the status, Retake, Delete -- as the reference's controls row.
+ *
+ * - **One line** when they fit with at least 8 between the status and the pills: the status at the
+ *   start, the pills 8 apart at the end, each centred on the line's height (`alignItems: center`).
+ * - **Otherwise** the status on its own line, then the pills from the start 8 apart, centred on
+ *   their own line; and if even the two pills do not fit beside each other, one a line. Lines are
+ *   8 apart.
+ */
+@Composable
+private fun ControlsLayout(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val (status, retake, delete) = measurables.map { it.measure(loose) }
+        val gap = Spacing.md.roundToPx()
+        val width = constraints.maxWidth
+        val pills = retake.width + gap + delete.width
+        if (status.width + gap + pills <= width) {
+            val line = maxOf(status.height, retake.height, delete.height)
+            layout(width, line) {
+                status.place(0, (line - status.height) / 2)
+                delete.place(width - delete.width, (line - delete.height) / 2)
+                retake.place(width - delete.width - gap - retake.width, (line - retake.height) / 2)
+            }
+        } else if (pills <= width) {
+            val line = maxOf(retake.height, delete.height)
+            val top = status.height + gap
+            layout(width, top + line) {
+                status.place(0, 0)
+                retake.place(0, top + (line - retake.height) / 2)
+                delete.place(retake.width + gap, top + (line - delete.height) / 2)
+            }
+        } else {
+            layout(width, status.height + gap + retake.height + gap + delete.height) {
+                status.place(0, 0)
+                retake.place(0, status.height + gap)
+                delete.place(0, status.height + gap + retake.height + gap)
+            }
+        }
     }
 }
 
@@ -909,6 +944,10 @@ fun RecordedVoiceCard(
  * catch it is to measure it, which is why this exists and why it is not a debug-only tag.
  */
 internal const val WAVEFORM_TAG = "media:waveform"
+/** The filled video card's `Your video` text and its two pills, for the alignment test. */
+internal const val MEDIA_RECORDED_LABEL_TAG = "media:recorded-label"
+internal const val MEDIA_RETAKE_TAG = "media:retake"
+internal const val MEDIA_DELETE_TAG = "media:delete"
 
 /**
  * The narrowest a waveform bar may be drawn.
