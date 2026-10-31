@@ -955,7 +955,7 @@ class ScreenFitTest {
             sweep("CheckIn/uplift E @$scale", fontScale = scale) { CheckInUpliftScreen(written, saveFailed = true) }
             // Filters opened from Search, its save refused: the longest toast the screen draws.
             sweep("Search/filters save failed @$scale", fontScale = scale) {
-                CheckInFiltersScreen(CheckInFilters(setOf("woman")), toast = CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED)
+                CheckInFiltersScreen(CheckInFilters(setOf("woman")), toast = CheckInCopy.FILTERS_SAVE_ERROR)
             }
             sweep("CheckIn/settings placeholder @$scale", fontScale = scale) { SettingsPlaceholderScreen() }
         }

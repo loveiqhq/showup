@@ -808,7 +808,7 @@ class CheckInViewModelTest {
         // The answer, not the toast's own timer: run what is due, nothing later.
         runCurrent()
         assertFalse(back)
-        assertEquals(CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED, state.toast)
+        assertEquals(CheckInCopy.FILTERS_SAVE_ERROR, state.toast)
         assertFalse(state.saving)
         store.filterSaves = true
         model.searchFiltersContinue { back = true }
@@ -856,7 +856,7 @@ class CheckInViewModelTest {
         runCurrent()
         assertFalse(back)
         assertTrue(store.filters.isEmpty())
-        assertEquals(CheckInCopy.FILTERS_SAVE_ERROR_PROPOSED, state.toast)
+        assertEquals(CheckInCopy.FILTERS_SAVE_ERROR, state.toast)
         // Back online: the read resolves the stand-in -- the edit over the server's -- then it saves.
         store.reads = true
         model.searchFiltersContinue { back = true }

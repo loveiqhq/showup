@@ -534,8 +534,8 @@ object CheckInCopy {
     const val SAVE_ERROR = "Couldn't save your Check-in. Check your connection and try again."
 
     /**
-     * PROPOSED -- no ticket has copy for it. Filters opened from Search could not save: the screen
-     * stays, with this toast, in the shape of [SAVE_ERROR].
+     * Filters opened from Search could not save: the screen stays, changes kept, with this toast in
+     * the shape of [SAVE_ERROR]. Approved by Philipp 27 Oct 2026; SHOWUP-184 Copy -> States.
      */
-    const val FILTERS_SAVE_ERROR_PROPOSED = "Couldn't save your filters. Check your connection and try again."
+    const val FILTERS_SAVE_ERROR = "Couldn't save your filters. Check your connection and try again."
 }
