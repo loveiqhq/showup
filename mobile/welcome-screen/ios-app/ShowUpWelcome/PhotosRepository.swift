@@ -208,15 +208,14 @@ struct PhotosRepository: PhotosRepositoring {
 /// The stand-in for `/me/photos`, used whenever nothing else can answer.
 ///
 /// The third of these, after `DevOfflineAuth` and the email one. The three rules are identical:
-/// it is only reached when nothing answered, it never overrides a server that replied, and the
-/// screen says so.
+/// it is only reached when nothing answered, it never overrides a server that replied, and what it
+/// stores carries an `offline-` id and an `offline://` url.
 ///
-/// WHY THIS ONE ALSO FAILS. The other stand-ins always succeed on the happy path, because the
-/// states they gate are reachable by typing something wrong. `Upload failed` and `Retry` cannot be
-/// reached by doing anything wrong — they need an upload to fail — so a stand-in that always
-/// succeeded would leave two of the seven states unwalkable without unplugging a router at exactly
-/// the right moment. EVERY THIRD upload fails, deterministically rather than randomly, because a
-/// state you cannot reproduce on demand is not one you can demonstrate.
+/// IT NEVER FAILS ON ITS OWN. It used to fail every third upload, so `Upload failed` and `Retry`
+/// could be walked without a backend. On a phone with no server to reach, that read as a real bug
+/// (SHOWUP-156, 31 Oct 2026): the third photo failed every time and Retry fixed it, and nothing on
+/// screen said the failure was staged. The failed slot is covered by the unit tests and the fit
+/// sweep, which render it directly.
 actor DevOfflinePhotos {
     static let shared = DevOfflinePhotos()
 
@@ -227,8 +226,6 @@ actor DevOfflinePhotos {
     private let uploadSeconds: Double = 1.4
     /// How many steps the ring takes. The real one reports per 16 KiB chunk.
     private let steps = 20
-    /// Every third upload fails, so the failed slot and Retry are reachable.
-    private let failEvery = 3
 
     func upload(onProgress: @Sendable (Double) -> Void) async -> UploadPhotoResult {
         counter += 1
@@ -237,7 +234,6 @@ actor DevOfflinePhotos {
             try? await Task.sleep(nanoseconds: UInt64(uploadSeconds / Double(steps) * 1_000_000_000))
             onProgress(Double(step) / Double(steps))
         }
-        if n % failEvery == 0 { return .failed }
         let photo = StoredPhoto(
             id: "offline-\(n)",
             // Not a URL anything can fetch, and named so nobody mistakes it for one.
