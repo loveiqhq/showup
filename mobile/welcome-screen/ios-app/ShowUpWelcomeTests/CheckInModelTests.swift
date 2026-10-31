@@ -1399,7 +1399,8 @@ final class CheckInModelTests: XCTestCase {
             "check_in_no_hours_today_resolved": ["action", "window_id"],
             "motivation_selected": ["motivation_id", "window_id"],
             "vibe_selected": ["vibe_ids", "vibe_count", "window_id"],
-            "check_in_filters_changed": ["filters_changed", "min_age", "max_age", "distance_km", "window_id"],
+            "check_in_filters_changed": ["filters_changed", "min_age", "max_age", "distance_km", "age_dealbreaker",
+                                         "distance_dealbreaker", "window_id"],
             "check_in_commit_failed": ["reason", "attempt", "window_id"],
         ]
         let stamp: Set<String> = ["sensitivity_class", "field_registry_version"]
