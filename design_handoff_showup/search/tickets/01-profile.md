@@ -1,7 +1,7 @@
 # [Search 01] Freemium profile + Like
 
 **Parent:** [Epic] Date search (`search/tickets/00-epic.md`) · **Type:** Story · **Priority:** High
-**Attachments:** `search-01-profile-attachment.zip` (handoff folder for this ticket) · `search-01-profile-spec-sheet.png`
+**Attachments:** `search-01-profile-attachment.zip` (handoff folder for this ticket — **re-issued 27 Oct 2026** with the developer answers, taxonomy 1.4.24 and the no-results reference) · `search-01-profile-spec-sheet.png` (unchanged) · first comment: `search-01-profile-tracking-comment.md`
 **Blocked by:** **Check-In 06** (a committed Check-In unlocks date search, and the Uplift text feeds ⑫), **Check-In 03** (§30 motivations), **Check-In 04** (§31 vibes), **Profile 06–08 and 14–21** (the fields this screen shows). **Blocks:** every later date-search story. `ShowUpCount` is built here.
 
 ## Description
@@ -18,8 +18,8 @@ Entered from:
 Exits:
 
 - **Like → Be sure → message → sent**, **Not now** or **Not interested** → **the next profile slides in**, on the same screen.
-- Top-bar **filter** → **Check-In 05 Filters**.
-- The queue runs dry → the *no results · widen filters* screen (its own story).
+- Top-bar **filter** → **Check-In 05 Filters**. Saving or going back returns here as a **new Search visit** (27 Oct 2026).
+- The queue runs dry → the **interim no-results screen** (below). The one-tap widen is its own story.
 
 ## Decided before build
 
@@ -48,6 +48,14 @@ All decided 20 Oct 2026. The kit matches every point below.
 - **No report or block** in MVP.
 - **Queue composition and order belong to the server ticket**, not this one.
 
+## Decided 27 Oct 2026 — developer questions (SHOWUP-184)
+
+- **Gender is tracked in `filters_active`.** The start value is `checkinGenderDefault(gender, orientation)` on the viewer's current profile, computed on the client. No server change. Only *that* it differs is sent, never the genders.
+- **Filters opened from Search is tracked apart from Check-In**: same event `check_in_filters_changed`, new property `opened_from: "search"`. It is not a Check-In step: no `check_in_step_answered`, no `check_in_closed`.
+- **Back from Filters is a new Search visit** for tracking: `screen_viewed`, `search_viewed` and `position` from 1. Changed filters reload the queue. **The actions coach does not show again** on that return.
+- **Three states get copy** (Copy → *States*): load failed, no results (interim, from the kit's `search-empty`), filter save failed.
+- **Charms stay hidden at launch** (`charms` null). Their source is the post-date rating story, written by design, not a backend-only ticket.
+
 ## Layout — read this before building
 
 ⚠ **Layout is flex, not absolute.** The height of the stack *is* the profile's content, so it differs on every profile.
@@ -66,7 +74,7 @@ hero (photo 1 ④ + meet card ⑧) → 18 spacer → shared vibes ⑩ → highli
 
 📎 All specs are on the attached **search-01-profile-spec-sheet.png**: frames A–F and callouts ①–㉕. Violet callouts are the 20 and 21 Oct decisions. The design system has colour and type tokens only and no spacing scale, so the raw px values are intentional.
 
-> **Reference implementation:** `design_handoff_showup/search/screen-search-profile-reference.jsx` — the code that renders the attached spec sheet. Read values from it rather than measuring the PNG. States: `<ScreenSearchProfile/>` (A) · `<ScreenSearchProfile initialModal="confirm"/>` (B) · `<ScreenSearchProfile initialModal="message"/>` (C) · `<ScreenSearchProfile profile={SEARCH_V2_PROFILE_MIN} tall tallHeight={2000}/>` (D) · `<ScreenSearchProfile tall tallHeight={4600}/>` (E) · `<ScreenSearchProfile coach/>` (F). `tall` exists only to draw the whole stack on the sheet; the product screen always scrolls. **Builds** `ScreenSearchProfile`, **`ShowUpCount` (new shared component)**, `SharedVibesRow`, `SharedInterestsBlock`, `SharedChip`, `HowILiveBlock`, `VideoPromptCardV2`, `searchDistance`, the two sheets, and the actions coach (`SearchActionsCoach` + `SEARCH_COACH_ROWS`). **Consumes** `CHECKIN_MOTIVATIONS` (Check-In 03), `CHECKIN_VIBE_LABEL` (Check-In 04), `LIFESTYLE_GROUPS` (Profile 21). A second copy of any of these is a bug.
+> **Reference implementation:** `design_handoff_showup/search/screen-search-profile-reference.jsx` — the code that renders the attached spec sheet. Read values from it rather than measuring the PNG. States: `<ScreenSearchProfile/>` (A) · `<ScreenSearchProfile initialModal="confirm"/>` (B) · `<ScreenSearchProfile initialModal="message"/>` (C) · `<ScreenSearchProfile profile={SEARCH_V2_PROFILE_MIN} tall tallHeight={2000}/>` (D) · `<ScreenSearchProfile tall tallHeight={4600}/>` (E) · `<ScreenSearchProfile coach/>` (F). Interim no-results: `design_handoff_showup/search/screen-search-empty-reference.jsx` → `<ScreenSearchEmpty/>`, normal mode only (27 Oct 2026; not on the sheet). `tall` exists only to draw the whole stack on the sheet; the product screen always scrolls. **Builds** `ScreenSearchProfile`, **`ShowUpCount` (new shared component)**, `SharedVibesRow`, `SharedInterestsBlock`, `SharedChip`, `HowILiveBlock`, `VideoPromptCardV2`, `searchDistance`, the two sheets, and the actions coach (`SearchActionsCoach` + `SEARCH_COACH_ROWS`). **Consumes** `CHECKIN_MOTIVATIONS` (Check-In 03), `CHECKIN_VIBE_LABEL` (Check-In 04), `LIFESTYLE_GROUPS` (Profile 21). A second copy of any of these is a bug.
 > Shell components: `design_handoff_showup/components/shared.jsx` (`StatusBar`, `Card`, `Chip`, `Icon`, `Button`, `PortraitPlaceholder`, `TabBar`, `Wordmark`) · Tokens: `design_handoff_showup/tokens/colors_and_type.css`
 > **Order of authority:** reference file wins on numbers · ticket wins on behaviour, scope and copy · PNG wins on nothing.
 
@@ -116,6 +124,11 @@ Rows, in this order, each with the matching button's icon:
 Buttons: `Don't show again` · `Got it`
 Accessible name of the card: `What the three buttons do`
 
+**States (27 Oct 2026)**
+Load failed (no connection or server error), in place of the stack: `Couldn't load profiles. Check your connection and try again.` · button `Try again`
+No results, interim, from the kit's `search-empty` (`design_handoff_showup/search/screen-search-empty-reference.jsx`, normal mode): headline `Unfortunately there are no people left matching your search filters.` — em on `no people` · body `Widen your search filters to find more people.` · button `Widen my search` + sliders icon, which **opens Filters** until the no-results story defines the one-tap widen. Leave out the CTA sub-line and `Adjust filters manually`.
+Filter save failed (Filters opened from Search): `Couldn't save your filters. Check your connection and try again.` — the user stays on Filters with their changes kept.
+
 ## Behaviour
 
 **Sections and data**
@@ -151,7 +164,7 @@ Accessible name of the card: `What the three buttons do`
 - **Several open likes are allowed.** When one becomes mutual, the server creates the match and **withdraws every other open like** of that user. The match notification is out of scope.
 
 **Actions coach (F)**
-- **When:** once per Search visit (each `screen_viewed` of the Search tab), over the first profile that has a `Like` button: the first queue profile (Freemium) or the first profile opened from the grid (Premium). Never on the Likes tab or a `Liked you` profile. An empty queue shows no coach.
+- **When:** once per Search visit (each `screen_viewed` of the Search tab, **except the return from Filters**), over the first profile that has a `Like` button: the first queue profile (Freemium) or the first profile opened from the grid (Premium). Never on the Likes tab or a `Liked you` profile. An empty queue shows no coach.
 - **Until the user opts out.** It shows on every visit until `Don't show again`. The server holds that flag per user; nothing else is stored. Backgrounding or killing the app while it shows closes nothing, so it shows again next visit.
 - **While it shows:** `Not interested`, `Not now` and `Like` are visible above the scrim but **do nothing**; the stack does not scroll; the top bar and TabBar are under the scrim and not tappable.
 - **`Got it`, a tap anywhere on the scrim, or Android back** close it for this visit. **`Don't show again`** closes it and sets the flag. Either way the same profile is revealed and nothing else is sent.
@@ -159,7 +172,9 @@ Accessible name of the card: `What the three buttons do`
 
 **Top bar**
 - The likes chip shows the open-likes count. Tap → the likes upsell (its own story); until that ships, the tap does nothing and never opens Likes received.
-- The filter button opens **Check-In 05 Filters**. Returning applies the filters to the queue.
+- The filter button opens **Check-In 05 Filters**. Save or back returns to Search as a new visit; changed filters reload the queue from the first profile, unchanged filters keep the current profile. No coach on that return.
+- **Load failed** replaces the stack with the load-failed state; `Try again` re-requests the queue.
+- **Empty queue** shows the interim no-results screen; `Widen my search` opens Filters.
 
 **Accessibility**
 - The three action buttons have the accessible names above; the icon-only two are never unlabelled.
@@ -203,6 +218,9 @@ Accessible name of the card: `What the three buttons do`
 - [ ] `Got it`, a scrim tap and Android back each close it and it **shows again on the next visit**; `Don't show again` closes it and it **never shows again**, on any device; nothing else sets the flag
 - [ ] The coach sits in the action bar's column above the buttons at 375 × 667, 390 × 844 and 430 × 932, never overlapping them and never clipped by the top bar; both buttons fit on one row
 - [ ] No absolute Y in the stack; the meet card's −22 overlap is the only overlap
+- [ ] Load failed, no results and filter save failed show the strings under *States*; `Try again` reloads; `Widen my search` opens Filters
+- [ ] `filters_active` includes `meet_gender` only when the saved genders differ from `checkinGenderDefault` of the current profile; no gender value appears in any payload
+- [ ] Filters opened from Search fires `check_in_filters_changed` with `opened_from: "search"` and no `check_in_step_answered` / `check_in_closed`; the return is a new visit with no coach
 - [ ] The message text appears in **no** tracking payload
 - [ ] Copy matches the strings above exactly
 - [ ] Tracking: every row in the table below fires with the payload named there, and **no invented event names**
@@ -210,73 +228,18 @@ Accessible name of the card: `What the three buttons do`
 
 ## Tracking
 
-Event names come from `design_handoff_showup/tracking/events.json` (family **I — Search & Liking**, and `screen_viewed` in family A). Use them exactly. Do not invent names, and do not restate a payload the registry already defines. Registry **1.4.29**, taxonomy **1.4.20** (this ticket's own changes were made in 1.4.26 / 1.4.17 and, for the coach, 1.4.29 / 1.4.20; see the end of this section).
+⚠ **The Tracking section is the ticket's first comment** (pinned), `search-01-profile-tracking-comment.md`. Split by length only (Jira caps a description at 32,767 characters), not by authority: the comment is part of this ticket and its rules are acceptance criteria. Registry **1.4.31**, taxonomy **1.4.24**.
 
-| What | Event | Payload |
-|---|---|---|
-| Search tab shown | `screen_viewed` | `screen_id: "search_profile"`, `screen_name: "Search - Profile"`, `referrer_screen_id` — **NEW §11 row** |
-| Queue loaded | `search_viewed` | `layout: "one_up"`, `results_count`, `filters_active` |
-| A profile was seen | `profile_card_viewed` | `position`, `dwell_ms`, `photos_swiped`, `sections_scrolled`, `shared_vibe_count`, `shared_interest_count` — **last two NEW** |
-| Photo opened fullscreen | `profile_photo_opened` | `photo_index` (1–6) — **NEW** |
-| Voice / video played | `voice_prompt_played` / `video_prompt_played` | `position`, `played_pct` |
-| Like tapped | `like_tapped` | `position`, `surface: "profile"` — **`surface` NEW (§35, 1.4.18)** |
-| Be sure shown | `like_confirm_shown` | `target_attended_count` — **replaces `target_showup_band`** |
-| Like flow left unsent | `like_confirm_abandoned` | `stage` (§33), `target_attended_count` — **`stage` NEW** |
-| Message sent with the like | `like_message_attached` | `char_count` |
-| Like saved (server) | `like_sent` | `position`, `target_attended_count`, `has_message`, `surface: "profile"` — **`target_attended_count` replaces `showup_band_of_target`; `surface` NEW (1.4.18)** |
-| Not now / Not interested | `pass_sent` | `position`, `pass_type` (§34), `surface: "profile"` — **RESPECIFIED; `surface` NEW (1.4.19)** |
-| Other likes withdrawn (server) | `like_withdrawn` | `match_id`, `reason: "matched"` (§36) — **NEW, one per withdrawn like; `reason` NEW (1.4.19)** |
-| Actions coach shown (F) | `search_coach_shown` | — **NEW (1.4.20)** |
-| Actions coach closed (F) | `search_coach_dismissed` | `dismiss_method` (§23: `close` = Got it or Don't show again · `backdrop` = scrim · `system_back` = Android back), `dont_show_again` (true only for that button), `visible_ms` — **NEW (1.4.20)** |
+Three rules that break first in a hurry:
+- **`screen_viewed` fires once per Search visit, not per profile**; `position` resets on each one, including the return from Filters (no coach on that return).
+- **Filters opened from Search** fires `check_in_filters_changed` with `opened_from: "search"`, never `check_in_step_answered` / `check_in_closed`.
+- **The message text and the gender values are never sent**, in any event.
 
-Rules that are easy to get wrong here:
-
-- **`screen_viewed` fires once per visit to the Search tab, not per profile.** The next profile is the same screen. Per-profile reach is `profile_card_viewed`.
-- **`profile_card_viewed` fires when the profile leaves the screen** (an action, a tab change or backgrounding), so `dwell_ms` is known. `position` is 1-based in this visit's queue and resets on each `screen_viewed`.
-- **`voice_prompt_played` / `video_prompt_played` fire when playback stops** (end, pause, scrolled out, profile changed), with `played_pct` at that moment. One per play.
-- **`like_confirm_abandoned`:** `stage: "confirm"` for Cancel, scrim or swipe-down on Be sure; `stage: "message"` for scrim or swipe-down on the message sheet. **`Skip message` is not an abandon.** It leads to `like_sent` with `has_message: false`.
-- **`like_message_attached` fires on `Send message` only**, and only when the trimmed text is not empty. **The text itself is never sent**, in any event.
-- **`pass_sent.pass_type`** is `not_now` or `not_interested` (§34). One event, two values. Do not create `not_now_tapped` or `not_interested_tapped`. Here it fires **on the tap** (no undo on this screen).
-- **`surface` is always `"profile"`** on this screen. The only other value, `likes_received`, is Search 03's decline (`grid_card` was retired 21 Oct 2026).
-- **`like_sent`, `match_created` and `like_withdrawn` are server-side.** The client fires none of them.
-- **Emit order for a like:** `like_tapped` → `like_confirm_shown` → (`like_message_attached`) → `like_sent` (server) → `profile_card_viewed` for the profile that left.
-- **The coach is an overlay, not a screen.** It has no §11 row and fires no `screen_viewed`. `search_coach_shown` fires each time it is visible (at most once per visit); `search_coach_dismissed` fires once per close. A scrim tap or Android back always sends `dont_show_again: false`. `swipe` is never sent (the coach has no drag). Backgrounding while it shows fires neither.
-- **`profile_card_viewed.dwell_ms` for the coached profile counts from the coach's dismissal**, not from when the profile loaded.
-- `sensitivity_class` is **0** on every row.
-
-**Events that must NOT fire here.**
-
-- **`profile_section_expanded`.** This screen has no accordions.
-- **Anything for the overlap.** No `shared_vibes_shown` or `overlap_viewed`; the counts ride on `profile_card_viewed`.
-- **Anything per keystroke** in the message field.
-- **Any tap on the inert buttons while the coach shows.** No `like_tapped`, no `pass_sent`.
-- **`search_coach_shown` after `Don't show again`**, or twice in one visit.
-- **Anything for the likes chip tap.** The upsell story defines what its screen fires.
-- **`search_lockout_shown` / `search_lockout_expired`.** No lockout state exists in this story.
-- **`profile_step_viewed` / `profile_step_completed`.** These are not profile steps.
-
-**Screen-to-screen conversion.**
-
-| Edge | Numerator | Denominator |
-|---|---|---|
-| Check-In → Search | `screen_viewed` · `search_profile` · referrer `checkin_uplift` | `check_in_created` |
-| Profile → Like tapped | `like_tapped` | `profile_card_viewed` |
-| Like tapped → sent | `like_sent` | `like_tapped` |
-| Lost at Be sure | `like_confirm_abandoned` · `stage: "confirm"` | `like_confirm_shown` |
-| Likes with a message | `like_sent` · `has_message: true` | `like_sent` |
-| Pass rate | `pass_sent` (by `pass_type`) | `profile_card_viewed` |
-
-**Registry changes made for this ticket (1.4.26 / taxonomy 1.4.17):** §11 `search_profile` **NEW** · §33 `like_abandon_stage` **NEW** (`confirm` · `message`) · §34 `search_pass_type` **NEW** (`not_now` · `not_interested`) · `profile_photo_opened` **NEW** · `like_withdrawn` **NEW** · `pass_sent` **RESPECIFIED** (`reason_if_given` removed) · `target_showup_band` / `showup_band_of_target` **REPLACED** by `target_attended_count` · `profile_card_viewed` +2 properties.
-
-**Registry changes for the coach (1.4.29 / taxonomy 1.4.20, 21 Oct 2026):** `search_coach_shown` **NEW** · `search_coach_dismissed` **NEW** (`dismiss_method`, `dont_show_again`, `visible_ms`) · §23 `dismiss_method` note extended to the coach (values unchanged).
-
-**Later registry changes that touch this screen:** 1.4.18 (Search 02) added `surface` to `like_tapped` and `like_sent`; 1.4.19 (Search 03) added `surface` to `pass_sent` and `reason` (§36 `matched` · `no_overlap`) to `like_withdrawn`. All are in the table above.
-
-**Missing from the current build:** every client event above is `implemented: false`, the two coach events included. `like_sent` ships; **add `position`, `target_attended_count` and `surface`** (the band field never shipped, so nothing migrates). `match_created.both_showup_bands` still assumes bands; it is respecified with the Match story, not here.
+Do not run Jira's "improve description" on this ticket or the comment.
 
 ## Out of scope
 
-Premium: the grid, Likes received, the likes upsell. Queue composition and order. The no-results screen. Report and block. The Show-up confirmation mechanic (Arrive → QR scan). Match notifications and anything after a match. Instant.
+Premium: the grid, Likes received, the likes upsell. Queue composition and order. The no-results story (the one-tap widen; this ticket ships the interim screen). Report and block. The Show-up confirmation mechanic (Arrive → QR scan). Match notifications and anything after a match. Instant.
 
 ## Dependencies
 
@@ -284,11 +247,11 @@ Premium: the grid, Likes received, the likes upsell. Queue composition and order
 - **Check-In 03 / 04 / 05:** §30 motivations, §31 vibes, the Filters screen the top bar opens.
 - **Profile 06–08, 14–21:** photos, prompts, media, details, How I live, interests, with their visibility flags.
 - **Server:** the search profile payload, the like and pass endpoints, match creation with like withdrawal, the queue endpoint, the per-user coach flag.
-- **Tracking registry 1.4.29 / taxonomy 1.4.20.**
+- **Tracking registry 1.4.31 / taxonomy 1.4.24.**
 
 ## Open (not blocking)
 
 - ~~**The Date search epic**~~ — written 21 Oct 2026 (`search/tickets/00-epic.md`). Its open points (Check-In expiry while browsing, the queue ticket, no-results) do not change this story.
 - **`Show-up Rate` in Be sure row 5.** The term stays, but the display is now a count. Keep the line, or reword it once the confirmation mechanic is designed?
 - **Search 02** shows the same coach over the first profile opened from the grid; it consumes `coach` on `ScreenSearchProfile`, nothing new.
-- **Charms** have no source until post-date ratings ship, so in practice the section is absent at launch.
+- **Charms** have no source until the post-date rating story ships (kit `ScreenRating`, not ticketed; design writes it). The section is absent at launch. That story must drop name-bearing charms such as `From Tom`.

@@ -71,6 +71,7 @@ import java.time.ZoneId
 import com.showup.dev.DevSearchStore
 import com.showup.dev.DEV_SEARCH_STARTS
 import com.showup.search.filtersActive
+import com.showup.checkin.checkinGenderDefault
 import com.showup.search.LikesReceivedScreen
 import com.showup.search.PremiumSurface
 import com.showup.search.SearchAnalytics
@@ -79,6 +80,7 @@ import com.showup.search.SearchProfileScreen
 import com.showup.search.SearchRepository
 import com.showup.search.SearchUiState
 import com.showup.search.SearchViewModel
+import com.showup.search.LocationGateViewModel
 import com.showup.analytics.NavAnalytics
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
@@ -180,6 +182,7 @@ import com.showup.profile.ProfileLifeNowScreen
 import com.showup.profile.ProfileEmbraceDetailsScreen
 import com.showup.profile.ProfileHeightScreen
 import com.showup.profile.ProfileLocationScreen
+import com.showup.profile.LocationGateScreen
 import androidx.compose.animation.EnterExitState
 import androidx.compose.runtime.Composable
 import com.showup.welcome.PhoneAuthRepository
@@ -447,6 +450,17 @@ class MainActivity : ComponentActivity() {
             )
             val locationState by location.state.collectAsStateWithLifecycle()
 
+            // THE SEARCH LOCATION GATE (SHOWUP-188). Its own rules, on Profile 12's reader, request
+            // and Settings intents. It reads the status when it is made and on every return to the
+            // foreground, whatever is on screen, so the Search tab knows before it draws.
+            val locationGate: LocationGateViewModel = viewModel(
+                key = "location-gate-$account",
+                factory = viewModelFactory {
+                    initializer { LocationGateViewModel(access = locationAccess, analytics = AppAnalytics) }
+                },
+            )
+            val gateState by locationGate.state.collectAsStateWithLifecycle()
+
             // ── the 48hrs Check-In (SHOWUP-178 to SHOWUP-183) ───────────────
             //
             // One owner for the whole flow, built before its steps (epic, "Built once"): the step
@@ -462,7 +476,7 @@ class MainActivity : ComponentActivity() {
                 key = "checkin-$account",
                 factory = viewModelFactory {
                     initializer {
-                        val store = devCheckIn?.let { DevCheckInStore(it.latencyMs, it.commit, it.introPassed, active = it.start in DEV_SEARCH_STARTS) }
+                        val store = devCheckIn?.let { DevCheckInStore(it.latencyMs, it.commit, it.introPassed, active = it.start in DEV_SEARCH_STARTS, dealbreakers = it.dealbreakers) }
                             ?: CheckInRepository(api)
                         CheckInViewModel(
                             store,
@@ -525,6 +539,35 @@ class MainActivity : ComponentActivity() {
                 // Our own sheet: permission_result's act, never an outside change.
                 permissions.absorbOwnAnswer()
                 location.permissionAnswered(result.values.any { it }) { leaveLocation() }
+            }
+
+            // The gate's own launcher, with the same request and the same bookkeeping: an answer
+            // goes back to whoever asked, and AndroidX re-delivers it to the launcher registered
+            // under the same key after a rebuild -- so each asker keeps one of its own.
+            val askLocationForGate = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { result ->
+                if (result.isEmpty()) {
+                    locationGate.permissionCancelled()
+                    return@rememberLauncherForActivityResult
+                }
+                PermissionAskLog.recordAsked(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                permissions.absorbOwnAnswer()
+                locationGate.permissionAnswered(result.values.any { it })
+            }
+            DisposableEffect(locationGate) {
+                val host = object : LocationHost {
+                    override fun requestLocationPermission() {
+                        askLocationForGate.launch(LOCATION_PERMISSIONS)
+                    }
+
+                    // The gate's routing table: B -> our app page; C -> the system Location page.
+                    override fun openSettings(state: LocationState) {
+                        if (state == LocationState.ServicesOff) openLocationSettings(context) else openAppSettings(context)
+                    }
+                }
+                locationGate.attach(host)
+                onDispose { locationGate.detach(host) }
             }
 
             val prompts: PromptsViewModel = viewModel(
@@ -803,11 +846,23 @@ class MainActivity : ComponentActivity() {
             // the back stack follows -- one source of truth, so a process death that restores the
             // destination with nothing open pops it again rather than drawing an empty profile.
             val profileOpen = searchState.opened != null
-            LaunchedEffect(profileOpen) {
-                val onProfile = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.SearchProfile>() == true
+            // D (SHOWUP-188): the location gate pushed over that profile, and only ever over it.
+            val gateOverProfile = profileOpen && gateState.overProfile
+            LaunchedEffect(profileOpen, gateOverProfile) {
+                fun top() = navController.currentBackStackEntry?.destination
+                // Nothing open: back to the flow, whatever is stacked -- the profile, or the gate
+                // over it -- so a profile closed from under its gate never leaves a screen behind.
+                if (!profileOpen) {
+                    // The gate belonged to that profile: the next one opens without it.
+                    locationGate.backToProfile()
+                    if (top()?.hasRoute<AppRoute.Flow>() != true) navController.popBackStack(AppRoute.Flow, inclusive = false)
+                    return@LaunchedEffect
+                }
+                if (top()?.hasRoute<AppRoute.Flow>() == true) navController.navigate(AppRoute.SearchProfile) { launchSingleTop = true }
+                val onGate = top()?.hasRoute<AppRoute.LocationGate>() == true
                 when {
-                    profileOpen && !onProfile -> navController.navigate(AppRoute.SearchProfile) { launchSingleTop = true }
-                    !profileOpen && onProfile -> navController.popBackStack()
+                    gateOverProfile && !onGate -> navController.navigate(AppRoute.LocationGate) { launchSingleTop = true }
+                    !gateOverProfile && onGate -> navController.popBackStack()
                 }
             }
 
@@ -966,11 +1021,16 @@ class MainActivity : ComponentActivity() {
             // a permission alert pauses the activity and is not the user leaving.
             DisposableEffect(lifecycleOwner, search) {
                 val observer = LifecycleEventObserver { _, event ->
+                    // THE GATE FIRST, on every return, whatever is on screen (SHOWUP-188): location
+                    // turned on in Settings lifts it, a new reason swaps it -- and a Search tab that
+                    // comes back blocked must not resume a profile the gate is about to replace.
+                    if (event == Lifecycle.Event.ON_START) locationGate.refresh()
                     // The Likes tab too: going to the background sends a decline waiting out its Undo.
                     if (screen != FlowScreen.CheckInSearch && screen != FlowScreen.LikesReceived) return@LifecycleEventObserver
+                    val searchBlocked = screen == FlowScreen.CheckInSearch && locationGate.state.value.blocked != null
                     when (event) {
-                        Lifecycle.Event.ON_STOP -> search.leave()
-                        Lifecycle.Event.ON_START -> search.resume()
+                        Lifecycle.Event.ON_STOP -> if (!searchBlocked) search.leave()
+                        Lifecycle.Event.ON_START -> if (!searchBlocked) search.resume()
                         else -> Unit
                     }
                 }
@@ -1974,6 +2034,10 @@ class MainActivity : ComponentActivity() {
                             onGender = checkIn::genderTapped,
                             onAge = checkIn::ageMoved,
                             onDistance = checkIn::distanceMoved,
+                            // Check-In 05b: the switches show only while the server's flag is on.
+                            dealbreakers = checkInState.server?.filtersDealbreakers == true,
+                            onAgeDealbreaker = checkIn::ageDealbreakerToggled,
+                            onDistanceDealbreaker = checkIn::distanceDealbreakerToggled,
                             onContinue = { checkIn.filtersContinue { goTo(FlowScreen.CheckInUplift) } },
                             onBack = { checkIn.backPressed(CheckInStep.Filters) { goTo(FlowScreen.CheckInVibe) } },
                             onClose = { closeCheckIn(CheckInStep.Filters) },
@@ -1998,6 +2062,50 @@ class MainActivity : ComponentActivity() {
                     }
                     FlowScreen.CheckInSearch -> {
                         val zone = remember { ZoneId.systemDefault() }
+                        // THE LOCATION GATE (SHOWUP-188), in the state table's order: no Check-In ->
+                        // the Check-In gate, decided before this tab is reached at all; otherwise,
+                        // location unavailable -> this gate INSTEAD of people. Read before the tab
+                        // renders, so no frame of empty Search and no frame of the wrong state.
+                        val gate = gateState.blocked
+                        if (gate != null) {
+                            LaunchedEffect(onTop) {
+                                if (onTop) locationGate.mounted(profileScreenOf(cameFrom, searchState.layout)) else locationGate.left()
+                            }
+                            // Lifted in place, the gate leaves without its tab ever losing the top.
+                            DisposableEffect(Unit) { onDispose { locationGate.left() } }
+                            LocationGateScreen(
+                                state = gate,
+                                tab = Tab.Search,
+                                likes = likesOpen,
+                                requesting = gateState.requesting,
+                                onAllow = locationGate::allowPressed,
+                                onOpenSettings = locationGate::openSettingsPressed,
+                                // Premium: the Likes tab; Freemium: the likes upsell, its own story --
+                                // the tap does nothing until it ships, and never opens Likes received.
+                                onLikes = { if (searchState.premium) goTo(FlowScreen.LikesReceived) },
+                                // Likes and Settings stay usable; Instant is its own story.
+                                onTab = { tab ->
+                                    tabTapped(Tab.Search, tab)
+                                    when (tab) {
+                                        Tab.Settings -> goTo(FlowScreen.CheckInSettings)
+                                        Tab.Likes -> if (searchState.premium) goTo(FlowScreen.LikesReceived)
+                                        Tab.Search, Tab.Instant -> Unit
+                                    }
+                                },
+                            )
+                        } else {
+                        // A gate arriving over a visit (Location switched off while away) ends that
+                        // visit, so the lift that follows is a new arrival, not a resume.
+                        // Only while the visit is still on screen: a normal exit has left it already,
+                        // and a second leave() would report the profile's view twice.
+                        DisposableEffect(Unit) {
+                            onDispose {
+                                if (locationGate.state.value.blocked != null && search.isOnScreen(PremiumSurface.Grid)) {
+                                    search.leftScreen(PremiumSurface.Grid)
+                                    search.leave()
+                                }
+                            }
+                        }
                         LaunchedEffect(onTop) {
                             if (onTop) {
                                 // STILL HERE FROM BEFORE: the pop of a profile pushed over the grid
@@ -2006,7 +2114,15 @@ class MainActivity : ComponentActivity() {
                                 // model knows; see SearchViewModel.isOnScreen.
                                 if (search.isOnScreen(PremiumSurface.Grid)) return@LaunchedEffect
                                 val filters = checkInState.server?.filters
-                                search.arrived(zone.id, filters?.let(::filtersActive).orEmpty(), profileScreenOf(cameFrom, searchState.layout))
+                                val demo = devCheckIn != null
+                                // Reached from the gate, which just lifted in place: its referrer.
+                                val referrer = if (locationGate.takeLift()) ProfileScreen.SearchLocationGate
+                                else profileScreenOf(cameFrom, searchState.layout)
+                                // Worked out beside the queue read, never before it: the gender part
+                                // is a second request (SearchViewModel.filtersActiveLater).
+                                search.arrived(zone.id, {
+                                    filters?.let { filtersActive(it, searchGenderDefault(api, demo)) }.orEmpty()
+                                }, referrer)
                             } else {
                                 search.leftScreen(PremiumSurface.Grid)
                                 // Sliding away -- to Filters or another tab: the profile has left the screen.
@@ -2069,6 +2185,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onRetry = { search.retry(zone.id) },
                         )
+                        }
                     }
                     FlowScreen.LikesReceived -> {
                         val zone = remember { ZoneId.systemDefault() }
@@ -2112,7 +2229,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     FlowScreen.SearchFilters -> {
-                        LaunchedEffect(onTop) { if (onTop) checkIn.searchFiltersOpened() }
+                        LaunchedEffect(onTop) { if (onTop) checkIn.searchFiltersOpened(profileScreenOf(cameFrom, searchState.layout) ?: ProfileScreen.SearchProfile) }
                         val held = heldWhileLeaving(checkInState, onTop)
                         val back = { checkIn.searchFiltersLeft { goTo(FlowScreen.CheckInSearch) } }
                         CheckInFiltersScreen(
@@ -2122,9 +2239,14 @@ class MainActivity : ComponentActivity() {
                             onGender = checkIn::genderTapped,
                             onAge = checkIn::ageMoved,
                             onDistance = checkIn::distanceMoved,
+                            // Check-In 05b: the switches show only while the server's flag is on.
+                            dealbreakers = checkInState.server?.filtersDealbreakers == true,
+                            onAgeDealbreaker = checkIn::ageDealbreakerToggled,
+                            onDistanceDealbreaker = checkIn::distanceDealbreakerToggled,
                             onContinue = {
+                                val previousFilters = checkIn.state.value.server?.filters
                                 checkIn.searchFiltersContinue {
-                                    search.filtersSaved()
+                                    if (checkIn.state.value.server?.filters != previousFilters) search.filtersSaved()
                                     goTo(FlowScreen.CheckInSearch)
                                 }
                             },
@@ -2190,7 +2312,12 @@ class MainActivity : ComponentActivity() {
                     state = shown,
                     zone = zone,
                     player = mediaPlayer.surface,
-                    onLike = search::like,
+                    // D (SHOWUP-188): `Confirm date` on a profile opened from the Likes tab checks
+                    // location BEFORE Be sure opens. Unavailable -> the gate goes over the profile,
+                    // Be sure stays shut and nothing is sent. Browsing never checks.
+                    onLike = {
+                        if (!(fromLikes && shown.likedYou && locationGate.confirmNeedsLocation())) search.like()
+                    },
                     onPass = search::pass,
                     onCoachDone = search::dismissCoach,
                     onCancelConfirm = search::cancelConfirm,
@@ -2238,6 +2365,58 @@ class MainActivity : ComponentActivity() {
                                     search.closeProfileForElsewhere()
                                     reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
                                 }
+                            }
+                        }
+                    },
+                )
+            }
+            // D (SHOWUP-188): the location gate pushed over a profile opened from the Likes tab.
+            // Pushed and popped as the profile is, with the Likes tab active; back, the pill and the
+            // back gesture return to the profile, and so does the gate lifting.
+            composable<AppRoute.LocationGate>(
+                enterTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideInHorizontally(tween(ms)) { w -> w / 6 } + fadeIn(tween(if (motion.enabled) 220 else 0))
+                },
+                popExitTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideOutHorizontally(tween(ms)) { w -> w / 6 } + fadeOut(tween(if (motion.enabled) Motion.FAST else 0))
+                },
+            ) {
+                // AS IT LEAVES, THE STATE IT HAD: lifted, the gate slides away showing its last state
+                // rather than an empty one.
+                var last by remember { mutableStateOf(gateState.blocked ?: LocationState.Denied) }
+                LaunchedEffect(gateState.blocked) { gateState.blocked?.let { last = it } }
+                LaunchedEffect(Unit) { locationGate.mounted(ProfileScreen.SearchProfile) }
+                DisposableEffect(Unit) { onDispose { locationGate.left() } }
+                LocationGateScreen(
+                    state = gateState.blocked ?: last,
+                    tab = Tab.Likes,
+                    likes = likesOpen,
+                    requesting = gateState.requesting,
+                    onAllow = locationGate::allowPressed,
+                    onOpenSettings = locationGate::openSettingsPressed,
+                    // No chip in D: the bar is the profile's.
+                    onLikes = {},
+                    onBack = locationGate::backToProfile,
+                    // As on the profile under it: Likes is where the user already is.
+                    onTab = { tab ->
+                        if (tab != Tab.Likes) {
+                            tabTapped(Tab.Likes, tab)
+                            when (tab) {
+                                Tab.Search -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(searchTab())
+                                }
+                                Tab.Settings -> {
+                                    search.closeProfileForElsewhere()
+                                    goTo(FlowScreen.CheckInSettings)
+                                }
+                                Tab.Instant -> if (checkInState.server?.active != true) {
+                                    search.closeProfileForElsewhere()
+                                    reopenCheckIn(CheckInAnalytics.GateTarget.InstantTab)
+                                }
+                                Tab.Likes -> Unit
                             }
                         }
                     },
@@ -2493,6 +2672,16 @@ private fun openLocationSettings(context: Context) {
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(intent) }.onFailure { openAppSettings(context) }
 }
+
+/**
+ * The viewer's Check-In 05 gender pre-fill -- `checkinGenderDefault` on their current profile -- for
+ * `filters_active`'s `meet_gender` (27 Oct 2026). Null when the profile cannot be read, and then
+ * `meet_gender` is left out rather than guessed. The demo's viewer is a straight man, as its saved
+ * filters (women) are.
+ */
+private suspend fun searchGenderDefault(api: ShowUpApi, demo: Boolean): Set<String>? =
+    if (demo) checkinGenderDefault("man", "straight")
+    else ProfileDetailsRepository(api).load()?.let { checkinGenderDefault(it.gender, it.orientation) }
 
 /** The §11 screen a flow position is, for `referrer_screen_id`. Null where none is registered. */
 private fun profileScreenOf(

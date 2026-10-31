@@ -622,6 +622,32 @@ open class CheckInViewModel(
         _state.update { s -> s.copy(filters = s.filters?.copy(distanceKm = km.coerceIn(DISTANCE_MIN, DISTANCE_MAX))) }
     }
 
+    /**
+     * Check-In 05b: whether the Dealbreaker switches show -- the server's remote flag
+     * `filters_dealbreakers`. Off, they are not drawn, not sent, and tracked as false.
+     */
+    private val dealbreakersShown: Boolean get() = _state.value.server?.filtersDealbreakers == true
+
+    /**
+     * The Age range Dealbreaker switch. The line under it swaps at once; nothing else changes. Saved
+     * with the rest on an accepted Continue -- never on the tap, never on close -- and a tap reports
+     * nothing (no `dealbreaker_toggled`).
+     */
+    fun ageDealbreakerToggled(on: Boolean) {
+        if (!onScreen(CheckInStep.Filters) || !dealbreakersShown) return
+        filtersTouched = true
+        if (filtersStandIn) standInEdits += FilterField.AgeDealbreaker
+        _state.update { s -> s.copy(filters = s.filters?.copy(ageDealbreaker = on)) }
+    }
+
+    /** The Distance Dealbreaker switch, as [ageDealbreakerToggled]. */
+    fun distanceDealbreakerToggled(on: Boolean) {
+        if (!onScreen(CheckInStep.Filters) || !dealbreakersShown) return
+        filtersTouched = true
+        if (filtersStandIn) standInEdits += FilterField.DistanceDealbreaker
+        _state.update { s -> s.copy(filters = s.filters?.copy(distanceDealbreaker = on)) }
+    }
+
     fun filtersContinue(onAdvance: () -> Unit) {
         if (!onScreen(CheckInStep.Filters)) return
         val filters = _state.value.filters ?: return
@@ -632,7 +658,11 @@ open class CheckInViewModel(
         val entry = filtersOnEntry ?: filters
         val answer = if (filtersChanged(entry, filters) == "none") "prefilled" else "picked"
         analytics?.report(CheckInAnalytics.stepAnswered(CheckInStep.Filters, answer, millis() - viewedAt))
-        analytics?.report(CheckInAnalytics.filtersChanged(entry, filters, windowId))
+        analytics?.report(
+            CheckInAnalytics.filtersChanged(
+                entry, filters, windowId, CheckInAnalytics.FiltersOpenedFrom.CheckIn, dealbreakers = dealbreakersShown,
+            ),
+        )
         filtersTouched = true
         // Built on the stand-in, nothing is sent yet: the read that lands resolves and sends it, or
         // the commit reads first.
@@ -648,7 +678,7 @@ open class CheckInViewModel(
         val seq = ++filtersSaveSeq
         filtersSave = viewModelScope.launch {
             previous?.join()
-            val outcome = store.saveFilters(filters)
+            val outcome = store.saveFilters(filters, dealbreakersShown)
             // Only the newest save's answer: an earlier one answering, even with the same settings,
             // leaves later saves still out.
             if (seq == filtersSaveSeq) filtersInFlight = null
@@ -680,11 +710,11 @@ open class CheckInViewModel(
     private var filtersFromSearch = false
 
     /** Search's filter button: Filters on the saved settings, never a half-made Check-In's edits. */
-    fun searchFiltersOpened() {
+    fun searchFiltersOpened(referrer: ProfileScreen = ProfileScreen.SearchProfile) {
         if (filtersFromSearch && currentStep == CheckInStep.Filters) return
         filtersFromSearch = true
         _state.update { s -> s.copy(filters = s.server?.filters ?: s.filters) }
-        arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, ProfileScreen.SearchProfile)
+        arrived(CheckInStep.Filters, ProfileScreen.CheckinFilters, referrer)
     }
 
     /** Continue on Filters from Search: saved, then [onSaved] -- Search, reading its queue again. */
@@ -706,7 +736,7 @@ open class CheckInViewModel(
             val saved = when {
                 filters == null -> Outcome.Failed(CallFailure.Network)
                 filters == _state.value.server?.filters -> Outcome.Ok(Unit)
-                else -> store.saveFilters(filters)
+                else -> store.saveFilters(filters, dealbreakersShown)
             }
             _state.update { it.copy(saving = false) }
             if (saved !is Outcome.Ok || filters == null) {
@@ -714,7 +744,12 @@ open class CheckInViewModel(
                 return@launch
             }
             filtersLanded(filters)
-            analytics?.report(CheckInAnalytics.filtersChanged(filtersOnEntry ?: filters, filters, windowId))
+            analytics?.report(
+                CheckInAnalytics.filtersChanged(
+                    filtersOnEntry ?: filters, filters, windowId, CheckInAnalytics.FiltersOpenedFrom.Search,
+                    dealbreakers = dealbreakersShown,
+                ),
+            )
             leaveSearchFilters()
             onSaved()
         }
@@ -823,7 +858,7 @@ open class CheckInViewModel(
             if (waited && last != null && last.first == filters && last.second == CallFailure.Network) {
                 return CommitResult.Network
             }
-            when (val saved = store.saveFilters(filters)) {
+            when (val saved = store.saveFilters(filters, dealbreakersShown)) {
                 is Outcome.Ok -> filtersLanded(filters)
                 is Outcome.Failed -> return saved.why.asCommitResult()
             }

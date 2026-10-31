@@ -437,6 +437,20 @@ final class ScreenFitTests: XCTestCase {
                 ("Location C services off", try render(
                     ProfileLocationView(state: .servicesOff), on: device), .violet),
 
+                // SHOWUP-188, the Search location gate: Profile 12's screen in its app context. A-C
+                // on the Search tab, D pushed over a Likes profile -- in B as drawn, and in A, the
+                // tightest D (the privacy note under the 140 radar). The sunset CTA again.
+                ("Gate A ask", try render(LocationGateView(
+                    state: .ask, tab: .search, likes: 2, onTab: { _ in }, onLikes: {}), on: device), .violet),
+                ("Gate B denied", try render(LocationGateView(
+                    state: .denied, tab: .search, likes: 2, onTab: { _ in }, onLikes: {}), on: device), .violet),
+                ("Gate C services off", try render(LocationGateView(
+                    state: .servicesOff, tab: .search, likes: 2, onTab: { _ in }, onLikes: {}), on: device), .violet),
+                ("Gate D from Likes", try render(LocationGateView(
+                    state: .denied, tab: .likes, likes: 2, onTab: { _ in }, onLikes: {}, onBack: {}), on: device), .violet),
+                ("Gate D ask", try render(LocationGateView(
+                    state: .ask, tab: .likes, likes: 2, onTab: { _ in }, onLikes: {}, onBack: {}), on: device), .violet),
+
                 // SHOWUP-166, the second bridge. The sunset pill again; the long name is the only
                 // thing that reflows. No confetti here — the harness photographs it at rest.
                 ("Embrace 2 named", try render(
@@ -535,6 +549,19 @@ final class ScreenFitTests: XCTestCase {
                 ("Check-In Filters narrowed", try render(
                     CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "non_binary"],
                                                                minAge: 25, maxAge: 35, distanceKm: 15)),
+                    on: device), .violet),
+                // Check-In 05b (SHOWUP-189), the remote flag on: the sheet's A, B and C.
+                ("Check-In Filters 05b A", try render(
+                    CheckInFiltersView(filters: CheckInFilters(genders: ["woman"]), dealbreakers: true),
+                    on: device), .violet),
+                ("Check-In Filters 05b B", try render(
+                    CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "non_binary"], minAge: 28, maxAge: 35,
+                                                               ageDealbreaker: true), dealbreakers: true),
+                    on: device), .violet),
+                ("Check-In Filters 05b C", try render(
+                    CheckInFiltersView(filters: CheckInFilters(genders: ["woman", "man", "non_binary"], minAge: 25,
+                                                               maxAge: 40, distanceKm: 15, ageDealbreaker: true,
+                                                               distanceDealbreaker: true), dealbreakers: true),
                     on: device), .violet),
                 ("Check-In Uplift empty", try render(CheckInUpliftView(text: ""), on: device), .violet),
                 ("Check-In Uplift saving", try render(

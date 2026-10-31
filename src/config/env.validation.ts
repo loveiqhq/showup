@@ -32,6 +32,8 @@ export const validationSchema = Joi.object({
 
   // API docs
   SWAGGER_ENABLED: Joi.boolean().default(true),
+  // The remote flag `filters_dealbreakers` (SHOWUP-189); off until matching applies the soft range.
+  FILTERS_DEALBREAKERS: Joi.boolean().default(false),
   SWAGGER_PATH: Joi.string().default('docs'),
   SWAGGER_USER: Joi.string().allow('').optional(),
   SWAGGER_PASSWORD: Joi.string().allow('').optional(),

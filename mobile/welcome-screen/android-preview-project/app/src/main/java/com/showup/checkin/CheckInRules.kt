@@ -250,12 +250,37 @@ const val DISTANCE_MIN = 1
 const val DISTANCE_MAX = 50
 const val DISTANCE_DEFAULT = 10
 
+/**
+ * Check-In 05's gender pre-fill from the profile's gender and orientation (`checkinGenderDefault` in
+ * the reference). The server pre-fills with its own copy, `checkInGenderDefault` in
+ * `src/modules/check-ins/util/check-in-flow.ts`; the two must agree, or `filters_active` reports a
+ * `meet_gender` change nobody made. Anything not a straight, gay, lesbian, bisexual or pansexual
+ * woman or man -- an unread profile included -- pre-fills every gender, as the server's does.
+ */
+fun checkinGenderDefault(gender: String?, orientation: String?): Set<String> {
+    val all = CheckInGender.entries.map { it.id }.toSet()
+    if (gender != "woman" && gender != "man") return all
+    return when (orientation) {
+        "bisexual", "pansexual" -> setOf("woman", "man")
+        "gay", "lesbian" -> setOf(gender)
+        "straight" -> setOf(if (gender == "man") "woman" else "man")
+        else -> all
+    }
+}
+
 /** The Filters step's values. [maxAge] [AGE_MAX] is "no upper limit". */
 data class CheckInFilters(
     val genders: Set<String>,
     val minAge: Int = AGE_MIN,
     val maxAge: Int = AGE_MAX,
     val distanceKm: Int = DISTANCE_DEFAULT,
+    /**
+     * Check-In 05b's switches, §10 `age_dealbreaker` / `distance_dealbreaker`: on, nobody outside the
+     * range is ever shown; off (the default, for everyone), it is a preference matching may widen.
+     * Independent of the value -- `Any age` with the switch on is valid and limits nothing.
+     */
+    val ageDealbreaker: Boolean = false,
+    val distanceDealbreaker: Boolean = false,
 ) {
     /** `max_age` as sent and stored: null for 65+. */
     val maxAgeOrNull: Int? get() = maxAge.takeIf { it < AGE_MAX }
@@ -291,20 +316,22 @@ fun moveAgeThumb(filters: CheckInFilters, thumb: Int, value: Int): CheckInFilter
 
 /**
  * `filters_changed`: the §10 filter_ids whose value differs from what the step showed on entry, in
- * the order `meet_gender,age_range,distance_km`, or `none`. Never the values themselves --
- * `meet_gender` is Class 2.
+ * the order `meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker` (extended
+ * taxonomy 1.4.23), or `none`. Never the values themselves -- `meet_gender` is Class 2.
  */
 fun filtersChanged(entry: CheckInFilters, now: CheckInFilters): String {
     val changed = buildList {
         if (entry.genders != now.genders) add("meet_gender")
         if (entry.minAge != now.minAge || entry.maxAge != now.maxAge) add("age_range")
+        if (entry.ageDealbreaker != now.ageDealbreaker) add("age_dealbreaker")
         if (entry.distanceKm != now.distanceKm) add("distance_km")
+        if (entry.distanceDealbreaker != now.distanceDealbreaker) add("distance_dealbreaker")
     }
     return if (changed.isEmpty()) "none" else changed.joinToString(",")
 }
 
 /** What Filters sets, one per §10 filter_id. */
-enum class FilterField { Genders, Ages, Distance }
+enum class FilterField { Genders, Ages, AgeDealbreaker, Distance, DistanceDealbreaker }
 
 /**
  * Filters the user set on the offline stand-in, once the server's own settings arrive. What they
@@ -319,6 +346,9 @@ fun filtersOverStandIn(local: CheckInFilters, server: CheckInFilters, edited: Se
         minAge = if (FilterField.Ages in edited) local.minAge else server.minAge,
         maxAge = if (FilterField.Ages in edited) local.maxAge else server.maxAge,
         distanceKm = if (FilterField.Distance in edited) local.distanceKm else server.distanceKm,
+        ageDealbreaker = if (FilterField.AgeDealbreaker in edited) local.ageDealbreaker else server.ageDealbreaker,
+        distanceDealbreaker =
+            if (FilterField.DistanceDealbreaker in edited) local.distanceDealbreaker else server.distanceDealbreaker,
     )
 
 // ── uplift (Check-In 06) ────────────────────────────────────────────────────────────────────────
@@ -474,6 +504,16 @@ object CheckInCopy {
     const val SLIDER_MAX_AGE = "Maximum age"
     const val SLIDER_DISTANCE = "Distance in km"
     const val FILTERS_TOAST = "Pick at least one gender to date."
+
+    // 05b (SHOWUP-189): the gender row reads as multi-select; a Dealbreaker switch on Age and Distance.
+    const val FILTER_GENDER_HINT = "Pick all that apply"
+    const val FILTER_GENDER_GROUP = "Gender, pick all that apply"
+    const val DEALBREAKER = "Dealbreaker"
+    const val DEALBREAKER_OFF = "People just outside may appear, ranked lower."
+    const val DEALBREAKER_ON_AGE = "Never show anyone outside this age range."
+    const val DEALBREAKER_ON_DISTANCE = "Never show anyone outside this distance."
+    const val DEALBREAKER_AGE_LABEL = "Age range is a dealbreaker"
+    const val DEALBREAKER_DISTANCE_LABEL = "Distance is a dealbreaker"
 
     // 06
     val UPLIFT_HEADLINE = listOf("Give people a reason to date " to false, "you" to true, " over others!" to false)

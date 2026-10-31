@@ -194,6 +194,12 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
 
     /** The Likes tab for a Premium user (SHOWUP-186, §11 `likes_received`). */
     LikesReceived("likes_received", "Search - Likes received"),
+
+    /**
+     * The Search location gate (SHOWUP-188, §11 row added 22 Oct 2026): Profile 12's screen in its
+     * app context. Once per mount, never per state -- A -> B in place is one view.
+     */
+    SearchLocationGate("search_location_gate", "Search - Location gate"),
 }
 
 /**
@@ -362,6 +368,9 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.31 (27 October 2026): 1.4.30 registered §11 `search_location_gate` (SHOWUP-188) and 1.4.31
+     * added §10 `age_dealbreaker` / `distance_dealbreaker` (SHOWUP-189). Nothing else moved.
+     *
      * 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186): §11 gains the three
      * search screens, §23's dismiss note covers the actions coach, §33-§37 are new. No value an event
      * here sends moved between 1.4.25 and 1.4.29 -- the stamp follows the file the code reads.
@@ -389,7 +398,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.29"
+    const val FIELD_REGISTRY_VERSION = "1.4.31"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -481,6 +490,9 @@ object ProfileAnalytics {
     // take `type: "location"` here.
     const val PERMISSION_DENIED_RECOVERY_SHOWN = "permission_denied_recovery_shown"
 
+    /** The Search location gate's state, taxonomy 1.4.21 (SHOWUP-188). Never fired by Profile 12. */
+    const val LOCATION_GATE_SHOWN = "location_gate_shown"
+
     /** `permission_*.type` for the location ask. §8's closed set on `permission_prompted`. */
     const val PERMISSION_LOCATION = "location"
 
@@ -527,10 +539,17 @@ object ProfileAnalytics {
             putAll(Stamp.of(1))
         }
 
-    /** T2, class 1. The platform's own dialog was raised -- on the tap, never on arrival. */
-    fun permissionOsSheetShown(type: String = PERMISSION_NOTIFICATIONS) =
+    /**
+     * T2, class 1. The platform's own dialog was raised -- on the tap, never on arrival.
+     *
+     * [screen] is the optional `screen_id` (taxonomy 1.4.21): the location gate sends
+     * `search_location_gate`; Profile 12 sends none, and absent means `profile_location`. The same
+     * rule on [permissionResult] and [permissionSettingsOpened].
+     */
+    fun permissionOsSheetShown(type: String = PERMISSION_NOTIFICATIONS, screen: ProfileScreen? = null) =
         PERMISSION_OS_SHEET_SHOWN to buildMap<String, Any> {
             put("type", type)
+            screen?.let { put("screen_id", it.screenId) }
             putAll(Stamp.of(1))
         }
 
@@ -541,10 +560,11 @@ object ProfileAnalytics {
      * occur for notifications** -- it is a photo-library state. The signature takes a Boolean
      * rather than a string so there is no third value to pass by mistake.
      */
-    fun permissionResult(granted: Boolean, type: String = PERMISSION_NOTIFICATIONS) =
+    fun permissionResult(granted: Boolean, type: String = PERMISSION_NOTIFICATIONS, screen: ProfileScreen? = null) =
         PERMISSION_RESULT to buildMap<String, Any> {
             put("type", type)
             put("result", if (granted) "granted" else "denied")
+            screen?.let { put("screen_id", it.screenId) }
             putAll(Stamp.of(1))
         }
 
@@ -584,6 +604,18 @@ object ProfileAnalytics {
      * location, absent otherwise". It is the only builder that takes the location type, so it
      * always carries one.
      */
+    /**
+     * T1, class 1. The Search location gate showed a state (SHOWUP-188): on mount, and again only
+     * when the reason changes while it is up -- never on a plain foreground. On the gate this IS the
+     * ask and the recovery: it replaces [permissionPrompted] and [permissionDeniedRecoveryShown],
+     * which never fire there. `reason` is §26, `not_determined` included.
+     */
+    fun locationGateShown(reason: LocationUnavailableReason) =
+        LOCATION_GATE_SHOWN to buildMap<String, Any> {
+            put("reason", reason.trackingValue)
+            putAll(Stamp.of(1))
+        }
+
     fun permissionDeniedRecoveryShown(reason: LocationUnavailableReason) =
         PERMISSION_DENIED_RECOVERY_SHOWN to buildMap<String, Any> {
             put("type", PERMISSION_LOCATION)
@@ -1208,9 +1240,10 @@ object ProfileAnalytics {
      * stayed on", opening Settings is "they left the app to fix it". Counting the second as the
      * first would make the deactivation funnel look healthier than it is.
      */
-    fun permissionSettingsOpened(type: String = PERMISSION_NOTIFICATIONS) =
+    fun permissionSettingsOpened(type: String = PERMISSION_NOTIFICATIONS, screen: ProfileScreen? = null) =
         PERMISSION_SETTINGS_OPENED to buildMap<String, Any> {
             put("type", type)
+            screen?.let { put("screen_id", it.screenId) }
             putAll(Stamp.of(1))
         }
 

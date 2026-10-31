@@ -316,10 +316,13 @@ fun SearchProfileScreen(
  * The back pill (Search 02 13), under the top bar: padding `0 16 10`; a 36-tall pill, padding
  * `0 14 0 8`, 1px `--liq-border` on white, the chevron 18 (stroke 2.2) and the label in Manrope 700 /
  * 13, gap 2. Drawn at 36, answering at 44.
+ *
+ * [rowBackground] is the profile's cream band under its top bar. The location gate (SHOWUP-188 ⑪)
+ * puts the same pill straight on its backdrop, with no band, so it passes [Color.Transparent].
  */
 @Composable
-private fun BackPill(label: String, onBack: () -> Unit) {
-    Box(Modifier.fillMaxWidth().background(Cream).padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+internal fun BackPill(label: String, onBack: () -> Unit, rowBackground: Color = Cream) {
+    Box(Modifier.fillMaxWidth().background(rowBackground).padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
         OverflowTapTarget(
             touch = Modifier
                 .clickable(role = Role.Button, onClick = onBack)
@@ -766,20 +769,16 @@ private fun LoadingState() {
     }
 }
 
-/** The queue could not be read -- offline or a server error. The words are PROPOSED, not ticketed. */
+/** The queue could not be read -- offline or a server error. Words approved 27 Oct 2026. */
 @Composable
 private fun FailedState(onRetry: () -> Unit) {
-    CentredStatement(SearchCopy.LOAD_FAILED_PROPOSED, SearchCopy.RETRY, onRetry)
+    CentredStatement(SearchCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
 }
 
-/**
- * The queue ran dry: "the no results · widen filters screen (its own story)", not ticketed and not
- * drawn in this handoff. This stands in for it with the README's own words for it -- `No results`,
- * and `Widen filters` in one tap, which opens Check-In 05 -- until that story replaces it.
- */
+/** The queue ran dry: the interim no-results screen ([SearchEmptyState]); `Widen my search` opens Filters. */
 @Composable
 private fun NoResultsState(onFilters: () -> Unit) {
-    CentredStatement(SearchCopy.NO_RESULTS_PROPOSED, SearchCopy.WIDEN_FILTERS_PROPOSED, onFilters)
+    SearchEmptyState(onWiden = onFilters)
 }
 
 @Composable

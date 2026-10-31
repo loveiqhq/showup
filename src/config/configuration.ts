@@ -25,6 +25,13 @@ export default () => ({
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
   },
+  // Remote flags, held on our own server (no third-party flag service). Each is read per request,
+  // so turning one on is a config change, never an app release.
+  features: {
+    // Check-In 05b (SHOWUP-189): the Filters step's Dealbreaker switches. On only once matching
+    // applies the soft range (Matching 01, SHOWUP-190).
+    filtersDealbreakers: process.env.FILTERS_DEALBREAKERS === 'true',
+  },
   swagger: {
     enabled: process.env.SWAGGER_ENABLED !== 'false',
     path: process.env.SWAGGER_PATH ?? 'docs',

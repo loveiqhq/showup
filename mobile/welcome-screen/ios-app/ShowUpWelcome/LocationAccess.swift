@@ -28,8 +28,11 @@ enum LocationState: String, Sendable {
     case servicesOff
 }
 
-/// `enums.json` §26 `location_unavailable_reason`. New in registry 1.4.7.
+/// `enums.json` §26 `location_unavailable_reason`. New in registry 1.4.7. Screen 12 reports only
+/// `denied` and `services_off` (`unavailableReason`); the Search location gate (SHOWUP-188) reports
+/// all three (`gateReason`), because there the ask is a blocked state too.
 enum LocationUnavailableReason: String, Sendable {
+    case notDetermined = "not_determined"
     case denied
     case servicesOff = "services_off"
 }
@@ -63,6 +66,15 @@ extension LocationState {
     var unavailableReason: LocationUnavailableReason? {
         switch self {
         case .ask: return nil
+        case .denied: return .denied
+        case .servicesOff: return .servicesOff
+        }
+    }
+
+    /// The §26 reason the Search location gate reports for this state: every state has one.
+    var gateReason: LocationUnavailableReason {
+        switch self {
+        case .ask: return .notDetermined
         case .denied: return .denied
         case .servicesOff: return .servicesOff
         }

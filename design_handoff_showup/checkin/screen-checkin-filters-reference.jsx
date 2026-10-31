@@ -1,5 +1,14 @@
 // screen-checkin-filters-reference.jsx — 48hrs Check-In 05 · Filters
 //
+// REVISED 26 Oct 2026 for [Check-In 05b] Filters v2 (spec-sheets/05b-filters-v2.png):
+//   · Gender: GenderCheckPill (checkbox square) replaces LifePill on this step,
+//     and the label row carries "Pick all that apply" (CheckinFilterRow hintMuted).
+//   · Age range and Distance: a DealbreakerRow each, consuming ConsentToggle
+//     from Profile 10 (profile/screen-reachability-reference.jsx). Default off.
+//   · filters gains ageStrict / distStrict (stored as §10 age_dealbreaker /
+//     distance_dealbreaker).
+//   Everything else is unchanged from Check-In 05.
+//
 // Design reference for [Check-In 05] Filters. This is the code that renders
 // spec-sheets/05-filters.png. Read values from HERE, not the PNG.
 //
@@ -77,6 +86,47 @@ const checkinAgeLabel = ([lo, hi]) =>
   : hi === CHECKIN_AGE_MAX ? `${lo}+`
   : `${lo} – ${hi}`;
 
+// GenderCheckPill — LifePill's values plus a 16 checkbox square (05b ② ③).
+function GenderCheckPill({ label, selected, onClick }) {
+  return (
+    <button type="button" role="checkbox" aria-checked={!!selected} onClick={onClick} style={{
+      height: 34, padding: '0 14px 0 10px', borderRadius: 9999,
+      background: selected ? 'var(--liq-primary-500)' : '#FFFFFF',
+      color: selected ? '#FFFFFF' : 'var(--liq-fg)',
+      border: selected ? '1px solid var(--liq-primary-500)' : '1px solid var(--liq-border)',
+      fontFamily: 'var(--liq-font-sans)', fontWeight: selected ? 700 : 500, fontSize: 13.5, lineHeight: 1,
+      whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+      boxShadow: selected ? '0 2px 8px rgba(129,42,236,0.22)' : 'none',
+      transition: 'background 180ms cubic-bezier(.22,1,.36,1), color 180ms, border-color 180ms',
+    }}>
+      <span aria-hidden="true" style={{
+        flex: 'none', width: 16, height: 16, borderRadius: 5, boxSizing: 'border-box',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: selected ? '#FFFFFF' : 'transparent',
+        border: selected ? 'none' : '1.5px solid rgba(29,17,41,0.32)',
+        color: 'var(--liq-primary-500)',
+      }}>{selected && <Icon name="check" size={12} stroke={3}/>}</span>
+      {label}
+    </button>
+  );
+}
+
+// DealbreakerRow — under the Age and Distance sliders (05b ④ ⑤ ⑥).
+// ConsentToggle is Profile 10's switch: consumed, never copied.
+function DealbreakerRow({ on, onChange, what }) {
+  return (
+    <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--liq-font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--liq-fg)' }}>Dealbreaker</div>
+        <div style={{ fontFamily: 'var(--liq-font-sans)', fontSize: 12, lineHeight: 1.4, color: 'var(--liq-fg-muted)', marginTop: 2, textWrap: 'pretty' }}>
+          {on ? `Never show anyone outside this ${what}.` : 'People just outside may appear, ranked lower.'}
+        </div>
+      </div>
+      <ConsentToggle on={on} onChange={onChange} label={`${what[0].toUpperCase() + what.slice(1)} is a dealbreaker`}/>
+    </div>
+  );
+}
+
 function FiltersStep({ filters, setFilters }) {
   const toggleGender = id => setFilters(f => {
     const n = new Set(f.gender);
@@ -98,10 +148,10 @@ function FiltersStep({ filters, setFilters }) {
         flex: 1, minHeight: 0, overflowY: 'auto', marginTop: 18, paddingBottom: 12,
         display: 'flex', flexDirection: 'column', gap: 22,
       }}>
-        <CheckinFilterRow label="Gender">
-          <div role="group" aria-label="Gender" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <CheckinFilterRow label="Gender" hint="Pick all that apply" hintMuted>
+          <div role="group" aria-label="Gender, pick all that apply" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {CHECKIN_GENDERS.map(g => (
-              <LifePill key={g.id} label={g.t} multi selected={filters.gender.has(g.id)} onClick={() => toggleGender(g.id)}/>
+              <GenderCheckPill key={g.id} label={g.t} selected={filters.gender.has(g.id)} onClick={() => toggleGender(g.id)}/>
             ))}
           </div>
         </CheckinFilterRow>
@@ -114,12 +164,14 @@ function FiltersStep({ filters, setFilters }) {
               if (age[0] > age[1]) { if (i === 0) age[1] = age[0]; else age[0] = age[1]; }
               return { ...f, age };
             })}/>
+          <DealbreakerRow what="age range" on={filters.ageStrict} onChange={v => setFilters(f => ({ ...f, ageStrict: v }))}/>
         </CheckinFilterRow>
 
         <CheckinFilterRow label="How far away?" hint={`${filters.dist} km`}>
           <RangeSlider values={[filters.dist]} min={CHECKIN_DIST_MIN} max={CHECKIN_DIST_MAX}
             labels={['Distance in km']}
             onChange={(i, v) => setFilters(f => ({ ...f, dist: v }))}/>
+          <DealbreakerRow what="distance" on={filters.distStrict} onChange={v => setFilters(f => ({ ...f, distStrict: v }))}/>
         </CheckinFilterRow>
       </div>
     </div>
@@ -130,7 +182,7 @@ function FiltersStep({ filters, setFilters }) {
 // The screen as the step shell renders it. StepShell / CheckInFooter are the
 // ones built by Check-In 02 — shown here only to name the props this step passes.
 function FiltersScreen({ filters: initial = CHECKIN_FILTERS_FIRST, toast = '' }) {
-  const [filters, setFilters] = React.useState({ gender: new Set(initial.gender), age: [...initial.age], dist: initial.dist });
+  const [filters, setFilters] = React.useState({ gender: new Set(initial.gender), age: [...initial.age], dist: initial.dist, ageStrict: !!initial.ageStrict, distStrict: !!initial.distStrict });
   return (
     <StepShell current={5} onBack={/* → checkin_vibe */ () => {}} onClose={/* → gate, nothing saved */ () => {}}>
       <FiltersStep filters={filters} setFilters={setFilters}/>
@@ -139,12 +191,12 @@ function FiltersScreen({ filters: initial = CHECKIN_FILTERS_FIRST, toast = '' })
   );
 }
 
-function CheckinFilterRow({ label, hint, children }) {
+function CheckinFilterRow({ label, hint, hintMuted = false, children }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ fontFamily: 'var(--liq-font-sans)', fontWeight: 600, fontSize: 14, color: 'var(--liq-fg)' }}>{label}</div>
-        {hint && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--liq-primary-500)' }}>{hint}</span>}
+        {hint && <span style={{ fontSize: hintMuted ? 12 : 13, fontWeight: hintMuted ? 500 : 600, color: hintMuted ? 'var(--liq-fg-muted)' : 'var(--liq-primary-500)' }}>{hint}</span>}
       </div>
       {children}
     </div>

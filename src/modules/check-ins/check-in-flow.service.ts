@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, IsNull, Not } from 'typeorm';
 
@@ -65,7 +66,17 @@ export class CheckInFlowService {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly analytics: AnalyticsService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * The remote flag `filters_dealbreakers` (Check-In 05b), from our own config -- no third-party
+   * flag service. Read per request, so turning it on is a config change and a restart, never a
+   * release of either app.
+   */
+  private get filtersDealbreakers(): boolean {
+    return this.config.get<boolean>('features.filtersDealbreakers') === true;
+  }
 
   /** What the client needs before the first Check-In screen. Opens a window if one is due. */
   async state(
@@ -130,6 +141,9 @@ export class CheckInFlowService {
       );
     }
     const repo = this.dataSource.getRepository(FilterSettings);
+    // A switch left out keeps what is stored: the apps send neither while `filters_dealbreakers` is
+    // off, and a save from an older build must not turn on or off a choice it never showed.
+    const before = await repo.findOne({ where: { userId } });
     const saved = await repo.save(
       repo.create({
         userId,
@@ -137,6 +151,9 @@ export class CheckInFlowService {
         minAge: dto.minAge,
         maxAge,
         distanceKm: dto.distanceKm,
+        ageDealbreaker: dto.ageDealbreaker ?? before?.ageDealbreaker ?? false,
+        distanceDealbreaker:
+          dto.distanceDealbreaker ?? before?.distanceDealbreaker ?? false,
       }),
     );
     return filterDto(saved);
@@ -363,8 +380,11 @@ export class CheckInFlowService {
             minAge: FILTER_AGE_MIN,
             maxAge: null,
             distanceKm: FILTER_DISTANCE_DEFAULT,
+            ageDealbreaker: false,
+            distanceDealbreaker: false,
           },
       filtersSaved: saved != null,
+      filtersDealbreakers: this.filtersDealbreakers,
     };
   }
 }
@@ -375,5 +395,7 @@ function filterDto(f: FilterSettings): FilterSettingsDto {
     minAge: f.minAge,
     maxAge: f.maxAge,
     distanceKm: f.distanceKm,
+    ageDealbreaker: f.ageDealbreaker,
+    distanceDealbreaker: f.distanceDealbreaker,
   };
 }

@@ -67,6 +67,8 @@ class CheckInViewModelTest {
         val commits = mutableListOf<CommitRequest>()
         val answers = mutableListOf<Pair<String?, Set<String>?>>()
         val filters = mutableListOf<CheckInFilters>()
+        /** Per filter save: whether the two Dealbreaker switches were sent (Check-In 05b). */
+        val withDealbreakers = mutableListOf<Boolean>()
         var introMarks = 0
         var loads = 0
 
@@ -85,8 +87,9 @@ class CheckInViewModelTest {
             answers += motivation to vibes
             return true
         }
-        override suspend fun saveFilters(filters: CheckInFilters): Outcome<Unit> {
+        override suspend fun saveFilters(filters: CheckInFilters, withDealbreakers: Boolean): Outcome<Unit> {
             this.filters += filters
+            this.withDealbreakers += withDealbreakers
             val (delayMs, lands) = filterScript.removeFirstOrNull() ?: (0L to filterSaves)
             if (delayMs > 0) delay(delayMs)
             if (lands) held = held.copy(filters = filters)
@@ -635,6 +638,118 @@ class CheckInViewModelTest {
         assertEquals(CheckInCopy.FILTERS_TOAST, state.toast)
     }
 
+    // ── 05b: the Dealbreaker switches (SHOWUP-189) ─────────────────────────────────────────────
+
+    /** The server's remote flag `filters_dealbreakers`, read before the flow starts. */
+    private fun TestScope.dealbreakersOn() {
+        store.held = store.held.copy(filtersDealbreakers = true)
+        model.refresh()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `both switches default off, a tap swaps the state and reports nothing`() = runTest(dispatcher) {
+        dealbreakersOn()
+        walkTo(CheckInStep.Filters)
+        assertFalse(state.filters!!.ageDealbreaker)
+        assertFalse(state.filters!!.distanceDealbreaker)
+        analytics.clear()
+        model.ageDealbreakerToggled(true)
+        assertTrue(state.filters!!.ageDealbreaker)
+        assertFalse("nothing else on the screen changes", state.filters!!.distanceDealbreaker)
+        assertTrue("a switch tap fires nothing", analytics.names().isEmpty())
+        assertTrue("never saved on the tap", store.filters.isEmpty())
+    }
+
+    @Test
+    fun `an accepted Continue saves both switches and reports both booleans in the extended order`() = runTest(dispatcher) {
+        dealbreakersOn()
+        walkTo(CheckInStep.Filters)
+        analytics.clear()
+        model.ageMoved(0, 25)
+        model.ageDealbreakerToggled(true)
+        model.distanceDealbreakerToggled(true)
+        model.filtersContinue {}
+        advanceUntilIdle()
+        val changed = props("check_in_filters_changed")
+        assertEquals("meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker order",
+            "age_range,age_dealbreaker,distance_dealbreaker", changed["filters_changed"])
+        assertEquals(true, changed["age_dealbreaker"])
+        assertEquals(true, changed["distance_dealbreaker"])
+        // The registry types it "checkin" | "search" (1.4.24): the Check-In step says so too.
+        assertEquals("checkin", changed["opened_from"])
+        assertEquals(true, store.filters.last().ageDealbreaker)
+        assertEquals(listOf(true), store.withDealbreakers)
+    }
+
+    @Test
+    fun `both booleans go on every Continue, changed or not`() = runTest(dispatcher) {
+        dealbreakersOn()
+        walkTo(CheckInStep.Filters)
+        analytics.clear()
+        model.filtersContinue {}
+        assertEquals("none", props("check_in_filters_changed")["filters_changed"])
+        assertEquals(false, props("check_in_filters_changed")["age_dealbreaker"])
+        assertEquals(false, props("check_in_filters_changed")["distance_dealbreaker"])
+    }
+
+    @Test
+    fun `with the flag off the switches do nothing, are not sent, and report false`() = runTest(dispatcher) {
+        store.held = store.held.copy(filters = CheckInFilters(setOf("woman"), ageDealbreaker = true))
+        walkTo(CheckInStep.Filters)
+        analytics.clear()
+        model.distanceDealbreakerToggled(true)
+        assertFalse("no switch is drawn, so none can change", state.filters!!.distanceDealbreaker)
+        model.filtersContinue {}
+        advanceUntilIdle()
+        assertEquals(false, props("check_in_filters_changed")["age_dealbreaker"])
+        assertEquals(false, props("check_in_filters_changed")["distance_dealbreaker"])
+        assertEquals("the fields are not sent", listOf(false), store.withDealbreakers)
+    }
+
+    @Test
+    fun `a switch changed and then closed is not stored`() = runTest(dispatcher) {
+        dealbreakersOn()
+        walkTo(CheckInStep.Filters)
+        model.ageDealbreakerToggled(true)
+        model.closePressed(CheckInStep.Filters) {}
+        advanceUntilIdle()
+        assertTrue(store.filters.isEmpty())
+        assertFalse(store.held.filters.ageDealbreaker)
+    }
+
+    @Test
+    fun `a switch changed in Search is saved, and shows at the next Check-In`() = runTest(dispatcher) {
+        store.held = store.held.copy(active = true, filtersDealbreakers = true, filters = CheckInFilters(setOf("woman")))
+        model.refresh()
+        advanceUntilIdle()
+        model.searchFiltersOpened()
+        advanceUntilIdle()
+        model.distanceDealbreakerToggled(true)
+        var back = false
+        model.searchFiltersContinue { back = true }
+        advanceUntilIdle()
+        assertTrue(back)
+        assertEquals(true, props("check_in_filters_changed")["distance_dealbreaker"])
+        assertEquals("search", props("check_in_filters_changed")["opened_from"])
+        assertTrue("one store with Search", store.held.filters.distanceDealbreaker)
+        assertTrue(state.server!!.filters.distanceDealbreaker)
+    }
+
+    @Test
+    fun `a switch changed in Search and then backed out of is not stored`() = runTest(dispatcher) {
+        store.held = store.held.copy(active = true, filtersDealbreakers = true, filters = CheckInFilters(setOf("woman")))
+        model.refresh()
+        advanceUntilIdle()
+        model.searchFiltersOpened()
+        advanceUntilIdle()
+        model.ageDealbreakerToggled(true)
+        model.searchFiltersLeft {}
+        advanceUntilIdle()
+        assertTrue(store.filters.isEmpty())
+        assertFalse(state.filters!!.ageDealbreaker)
+    }
+
     // ── 05 from Search's top bar (SHOWUP-184) ───────────────────────────────────────────────────
 
     /** A committed Check-In and its settings read: the user is on Search. */
@@ -679,6 +794,7 @@ class CheckInViewModelTest {
         assertEquals(5, state.server!!.filters.distanceKm)
         assertEquals("the funnel's step event is not fired from Search", listOf("check_in_filters_changed"), analytics.names())
         assertEquals("distance_km", props("check_in_filters_changed")["filters_changed"])
+        assertEquals("search", props("check_in_filters_changed")["opened_from"])
     }
 
     @Test

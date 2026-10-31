@@ -651,7 +651,7 @@ final class DetailsModelTests: XCTestCase {
                 let step = DetailStep(rawValue: field)
                 XCTAssertNotNil(step, "\(name) for an unknown field \(field)")
                 XCTAssertEqual(properties["sensitivity_class"] as? Int, step?.sensitivityClass, "\(name) / \(field)")
-                XCTAssertEqual(properties["field_registry_version"] as? String, "1.4.29")
+                XCTAssertEqual(properties["field_registry_version"] as? String, "1.4.31")
             }
         }
     }

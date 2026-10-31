@@ -67,16 +67,19 @@ enum SearchCopy {
     static let coachDontShow = "Don't show again"
     static let coachGotIt = "Got it"
 
-    // ── states the ticket does not draw ─────────────────────────────────────────────────────────
-    //
-    // PROPOSED, NOT TICKETED: the app's "We couldn't ... just now. Please try again." for a failed
-    // read, and the README's own name for the empty queue's screen ("No results · widen filters (one
-    // tap)"), whose story is not written. Each goes to Philipp; the verifier lists them as proposed.
+    // ── states the sheet does not draw: approved by Philipp, 27 Oct 2026 ──────────────────────────
     static let loadingLabel = "Loading profiles"
-    static let loadFailedProposed = "We couldn't load profiles just now. Please try again."
+    static let loadFailed = "Couldn't load profiles. Check your connection and try again."
     static let retry = "Retry"
-    static let noResultsProposed = "No results"
-    static let widenFiltersProposed = "Widen filters"
+    static let tryAgain = "Try again"
+    /// The interim no-results screen (Copy -> States, 27 Oct 2026), the kit's `search-empty` in normal
+    /// mode: the headline in three runs, `no people` washed.
+    static let noResultsLead = "Unfortunately there are "
+    static let noResultsEm = "no people"
+    static let noResultsTail = " left matching your search filters."
+    static let noResultsBody = "Widen your search filters to find more people."
+    /// Opens Filters for now (27 Oct 2026); the kit's sub-line and `Adjust filters manually` are left out.
+    static let widenMySearch = "Widen my search"
 }
 
 /// Search's essentials row labels, in the ticket's order.
@@ -175,15 +178,19 @@ func distanceParts(_ km: Int, _ district: String?) -> [String] {
 func distanceLine(_ km: Int, _ district: String?) -> String { distanceParts(km, district).joined(separator: " ") }
 
 /// `filters_active` on `search_viewed`: the §10 filters set away from Check-In 05's defaults, in §10
-/// order -- `age_range` when narrower than 18 to 65+, `distance_km` when not the default 10.
+/// order. `meet_gender` when the saved genders, as a set, are not the viewer's own pre-fill
+/// (`defaultGenders`, from their current profile, 27 Oct 2026) -- the IDs only, never a gender. Left
+/// out when that pre-fill is unknown: a guess would count every unread profile as a change.
 ///
-/// NEVER `meet_gender`: its default is the user's own, worked out on the server from their gender and
-/// orientation, so the phone cannot tell a narrowed set from the pre-fill. An open tracking question
-/// (24 Oct 2026), not an oversight.
-func filtersActive(_ filters: CheckInFilters) -> [String] {
+/// And the dealbreakers "when true" (Philipp, 27 Oct 2026): Check-In 05b's Age and Distance switches
+/// (SHOWUP-189), each listed when it is on, in §10's order beside the filter it hardens.
+func filtersActive(_ filters: CheckInFilters, defaultGenders: Set<String>? = nil) -> [String] {
     var out: [String] = []
+    if let defaultGenders, filters.genders != defaultGenders { out.append("meet_gender") }
     if filters.minAge > ageMin || filters.maxAge < ageMax { out.append("age_range") }
+    if filters.ageDealbreaker { out.append("age_dealbreaker") }
     if filters.distanceKm != distanceDefault { out.append("distance_km") }
+    if filters.distanceDealbreaker { out.append("distance_dealbreaker") }
     return out
 }
 

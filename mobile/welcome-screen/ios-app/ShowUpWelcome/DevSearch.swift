@@ -20,7 +20,11 @@ actor DevSearchStore: SearchStoring {
     /// Nanoseconds every call takes: long enough to see the loading state, short enough to walk.
     private let latency: UInt64
     /// Leonie in full, then Mara and Ana. A like or a pass takes someone out, as the server does.
-    private var queue: [SearchProfile] = [SearchSamples.full] + SearchSamples.next
+    private var queue: [SearchProfile] = ([SearchSamples.full] + SearchSamples.next).map {
+        var profile = $0
+        profile.charms = []
+        return profile
+    }
     private var coachHidden = false
     private var premium = false
 
@@ -86,7 +90,11 @@ actor DevSearchStore: SearchStoring {
 
     func grid(zone: String) async -> Result<SearchGrid, CallFailure> {
         try? await Task.sleep(nanoseconds: latency)
-        let cards = SearchSamples.grid.filter { !answered.contains($0.profile.userId) }
+        let cards = SearchSamples.grid.filter { !answered.contains($0.profile.userId) }.map {
+            var profile = $0.profile
+            profile.charms = []
+            return GridCard(profile: profile, likedYou: $0.likedYou)
+        }
         return .success(SearchGrid(resultsCount: cards.count, cards: cards, viewer: SearchSamples.viewer))
     }
 
@@ -118,7 +126,13 @@ actor DevSearchStore: SearchStoring {
         }
         let closed = closedSeen ? [] : SearchSamples.likes.filter { $0.closed != nil }
         closedSeen = true
-        return .success(LikesReceived(openCount: open.count, closedCount: closed.count, cards: open + closed,
+        let cards = (open + closed).map {
+            var profile = $0.profile
+            profile?.charms = []
+            return LikeReceived(userId: $0.userId, name: $0.name, age: $0.age, photo: $0.photo,
+                                closed: $0.closed, message: $0.message, profile: profile)
+        }
+        return .success(LikesReceived(openCount: open.count, closedCount: closed.count, cards: cards,
                                       viewer: SearchSamples.viewer))
     }
 

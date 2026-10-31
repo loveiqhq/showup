@@ -240,6 +240,18 @@ val PhotoInk = Color(0xFF140C1C)
 val ShowUpDarkFill = Color(0xC7141C18)
 val ShowUpDarkInk = Color(0xFF3DE08A)
 
+// ── added for the Search location gate (SHOWUP-188) ─────────────────────────────────────────────
+
+/**
+ * rgb(60,50,70), the slate the location radar is drawn in when location is off (`live={false}`,
+ * the gate's B, C and D): rings at .22 / .14 / .08, the pin's fill at .55 and its outline at .65,
+ * the slash at .55. Drawn as tints of this one value, as the live radar's are of [Purple].
+ */
+val RadarSlate = Color(0xFF3C3246)
+
+/** rgba(245,243,240,.85), the muted pin's centre dot -- the live pin's is white. */
+val RadarSlateDot = Color(0xD9F5F3F0)
+
 // ── Type ─────────────────────────────────────────────────────────────────
 //
 // The .ttf files ship in ../../fonts/. Copy them into app/src/main/res/font/ under these exact

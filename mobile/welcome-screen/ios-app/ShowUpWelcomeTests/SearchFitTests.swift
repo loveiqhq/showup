@@ -120,6 +120,35 @@ final class SearchFitTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, failures.joined(separator: " · "))
     }
 
+    /// The interim no-results screen (27 Oct 2026): `Widen my search` sits "directly above the tab bar,
+    /// always visible" -- 22 above it on every phone and type size -- and at the default type the
+    /// headline is under the top bar and clear of the CTA, the radar giving way first (`EmptyFit`).
+    func testNoResultsKeepsWidenMySearch22AboveTheTabBarOnEveryPhone() {
+        var empty = SearchUiState()
+        empty.loading = false
+        var failures: [String] = []
+        for device in fitDevices {
+            for type in sizes {
+                let f = layout(empty, on: device, type: type)
+                guard let cta = f[FitAnchorID.searchEmptyCta], let tab = f[FitAnchorID.tabBar],
+                      let top = f[FitAnchorID.searchTopBar] else {
+                    failures.append("\(device.described) \(type): an anchor is missing"); continue
+                }
+                let at = "\(device.described) \(type)"
+                if abs(tab.minY - cta.maxY - 22) > 1 { failures.append("\(at): CTA \(cta.maxY) not 22 above the TabBar \(tab.minY)") }
+                if cta.minY < top.maxY - 0.5 { failures.append("\(at): the CTA reaches the top bar") }
+                if cta.maxY > device.height - device.bottom + 0.5 { failures.append("\(at): the CTA is off the screen") }
+                if type == .large, let headline = f[FitAnchorID.searchEmptyHeadline] {
+                    if headline.minY < top.maxY - 0.5 { failures.append("\(at): the headline is under the top bar") }
+                    if headline.maxY > cta.minY { failures.append("\(at): the headline runs into the CTA") }
+                } else if type == .large {
+                    failures.append("\(at): the headline anchor is missing")
+                }
+            }
+        }
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: " · "))
+    }
+
     /// The instrument fires: a frame with no Search profile publishes no action bar.
     func testTheAnchorsReportWhatIsThereAndNothingElse() throws {
         let device = try XCTUnwrap(fitDevices.first { $0.width == 390 })

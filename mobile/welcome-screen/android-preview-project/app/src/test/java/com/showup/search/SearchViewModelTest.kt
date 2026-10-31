@@ -17,6 +17,7 @@ import com.showup.api.Outcome
 import com.showup.profile.FakeMediaPlayer
 import com.showup.profile.MediaKind
 import com.showup.profile.ProfileScreen
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -68,6 +69,49 @@ class SearchViewModelTest {
     }
 
     private fun props(name: String, nth: Int = 0) = events.of(name)[nth].properties
+
+    @Test
+    fun `empty Search is reported once per visit and never for a failed load`() = runTest(dispatcher) {
+        store.profiles = emptyList()
+        val model = vm()
+        model.visit("Europe/Berlin", emptyList(), null)
+        advanceUntilIdle()
+        assertEquals(listOf("screen_viewed", SearchAnalytics.SEARCH_VIEWED, SearchAnalytics.SEARCH_EMPTY_SHOWN), events.names())
+        assertEquals("no_results", props(SearchAnalytics.SEARCH_EMPTY_SHOWN)["reason"])
+        model.resume()
+        model.resume()
+        assertEquals(1, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+        model.arrived("Europe/Berlin", emptyList(), ProfileScreen.CheckinFilters)
+        advanceUntilIdle()
+        assertEquals(2, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+        store.queueFailure = CallFailure.Network
+        model.visit("Europe/Berlin", emptyList(), null)
+        advanceUntilIdle()
+        assertEquals(2, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+    }
+
+    @Test
+    fun `an empty Premium grid reports the same no results event`() = runTest(dispatcher) {
+        store.premium = true
+        store.grid = emptyList()
+        val model = vm()
+        model.visit("Europe/Berlin", emptyList(), null)
+        advanceUntilIdle()
+        assertEquals("no_results", props(SearchAnalytics.SEARCH_EMPTY_SHOWN)["reason"])
+        assertEquals(1, events.of(SearchAnalytics.SEARCH_EMPTY_SHOWN).size)
+    }
+
+    @Test
+    fun `runtime demo profiles keep Charms hidden on Search and received likes`() = runTest(dispatcher) {
+        val demo = com.showup.dev.DevSearchStore(latencyMs = 0, premium = true)
+        val queue = (demo.queue("UTC") as Outcome.Ok).value
+        val grid = (demo.grid("UTC") as Outcome.Ok).value
+        val likes = (demo.likesReceived("UTC") as Outcome.Ok).value
+        assertTrue(queue.profiles.isNotEmpty())
+        assertTrue(queue.profiles.all { it.charms.isEmpty() })
+        assertTrue(grid.cards.all { it.profile.charms.isEmpty() })
+        assertTrue(likes.cards.all { it.profile?.charms.isNullOrEmpty() })
+    }
 
     // ── the visit ───────────────────────────────────────────────────────────────────────────────
 
@@ -149,10 +193,49 @@ class SearchViewModelTest {
         vm.arrived("Europe/Berlin", listOf("distance_km"), ProfileScreen.CheckinFilters)
         advanceUntilIdle()
         assertEquals(1, store.queueReads)
-        assertEquals(listOf("screen_viewed"), events.names())
+        assertEquals(listOf("screen_viewed", SearchAnalytics.SEARCH_VIEWED), events.names())
         assertFalse(vm.state.value.loading)
         assertEquals("Mara is still the one shown", "sample-mara", vm.state.value.current?.userId)
         assertEquals("position starts again with the screen_viewed", 1, vm.state.value.position)
+        assertFalse(vm.state.value.coach)
+    }
+
+    @Test
+    fun `the queue is asked for while filters_active is still being worked out`() = runTest(dispatcher) {
+        val profileRead = CompletableDeferred<List<String>>()
+        val vm = vm()
+        vm.visit("Europe/Berlin", { profileRead.await() }, ProfileScreen.CheckinUplift)
+        advanceUntilIdle()
+        assertEquals("not held back by the profile request", 1, store.queueReads)
+        assertEquals(listOf("screen_viewed"), events.names())
+        profileRead.complete(listOf("meet_gender"))
+        advanceUntilIdle()
+        assertEquals(listOf("meet_gender"), props(SearchAnalytics.SEARCH_VIEWED)["filters_active"])
+        assertEquals(SearchSamples.FULL.userId, vm.state.value.current?.userId)
+    }
+
+    @Test
+    fun `back from Filters with nothing saved works nothing out again`() = runTest(dispatcher) {
+        var workedOut = 0
+        val vm = vm()
+        vm.visit("Europe/Berlin", { workedOut++; listOf("meet_gender") }, ProfileScreen.CheckinUplift)
+        advanceUntilIdle()
+        vm.leave()
+        events.clear()
+        vm.arrived("Europe/Berlin", { workedOut++; emptyList() }, ProfileScreen.CheckinFilters)
+        advanceUntilIdle()
+        assertEquals("no second profile request", 1, workedOut)
+        assertEquals("the settings did not change, so neither did this",
+            listOf("meet_gender"), props(SearchAnalytics.SEARCH_VIEWED)["filters_active"])
+    }
+
+    @Test
+    fun `a statistic that fails never stops Search`() = runTest(dispatcher) {
+        val vm = vm()
+        vm.visit("Europe/Berlin", { error("profile unreadable") }, ProfileScreen.CheckinUplift)
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), props(SearchAnalytics.SEARCH_VIEWED)["filters_active"])
+        assertEquals(SearchSamples.FULL.userId, vm.state.value.current?.userId)
     }
 
     @Test

@@ -51,6 +51,8 @@ private actor FakeStore: CheckInStoring {
     private(set) var commits: [CommitRequest] = []
     private(set) var answers: [(String?, Set<String>?)] = []
     private(set) var filterBodies: [CheckInFilters] = []
+    /// Per filter save: whether the two Dealbreaker switches were sent (Check-In 05b).
+    private(set) var withDealbreakers: [Bool] = []
     private(set) var introMarks = 0
 
     func setHeld(_ value: CheckInState) { held = value }
@@ -81,8 +83,9 @@ private actor FakeStore: CheckInStoring {
         return true
     }
 
-    func saveFilters(_ filters: CheckInFilters) async -> Result<Void, CallFailure> {
+    func saveFilters(_ filters: CheckInFilters, withDealbreakers: Bool) async -> Result<Void, CallFailure> {
         filterBodies.append(filters)
+        self.withDealbreakers.append(withDealbreakers)
         let (delay, lands) = filterScript.isEmpty ? (UInt64(0), filterSaves) : filterScript.removeFirst()
         if delay > 0 { try? await Task.sleep(nanoseconds: delay) }
         if lands { held.filters = filters }
@@ -651,6 +654,99 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(props("check_in_filters_changed")["max_age"] as? JSONNull, JSONNull())
     }
 
+    // MARK: - 05b: the Dealbreaker switches (SHOWUP-189)
+
+    /// The server's remote flag `filters_dealbreakers`, held before the flow reads it.
+    private func dealbreakersOn(filters: CheckInFilters? = nil, active: Bool = false) async {
+        var held = await store.held
+        held.filtersDealbreakers = true
+        held.active = active
+        if let filters { held.filters = filters }
+        await store.setHeld(held)
+    }
+
+    func testBothSwitchesDefaultOffAndATapSwapsTheStateAndReportsNothing() async {
+        await dealbreakersOn()
+        await walkTo(.filters)
+        XCTAssertEqual(state.filters?.ageDealbreaker, false)
+        XCTAssertEqual(state.filters?.distanceDealbreaker, false)
+        analytics.clear()
+        model.ageDealbreakerToggled(true)
+        XCTAssertEqual(state.filters?.ageDealbreaker, true)
+        XCTAssertEqual(state.filters?.distanceDealbreaker, false, "nothing else on the screen changes")
+        XCTAssertTrue(analytics.names.isEmpty, "a switch tap fires nothing")
+        let saved = await store.filterBodies
+        XCTAssertTrue(saved.isEmpty, "never saved on the tap")
+    }
+
+    func testAnAcceptedContinueSavesBothSwitchesAndReportsTheExtendedOrder() async {
+        await dealbreakersOn()
+        await walkTo(.filters)
+        analytics.clear()
+        model.ageMoved(thumb: 0, value: 25)
+        model.ageDealbreakerToggled(true)
+        model.distanceDealbreakerToggled(true)
+        model.filtersContinue {}
+        await settle()
+        let changed = props("check_in_filters_changed")
+        XCTAssertEqual(changed["filters_changed"] as? String, "age_range,age_dealbreaker,distance_dealbreaker")
+        XCTAssertEqual(changed["age_dealbreaker"] as? Bool, true)
+        XCTAssertEqual(changed["distance_dealbreaker"] as? Bool, true)
+        // The registry types it "checkin" | "search" (1.4.24): the Check-In step says so too.
+        XCTAssertEqual(changed["opened_from"] as? String, "checkin")
+        let sent = await store.withDealbreakers
+        XCTAssertEqual(sent, [true])
+        let saved = await store.filterBodies.last
+        XCTAssertEqual(saved?.ageDealbreaker, true)
+    }
+
+    func testWithTheFlagOffTheSwitchesDoNothingAreNotSentAndReportFalse() async {
+        var held = await store.held
+        held.filters = CheckInFilters(genders: ["woman"], ageDealbreaker: true)
+        await store.setHeld(held)
+        await walkTo(.filters)
+        analytics.clear()
+        model.distanceDealbreakerToggled(true)
+        XCTAssertEqual(state.filters?.distanceDealbreaker, false, "no switch is drawn, so none can change")
+        model.filtersContinue {}
+        await settle()
+        XCTAssertEqual(props("check_in_filters_changed")["age_dealbreaker"] as? Bool, false)
+        XCTAssertEqual(props("check_in_filters_changed")["distance_dealbreaker"] as? Bool, false)
+        let sent = await store.withDealbreakers
+        XCTAssertEqual(sent, [false], "the fields are not sent")
+    }
+
+    func testASwitchChangedInSearchIsSavedAndSharedWithTheNextCheckIn() async {
+        await dealbreakersOn(filters: CheckInFilters(genders: ["woman"]), active: true)
+        model.refresh()
+        await settle()
+        model.searchFiltersOpened()
+        await settle()
+        model.distanceDealbreakerToggled(true)
+        var back = false
+        model.searchFiltersContinue { back = true }
+        await settle()
+        XCTAssertTrue(back)
+        XCTAssertEqual(props("check_in_filters_changed")["distance_dealbreaker"] as? Bool, true)
+        XCTAssertEqual(props("check_in_filters_changed")["opened_from"] as? String, "search")
+        let held = await store.held
+        XCTAssertTrue(held.filters.distanceDealbreaker, "one store with Search")
+    }
+
+    func testASwitchChangedInSearchAndBackedOutOfIsNotStored() async {
+        await dealbreakersOn(filters: CheckInFilters(genders: ["woman"]), active: true)
+        model.refresh()
+        await settle()
+        model.searchFiltersOpened()
+        await settle()
+        model.ageDealbreakerToggled(true)
+        model.searchFiltersLeft {}
+        await settle()
+        let saved = await store.filterBodies
+        XCTAssertTrue(saved.isEmpty)
+        XCTAssertEqual(state.filters?.ageDealbreaker, false)
+    }
+
     func testNoGenderToastsAndStays() async {
         await walkTo(.filters)
         model.genderTapped("woman")
@@ -775,6 +871,7 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(state.server?.filters.distanceKm, 5)
         XCTAssertEqual(analytics.names, ["check_in_filters_changed"], "the funnel's step event is not fired from Search")
         XCTAssertEqual(props("check_in_filters_changed")["filters_changed"] as? String, "distance_km")
+        XCTAssertEqual(props("check_in_filters_changed")["opened_from"] as? String, "search")
     }
 
     func testARefusedSaveKeepsFiltersOnScreenWithItsToastAndContinueWorksAgain() async {
@@ -1304,7 +1401,8 @@ final class CheckInModelTests: XCTestCase {
             "check_in_no_hours_today_resolved": ["action", "window_id"],
             "motivation_selected": ["motivation_id", "window_id"],
             "vibe_selected": ["vibe_ids", "vibe_count", "window_id"],
-            "check_in_filters_changed": ["filters_changed", "min_age", "max_age", "distance_km", "window_id"],
+            "check_in_filters_changed": ["filters_changed", "min_age", "max_age", "distance_km", "age_dealbreaker",
+                                         "distance_dealbreaker", "window_id", "opened_from"],
             "check_in_commit_failed": ["reason", "attempt", "window_id"],
         ]
         let stamp: Set<String> = ["sensitivity_class", "field_registry_version"]
@@ -1312,7 +1410,7 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(Set(seen.map(\.0)), Set(registry.keys))
         for (name, properties) in seen {
             XCTAssertEqual(Set(properties.keys).subtracting(stamp), registry[name], name)
-            XCTAssertEqual(properties["field_registry_version"] as? String, "1.4.29", name)
+            XCTAssertEqual(properties["field_registry_version"] as? String, "1.4.31", name)
         }
     }
 }

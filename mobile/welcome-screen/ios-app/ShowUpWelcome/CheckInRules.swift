@@ -391,12 +391,33 @@ let distanceMin = 1
 let distanceMax = 50
 let distanceDefault = 10
 
+/// Check-In 05's gender pre-fill from the profile's gender and orientation (`checkinGenderDefault` in
+/// the reference). The server pre-fills with its own copy, `checkInGenderDefault` in
+/// `src/modules/check-ins/util/check-in-flow.ts`; the two must agree, or `filters_active` reports a
+/// `meet_gender` change nobody made. Anything not a straight, gay, lesbian, bisexual or pansexual
+/// woman or man -- an unread profile included -- pre-fills every gender, as the server's does.
+func checkinGenderDefault(_ gender: String?, _ orientation: String?) -> Set<String> {
+    let all = Set(CheckInGender.allCases.map(\.id))
+    guard gender == "woman" || gender == "man" else { return all }
+    switch orientation {
+    case "bisexual", "pansexual": return ["woman", "man"]
+    case "gay", "lesbian": return Set([gender].compactMap { $0 })
+    case "straight": return [gender == "man" ? "woman" : "man"]
+    default: return all
+    }
+}
+
 /// The Filters step's values. `maxAge` at `ageMax` is "no upper limit".
 struct CheckInFilters: Equatable, Sendable {
     var genders: Set<String>
     var minAge: Int = ageMin
     var maxAge: Int = ageMax
     var distanceKm: Int = distanceDefault
+    /// Check-In 05b's switches, §10 `age_dealbreaker` / `distance_dealbreaker`: on, nobody outside the
+    /// range is ever shown; off (the default, for everyone), it is a preference matching may widen.
+    /// Independent of the value -- `Any age` with the switch on is valid and limits nothing.
+    var ageDealbreaker: Bool = false
+    var distanceDealbreaker: Bool = false
 
     /// `max_age` as sent and stored: nil for 65+.
     var maxAgeOrNil: Int? { maxAge < ageMax ? maxAge : nil }
@@ -433,18 +454,21 @@ func moveAgeThumb(_ filters: CheckInFilters, thumb: Int, value: Int) -> CheckInF
 }
 
 /// `filters_changed`: the §10 filter_ids whose value differs from what the step showed on entry, in
-/// the order `meet_gender,age_range,distance_km`, or `none`. Never the values themselves --
-/// `meet_gender` is Class 2.
+/// the order `meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker` (extended
+/// taxonomy 1.4.23: each switch right after the filter it hardens), or `none`. Never the values
+/// themselves -- `meet_gender` is Class 2.
 func filtersChanged(_ entry: CheckInFilters, _ now: CheckInFilters) -> String {
     var changed: [String] = []
     if entry.genders != now.genders { changed.append("meet_gender") }
     if entry.minAge != now.minAge || entry.maxAge != now.maxAge { changed.append("age_range") }
+    if entry.ageDealbreaker != now.ageDealbreaker { changed.append("age_dealbreaker") }
     if entry.distanceKm != now.distanceKm { changed.append("distance_km") }
+    if entry.distanceDealbreaker != now.distanceDealbreaker { changed.append("distance_dealbreaker") }
     return changed.isEmpty ? "none" : changed.joined(separator: ",")
 }
 
 /// What Filters sets, one per §10 filter_id.
-enum FilterField: Sendable { case genders, ages, distance }
+enum FilterField: Sendable { case genders, ages, ageDealbreaker, distance, distanceDealbreaker }
 
 /// Filters the user set on the offline stand-in, once the server's own settings arrive. What they
 /// changed on the stand-in stays; everything they left alone is the server's. The stand-in shows
@@ -459,6 +483,8 @@ func filtersOverStandIn(_ local: CheckInFilters, server: CheckInFilters, edited:
         out.maxAge = local.maxAge
     }
     if edited.contains(.distance) { out.distanceKm = local.distanceKm }
+    if edited.contains(.ageDealbreaker) { out.ageDealbreaker = local.ageDealbreaker }
+    if edited.contains(.distanceDealbreaker) { out.distanceDealbreaker = local.distanceDealbreaker }
     return out
 }
 
@@ -612,6 +638,16 @@ enum CheckInCopy {
     static let sliderMaxAge = "Maximum age"
     static let sliderDistance = "Distance in km"
     static let filtersToast = "Pick at least one gender to date."
+
+    // 05b (SHOWUP-189): the gender row reads as multi-select; a Dealbreaker switch on Age and Distance.
+    static let filterGenderHint = "Pick all that apply"
+    static let filterGenderGroup = "Gender, pick all that apply"
+    static let dealbreaker = "Dealbreaker"
+    static let dealbreakerOff = "People just outside may appear, ranked lower."
+    static let dealbreakerOnAge = "Never show anyone outside this age range."
+    static let dealbreakerOnDistance = "Never show anyone outside this distance."
+    static let dealbreakerAgeLabel = "Age range is a dealbreaker"
+    static let dealbreakerDistanceLabel = "Distance is a dealbreaker"
 
     // 06
     static let upliftHeadline: [(String, Bool)] = [

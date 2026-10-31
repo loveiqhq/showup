@@ -68,6 +68,9 @@ struct WelcomeBackdrop: View {
     var placement: OrbPlacement = .startup
     var orangeAlpha: Double = 0.32
     var violetAlpha: Double = 0.28
+    /// The peach wash's top alpha. 0.55 everywhere but the Search location gate's blocked states
+    /// (SHOWUP-188 ①), which dial Profile 12's backdrop back to orbs .16 / .14 and a .28 wash.
+    var washAlpha: Double = 0.55
 
     var body: some View {
         GeometryReader { geo in
@@ -130,7 +133,7 @@ struct WelcomeBackdrop: View {
                     let embrace2 = placement == .embraceDetails
                     LinearGradient(
                         stops: [
-                            .init(color: Color(hex: 0xFFE5D2).opacity(0.55), location: 0.0),
+                            .init(color: Color(hex: 0xFFE5D2).opacity(washAlpha), location: 0.0),
                             .init(color: Color(hex: 0xFFFBF7).opacity(0.0), location: embrace2 ? 0.6 : 0.7),
                             .init(color: .clear, location: 1.0),
                         ],

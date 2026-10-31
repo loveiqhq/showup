@@ -292,6 +292,10 @@ jobs:
                       raise SystemExit
           ")
           if [ -z "$udid" ]; then echo "no iPhone simulator on this runner"; exit 1; fi
+          # The iOS half of the tickets' evidence screenshots (EvidenceShots.swift): xcodebuild hands
+          # TEST_RUNNER_-prefixed variables to the test process without the prefix.
+          mkdir -p "$PWD/evidence"
+          TEST_RUNNER_SHOWUP_EVIDENCE_DIR="$PWD/evidence" \
           xcodebuild -project ShowUpWelcome.xcodeproj -scheme ShowUpWelcome \
             -destination "id=$udid" \
             -clonedSourcePackagesDirPath .spm \
@@ -334,6 +338,17 @@ jobs:
       - name: Test the generated API client package
         working-directory: mobile/welcome-screen/ios-app/ShowUpAPI
         run: swift test
+
+      # The screenshots the tickets ask for, kept whether or not the run passed: they are evidence
+      # to look at, and a failing run's pictures are often the quickest way to see why.
+      - name: Upload the iOS evidence screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-evidence
+          path: mobile/welcome-screen/ios-app/evidence/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload the result bundle on failure
         if: failure()

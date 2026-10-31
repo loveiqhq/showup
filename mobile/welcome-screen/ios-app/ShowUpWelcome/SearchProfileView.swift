@@ -135,12 +135,11 @@ struct SearchProfileView: View {
                     Spinner(tint: .liqPurple, size: 24)
                         .accessibilityLabel(Text(SearchCopy.loadingLabel))
                 } else if state.failure != nil {
-                    // The words are PROPOSED, not ticketed.
-                    CentredStatement(text: SearchCopy.loadFailedProposed, action: SearchCopy.retry, onAction: onRetry)
+                    // Words approved 27 Oct 2026.
+                    CentredStatement(text: SearchCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
                 } else {
-                    // The no results · widen filters screen is its own story; this stands in for it.
-                    CentredStatement(text: SearchCopy.noResultsProposed, action: SearchCopy.widenFiltersProposed,
-                                     onAction: onFilters)
+                    // The queue ran dry: the interim no-results screen; `Widen my search` opens Filters.
+                    SearchEmptyView(onWiden: onFilters)
                 }
             }
             .frame(width: g.size.width, height: g.size.height)
@@ -306,9 +305,12 @@ private struct TopBarLayout: Layout {
 /// The back pill (Search 02 13), under the top bar: padding `0 16 10`; a 36-tall pill, padding
 /// `0 14 0 8`, 1px `--liq-border` on white, the chevron 18 (stroke 2.2) and the label in Manrope 700 /
 /// 13, gap 2. Drawn at 36 -- taller only when a large type needs it -- answering at 44.
-private struct BackPill: View {
+/// The back pill (Search 02 13). `rowBackground` is the profile's cream band under its top bar; the
+/// location gate (SHOWUP-188 ⑪) puts the same pill straight on its backdrop and passes `.clear`.
+struct BackPill: View {
     let label: String
     let onBack: () -> Void
+    var rowBackground: Color = .liqCream
 
     var body: some View {
         HStack(spacing: 0) {
@@ -334,7 +336,7 @@ private struct BackPill: View {
             Spacer(minLength: 0)
         }
         .padding(EdgeInsets(top: 0, leading: 16, bottom: 10, trailing: 16))
-        .background(Color.liqCream)
+        .background(rowBackground)
     }
 }
 

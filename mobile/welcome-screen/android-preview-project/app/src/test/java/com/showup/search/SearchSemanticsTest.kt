@@ -27,6 +27,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.runComposeUiTest
 import org.junit.Assert.assertEquals
@@ -55,6 +56,25 @@ class SearchSemanticsTest {
         val like = onNodeWithTag(SEARCH_LIKE_TAG).fetchSemanticsNode()
         assertEquals(Role.Button, like.config.getOrNull(SemanticsProperties.Role))
         onNodeWithTag(SEARCH_LIKE_TAG).assert(hasText(SearchCopy.LIKE))
+    }
+
+    @Test
+    fun `no results reads its headline as a heading, then Widen my search, and the radar says nothing`() = runComposeUiTest {
+        var widened = 0
+        setContent { SearchProfileScreen(SearchUiState(loading = false), onFilters = { widened++ }) }
+        val headline = onNodeWithTag(SEARCH_EMPTY_HEADLINE_TAG, useUnmergedTree = true).fetchSemanticsNode()
+        assertTrue("the headline is the screen's heading", SemanticsProperties.Heading in headline.config)
+        onNodeWithTag(SEARCH_EMPTY_BODY_TAG).assert(hasText(SearchCopy.NO_RESULTS_BODY))
+        // Named by its label alone: the sliders icon is decorative and adds nothing to it.
+        val cta = onNodeWithTag(SEARCH_EMPTY_CTA_TAG).fetchSemanticsNode()
+        assertEquals(Role.Button, cta.config.getOrNull(SemanticsProperties.Role))
+        onNodeWithTag(SEARCH_EMPTY_CTA_TAG).assert(hasText(SearchCopy.WIDEN_MY_SEARCH))
+        assertTrue(
+            "nothing but the label is announced on the button",
+            cta.config.getOrNull(SemanticsProperties.ContentDescription).isNullOrEmpty(),
+        )
+        onNodeWithTag(SEARCH_EMPTY_CTA_TAG).performClick()
+        assertEquals("Widen my search opens Filters", 1, widened)
     }
 
     @Test

@@ -23,7 +23,7 @@ final class SearchRulesTests: XCTestCase {
         XCTAssertEqual(distanceParts(0, nil), ["< 1 km"])
     }
 
-    func testFiltersActiveNamesAgeAndDistanceSetAwayFromTheDefaultsNeverGender() {
+    func testFiltersActiveNamesAgeAndDistanceWhenTheProfileDefaultIsUnavailable() {
         let defaults = CheckInFilters(genders: ["woman"])
         XCTAssertEqual(filtersActive(defaults), [])
         XCTAssertEqual(filtersActive(CheckInFilters(genders: ["man", "woman"])), [])
@@ -31,6 +31,39 @@ final class SearchRulesTests: XCTestCase {
         XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], maxAge: 40)), ["age_range"])
         XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], maxAge: 40, distanceKm: 25)), ["age_range", "distance_km"])
         XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], distanceKm: 5)), ["distance_km"])
+    }
+
+    func testGenderTrackingComparesSetsWithTheCurrentProfileDefault() {
+        let defaults = checkinGenderDefault("woman", "straight")
+        XCTAssertEqual(defaults, ["man"])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["man"]), defaultGenders: defaults), [])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"]), defaultGenders: defaults), ["meet_gender"])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman", "man"]),
+                                     defaultGenders: checkinGenderDefault("man", "bisexual")), [])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], minAge: 25, distanceKm: 5),
+                                     defaultGenders: defaults), ["meet_gender", "age_range", "distance_km"])
+    }
+
+    func testTrueDealbreakersAreListedBesideTheFilterEachHardens() {
+        let f = CheckInFilters(genders: ["woman"])
+        XCTAssertEqual(filtersActive(f), [])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], ageDealbreaker: true)), ["age_dealbreaker"])
+        XCTAssertEqual(filtersActive(CheckInFilters(genders: ["woman"], minAge: 25, distanceKm: 5,
+                                                    ageDealbreaker: true, distanceDealbreaker: true)),
+                       ["age_range", "age_dealbreaker", "distance_km", "distance_dealbreaker"])
+    }
+
+    func testGenderDefaultsMatchTheCheckInTableAndTheServersPreFill() {
+        XCTAssertEqual(checkinGenderDefault("man", "straight"), ["woman"])
+        XCTAssertEqual(checkinGenderDefault("man", "gay"), ["man"])
+        XCTAssertEqual(checkinGenderDefault("woman", "lesbian"), ["woman"])
+        XCTAssertEqual(checkinGenderDefault("woman", "pansexual"), ["woman", "man"])
+        let all: Set<String> = ["woman", "man", "non_binary", "other"]
+        XCTAssertEqual(checkinGenderDefault("non_binary", "straight"), all)
+        XCTAssertEqual(checkinGenderDefault("man", "other"), all)
+        // The server's `checkInGenderDefault`: an orientation not yet answered pre-fills everyone.
+        XCTAssertEqual(checkinGenderDefault("woman", nil), all)
+        XCTAssertEqual(checkinGenderDefault(nil, nil), all)
     }
 
     func testAHiddenAgeLeavesTheNameAloneWithNoComma() {

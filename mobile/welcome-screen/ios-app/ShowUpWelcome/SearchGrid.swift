@@ -48,12 +48,11 @@ struct SearchGridView: View {
                 if grid.loading && grid.cards.isEmpty {
                     ListLoading(label: SearchCopy.loadingLabel)
                 } else if grid.failure != nil && grid.cards.isEmpty {
-                    // The words are PROPOSED, not ticketed.
-                    CentredStatement(text: SearchCopy.loadFailedProposed, action: SearchCopy.retry, onAction: onRetry)
+                    // Words approved 27 Oct 2026.
+                    CentredStatement(text: SearchCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
                 } else if grid.empty {
-                    // The no results · widen filters screen is its own story; this stands in for it.
-                    CentredStatement(text: SearchCopy.noResultsProposed, action: SearchCopy.widenFiltersProposed,
-                                     onAction: onFilters)
+                    // The kit's search-empty covers "the 1-up / grid view" running dry: one screen for both.
+                    SearchEmptyView(onWiden: onFilters)
                 } else {
                     GridCards(grid: grid, zone: zone, settled: settled, onOpen: onOpen, onLeft: onLeft,
                               freezeLeavingMs: freezeLeavingMs)

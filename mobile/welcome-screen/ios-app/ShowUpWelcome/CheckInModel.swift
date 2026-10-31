@@ -627,6 +627,28 @@ final class CheckInModel {
         state.filters?.distanceKm = min(max(km, distanceMin), distanceMax)
     }
 
+    /// Check-In 05b: whether the Dealbreaker switches show -- the server's remote flag
+    /// `filters_dealbreakers`. Off, they are not drawn, not sent, and tracked as false.
+    private var dealbreakersShown: Bool { state.server?.filtersDealbreakers == true }
+
+    /// The Age range Dealbreaker switch. The line under it swaps at once; nothing else changes. Saved
+    /// with the rest on an accepted Continue -- never on the tap, never on close -- and a tap reports
+    /// nothing. Android's `ageDealbreakerToggled`.
+    func ageDealbreakerToggled(_ on: Bool) {
+        guard onScreen(.filters), dealbreakersShown else { return }
+        filtersTouched = true
+        if filtersStandIn { standInEdits.insert(.ageDealbreaker) }
+        state.filters?.ageDealbreaker = on
+    }
+
+    /// The Distance Dealbreaker switch, as `ageDealbreakerToggled`.
+    func distanceDealbreakerToggled(_ on: Bool) {
+        guard onScreen(.filters), dealbreakersShown else { return }
+        filtersTouched = true
+        if filtersStandIn { standInEdits.insert(.distanceDealbreaker) }
+        state.filters?.distanceDealbreaker = on
+    }
+
     func filtersContinue(onAdvance: () -> Void) {
         guard onScreen(.filters), let filters = state.filters else { return }
         if filters.genders.isEmpty {
@@ -636,7 +658,8 @@ final class CheckInModel {
         let entry = filtersOnEntry ?? filters
         let answer = filtersChanged(entry, filters) == "none" ? "prefilled" : "picked"
         analytics?.report(CheckInAnalytics.stepAnswered(.filters, answerValue: answer, timeToAnswerMs: millis() - viewedAt))
-        analytics?.report(CheckInAnalytics.filtersChanged(entry: entry, now: filters, windowId: windowId))
+        analytics?.report(CheckInAnalytics.filtersChanged(entry: entry, now: filters, windowId: windowId,
+                                                          openedFrom: .checkIn, dealbreakers: dealbreakersShown))
         filtersTouched = true
         // Built on the stand-in, nothing is sent yet: the read that lands resolves and sends it, or
         // the commit reads first.
@@ -649,13 +672,14 @@ final class CheckInModel {
     private func saveFilters(_ filters: CheckInFilters) {
         let previous = filtersSave
         let store = self.store
+        let withDealbreakers = dealbreakersShown
         filtersInFlight = filters
         filtersSaving += 1
         filtersSaveSeq += 1
         let seq = filtersSaveSeq
         filtersSave = Task { [weak self] in
             await previous?.value
-            let outcome = await store.saveFilters(filters)
+            let outcome = await store.saveFilters(filters, withDealbreakers: withDealbreakers)
             guard let self else { return }
             self.filtersSaving -= 1
             // Only the newest save's answer: an earlier one answering, even with the same settings,
@@ -684,11 +708,11 @@ final class CheckInModel {
     // close return without saving and never discard the Check-In; the funnel's step events never fire.
 
     /// Search's filter button: Filters on the saved settings, never a half-made Check-In's edits.
-    func searchFiltersOpened() {
+    func searchFiltersOpened(referrer: ProfileScreen = .searchProfile) {
         if filtersFromSearch && currentStep == .filters { return }
         filtersFromSearch = true
         if let saved = state.server?.filters { state.filters = saved }
-        arrived(.filters, screen: .checkinFilters, referrer: .searchProfile)
+        arrived(.filters, screen: .checkinFilters, referrer: referrer)
     }
 
     /// Continue on Filters from Search: saved, then `onSaved` -- Search, reading its queue again.
@@ -711,7 +735,7 @@ final class CheckInModel {
             if let filters, filters == self.state.server?.filters {
                 saved = .success(())
             } else if let filters {
-                saved = await store.saveFilters(filters)
+                saved = await store.saveFilters(filters, withDealbreakers: self.dealbreakersShown)
             } else {
                 saved = .failure(.network)
             }
@@ -722,7 +746,8 @@ final class CheckInModel {
             }
             self.filtersLanded(filters)
             self.analytics?.report(CheckInAnalytics.filtersChanged(entry: self.filtersOnEntry ?? filters,
-                                                                   now: filters, windowId: self.windowId))
+                                                                   now: filters, windowId: self.windowId, openedFrom: .search,
+                                                                   dealbreakers: self.dealbreakersShown))
             self.leaveSearchFilters()
             onSaved()
         }
@@ -837,7 +862,7 @@ final class CheckInModel {
             if waited, let last = lastFiltersSave, last.filters == filters, last.failure == .network {
                 return .network
             }
-            switch await store.saveFilters(filters) {
+            switch await store.saveFilters(filters, withDealbreakers: dealbreakersShown) {
             case .success: filtersLanded(filters)
             case .failure(let why): return why.commitResult
             }

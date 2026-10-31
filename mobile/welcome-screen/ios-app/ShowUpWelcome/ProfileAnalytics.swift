@@ -142,6 +142,9 @@ enum ProfileScreen: String {
     case searchGrid = "search_grid"
     /// The Likes tab for a Premium user (SHOWUP-186, §11 `likes_received`).
     case likesReceived = "likes_received"
+    /// The Search location gate (SHOWUP-188): Profile 12's screen in its app context. Once per
+    /// mount, never per state.
+    case searchLocationGate = "search_location_gate"
 
     var screenId: String { rawValue }
 
@@ -182,6 +185,7 @@ enum ProfileScreen: String {
         case .searchProfile: return "Search - Profile"
         case .searchGrid: return "Search - Grid"
         case .likesReceived: return "Search - Likes received"
+        case .searchLocationGate: return "Search - Location gate"
         }
     }
 }
@@ -350,9 +354,12 @@ enum Stamp {
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
     ///
+    /// 1.4.31 (27 October 2026): 1.4.30 registered §11 `search_location_gate` (SHOWUP-188) and
+    /// 1.4.31 added §10 `age_dealbreaker` / `distance_dealbreaker` (SHOWUP-189). Nothing else moved.
+    ///
     /// 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186). No value an event
     /// here sends moved between 1.4.25 and 1.4.29 - the stamp follows the file the code reads.
-    static let fieldRegistryVersion = "1.4.29"
+    static let fieldRegistryVersion = "1.4.31"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
@@ -447,6 +454,9 @@ enum ProfileAnalytics {
     /// `type: "location"` here.
     static let permissionDeniedRecoveryShownName = "permission_denied_recovery_shown"
 
+    /// The Search location gate's state, taxonomy 1.4.21 (SHOWUP-188). Never fired by Profile 12.
+    static let locationGateShownName = "location_gate_shown"
+
     /// `permission_*.type` for the location ask.
     static let permissionLocation = "location"
 
@@ -483,6 +493,15 @@ enum ProfileAnalytics {
 
     /// T2, class 1. The location ask's B or C was shown. `reason` is §26
     /// `location_unavailable_reason` - "REQUIRED when type is location, absent otherwise".
+    /// T1, class 1. The Search location gate showed a state (SHOWUP-188): on mount, and again only
+    /// when the reason changes while it is up -- never on a plain foreground. On the gate this IS
+    /// the ask and the recovery: it replaces `permissionPrompted` and
+    /// `permissionDeniedRecoveryShown`, which never fire there. `reason` is §26, `not_determined`
+    /// included.
+    static func locationGateShown(reason: LocationUnavailableReason) -> (String, [String: any Sendable]) {
+        (locationGateShownName, ["reason": reason.rawValue].merging(Stamp.of(1)) { a, _ in a })
+    }
+
     static func permissionDeniedRecoveryShown(
         reason: LocationUnavailableReason
     ) -> (String, [String: any Sendable]) {
@@ -975,9 +994,21 @@ enum ProfileAnalytics {
     /// rather than keeping anything on, so it is this event and not
     /// `consentDeactivationAbandoned`. They answer different questions.
     static func permissionSettingsOpened(
-        type: String = permissionNotifications
+        type: String = permissionNotifications,
+        screen: ProfileScreen? = nil
     ) -> (String, [String: any Sendable]) {
-        (permissionSettingsOpenedName, ["type": type].merging(Stamp.of(1)) { a, _ in a })
+        (permissionSettingsOpenedName, withScreen(["type": type], screen).merging(Stamp.of(1)) { a, _ in a })
+    }
+
+    /// The optional `screen_id` on the three permission events (taxonomy 1.4.21): the location gate
+    /// sends `search_location_gate`; Profile 12 sends none, and absent means `profile_location`.
+    private static func withScreen(
+        _ properties: [String: any Sendable], _ screen: ProfileScreen?
+    ) -> [String: any Sendable] {
+        guard let screen else { return properties }
+        var out = properties
+        out["screen_id"] = screen.screenId
+        return out
     }
 
     /// T2, class 1. The deactivation confirm was raised.
@@ -1247,9 +1278,10 @@ enum ProfileAnalytics {
 
     /// T2, class 1. The platform's own dialog was raised — on the tap, never on arrival.
     static func permissionOsSheetShown(
-        type: String = permissionNotifications
+        type: String = permissionNotifications,
+        screen: ProfileScreen? = nil
     ) -> (String, [String: any Sendable]) {
-        (permissionOsSheetShownName, ["type": type].merging(Stamp.of(1)) { a, _ in a })
+        (permissionOsSheetShownName, withScreen(["type": type], screen).merging(Stamp.of(1)) { a, _ in a })
     }
 
     /// T2, class 1. The user answered the sheet.
@@ -1259,11 +1291,12 @@ enum ProfileAnalytics {
     /// there is no third value to pass by mistake.
     static func permissionResult(
         granted: Bool,
-        type: String = permissionNotifications
+        type: String = permissionNotifications,
+        screen: ProfileScreen? = nil
     ) -> (String, [String: any Sendable]) {
-        (permissionResultName, [
+        (permissionResultName, withScreen([
             "type": type, "result": granted ? "granted" : "denied",
-        ].merging(Stamp.of(1)) { a, _ in a })
+        ], screen).merging(Stamp.of(1)) { a, _ in a })
     }
 
     /// T2, class 1. The status changed OUTSIDE our app and the reconciler noticed.

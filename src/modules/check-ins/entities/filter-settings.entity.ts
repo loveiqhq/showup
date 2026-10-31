@@ -40,6 +40,17 @@ export class FilterSettings {
   @Column({ name: 'distance_km', type: 'smallint', default: 10 })
   distanceKm: number;
 
+  /**
+   * §10 `age_dealbreaker` (Check-In 05b): true, nobody outside the age range is ever shown; false,
+   * the range is a preference matching may widen. Default false for everyone.
+   */
+  @Column({ name: 'age_dealbreaker', type: 'boolean', default: false })
+  ageDealbreaker: boolean;
+
+  /** §10 `distance_dealbreaker` (Check-In 05b): as `ageDealbreaker`, for the distance. */
+  @Column({ name: 'distance_dealbreaker', type: 'boolean', default: false })
+  distanceDealbreaker: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

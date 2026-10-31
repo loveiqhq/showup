@@ -3,6 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataSource, FindOperator } from 'typeorm';
 
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -216,15 +217,23 @@ describe('CheckInFlowService', () => {
     ...overrides,
   });
 
+  /** The remote flag `filters_dealbreakers` (Check-In 05b), as our config holds it. */
+  let dealbreakersFlag = false;
+
   const windows = () => db.rows<CheckInWindow>(CheckInWindow);
   const checkIns = () => db.rows<CheckIn>(CheckIn);
 
   beforeEach(() => {
     db = new FakeDb();
     track = jest.fn().mockResolvedValue(undefined);
+    dealbreakersFlag = false;
     service = new CheckInFlowService(
       db.dataSource as unknown as DataSource,
       { trackServerEvent: track } as unknown as AnalyticsService,
+      {
+        get: (key: string) =>
+          key === 'features.filtersDealbreakers' ? dealbreakersFlag : undefined,
+      } as unknown as ConfigService,
     );
   });
 
@@ -254,8 +263,12 @@ describe('CheckInFlowService', () => {
           minAge: 18,
           maxAge: null,
           distanceKm: 10,
+          // Check-In 05b: both switches off for everyone by default.
+          ageDealbreaker: false,
+          distanceDealbreaker: false,
         },
         filtersSaved: false,
+        filtersDealbreakers: false,
       });
       expect(db.locked).toEqual([USER]);
     });
@@ -283,6 +296,8 @@ describe('CheckInFlowService', () => {
         minAge: 25,
         maxAge: 35,
         distanceKm: 15,
+        ageDealbreaker: true,
+        distanceDealbreaker: false,
       });
       const state = await service.state(USER, NOW);
       expect(state).toMatchObject({
@@ -295,9 +310,18 @@ describe('CheckInFlowService', () => {
           minAge: 25,
           maxAge: 35,
           distanceKm: 15,
+          ageDealbreaker: true,
+          distanceDealbreaker: false,
         },
         filtersSaved: true,
       });
+    });
+
+    it('tells the app whether the Dealbreaker switches show -- our own config, off by default', async () => {
+      profile();
+      expect((await service.state(USER, NOW)).filtersDealbreakers).toBe(false);
+      dealbreakersFlag = true;
+      expect((await service.state(USER, NOW)).filtersDealbreakers).toBe(true);
     });
 
     it('is active only while the CURRENT window is committed', async () => {
@@ -411,6 +435,47 @@ describe('CheckInFlowService', () => {
         minAge: 18,
         maxAge: 30,
         distanceKm: 50,
+        ageDealbreaker: false,
+        distanceDealbreaker: false,
+      });
+    });
+
+    it('stores the Dealbreaker switches as sent', async () => {
+      const saved = await service.saveFilters(
+        USER,
+        filters({ ageDealbreaker: true, distanceDealbreaker: false }),
+      );
+      expect(saved).toMatchObject({
+        ageDealbreaker: true,
+        distanceDealbreaker: false,
+      });
+      expect(db.rows<FilterSettings>(FilterSettings)[0]).toMatchObject({
+        ageDealbreaker: true,
+        distanceDealbreaker: false,
+      });
+    });
+
+    it('keeps a switch it was not sent -- the flag is off, or the build is older', async () => {
+      await service.saveFilters(
+        USER,
+        filters({ ageDealbreaker: true, distanceDealbreaker: true }),
+      );
+      const saved = await service.saveFilters(
+        USER,
+        filters({ distanceKm: 20 }),
+      );
+      expect(saved).toMatchObject({
+        distanceKm: 20,
+        ageDealbreaker: true,
+        distanceDealbreaker: true,
+      });
+    });
+
+    it('defaults both switches to off on a first save that sends neither', async () => {
+      const saved = await service.saveFilters(USER, filters());
+      expect(saved).toMatchObject({
+        ageDealbreaker: false,
+        distanceDealbreaker: false,
       });
     });
   });
