@@ -254,6 +254,15 @@ final class PromptTopicsTests: XCTestCase {
         XCTAssertEqual(cappedAnswer(String(repeating: "x", count: 400)).count, 160)
     }
 
+    func testTheCapCountsWhatAPersonSeesSoAnEmojiOrAFlagIsOne() {
+        // SHOWUP-191 item 6: the server and Android now count graphemes too. This pins the iOS half,
+        // which always did -- `String.count` -- so a later switch to `utf16.count` fails here.
+        let smile = "\u{1F600}"
+        let flag = "\u{1F1E9}\u{1F1EA}"
+        XCTAssertEqual(cappedAnswer(String(repeating: smile, count: 400)), String(repeating: smile, count: 160))
+        XCTAssertEqual(cappedAnswer(String(repeating: flag, count: 200)).count, 160)
+    }
+
     func testTheCounterStartsAtOneHundred() {
         // The single change this revision is most about: below 100 a numeral is not information,
         // it is a target.

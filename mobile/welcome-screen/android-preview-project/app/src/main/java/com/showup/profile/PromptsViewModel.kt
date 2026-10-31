@@ -194,7 +194,7 @@ class PromptsViewModel(
         val sheet = current.sheet as? PromptSheet.Write ?: return
         // ONCE PER EDITOR SESSION. Every keystroke at the cap is the same fact, and 160 rows
         // saying it is not 160 times the information.
-        val reachedCap = text.length >= PROMPT_MAX_CHARS
+        val reachedCap = answerLength(text) >= PROMPT_MAX_CHARS
         val report = reachedCap && current.charLimitReportedFor != sheet.topicId
         if (report) analytics?.report(ProfileAnalytics.promptCharLimitReached(sheet.topicId))
         set(
@@ -241,7 +241,7 @@ class PromptsViewModel(
                     // on a rewrite is not the same as giving up on a blank one.
                     isEdit = sheet.editing,
                     // The LENGTH, never the draft. The bucket is computed inside the builder.
-                    draftLength = current.draftFor(sheet.topicId).trim().length,
+                    draftLength = answerLength(current.draftFor(sheet.topicId).trim()),
                     method = method,
                 ),
             )
@@ -340,7 +340,7 @@ class PromptsViewModel(
                             // An edit does not consume a slot, and `is_edit` has to be honest
                             // about that: `prompt_count` is the count AFTER the action either way.
                             isEdit = sheet.editing,
-                            answerLength = result.prompt.answer.length,
+                            answerLength = answerLength(result.prompt.answer),
                             promptCount = updated.size,
                         ),
                     )
