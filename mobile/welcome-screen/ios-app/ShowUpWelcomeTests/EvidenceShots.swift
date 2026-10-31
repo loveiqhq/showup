@@ -59,6 +59,10 @@ final class EvidenceShots: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 3
+        // 8-bit sRGB, as Android's evidence and the spec sheets are. The simulator's default is a
+        // 16-bit Display P3 PNG, which a viewer that ignores its profile shows with paler greens --
+        // the 189 switch read as a different colour from Android's though both are #00AB55.
+        format.preferredRange = .standard
         let renderer = UIGraphicsImageRenderer(size: window.bounds.size, format: format)
         var drawn = false
         var image = renderer.image { _ in

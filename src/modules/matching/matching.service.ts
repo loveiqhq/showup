@@ -9,6 +9,7 @@ import { DataSource, In, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
   likeSentEvent,
+  likeExpiredEvent,
   likeWithdrawnEvent,
   matchCreatedEvent,
 } from '../analytics/events/server-events';
@@ -111,6 +112,7 @@ export class MatchingService {
           hasMessage: message != null,
           targetAttendedCount: attended,
           position: dto.position,
+          feedRequestId: dto.feedRequestId,
         }),
       });
     }
@@ -174,11 +176,24 @@ export class MatchingService {
       userId: senderId,
       ...matchCreatedEvent({ matchId: match.id }),
     });
+    const pair = new Set([senderId, targetId]);
     for (const w of withdrawn) {
       void this.analytics.trackServerEvent({
         userId: w.senderId,
         ...likeWithdrawnEvent({ matchId: match.id, reason: 'matched' }),
       });
+      // A like TO one of the two just matched closed unanswered: `like_expired`, target_matched.
+      // One the two had sent is their own withdrawal, not an unanswered like.
+      if (pair.has(w.receiverId) && !pair.has(w.senderId)) {
+        void this.analytics.trackServerEvent({
+          userId: w.senderId,
+          ...likeExpiredEvent({
+            hoursOpen:
+              (now.getTime() - new Date(w.createdAt).getTime()) / 3_600_000,
+            reason: 'target_matched',
+          }),
+        });
+      }
     }
     like.status = LikeStatus.Matched;
     like.matchId = match.id;
@@ -286,7 +301,10 @@ export class MatchingService {
     u1: string,
     u2: string,
     likeIds: string[],
-  ): Promise<{ match: Match; withdrawn: Array<{ senderId: string }> } | null> {
+  ): Promise<{
+    match: Match;
+    withdrawn: Array<{ senderId: string; receiverId: string; createdAt: Date }>;
+  } | null> {
     const [userAId, userBId] = orderedUserPair(u1, u2);
     return this.dataSource.transaction(async (manager) => {
       await manager.query(
@@ -321,7 +339,9 @@ export class MatchingService {
       );
       // A CTE so the driver hands back the rows: a bare UPDATE ... RETURNING comes back as a
       // [rows, count] pair from `query`.
-      const withdrawn = await manager.query<Array<{ senderId: string }>>(
+      const withdrawn = await manager.query<
+        Array<{ senderId: string; receiverId: string; createdAt: Date }>
+      >(
         `WITH closed AS (
            UPDATE "likes"
               SET "status" = 'withdrawn', "closed_reason" = 'matched', "closed_at" = now(),
@@ -329,7 +349,8 @@ export class MatchingService {
             WHERE "status" = 'active'
               AND ("sender_id" = ANY($2::uuid[]) OR "receiver_id" = ANY($2::uuid[]))
               AND "id" <> ALL($3::uuid[])
-            RETURNING "sender_id" AS "senderId"
+            RETURNING "sender_id" AS "senderId", "receiver_id" AS "receiverId",
+                      "created_at" AS "createdAt"
          ) SELECT * FROM closed`,
         [match.id, [userAId, userBId], likeIds],
       );

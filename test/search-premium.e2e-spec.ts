@@ -350,7 +350,7 @@ describe('Date search 02 and 03 (e2e)', () => {
 
   // ── the grid (Search 02) ────────────────────────────────────────────────────
 
-  it('holds the whole queue in queue order, each card saying whether that person liked Max', async () => {
+  it('holds the whole feed, everyone who liked Max first, each card saying whether they did', async () => {
     const res = await request(server)
       .get('/search/grid')
       .query({ tz: TZ })
@@ -361,13 +361,16 @@ describe('Date search 02 and 03 (e2e)', () => {
       profile: { name: string; meetAt: string; photos: unknown[] };
     }>;
     // Clara has a date, Emma no shared hour, Ben and Dana are men: none of them is offered.
+    // Premium puts everyone with an open like on Max first, by final score (Matching 01); Sofia did
+    // not like him. In the block the fit is equal, so Time and Distance decide: Leonie, 0.56 km
+    // nearer, outscores Anna's hour-earlier meet; Hanna, Mia and Liv share tomorrow, nearest first.
     expect(cards.map((c) => c.profile.name)).toEqual([
-      'Anna',
       'Leonie',
-      'Sofia',
+      'Anna',
       'Hanna',
       'Mia',
       'Liv',
+      'Sofia',
     ]);
     expect(res.body.resultsCount).toBe(6);
     expect(
@@ -380,7 +383,8 @@ describe('Date search 02 and 03 (e2e)', () => {
       Mia: true,
       Liv: true,
     });
-    expect(cards[0].profile.meetAt).toBe(hour(3).toISOString());
+    expect(cards[0].profile.meetAt).toBe(hour(4).toISOString());
+    expect(res.body.feedRequestId).toMatch(/^[0-9a-f-]{36}$/);
     expect(cards[0].profile.photos).toHaveLength(1);
   });
 

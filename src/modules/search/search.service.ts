@@ -4,8 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, In, MoreThan, Not, IsNull } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { DataSource, In, IsNull, LessThan, MoreThan, Not } from 'typeorm';
 
 import { CheckInStatus } from '../check-ins/entities/check-in.entity';
 import { CheckInWindow } from '../check-ins/entities/check-in-window.entity';
@@ -16,8 +18,14 @@ import {
   FILTER_DISTANCE_DEFAULT,
 } from '../check-ins/util/check-in-flow';
 import { AnalyticsService } from '../analytics/analytics.service';
-import { likeWithdrawnEvent } from '../analytics/events/server-events';
+import {
+  likeExpiredEvent,
+  likeWithdrawnEvent,
+  SearchFeedItem,
+  searchFeedRankedEvent,
+} from '../analytics/events/server-events';
 import { DatesService } from '../dates/dates.service';
+import { DateStatus } from '../dates/util/date-lifecycle';
 import { Like } from '../matching/entities/like.entity';
 import {
   INELIGIBLE_USER_STATUSES,
@@ -65,6 +73,22 @@ import {
 } from './util/likes';
 import { buildSearchProfile, firstName } from './util/search-profile';
 import { earliestMeetAt, HourSpan, isTimeZone, meetDay } from './util/search';
+import type { RankerConfig } from './ranker/ranker-config';
+import { RankerConfigService } from './ranker/ranker-config.service';
+import {
+  ageReach,
+  Boost,
+  combinedReach,
+  distanceReach,
+  motivationsCompatible,
+  multiplierOf,
+  orderFeed,
+  overlapAhead,
+  Placed,
+  remainingHours,
+  Scored,
+  scoreOf,
+} from './ranker/ranker';
 
 export { Availability };
 export type { AvailabilityOf };
@@ -110,34 +134,52 @@ interface ClosedLike {
   ownMatch: boolean;
 }
 
+/** A user's Search filters, Check-In 05b's two switches included. */
+type SearchFilters = Pick<
+  FilterSettings,
+  | 'meetGender'
+  | 'minAge'
+  | 'maxAge'
+  | 'distanceKm'
+  | 'ageDealbreaker'
+  | 'distanceDealbreaker'
+>;
+
 interface ViewerState {
   window: CheckInWindow;
   spans: HourSpan[];
   lat: number;
   lng: number;
   profile: Profile;
-  filters: Pick<
-    FilterSettings,
-    'meetGender' | 'minAge' | 'maxAge' | 'distanceKm'
-  >;
+  filters: SearchFilters;
+  isPremium: boolean;
+  /** The Check-In before this one: a `Not now` made in it lowers that person now (x0.7). */
+  previousWindowId: string | null;
 }
 
+/** One load of the feed, ranked: what the queue and the grid serve, and its id. */
+interface RankedFeed {
+  feedRequestId: string;
+  feed: Placed<Candidate>[];
+  /** After the filters, before the gate: held-back profiles count. */
+  eligibleCount: number;
+}
+
+/** The most items one `search_feed_ranked` carries: the most a single load can put on screen. */
+const FEED_EVENT_ITEMS = 100;
+
 /**
- * The Search tab's server side (SHOWUP-184): the queue, the profile payload, `Not now` /
+ * The Search tab's server side (SHOWUP-184): the feed, the profile payload, `Not now` /
  * `Not interested`, the coach flag and the open-likes count.
  *
- * THE QUEUE IS DELIBERATELY MINIMAL. Its composition and order belong to their own ticket, not
- * written yet (epic, "Not ticketed yet"). What is here is what the ticket's rules require of any
- * queue, and nothing it would have to undo:
+ * THE FEED IS RANKED BY MATCHING 01 (SHOWUP-190), re-ranked on every load: the ticket's filters
+ * 1-12, one weighted score, the ordering multipliers capped at x1.5, the fit gate, the Premium
+ * liked-you block and the random picks -- every number from the versioned `RankerConfig`. Each load
+ * records `search_feed_ranked` and returns its `feedRequestId`. The rules themselves are plain
+ * functions in `ranker/ranker.ts`; this class gathers their inputs.
  *
- * - People with a committed, active Check-In whose hours still overlap the viewer's by a whole
- *   hour that has not started. This is what discovery got wrong: it matched on hours open NOW,
- *   so two people free tonight never saw each other this afternoon.
- * - Both people's filters, each way: who they want to meet, the age range, the distance.
- * - Never someone blocked either way, already liked by the viewer, `Not interested` ever, `Not now`
- *   in this Check-In, mid-date (locked until review), matched in this Check-In, hidden from
- *   discovery, or with an incomplete or invisible profile.
- * - Earliest meet hour first, then the nearest, then a stable tie-break.
+ * Beyond the ticket's twelve, Search 01's own rules still hold: never someone the viewer already
+ * liked, someone hidden from discovery, or a suspended or deleted account.
  */
 @Injectable()
 export class SearchService {
@@ -147,9 +189,11 @@ export class SearchService {
     private readonly safety: SafetyService,
     private readonly dates: DatesService,
     private readonly analytics: AnalyticsService,
+    private readonly config: ConfigService,
+    private readonly rankerConfig: RankerConfigService,
   ) {}
 
-  /** The queue, and the first profiles of it in full. `zone` is the viewer's IANA zone. */
+  /** The 1-up feed, and the first profiles of it in full. `zone` is the viewer's IANA zone. */
   async queue(
     viewerId: string,
     zone: string | undefined,
@@ -158,17 +202,26 @@ export class SearchService {
   ): Promise<SearchQueueDto> {
     const tz = isTimeZone(zone) ? zone : 'UTC';
     const [ranked, viewer] = await Promise.all([
-      this.rankedQueue(viewerId, now),
+      this.rankFeed(viewerId, now, 'one_up'),
       this.viewerTraits(viewerId, now),
     ]);
-    const profiles = await this.loadProfiles(ranked.slice(0, limit), now, tz);
-    return { resultsCount: ranked.length, profiles, viewer };
+    const profiles = await this.loadProfiles(
+      ranked.feed.slice(0, limit).map((p) => p.candidate),
+      now,
+      tz,
+    );
+    return {
+      resultsCount: ranked.eligibleCount,
+      profiles,
+      viewer,
+      feedRequestId: ranked.feedRequestId,
+    };
   }
 
   /**
-   * The Premium grid (Search 02): the same queue, the same rules and order, every card at once with
-   * whether that person liked the viewer. On load it holds only people still available -- the queue
-   * admits nobody else -- so no card is closed on arrival.
+   * The Premium grid (Search 02): the same feed, the same rules and order, every card at once with
+   * whether that person liked the viewer -- the liked-you block first on Premium. On load it holds
+   * only people still available -- the filters admit nobody else -- so no card is closed on arrival.
    */
   async grid(
     viewerId: string,
@@ -177,24 +230,23 @@ export class SearchService {
   ): Promise<SearchGridDto> {
     const tz = isTimeZone(zone) ? zone : 'UTC';
     const [ranked, viewer] = await Promise.all([
-      this.rankedQueue(viewerId, now),
+      this.rankFeed(viewerId, now, 'grid'),
       this.viewerTraits(viewerId, now),
     ]);
-    const top = ranked.slice(0, SEARCH_GRID_LIMIT);
-    const [profiles, likers] = await Promise.all([
-      this.loadProfiles(top, now, tz),
-      this.openLikersAmong(
-        viewerId,
-        top.map((c) => c.userId),
-      ),
-    ]);
+    const top = ranked.feed.slice(0, SEARCH_GRID_LIMIT);
+    const profiles = await this.loadProfiles(
+      top.map((p) => p.candidate),
+      now,
+      tz,
+    );
     return {
-      resultsCount: ranked.length,
-      cards: profiles.map((profile) => ({
+      resultsCount: ranked.eligibleCount,
+      cards: profiles.map((profile, i) => ({
         profile,
-        likedYou: likers.has(profile.userId),
+        likedYou: top[i].likedYou,
       })),
       viewer,
+      feedRequestId: ranked.feedRequestId,
     };
   }
 
@@ -559,13 +611,16 @@ export class SearchService {
     if (likeIds.length === 0) return 0;
     // A CTE so the driver hands back the rows: a bare UPDATE ... RETURNING comes back as a
     // [rows, count] pair from `query`.
-    const closed = await this.db.query<Array<{ senderId: string }>>(
+    const closed = await this.db.query<
+      Array<{ senderId: string; receiverId: string; createdAt: Date }>
+    >(
       `WITH closed AS (
          UPDATE "likes"
             SET "status" = $6, "closed_reason" = $2::"likes_closed_reason_enum",
                 "closed_at" = $3, "closed_seen_at" = $4, "match_id" = $5, "updated_at" = now()
           WHERE "id" = ANY($1::uuid[]) AND "status" = $7
-          RETURNING "sender_id" AS "senderId"
+          RETURNING "sender_id" AS "senderId", "receiver_id" AS "receiverId",
+                    "created_at" AS "createdAt"
        ) SELECT * FROM closed`,
       [
         likeIds,
@@ -583,7 +638,66 @@ export class SearchService {
         ...likeWithdrawnEvent({ matchId, reason }),
       });
     }
+    await this.reportExpired(closed, reason, now);
     return closed.length;
+  }
+
+  /**
+   * `like_expired` for likes just closed unanswered: `target_matched` when the person liked has a
+   * match; `check_in_ended` when either person's hours are over; otherwise `out_of_time`, the shared
+   * hours ran out. Not when the SENDER's own match closed it -- their withdrawal, not the target
+   * leaving it unanswered -- and never for a declined like, which does not close here.
+   */
+  private async reportExpired(
+    closed: Array<{ senderId: string; receiverId: string; createdAt: Date }>,
+    reason: LikeCloseReason,
+    now: Date,
+  ): Promise<void> {
+    if (closed.length === 0) return;
+    const people = [
+      ...new Set(closed.flatMap((c) => [c.senderId, c.receiverId])),
+    ];
+    const [withMatch, spans] = await Promise.all([
+      reason === LikeCloseReason.Matched
+        ? this.db
+            .query<Array<{ user_id: string }>>(
+              `SELECT "user_a_id" AS "user_id" FROM "matches"
+                WHERE "status" = $2 AND "user_a_id" = ANY($1::uuid[])
+               UNION
+               SELECT "user_b_id" FROM "matches"
+                WHERE "status" = $2 AND "user_b_id" = ANY($1::uuid[])`,
+              [people, MatchStatus.Active],
+            )
+            .then((r) => new Set(r.map((x) => x.user_id)))
+        : new Set<string>(),
+      reason === LikeCloseReason.NoOverlap
+        ? this.liveSpansOf(people, now)
+        : new Map<string, HourSpan[]>(),
+    ]);
+    for (const c of closed) {
+      let expired: 'check_in_ended' | 'target_matched' | 'out_of_time' | null;
+      if (reason === LikeCloseReason.Matched) {
+        expired =
+          !withMatch.has(c.senderId) && withMatch.has(c.receiverId)
+            ? 'target_matched'
+            : null;
+      } else {
+        expired =
+          (spans.get(c.senderId)?.length ?? 0) === 0 ||
+          (spans.get(c.receiverId)?.length ?? 0) === 0
+            ? 'check_in_ended'
+            : 'out_of_time';
+      }
+      if (!expired) continue;
+      void this.analytics.trackServerEvent({
+        userId: c.senderId,
+        ...likeExpiredEvent({
+          hoursOpen:
+            (now.getTime() - new Date(c.createdAt).getTime()) / 3_600_000,
+          reason: expired,
+        }),
+      });
+    }
   }
 
   /** Whether the viewer can still meet each of these people -- `availabilityFrom` decides. */
@@ -853,9 +967,25 @@ export class SearchService {
       .getRepository(Profile)
       .findOne({ where: { userId: viewerId } });
     if (!profile) return null;
-    const saved = await this.db
-      .getRepository(FilterSettings)
-      .findOne({ where: { userId: viewerId } });
+    const [saved, user, previous] = await Promise.all([
+      this.db
+        .getRepository(FilterSettings)
+        .findOne({ where: { userId: viewerId } }),
+      this.db.getRepository(User).findOne({
+        where: { id: viewerId },
+        select: { id: true, planTier: true },
+      }),
+      window.committedAt
+        ? this.db.getRepository(CheckInWindow).findOne({
+            where: {
+              userId: viewerId,
+              committedAt: LessThan(window.committedAt),
+            },
+            order: { committedAt: 'DESC' },
+            select: { id: true },
+          })
+        : null,
+    ]);
     return {
       window,
       spans: rows.map((r) => ({
@@ -866,21 +996,80 @@ export class SearchService {
       lng: Number(located.lng),
       profile,
       filters: saved ?? defaultFilters(profile),
+      isPremium: user?.planTier === PlanTier.Premium,
+      previousWindowId: previous?.id ?? null,
     };
   }
 
-  private async rankedQueue(viewerId: string, now: Date): Promise<Candidate[]> {
-    // A person mid-date neither searches nor is shown (07a blocks the tab; this is the server's
-    // half of that).
-    if (await this.dates.isLockedFromMatching(viewerId)) return [];
+  /**
+   * One load of the feed (Matching 01, SHOWUP-190), re-ranked from scratch: filter, score, multiply,
+   * gate, order, random picks -- then `search_feed_ranked`, and the id the app sends back with its
+   * card, like and pass events. A viewer who cannot search (mid-date, matched, no live Check-In or no
+   * place) gets an empty feed and no record: nothing was ranked.
+   */
+  private async rankFeed(
+    viewerId: string,
+    now: Date,
+    layout: 'one_up' | 'grid',
+  ): Promise<RankedFeed> {
+    const feedRequestId = randomUUID();
+    const config = await this.rankerConfig.current(now.getTime());
+    const pool = await this.scoredPool(viewerId, now, config);
+    if (!pool) return { feedRequestId, feed: [], eligibleCount: 0 };
+    const feed = orderFeed(
+      pool.scored,
+      pool.viewer.isPremium,
+      Math.random,
+      config,
+    );
+    void this.analytics.trackServerEvent({
+      userId: viewerId,
+      ...searchFeedRankedEvent({
+        feedRequestId,
+        rankerVersion: config.ranker_version,
+        layout,
+        isPremium: pool.viewer.isPremium,
+        eligibleCount: feed.length,
+        items: feed.slice(0, FEED_EVENT_ITEMS).map(feedItem),
+      }),
+    });
+    return { feedRequestId, feed, eligibleCount: feed.length };
+  }
+
+  /**
+   * Steps 1-3: everyone the ticket's twelve filters admit, scored and multiplied. The pool is cut in
+   * the database by place, live hours and both people's distances (each widened by the soft range
+   * where it applies); the rest are checked here on that small set, by the functions in `ranker.ts`.
+   */
+  private async scoredPool(
+    viewerId: string,
+    now: Date,
+    config: RankerConfig,
+  ): Promise<{ viewer: ViewerState; scored: Scored<Candidate>[] } | null> {
+    // Filter 8: a person mid-date neither searches nor is shown (07a blocks the tab; this is the
+    // server's half of that), nor someone whose match this Check-In is still open.
+    if (await this.dates.isLockedFromMatching(viewerId)) return null;
     const viewer = await this.viewerState(viewerId, now);
-    if (!viewer) return [];
+    if (!viewer) return null;
     if (await this.matchedInWindow([viewerId], now).then((s) => s.size > 0)) {
-      return [];
+      return null;
     }
 
-    // Everyone with live hours in an active Check-In within the VIEWER's distance. Their own
-    // distance is applied below, with the rest of their filters.
+    // "With `filters_dealbreakers` off, every user is treated as dealbreaker on (today's behaviour).
+    // The soft range only exists once the flag is on." Each side by its OWN setting.
+    const flag =
+      this.config.get<boolean>('features.filtersDealbreakers') ?? false;
+    const softAge = (f: SearchFilters) => flag && !f.ageDealbreaker;
+    const softDistance = (f: SearchFilters) => flag && !f.distanceDealbreaker;
+    const widen = 1 + config.soft_range.soft_distance_pct / 100;
+    const viewerReachM =
+      viewer.filters.distanceKm *
+      1000 *
+      (softDistance(viewer.filters) ? widen : 1);
+
+    // Everyone with live hours in an active Check-In within the viewer's reach AND the viewer within
+    // theirs (filter 6, both ways, in PostGIS). Someone who never saved filters is searched with the
+    // Check-In 05 default distance and the switch off, as `defaultFilters` says.
     const rows = await this.db.query<
       Array<{
         user_id: string;
@@ -895,23 +1084,31 @@ export class SearchService {
               ST_Distance(c."location", ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) AS "meters"
          FROM "check_ins" c
          JOIN "check_in_windows" w ON w."id" = c."check_in_window_id"
+         LEFT JOIN "filter_settings" f ON f."user_id" = c."user_id"
         WHERE c."user_id" <> $1
           AND c."status" = $4
           AND c."availability_end" > $5
           AND c."location" IS NOT NULL
           AND w."committed_at" IS NOT NULL
           AND w."closes_at" > $5
-          AND ST_DWithin(c."location", ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, $6)`,
+          AND ST_DWithin(c."location", ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, $6)
+          AND ST_DWithin(c."location", ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
+                COALESCE(f."distance_km", $7) * 1000
+                  * CASE WHEN $8::boolean AND NOT COALESCE(f."distance_dealbreaker", false)
+                    THEN $9::double precision ELSE 1.0 END)`,
       [
         viewerId,
         viewer.lng,
         viewer.lat,
         CheckInStatus.Available,
         now,
-        viewer.filters.distanceKm * 1000,
+        viewerReachM,
+        FILTER_DISTANCE_DEFAULT,
+        flag,
+        widen,
       ],
     );
-    if (rows.length === 0) return [];
+    if (rows.length === 0) return { viewer, scored: [] };
 
     const byUser = new Map<
       string,
@@ -937,10 +1134,17 @@ export class SearchService {
       blocked,
       liked,
       passed,
+      passedViewer,
       locked,
       matched,
+      pastPartners,
+      likers,
+      checkIns,
+      pastDates,
+      notNowBefore,
     ] = await Promise.all([
       this.db.getRepository(User).find({ where: { id: In(ids) } }),
+      // Filter 3: a complete profile. (No verification check in MVP.)
       this.db.getRepository(Profile).find({
         where: { userId: In(ids), isVisible: true, isComplete: true },
       }),
@@ -950,11 +1154,12 @@ export class SearchService {
       this.db.getRepository(CheckInWindow).find({
         where: { id: In([...new Set(rows.map((r) => r.window_id))]) },
       }),
+      // Filter 7: an explicit block, either direction.
       this.safety.blockedUserIdsFor(viewerId).then((b) => new Set(b)),
-      // Open or matched likes only: a like that closed without a decision (the hours ran out, or
-      // the other person matched first) brings that person back at a later Check-In. A DECLINED
-      // one keeps them out, as it did while it was open: the liker's Search does not change when
-      // they are declined ("the liker is not told").
+      // Search 01: open or matched likes only: a like that closed without a decision (the hours ran
+      // out, or the other person matched first) brings that person back at a later Check-In. A
+      // DECLINED one keeps them out, as it did while it was open: the liker's Search does not change
+      // when they are declined ("the liker is not told").
       this.db
         .getRepository(Like)
         .find({
@@ -969,9 +1174,39 @@ export class SearchService {
           select: { receiverId: true },
         })
         .then((l) => new Set(l.map((x) => x.receiverId))),
+      // Filters 7 and 9, the viewer's side: `Not interested` ever, `Not now` in this Check-In.
       this.passedTargets(viewerId, viewer.window.id),
+      // Filter 7, their side: they said `Not interested` to the viewer.
+      this.db
+        .getRepository(SearchPass)
+        .find({
+          where: {
+            targetId: viewerId,
+            viewerId: In(ids),
+            passType: SearchPassType.NotInterested,
+          },
+          select: { viewerId: true },
+        })
+        .then((p) => new Set(p.map((x) => x.viewerId))),
       this.dates.lockedUserIdsAmong(ids).then((l) => new Set(l)),
       this.matchedInWindow(ids, now),
+      this.pastDatePartners(viewerId, ids, now),
+      this.openLikersAmong(viewerId, ids),
+      this.committedCheckIns(ids),
+      this.pastDatesOf(ids, now),
+      viewer.previousWindowId
+        ? this.db
+            .getRepository(SearchPass)
+            .find({
+              where: {
+                viewerId,
+                passType: SearchPassType.NotNow,
+                windowId: viewer.previousWindowId,
+              },
+              select: { targetId: true },
+            })
+            .then((p) => new Set(p.map((x) => x.targetId)))
+        : new Set<string>(),
     ]);
     const userById = new Map(users.map((u) => [u.id, u]));
     const profileById = new Map(profiles.map((p) => [p.userId, p]));
@@ -979,7 +1214,7 @@ export class SearchService {
     const windowById = new Map(windows.map((w) => [w.id, w]));
     const viewerAge = ageFromDateOfBirth(viewer.profile.dateOfBirth);
 
-    const out: Candidate[] = [];
+    const scored: Scored<Candidate>[] = [];
     for (const [userId, entry] of byUser) {
       const user = userById.get(userId);
       const profile = profileById.get(userId);
@@ -992,36 +1227,168 @@ export class SearchService {
       ) {
         continue;
       }
+      // Filter 10: a past date partner only if BOTH answered `would_meet_again: true` -- and no
+      // rating stores that answer yet (`dates` keeps a 1-5 rating), so none is eligible.
+      // Filter 11 (Incognito) and filter 7's review "don't match me again" have no data at all yet:
+      // there is no Incognito setting and no such review answer, so they hide nobody. All three are
+      // listed for product.
       if (
         blocked.has(userId) ||
+        passedViewer.has(userId) ||
         liked.has(userId) ||
         passed.has(userId) ||
         locked.has(userId) ||
-        matched.has(userId)
+        matched.has(userId) ||
+        pastPartners.has(userId)
+      ) {
+        continue;
+      }
+      // Filter 12.
+      if (!motivationsCompatible(viewer.window.motivation, window.motivation)) {
+        continue;
+      }
+      // Filter 1: at least `min_remaining_h` of their chosen hours still ahead.
+      if (remainingHours(entry.spans, now) < config.filters.min_remaining_h) {
+        continue;
+      }
+      // Filter 2: at least `min_overlap_h` shared, with a whole meet hour in it -- the hour the card
+      // shows and a like is checked against (Search 03 closes a like with none).
+      const overlap = overlapAhead(viewer.spans, entry.spans, now);
+      const meetAt = earliestMeetAt(viewer.spans, entry.spans, now);
+      if (
+        !overlap ||
+        overlap.remainingH < config.filters.min_overlap_h ||
+        !meetAt
       ) {
         continue;
       }
       const theirs = filtersById.get(userId) ?? defaultFilters(profile);
+      // Filter 4: gender, both ways, always hard -- no dealbreaker, no soft range.
       if (
-        !wants(
-          viewer.filters,
-          profile,
-          ageFromDateOfBirth(profile.dateOfBirth),
-        ) ||
-        !wants(theirs, viewer.profile, viewerAge) ||
-        entry.meters > theirs.distanceKm * 1000
+        !wantsGender(viewer.filters, profile) ||
+        !wantsGender(theirs, viewer.profile)
       ) {
         continue;
       }
-      const meetAt = earliestMeetAt(viewer.spans, entry.spans, now);
-      if (!meetAt) continue;
-      out.push({ userId, window, profile, meters: entry.meters, meetAt });
+      // Filters 5 and 6, both ways, each side by its own switch. A hidden age still counts here:
+      // hiding is display only, never eligibility. An unknown age admits nobody.
+      const age = ageFromDateOfBirth(profile.dateOfBirth);
+      if (age == null || viewerAge == null) continue;
+      const reach = combinedReach([
+        ageReach(age, viewer.filters, softAge(viewer.filters), config),
+        ageReach(viewerAge, theirs, softAge(theirs), config),
+        distanceReach(
+          entry.meters,
+          viewer.filters.distanceKm,
+          softDistance(viewer.filters),
+          config,
+        ),
+        distanceReach(
+          entry.meters,
+          theirs.distanceKm,
+          softDistance(theirs),
+          config,
+        ),
+      ]);
+      if (reach === 'out') continue;
+
+      const parts = scoreOf(
+        {
+          motivation: [viewer.window.motivation, window.motivation],
+          vibes: [viewer.window.vibes, window.vibes],
+          interests: [viewer.profile.interests, profile.interests],
+          familyAhead: [viewer.profile.familyAhead, profile.familyAhead],
+          livingAhead: [viewer.profile.livingAhead, profile.livingAhead],
+          overlap,
+          pastDates: pastDates.get(userId) ?? { booked: 0, attended: 0 },
+          meters: entry.meters,
+          radiiKm: [viewer.filters.distanceKm, theirs.distanceKm],
+        },
+        config,
+      );
+      const likedYou = likers.has(userId);
+      const boosts: Boost[] = [];
+      if (likedYou) boosts.push('liked_you');
+      if ((checkIns.get(userId) ?? 0) <= config.multipliers.new_user_checkins) {
+        boosts.push('new_user');
+      }
+      if (notNowBefore.has(userId)) boosts.push('not_now');
+      const softMatch = reach === 'soft';
+      scored.push({
+        candidate: { userId, window, profile, meters: entry.meters, meetAt },
+        profileId: profile.id,
+        parts,
+        final:
+          parts.score *
+          multiplierOf(boosts, softMatch, viewer.isPremium, config),
+        boosts,
+        softMatch,
+        likedYou,
+      });
     }
-    return out.sort(
-      (a, b) =>
-        a.meetAt.getTime() - b.meetAt.getTime() ||
-        a.meters - b.meters ||
-        a.userId.localeCompare(b.userId),
+    return { viewer, scored };
+  }
+
+  /**
+   * Filter 10's people: anyone the viewer had a date with whose time has passed (a cancelled one was
+   * never a date). Only both answering `would_meet_again: true` would bring them back, and nothing
+   * stores that answer yet.
+   */
+  private async pastDatePartners(
+    viewerId: string,
+    ids: string[],
+    now: Date,
+  ): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const rows = await this.db.query<Array<{ user_id: string }>>(
+      `SELECT CASE WHEN "user_a_id" = $1 THEN "user_b_id" ELSE "user_a_id" END AS "user_id"
+         FROM "dates"
+        WHERE ("user_a_id" = $1 AND "user_b_id" = ANY($2::uuid[])
+            OR "user_b_id" = $1 AND "user_a_id" = ANY($2::uuid[]))
+          AND "scheduled_at" < $3 AND "status" <> $4`,
+      [viewerId, ids, now, DateStatus.Cancelled],
+    );
+    return new Set(rows.map((r) => r.user_id));
+  }
+
+  /** Committed Check-Ins per person, this one included: `new_user` is the first two. */
+  private async committedCheckIns(ids: string[]): Promise<Map<string, number>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.db.query<Array<{ user_id: string; n: number }>>(
+      `SELECT "user_id", count(*)::int AS "n" FROM "check_in_windows"
+        WHERE "user_id" = ANY($1::uuid[]) AND "committed_at" IS NOT NULL
+        GROUP BY "user_id"`,
+      [ids],
+    );
+    return new Map(rows.map((r) => [r.user_id, r.n]));
+  }
+
+  /**
+   * Reliability's inputs per person: dates booked whose time has passed (not cancelled --
+   * cancellations and no-shows are not inputs yet) and dates both people confirmed happened.
+   */
+  private async pastDatesOf(
+    ids: string[],
+    now: Date,
+  ): Promise<Map<string, { booked: number; attended: number }>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.db.query<
+      Array<{ user_id: string; booked: number; attended: number }>
+    >(
+      `SELECT u AS "user_id",
+              count(*) FILTER (WHERE "scheduled_at" < $2 AND "status" <> $3)::int AS "booked",
+              count(*) FILTER (WHERE "a_confirmed_happened" AND "b_confirmed_happened")::int AS "attended"
+         FROM (
+           SELECT "user_a_id" AS u, "scheduled_at", "status", "a_confirmed_happened", "b_confirmed_happened"
+             FROM "dates" WHERE "user_a_id" = ANY($1::uuid[])
+           UNION ALL
+           SELECT "user_b_id" AS u, "scheduled_at", "status", "a_confirmed_happened", "b_confirmed_happened"
+             FROM "dates" WHERE "user_b_id" = ANY($1::uuid[])
+         ) d GROUP BY u`,
+      [ids, now, DateStatus.Cancelled],
+    );
+    return new Map(
+      rows.map((r) => [r.user_id, { booked: r.booked, attended: r.attended }]),
     );
   }
 
@@ -1166,31 +1533,45 @@ export class SearchService {
   }
 }
 
-/** The filters a user who never saved any is searched with -- the Check-In 05 defaults. */
-function defaultFilters(
-  profile: Profile,
-): Pick<FilterSettings, 'meetGender' | 'minAge' | 'maxAge' | 'distanceKm'> {
+/** The filters a user who never saved any is searched with -- the Check-In 05 defaults, switches off. */
+function defaultFilters(profile: Profile): SearchFilters {
   return {
     meetGender: checkInGenderDefault(profile.gender, profile.orientation),
     minAge: FILTER_AGE_MIN,
     maxAge: null,
     distanceKm: FILTER_DISTANCE_DEFAULT,
+    ageDealbreaker: false,
+    distanceDealbreaker: false,
   };
 }
 
-/**
- * Whether filters admit a person: their gender and age. A HIDDEN age still counts here -- hiding
- * is display only, never eligibility (CLAUDE.md, "Hidden age"). Unknown gender or age admits
- * nobody: a filter cannot be satisfied by a value that does not exist.
- */
-function wants(
-  filters: Pick<FilterSettings, 'meetGender' | 'minAge' | 'maxAge'>,
+/** Filter 4, one way: the person's gender is one the filters meet. Unknown gender admits nobody. */
+function wantsGender(
+  filters: Pick<FilterSettings, 'meetGender'>,
   person: Profile,
-  age: number | null,
 ): boolean {
-  if (person.gender == null || age == null) return false;
-  if (!(filters.meetGender as string[]).includes(person.gender)) return false;
   return (
-    age >= filters.minAge && (filters.maxAge == null || age <= filters.maxAge)
+    person.gender != null &&
+    (filters.meetGender as string[]).includes(person.gender)
   );
+}
+
+/** One placed profile as `search_feed_ranked.items` carries it, every number to four places. */
+function feedItem(p: Placed<Candidate>): SearchFeedItem {
+  const r = (v: number) => Math.round(v * 10_000) / 10_000;
+  return {
+    profile_id: p.profileId,
+    position: p.position,
+    score: r(p.parts.score),
+    fit: r(p.parts.fit),
+    motivation_fit: r(p.parts.motivationFit),
+    vibe_fit: r(p.parts.vibeFit),
+    profile_fit: r(p.parts.profileFit),
+    time: r(p.parts.time),
+    reliability: r(p.parts.reliability),
+    distance: r(p.parts.distance),
+    boosts: p.boosts,
+    is_explore: p.isExplore,
+    soft_match: p.softMatch,
+  };
 }

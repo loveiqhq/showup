@@ -41,6 +41,15 @@ export class CreateLikeDto {
   @IsInt()
   @Min(1)
   position?: number;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'The feedRequestId of the Search load the profile was liked from, for like_sent (Matching 01)',
+  })
+  @IsOptional()
+  @IsUUID()
+  feedRequestId?: string;
 }
 
 /**
