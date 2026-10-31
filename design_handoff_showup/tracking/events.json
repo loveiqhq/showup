@@ -2992,7 +2992,7 @@
             },
             {
               "name": "filters_changed",
-              "type": "str — the enums §10 filter_ids whose value differs from what the step showed on entry, in the order meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker, comma-joined, no spaces; \"none\" when nothing changed. Order extended 1.4.23"
+              "type": "str — the enums §10 filter_ids whose value differs from what the step showed on entry, in the order meet_gender,age_range,distance_km, comma-joined, no spaces; \"none\" when nothing changed"
             },
             {
               "name": "min_age",
@@ -3007,23 +3007,14 @@
               "type": "int — 1–50"
             },
             {
-              "name": "age_dealbreaker",
-              "type": "bool — enums §10. NEW 1.4.23"
-            },
-            {
-              "name": "distance_dealbreaker",
-              "type": "bool — enums §10. NEW 1.4.23"
-            },
-            {
               "name": "window_id",
               "type": "str"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. From Search, includes opened_from: search, with no check_in_step_answered or check_in_closed. age_dealbreaker and distance_dealbreaker go on every accepted Continue, changed or not -- false for both while the filters_dealbreakers flag is off. Never per chip tap, slider drag or switch tap, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24); dealbreakers 26 Oct 2026 (Check-In 05b, taxonomy 1.4.23).",
-          "implemented": true,
-          "code_delta": "age_dealbreaker and distance_dealbreaker, and the extended filters_changed order, arrive with Check-In 05b (SHOWUP-189)."
+          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. From Search, includes opened_from: search, with no check_in_step_answered or check_in_closed. Never per chip tap or slider drag, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24).",
+          "implemented": true
         },
         {
           "name": "check_in_created",
@@ -6325,6 +6316,6 @@
   ],
   "reconciled_with_code": "Reconciled against both apps' shipped code, 12 October 2026: 94 events implemented -- 86 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names. 13 Oct 2026: merged into handoff registry 1.4.25 / taxonomy 1.4.16 (Check-In 01-06); the reconciliation above was carried over event by event, and event_count is the real count (the handoff file said one fewer). 19 Oct 2026: 11 more turned on, the 48hrs Check-In's ten client events and permission_status_changed (the shared permission reconciler), each fired by production code on both apps: 105 implemented, 97 client and 8 server. 19 Oct 2026, later: signup_code_verify_failed fires again (on a code the server refused, with its 1-based attempt), so it is implemented and its code_delta is gone: 106 implemented, 98 client.",
   "implemented_count": 108,
-  "code_delta_count": 32,
+  "code_delta_count": 31,
   "screen_identity_note": "Two properties, on purpose. screen_id is the stable machine key and never changes. screen_name is the human label and is what a person searches for in the analytics tool. Only screen_viewed carries both; every other event carries screen_id alone and joins to it. Both values come from the enums.json §11 registry — never typed at a call site."
 }

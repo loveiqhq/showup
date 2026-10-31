@@ -427,9 +427,10 @@ private struct LocationGateLayout: View {
                                   .accessibilityHidden(true)
                           },
                           trailing: { EmptyView() })
+                // The button's own frame, not its padding: the fit test measures the 22 below it.
+                .fitAnchor(FitAnchorID.gateCta)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 22)
-                .fitAnchor(FitAnchorID.gateCta)
 
             TabBar(active: app.tab, onTab: app.onTab, likes: app.likes)
                 .fitAnchor(FitAnchorID.tabBar)
