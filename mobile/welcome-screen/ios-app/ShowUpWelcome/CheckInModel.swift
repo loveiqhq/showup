@@ -741,7 +741,7 @@ final class CheckInModel {
             }
             self.state.saving = false
             guard case .success = saved, let filters else {
-                self.showToast(CheckInCopy.filtersSaveErrorProposed)
+                self.showToast(CheckInCopy.filtersSaveError)
                 return
             }
             self.filtersLanded(filters)
