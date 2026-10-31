@@ -138,9 +138,8 @@ struct SearchProfileView: View {
                     // Words approved 27 Oct 2026.
                     CentredStatement(text: SearchCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
                 } else {
-                    // Decided 27 Oct 2026: the kit's `search-empty`; its headline stands in until that file arrives.
-                    CentredStatement(text: SearchCopy.noResultsProposed, action: SearchCopy.widenMySearch,
-                                     onAction: onFilters)
+                    // The queue ran dry: the interim no-results screen; `Widen my search` opens Filters.
+                    SearchEmptyView(onWiden: onFilters)
                 }
             }
             .frame(width: g.size.width, height: g.size.height)

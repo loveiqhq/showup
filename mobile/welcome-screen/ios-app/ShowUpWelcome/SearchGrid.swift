@@ -51,9 +51,8 @@ struct SearchGridView: View {
                     // Words approved 27 Oct 2026.
                     CentredStatement(text: SearchCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
                 } else if grid.empty {
-                    // Decided 27 Oct 2026: the kit's `search-empty`; its headline stands in until that file arrives.
-                    CentredStatement(text: SearchCopy.noResultsProposed, action: SearchCopy.widenMySearch,
-                                     onAction: onFilters)
+                    // The kit's search-empty covers "the 1-up / grid view" running dry: one screen for both.
+                    SearchEmptyView(onWiden: onFilters)
                 } else {
                     GridCards(grid: grid, zone: zone, settled: settled, onOpen: onOpen, onLeft: onLeft,
                               freezeLeavingMs: freezeLeavingMs)

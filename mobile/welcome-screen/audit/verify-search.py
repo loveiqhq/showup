@@ -75,8 +75,16 @@ ticket = read(TICKET)
 section = ticket.split("## Copy — final strings", 1)[1].split("\n## ", 1)[0]
 quoted = re.findall(r"`([^`]+)`", section)
 
-# Not copy: the placeholders the section names in its first sentence.
-NOT_COPY = {"{name}", "{day}", "today", "tomorrow", "decide"}
+# Not copy: the placeholders the section names in its first sentence, and the States lines' names
+# for the kit file and its reference (27 Oct 2026).
+NOT_COPY = {
+    "{name}", "{day}", "today", "tomorrow", "decide",
+    "search-empty", "design_handoff_showup/search/screen-search-empty-reference.jsx",
+}
+# Named by the States lines to be LEFT OUT -- checked absent below, never as copy.
+LEFT_OUT = {"Adjust filters manually"}
+# Copy of Filters opened from Search: Check-In's sources hold it, checked there below.
+ELSEWHERE = {"Couldn't save your filters. Check your connection and try again."}
 # Computed by the rules from runs, not stored whole: pinned by the rules tests instead (below).
 COMPUTED = {
     "< 1 km · {district}", "~{n} km · {district}", "{name}, {age}", "{name}", "{HH:MM} {day}",
@@ -88,11 +96,14 @@ ASSEMBLED = {
     "confirmed, binding date {day}",
     "Optional message to {name}",
     "Three ways to decide",
+    # The no-results headline, `no people` washed; and its emphasis named alone.
+    "Unfortunately there are no people left matching your search filters.",
+    "no people",
 }
 
 runs_checked = set()
 for q in quoted:
-    if q in NOT_COPY or q in COMPUTED or q in ASSEMBLED:
+    if q in NOT_COPY or q in COMPUTED or q in ASSEMBLED or q in LEFT_OUT or q in ELSEWHERE:
         continue
     for run in re.split(r"\{[^}]+\}", q):
         run = run.strip() if run.strip() in (".",) else run
@@ -111,6 +122,12 @@ check("message title runs (Kotlin)", '"Optional"' in kt and '" message to %s"' i
 check("message title runs (Swift)", '"Optional"' in sw and '" message to \\(name)"' in sw)
 check("coach title runs (Kotlin)", '"Three ways to "' in kt and '"decide"' in kt)
 check("coach title runs (Swift)", '"Three ways to "' in sw and '"decide"' in sw)
+for platform, src in (("Kotlin", kt), ("Swift", sw)):
+    check("no-results headline runs (%s)" % platform,
+          '"Unfortunately there are "' in src and '"no people"' in src
+          and '" left matching your search filters."' in src)
+check("every Copy string the checker skips is accounted for",
+      ELSEWHERE <= set(quoted) and LEFT_OUT <= set(quoted))
 
 # ── computed formats, pinned by the rules tests on both platforms ───────────────────────────────
 for fmt, kt_assert, sw_assert in [
@@ -164,17 +181,20 @@ check("no raw Color(hex:) in Search outside the placeholder palette (Swift): %s"
 check("blush is the design-system token on both", "BlushWash" in kt and "suGradBlush" in sw
       and "0xFFFDE7DC" not in kt and "0xFDE7DC" not in sw)
 
-# ── the states the sheet does not draw: Philipp's answers in the ticket's comments, 27 Oct 2026 ──
-for approved in ["Couldn't load profiles. Check your connection and try again.", "Try again", "Widen my search"]:
-    check("approved Search state copy (Kotlin): %r" % approved, approved in kt)
-    check("approved Search state copy (Swift): %r" % approved, approved in sw)
+# ── the States lines (27 Oct 2026): what the interim no-results screen leaves out ──────────────
+# The kit's normal mode carries a CTA sub-line and `Adjust filters manually`; the ticket drops both,
+# and the stand-in `No results` this file noted before the kit's file arrived must be gone.
+for gone in ["Adjust filters manually", "We will match your settings to receive the best results.", "No results"]:
+    check("no-results screen leaves out %r (Kotlin)" % gone, '"%s"' % gone not in kt)
+    check("no-results screen leaves out %r (Swift)" % gone, '"%s"' % gone not in sw)
+check("one no-results screen per platform, used by the queue and the grid",
+      kt.count("SearchEmptyState(onWiden = onFilters)") == 2 and sw.count("SearchEmptyView(onWiden: onFilters)") == 2)
 check("search_empty_shown on both platforms", '"search_empty_shown"' in kt and '"search_empty_shown"' in sw)
 # The save that fails on Filters opened from Search lives with the Check-In's copy, not Search's.
 save_failed = "Couldn't save your filters. Check your connection and try again."
 check("approved filter-save copy on both: %r" % save_failed,
       save_failed in read_all(glob.glob(os.path.join(KT, "checkin", "*.kt")))
       and save_failed in read_all(glob.glob(os.path.join(SW, "CheckIn*.swift"))))
-notes.append("PROPOSED headline, waiting on the kit's search-empty file: 'No results'")
 
 print("search conformance: %d checks" % count)
 for n in notes:

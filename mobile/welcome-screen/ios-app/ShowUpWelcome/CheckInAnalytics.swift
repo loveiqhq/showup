@@ -112,12 +112,20 @@ enum CheckInAnalytics {
     /// Once per accepted Continue, even when nothing changed. Never the genders (Class 2) -- only
     /// WHETHER they changed, in `filters_changed`. `max_age` is JSON null for 65+, never 65.
     /// - Parameter dealbreakers: the remote flag `filters_dealbreakers`; off, both booleans go as false.
+    /// `opened_from` (taxonomy 1.4.24): where Filters was opened -- the Check-In step or Search's filter
+    /// button. On every accepted save from either; the registry types it `"checkin" | "search"`.
+    enum FiltersOpenedFrom: String, Sendable {
+        case checkIn = "checkin"
+        case search
+        var wire: String { rawValue }
+    }
+
     static func filtersChanged(entry: CheckInFilters, now: CheckInFilters,
-                               windowId: String, openedFrom: String? = nil,
+                               windowId: String, openedFrom: FiltersOpenedFrom,
                                dealbreakers: Bool = false) -> (String, [String: any Sendable]) {
         let maxAge: any Sendable
         if let cap = now.maxAgeOrNil { maxAge = cap } else { maxAge = JSONNull() }
-        var properties: [String: any Sendable] = [
+        let properties: [String: any Sendable] = [
             "filters_changed": filtersChangedValue(entry, now),
             "min_age": now.minAge,
             "max_age": maxAge,
@@ -126,8 +134,8 @@ enum CheckInAnalytics {
             "age_dealbreaker": dealbreakers && now.ageDealbreaker,
             "distance_dealbreaker": dealbreakers && now.distanceDealbreaker,
             "window_id": windowId,
+            "opened_from": openedFrom.wire,
         ].merging(Stamp.of(0)) { a, _ in a }
-        if let openedFrom { properties["opened_from"] = openedFrom }
         return (checkInFiltersChanged, properties)
     }
 

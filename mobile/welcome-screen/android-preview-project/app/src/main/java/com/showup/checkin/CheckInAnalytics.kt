@@ -109,11 +109,17 @@ object CheckInAnalytics {
      * Once per accepted Continue, even when nothing changed. Never the genders (Class 2) -- only
      * WHETHER they changed, in `filters_changed`. `max_age` is null for 65+, never 65.
      */
+    /**
+     * `opened_from` (taxonomy 1.4.24): where Filters was opened -- the Check-In step or Search's filter
+     * button. On every accepted save from either; the registry types it `"checkin" | "search"`.
+     */
+    enum class FiltersOpenedFrom(val wire: String) { CheckIn("checkin"), Search("search") }
+
     fun filtersChanged(
         entry: CheckInFilters,
         now: CheckInFilters,
         windowId: String,
-        openedFrom: String? = null,
+        openedFrom: FiltersOpenedFrom,
         /** The remote flag `filters_dealbreakers`: off, both booleans are sent as false (05b). */
         dealbreakers: Boolean = false,
     ) =
@@ -126,7 +132,7 @@ object CheckInAnalytics {
             put("age_dealbreaker", dealbreakers && now.ageDealbreaker)
             put("distance_dealbreaker", dealbreakers && now.distanceDealbreaker)
             put("window_id", windowId)
-            if (openedFrom != null) put("opened_from", openedFrom)
+            put("opened_from", openedFrom.wire)
             putAll(Stamp.of(0))
         }
 
