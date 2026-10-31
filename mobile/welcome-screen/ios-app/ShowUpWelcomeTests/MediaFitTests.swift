@@ -4,7 +4,7 @@
 //
 //  The reference's controls row is `alignItems: center; justifyContent: space-between`: `Your video`
 //  on the Retake and Delete pills' centre line, the two pills together at the end, 8 apart. Android
-//  drew the label ~7 above the pills (a FlowRow tops its items) -- found on a device, not by any test.
+//  drew the label 13 above the pills (a FlowRow tops its items) -- found on a device, not by any test.
 //  iOS's HStack centres by default; this measures it rather than trusting that.
 //
 

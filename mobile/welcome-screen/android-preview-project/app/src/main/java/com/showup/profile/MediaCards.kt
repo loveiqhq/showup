@@ -718,8 +718,8 @@ private fun RecordedControls(
     // When it does not -- 320 wide, or large type -- the words never give way to the layout
     // (`Your v...` is the copy losing to the box): the label takes its own line and the pills go
     // under it, left-aligned, as iOS's ViewThatFits does; at 320 with the largest type, one pill a
-    // line. It was a FlowRow, which tops its items and spreads all three apart: `Your video` sat
-    // ~7 above the pills' centre and Retake drifted away from Delete (SHOWUP-191 item 4).
+    // line. It was a FlowRow, which tops its items and spreads all three apart: `Your video` sat 13
+    // above the pills' centre and Retake 24 from Delete at 390, measured (SHOWUP-191 item 4).
     ControlsLayout(
         Modifier
             .fillMaxWidth()

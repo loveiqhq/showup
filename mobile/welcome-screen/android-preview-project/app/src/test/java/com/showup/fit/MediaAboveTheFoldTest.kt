@@ -168,8 +168,9 @@ class MediaAboveTheFoldTest {
     /**
      * SHOWUP-191 item 4: on the filled video card `Your video` sits on the Retake and Delete pills'
      * centre line -- the reference's controls row is `alignItems: center` -- on every phone at three
-     * type scales, wherever the label and the pills share a line. It sat ~7 above them: a FlowRow
-     * tops its items, and the 18-tall label shared a line with the 32-tall pills.
+     * type scales, wherever the label and the pills share a line. On the old FlowRow it sat 13 above
+     * their centre and Retake was 24 from Delete at 390: a FlowRow tops its items and spreads them.
+     * Run against that layout, this failed on every phone at every scale.
      */
     @Test
     fun `Your video sits on the pills' centre line on every phone`() {
