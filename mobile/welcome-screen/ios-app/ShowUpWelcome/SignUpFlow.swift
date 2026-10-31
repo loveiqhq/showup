@@ -241,17 +241,16 @@ struct SignUpFlowView: View {
                     // rather than claiming a method that never happened here.
                     name: account?.name ?? "",
                     lastUsed: account?.lastUsed ?? .unknown,
-                    // Only what can sign somebody in. The view hides the rest (SHOWUP-145); it had
-                    // the switch all along and was never told, so three buttons did nothing.
-                    configured: SIGN_IN_READY,
                     onContinue: { method in
-                        // SHOWUP-142 wants `method` and `is_last_used` on every auth-method tap.
+                        // SHOWUP-142 wants `method` and `is_last_used` on every auth-method tap,
+                        // including the three providers that go nowhere yet -- the intent to use
+                        // them is exactly what the funnel needs to know.
                         track(SignUpAnalytics.authMethodTapped(
                             method: String(describing: method),
                             isLastUsed: account?.lastUsed == method))
                         // Phone is the one method that goes anywhere: it is ours, and 143 is built.
-                        // The providers are hidden until their SDK work (SHOWUP-144's sub-tasks)
-                        // lands and joins `SIGN_IN_READY`; this branch is where each one will route.
+                        // The three providers are live targets with nothing behind them yet — their
+                        // SDK work is the sub-tasks on SHOWUP-144.
                         if method == .phone {
                             // Reaching this screen at all means logging in, whether the user
                             // tapped "Log in" on Startup or the app opened here on a remembered
