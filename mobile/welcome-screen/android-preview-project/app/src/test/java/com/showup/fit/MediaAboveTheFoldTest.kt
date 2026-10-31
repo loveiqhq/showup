@@ -44,7 +44,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import com.showup.profile.MEDIA_DELETE_TAG
+import com.showup.profile.MEDIA_RECORDED_LABEL_TAG
+import com.showup.profile.MEDIA_RETAKE_TAG
+import com.showup.profile.MediaArtefact
 import com.showup.profile.MediaCopy
+import com.showup.profile.MediaKind
+import com.showup.profile.MediaState
+import com.showup.profile.MediaUploadStatus
 import com.showup.profile.ProfileMediaScreen
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -156,5 +163,43 @@ class MediaAboveTheFoldTest {
             "nothing is reachable if even the first CTA needs a scroll",
             measured.scrollableDp < iphoneSe.safeHeight,
         )
+    }
+
+    /**
+     * SHOWUP-191 item 4: on the filled video card `Your video` sits on the Retake and Delete pills'
+     * centre line -- the reference's controls row is `alignItems: center` -- on every phone at three
+     * type scales, wherever the label and the pills share a line. It sat ~7 above them: a FlowRow
+     * tops its items, and the 18-tall label shared a line with the 32-tall pills.
+     */
+    @Test
+    fun `Your video sits on the pills' centre line on every phone`() {
+        val video = MediaArtefact(
+            kind = MediaKind.Video, promptId = "relaxed_and_happy", durationMs = 9_400,
+            localPath = null, remoteId = "v1", status = MediaUploadStatus.Confirmed,
+        )
+        val failures = mutableListOf<String>()
+        var sharedALine = 0
+        for (scale in listOf(1f, 1.3f, 2f)) {
+            DEVICES.forEach { d ->
+                val s = shootGeometry(d.width, d.safeHeight, scale) { ProfileMediaScreen(MediaState(video = video)) }
+                val label = s.tag(MEDIA_RECORDED_LABEL_TAG)
+                val pip = s.tag(MEDIA_RETAKE_TAG)
+                val delete = s.tag(MEDIA_DELETE_TAG)
+                if (pip.top < label.bottom && label.top < pip.bottom) {
+                    sharedALine++
+                    val off = (label.top + label.bottom) / 2f - (pip.top + pip.bottom) / 2f
+                    if (kotlin.math.abs(off) > 0.5f) failures += "$d @$scale  `Your video` is ${"%.1f".format(off)} off the pills' centre (label $label, pill $pip)"
+                    // The two pills together at the end, 8 apart -- not spread across the row.
+                    if (kotlin.math.abs(delete.left - pip.right - 8f) > 0.5f) failures += "$d @$scale  Retake and Delete are ${delete.left - pip.right} apart, not 8"
+                    if (pip.left - label.right < 8f - 0.5f) failures += "$d @$scale  Retake is ${pip.left - label.right} from the label, under 8"
+                }
+                // Whatever the layout, both pills stay level with each other.
+                if (delete.top < pip.bottom && pip.top < delete.bottom && kotlin.math.abs(delete.top - pip.top) > 0.5f) {
+                    failures += "$d @$scale  Retake and Delete are not level"
+                }
+            }
+        }
+        assertTrue("the label and the pills share a line on most phones", sharedALine > DEVICES.size)
+        assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
 }

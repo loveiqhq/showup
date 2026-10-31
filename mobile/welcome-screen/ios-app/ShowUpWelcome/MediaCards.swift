@@ -563,6 +563,7 @@ private struct RecordedControls: View {
             case .confirmed:
                 CheckDot(diameter: 18, glyph: 11)
                 Text(label).font(F.manrope(13.5, .semibold)).foregroundColor(.liqFg)
+                    .fitAnchor(FitAnchorID.mediaRecordedLabel)
             default:
                 // Queued or in flight. The card is already filled -- optimistically -- so this says
                 // what is happening rather than pretending the artefact is not there.
@@ -577,7 +578,9 @@ private struct RecordedControls: View {
     private var pips: some View {
         HStack(spacing: Spacing.md) {
             ControlPip(icon: .refresh, label: MediaCopy.retake, action: onRetake)
+                .fitAnchor(FitAnchorID.mediaRetake)
             ControlPip(icon: .trash, label: MediaCopy.delete, tone: .danger, action: onDelete)
+                .fitAnchor(FitAnchorID.mediaDelete)
         }
     }
 }
