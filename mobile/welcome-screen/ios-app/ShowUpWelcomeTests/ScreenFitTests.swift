@@ -212,6 +212,11 @@ final class ScreenFitTests: XCTestCase {
                  try render(StartupView(showSocialProof: true), on: device), .violet),
                 ("Welcome back",
                  try render(WelcomeBackView(name: "Alexandra"), on: device), .violet),
+                // What the flow shows today: phone only, the providers hidden until they can sign
+                // in (SIGN_IN_READY, SHOWUP-191 item 9). One button is a layout nothing else drew.
+                ("Welcome back, phone only",
+                 try render(WelcomeBackView(name: "Alexandra", configured: SIGN_IN_READY), on: device),
+                 .violet),
                 ("Phone",
                  try render(PhoneNumberView(value: .constant("201555")), on: device), .violet),
                 ("Phone rejected", try render(

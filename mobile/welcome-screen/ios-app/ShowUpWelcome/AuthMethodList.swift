@@ -21,6 +21,14 @@ import UIKit
 let CONNECT_METHODS: [AuthMethod] = [.apple, .google, .facebook]
 let LOGIN_METHODS: [AuthMethod] = [.phone, .apple, .google, .facebook]
 
+/// The methods that can actually sign somebody in today, which is what Welcome back is told to show.
+///
+/// Phone only. Apple, Google and Facebook have no SDK sign-in yet (SHOWUP-144's sub-tasks), and
+/// SHOWUP-145 hides a provider whose setup is not finished rather than drawing a button that does
+/// nothing -- which is what a device test found on 30 Oct 2026 (SHOWUP-191 item 9). Add a provider
+/// here in the same change that wires its sign-in; Android holds the same set.
+let SIGN_IN_READY: Set<AuthMethod> = [.phone]
+
 /// One row per method: the button label, the mark, the hint Welcome back shows above the CTA, and
 /// the short name interpolated into the error and linking copy.
 struct MethodSpec {
