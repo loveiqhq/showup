@@ -272,8 +272,12 @@ private struct LocationBenefitRow: View {
     }
 }
 
-/// The privacy note: a lavender-washed card with a 16 lock.
+/// The privacy note: a lavender-washed card with a 16 lock. Text 12.5 / 1.45 as CSS sets it:
+/// `TypeMetrics.lineSpacing` for the pitch (`.lineSpacing` adds to Manrope's own 1.366 em, so the
+/// `12.5 * 0.45` this had spaced the lines ~23 apart, not 18.1) and a CSS line box for the ends.
 private struct PrivacyNote: View {
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
+
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.lg) {
             BrandIconView(icon: .lock, size: 16, stroke: 1.8, tint: .liqPurple)
@@ -281,8 +285,9 @@ private struct PrivacyNote: View {
                 .accessibilityHidden(true)
             Text(LocationCopy.privacy)
                 .font(F.manrope(12.5, .medium))
-                .lineSpacing(12.5 * 0.45)
+                .lineSpacing(TypeMetrics.lineSpacing(PS.manropeMedium, size: 12.5 * typeScale, multiple: 1.45))
                 .foregroundColor(.liqNeutral)
+                .cssLineBox(12.5 * 1.45 * typeScale)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, Spacing.xl)
