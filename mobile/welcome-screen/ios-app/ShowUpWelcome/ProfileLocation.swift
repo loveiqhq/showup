@@ -27,8 +27,11 @@ enum LocationCopy {
     static let row2Sub = "No planning, no home advantage — a busy public spot that's neutral ground for both of you."
     static let row3 = "Walking directions on the day"
 
+    // A curly apostrophe (U+2019), per SHOWUP-188's acceptance criteria: the gate shows this note in
+    // state A and asks for curly apostrophes throughout. Shared, so Profile 12 shows it curly too
+    // (Esma, 1 Nov 2026); ticket 12's copy block types it straight.
     static let privacy = "Your exact location is never shown on your profile. Other people only see the city "
-        + "you're in and an approximate distance from themselves e.g. 1.5km."
+        + "you\u{2019}re in and an approximate distance from themselves e.g. 1.5km."
 
     static let allow = "Allow location access"
     static let openSettings = "Open Settings"
@@ -46,7 +49,7 @@ enum LocationCopy {
     /// The Search location gate's strings (SHOWUP-188, `LOCATION_COPY.app`): identical on iOS and
     /// Android, and none of them names a Settings path -- the button routes instead. Apostrophes are
     /// U+2019, as the ticket's acceptance criteria and the reference render them. The privacy note
-    /// and the two CTAs are Profile 12's, unchanged.
+    /// and the two CTAs are Profile 12's, shared -- the note is curly on both screens, see `privacy`.
     enum App {
         static let aLead = "Allow location to see people ", aEm = "nearby", aTail = "."
         static let aBody = "We use your location to show you people within your distance, pick a fair "
