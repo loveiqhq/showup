@@ -1764,14 +1764,18 @@ for label, text in (("kotlin", loc_kt), ("swift", loc_sw)):
               "We pick a fair halfway venue for you both",
               "No planning, no home advantage — a busy public spot that's neutral ground for both of you.",
               "Walking directions on the day",
-              "Your exact location is never shown on your profile. Other people only see the city you're "
+              # Curly, unlike ticket 12's copy block: the note is shared with the location gate, whose
+              # acceptance criteria (SHOWUP-188) ask for curly apostrophes. Decided 1 Nov 2026.
+              "Your exact location is never shown on your profile. Other people only see the city you’re "
               "in and an approximate distance from themselves e.g. 1.5km.",
               "Allow location access", "Open Settings", "Not now — ask me when I search",
               "Location access is off for Show Up. Without it we can't show you anyone nearby — every "
               "date happens in the real world. ",
               "Turn it on in ",
               ", or finish your profile first and we'll ask again when you start searching."]:
-        check("165 copy (%s): %s" % (label, s[:44]), '"%s"' % s in text or s in text)
+        # Swift writes a curly apostrophe as its escape, as `sw_lead` below does.
+        want = s.replace("’", "\\u{2019}") if label == "swift" else s
+        check("165 copy (%s): %s" % (label, s[:44]), '"%s"' % want in text or want in text)
     check("165 no progress bar or header (%s)" % label, "StepProgress" not in text and "AppHeader" not in text)
 # ONE PLATFORM SENTENCE EACH, and nothing else differs between the two.
 check("165 B path, Android", '"Permissions › Location"' in loc_kt)
