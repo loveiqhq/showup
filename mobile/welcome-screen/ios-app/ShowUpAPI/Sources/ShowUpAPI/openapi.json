@@ -1,6 +1,109 @@
 {
   "components": {
     "schemas": {
+      "ActiveDateDto": {
+        "properties": {
+          "checkedIn": {
+            "description": "The viewer's own arrival check-in. Always false until Date 03 adds the check-in store",
+            "type": "boolean"
+          },
+          "coordinateOpen": {
+            "description": "True from unlockAt on",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "match": {
+            "$ref": "#/components/schemas/DateMatchDto"
+          },
+          "meetAt": {
+            "description": "The latest agreed meet time",
+            "format": "date-time",
+            "type": "string"
+          },
+          "meetDay": {
+            "description": "In the viewer's time zone, by the Check-In's 7am day (as Search)",
+            "enum": [
+              "today",
+              "tomorrow"
+            ],
+            "type": "string"
+          },
+          "motivations": {
+            "$ref": "#/components/schemas/DateMotivationsDto"
+          },
+          "place": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DatePlaceDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "sharedInterests": {
+            "description": "Interest tags both people have, in the match’s order",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sharedVibes": {
+            "description": "§31 vibes both people chose, in the match’s order",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "unlockAt": {
+            "description": "meetAt - 90 minutes: when Coordinate opens",
+            "format": "date-time",
+            "type": "string"
+          },
+          "unread": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DateUnreadDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "meetAt",
+          "meetDay",
+          "unlockAt",
+          "coordinateOpen",
+          "place",
+          "match",
+          "motivations",
+          "sharedVibes",
+          "sharedInterests",
+          "unread",
+          "checkedIn"
+        ],
+        "type": "object"
+      },
+      "ActiveDateResponseDto": {
+        "properties": {
+          "date": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ActiveDateDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "type": "object"
+      },
       "Activity": {
         "enum": [
           "couch_lover",
@@ -208,6 +311,17 @@
           "createdAt"
         ],
         "type": "object"
+      },
+      "ChatReason": {
+        "enum": [
+          "change_meet_time",
+          "change_location",
+          "on_my_way",
+          "running_late",
+          "cant_find_you",
+          "cant_make_it_today"
+        ],
+        "type": "string"
       },
       "CheckInDto": {
         "properties": {
@@ -513,6 +627,20 @@
         ],
         "type": "object"
       },
+      "CreateDevDateDto": {
+        "properties": {
+          "minutesFromNow": {
+            "description": "Meet time, minutes from now. Over 90 is state A, 90 or under is B",
+            "maximum": 2880,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutesFromNow"
+        ],
+        "type": "object"
+      },
       "CreateLikeDto": {
         "properties": {
           "feedRequestId": {
@@ -654,6 +782,105 @@
         ],
         "type": "object"
       },
+      "DateMatchDto": {
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "attendedCount": {
+            "description": "Dates both people confirmed happened (ShowUpCount). Never a rate",
+            "type": "integer"
+          },
+          "distanceKm": {
+            "description": "Whole km, 0 meaning under 1 km -- rounded as Search rounds it; never the exact distance",
+            "type": "integer"
+          },
+          "district": {
+            "description": "Their Check-In's district",
+            "type": "string"
+          },
+          "name": {
+            "description": "First name, as Search sends it",
+            "type": "string"
+          },
+          "photoUrl": {
+            "description": "Their first photo that may be shown",
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "attendedCount"
+        ],
+        "type": "object"
+      },
+      "DateMotivationsDto": {
+        "properties": {
+          "them": {
+            "nullable": true,
+            "type": "string"
+          },
+          "you": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "you",
+          "them"
+        ],
+        "type": "object"
+      },
+      "DatePlaceDto": {
+        "properties": {
+          "address": {
+            "example": "Oranienstrasse 42, Kreuzberg",
+            "type": "string"
+          },
+          "name": {
+            "example": "Cafe Krone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "DateUnreadDto": {
+        "properties": {
+          "body": {
+            "nullable": true,
+            "type": "string"
+          },
+          "count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatReason"
+              }
+            ]
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "reason",
+          "body",
+          "sentAt"
+        ],
+        "type": "object"
+      },
       "DatingLanguage": {
         "description": "The languages someone is happy to date in (registry §1 dating_language). Send at least one; stored de-duplicated and in list order, whatever order is sent.",
         "enum": [
@@ -677,6 +904,25 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "DevDateMessageDto": {
+        "properties": {
+          "body": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatReason"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reason"
         ],
         "type": "object"
       },
@@ -4658,6 +4904,65 @@
         ]
       }
     },
+    "/dates/{id}/chat/read": {
+      "post": {
+        "operationId": "markDateChatRead",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
     "/dates/{id}/confirm": {
       "post": {
         "operationId": "confirmDate",
@@ -4797,6 +5102,166 @@
         "summary": "",
         "tags": [
           "dates"
+        ]
+      }
+    },
+    "/dev/date": {
+      "post": {
+        "operationId": "createDevDate",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDevDateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/end": {
+      "post": {
+        "operationId": "endDevDate",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/message": {
+      "post": {
+        "operationId": "sendDevDateMessage",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevDateMessageDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
         ]
       }
     },
@@ -5810,6 +6275,140 @@
         "summary": "",
         "tags": [
           "check-ins"
+        ]
+      }
+    },
+    "/me/date": {
+      "get": {
+        "operationId": "getActiveDate",
+        "parameters": [
+          {
+            "description": "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDateResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
+    "/me/date/profile": {
+      "get": {
+        "operationId": "getActiveDateProfile",
+        "parameters": [
+          {
+            "description": "The viewer's IANA time zone, for meetDay (today / tomorrow by the Check-In's 7am day)",
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchProfileDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
         ]
       }
     },

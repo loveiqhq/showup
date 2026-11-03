@@ -5,6 +5,7 @@ import request from 'supertest';
 import { DataSource, In, Repository } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
+import { DEV_PARTNER_PHONE } from './../src/modules/date-screen/date-dev.service';
 import { AnalyticsService } from './../src/modules/analytics/analytics.service';
 import { CheckInWindow } from './../src/modules/check-ins/entities/check-in-window.entity';
 import { CheckInsService } from './../src/modules/check-ins/check-ins.service';
@@ -25,6 +26,7 @@ import { User } from './../src/modules/users/entities/user.entity';
  * The date is inserted directly: this file tests what the screen READS. Creating one from a match
  * is `dates.e2e-spec.ts` and `matching.e2e-spec.ts`.
  */
+const ALL_PHONES = () => [...Object.values(PHONES), DEV_PARTNER_PHONE];
 const PHONES = {
   you: '+491701930001',
   leonie: '+491701930002',
@@ -100,7 +102,7 @@ describe('The Date screen (e2e)', () => {
     const users = app.get<Repository<User>>(getRepositoryToken(User), {
       strict: false,
     });
-    await users.delete({ phone: In(Object.values(PHONES)) });
+    await users.delete({ phone: In(ALL_PHONES()) });
 
     await signIn('you');
     await signIn('leonie');
@@ -191,7 +193,7 @@ describe('The Date screen (e2e)', () => {
     await db.query(`DELETE FROM venues WHERE name = $1`, [VENUE.name]);
     await app
       .get<Repository<User>>(getRepositoryToken(User), { strict: false })
-      .delete({ phone: In(Object.values(PHONES)) });
+      .delete({ phone: In(ALL_PHONES()) });
     await app.close();
   });
 
@@ -361,6 +363,48 @@ describe('The Date screen (e2e)', () => {
 
   it('is not someone else’s date', async () => {
     await makeDate(180);
+    expect((await getDate('other')).body).toEqual({ date: null });
+  });
+
+  it('walks every state with the dev helpers: create, message as the match, end', async () => {
+    await request(server)
+      .post('/dev/date')
+      .set('Authorization', as('other'))
+      .send({ minutesFromNow: 60 })
+      .expect(204);
+    const created = (await getDate('other')).body.date;
+    expect(created.coordinateOpen).toBe(true);
+    expect(created.match.name).toBe('Leonie');
+    expect(created.place).toEqual({
+      name: 'Cafe Krone',
+      address: 'Oranienstrasse 42, Kreuzberg',
+    });
+
+    await request(server)
+      .post('/dev/date/message')
+      .set('Authorization', as('other'))
+      .send({
+        reason: 'running_late',
+        body: 'Running about 10 min late — sorry!',
+      })
+      .expect(204);
+    expect((await getDate('other')).body.date.unread).toMatchObject({
+      count: 1,
+      reason: 'running_late',
+    });
+
+    // A second create replaces the test date rather than stacking a second one.
+    await request(server)
+      .post('/dev/date')
+      .set('Authorization', as('other'))
+      .send({ minutesFromNow: 180 })
+      .expect(204);
+    expect((await getDate('other')).body.date.coordinateOpen).toBe(false);
+
+    await request(server)
+      .post('/dev/date/end')
+      .set('Authorization', as('other'))
+      .expect(204);
     expect((await getDate('other')).body).toEqual({ date: null });
   });
 });
