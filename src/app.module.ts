@@ -19,6 +19,7 @@ import { CheckInsModule } from './modules/check-ins/check-ins.module';
 import { MatchingModule } from './modules/matching/matching.module';
 import { SearchModule } from './modules/search/search.module';
 import { DatesModule } from './modules/dates/dates.module';
+import { DateScreenModule } from './modules/date-screen/date-screen.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -57,6 +58,7 @@ import { AdminModule } from './modules/admin/admin.module';
     MatchingModule,
     SearchModule,
     DatesModule,
+    DateScreenModule,
     PaymentsModule,
     NotificationsModule,
     AnalyticsModule,
