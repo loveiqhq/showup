@@ -18,6 +18,12 @@
  * Coordinate card moves above time + place; nothing else moves.
  *
  * No header, no back: while a date is active this screen is the app's home.
+ *
+ * THE BAR GIVES WAY AT THE LARGEST TYPE. The bar and the TabBar are one sticky footer -- unless the
+ * two together would cover more than [FOOTER_MAX_SHARE] of the screen (200 % type on a 640-tall
+ * phone), where a sticky footer would leave almost nothing of the date visible and squash its own
+ * links. Then the bar ends the scroll instead and the TabBar alone stays pinned: everything is still
+ * reachable, nothing is cut. The kit draws one size; this is the fit sweep's answer for the others.
  */
 package com.showup.date
 
@@ -75,6 +81,9 @@ val DATE_LOCKED_TABS = setOf(Tab.Search, Tab.Likes, Tab.Instant)
 /** `blur(40px)` -- a CSS sigma -- as a Compose radius: (40 − 0.5) / 0.57735. API 31+; a no-op on 30. */
 private val WASH_BLUR = 68.4.dp
 
+/** The most of the screen the sticky footer may cover before the bar moves into the scroll. */
+private const val FOOTER_MAX_SHARE = 0.6f
+
 @Composable
 fun DateScreen(
     ui: DateUi,
@@ -94,11 +103,16 @@ fun DateScreen(
     matchMate: @Composable () -> Unit = {},
 ) {
     val density = LocalDensity.current
-    var footerHeight by remember { mutableIntStateOf(0) }
+    var frameHeight by remember { mutableIntStateOf(0) }
+    var barHeight by remember { mutableIntStateOf(0) }
+    var tabHeight by remember { mutableIntStateOf(0) }
+    val barInFlow = frameHeight > 0 && barHeight + tabHeight > frameHeight * FOOTER_MAX_SHARE
+    val pinnedHeight = tabHeight + if (barInFlow) 0 else barHeight
     val tabBar: @Composable () -> Unit = {
         TabBar(
             active = null,
             onTab = onTab,
+            modifier = Modifier.onSizeChanged { tabHeight = it.height },
             disabled = DATE_LOCKED_TABS,
             disabledHint = DateCopy.TAB_HINT,
         )
@@ -108,6 +122,7 @@ fun DateScreen(
             .fillMaxSize()
             .background(Cream)
             .windowInsetsPadding(WindowInsets.statusBars)
+            .onSizeChanged { frameHeight = it.height }
             .testTag(DATE_SCREEN_TAG),
     ) {
         val date = ui.date
@@ -149,16 +164,18 @@ fun DateScreen(
                         Spacer(Modifier.height(80.dp))
                     }
                 }
-                Spacer(Modifier.height(with(density) { footerHeight.toDp() }))
+                val bar = @Composable { m: Modifier ->
+                    DateBar(date.checkedIn, date.match.name, onCheckIn, onEndDate, m.onSizeChanged { barHeight = it.height })
+                }
+                if (barInFlow) bar(Modifier)
+                Spacer(Modifier.height(with(density) { pinnedHeight.toDp() }))
             }
-            DateFooter(
-                checkedIn = date.checkedIn,
-                name = date.match.name,
-                onCheckIn = onCheckIn,
-                onEndDate = onEndDate,
-                tabBar = tabBar,
-                modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged { footerHeight = it.height },
-            )
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                if (!barInFlow) {
+                    DateBar(date.checkedIn, date.match.name, onCheckIn, onEndDate, Modifier.onSizeChanged { barHeight = it.height })
+                }
+                tabBar()
+            }
         } else {
             // Loading: the screen is reached only once a read found a date, so this is the moment
             // before the first frame of data -- cream and the locked bar, never a spinner over nothing.

@@ -66,6 +66,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -106,6 +107,8 @@ import com.showup.designsystem.cssBlurToShadowRadius
 import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.pillShadows
 import com.showup.designsystem.rememberMotion
+import com.showup.designsystem.fitWords
+import com.showup.designsystem.OverflowTapTarget
 import com.showup.search.PhotoBackdrop
 import com.showup.search.interestLabel
 import com.showup.search.motivationOf
@@ -457,9 +460,8 @@ private fun UnreadCoordinate(
                 MatchAvatar(match, unread.count, tone.fg)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    InlineOrStack(gap = 8.dp) {
                         Text(match.name, style = SerifBold.copy(fontSize = 19.sp, lineHeight = (19 * 1.1).sp))
-                        Spacer(Modifier.width(8.dp))
                         Row(
                             Modifier
                                 .background(tone.bg, RoundedCornerShape(50))
@@ -596,24 +598,54 @@ private fun MatchAvatar(match: DateMatch, count: Int, tone: Color) {
                     .background(tone, CircleShape),
             )
         }
+        val digit = with(LocalDensity.current) { 10.5.dp.toSp() }
+        val line = with(LocalDensity.current) { 18.dp.toSp() }
         Box(
             Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = 3.dp, y = (-3).dp)
-                .size(18.dp)
+                .size(23.dp)
                 .background(Color.White, CircleShape)
                 .padding(2.5.dp)
                 .background(tone, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
+            // A fixed-size mark, as the TabBar's badge: the count is spoken in the card's text.
             Text(
                 count.toString(),
                 color = Color.White,
                 fontFamily = Manrope,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 10.5.sp,
-                lineHeight = 10.5.sp,
+                fontSize = digit,
+                style = TextStyle(lineHeight = line),
+                maxLines = 1,
             )
+        }
+    }
+}
+
+/**
+ * Two children side by side, [gap] apart and centred on each other, where both fit; the second under
+ * the first, [gap] / 2 below, where they do not -- the yield at 200 % type on a narrow phone, so the
+ * second is never cut.
+ */
+@Composable
+private fun InlineOrStack(gap: Dp, content: @Composable () -> Unit) {
+    Layout(content) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val (first, second) = measurables.map { it.measure(loose) }
+        val g = gap.roundToPx()
+        if (first.width + g + second.width <= constraints.maxWidth) {
+            val h = maxOf(first.height, second.height)
+            layout(first.width + g + second.width, h) {
+                first.place(0, (h - first.height) / 2)
+                second.place(first.width + g, (h - second.height) / 2)
+            }
+        } else {
+            layout(maxOf(first.width, second.width), first.height + g / 2 + second.height) {
+                first.place(0, 0)
+                second.place(0, first.height + g / 2)
+            }
         }
     }
 }
@@ -756,7 +788,20 @@ private fun androidx.compose.foundation.layout.RowScope.QuickTile(icon: BrandIco
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Icon(icon, 18.dp, tint = Purple, strokeWidth = 2f)
-        Text(label, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1)
+        // Wraps between words (`Share / Date`) at a large type on a narrow phone, and a single word
+        // wider than the tile (`Directions` at 200 %) shrinks just enough -- never cut, as `ShowUpCount`.
+        val style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Fg)
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val longestWord = remember(label, density) {
+            label.split(' ').maxOf { measurer.measure(it, style, softWrap = false).size.width }
+        }
+        Text(
+            label,
+            modifier = Modifier.fitWords(longestWord),
+            style = style,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -783,31 +828,39 @@ internal fun AboutCard(match: DateMatch, onSeeProfile: () -> Unit, modifier: Mod
                 ShowUpCount(match.attendedCount, size = ShowUpCountSize.Xs)
             }
         }
-        Row(
-            Modifier
+        // Drawn 42 tall, as the reference's 12 / 12 around a 13 line; it ANSWERS at the 44 floor, the
+        // touch area laid over the drawing instead of growing it (`OverflowTapTarget`).
+        val interaction = remember { MutableInteractionSource() }
+        OverflowTapTarget(
+            touch = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(bottomStart = 19.dp, bottomEnd = 19.dp))
-                .pressable(Role.Button, onClick = onSeeProfile)
-                .background(Raised)
-                .drawTopRule()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+                .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onSeeProfile),
         ) {
-            Text(
-                DateCopy.SEE_PROFILE.format(match.name),
-                color = Purple,
-                fontFamily = Manrope,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-            )
-            Spacer(Modifier.width(6.dp))
-            Icon(BrandIcon.ChevronRight, 14.dp, tint = Purple, strokeWidth = 2.4f)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(bottomStart = 19.dp, bottomEnd = 19.dp))
+                    .press(interaction)
+                    .background(Raised)
+                    .drawTopRule()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    DateCopy.SEE_PROFILE.format(match.name),
+                    color = Purple,
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                )
+                Spacer(Modifier.width(6.dp))
+                Icon(BrandIcon.ChevronRight, 14.dp, tint = Purple, strokeWidth = 2.4f)
+            }
         }
     }
 }
 
-/** The footer link's `border-top: 1px solid var(--liq-border-soft)`. */
 private fun Modifier.drawTopRule(): Modifier = drawBehind {
     drawRect(BorderSoft, size = Size(size.width, 1.dp.toPx()))
 }
