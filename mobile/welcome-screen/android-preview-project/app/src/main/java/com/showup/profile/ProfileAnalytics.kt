@@ -368,6 +368,9 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.32 (3 November 2026): §11 `date_screen` and §38 `date_quick_action` (SHOWUP-193, Date 01).
+     * No value an event here sends moved.
+     *
      * 1.4.31 (27 October 2026): 1.4.30 registered §11 `search_location_gate` (SHOWUP-188) and 1.4.31
      * added §10 `age_dealbreaker` / `distance_dealbreaker` (SHOWUP-189). Nothing else moved.
      *
@@ -398,7 +401,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.31"
+    const val FIELD_REGISTRY_VERSION = "1.4.32"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
