@@ -12,8 +12,6 @@ package com.showup.date
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -34,11 +31,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -52,13 +52,13 @@ import com.showup.designsystem.LilacCard
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Muted
-import com.showup.designsystem.OverflowTapTarget
 import com.showup.designsystem.Purple
 import com.showup.designsystem.ShadowCta
 import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.cssBlurToShadowRadius
-import com.showup.designsystem.minTapTarget
+import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.pillShadows
+import com.showup.designsystem.prettyWrap
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 
@@ -98,8 +98,13 @@ private fun BarRow(gap: Dp, lead: @Composable () -> Unit, action: @Composable ()
     }
 }
 
-/** `rgba(29,17,41,.86)`: the Check-in bar's deep-ink glass. */
-private val BarInk = Fg.copy(alpha = 0.86f)
+/**
+ * `rgba(29,17,41,.86)` over `backdrop-filter: blur(20px)`: the kit's bar blurs what scrolls behind it
+ * into its own tint, which over this screen's cream is the ink at .86 laid on cream. Compose has no
+ * backdrop blur, and the glass alone let the cards' text read through the bar; this is the colour
+ * the blurred glass shows.
+ */
+private val BarInk = Fg.copy(alpha = 0.86f).compositeOver(Cream)
 
 /** `0 -6px 24px rgba(29,17,41,.22)`: the Check-in bar's shadow, cast upward over the scroll. */
 private val BarShadow = Fg.copy(alpha = 0.22f)
@@ -154,19 +159,19 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
                     Column {
                         Text(
                             DateCopy.BAR_TITLE.format(name),
+                            modifier = Modifier.cssLineBox((18 * 1.15).sp),
                             color = Color.White,
                             fontFamily = Lora,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             lineHeight = (18 * 1.15).sp,
                         )
+                        // `textWrap: 'pretty'`, as both bars' sublines.
+                        val sub = TextStyle(color = Color.White, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = (12.5 * 1.4).sp)
                         Text(
                             DateCopy.CHECK_IN_BAR_SUB,
-                            modifier = Modifier.padding(top = 3.dp),
-                            color = Color.White,
-                            fontFamily = Manrope,
-                            fontSize = 12.5.sp,
-                            lineHeight = (12.5 * 1.4).sp,
+                            modifier = Modifier.padding(top = 3.dp).prettyWrap(AnnotatedString(DateCopy.CHECK_IN_BAR_SUB), sub).cssLineBox(sub.lineHeight),
+                            style = sub,
                         )
                     }
                 }
@@ -192,18 +197,16 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
                 }
             },
         )
-        Text(
-            DateCopy.END_DATE_LINK,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .minTapTarget()
-                .pressable(Role.Button, onClick = onEndDate)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            color = LilacCard,
-            fontFamily = Manrope,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
-        )
+        DrawnSmall(DateCopy.END_DATE_LINK, onEndDate, Modifier.align(Alignment.CenterHorizontally)) { press ->
+            Text(
+                DateCopy.END_DATE_LINK,
+                modifier = press.padding(horizontal = 12.dp, vertical = 8.dp),
+                color = LilacCard,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+            )
+        }
     }
 }
 
@@ -235,31 +238,22 @@ internal fun DateStatusBar(name: String, onEndDate: () -> Unit) {
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.5.sp,
                         )
+                        val sub = TextStyle(color = Muted, fontFamily = Manrope, fontSize = 11.5.sp, lineHeight = (11.5 * 1.35).sp)
                         Text(
                             DateCopy.END_BAR_SUB,
-                            color = Muted,
-                            fontFamily = Manrope,
-                            fontSize = 11.5.sp,
-                            lineHeight = (11.5 * 1.35).sp,
+                            modifier = Modifier.prettyWrap(AnnotatedString(DateCopy.END_BAR_SUB), sub).cssLineBox(sub.lineHeight),
+                            style = sub,
                         )
                     }
                 }
             },
             action = {
-                // Drawn 40 tall as the reference; the touch area is the 44 floor laid over it.
-                val interaction = remember { MutableInteractionSource() }
-                OverflowTapTarget(
-                    touch = Modifier.clickable(
-                        interactionSource = interaction,
-                        indication = null,
-                        role = Role.Button,
-                        onClick = onEndDate,
-                    ),
-                ) {
+                // Drawn 40 tall as the reference.
+                DrawnSmall(DateCopy.END_DATE, onEndDate) { press ->
                 Box(
                     Modifier
                         .height(40.dp)
-                        .press(interaction)
+                        .then(press)
                         .background(Elevated, RoundedCornerShape(50))
                         .border(1.5.dp, Purple, RoundedCornerShape(50))
                         .padding(horizontal = 16.dp),

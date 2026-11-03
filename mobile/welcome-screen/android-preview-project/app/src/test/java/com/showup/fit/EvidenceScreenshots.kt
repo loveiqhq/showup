@@ -1119,4 +1119,40 @@ class EvidenceScreenshots {
             }
         }
     }
+
+    /**
+     * Date 01, the Date screen (SHOWUP-193): A, B and C at the three frames the evidence names, and D
+     * -- the full scroll -- as its top (which is A) and its end, the footer over the last cards.
+     */
+    @Test
+    fun `SHOWUP-193 the Date screen, A B C and the end of D`() {
+        val zone = java.time.ZoneId.of("Europe/Berlin")
+        val meet = java.time.Instant.parse("2026-11-03T18:00:00Z")
+        val unlock = java.time.Instant.parse("2026-11-03T16:30:00Z")
+        val date = com.showup.date.ActiveDate(
+            id = "d1", meetAt = meet, meetDay = "today", unlockAt = unlock, coordinateOpen = false,
+            place = com.showup.date.DatePlace("Cafe Krone", "Oranienstrasse 42, Kreuzberg"),
+            match = com.showup.date.DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
+            motivationYou = "long_term", motivationThem = "long_term",
+            sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
+            sharedInterests = listOf("reading", "brunch", "hiking"),
+            unread = null, checkedIn = false,
+        )
+        val a = com.showup.date.DateUi(date, java.time.Instant.parse("2026-11-03T14:55:00Z"), loading = false)
+        val b = com.showup.date.DateUi(date, java.time.Instant.parse("2026-11-03T16:42:00Z"), loading = false)
+        val c = com.showup.date.DateUi(
+            date.copy(unread = com.showup.date.DateUnread(1, "running_late", "Running about 10 min late — sorry! Almost there.", java.time.Instant.parse("2026-11-03T16:42:00Z"))),
+            java.time.Instant.parse("2026-11-03T16:42:20Z"),
+            loading = false,
+        )
+        shoot("SHOWUP-193", "A-announced") { com.showup.date.DateScreen(a, zone) }
+        shoot("SHOWUP-193", "B-available") { com.showup.date.DateScreen(b, zone) }
+        shoot("SHOWUP-193", "C-unread") { com.showup.date.DateScreen(c, zone) }
+        val end = androidx.compose.foundation.ScrollState(0)
+        shoot("SHOWUP-193", "D-end", scrolled = end) { com.showup.date.DateScreen(a, zone, scroll = end) }
+        // D as the sheet draws it: every section in order, the footer at the foot of the scroll. The
+        // kit's `tall` phone takes the content's height; this frame is that height, so nothing scrolls.
+        val tall = listOf(Device("full length", 390, 2350, 0, 0))
+        shoot("SHOWUP-193", "D-full", devices = tall) { com.showup.date.DateScreen(a, zone) }
+    }
 }

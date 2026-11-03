@@ -61,8 +61,11 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -104,13 +107,13 @@ import com.showup.designsystem.ShowUpEasing
 import com.showup.designsystem.Success
 import com.showup.designsystem.SuccessFg
 import com.showup.designsystem.cssBlurToShadowRadius
-import com.showup.designsystem.minTapTarget
 import com.showup.designsystem.pillShadows
+import com.showup.designsystem.cssLineBox
+import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.rememberMotion
 import com.showup.designsystem.fitWords
 import com.showup.designsystem.OverflowTapTarget
 import com.showup.search.PhotoBackdrop
-import com.showup.search.interestLabel
 import com.showup.search.motivationOf
 import com.showup.search.vibeLabel
 import com.showup.welcome.BrandIcon
@@ -152,6 +155,33 @@ internal fun Modifier.pressable(role: Role, label: String? = null, onClick: () -
     return this
         .press(interaction)
         .clickable(interactionSource = interaction, indication = null, role = role, onClickLabel = label, onClick = onClick)
+}
+
+/**
+ * A button DRAWN at the reference's size that ANSWERS at the 44 floor: the touch area is laid over
+ * the drawing ([OverflowTapTarget]) instead of growing the row it sits in. `minTapTarget` on these
+ * pushed the time card 18 taller than the sheet (the Copy pill) and the Check-in bar 10 (End date).
+ *
+ * The touch area is a sibling of the drawing, so it carries the name: the drawing's own text is
+ * cleared and TalkBack reads one button, once. [content] gets the press scale for its drawing.
+ */
+@Composable
+internal fun DrawnSmall(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    touch: Modifier = Modifier,
+    content: @Composable (press: Modifier) -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    OverflowTapTarget(
+        touch = touch
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { text = AnnotatedString(label) },
+        modifier = modifier,
+    ) {
+        Box(Modifier.clearAndSetSemantics {}) { content(Modifier.press(interaction)) }
+    }
 }
 
 /** A square icon tile: the reference's `width/height N, borderRadius r, background, centred icon`. */
@@ -270,6 +300,7 @@ internal fun TimePlaceCard(
                     append(lead)
                     withStyle(SpanStyle(color = Purple, fontStyle = FontStyle.Italic)) { append(day) }
                 },
+                modifier = Modifier.cssLineBox((20 * 1.15).sp),
                 style = SerifBold.copy(fontSize = 20.sp, lineHeight = (20 * 1.15).sp),
             )
         }
@@ -291,7 +322,7 @@ internal fun TimePlaceCard(
                         place.address?.let {
                             Text(
                                 it,
-                                modifier = Modifier.weight(1f, fill = false),
+                                modifier = Modifier.weight(1f, fill = false).cssLineBox((12.5 * 1.35).sp),
                                 color = Muted,
                                 fontFamily = Manrope,
                                 fontSize = 12.5.sp,
@@ -317,17 +348,13 @@ internal fun CopyAddress(copied: Boolean, onCopy: () -> Unit) {
     val fill by animateColorAsState(if (copied) Success.copy(alpha = 0.14f) else Elevated, spec, label = "copy-fill")
     val stroke by animateColorAsState(if (copied) Success.copy(alpha = 0.32f) else BorderSoft, spec, label = "copy-stroke")
     val ink by animateColorAsState(if (copied) SuccessFg else Purple, spec, label = "copy-ink")
-    Row(
-        Modifier
-            .minTapTarget()
-            .pressable(Role.Button, label = DateCopy.COPY, onClick = onCopy),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    DrawnSmall(if (copied) DateCopy.COPIED else DateCopy.COPY, onCopy) { press ->
         Row(
-            Modifier
+            press
                 .background(fill, RoundedCornerShape(50))
                 .border(1.dp, stroke, RoundedCornerShape(50))
-                .padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+                // 4 10 4 8 inside the 1 px border, which CSS counts in the pill's size.
+                .padding(start = 9.dp, end = 11.dp, top = 5.dp, bottom = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(if (copied) BrandIcon.Check else BrandIcon.Copy, 13.dp, tint = ink, strokeWidth = 2.4f)
@@ -366,17 +393,16 @@ private fun CoordinateCta(label: String, fill: Color, shadows: List<com.showup.d
 @Composable
 private fun CoordinateTitle(name: String) = Text(
     DateCopy.COORD_TITLE.format(name),
+    modifier = Modifier.cssLineBox((20 * 1.1).sp),
     style = SerifBold.copy(fontSize = 20.sp, lineHeight = (20 * 1.1).sp),
 )
 
 @Composable
-private fun CoordinateSub(text: String) = Text(
-    text,
-    color = Muted,
-    fontFamily = Manrope,
-    fontSize = 14.sp,
-    lineHeight = (14 * 1.35).sp,
-)
+private fun CoordinateSub(text: String) {
+    // `textWrap: 'pretty'`: the sheet's A reads `… before` / `you meet`, not `meet` alone.
+    val style = TextStyle(color = Muted, fontFamily = Manrope, fontSize = 14.sp, lineHeight = (14 * 1.35).sp)
+    Text(text, Modifier.prettyWrap(AnnotatedString(text), style).cssLineBox(style.lineHeight), style = style)
+}
 
 /**
  * ⑥ locked · ⑦ available · ⑧ unread: ONE card in three states, never a second one. The state is the
@@ -461,7 +487,11 @@ private fun UnreadCoordinate(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     InlineOrStack(gap = 8.dp) {
-                        Text(match.name, style = SerifBold.copy(fontSize = 19.sp, lineHeight = (19 * 1.1).sp))
+                        Text(
+                            match.name,
+                            Modifier.cssLineBox((19 * 1.1).sp),
+                            style = SerifBold.copy(fontSize = 19.sp, lineHeight = (19 * 1.1).sp),
+                        )
                         Row(
                             Modifier
                                 .background(tone.bg, RoundedCornerShape(50))
@@ -500,13 +530,19 @@ private fun UnreadCoordinate(
             ) {
                 ReasonBadge(style, onLight = true)
                 unread.body?.let {
-                    Text(
-                        "“$it”",
+                    // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `… sorry!` / `Almost there.”`.
+                    val quoted = "“$it”"
+                    val style = TextStyle(
                         color = Fg,
                         fontFamily = Manrope,
                         fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
                         lineHeight = (14 * 1.4).sp,
+                    )
+                    Text(
+                        quoted,
+                        Modifier.prettyWrap(AnnotatedString(quoted), style).cssLineBox(style.lineHeight),
+                        style = style,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -556,7 +592,7 @@ internal fun ReasonBadge(style: ChatReasonStyle, onLight: Boolean) {
 private fun MatchAvatar(match: DateMatch, count: Int, tone: Color) {
     val motion = rememberMotion()
     Box(Modifier.size(46.dp)) {
-        Box(Modifier.size(46.dp).clip(CircleShape)) {
+        Box(Modifier.size(46.dp).aboveWash("avatar", CircleShape).clip(CircleShape)) {
             PhotoBackdrop(match.photoUrl.orEmpty(), 0, Modifier.fillMaxSize())
             if (match.photoUrl == null) {
                 Text(
@@ -605,6 +641,7 @@ private fun MatchAvatar(match: DateMatch, count: Int, tone: Color) {
                 .align(Alignment.TopEnd)
                 .offset(x = 3.dp, y = (-3).dp)
                 .size(23.dp)
+                .aboveWash("avatar-badge", CircleShape)
                 .background(Color.White, CircleShape)
                 .padding(2.5.dp)
                 .background(tone, CircleShape),
@@ -661,7 +698,8 @@ internal fun ReportRow(onReport: () -> Unit, modifier: Modifier = Modifier) {
             .pressable(Role.Button, onClick = onReport)
             .background(Danger.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
             .border(1.dp, Danger.copy(alpha = 0.20f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 15.dp, vertical = 13.dp),
+            // 13 / 15 inside the 1 px border.
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconTile(40.dp, 12.dp, SolidColor(Elevated), BrandIcon.Shield, 19.dp, Danger, 2.1f)
@@ -672,7 +710,7 @@ internal fun ReportRow(onReport: () -> Unit, modifier: Modifier = Modifier) {
                 append(" ")
                 append(DateCopy.REPORT_BODY)
             },
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).cssLineBox((13.5 * 1.4).sp),
             color = Muted,
             fontFamily = Manrope,
             fontSize = 13.5.sp,
@@ -697,12 +735,12 @@ private fun Eyebrow(text: String, size: Float = 11f) = Text(
 
 /** A shared value as a selected chip with the shared check -- Search's shared mark. */
 @Composable
-private fun SharedValueChip(label: String, tone: ChipTone, size: ChipSize, iconSize: Dp, stroke: Float) = Chip(
+private fun SharedValueChip(label: String, icon: BrandIcon?, tone: ChipTone, size: ChipSize, iconSize: Dp, stroke: Float) = Chip(
     label = label,
     selected = true,
     tone = tone,
     size = size,
-    leading = { ink -> Icon(BrandIcon.Check, iconSize, tint = ink, strokeWidth = stroke) },
+    leading = icon?.let { { ink -> Icon(it, iconSize, tint = ink, strokeWidth = stroke) } },
 )
 
 /**
@@ -745,7 +783,7 @@ internal fun IntentCard(date: ActiveDate, modifier: Modifier = Modifier) {
                     Spacer(Modifier.height(5.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         date.sharedVibes.forEach { id ->
-                            SharedValueChip(vibeLabel(id) ?: id, ChipTone.Orange, ChipSize.Sm, 11.dp, 2.4f)
+                            SharedValueChip(vibeLabel(id) ?: id, vibeIcon(id), ChipTone.Orange, ChipSize.Sm, 11.dp, 2.4f)
                         }
                     }
                 }
@@ -783,7 +821,8 @@ private fun androidx.compose.foundation.layout.RowScope.QuickTile(icon: BrandIco
             .pressable(Role.Button, onClick = onClick)
             .background(Elevated, RoundedCornerShape(16.dp))
             .border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
-            .padding(vertical = 14.dp),
+            // 14 / 0 inside the 1 px border.
+            .padding(horizontal = 1.dp, vertical = 15.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -828,22 +867,17 @@ internal fun AboutCard(match: DateMatch, onSeeProfile: () -> Unit, modifier: Mod
                 ShowUpCount(match.attendedCount, size = ShowUpCountSize.Xs)
             }
         }
-        // Drawn 42 tall, as the reference's 12 / 12 around a 13 line; it ANSWERS at the 44 floor, the
-        // touch area laid over the drawing instead of growing it (`OverflowTapTarget`).
-        val interaction = remember { MutableInteractionSource() }
-        OverflowTapTarget(
-            touch = Modifier
-                .fillMaxWidth()
-                .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onSeeProfile),
-        ) {
+        // Drawn 43 tall, as the reference's 12 / 12 around a 13 line under its 1 px `border-top`, which
+        // CSS counts in the height and the drawn rule here does not -- hence 13 above.
+        DrawnSmall(DateCopy.SEE_PROFILE.format(match.name), onSeeProfile, touch = Modifier.fillMaxWidth()) { press ->
             Row(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(bottomStart = 19.dp, bottomEnd = 19.dp))
-                    .press(interaction)
+                    .then(press)
                     .background(Raised)
                     .drawTopRule()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 13.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -874,19 +908,14 @@ private fun Modifier.drawTopRule(): Modifier = drawBehind {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun CommonCard(date: ActiveDate, modifier: Modifier = Modifier) {
-    val labels = buildList {
-        if (intentShared(date.motivationYou, date.motivationThem)) {
-            add(motivationOf(date.motivationThem)?.title ?: date.motivationThem.orEmpty())
-        }
-        date.sharedInterests.forEach { add(interestLabel(it) ?: it) }
-    }
-    if (labels.isEmpty()) return
+    val chips = commonChips(date)
+    if (chips.isEmpty()) return
     // 16 inside the 1 px border.
     Card(modifier, contentPadding = PaddingValues(17.dp)) {
         Eyebrow(DateCopy.IN_COMMON, size = 13f)
         Spacer(Modifier.height(10.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            labels.forEach { SharedValueChip(it, ChipTone.Lavender, ChipSize.Md, 13.dp, 2.2f) }
+            chips.forEach { (label, icon) -> SharedValueChip(label, icon, ChipTone.Lavender, ChipSize.Md, 13.dp, 2.2f) }
         }
     }
 }
@@ -919,7 +948,7 @@ internal fun DateWorksCard(date: ActiveDate, zone: ZoneId, modifier: Modifier = 
                         Text(title, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text(
                             sub,
-                            modifier = Modifier.padding(top = 2.dp),
+                            modifier = Modifier.padding(top = 2.dp).cssLineBox((13 * 1.4).sp),
                             color = Muted,
                             fontFamily = Manrope,
                             fontSize = 13.sp,
@@ -938,16 +967,15 @@ internal fun DateWorksCard(date: ActiveDate, zone: ZoneId, modifier: Modifier = 
 @Composable
 internal fun CancelLink(onCancel: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(
-            DateCopy.CANCEL_DATE,
-            modifier = Modifier
-                .minTapTarget()
-                .pressable(Role.Button, onClick = onCancel)
-                .padding(vertical = 10.dp),
-            color = Danger,
-            fontFamily = Manrope,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
-        )
+        DrawnSmall(DateCopy.CANCEL_DATE, onCancel) { press ->
+            Text(
+                DateCopy.CANCEL_DATE,
+                modifier = press.padding(vertical = 10.dp),
+                color = Danger,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+            )
+        }
     }
 }

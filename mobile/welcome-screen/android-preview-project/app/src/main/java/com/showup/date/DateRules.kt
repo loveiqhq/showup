@@ -8,7 +8,9 @@
  */
 package com.showup.date
 
+import com.showup.search.interestLabel
 import com.showup.search.meetTime
+import com.showup.search.motivationOf
 import com.showup.search.searchDistance
 import com.showup.welcome.BrandIcon
 import java.time.Instant
@@ -84,6 +86,30 @@ fun aboutLine(district: String?, distanceKm: Int?): String? =
 
 /** Only what matches is shown: the intent line only when both motivations are the same. */
 fun intentShared(you: String?, them: String?): Boolean = you != null && you == them
+
+/**
+ * ⑬'s chips in order -- the shared motivation, then the shared interests -- each with the icon the
+ * sheet draws: the kit's `heart` on the motivation; none on an interest, whose reference names
+ * (`reading`, `brunch`, `hiking`, `festivals`) are not in the kit's icon set and render nothing.
+ */
+fun commonChips(date: ActiveDate): List<Pair<String, BrandIcon?>> = buildList {
+    if (intentShared(date.motivationYou, date.motivationThem)) {
+        add((motivationOf(date.motivationThem)?.title ?: date.motivationThem.orEmpty()) to BrandIcon.Heart)
+    }
+    date.sharedInterests.forEach { add((interestLabel(it) ?: it) to null) }
+}
+
+/**
+ * ⑩ `You both want`: the icon the reference gives a vibe's chip. It names four -- `coffee`,
+ * `navigation`, `flame`, and `reading` for Deep conversation, which the kit does not have and so
+ * draws nothing -- and no other vibe has one. No icon is invented for the rest.
+ */
+fun vibeIcon(id: String): BrandIcon? = when (id) {
+    "coffee_chat" -> BrandIcon.Coffee
+    "nature_walk" -> BrandIcon.Navigation
+    "playful" -> BrandIcon.Flame
+    else -> null
+}
 
 /** How the date works, row 1: the agreed place and time, or the time alone with no place. */
 fun worksMeetLine(date: ActiveDate, zone: ZoneId): String {

@@ -144,4 +144,30 @@ class DateRulesTest {
         assertEquals("New message", unreadTag(1))
         assertEquals("3 new", unreadTag(3))
     }
+
+    // ── the chips' icons, as the sheet draws them ───────────────────────────
+
+    @Test
+    fun `in common, the shared intent carries the heart and the interests carry none`() {
+        val chips = commonChips(date().copy(sharedInterests = listOf("reading", "hiking")))
+        assertEquals(
+            listOf("Long-term partner" to com.showup.welcome.BrandIcon.Heart, "Reading" to null, "Hiking" to null),
+            chips,
+        )
+    }
+
+    @Test
+    fun `in common has no intent chip when the motivations differ`() {
+        val chips = commonChips(date().copy(motivationThem = "casual", sharedInterests = listOf("reading")))
+        assertEquals(listOf("Reading" to null), chips)
+    }
+
+    @Test
+    fun `only the three vibes the reference draws carry an icon`() {
+        assertEquals(com.showup.welcome.BrandIcon.Coffee, vibeIcon("coffee_chat"))
+        assertEquals(com.showup.welcome.BrandIcon.Navigation, vibeIcon("nature_walk"))
+        assertEquals(com.showup.welcome.BrandIcon.Flame, vibeIcon("playful"))
+        assertNull(vibeIcon("deep_talk"))
+        assertNull(vibeIcon("sunset"))
+    }
 }

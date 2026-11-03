@@ -282,6 +282,7 @@ private fun DisabledHint(text: String, visible: Boolean) {
                 Spacer(Modifier.size(10.dp))
                 Text(
                     text,
+                    modifier = Modifier.cssLineBox((13 * 1.4).sp),
                     color = Color.White,
                     fontFamily = Manrope,
                     fontWeight = FontWeight.Medium,

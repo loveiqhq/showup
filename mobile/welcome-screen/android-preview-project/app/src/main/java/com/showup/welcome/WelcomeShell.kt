@@ -737,8 +737,9 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
     //
     // `copy` is the time + place card's Copy pill, `share` the Share Date tile; `hourglass`,
     // `binoculars` and `frown` are the unread card's reason badges (running late, can't find you,
-    // can't make it). From `components/shared.jsx` as path data, VERBATIM -- see [KitPaths].
-    Copy, Share, Hourglass, Binoculars, Frown }
+    // can't make it); `coffee` is the `Coffee & a chat` vibe's chip. From `components/shared.jsx`
+    // as path data, VERBATIM -- see [KitPaths].
+    Copy, Share, Hourglass, Binoculars, Frown, Coffee }
 
 @Composable
 /**
@@ -1335,7 +1336,8 @@ fun Icon(
                 BrandIcon.Hourglass -> drawPath(KitPaths.hourglass, tint, style = stroke)
                 BrandIcon.Binoculars -> drawPath(KitPaths.binoculars, tint, style = stroke)
                 BrandIcon.Frown -> drawPath(KitPaths.frown, tint, style = stroke)
-                
+                BrandIcon.Coffee -> drawPath(KitPaths.coffee, tint, style = stroke)
+
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
                     drawPath(path(listOf(18.5f to 2.5f, 21.5f to 5.5f, 12f to 15f, 8f to 16f, 9f to 12f), close = true), tint, style = stroke)
@@ -1477,6 +1479,9 @@ private object KitPaths {
     val frown = parse(
         "M22 12A10 10 0 1 1 2 12A10 10 0 1 1 22 12ZM16 16s-1.5-2-4-2-4 2-4 2M9 9.2L9.01 9.2M15 9.2L15.01 9.2",
     )
+
+    /** The cup and its handle, and the three steam `line`s at x 6, 10 and 14. */
+    val coffee = parse("M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1L6 4M10 1L10 4M14 1L14 4")
 
     /** `leaf`. */
     val leaf = parse("M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2c1 3.5.5 8-3 11-2.5 2.5-6 2.5-7.5 1M2 21c0-3 1.85-5.36 5.08-6")

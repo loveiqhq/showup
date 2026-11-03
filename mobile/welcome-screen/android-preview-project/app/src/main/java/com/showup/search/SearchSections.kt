@@ -157,14 +157,23 @@ private val PLACEHOLDER_STOPS = listOf(
  * A CSS `linear-gradient(<angle>deg, ...)` drawn as CSS draws it: the gradient line through the
  * centre at that angle, long enough that its ends touch the box's corners. Compose's default runs
  * corner to corner, which is right only at 135 degrees on a square.
+ *
+ * [boxHeight] is the CSS box's height when the drawing runs past it -- a blurred edge smearing its
+ * colours on: the line is the box's, and the colours clamp beyond it.
  */
-internal fun Modifier.cssLinearGradient(angleDeg: Float, colors: List<Color>, stops: List<Float>): Modifier =
+internal fun Modifier.cssLinearGradient(
+    angleDeg: Float,
+    colors: List<Color>,
+    stops: List<Float>,
+    boxHeight: Dp? = null,
+): Modifier =
     drawBehind {
         val a = Math.toRadians(angleDeg.toDouble())
         val dx = sin(a).toFloat()
         val dy = -cos(a).toFloat()
-        val half = (abs(size.width * dx) + abs(size.height * dy)) / 2f
-        val c = Offset(size.width / 2f, size.height / 2f)
+        val h = boxHeight?.toPx() ?: size.height
+        val half = (abs(size.width * dx) + abs(h * dy)) / 2f
+        val c = Offset(size.width / 2f, h / 2f)
         drawRect(
             Brush.linearGradient(
                 colorStops = stops.zip(colors).toTypedArray(),
