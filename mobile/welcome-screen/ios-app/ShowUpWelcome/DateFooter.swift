@@ -77,6 +77,8 @@ struct CheckInBar: View {
                         PrettyText(DateCopy.checkInBarSub, font: uiFont(PS.manropeRegular, 12.5, .regular),
                                    lineHeight: 12.5 * 1.4, color: .white)
                     }
+                    // The column takes the width the row leaves it: a long name never widens the bar.
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Button(action: onCheckIn) {
                     Text(DateCopy.checkIn)
@@ -139,6 +141,7 @@ struct DateStatusBar: View {
                     PrettyText(DateCopy.endBarSub, font: uiFont(PS.manropeRegular, 11.5, .regular),
                                lineHeight: 11.5 * 1.35, color: .liqMuted)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             // Drawn 40 tall as the reference; it answers at 44.
             Button(action: onEndDate) {

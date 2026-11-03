@@ -178,6 +178,7 @@ struct TimePlaceCard: View {
                         }
                         .padding(.top, 3)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -276,6 +277,10 @@ struct CoordinateModule: View {
                             coordinateTitle(date.match.name)
                             coordinateSub(DateCopy.coordLockedSub)
                         }
+                        // The column takes the width it is given, as Android's `weight(1f)`: a word wider than
+                        // it (a long name at a phone's exact width) wraps or overflows by a hair -- it must
+                        // never widen the card (the 402-wide fit sweep, 3 Nov 2026).
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     // No progress bar (2 Nov 2026): the time alone says it. Not tappable.
                     Text(lockedLine(meetDay: date.meetDay, unlockAt: date.unlockAt, zone: zone))
@@ -294,6 +299,10 @@ struct CoordinateModule: View {
                             }
                             coordinateSub(DateCopy.coordOpenSub(date.match.name))
                         }
+                        // The column takes the width it is given, as Android's `weight(1f)`: a word wider than
+                        // it (a long name at a phone's exact width) wraps or overflows by a hair -- it must
+                        // never widen the card (the 402-wide fit sweep, 3 Nov 2026).
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     CoordinateCta(label: DateCopy.openChat, fill: .liqPurple, shadows: shadowViolet, action: onOpenChat)
                         .padding(.top, 16)
@@ -333,6 +342,7 @@ private struct UnreadCoordinate: View {
                             .font(F.manrope(12.5, .regular))
                             .foregroundColor(.liqMuted)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 7) {
                     ReasonBadge(style: style, onLight: true)
