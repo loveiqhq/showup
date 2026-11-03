@@ -207,7 +207,7 @@ fun devJump(
  */
 data class DevState(val id: String, val ticket: String, val label: String)
 
-/** Every frame of SHOWUP-178 to 184's evidence, in ticket order -- plus the states between them. */
+/** Every frame of SHOWUP-178 to 184's and 193's evidence, in ticket order -- plus the states between them. */
 val DEV_STATES: List<DevState> = listOf(
     DevState("178A", "SHOWUP-178 Intro + gate", "A · Intro"),
     DevState("178B", "SHOWUP-178 Intro + gate", "B · Date search not available"),
@@ -242,7 +242,25 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("184-loading", "SHOWUP-184 Search profile", "Loading"),
     DevState("184-failed", "SHOWUP-184 Search profile", "Could not load (offline)"),
     DevState("184-empty", "SHOWUP-184 Search profile", "No results (proposed copy)"),
+    DevState("193A", "SHOWUP-193 Date screen", "A · Announced, more than 1:30 before"),
+    DevState("193B", "SHOWUP-193 Date screen", "B · Available, 1:30 or less before"),
+    DevState("193C", "SHOWUP-193 Date screen", "C · Unread message waiting"),
+    DevState("193D-end", "SHOWUP-193 Date screen", "D · Scrolled to the end"),
+    DevState("193-profile", "SHOWUP-193 Date screen", "See full profile, read-only"),
+    DevState("193-failed", "SHOWUP-193 Date screen", "First read failed (proposed copy)"),
 )
+
+/** The developer menu's Date actions (SHOWUP-193), each a dev-server route. */
+sealed interface DevDateAction {
+    /** A test date with Leonie [minutes] from now: 180 shows A, 60 shows B. */
+    data class CreateIn(val minutes: Int) : DevDateAction
+
+    /** Leonie's running-late message: C, once the chat is open. */
+    data object Message : DevDateAction
+
+    /** Ends the test date: the screen leaves for the normal resume. */
+    data object End : DevDateAction
+}
 
 /** The gallery activity, named by string: it exists in debug builds only, so main code cannot import it. */
 const val DEV_GALLERY_ACTIVITY = "com.showup.dev.CheckInGalleryActivity"

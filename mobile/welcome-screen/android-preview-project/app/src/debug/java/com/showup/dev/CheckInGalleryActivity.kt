@@ -26,6 +26,11 @@ import com.showup.search.SearchPlayback
 import com.showup.search.LikeSheet
 import com.showup.profile.MediaKind
 import com.showup.api.CallFailure
+import com.showup.date.DATE_LOCKED_TABS
+import com.showup.date.DateCopy
+import com.showup.date.DateSamples
+import com.showup.date.DateScreen
+import com.showup.date.DateUi
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ScrollState
 import androidx.compose.runtime.Composable
@@ -113,6 +118,20 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "184-loading" -> SearchProfileScreen(SearchUiState(loading = true), SearchSamples.ZONE)
         "184-failed" -> SearchProfileScreen(SearchUiState(loading = false, failure = CallFailure.Network), SearchSamples.ZONE)
         "184-empty" -> SearchProfileScreen(SearchUiState(loading = false), SearchSamples.ZONE)
+        "193A" -> DateScreen(DateUi(DateSamples.DATE, DateSamples.A_NOW, loading = false), DateSamples.ZONE)
+        "193B" -> DateScreen(DateUi(DateSamples.DATE, DateSamples.B_NOW, loading = false), DateSamples.ZONE)
+        "193C" -> DateScreen(DateUi(DateSamples.DATE.copy(unread = DateSamples.UNREAD), DateSamples.B_NOW, loading = false), DateSamples.ZONE)
+        "193D-end" -> {
+            val scroll = remember { ScrollState(0) }
+            LaunchedEffect(scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
+            DateScreen(DateUi(DateSamples.DATE, DateSamples.A_NOW, loading = false), DateSamples.ZONE, scroll = scroll)
+        }
+        "193-profile" -> SearchProfileScreen(
+            SearchUiState(loading = false, queue = listOf(SearchSamples.FULL)), SearchSamples.ZONE,
+            onBack = leave, readOnly = true, backLabel = DateCopy.PROFILE_BACK,
+            disabledTabs = DATE_LOCKED_TABS, disabledHint = DateCopy.TAB_HINT,
+        )
+        "193-failed" -> DateScreen(DateUi(now = DateSamples.A_NOW, loading = false, failed = CallFailure.Network), DateSamples.ZONE)
         else -> Text("Unknown state $state")
     }
 }

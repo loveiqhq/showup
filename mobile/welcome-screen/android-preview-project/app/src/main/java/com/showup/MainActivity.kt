@@ -81,6 +81,8 @@ import com.showup.search.SearchProfileScreen
 import com.showup.search.SearchRepository
 import com.showup.search.SearchUiState
 import com.showup.date.DATE_LOCKED_TABS
+import com.showup.date.DateSamples
+import com.showup.dev.DevDateAction
 import com.showup.date.DateCopy
 import com.showup.date.DateProfileViewModel
 import com.showup.date.DateRepository
@@ -2711,6 +2713,20 @@ class MainActivity : ComponentActivity() {
                         // frame after frame can be looked at without reopening it.
                         onOpenState = { state -> openDevState(state) },
                         onPremium = search::setPremium,
+                        onDateAction = { action ->
+                            devMenuOpen = false
+                            dateScope.launch {
+                                when (action) {
+                                    is DevDateAction.CreateIn -> dateStore.createTestDate(action.minutes)
+                                    DevDateAction.Message -> dateStore.messageFromMatch("running_late", DateSamples.UNREAD.body)
+                                    DevDateAction.End -> dateStore.endTestDate()
+                                }
+                                // The Date screen's own read shows the result: a new date or message
+                                // lands in place, an ended one leaves.
+                                date.foreground()
+                                if (action != DevDateAction.End) toDate()
+                            }
+                        },
                     )
                     // Back closes the menu, never the screen under it.
                     BackHandler { devMenuOpen = false }
