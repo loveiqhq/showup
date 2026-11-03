@@ -127,6 +127,15 @@ val ShadowMd = listOf(
 /** `--liq-shadow-sm`: `0 1px 2px rgba(46,1,71,.04)` -- the outlined action buttons' lift. */
 val ShadowSm = listOf(CssShadow(Color(0x0A2E0147), offsetY = 1.dp, blur = 2.dp))
 
+/**
+ * `--liq-shadow-cta`, the orange CTAs' glow: `0 8px 20px rgba(254,104,57,.32), 0 2px 6px
+ * rgba(254,104,57,.20)`. First drawn by the Date screen's orange Read & reply (SHOWUP-193 ⑧).
+ */
+val ShadowCta = listOf(
+    CssShadow(Orange.copy(alpha = 0.32f), offsetY = 8.dp, blur = 20.dp),
+    CssShadow(Orange.copy(alpha = 0.20f), offsetY = 2.dp, blur = 6.dp),
+)
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShadowLayers(
     fill: Brush,
     r: Float,

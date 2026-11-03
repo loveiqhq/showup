@@ -95,6 +95,12 @@ object Motion {
      */
     const val COPIED = 1600
 
+    /**
+     * One beat of the unread badge's pulsing ring (`su-pulse-ring 1.8s cubic-bezier(.22,1,.36,1)
+     * infinite`, the Date screen's state C, SHOWUP-193 ⑧): 1 → 2.6 and .55 → 0 by 70 %, then held.
+     */
+    const val PULSE_RING = 1800
+
     /** The No hours today? card popping in (`su-checkin-pop 260ms`). SHOWUP-179. */
     const val POP = 260
 

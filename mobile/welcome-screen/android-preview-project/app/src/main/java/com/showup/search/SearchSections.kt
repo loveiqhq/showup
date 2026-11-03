@@ -215,7 +215,13 @@ fun SearchPhoto(
  * themselves ([HeroGlass]).
  */
 @Composable
-internal fun PhotoBackdrop(url: String, index: Int, modifier: Modifier) {
+internal fun PhotoBackdrop(
+    url: String,
+    index: Int,
+    modifier: Modifier,
+    /** The photo's `object-position`. The Date screen's hero crops at `center 24%` (SHOWUP-193 ②). */
+    alignment: Alignment = Alignment.Center,
+) {
     val placeholder = PHOTO_PLACEHOLDERS[index % PHOTO_PLACEHOLDERS.size]
     Box(modifier.cssLinearGradient(155f, placeholder, PLACEHOLDER_STOPS[index % PLACEHOLDER_STOPS.size])) {
         if (url.isNotEmpty()) {
@@ -223,6 +229,7 @@ internal fun PhotoBackdrop(url: String, index: Int, modifier: Modifier) {
                 model = url,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                alignment = alignment,
                 modifier = Modifier.fillMaxSize(),
             )
         }
