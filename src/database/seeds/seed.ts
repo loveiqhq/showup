@@ -7,12 +7,37 @@ import { AppDataSource } from '../data-source';
  * Run with: npm run seed
  */
 const VENUES = [
-  { name: 'Brandenburg Gate', address: 'Pariser Platz, Mitte', lng: 13.3777, lat: 52.5163 },
-  { name: 'Reichstag', address: 'Platz der Republik 1, Tiergarten', lng: 13.3761, lat: 52.5186 },
-  { name: 'Berlin TV Tower', address: 'Panoramastrasse 1A, Mitte', lng: 13.4094, lat: 52.5208 },
-  { name: 'Cologne Cathedral', address: 'Domkloster 4, Altstadt-Nord', lng: 6.9583, lat: 50.9413 },
+  {
+    name: 'Brandenburg Gate',
+    address: 'Pariser Platz, Mitte',
+    lng: 13.3777,
+    lat: 52.5163,
+  },
+  {
+    name: 'Reichstag',
+    address: 'Platz der Republik 1, Tiergarten',
+    lng: 13.3761,
+    lat: 52.5186,
+  },
+  {
+    name: 'Berlin TV Tower',
+    address: 'Panoramastrasse 1A, Mitte',
+    lng: 13.4094,
+    lat: 52.5208,
+  },
+  {
+    name: 'Cologne Cathedral',
+    address: 'Domkloster 4, Altstadt-Nord',
+    lng: 6.9583,
+    lat: 50.9413,
+  },
   // The Date screen reference's own venue (SHOWUP-193), so a local date looks like the spec sheet.
-  { name: 'Cafe Krone', address: 'Oranienstrasse 42, Kreuzberg', lng: 13.4186, lat: 52.5016 },
+  {
+    name: 'Cafe Krone',
+    address: 'Oranienstrasse 42, Kreuzberg',
+    lng: 13.4186,
+    lat: 52.5016,
+  },
 ];
 
 async function main() {
