@@ -321,6 +321,17 @@ final class PrettyLabel: UILabel {
             || (text.length > 0
                 && (text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment == .center)
         let x = centred ? rect.minX + (rect.width - used) / 2 : rect.minX
-        super.drawText(in: CGRect(x: x, y: rect.minY, width: used, height: rect.height))
+        // DRAWN HERE, not by `super.drawText(in:)` with a narrowed rect: UILabel lays its text out for
+        // its own bounds, so handed a narrower rect it drew only the first line, centred in the space
+        // for all of them -- the Date screen's `Sort last-minute details before` lost `you meet`
+        // (SHOWUP-193 iOS evidence, 3 Nov 2026). Every line, at the narrowed width; clamped, the last
+        // line that fits takes the ellipsis.
+        var options: NSStringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
+        if numberOfLines > 0 { options.insert(.truncatesLastVisibleLine) }
+        let needed = ceil(text.boundingRect(with: CGSize(width: used, height: .greatestFiniteMagnitude),
+                                            options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).height)
+        let height = min(needed, rect.height)
+        text.draw(with: CGRect(x: x, y: rect.minY + max(0, (rect.height - height) / 2), width: used, height: height),
+                  options: options, context: nil)
     }
 }
