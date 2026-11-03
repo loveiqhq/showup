@@ -290,6 +290,19 @@ export class DatesService {
     });
   }
 
+  /** Stamps the caller's read time on the date's chat (Date 01). Only a participant may. */
+  async markChatRead(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const date = await this.participantDate(dateId, userId);
+    await this.dates.update(
+      { id: date.id },
+      date.userAId === userId ? { aChatReadAt: now } : { bChatReadAt: now },
+    );
+  }
+
   /** Load a date and confirm the caller is one of its two participants. */
   private async participantDate(
     dateId: string,

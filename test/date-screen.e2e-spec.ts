@@ -285,6 +285,45 @@ describe('The Date screen (e2e)', () => {
     expect(JSON.stringify(res.body)).not.toContain('distanceMeters');
   });
 
+  it('clears unread once the thread is marked read, and only for a participant (403, as the chat)', async () => {
+    const dateId = await makeDate(60);
+    const messages = db.getRepository(DateChatMessage);
+    await messages.save(
+      messages.create({
+        dateId,
+        senderId: id.leonie,
+        reason: ChatReason.OnMyWay,
+        body: null,
+      }),
+    );
+    expect((await getDate()).body.date.unread.count).toBe(1);
+
+    await request(server)
+      .post(`/dates/${dateId}/chat/read`)
+      .set('Authorization', as('other'))
+      .expect(403);
+    await request(server)
+      .post(`/dates/${dateId}/chat/read`)
+      .set('Authorization', as('you'))
+      .expect(204);
+    expect((await getDate()).body.date.unread).toBeNull();
+
+    // A message after the read is unread again.
+    await messages.save(
+      messages.create({
+        dateId,
+        senderId: id.leonie,
+        reason: ChatReason.CantFindYou,
+        body: 'Where are you sitting?',
+        createdAt: new Date(Date.now() + 1000),
+      }),
+    );
+    expect((await getDate()).body.date.unread).toMatchObject({
+      count: 1,
+      reason: 'cant_find_you',
+    });
+  });
+
   it('is not someone else’s date', async () => {
     await makeDate(180);
     expect((await getDate('other')).body).toEqual({ date: null });

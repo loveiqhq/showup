@@ -10,6 +10,7 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -92,6 +93,22 @@ export class DatesController {
   ): Promise<ChatMessageDto[]> {
     const messages = await this.dates.listChatMessages(id, user.id);
     return messages.map((m) => ChatMessageDto.from(m, user.id));
+  }
+
+  /**
+   * The caller has read the date's chat (Date 01, SHOWUP-193). Messages from the other person
+   * after this are unread -- what moves the Date screen's Coordinate card into state C. Date 02's
+   * chat calls it when the thread opens. Idempotent.
+   */
+  @Post('dates/:id/chat/read')
+  @ApiOperation({ operationId: 'markDateChatRead' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async markChatRead(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.dates.markChatRead(id, user.id);
   }
 
   /** Send a pre-date chat message: pick a preset reason, optionally add a note (SHOWUP-115). */
