@@ -17,13 +17,17 @@ import SwiftUI
 struct SettingsPlaceholderView: View {
     var onTab: (AppTab) -> Void = { _ in }
     var likes: Int = 0
+    /// While a date is active (SHOWUP-193): the locked tabs, and the hint a tap on one shows.
+    var disabled: Set<AppTab> = []
+    var disabledHint: String? = nil
 
     var body: some View {
         VStack(spacing: 0) {
             PlaceholderStatement(title: "Settings",
                                  line: "Profile and Show-up Rate live here once Settings is built.")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            TabBar(active: .settings, onTab: { if $0 != .settings { onTab($0) } }, likes: likes)
+            TabBar(active: .settings, onTab: { if $0 != .settings { onTab($0) } }, likes: likes,
+                   disabled: disabled, disabledHint: disabledHint)
         }
         .background(Color.liqCream.ignoresSafeArea())
     }

@@ -139,9 +139,16 @@ sw_copy_path = os.path.join(SW, "DateCopy.swift")
 sw_copy = norm(read(sw_copy_path)) if os.path.exists(sw_copy_path) else ""
 
 
+def without_comments(src):
+    """The code alone: `/* ... */` blocks and `//` line comments taken out, so a quoted word in a
+    comment is never counted as a string the screen draws."""
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    return "\n".join(re.sub(r"^\s*//.*$", "", l) for l in src.splitlines())
+
+
 def literal_words(src):
     """Every string literal, its placeholders (`%s`, `%d`, `\\(x)`) removed: the words alone."""
-    lits = re.findall(r'"((?:[^"\\]|\\.)*)"', src)
+    lits = re.findall(r'"((?:[^"\\]|\\.)*)"', without_comments(src))
     return sorted({re.sub(r"%[sd@]|\\\([^)]*\)", "", l).strip() for l in lits if len(l) > 1})
 
 

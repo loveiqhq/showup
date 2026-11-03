@@ -51,6 +51,12 @@ extension Color {
     /// its plus glyph (SHOWUP-158). Distinct from `liqEyebrowBg`, which is lavender-400 at 16% —
     /// that one is a tint OF the accent, this one is a named step in the ramp.
     static let liqLavenderWash = Color(hex: 0xF9F7FF)
+    /// `--liq-lavender-100`: the Date screen's Coordinate card border (SHOWUP-193 ⑥ ⑦).
+    static let liqLavender100 = Color(hex: 0xE0D9FF)
+    /// `#E8DCF5`, `--su-grad-lilac`'s end stop, used flat: the Date screen's time + place card (③).
+    static let liqLilacCard = Color(hex: 0xE8DCF5)
+    /// The `darkred` chat-reason tone (`#8E1116`, the reference's `REASON_TONES`): "I can't make it today".
+    static let liqReasonDarkRed = Color(hex: 0x8E1116)
 
     // ── added for SHOWUP-165 to SHOWUP-173 — mirrors DesignSystem.kt ────────────────────────
     //

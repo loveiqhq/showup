@@ -286,6 +286,23 @@ private struct TutorialFlow: View {
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
     /// An open like sheet and its message, so a process the system ended reopens them (`attachSearch`).
     @SceneStorage private var searchLikeStored: String
+
+    // ── the date (SHOWUP-193) ─────────────────────────────────────────────────
+    //
+    // The Date screen's owner and the match's read-only profile's (Android's DateViewModel and
+    // DateProfileViewModel). Replaced by `beginNewAccount` like every account-scoped model.
+    private let dateStore = DateRepository(api: APIAccess.client)
+    @State private var dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+    @State private var dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
+                                                           analytics: AppAnalytics.shared, players: sharedMediaPlayer)
+    /// The read-only profile as it last was, drawn while it slides away.
+    @State private var heldDateProfile: SearchUiState?
+    /// The share sheet's sentence while it is up, and the calendar sheet's event.
+    @State private var sharingText: String?
+    @State private var calendarSheetEvent: CalendarEvent?
+    @Environment(\.openURL) private var openURL
+    /// A date is active: the Date screen is home, and Search, Likes and Instant are locked.
+    private var dated: Bool { dateModel.state.date != nil && !dateModel.state.left }
     /// Whether Embrace 2's confetti has started for this showing — so a scene restore onto the
     /// bridge does not replay it. Cleared by the push, never by the way out.
     @SceneStorage private var confettiPlayed: Bool
@@ -332,12 +349,16 @@ private struct TutorialFlow: View {
     /// own back is hidden on it; its back pill and the edge swipe ask the model.
     private var navPath: Binding<[AppRoute]> {
         Binding(get: {
+                    // The match's read-only profile (SHOWUP-193), over the Date screen.
+                    if dateProfileModel.state != nil { return [.dateProfile] }
                     guard search.state.opened != nil else { return [] }
                     // D (SHOWUP-188): the location gate pushed over that profile, and only over it.
                     return locationGate.ui.overProfile ? [.searchProfile, .locationGate] : [.searchProfile]
                 },
                 set: { path in
-                    if path.isEmpty {
+                    if path.isEmpty, dateProfileModel.state != nil {
+                        dateProfileModel.close()
+                    } else if path.isEmpty {
                         search.backFromProfile()
                     } else if path == [.searchProfile], locationGate.ui.overProfile {
                         locationGate.backToProfile()
@@ -370,6 +391,24 @@ private struct TutorialFlow: View {
     /// The same fact for Search, kept apart: the handler above resets its flag, and the order in
     /// which two `onChange` closures on one value run is not something to rely on.
     @State private var searchLeftForBackground = false
+
+    /// Onto the Date screen from wherever the user is, a Search profile over it closed first.
+    private func toDate() {
+        search.closeProfileForElsewhere()
+        go(to: .date)
+    }
+
+    /// A date made from the OTHER side -- their Confirm on this user's like -- while the app was away:
+    /// found on the foreground of a Check-In or Search screen, never Settings, which the user chose.
+    private func checkForDate() {
+        let store = dateStore
+        Task {
+            guard let found = activeDate(await store.active(zone: TimeZone.current.identifier)) else { return }
+            guard screen.isCheckIn, screen != .checkInSettings else { return }
+            dateModel.seed(found)
+            toDate()
+        }
+    }
 
     /// Every navigation goes through here so the transition direction is always set before the
     /// state change that triggers it.
@@ -700,6 +739,9 @@ private struct TutorialFlow: View {
                                places: CLPlaceReader())
         search = SearchModel(store: SearchRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
                              players: sharedMediaPlayer)
+        dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
+                                            analytics: AppAnalytics.shared, players: sharedMediaPlayer)
         firstName = ""
         email = ""
         marketingConsent = false
@@ -767,6 +809,7 @@ private struct TutorialFlow: View {
         case .checkInSearch: return search.state.layout == .grid ? .searchGrid : .searchProfile
         case .searchFilters: return .checkinFilters
         case .likesReceived: return .likesReceived
+        case .date: return .dateScreen
         default: return nil
         }
     }
@@ -941,6 +984,91 @@ private struct TutorialFlow: View {
     /// The gate's CTA, Search tab or Instant tab: the intro until it has been passed, Today after.
     private func reopenCheckIn(_ target: CheckInAnalytics.GateTarget) {
         checkIn.gateTapped(target) { go(to: $0.flowScreen) }
+    }
+
+    /// Date 01 (SHOWUP-193): the screen both people live on from the match until the date ends.
+    private var dateScreen: some View {
+        DateScreen(
+            ui: dateModel.state,
+            zone: .current,
+            onDirections: {
+                guard let place = dateModel.state.date?.place, let url = directionsURL(place) else { return }
+                dateModel.quickAction(.directions)
+                openURL(url)
+            },
+            onShare: {
+                guard let date = dateModel.state.date else { return }
+                dateModel.quickAction(.share)
+                sharingText = shareText(date, zone: .current)
+            },
+            onCalendar: {
+                guard let date = dateModel.state.date else { return }
+                dateModel.quickAction(.calendar)
+                calendarSheetEvent = calendarEvent(date)
+            },
+            onCopy: {
+                guard let place = dateModel.state.date?.place else { return }
+                dateModel.quickAction(.copyAddress)
+                copyAddress(placeText(place))
+                dateModel.copied()
+            },
+            onSeeProfile: { dateProfileModel.open() },
+            // Locked tabs never call this: only Settings does, and it fires nothing -- `tab_switched`
+            // needs a tab it switched from, and no tab is active here.
+            onTab: { tab in if tab == .settings { go(to: .checkInSettings) } },
+            onRetry: { dateModel.retry() })
+        // One visit per arrival: launch, a match, or back from Settings or the profile.
+        .onAppear { dateModel.arrived(referrer: profileScreen(of: cameFrom)) }
+        // THE CLOCK, while the screen is up: A becomes B at meet − 1:30 in place, and C's `now` becomes
+        // the time it was sent.
+        .task {
+            while !Task.isCancelled {
+                dateModel.tick()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+        // THE DATE WENT AWAY (ended or cancelled elsewhere): the normal resume, the Check-In read again
+        // first. Date 08's outcome screens replace this later.
+        .onChange(of: dateModel.state.left) { _, left in
+            guard left else { return }
+            dateProfileModel.close()
+            checkIn.refresh()
+            go(to: searchTab)
+        }
+        .sheet(isPresented: Binding(get: { sharingText != nil }, set: { if !$0 { sharingText = nil } })) {
+            ShareSheet(text: sharingText ?? "")
+        }
+        .sheet(isPresented: Binding(get: { calendarSheetEvent != nil }, set: { if !$0 { calendarSheetEvent = nil } })) {
+            if let event = calendarSheetEvent {
+                CalendarSheet(event: event, onDone: { calendarSheetEvent = nil })
+            }
+        }
+    }
+
+    /// The match's profile, read-only (SHOWUP-193 ⑫): Search's profile view with nothing to decide,
+    /// pushed over the Date screen and popped back to it as a list's profile is.
+    private var readOnlyProfile: some View {
+        SearchProfileView(
+            state: dateProfileModel.state ?? heldDateProfile ?? SearchUiState(loading: false),
+            zone: .current,
+            player: sharedMediaPlayer.surface,
+            onOpenPhoto: { dateProfileModel.openPhoto($0) },
+            onViewerPage: { dateProfileModel.viewerPage($0) },
+            onCloseViewer: { dateProfileModel.closeViewer() },
+            onTogglePlay: { dateProfileModel.togglePlay($0) },
+            onScrolledOut: { dateProfileModel.scrolledOut($0) },
+            onTab: { tab in
+                guard tab == .settings else { return }
+                dateProfileModel.close()
+                go(to: .checkInSettings)
+            },
+            onRetry: { dateProfileModel.retry() },
+            onBack: { dateProfileModel.close() },
+            readOnly: true,
+            backLabel: DateCopy.profileBack,
+            disabledTabs: dateLockedTabs,
+            disabledHint: DateCopy.tabHint)
+            .toolbar(.hidden, for: .navigationBar)
     }
 
     /// Search 01, the Freemium queue: one profile at a time.
@@ -1350,6 +1478,8 @@ private struct TutorialFlow: View {
                 .onAppear { checkIn.searchFiltersOpened(referrer: profileScreen(of: cameFrom) ?? .searchProfile) }
         case .checkInSettings:
             SettingsPlaceholderView(onTab: { tab in
+                // Locked tabs never call this; nothing else leaves Settings mid-date (SHOWUP-193).
+                guard !dated else { return }
                 tabTapped(active: .settings, tapped: tab)
                 switch tab {
                 // Search with no Check-In IS the gate (story 01); with one, Search.
@@ -1361,9 +1491,11 @@ private struct TutorialFlow: View {
                 case .instant: if checkIn.state.server?.active != true { reopenCheckIn(.instantTab) }
                 case .settings: break
                 }
-            }, likes: likesOpen)
-            // Back returns to Search -- the gate without a Check-In, Search with one.
-            .modifier(EdgeSwipeBack(onBack: { go(to: searchTab) }))
+            }, likes: dated ? 0 : likesOpen,
+               disabled: dated ? dateLockedTabs : [], disabledHint: dated ? DateCopy.tabHint : nil)
+            // Back returns to Search -- the gate without a Check-In, Search with one -- or, during a
+            // date, to the Date screen, Settings being the one tab it leaves open.
+            .modifier(EdgeSwipeBack(onBack: { go(to: dated ? .date : searchTab) }))
             .onAppear { checkIn.atTabs() }
         default:
             EmptyView()
@@ -1543,6 +1675,7 @@ private struct TutorialFlow: View {
                     switch route {
                     case .searchProfile: openedProfile
                     case .locationGate: gateOverProfile
+                    case .dateProfile: readOnlyProfile
                     }
                 }
         }
@@ -1552,6 +1685,11 @@ private struct TutorialFlow: View {
         .onChange(of: locationGate.ui.blocked) { _, now in
             if let now { heldGate = now }
         }
+        .onChange(of: dateProfileModel.state) { _, now in
+            if let now { heldDateProfile = now }
+        }
+        // A DATE MADE FROM SEARCH (SHOWUP-193): a like the server answered `matched`, or a won Confirm.
+        .onChange(of: search.datesMade) { _, _ in toDate() }
         // The profile closed onto its list: the pop runs, and the list settles once it has.
         .onChange(of: search.state.opened == nil) { _, closed in
             guard closed else { return }
@@ -1811,6 +1949,9 @@ private struct TutorialFlow: View {
                      .checkInSettings:
                     checkInScreen(screen)
 
+                case .date:
+                    dateScreen
+
                 case .home:
                     HomePlaceholderView(outcome: outcome, onStartOver: { go(to: .signUp) })
                 }
@@ -1871,7 +2012,13 @@ private struct TutorialFlow: View {
                 checkIn.refresh()
                 // The plan as well as the count: it decides where the Likes tab goes.
                 search.foregrounded()
+                checkForDate()
             }
+        }
+        // THE DATE SCREEN RE-READS ON EVERY FOREGROUND (SHOWUP-193): an agreed change of time or place
+        // lands in place, and a date that ended elsewhere leaves.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && screen == .date { dateModel.foreground() }
         }
         // SEARCH, LEFT FOR ANOTHER APP AND COME BACK TO. Backgrounding is the profile leaving the
         // screen: its card view reported with the dwell it had, its voice note or video stopped. The
@@ -1925,7 +2072,17 @@ private struct TutorialFlow: View {
             // the gate, because date search must never open on a guess.
             var finished: FlowScreen?
             if resumePoint(progress) == .done {
-                finished = await checkIn.read()?.active == true ? .checkInSearch : .checkInGate
+                // AN ACTIVE DATE COMES FIRST (SHOWUP-193): it locks Search anyway, so it is read before
+                // the Check-In, and the Check-In only when there is none. The read seeds the Date
+                // screen, which then draws at once instead of reading again into a blank frame.
+                let read = await dateStore.active(zone: TimeZone.current.identifier)
+                var checkInActive: Bool?
+                if let found = activeDate(read) {
+                    dateModel.seed(found)
+                } else {
+                    checkInActive = await checkIn.read()?.active
+                }
+                finished = launchTarget(date: read, checkInActive: checkInActive)
                 // The read took time: a user who has walked somewhere meanwhile stays there.
                 guard screen == .signUp else { return }
             }

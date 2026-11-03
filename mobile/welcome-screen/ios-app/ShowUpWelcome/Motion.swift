@@ -67,6 +67,12 @@ enum Motion {
     /// How long the TabBar's disabled-tab hint stays up (SHOWUP-193 ⑰: "3200 ms; re-tap restarts it").
     /// A reading duration, like `toast`; it fades in and out over `reveal`, as the kit's.
     static let tabHint: TimeInterval = 3.2
+    /// The Copy pill reads `Copied` for this long (SHOWUP-193 ④: "1600 ms, no toast"). Android's
+    /// `Motion.COPIED`.
+    static let copied: TimeInterval = 1.6
+    /// The unread count's `su-pulse-ring`: one ring every 1.8 s, the kit's keyframes (SHOWUP-193 ⑧).
+    /// Android's `Motion.PULSE_RING`.
+    static let pulseRing: TimeInterval = 1.8
 
     /// `su-checkin-pop` — the No hours today? card arriving: 260 ms, up 10, from .97 (SHOWUP-179).
     static let pop: TimeInterval = 0.26

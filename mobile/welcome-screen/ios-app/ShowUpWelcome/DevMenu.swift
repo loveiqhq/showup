@@ -21,6 +21,7 @@ enum DevSection: String, CaseIterable {
     case reachable = "Reachability and location"
     case details = "Share some details"
     case checkIn = "48hrs Check-In"
+    case date = "The date"
     case home = "Home"
 }
 
@@ -50,6 +51,7 @@ extension FlowScreen {
              .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .likesReceived,
              .checkInSettings:
             return .checkIn
+        case .date: return .date
         case .home: return .home
         }
     }
@@ -98,6 +100,7 @@ extension FlowScreen {
         case .searchFilters: return "Search · Filters"
         case .likesReceived: return "Likes tab (Premium)"
         case .checkInSettings: return "Settings (placeholder)"
+        case .date: return "Date 01 · Date screen"
         case .home: return "Home (placeholder)"
         }
     }
@@ -105,7 +108,7 @@ extension FlowScreen {
     /// Whether the screen reads or writes the account. Signed out, every save on it fails.
     var needsAccount: Bool {
         switch devSection {
-        case .basics, .realYou, .reachable, .details, .checkIn: return true
+        case .basics, .realYou, .reachable, .details, .checkIn, .date: return true
         case .signUp, .tutorial, .home: return false
         }
     }

@@ -220,6 +220,16 @@ struct PrettyText: UIViewRepresentable {
     /// text, as the reference's centred flex column and Android's `prettyWrap` do. Off, the
     /// paragraph keeps every point it is offered.
     var hugs: Bool = false
+    /// 0 for no limit; more clamps with an ellipsis, AFTER the breaks are chosen on the whole text --
+    /// `text-wrap: pretty` under `-webkit-line-clamp`, as the Date screen's message preview has it.
+    var maxLines: Int = 0
+
+    /// This text clamped to `n` lines.
+    func lines(_ n: Int) -> PrettyText {
+        var clamped = self
+        clamped.maxLines = n
+        return clamped
+    }
 
     /// The type size the user chose, as a factor of the default: 1 at the default size. The fonts
     /// here are UIFonts built at a fixed size, which Dynamic Type never touches on its own -- so at
@@ -239,7 +249,7 @@ struct PrettyText: UIViewRepresentable {
     }
 
     init(runs: [(String, Bool)], font: UIFont, lineHeight: CGFloat, color: Color,
-         emphasisFont: UIFont?, emphasisColor: Color?, centered: Bool = false) {
+         emphasisFont: UIFont?, emphasisColor: Color?, centered: Bool = false, pretty: Bool = true) {
         self.runs = runs
         self.font = font
         self.lineHeight = lineHeight
@@ -247,6 +257,7 @@ struct PrettyText: UIViewRepresentable {
         self.emphasisFont = emphasisFont
         self.emphasisColor = emphasisColor
         self.centered = centered
+        self.pretty = pretty
     }
 
     func makeUIView(context: Context) -> PrettyLabel {
@@ -265,6 +276,8 @@ struct PrettyText: UIViewRepresentable {
         // font's own line height -- the conversion WashHeadline documents.
         para.lineHeightMultiple = lineHeight * typeScale / base.lineHeight
         para.alignment = centered ? .center : .natural
+        // Clamped: wrap, and an ellipsis on the last line shown.
+        if maxLines > 0 { para.lineBreakMode = .byTruncatingTail }
         let out = NSMutableAttributedString()
         for (text, emphasised) in runs {
             out.append(NSAttributedString(string: text, attributes: [
@@ -274,6 +287,8 @@ struct PrettyText: UIViewRepresentable {
             ]))
         }
         v.attributedText = out
+        // UILabel's own default, `.byTruncatingTail`, is the clamp's ellipsis; unlimited, it never shows.
+        v.numberOfLines = maxLines
         v.pretty = pretty
         v.balance = balance
         v.invalidateIntrinsicContentSize()

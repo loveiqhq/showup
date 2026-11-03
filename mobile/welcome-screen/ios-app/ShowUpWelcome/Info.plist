@@ -83,6 +83,12 @@
 	     only while it is open. Asked from the in-app ask's CTA, never on screen entry. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to find people nearby and choose a halfway meeting spot for your date.</string>
+	<!-- CALENDAR, WRITE-ONLY (SHOWUP-193 ⑪ Calendar). The Date screen hands its date to the system's
+	     new-event sheet, which since iOS 17 runs out of process and needs no access to show, so
+	     nothing is requested; this is the string the OS shows if it ever asks. Write-only: the app
+	     never reads the calendar. Flagged for Philipp to word. -->
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Show Up adds your date to your calendar, nothing else.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

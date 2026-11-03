@@ -145,6 +145,9 @@ enum ProfileScreen: String {
     /// The Search location gate (SHOWUP-188): Profile 12's screen in its app context. Once per
     /// mount, never per state.
     case searchLocationGate = "search_location_gate"
+    /// Date 01 (SHOWUP-193, §11 `date_screen`): the screen both people live on from the match until
+    /// the date ends. Once per visit, never on the in-place unlock.
+    case dateScreen = "date_screen"
 
     var screenId: String { rawValue }
 
@@ -186,6 +189,7 @@ enum ProfileScreen: String {
         case .searchGrid: return "Search - Grid"
         case .likesReceived: return "Search - Likes received"
         case .searchLocationGate: return "Search - Location gate"
+        case .dateScreen: return "Date - Date screen"
         }
     }
 }

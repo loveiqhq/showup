@@ -843,12 +843,12 @@ class MainActivity : ComponentActivity() {
             val dateStore = remember(api) { DateRepository(api) }
             val date: DateViewModel = viewModel(
                 key = "date-$account",
-                factory = viewModelFactory { initializer { DateViewModel(dateStore, AppAnalytics) } },
+                factory = viewModelFactory { initializer { DateViewModel(dateStore, analytics = AppAnalytics) } },
             )
             val dateState by date.state.collectAsStateWithLifecycle()
             val dateProfile: DateProfileViewModel = viewModel(
                 key = "date-profile-$account",
-                factory = viewModelFactory { initializer { DateProfileViewModel(dateStore, AppAnalytics, mediaPlayer) } },
+                factory = viewModelFactory { initializer { DateProfileViewModel(dateStore, analytics = AppAnalytics, players = mediaPlayer) } },
             )
             val dateProfileState by dateProfile.state.collectAsStateWithLifecycle()
             /** A date is active: the Date screen is home, and Search, Likes and Instant are locked. */
