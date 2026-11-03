@@ -75,6 +75,17 @@ export class DateEntity {
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;
 
+  /** When `coordinate_unlocked` was sent (meet − 1:30). Null until then; the job's once-only stamp. */
+  @Column({ name: 'coordinate_unlocked_at', type: 'timestamptz', nullable: true })
+  coordinateUnlockedAt: Date | null;
+
+  /** When each person last read this date's chat. A later message from the other side is unread. */
+  @Column({ name: 'a_chat_read_at', type: 'timestamptz', nullable: true })
+  aChatReadAt: Date | null;
+
+  @Column({ name: 'b_chat_read_at', type: 'timestamptz', nullable: true })
+  bChatReadAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
