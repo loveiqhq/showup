@@ -89,6 +89,12 @@ object Motion {
      */
     const val TAB_HINT = 3200
 
+    /**
+     * How long the Date screen's Copy pill reads `Copied` (SHOWUP-193 ④: "shows `Copied` for 1600
+     * ms. No toast"). Its colours cross over [FAST]-ish 160 ms, the kit's own transition.
+     */
+    const val COPIED = 1600
+
     /** The No hours today? card popping in (`su-checkin-pop 260ms`). SHOWUP-179. */
     const val POP = 260
 

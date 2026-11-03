@@ -200,6 +200,12 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
      * app context. Once per mount, never per state -- A -> B in place is one view.
      */
     SearchLocationGate("search_location_gate", "Search - Location gate"),
+
+    /**
+     * The Date screen (SHOWUP-193, §11 row added 2 Nov 2026, registry 1.4.32): ONE screen id; the
+     * time state is `date_screen_viewed`'s `state`, never a second screen.
+     */
+    DateScreen("date_screen", "Date - Date screen"),
 }
 
 /**
