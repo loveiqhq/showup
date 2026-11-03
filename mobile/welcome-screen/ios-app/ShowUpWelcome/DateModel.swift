@@ -26,7 +26,9 @@ struct DateUi: Equatable, Sendable {
     /// The date is gone (ended or cancelled elsewhere): the host leaves the screen.
     var left = false
 
-    var state: DateState? { date.map { dateState(now: now, unlockAt: $0.unlockAt, unread: $0.unread) } }
+    var state: DateState? {
+        date.map { dateState(now: now, unlockAt: $0.unlockAt, unread: $0.unread, coordinateOpen: $0.coordinateOpen) }
+    }
 }
 
 @MainActor
@@ -64,6 +66,9 @@ final class DateModel {
 
     /// The screen is on screen (from launch, a match, or back from a pushed screen): one visit.
     func arrived(referrer: ProfileScreen?) {
+        // An arrival is never a leave: whether the date is gone is the read's to say. Without this a
+        // second date in the same process arrived with the last one's `left` and was bounced off.
+        state.left = false
         if pendingVisit != nil { return }
         pendingVisit = Visit(referrer: referrer)
         read()
@@ -78,7 +83,8 @@ final class DateModel {
     /// The launch read already found `date`: draw it at once rather than a blank frame while the
     /// screen reads it again. Reports nothing -- the visit is `arrived`'s, from its own read.
     func seed(_ date: ActiveDate) {
-        guard state.date == nil else { return }
+        // Replaces a stale date (the one before, after it went away): the seed is the newer read.
+        state.left = false
         state.date = date
         state.now = clock()
         state.loading = false
@@ -138,6 +144,7 @@ final class DateModel {
         pendingVisit = nil
         analytics?.report(ProfileAnalytics.screenViewed(.dateScreen, referrer: visit.referrer))
         analytics?.report(DateAnalytics.dateScreenViewed(
-            date, state: dateState(now: now, unlockAt: date.unlockAt, unread: date.unread), now: now))
+            date, state: dateState(now: now, unlockAt: date.unlockAt, unread: date.unread,
+                                   coordinateOpen: date.coordinateOpen), now: now))
     }
 }

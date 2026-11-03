@@ -1089,6 +1089,9 @@ class MainActivity : ComponentActivity() {
                         search.foregrounded()
                         checkForDate()
                     }
+                    // Settings during a date keeps the lock only while the date is known: read it on
+                    // every return, without leaving Settings (a restore onto it skipped the launch read).
+                    if (event == Lifecycle.Event.ON_RESUME && screen == FlowScreen.CheckInSettings) date.foreground()
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -2346,7 +2349,14 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     FlowScreen.CheckInSettings -> {
-                        LaunchedEffect(onTop) { if (onTop) checkIn.atTabs() }
+                        LaunchedEffect(onTop) {
+                            if (onTop) {
+                                checkIn.atTabs()
+                                // Whether a date is active decides the lock below; a restore onto
+                                // Settings skipped the launch read, so it is read here too.
+                                date.foreground()
+                            }
+                        }
                         // Back returns to Search -- the gate without a Check-In, Search with one -- or,
                         // during a date, to the Date screen, Settings being the one tab it leaves open.
                         BackHandler { goTo(if (dated) FlowScreen.Date else searchTab()) }

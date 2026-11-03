@@ -436,7 +436,7 @@ internal fun CoordinateModule(
             }
             // No progress bar (2 Nov 2026): the time alone says it. Not tappable.
             Text(
-                lockedLine(date.unlockAt, now, zone),
+                lockedLine(date.meetDay, date.unlockAt, zone),
                 modifier = Modifier.padding(top = 14.dp),
                 color = Purple,
                 fontFamily = Manrope,

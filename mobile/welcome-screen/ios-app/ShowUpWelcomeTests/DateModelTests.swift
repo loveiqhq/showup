@@ -195,6 +195,41 @@ final class DateModelTests: XCTestCase {
         XCTAssertEqual(names(analytics), ["screen_viewed", "date_screen_viewed"])
     }
 
+    func testANewArrivalAfterTheDateWentAwayDoesNotLeaveBeforeItsReadLands() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        await store.setRead(.success(.none))
+        m.foreground()
+        await settle()
+        XCTAssertTrue(m.state.left)
+        var next = date()
+        next.id = "d2"
+        await store.setRead(.success(.active(next)))
+        m.arrived(referrer: nil)
+        XCTAssertFalse(m.state.left, "whether the date is gone is the read's to say")
+        await settle()
+        XCTAssertEqual(m.state.date?.id, "d2")
+    }
+
+    func testSeedingANewDateReplacesAStaleOneAndClearsALeave() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        await store.setRead(.success(.none))
+        m.foreground()
+        await settle()
+        var next = date()
+        next.id = "d2"
+        m.seed(next)
+        XCTAssertEqual(m.state.date?.id, "d2")
+        XCTAssertFalse(m.state.left)
+    }
+
     func testANewDateReadAfterOneWentAwayIsShownNotLeft() async {
         let store = FakeDateStore()
         let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))

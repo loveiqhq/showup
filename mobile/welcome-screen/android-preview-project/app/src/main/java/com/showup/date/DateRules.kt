@@ -24,8 +24,12 @@ import java.time.ZoneId
  */
 enum class DateState { Locked, Available, Unread }
 
-fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?): DateState = when {
-    now < unlockAt -> DateState.Locked
+/**
+ * [coordinateOpen] is the server's word at the last read: the device clock flips the card at
+ * [unlockAt], and the foreground re-read corrects a clock that is behind (spec section 3).
+ */
+fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOpen: Boolean = false): DateState = when {
+    !coordinateOpen && now < unlockAt -> DateState.Locked
     unread != null -> DateState.Unread
     else -> DateState.Available
 }
@@ -39,10 +43,12 @@ fun minutesBeforeStart(meetAt: Instant, now: Instant): Int {
     return (seconds / 60).toInt()
 }
 
-/** `Messaging available from 17:30`, or `… tomorrow from …` when the unlock is on the next day. */
-fun lockedLine(unlockAt: Instant, now: Instant, zone: ZoneId): String {
-    val tomorrow = unlockAt.atZone(zone).toLocalDate().isAfter(now.atZone(zone).toLocalDate())
-    val template = if (tomorrow) DateCopy.COORD_LOCKED_LINE_TOMORROW else DateCopy.COORD_LOCKED_LINE
+/**
+ * `Messaging available from 17:30`, or `… tomorrow from …` "if the date is tomorrow" -- by [meetDay],
+ * the date's own day that the headline shows, so the two never disagree.
+ */
+fun lockedLine(meetDay: String, unlockAt: Instant, zone: ZoneId): String {
+    val template = if (meetDay == "tomorrow") DateCopy.COORD_LOCKED_LINE_TOMORROW else DateCopy.COORD_LOCKED_LINE
     return template.format(meetTime(unlockAt, zone))
 }
 

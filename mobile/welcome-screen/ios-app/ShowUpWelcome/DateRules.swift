@@ -13,8 +13,10 @@ import Foundation
 /// locked card has nothing to hoist: it is not tappable and has no reply.
 enum DateState: Equatable, Sendable { case locked, available, unread }
 
-func dateState(now: Date, unlockAt: Date, unread: DateUnread?) -> DateState {
-    if now < unlockAt { return .locked }
+/// `coordinateOpen` is the server's word at the last read: the device clock flips the card at
+/// `unlockAt`, and the foreground re-read corrects a clock that is behind (spec section 3).
+func dateState(now: Date, unlockAt: Date, unread: DateUnread?, coordinateOpen: Bool = false) -> DateState {
+    if !coordinateOpen && now < unlockAt { return .locked }
     return unread != nil ? .unread : .available
 }
 
@@ -25,13 +27,11 @@ func minutesBeforeStart(meetAt: Date, now: Date) -> Int {
     return seconds / 60
 }
 
-/// `Messaging available from 17:30`, or `… tomorrow from …` when the unlock is on the next day.
-func lockedLine(unlockAt: Date, now: Date, zone: TimeZone) -> String {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = zone
-    let tomorrow = calendar.startOfDay(for: unlockAt) > calendar.startOfDay(for: now)
+/// `Messaging available from 17:30`, or `… tomorrow from …` "if the date is tomorrow" -- by `meetDay`,
+/// the date's own day that the headline shows, so the two never disagree.
+func lockedLine(meetDay: String, unlockAt: Date, zone: TimeZone) -> String {
     let time = meetTime(unlockAt, zone: zone)
-    return tomorrow ? DateCopy.coordLockedLineTomorrow(time) : DateCopy.coordLockedLine(time)
+    return meetDay == "tomorrow" ? DateCopy.coordLockedLineTomorrow(time) : DateCopy.coordLockedLine(time)
 }
 
 /// `{place}, {address}` -- what Copy writes, and where Calendar says the event is.

@@ -117,7 +117,8 @@ private struct BaselineWrap: View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .firstTextBaseline, spacing: 8) { labelText; valueText.fixedSize() }
             VStack(alignment: .leading, spacing: 8) {
-                labelText
+                Text(label).font(F.manrope(14, .bold)).tracking(0.02).foregroundColor(.liqPurple)
+                    .fixedSize(horizontal: false, vertical: true)
                 valueText.fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -277,7 +278,7 @@ struct CoordinateModule: View {
                         }
                     }
                     // No progress bar (2 Nov 2026): the time alone says it. Not tappable.
-                    Text(lockedLine(unlockAt: date.unlockAt, now: now, zone: zone))
+                    Text(lockedLine(meetDay: date.meetDay, unlockAt: date.unlockAt, zone: zone))
                         .font(F.manrope(14, .bold))
                         .foregroundColor(.liqPurple)
                         .fixedSize(horizontal: false, vertical: true)
@@ -384,12 +385,13 @@ struct ReasonBadge: View {
         let tone = toneColors(style.tone)
         HStack(spacing: 5) {
             BrandIconView(icon: style.icon, size: 11, stroke: 2.5, tint: onLight ? tone.fg : .white)
+            // One line wherever it fits; at the largest type on a narrow phone it wraps rather than runs
+            // past the panel.
             Text(style.label.uppercased())
                 .font(F.manrope(10.5, .heavy))
                 .tracking(0.05)
                 .foregroundColor(onLight ? tone.fg : .white)
-                .lineLimit(1)
-                .fixedSize()
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(EdgeInsets(top: 3, leading: 7, bottom: 3, trailing: 9))
         .background(Capsule().fill(onLight ? tone.bg : Color.white.opacity(0.22)))
@@ -518,22 +520,17 @@ struct IntentCard: View {
         // 11 / 13 inside the 1 px border.
         Card(padding: EdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14)) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center, spacing: 12) {
-                    if shared {
-                        BrandIconView(icon: .heartFilled, size: 20, tint: .liqOrange)
-                    } else {
-                        BrandIconView(icon: .shieldCheck, size: 20, tint: .liqPurple)
+                // The count beside the intent where both fit on one line; under it where they do not
+                // (the largest type, or the narrowest phone) -- fitted to the card, never past it.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: 12) {
+                        intentLine(shared)
+                        ShowUpCount(count: date.match.attendedCount, size: .sm)
                     }
-                    VStack(alignment: .leading, spacing: 0) {
-                        eyebrow(shared ? DateCopy.mutualIntent : DateCopy.theirShowUp(date.match.name))
-                        if shared {
-                            Text(motivationOf(date.motivationThem)?.title ?? date.motivationThem ?? "")
-                                .font(F.manrope(15, .semibold))
-                                .foregroundColor(.liqFg)
-                        }
+                    VStack(alignment: .leading, spacing: 8) {
+                        intentLine(shared)
+                        ShowUpCount(count: date.match.attendedCount, size: .sm, fitWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    ShowUpCount(count: date.match.attendedCount, size: .sm)
                 }
                 if !date.sharedVibes.isEmpty {
                     Rectangle().fill(Color.liqBorderSoft).frame(height: 1)
@@ -547,6 +544,28 @@ struct IntentCard: View {
                     }
                 }
             }
+        }
+    }
+}
+
+extension IntentCard {
+    /// The heart (shared) or the shield, and the eyebrow over the shared motivation.
+    fileprivate func intentLine(_ shared: Bool) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            if shared {
+                BrandIconView(icon: .heartFilled, size: 20, tint: .liqOrange)
+            } else {
+                BrandIconView(icon: .shieldCheck, size: 20, tint: .liqPurple)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                eyebrow(shared ? DateCopy.mutualIntent : DateCopy.theirShowUp(date.match.name))
+                if shared {
+                    Text(motivationOf(date.motivationThem)?.title ?? date.motivationThem ?? "")
+                        .font(F.manrope(15, .semibold))
+                        .foregroundColor(.liqFg)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
@@ -614,7 +633,8 @@ struct AboutCard: View {
                     if let line = aboutLine(district: match.district, distanceKm: match.distanceKm) {
                         Text(line).font(F.manrope(12, .medium)).foregroundColor(.liqSubtle)
                     }
-                    ShowUpCount(count: match.attendedCount, size: .xs)
+                    // Fitted to the column: one line where it fits, wrapped (or a long word shrunk) where not.
+                    ShowUpCount(count: match.attendedCount, size: .xs, fitWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

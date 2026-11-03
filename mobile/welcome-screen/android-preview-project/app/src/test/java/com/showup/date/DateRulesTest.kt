@@ -57,11 +57,19 @@ class DateRulesTest {
     // ── the copy that depends on values ─────────────────────────────────────
 
     @Test
-    fun `the locked line names the unlock time, and tomorrow when it is`() {
-        assertEquals("Messaging available from 17:30", lockedLine(unlock, unlock.minusSeconds(3600), berlin))
-        // At 23:00 the evening before, the unlock is on the next calendar day.
-        val eveningBefore = Instant.parse("2026-11-02T22:00:00Z")
-        assertEquals("Messaging available tomorrow from 17:30", lockedLine(unlock, eveningBefore, berlin))
+    fun `the locked line names the unlock time, and tomorrow when the date is tomorrow`() {
+        // "If the date is tomorrow" -- the date's own day, the same `{day}` the headline shows, never
+        // the calendar day of the unlock (which disagreed with the headline before 7am and near midnight).
+        assertEquals("Messaging available from 17:30", lockedLine("today", unlock, berlin))
+        assertEquals("Messaging available tomorrow from 17:30", lockedLine("tomorrow", unlock, berlin))
+    }
+
+    @Test
+    fun `the server's open chat opens the card even when the phone's clock is behind`() {
+        // Spec section 3: the device clock flips the card, the foreground re-read corrects it.
+        assertEquals(DateState.Available, dateState(unlock.minusSeconds(600), unlock, null, coordinateOpen = true))
+        assertEquals(DateState.Unread, dateState(unlock.minusSeconds(600), unlock, unread, coordinateOpen = true))
+        assertEquals(DateState.Locked, dateState(unlock.minusSeconds(600), unlock, null, coordinateOpen = false))
     }
 
     @Test

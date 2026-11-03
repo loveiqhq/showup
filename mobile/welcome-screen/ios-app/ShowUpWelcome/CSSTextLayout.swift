@@ -276,8 +276,6 @@ struct PrettyText: UIViewRepresentable {
         // font's own line height -- the conversion WashHeadline documents.
         para.lineHeightMultiple = lineHeight * typeScale / base.lineHeight
         para.alignment = centered ? .center : .natural
-        // Clamped: wrap, and an ellipsis on the last line shown.
-        if maxLines > 0 { para.lineBreakMode = .byTruncatingTail }
         let out = NSMutableAttributedString()
         for (text, emphasised) in runs {
             out.append(NSAttributedString(string: text, attributes: [
@@ -287,8 +285,10 @@ struct PrettyText: UIViewRepresentable {
             ]))
         }
         v.attributedText = out
-        // UILabel's own default, `.byTruncatingTail`, is the clamp's ellipsis; unlimited, it never shows.
+        // Clamped: the paragraph keeps wrapping, and the LABEL truncates its last line -- a truncating
+        // paragraph style would make UIKit lay the text out on one line whatever `numberOfLines` says.
         v.numberOfLines = maxLines
+        if maxLines > 0 { v.lineBreakMode = .byTruncatingTail }
         v.pretty = pretty
         v.balance = balance
         v.invalidateIntrinsicContentSize()

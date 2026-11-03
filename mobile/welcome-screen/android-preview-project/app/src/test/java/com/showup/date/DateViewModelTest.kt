@@ -202,6 +202,39 @@ class DateViewModelTest {
     }
 
     @Test
+    fun `a new arrival after the date went away does not leave before its read lands`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        store.read = Outcome.Ok(DateRead.None)
+        vm.foreground()
+        advanceUntilIdle()
+        assertTrue(vm.state.value.left)
+        // A second date in the same process (or End test date, then a new one): the screen arrives
+        // with the old `left` -- the host's leave rule must not see it before the new read.
+        store.read = Outcome.Ok(DateRead.Active(date().copy(id = "d2")))
+        vm.arrived(referrer = null)
+        assertFalse("whether the date is gone is the read's to say", vm.state.value.left)
+        advanceUntilIdle()
+        assertEquals("d2", vm.state.value.date?.id)
+    }
+
+    @Test
+    fun `seeding a new date replaces a stale one and clears a leave`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        store.read = Outcome.Ok(DateRead.None)
+        vm.foreground()
+        advanceUntilIdle()
+        vm.seed(date().copy(id = "d2"))
+        assertEquals("d2", vm.state.value.date?.id)
+        assertFalse(vm.state.value.left)
+    }
+
+    @Test
     fun `a new date read after one went away is shown, not left`() = runTest(dispatcher) {
         store.read = Outcome.Ok(DateRead.None)
         val vm = vm()

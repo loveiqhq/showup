@@ -48,13 +48,17 @@ final class DateRulesTests: XCTestCase {
 
     // MARK: - the copy that depends on values
 
-    func testTheLockedLineNamesTheUnlockTimeAndTomorrowWhenItIs() {
-        XCTAssertEqual(lockedLine(unlockAt: unlock, now: unlock.addingTimeInterval(-3600), zone: berlin),
-                       "Messaging available from 17:30")
-        // At 23:00 the evening before, the unlock is on the next calendar day.
-        let eveningBefore = meet.addingTimeInterval(-20 * 3600) // 2026-11-02T22:00:00Z
-        XCTAssertEqual(lockedLine(unlockAt: unlock, now: eveningBefore, zone: berlin),
+    func testTheLockedLineNamesTheUnlockTimeAndTomorrowWhenTheDateIsTomorrow() {
+        // "If the date is tomorrow" -- the date's own day, the same `{day}` the headline shows.
+        XCTAssertEqual(lockedLine(meetDay: "today", unlockAt: unlock, zone: berlin), "Messaging available from 17:30")
+        XCTAssertEqual(lockedLine(meetDay: "tomorrow", unlockAt: unlock, zone: berlin),
                        "Messaging available tomorrow from 17:30")
+    }
+
+    func testTheServersOpenChatOpensTheCardEvenWhenThePhonesClockIsBehind() {
+        XCTAssertEqual(dateState(now: unlock.addingTimeInterval(-600), unlockAt: unlock, unread: nil, coordinateOpen: true), .available)
+        XCTAssertEqual(dateState(now: unlock.addingTimeInterval(-600), unlockAt: unlock, unread: unread(), coordinateOpen: true), .unread)
+        XCTAssertEqual(dateState(now: unlock.addingTimeInterval(-600), unlockAt: unlock, unread: nil, coordinateOpen: false), .locked)
     }
 
     func testTheShareTextIsTheTicketsSentenceAndDropsThePlaceWhenThereIsNone() {

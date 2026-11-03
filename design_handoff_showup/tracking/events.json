@@ -4027,7 +4027,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Date screen (Date 01, screen_id date_screen) rendered or returned to — fires alongside screen_viewed, once per visit, not on the in-place unlock. Respecified 2 Nov 2026 (1.4.25): date_id, has_unread and checked_in added; minutes_before_start counts from the latest AGREED meet time.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "date_confirm_submitted",
@@ -4101,7 +4101,7 @@
           "sensitivity_class": 0,
           "backend_status": "Partial",
           "trigger": "System unlocks exact venue location",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "coordinate_viewed",
@@ -4346,7 +4346,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "A quick-action tile (Directions · Order Ride · Share Date · Calendar) or the Copy address pill on the Date screen is tapped — on the tap, before the OS hand-off; whether the user completes the OS sheet is not ours and is not measured. NEW 1.4.25, Date 01, 2 Nov 2026.",
-          "implemented": false
+          "implemented": true
         }
       ]
     },

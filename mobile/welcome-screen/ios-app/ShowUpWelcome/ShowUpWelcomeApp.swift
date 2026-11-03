@@ -1496,7 +1496,12 @@ private struct TutorialFlow: View {
             // Back returns to Search -- the gate without a Check-In, Search with one -- or, during a
             // date, to the Date screen, Settings being the one tab it leaves open.
             .modifier(EdgeSwipeBack(onBack: { go(to: dated ? .date : searchTab) }))
-            .onAppear { checkIn.atTabs() }
+            .onAppear {
+                checkIn.atTabs()
+                // Whether a date is active decides the lock; a restore onto Settings skipped the launch
+                // read, so it is read here too -- without leaving Settings.
+                dateModel.foreground()
+            }
         default:
             EmptyView()
         }
@@ -1689,7 +1694,8 @@ private struct TutorialFlow: View {
             if let now { heldDateProfile = now }
         }
         // A DATE MADE FROM SEARCH (SHOWUP-193): a like the server answered `matched`, or a won Confirm.
-        .onChange(of: search.datesMade) { _, _ in toDate() }
+        // Only a rise: a new account's model starts again at 0, which is not a date.
+        .onChange(of: search.datesMade) { old, new in if new > old { toDate() } }
         // The profile closed onto its list: the pop runs, and the list settles once it has.
         .onChange(of: search.state.opened == nil) { _, closed in
             guard closed else { return }
@@ -2018,7 +2024,7 @@ private struct TutorialFlow: View {
         // THE DATE SCREEN RE-READS ON EVERY FOREGROUND (SHOWUP-193): an agreed change of time or place
         // lands in place, and a date that ended elsewhere leaves.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active && screen == .date { dateModel.foreground() }
+            if phase == .active && (screen == .date || screen == .checkInSettings) { dateModel.foreground() }
         }
         // SEARCH, LEFT FOR ANOTHER APP AND COME BACK TO. Backgrounding is the profile leaving the
         // screen: its card view reported with the dwell it had, its voice note or video stopped. The

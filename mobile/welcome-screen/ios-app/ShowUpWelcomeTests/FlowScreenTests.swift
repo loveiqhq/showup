@@ -113,8 +113,11 @@ final class FlowScreenTests: XCTestCase {
         // Search 03 (SHOWUP-186) adds one, for forty-two: likesReceived, the Likes tab for Premium.
         // The Premium grid (185) is a layout of the Search tab and the profile it opens a pushed
         // destination (AppRoute), so neither is a position.
-        XCTAssertEqual(FlowScreen.allCases.count, 42)
-        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 42)
+        //
+        // Date 01 (SHOWUP-193) adds one, for forty-three: date, the app's home while a date is active.
+        // The match's read-only profile it opens is a pushed destination (AppRoute), not a position.
+        XCTAssertEqual(FlowScreen.allCases.count, 43)
+        XCTAssertEqual(Set(FlowScreen.allCases.map(\.rawValue)).count, 43)
     }
 
     /// The Check-In walks forward in step order and every back reads backward; the gate sits

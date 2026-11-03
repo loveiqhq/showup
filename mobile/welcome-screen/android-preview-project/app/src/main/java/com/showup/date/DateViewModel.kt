@@ -55,7 +55,7 @@ data class DateUi(
     /** The date is gone (ended or cancelled elsewhere): the host leaves the screen. */
     val left: Boolean = false,
 ) {
-    val state: DateState? get() = date?.let { dateState(now, it.unlockAt, it.unread) }
+    val state: DateState? get() = date?.let { dateState(now, it.unlockAt, it.unread, it.coordinateOpen) }
 }
 
 class DateViewModel(
@@ -76,6 +76,9 @@ class DateViewModel(
 
     /** The screen is on screen (from launch, a match, or back from a pushed screen): one visit. */
     fun arrived(referrer: ProfileScreen?) {
+        // An arrival is never a leave: whether the date is gone is the read's to say. Without this a
+        // second date in the same process arrived with the last one's `left` and was bounced off.
+        _state.update { it.copy(left = false) }
         if (pendingVisit != null) return
         pendingVisit = Visit(referrer)
         read()
@@ -89,8 +92,8 @@ class DateViewModel(
      * screen reads it again. Reports nothing -- the visit is [arrived]'s, from its own read.
      */
     fun seed(date: ActiveDate) {
-        if (_state.value.date != null) return
-        _state.update { it.copy(date = date, now = clock(), loading = false, failed = null) }
+        // Replaces a stale date (the one before, after it went away): the seed is the newer read.
+        _state.update { it.copy(date = date, now = clock(), loading = false, failed = null, left = false) }
     }
 
     /** `Try again` on the failed state: read again, the visit still waiting for it. */
@@ -139,6 +142,6 @@ class DateViewModel(
         val visit = pendingVisit ?: return
         pendingVisit = null
         analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.DateScreen, visit.referrer))
-        analytics?.report(DateAnalytics.dateScreenViewed(date, dateState(now, date.unlockAt, date.unread), now))
+        analytics?.report(DateAnalytics.dateScreenViewed(date, dateState(now, date.unlockAt, date.unread, date.coordinateOpen), now))
     }
 }
