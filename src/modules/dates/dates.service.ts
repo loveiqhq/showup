@@ -5,10 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, In, IsNull, Repository } from 'typeorm';
 
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
+  coordinateUnlockedEvent,
   dateCancelledEvent,
   dateCompletedEvent,
   dateConfirmedEvent,
@@ -18,6 +19,7 @@ import { LocationService } from '../location/location.service';
 import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
+import { dueForUnlock, minutesBeforeStart } from './util/coordinate-unlock';
 import { reviewWindowError } from './util/date-review';
 import { dateLocksUser } from './util/date-lock';
 import { DateStatus, transitionError } from './util/date-lifecycle';
@@ -288,6 +290,45 @@ export class DatesService {
       where: { dateId },
       order: { createdAt: 'ASC' },
     });
+  }
+
+  /**
+   * Sends `coordinate_unlocked` for every date whose meet − 1:30 has come (Date 01, SHOWUP-193).
+   * Run once a minute by the unlock job. Returns how many dates unlocked.
+   *
+   * ONCE PER DATE, HOWEVER MANY WORKERS RUN IT: the stamp is set by a conditional UPDATE that only
+   * an unstamped row passes, and only the rows it returned are reported. Both people get the event.
+   */
+  async unlockDueCoordinates(now: Date = new Date()): Promise<number> {
+    const candidates = await this.dates.find({
+      where: {
+        status: DateStatus.Confirmed,
+        coordinateUnlockedAt: IsNull(),
+        scheduledAt: Between(now, new Date(now.getTime() + 90 * 60_000)),
+      },
+    });
+    const due = dueForUnlock(candidates, now);
+    if (due.length === 0) return 0;
+    const [stamped] = await this.dates.query<
+      [
+        Array<{ user_a_id: string; user_b_id: string; scheduled_at: Date }>,
+        number,
+      ]
+    >(
+      `UPDATE "dates" SET "coordinate_unlocked_at" = $1
+        WHERE "id" = ANY($2::uuid[]) AND "coordinate_unlocked_at" IS NULL
+        RETURNING "user_a_id", "user_b_id", "scheduled_at"`,
+      [now, due],
+    );
+    for (const d of stamped) {
+      const event = coordinateUnlockedEvent(
+        minutesBeforeStart(new Date(d.scheduled_at), now),
+      );
+      for (const userId of [d.user_a_id, d.user_b_id]) {
+        void this.analytics.trackServerEvent({ userId, ...event });
+      }
+    }
+    return stamped.length;
   }
 
   /** Stamps the caller's read time on the date's chat (Date 01). Only a participant may. */

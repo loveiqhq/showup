@@ -5,9 +5,11 @@ import request from 'supertest';
 import { DataSource, In, Repository } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
+import { AnalyticsService } from './../src/modules/analytics/analytics.service';
 import { CheckInWindow } from './../src/modules/check-ins/entities/check-in-window.entity';
 import { CheckInsService } from './../src/modules/check-ins/check-ins.service';
 import { DateChatMessage } from './../src/modules/dates/entities/date-chat-message.entity';
+import { DatesService } from './../src/modules/dates/dates.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
 import { ChatReason } from './../src/modules/dates/util/pre-date-chat';
@@ -322,6 +324,39 @@ describe('The Date screen (e2e)', () => {
       count: 1,
       reason: 'cant_find_you',
     });
+  });
+
+  it('stamps coordinate_unlocked once for a due date, and leaves a later one alone', async () => {
+    const due = await makeDate(60);
+    const sent: Array<{
+      userId: string;
+      eventName: string;
+      properties?: object;
+    }> = [];
+    const analytics = app.get(AnalyticsService);
+    const spy = jest
+      .spyOn(analytics, 'trackServerEvent')
+      .mockImplementation((p) => {
+        sent.push(p);
+        return Promise.resolve();
+      });
+    try {
+      const datesService = app.get(DatesService);
+      expect(await datesService.unlockDueCoordinates()).toBe(1);
+      expect(await datesService.unlockDueCoordinates()).toBe(0);
+      const unlocks = sent.filter((e) => e.eventName === 'coordinate_unlocked');
+      expect(unlocks.map((e) => e.userId).sort()).toEqual(
+        [id.you, id.leonie].sort(),
+      );
+      expect(unlocks[0].properties).toEqual({ minutes_before_start: 59 });
+      const [row] = await db.query<Array<{ at: Date | null }>>(
+        `SELECT coordinate_unlocked_at AS "at" FROM dates WHERE id = $1`,
+        [due],
+      );
+      expect(row.at).not.toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('is not someone else’s date', async () => {
