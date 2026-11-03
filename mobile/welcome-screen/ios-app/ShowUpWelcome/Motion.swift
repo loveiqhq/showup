@@ -64,6 +64,9 @@ enum Motion {
     /// `su-toast-in` and `su-reveal` — a toast, or a panel that opens inline: 200 ms, up 6, on the
     /// brand curve (the 48hrs Check-In, SHOWUP-179). Android's `Motion.REVEAL`.
     static let reveal: TimeInterval = 0.2
+    /// How long the TabBar's disabled-tab hint stays up (SHOWUP-193 ⑰: "3200 ms; re-tap restarts it").
+    /// A reading duration, like `toast`; it fades in and out over `reveal`, as the kit's.
+    static let tabHint: TimeInterval = 3.2
 
     /// `su-checkin-pop` — the No hours today? card arriving: 260 ms, up 10, from .97 (SHOWUP-179).
     static let pop: TimeInterval = 0.26

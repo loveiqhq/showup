@@ -83,6 +83,12 @@ object Motion {
      */
     const val REVEAL = 200
 
+    /**
+     * How long the TabBar's disabled-tab hint stays up (SHOWUP-193 ⑰: "3200 ms; re-tap restarts
+     * it"). A reading duration, like [TOAST]; it fades in and out over [REVEAL], as the kit's.
+     */
+    const val TAB_HINT = 3200
+
     /** The No hours today? card popping in (`su-checkin-pop 260ms`). SHOWUP-179. */
     const val POP = 260
 

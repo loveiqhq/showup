@@ -12,9 +12,11 @@
  * tab goes is the host's decision (Premium: Likes received, SHOWUP-186; Freemium: the likes upsell,
  * its own story). One bar with a [likes] count -- a second bar for Premium is the bug the epic names.
  *
- * NOT BUILT HERE: the kit's disabled state (lock badge, hint toast) belongs to Match's "active
- * date" lock, which no ticket has asked for yet; it lands with that ticket as a parameter of this
- * component, not as a second bar.
+ * THE DISABLED STATE (SHOWUP-193 ⑰) is the active-date lock: from the match until the date ends,
+ * Search, Likes and Instant are [disabled] and Settings stays open. A disabled tab is drawn faint with
+ * the kit's lock badge; a tap on it shows [disabledHint] above the bar for [Motion.TAB_HINT] and does
+ * not call `onTab`, so nothing navigates and nothing is tracked. No tab is active on the Date screen,
+ * so [active] is nullable. A parameter of this bar, not a second bar, as this note always said.
  *
  * The kit blurs the content behind the bar (`backdrop-filter: blur(20px)`); Compose has no live
  * backdrop blur below API 31, so the bar is its .92 glass alone. Over the gate's flat cream the two
@@ -22,6 +24,12 @@
  */
 package com.showup.designsystem
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -36,13 +44,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -52,7 +68,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
+import kotlinx.coroutines.delay
 
 /** The four tabs, in bar order. [trackingValue] is `enums.json` §37 `nav_tab`. */
 enum class Tab(val label: String, val icon: BrandIcon, val trackingValue: String) {
@@ -97,8 +116,26 @@ fun likesBadgeLabel(count: Int): String = if (count == 1) "1 open like" else "$c
  * badge.
  */
 @Composable
-fun TabBar(active: Tab, onTab: (Tab) -> Unit, modifier: Modifier = Modifier, likes: Int = 0) {
+fun TabBar(
+    active: Tab?,
+    onTab: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
+    likes: Int = 0,
+    disabled: Set<Tab> = emptySet(),
+    disabledHint: String? = null,
+) {
+    // Each disabled tap bumps the count; the effect restarts on it, so a re-tap restarts the 3200 ms
+    // instead of stacking a second hint.
+    var hintTaps by remember { mutableIntStateOf(0) }
+    var hintShown by remember { mutableStateOf(false) }
+    LaunchedEffect(hintTaps) {
+        if (hintTaps == 0) return@LaunchedEffect
+        hintShown = true
+        delay(Motion.TAB_HINT.toLong())
+        hintShown = false
+    }
     Column(modifier.fillMaxWidth().background(TabBarGlass).testTag(TAB_BAR_TAG)) {
+        if (disabledHint != null) DisabledHint(disabledHint, hintShown)
         Box(Modifier.fillMaxWidth().height(1.dp).background(BorderSoft))
         Row(
             Modifier
@@ -110,12 +147,21 @@ fun TabBar(active: Tab, onTab: (Tab) -> Unit, modifier: Modifier = Modifier, lik
         ) {
             Tab.entries.forEach { tab ->
                 val selected = tab == active
-                val tint = if (selected) Purple else FgSubtle
+                val locked = tab in disabled
+                val tint = when {
+                    selected -> Purple
+                    locked -> Faint
+                    else -> FgSubtle
+                }
                 val badge = if (tab == Tab.Likes) likesBadgeText(likes) else null
                 Column(
                     Modifier
                         .weight(1f)
-                        .selectable(selected = selected, role = Role.Tab, onClick = { onTab(tab) })
+                        .selectable(
+                            selected = selected,
+                            role = Role.Tab,
+                            onClick = { if (locked) hintTaps++ else onTab(tab) },
+                        )
                         // "Likes, 2 open likes" (SHOWUP-186 accessibility): the badge is part of
                         // the tab's name, not a second thing to swipe to.
                         .semantics {
@@ -128,6 +174,7 @@ fun TabBar(active: Tab, onTab: (Tab) -> Unit, modifier: Modifier = Modifier, lik
                     Box(Modifier.size(24.dp).clearAndSetSemantics {}) {
                         Icon(tab.icon, 24.dp, tint = tint, strokeWidth = if (selected) 2.2f else 1.7f)
                         if (badge != null) LikesBadge(badge)
+                        if (locked) LockBadge()
                     }
                     Spacer(Modifier.height(3.dp))
                     Text(
@@ -188,5 +235,84 @@ private fun LikesBadge(text: String) {
             style = TextStyle(fontFeatureSettings = "tnum", lineHeight = line),
             maxLines = 1,
         )
+    }
+}
+
+/** The hint's drop shadow, `0 12px 28px rgba(20,12,28,.22)` -- the kit's, used nowhere else. */
+private val HintShadow = Color(0x38140C1C)
+
+/**
+ * The disabled-tab hint (`TabBar`'s `hint` in the kit): a fg pill 10 above the bar, inset 14, at most
+ * 320 wide, with an orange-400 lock. Placed by `layout` at the bar's top edge minus its own height,
+ * so it takes no room and the bar never moves; fades and rises 8 over [Motion.REVEAL], as the kit's
+ * `opacity 200ms, transform 200ms`. Announced politely, so a screen reader hears why nothing opened.
+ */
+@Composable
+private fun DisabledHint(text: String, visible: Boolean) {
+    val density = LocalDensity.current
+    val rise = with(density) { 8.dp.roundToPx() }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minHeight = 0))
+                layout(placeable.width, 0) {
+                    placeable.place(0, -placeable.height - 10.dp.roundToPx())
+                }
+            }
+            // 14: the kit's `left: 14; right: 14`. No spacing token holds it.
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(Motion.REVEAL)) + slideInVertically(tween(Motion.REVEAL)) { rise },
+            exit = fadeOut(tween(Motion.REVEAL)) + slideOutVertically(tween(Motion.REVEAL)) { rise },
+        ) {
+            Row(
+                Modifier
+                    .widthIn(max = 320.dp)
+                    .boxShadow(fill = Fg, cornerRadius = 14.dp, shadow = HintShadow, offsetY = 12.dp, blur = 28.dp)
+                    .padding(horizontal = 14.dp, vertical = 11.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+            ) {
+                Box(Modifier.padding(top = 1.dp)) {
+                    Icon(BrandIcon.Lock, 14.dp, tint = Orange400, strokeWidth = 2.4f)
+                }
+                Spacer(Modifier.size(10.dp))
+                Text(
+                    text,
+                    color = Color.White,
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp,
+                    lineHeight = (13 * 1.4).sp,
+                    letterSpacing = 0.01.sp,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The kit's lock badge on a disabled tab: a 14 cream disc ringed 1.5 in fg-faint, `right: -7;
+ * bottom: -3` of the 24 icon, with an 8 lock in fg-muted. Placed by `layout` like [LikesBadge], so
+ * the icon stays centred over its label.
+ */
+@Composable
+private fun LockBadge() {
+    Box(
+        Modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                // right -7 and bottom -3 of a 24 box, for a 14 badge: x 17, y 13.
+                layout(0, 0) { placeable.place(17.dp.roundToPx(), 13.dp.roundToPx()) }
+            }
+            .size(14.dp)
+            .background(Cream, CircleShape)
+            .border(1.5.dp, Faint, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(BrandIcon.Lock, 8.dp, tint = Muted, strokeWidth = 3f)
     }
 }
