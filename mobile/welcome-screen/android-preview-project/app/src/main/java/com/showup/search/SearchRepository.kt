@@ -131,9 +131,10 @@ interface SearchStore {
 
     /**
      * Sends a like. Idempotent per person on the server, so a retry after a timeout never makes a
-     * second one -- which is what lets the view model retry it silently.
+     * second one -- which is what lets the view model retry it silently. True when it made a date:
+     * the person had liked back and the two still had an hour (SHOWUP-193 lands on the Date screen).
      */
-    suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Unit>
+    suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Boolean>
 
     suspend fun pass(targetUserId: String, type: SearchAnalytics.PassType): Outcome<Unit>
 
@@ -177,10 +178,11 @@ class SearchRepository(private val api: ShowUpApi) : SearchStore {
         }
     }
 
-    override suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Unit> = outcome {
-        api.matching.likeProfile(
+    override suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Boolean> = outcome {
+        val response = api.matching.likeProfile(
             CreateLikeDto(targetUserId = targetUserId, message = message, position = position),
-        ).takeIf { it.isSuccessful }?.let { }
+        )
+        response.body()?.takeIf { response.isSuccessful }?.matched
     }
 
     override suspend fun pass(targetUserId: String, type: SearchAnalytics.PassType): Outcome<Unit> = outcome {

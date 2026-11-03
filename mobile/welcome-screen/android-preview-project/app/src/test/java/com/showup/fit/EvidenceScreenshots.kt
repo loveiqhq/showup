@@ -1154,5 +1154,17 @@ class EvidenceScreenshots {
         // kit's `tall` phone takes the content's height; this frame is that height, so nothing scrolls.
         val tall = listOf(Device("full length", 390, 2350, 0, 0))
         shoot("SHOWUP-193", "D-full", devices = tall) { com.showup.date.DateScreen(a, zone) }
+        // The match's profile, read-only (12), and the first read failing -- the two states this
+        // ticket adds that the sheet does not draw.
+        shoot("SHOWUP-193", "E-profile") {
+            com.showup.search.SearchProfileScreen(
+                state = com.showup.search.SearchUiState(loading = false, queue = listOf(com.showup.search.SearchSamples.FULL)),
+                zone = zone, readOnly = true, backLabel = com.showup.date.DateCopy.PROFILE_BACK,
+                disabledTabs = com.showup.date.DATE_LOCKED_TABS, disabledHint = com.showup.date.DateCopy.TAB_HINT,
+            )
+        }
+        shoot("SHOWUP-193", "F-failed") {
+            com.showup.date.DateScreen(com.showup.date.DateUi(now = a.now, loading = false, failed = com.showup.api.CallFailure.Network), zone)
+        }
     }
 }

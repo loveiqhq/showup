@@ -21,6 +21,7 @@ enum class DevSection(val title: String) {
     Reachable("Reachability and location"),
     Details("Share some details"),
     CheckIn("48hrs Check-In"),
+    Date("The date"),
     Home("Home"),
 }
 
@@ -79,6 +80,7 @@ fun FlowScreen.devSection(): DevSection = when (this) {
     FlowScreen.LikesReceived,
     FlowScreen.CheckInSettings,
     -> DevSection.CheckIn
+    FlowScreen.Date -> DevSection.Date
     FlowScreen.Home -> DevSection.Home
 }
 
@@ -125,6 +127,7 @@ fun FlowScreen.devLabel(): String = when (this) {
     FlowScreen.SearchFilters -> "Search · Filters"
     FlowScreen.LikesReceived -> "Likes tab (Premium)"
     FlowScreen.CheckInSettings -> "Settings (placeholder)"
+    FlowScreen.Date -> "Date 01 · Date screen"
     FlowScreen.Home -> "Home (placeholder)"
 }
 
@@ -134,7 +137,9 @@ fun FlowScreen.devLabel(): String = when (this) {
  */
 val FlowScreen.needsAccount: Boolean
     get() = when (devSection()) {
-        DevSection.Basics, DevSection.RealYou, DevSection.Reachable, DevSection.Details, DevSection.CheckIn -> true
+        DevSection.Basics, DevSection.RealYou, DevSection.Reachable, DevSection.Details, DevSection.CheckIn,
+        DevSection.Date,
+        -> true
         DevSection.SignUp, DevSection.Tutorial, DevSection.Home -> false
     }
 

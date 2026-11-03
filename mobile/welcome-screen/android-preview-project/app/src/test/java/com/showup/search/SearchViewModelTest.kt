@@ -20,6 +20,7 @@ import com.showup.profile.ProfileScreen
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -329,6 +330,27 @@ class SearchViewModelTest {
         val vm = visited(players)
         events.clear()
         return vm
+    }
+
+    @Test
+    fun `a like the server answers matched makes the date, and an open like does not`() = runTest(dispatcher) {
+        val vm = uncoached()
+        val made = mutableListOf<Unit>()
+        // A foreground collector: advanceUntilIdle does not wait for background-scope work.
+        val listening = launch { vm.matched.collect { made += it } }
+        vm.like()
+        vm.continueToMessage()
+        vm.skipMessage()
+        advanceUntilIdle()
+        assertTrue("a like that only waits makes no date", made.isEmpty())
+
+        store.likeMatches = true
+        vm.like()
+        vm.continueToMessage()
+        vm.skipMessage()
+        advanceUntilIdle()
+        assertEquals(1, made.size)
+        listening.cancel()
     }
 
     @Test

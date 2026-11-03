@@ -187,6 +187,52 @@ class DateViewModelTest {
         assertFalse(vm.state.value.copied)
         assertEquals(1600, Motion.COPIED)
     }
+
+    @Test
+    fun `a date seeded from the launch read draws at once, and the visit reports from the re-read`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.seed(date())
+        assertEquals(date(), vm.state.value.date)
+        assertFalse(vm.state.value.loading)
+        assertTrue("seeding reports nothing", analytics.names().isEmpty())
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        assertEquals(listOf("screen_viewed", "date_screen_viewed"), analytics.names())
+    }
+
+    @Test
+    fun `a new date read after one went away is shown, not left`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.None)
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.left)
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        vm.foreground()
+        advanceUntilIdle()
+        assertFalse(vm.state.value.left)
+        assertEquals(date(), vm.state.value.date)
+    }
+
+    @Test
+    fun `a failed first read shows the failure, and Try again reads again and reports the visit`() = runTest(dispatcher) {
+        store.read = Outcome.Failed(CallFailure.Network)
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        assertEquals(CallFailure.Network, vm.state.value.failed)
+        assertEquals(null, vm.state.value.date)
+        assertTrue(analytics.names().isEmpty())
+
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        vm.retry()
+        assertTrue("loading again while it reads", vm.state.value.loading)
+        assertEquals(null, vm.state.value.failed)
+        advanceUntilIdle()
+        assertEquals(date(), vm.state.value.date)
+        assertEquals(listOf("screen_viewed", "date_screen_viewed"), analytics.names())
+    }
 }
 
 /** Answers from fields the test sets; counts the reads. */

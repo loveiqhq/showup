@@ -83,6 +83,8 @@ import com.showup.designsystem.Cream
 import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.Tab
 import com.showup.designsystem.TabBar
+import com.showup.search.CentredStatement
+import com.showup.search.SearchCopy
 import com.showup.search.cssLinearGradient
 import java.time.ZoneId
 
@@ -155,6 +157,8 @@ fun DateScreen(
     onTab: (Tab) -> Unit = {},
     /** ⑮ Match Mate: a slot, always between How the date works and Cancel. Empty until Date 10. */
     matchMate: @Composable () -> Unit = {},
+    /** `Try again` when the first read failed and there is nothing to show. */
+    onRetry: () -> Unit = {},
     /** The scroll, hoisted only so the evidence harness can photograph frame D's end. */
     scroll: ScrollState = rememberScrollState(),
 ) {
@@ -233,6 +237,13 @@ fun DateScreen(
                 tabBar()
             }
         } else {
+            // The first read failed with nothing to show (offline as a match lands): Search's failed
+            // statement, said of the date, and the locked bar -- the lock holds whatever the network.
+            if (!ui.loading && ui.failed != null) {
+                Box(Modifier.fillMaxSize().padding(bottom = with(density) { tabHeight.toDp() })) {
+                    CentredStatement(DateCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
+                }
+            }
             // Loading: the screen is reached only once a read found a date, so this is the moment
             // before the first frame of data -- cream and the locked bar, never a spinner over nothing.
             Box(Modifier.align(Alignment.BottomCenter)) { tabBar() }

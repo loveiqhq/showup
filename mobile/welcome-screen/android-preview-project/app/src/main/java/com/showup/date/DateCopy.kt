@@ -73,4 +73,14 @@ object DateCopy {
     const val END_DATE_LINK = "End date"
     const val END_BAR_SUB = "Tap End Date - when your date is finished."
     const val END_DATE = "End Date"
+
+    // ── not in the ticket: PROPOSED, for Philipp ─────────────────────────────
+    //
+    // Every screen has a failed state (CLAUDE.md) and the ticket draws none: the Date screen's first
+    // read can fail (offline as a match lands). Search's approved sentence, said of the date; Search's
+    // `Try again` beside it.
+    const val LOAD_FAILED = "Couldn't load your date. Check your connection and try again."
+
+    /** The read-only profile's back pill, named for where it goes as `All profiles` and `All likes` are. */
+    const val PROFILE_BACK = "Your date"
 }

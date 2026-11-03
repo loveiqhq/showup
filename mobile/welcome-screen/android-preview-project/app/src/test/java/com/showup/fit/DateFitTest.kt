@@ -72,6 +72,7 @@ class DateFitTest {
         ),
         "tomorrow" to DateUi(date.copy(meetDay = "tomorrow"), Instant.parse("2026-11-02T22:00:00Z"), loading = false),
         "checked in" to DateUi(date.copy(checkedIn = true), unlock, loading = false),
+        "failed first read" to DateUi(now = stateA, loading = false, failed = com.showup.api.CallFailure.Network),
     )
 
     @Test
@@ -84,6 +85,16 @@ class DateFitTest {
                 // "Only the C message preview is clamped (2 lines)" -- the ticket's own exception.
                 .filterNot { it.contains("“Running about") && it.contains("over its maxLines") }
                 .forEach { fresh += it }
+        }
+        // The match's profile, read-only (12): Search's screen with the back pill and the locked bar.
+        for (scale in scales) DEVICES.forEach { d ->
+            measureFit(d, "Date/read-only profile @$scale", fontScale = scale) {
+                com.showup.search.SearchProfileScreen(
+                    state = com.showup.search.SearchUiState(loading = false, queue = listOf(com.showup.search.SearchSamples.FULL)),
+                    zone = berlin, readOnly = true, backLabel = com.showup.date.DateCopy.PROFILE_BACK,
+                    disabledTabs = com.showup.date.DATE_LOCKED_TABS, disabledHint = com.showup.date.DateCopy.TAB_HINT,
+                )
+            }.filterNot { it.advisory }.map { "$it" }.forEach { fresh += it }
         }
         java.io.File("build/date-fit-findings.txt").writeText(fresh.joinToString("\n"))
         assertTrue("Date screen layout problems (${fresh.size}):\n" + fresh.take(60).joinToString("\n") { "  $it" }, fresh.isEmpty())

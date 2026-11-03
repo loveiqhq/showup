@@ -84,6 +84,21 @@ class DateViewModel(
     /** The app came back to the foreground: re-read, report nothing. */
     fun foreground() = read()
 
+    /**
+     * The launch read already found [date]: draw it at once rather than a blank frame while the
+     * screen reads it again. Reports nothing -- the visit is [arrived]'s, from its own read.
+     */
+    fun seed(date: ActiveDate) {
+        if (_state.value.date != null) return
+        _state.update { it.copy(date = date, now = clock(), loading = false, failed = null) }
+    }
+
+    /** `Try again` on the failed state: read again, the visit still waiting for it. */
+    fun retry() {
+        _state.update { it.copy(loading = true, failed = null) }
+        read()
+    }
+
     /** The clock moved. The state follows it; nothing is reported. */
     fun tick() = _state.update { it.copy(now = clock()) }
 
@@ -109,7 +124,8 @@ class DateViewModel(
             when (answer) {
                 is Outcome.Ok -> when (val read = answer.value) {
                     is DateRead.Active -> {
-                        _state.update { it.copy(date = read.date, now = now, loading = false, failed = null) }
+                        // `left` back to false: a new date after one that went away is shown, not left.
+                        _state.update { it.copy(date = read.date, now = now, loading = false, failed = null, left = false) }
                         reportVisit(read.date, now)
                     }
                     DateRead.None -> _state.update { it.copy(now = now, loading = false, left = true) }
