@@ -18,6 +18,7 @@ import com.showup.profile.ProfileScreen
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -293,6 +294,29 @@ class PremiumViewModelTest {
         assertEquals(LikeSheet.Confirm, vm.state.value.sheet)
         advanceUntilIdle()
         assertEquals("one confirm sent", listOf(leonie to 1), store.confirms)
+    }
+
+    @Test
+    fun `a won confirm makes the date, and a refused one does not`() = runTest(dispatcher) {
+        val vm = onGrid()
+        val made = mutableListOf<Unit>()
+        // A foreground collector: advanceUntilIdle does not wait for background-scope work.
+        val listening = launch { vm.matched.collect { made += it } }
+        store.confirmAnswer = ConfirmAnswer.Refused(CloseReason.Matched)
+        vm.open(PremiumSurface.Grid, leonie)
+        vm.like()
+        vm.confirmDate()
+        advanceUntilIdle()
+        assertTrue(made.isEmpty())
+        vm.refusedDone()
+
+        store.confirmAnswer = ConfirmAnswer.Won
+        vm.open(PremiumSurface.Grid, anna)
+        vm.like()
+        vm.confirmDate()
+        advanceUntilIdle()
+        assertEquals(1, made.size)
+        listening.cancel()
     }
 
     @Test

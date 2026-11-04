@@ -42,4 +42,12 @@ sealed interface AppRoute {
      */
     @Serializable
     data object LocationGate : AppRoute
+
+    /**
+     * The match's profile, read-only, opened from the Date screen (SHOWUP-193 ⑫). Whether it is up
+     * is the date profile view model's (`DateProfileViewModel.state`), so a process death that
+     * restores it with nothing open pops it, as [SearchProfile] is popped.
+     */
+    @Serializable
+    data object DateProfile : AppRoute
 }

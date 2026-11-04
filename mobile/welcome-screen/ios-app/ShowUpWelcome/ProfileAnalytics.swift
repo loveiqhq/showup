@@ -145,6 +145,9 @@ enum ProfileScreen: String {
     /// The Search location gate (SHOWUP-188): Profile 12's screen in its app context. Once per
     /// mount, never per state.
     case searchLocationGate = "search_location_gate"
+    /// Date 01 (SHOWUP-193, §11 `date_screen`): the screen both people live on from the match until
+    /// the date ends. Once per visit, never on the in-place unlock.
+    case dateScreen = "date_screen"
 
     var screenId: String { rawValue }
 
@@ -186,6 +189,7 @@ enum ProfileScreen: String {
         case .searchGrid: return "Search - Grid"
         case .likesReceived: return "Search - Likes received"
         case .searchLocationGate: return "Search - Location gate"
+        case .dateScreen: return "Date - Date screen"
         }
     }
 }
@@ -354,12 +358,15 @@ enum Stamp {
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
     ///
+    /// 1.4.32 (3 November 2026): §11 `date_screen` and §38 `date_quick_action` (SHOWUP-193, Date 01).
+    /// No value an event here sends moved.
+    ///
     /// 1.4.31 (27 October 2026): 1.4.30 registered §11 `search_location_gate` (SHOWUP-188) and
     /// 1.4.31 added §10 `age_dealbreaker` / `distance_dealbreaker` (SHOWUP-189). Nothing else moved.
     ///
     /// 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186). No value an event
     /// here sends moved between 1.4.25 and 1.4.29 - the stamp follows the file the code reads.
-    static let fieldRegistryVersion = "1.4.31"
+    static let fieldRegistryVersion = "1.4.32"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]

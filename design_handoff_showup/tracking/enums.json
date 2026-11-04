@@ -1,6 +1,11 @@
 {
-  "registry_version": "1.4.31",
+  "registry_version": "1.4.32",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_32": [
+    "§11 date_screen / Date - Date screen — NEW row, Date 01. 2 Nov 2026.",
+    "§38 date_quick_action — NEW value set: directions · ride · share · calendar · copy_address. Date 01, 2 Nov 2026.",
+    "§38 date_quick_action — ride marked RESERVED (Order Ride hidden until a ride API exists). 2 Nov 2026."
+  ],
   "changed_in_1_4_31": [
     "§10 age_dealbreaker — NEW (bool, default false). Check-In 05b, 26 Oct 2026.",
     "§10 distance_dealbreaker — NEW (bool, default false). Check-In 05b, 26 Oct 2026.",
@@ -1221,6 +1226,14 @@
               "ticket": "Search 04",
               "status": "ticketed — not built",
               "notes": "The app-wide location gate, ScreenLocationGate = ScreenProfileLocation context=\"app\" (Profile 12's screen, second context). Added 22 Oct 2026 (registry 1.4.30). ONE screen_id, three states = §26 location_unavailable_reason: A not_determined (Allow location access raises the OS dialog) · B denied · C services_off (Open Settings, routed per platform; copy is platform-neutral). Shown in place of Search when the user can search (committed Check-In, no active date) and location is unavailable — the Check-In gate (checkin_search_unavailable) wins over it. Also pushed over search_profile when Confirm date is tapped on a profile opened from the Likes tab without location (back pill → that profile, Likes tab active). No filter button. Lifts by itself on the foreground re-read: → search_profile (Freemium) / search_grid (Premium) with referrer_screen_id search_location_gate, or back to the Likes profile. Never fires profile_* events; Profile 12 never fires location_gate_shown."
+            },
+            {
+              "screen_id": "date_screen",
+              "screen_name": "Date - Date screen",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 01",
+              "status": "ticketed — not built",
+              "notes": "The screen both people live on from the match until the date ends, ScreenMatchCoord. Added 2 Nov 2026 (registry 1.4.32). ONE screen_id; the time state is a property on date_screen_viewed (state locked | available, has_unread), never a second screen. Entered from the match (Search 02 / 03 confirm), the match push / SMS / WhatsApp / email deep links, and app launch while a date is active. The Coordinate chat (Date 02), the check-in pop-ups (Date 03), the change pickers (Date 05) and every sheet opened from here are their own rows or overlays. Exits: Date 06 / 07 / 08 hand-offs and the +2 h switch to flow 10 (Date 09)."
             }
           ]
         }
@@ -1807,6 +1820,19 @@
         "likes",
         "instant",
         "settings"
+      ]
+    },
+    {
+      "id": "e38",
+      "num": "38",
+      "name": "date_quick_action",
+      "note": "THE QUICK-ACTION TILES ON THE DATE SCREEN (date_quick_action_tapped), in tile order, plus copy_address for the Copy pill in the time + place card. Created 2 Nov 2026 with Date 01. ride is RESERVED: Order Ride is hidden until a ride-app API exists — never emitted before then.",
+      "values": [
+        "directions",
+        "ride",
+        "share",
+        "calendar",
+        "copy_address"
       ]
     }
   ],

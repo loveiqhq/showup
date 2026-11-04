@@ -18,6 +18,13 @@ final class TabBarTests: XCTestCase {
         XCTAssertEqual(AppTab.allCases.map(\.trackingValue), ["search", "likes", "instant", "settings"])
     }
 
+    /// SHOWUP-193 ⑰: the disabled-tab hint stays 3200 ms, as `Motion.TAB_HINT` on Android. The tap
+    /// and the restart are measured by Android's `TabBarDisabledTest`; this suite has no view driver.
+    func testTheDisabledHintStays3200msAsOnAndroid() {
+        XCTAssertEqual(Motion.tabHint, 3.2, accuracy: 0.0001)
+        XCTAssertEqual(Motion.reveal, 0.2, accuracy: 0.0001)
+    }
+
     func testTheBadgeReadsTheCountCapsAt99PlusAndShowsNothingAtZero() {
         XCTAssertNil(likesBadgeText(0))
         XCTAssertNil(likesBadgeText(-1))

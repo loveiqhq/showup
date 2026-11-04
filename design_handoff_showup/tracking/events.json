@@ -1,11 +1,11 @@
 {
-  "taxonomy_version": "1.4.24",
+  "taxonomy_version": "1.4.25",
   "changed_in_1_4_24": [
     "Search 01 decisions, 27 Oct 2026: filters_active compares saved genders with checkinGenderDefault on the viewer's current profile and lists true dealbreakers; gender values are never sent. Search filter saves add opened_from: search to check_in_filters_changed without Check-In funnel events. Returning from Filters is a new Search visit, position resets to 1, and the coach remains suppressed. The no-results state emits search_empty_shown with reason no_results."
   ],
   "reconciled_against": "loveiqhq/showup development @ 8540ee4",
   "generated": "2026-09-25",
-  "event_count": 305,
+  "event_count": 306,
   "changed_in_1_4_23": [
     "Check-In 05b (Filters v2), 26 Oct 2026: check_in_filters_changed — age_dealbreaker NEW · distance_dealbreaker NEW (bool, §10). filters_changed order extended to meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker. Cadence unchanged: once per accepted Continue. A switch tap fires nothing."
   ],
@@ -4004,18 +4004,30 @@
           "tier": "T2",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
               "name": "state",
               "type": "\"locked\"|\"available\""
             },
             {
+              "name": "has_unread",
+              "type": "bool — NEW 1.4.25. True when the Coordinate card is hoisted (state C on the Date 01 sheet). Always false while locked."
+            },
+            {
+              "name": "checked_in",
+              "type": "bool — NEW 1.4.25. The viewer's own arrival check-in, read at render."
+            },
+            {
               "name": "minutes_before_start",
-              "type": "int"
+              "type": "int — negative after the latest agreed meet time"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "Date coordination screen rendered",
-          "implemented": false
+          "trigger": "Date screen (Date 01, screen_id date_screen) rendered or returned to — fires alongside screen_viewed, once per visit, not on the in-place unlock. Respecified 2 Nov 2026 (1.4.25): date_id, has_unread and checked_in added; minutes_before_start counts from the latest AGREED meet time.",
+          "implemented": true
         },
         {
           "name": "date_confirm_submitted",
@@ -4089,7 +4101,7 @@
           "sensitivity_class": 0,
           "backend_status": "Partial",
           "trigger": "System unlocks exact venue location",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "coordinate_viewed",
@@ -4311,6 +4323,30 @@
           "backend_status": "Not built",
           "trigger": "User enters re-matching pool post-cancel",
           "implemented": false
+        },
+        {
+          "name": "date_quick_action_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "action",
+              "type": "enums.json §38 date_quick_action"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "A quick-action tile (Directions · Order Ride · Share Date · Calendar) or the Copy address pill on the Date screen is tapped — on the tap, before the OS hand-off; whether the user completes the OS sheet is not ours and is not measured. NEW 1.4.25, Date 01, 2 Nov 2026.",
+          "implemented": true
         }
       ]
     },

@@ -220,7 +220,10 @@ class FlowRestorationTest {
         // One with Search 03 (SHOWUP-186), for forty-two: LikesReceived, the Likes tab -- a tab root
         // like Settings. The profile opened from it, or from the grid, is a NavHost destination, not
         // a position here.
-        assertEquals(42, FlowScreen.entries.size)
+        //
+        // One with Date 01 (SHOWUP-193), for forty-three: Date, the app's home while a date is
+        // active. The match's read-only profile opened from it is a NavHost destination, as above.
+        assertEquals(43, FlowScreen.entries.size)
         assertEquals(FlowScreen.entries.size, FlowScreen.entries.map { it.name }.toSet().size)
         assertNotEquals(FlowScreen.SignUp, FlowScreen.entries.last())
     }

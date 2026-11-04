@@ -98,6 +98,34 @@ final class EvidenceShots: XCTestCase {
         return stride(from: 0, to: pixels.count, by: 4).allSatisfy { Array(pixels[$0..<($0 + 4)]) == first }
     }
 
+    /// SHOWUP-193: the Date screen's A, B and C at the three ticket frames, D as the sheet's full scroll,
+    /// and the two states the sheet does not draw -- the match's read-only profile and a failed first read.
+    func testDateScreenEvidence() throws {
+        let dir = try folder("193-date-screen")
+        var unread = DateSamples.date
+        unread.unread = DateSamples.unread
+        let shots: [(String, DateUi)] = [
+            ("A-announced", DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false)),
+            ("B-available", DateUi(date: DateSamples.date, now: DateSamples.bNow, loading: false)),
+            ("C-unread", DateUi(date: unread, now: DateSamples.bNow, loading: false)),
+            ("F-failed", DateUi(now: DateSamples.aNow, loading: false, failed: .network)),
+        ]
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        for device in frames {
+            for (name, ui) in shots {
+                try shoot(DateScreen(ui: ui, zone: DateSamples.zone), name, on: device, into: dir)
+            }
+            try shoot(SearchProfileView(state: SearchUiState(loading: false, queue: [SearchSamples.full]),
+                                        zone: DateSamples.zone, readOnly: true, backLabel: DateCopy.profileBack,
+                                        disabledTabs: dateLockedTabs, disabledHint: DateCopy.tabHint),
+                      "E-profile", on: device, into: dir)
+        }
+        // D: every section in order, the footer at the foot of the scroll -- a frame as tall as the content.
+        let tall = FitDevice(name: "full length", width: 390, height: 2350, top: 0, bottom: 0)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "D-full", on: tall, into: dir)
+    }
+
     /// SHOWUP-188: A, B and C on the Search tab, D over a Likes profile in B as the sheet draws it.
     func testLocationGateEvidence() throws {
         let dir = try folder("188-location-gate")

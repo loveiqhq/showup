@@ -50,7 +50,13 @@ import com.showup.designsystem.TabBar
  * Search, the tab the gate is. [likes] is the Likes badge.
  */
 @Composable
-fun SettingsPlaceholderScreen(onTab: (Tab) -> Unit = {}, likes: Int = 0) {
+fun SettingsPlaceholderScreen(
+    onTab: (Tab) -> Unit = {},
+    likes: Int = 0,
+    /** While a date is active (SHOWUP-193): the locked tabs, and the hint a tap on one shows. */
+    disabled: Set<Tab> = emptySet(),
+    disabledHint: String? = null,
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -64,7 +70,10 @@ fun SettingsPlaceholderScreen(onTab: (Tab) -> Unit = {}, likes: Int = 0) {
                 .weight(1f)
                 .fillMaxWidth(),
         )
-        TabBar(active = Tab.Settings, likes = likes, onTab = { if (it != Tab.Settings) onTab(it) })
+        TabBar(
+            active = Tab.Settings, likes = likes, onTab = { if (it != Tab.Settings) onTab(it) },
+            disabled = disabled, disabledHint = disabledHint,
+        )
     }
 }
 

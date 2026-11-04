@@ -136,8 +136,9 @@ protocol SearchStoring: Sendable {
     /// The queue, with `meetDay` worked out in `zone` (an IANA id).
     func queue(zone: String) async -> Result<SearchQueue, CallFailure>
     /// Sends a like. Idempotent per person on the server, so a retry after a timeout never makes a
-    /// second one -- which is what lets the model retry it silently.
-    func like(targetUserId: String, message: String?, position: Int) async -> Result<Void, CallFailure>
+    /// second one -- which is what lets the model retry it silently. True when it made a date: the
+    /// person had liked back and the two still had an hour (SHOWUP-193 lands on the Date screen).
+    func like(targetUserId: String, message: String?, position: Int) async -> Result<Bool, CallFailure>
     func pass(targetUserId: String, type: SearchAnalytics.PassType) async -> Result<Void, CallFailure>
     /// `Don't show again`: the one act that sets the server's coach flag.
     func hideCoach() async -> Result<Void, CallFailure>
@@ -176,10 +177,12 @@ struct SearchRepository: SearchStoring {
         }
     }
 
-    func like(targetUserId: String, message: String?, position: Int) async -> Result<Void, CallFailure> {
+    func like(targetUserId: String, message: String?, position: Int) async -> Result<Bool, CallFailure> {
         let body = Components.Schemas.CreateLikeDto(message: message, position: position, targetUserId: targetUserId)
         do {
-            if case .created = try await api.client.likeProfile(body: .json(body)) { return .success(()) }
+            if case .created(let created) = try await api.client.likeProfile(body: .json(body)) {
+                return .success(try created.body.json.matched)
+            }
             return .failure(.server)
         } catch {
             return .failure(Self.failure(error))

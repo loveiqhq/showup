@@ -11,10 +11,12 @@
 //  badge counts open received likes, Freemium too; where the tab goes is the host's decision. One
 //  bar with a `likes` count -- a second bar for Premium is the bug the epic names.
 //
-//  NOT BUILT HERE: the kit's disabled state (lock badge, hint toast) belongs to Match's "active
-//  date" lock, which no ticket has asked for yet; it lands with that ticket as a parameter of this
-//  component, not as a second bar. The kit blurs what is behind the bar; over the gate's flat cream
-//  the .92 glass alone is indistinguishable from it, as on Android.
+//  THE DISABLED STATE (SHOWUP-193 ⑰) is the active-date lock: from the match until the date ends,
+//  Search, Likes and Instant are `disabled` and Settings stays open. A disabled tab is drawn faint
+//  with the kit's lock badge; a tap shows `disabledHint` above the bar for `Motion.tabHint` and does
+//  not call `onTab`, so nothing navigates and nothing is tracked. No tab is active on the Date screen,
+//  so `active` is optional. The kit blurs what is behind the bar; over flat cream the .92 glass alone
+//  is indistinguishable from it, as on Android.
 //
 
 import SwiftUI
@@ -70,9 +72,16 @@ func likesBadgeLabel(_ count: Int) -> String {
 /// under the home indicator; the tabs stay above it. `likes` is the open received likes: `0` shows
 /// no badge.
 struct TabBar: View {
-    let active: AppTab
+    let active: AppTab?
     let onTab: (AppTab) -> Void
     var likes: Int = 0
+    var disabled: Set<AppTab> = []
+    var disabledHint: String?
+
+    /// Bumped by each disabled tap. The hint's task is keyed on it, so a re-tap cancels the running
+    /// 3200 ms and starts a new one -- a restart, never a second hint.
+    @State private var hintTaps = 0
+    @State private var hintShown = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -86,18 +95,40 @@ struct TabBar: View {
             .padding(.top, Spacing.md)
         }
         .background(Color.liqTabBarGlass.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) {
+            if let disabledHint, hintShown {
+                DisabledHint(text: disabledHint)
+                    // 10 above the bar's top edge, taking no room: the bar never moves.
+                    .alignmentGuide(.top) { d in d[.bottom] + 10 }
+                    .transition(.opacity.combined(with: .offset(y: 8)))
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeOut(duration: Motion.reveal), value: hintShown)
+        .task(id: hintTaps) {
+            guard hintTaps > 0 else { return }
+            hintShown = true
+            try? await Task.sleep(nanoseconds: UInt64(Motion.tabHint * 1_000_000_000))
+            // A re-tap cancelled this one and started its own; only the last one hides the hint.
+            if !Task.isCancelled { hintShown = false }
+        }
     }
 
     private func item(_ tab: AppTab) -> some View {
         let selected = tab == active
-        let tint = selected ? Color.liqPurple : Color.liqSubtle
+        let locked = disabled.contains(tab)
+        let tint = selected ? Color.liqPurple : (locked ? Color.liqFaint : Color.liqSubtle)
         let badge = tab == .likes ? likesBadgeText(likes) : nil
-        return Button(action: { onTab(tab) }) {
+        return Button(action: { if locked { hintTaps += 1 } else { onTab(tab) } }) {
             VStack(spacing: 3) {
                 BrandIconView(icon: tab.icon, size: 24, stroke: selected ? 2.2 : 1.7, tint: tint)
                     .frame(width: 24, height: 24)
                     .overlay(alignment: .topLeading) {
                         if let badge { LikesBadge(text: badge).offset(x: 15, y: -4) }
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        // The kit's `right: -7; bottom: -3`.
+                        if locked { LockBadge().offset(x: 7, y: 3) }
                     }
                 Text(tab.label)
                     .font(F.manrope(10, .semibold))
@@ -115,6 +146,48 @@ struct TabBar: View {
         .accessibilityLabel(Text(badge != nil ? "\(tab.label), \(likesBadgeLabel(likes))" : tab.label))
         // A tab, selected or not -- Android's `Role.Tab` with `selected`.
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// The disabled-tab hint (the kit's `TabBar` hint): a fg pill, inset 14, at most 320 wide, with an
+/// orange-400 lock. Announced, so a VoiceOver user hears why nothing opened.
+private struct DisabledHint: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            BrandIconView(icon: .lock, size: 14, stroke: 2.4, tint: .liqOrange400)
+                .frame(width: 14, height: 14)
+                .padding(.top, 1)
+            Text(text)
+                .font(F.manrope(13, .medium))
+                .lineSpacing(TypeMetrics.lineSpacing(PS.manropeMedium, size: 13, multiple: 1.4))
+                .tracking(0.01)
+                .foregroundColor(.white)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .frame(maxWidth: 320)
+        .background(Color.liqFg, in: RoundedRectangle(cornerRadius: 14))
+        // `0 12px 28px rgba(20,12,28,.22)`: a SwiftUI shadow radius is the CSS blur halved.
+        .shadow(color: Color(red: 20 / 255, green: 12 / 255, blue: 28 / 255).opacity(0.22), radius: 14, x: 0, y: 12)
+        // The kit's `left: 14; right: 14` -- no spacing token holds 14.
+        .padding(.horizontal, 14)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.updatesFrequently)
+        .onAppear { UIAccessibility.post(notification: .announcement, argument: text) }
+    }
+}
+
+/// The kit's lock badge on a disabled tab: a 14 cream disc ringed 1.5 in fg-faint, an 8 lock in
+/// fg-muted.
+private struct LockBadge: View {
+    var body: some View {
+        BrandIconView(icon: .lock, size: 8, stroke: 3, tint: .liqMuted)
+            .frame(width: 14, height: 14)
+            .background(Color.liqCream, in: Circle())
+            .overlay(Circle().strokeBorder(Color.liqFaint, lineWidth: 1.5))
     }
 }
 

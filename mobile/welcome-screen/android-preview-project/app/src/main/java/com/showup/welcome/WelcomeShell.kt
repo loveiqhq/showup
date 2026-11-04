@@ -731,7 +731,15 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
     // section marks from SEARCH_ICONS (`globe · book-open · faith · vote · wine · cigarette ·
     // leaf`). All drawn from their `d` strings, circles and rects written as path commands.
     Filter, Send, ShieldCheck, User, Star, Gift, Pause,
-    Globe, BookOpen, Faith, Vote, Wine, Cigarette, Leaf }
+    Globe, BookOpen, Faith, Vote, Wine, Cigarette, Leaf,
+
+    // ── added for the Date screen (SHOWUP-193) ───────────────────────────────
+    //
+    // `copy` is the time + place card's Copy pill, `share` the Share Date tile; `hourglass`,
+    // `binoculars` and `frown` are the unread card's reason badges (running late, can't find you,
+    // can't make it); `coffee` is the `Coffee & a chat` vibe's chip. From `components/shared.jsx`
+    // as path data, VERBATIM -- see [KitPaths].
+    Copy, Share, Hourglass, Binoculars, Frown, Coffee }
 
 @Composable
 /**
@@ -1323,7 +1331,13 @@ fun Icon(
                 BrandIcon.Wine -> drawPath(KitPaths.wine, tint, style = stroke)
                 BrandIcon.Cigarette -> drawPath(KitPaths.cigarette, tint, style = stroke)
                 BrandIcon.Leaf -> drawPath(KitPaths.leaf, tint, style = stroke)
-                
+                BrandIcon.Copy -> drawPath(KitPaths.copy, tint, style = stroke)
+                BrandIcon.Share -> drawPath(KitPaths.share, tint, style = stroke)
+                BrandIcon.Hourglass -> drawPath(KitPaths.hourglass, tint, style = stroke)
+                BrandIcon.Binoculars -> drawPath(KitPaths.binoculars, tint, style = stroke)
+                BrandIcon.Frown -> drawPath(KitPaths.frown, tint, style = stroke)
+                BrandIcon.Coffee -> drawPath(KitPaths.coffee, tint, style = stroke)
+
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
                     drawPath(path(listOf(18.5f to 2.5f, 21.5f to 5.5f, 12f to 15f, 8f to 16f, 9f to 12f), close = true), tint, style = stroke)
@@ -1435,6 +1449,39 @@ private object KitPaths {
 
     /** `cigarette`. */
     val cigarette = parse("M3 12H15a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V13a1 1 0 0 1 1-1ZM6 12L6 16M18 8c0-2 1-3 2-3M22 8c0-2-1-3-2-3M18 12L22 12M18 16L22 16")
+
+    // ── the Date screen (SHOWUP-193). A `rect` / `circle` / `line` is written as the path it draws:
+    // the rect's rx as four arcs, the circle as two half-arcs, the line as M..L. Same geometry.
+
+    /** `rect 9,9 13x13 rx2` + `M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1`. */
+    val copy = parse(
+        "M11 9H20A2 2 0 0 1 22 11V20A2 2 0 0 1 20 22H11A2 2 0 0 1 9 20V11A2 2 0 0 1 11 9Z" +
+            "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
+    )
+
+    /** Three `circle r3` at (18,5) (6,12) (18,19) and the two lines between them. */
+    val share = parse(
+        "M21 5A3 3 0 1 1 15 5A3 3 0 1 1 21 5ZM9 12A3 3 0 1 1 3 12A3 3 0 1 1 9 12Z" +
+            "M21 19A3 3 0 1 1 15 19A3 3 0 1 1 21 19ZM8.59 13.51L15.42 17.49M15.41 6.51L8.59 10.49",
+    )
+
+    /** `hourglass`: four paths. */
+    val hourglass = parse("M6 3h12M6 21h12M6 3c0 4 4 7 6 9 2-2 6-5 6-9M6 21c0-4 4-7 6-9 2 2 6 5 6 9")
+
+    /** Two `rect 6x13 rx3` at x 3 and 15, the bridge path, and `line 9,13.5 15,13.5`. */
+    val binoculars = parse(
+        "M6 7A3 3 0 0 1 9 10V17A3 3 0 0 1 6 20A3 3 0 0 1 3 17V10A3 3 0 0 1 6 7Z" +
+            "M18 7A3 3 0 0 1 21 10V17A3 3 0 0 1 18 20A3 3 0 0 1 15 17V10A3 3 0 0 1 18 7Z" +
+            "M9 6.5a1.5 1.5 0 0 1 3 0v3.5M15 6.5a1.5 1.5 0 0 0-3 0M9 13.5L15 13.5",
+    )
+
+    /** `circle 12,12 r10`, the mouth, and the two eye dots (zero-length lines under a round cap). */
+    val frown = parse(
+        "M22 12A10 10 0 1 1 2 12A10 10 0 1 1 22 12ZM16 16s-1.5-2-4-2-4 2-4 2M9 9.2L9.01 9.2M15 9.2L15.01 9.2",
+    )
+
+    /** The cup and its handle, and the three steam `line`s at x 6, 10 and 14. */
+    val coffee = parse("M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1L6 4M10 1L10 4M14 1L14 4")
 
     /** `leaf`. */
     val leaf = parse("M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2c1 3.5.5 8-3 11-2.5 2.5-6 2.5-7.5 1M2 21c0-3 1.85-5.36 5.08-6")

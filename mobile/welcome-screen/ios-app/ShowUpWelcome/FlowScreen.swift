@@ -157,6 +157,12 @@ enum FlowScreen: String, CaseIterable, Comparable {
     /// The gate's Settings tab: no Settings screen exists yet.
     case checkInSettings
 
+    /// Date 01 (SHOWUP-193): the screen both people live on from the match until the date ends. The
+    /// app's home while a date is active -- no back, the other tabs locked. AFTER the tabs, so the
+    /// match that lands here from Search reads forward; outside `isCheckIn`, because it re-reads its
+    /// own date on every foreground, not the Check-In.
+    case date
+
     /// Where the flow ends for a NEW SIGN-IN, tutorial or returning member (SHOWUP-146). A launch
     /// with a finished profile goes to the gate or Search instead.
     case home

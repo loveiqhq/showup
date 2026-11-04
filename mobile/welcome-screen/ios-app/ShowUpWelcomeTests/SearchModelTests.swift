@@ -56,6 +56,7 @@ private actor FakeStore: SearchStoring {
     func setCoachHideLands(_ value: Bool) { coachHideLands = value }
     func setQueueFailure(_ value: CallFailure?) { queueFailure = value }
     func setLikeFailures(_ value: Int) { likeFailures = value }
+    func setLikeMatches(_ value: Bool) { likeMatches = value }
 
     func queue(zone: String) async -> Result<SearchQueue, CallFailure> {
         queueReads += 1
@@ -63,13 +64,16 @@ private actor FakeStore: SearchStoring {
         return .success(SearchQueue(resultsCount: profiles.count, profiles: profiles, viewer: SearchSamples.viewer))
     }
 
-    func like(targetUserId: String, message: String?, position: Int) async -> Result<Void, CallFailure> {
+    /// The server answers the next likes `matched`: each one made a date.
+    var likeMatches = false
+
+    func like(targetUserId: String, message: String?, position: Int) async -> Result<Bool, CallFailure> {
         likes.append((targetUserId, message, position))
         if likeFailures > 0 {
             likeFailures -= 1
             return .failure(.network)
         }
-        return .success(())
+        return .success(likeMatches)
     }
 
     func pass(targetUserId: String, type: SearchAnalytics.PassType) async -> Result<Void, CallFailure> {
@@ -269,6 +273,21 @@ final class SearchModelTests: XCTestCase {
 
     // MARK: - the like flow
 
+    func testALikeTheServerAnswersMatchedMakesTheDateAndAnOpenLikeDoesNot() async {
+        let m = await uncoached()
+        m.like()
+        m.continueToMessage()
+        m.skipMessage()
+        await settle()
+        XCTAssertEqual(m.datesMade, 0, "a like that only waits makes no date")
+        await store.setLikeMatches(true)
+        m.like()
+        m.continueToMessage()
+        m.skipMessage()
+        await settle()
+        XCTAssertEqual(m.datesMade, 1)
+    }
+
     func testALikeWithAMessageFiresInTheTicketsOrderAndSendsTheTrimmedText() async {
         let m = await uncoached()
         m.like()
@@ -364,8 +383,12 @@ final class SearchModelTests: XCTestCase {
         XCTAssertEqual(events.of(SearchAnalytics.passSentName).map { $0["pass_type"] as? String }, ["not_now", "not_interested"])
         XCTAssertEqual(events.of(SearchAnalytics.passSentName).map { $0["position"] as? Int }, [1, 2])
         XCTAssertTrue(events.of(SearchAnalytics.passSentName).allSatisfy { $0["surface"] as? String == "profile" })
+        // Each pass is its own background Task, and two Tasks reach the store actor in no promised
+        // order (CI saw mara before leonie, 4 Nov 2026) -- the server needs one pass per profile, not
+        // an order. The order the screen acted in is the events' `position`, above.
         let passes = await store.passes
-        XCTAssertEqual(passes.map(\.0), [SearchSamples.full.userId, "sample-mara"])
+        XCTAssertEqual(passes.count, 2)
+        XCTAssertEqual(Set(passes.map(\.0)), [SearchSamples.full.userId, "sample-mara"])
         XCTAssertEqual(m.state.current?.userId, "sample-ana")
     }
 

@@ -248,10 +248,13 @@ final class SearchModel {
     private var likesTask: Task<Void, Never>?
     private var recheckTask: Task<Void, Never>?
     private var confirmTask: Task<Void, Never>?
-    private var session: (any MediaPlaying)?
-    private var ticker: Task<Void, Never>?
-    /// Every stop moves it on, so a play still opening when it moves knows it was superseded.
-    private var playGeneration = 0
+    /// The one clip that plays (ClipPlayback.swift); what it reports is reported here.
+    private let clips: ClipPlayback
+
+    /// A date was made from here: a like the server answered `matched`, or a won `Confirm date`. The
+    /// host moves to the Date screen when it changes (SHOWUP-193). A count rather than an event, so a
+    /// date made while the app was away is still seen when it comes back.
+    private(set) var datesMade = 0
 
     // The Undo window.
     private var undoTask: Task<Void, Never>?
@@ -279,6 +282,12 @@ final class SearchModel {
         self.millis = millis
         self.retryDelays = retryDelays
         self.undoWindow = undoWindow
+        self.clips = ClipPlayback(players: players)
+        clips.change = { [weak self] edit in
+            guard let self else { return }
+            edit(&self.state.playback)
+        }
+        clips.ended = { [weak self] in self?.stopPlayback() }
     }
 
     /// Binds to scene storage and reads what it holds on the first call only -- the shape of
@@ -883,7 +892,14 @@ final class SearchModel {
         answered.insert(profile.userId)
         let store = self.store
         let target = profile.userId
-        sendInBackground { await store.like(targetUserId: target, message: message, position: position) }
+        let delays = retryDelays
+        // In the background, retried; a like the server answers `matched` made the date.
+        Task { [weak self] in
+            let matched = await Self.sendWithRetries(delays: delays) {
+                await store.like(targetUserId: target, message: message, position: position)
+            }
+            if matched == true { self?.datesMade += 1 }
+        }
         if fromList {
             returnToList { $0.leaving = .liked }
         } else {
@@ -909,6 +925,7 @@ final class SearchModel {
             case .failure:
                 self.state.confirming = false
             case .success(.won):
+                self.datesMade += 1
                 self.decided.insert(opened.userId)
                 self.answered.insert(opened.userId)
                 if self.state.opened == opened {
@@ -1078,7 +1095,7 @@ final class SearchModel {
             let landed = await Self.sendWithRetries(delays: delays) {
                 await store.pass(targetUserId: target, type: .notInterested)
             }
-            if landed { await self?.refreshLikesOpenNow() }
+            if landed != nil { await self?.refreshLikesOpenNow() }
         }
     }
 
@@ -1112,44 +1129,8 @@ final class SearchModel {
         let playing = state.playback
         stopPlayback()
         if playing?.kind == kind { return }
-        guard let media = kind == .voice ? profile.voice : profile.video, let url = media.url, players != nil else { return }
-        let generation = playGeneration
-        Task { [weak self] in
-            guard let self, let players = self.players else { return }
-            let next = players.makePlayer(kind: kind)
-            let started = await next.start(path: url.absoluteString)
-            // SUPERSEDED while the clip was opening -- a pass, a like, a sheet, the app leaving. Without
-            // this, a voice note tapped just before `Not now` played over the next profile.
-            guard generation == self.playGeneration else {
-                await next.stop()
-                return
-            }
-            guard started else { return }
-            self.session = next
-            self.state.playback = SearchPlayback(kind: kind, positionMs: 0, durationMs: media.durationMs)
-            self.runPlayClock(next, durationMs: media.durationMs)
-        }
-    }
-
-    /// Polls the playhead and notices the end. BOUNDED, as `MediaModel`'s clock is: by the clip's own
-    /// length and a grace, so a player that never reports an ending cannot keep a loop alive.
-    private func runPlayClock(_ playing: any MediaPlaying, durationMs: Int) {
-        ticker = Task { [weak self] in
-            var waited = 0
-            let limit = durationMs + Self.playClockGraceMs
-            while waited < limit {
-                try? await Task.sleep(nanoseconds: UInt64(Self.tickMs) * 1_000_000)
-                waited += Self.tickMs
-                guard let self, !Task.isCancelled, self.session === playing else { return }
-                if playing.hasFinished() {
-                    self.state.playback?.positionMs = durationMs
-                    self.stopPlayback()
-                    return
-                }
-                self.state.playback?.positionMs = playing.positionMs()
-            }
-            self?.stopPlayback()
-        }
+        guard let media = kind == .voice ? profile.voice : profile.video else { return }
+        clips.start(kind: kind, media: media)
     }
 
     /// A playing card scrolled out of view: it pauses.
@@ -1160,12 +1141,7 @@ final class SearchModel {
     /// Stops whatever plays -- or is still opening -- and reports a play, once, with how much of it was
     /// heard: "fire when playback stops (end, pause, scrolled out, profile changed)".
     private func stopPlayback() {
-        playGeneration += 1
-        ticker?.cancel()
-        ticker = nil
-        let ending = session
-        session = nil
-        if let ending { Task { await ending.stop() } }
+        clips.stop()
         guard let playing = state.playback else { return }
         state.playback = nil
         let pct = (playing.progress * 1000).rounded() / 10
@@ -1201,15 +1177,15 @@ final class SearchModel {
         Task { _ = await Self.sendWithRetries(delays: delays, call) }
     }
 
-    /// `sendInBackground`'s loop: true once a call landed.
-    private static func sendWithRetries(delays: [TimeInterval],
-                                        _ call: @Sendable () async -> Result<Void, CallFailure>) async -> Bool {
-        if case .success = await call() { return true }
+    /// `sendInBackground`'s loop: the answer once a call landed, nil if none did.
+    private static func sendWithRetries<T: Sendable>(delays: [TimeInterval],
+                                                     _ call: @Sendable () async -> Result<T, CallFailure>) async -> T? {
+        if case .success(let answer) = await call() { return answer }
         for wait in delays {
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
-            if case .success = await call() { return true }
+            if case .success(let answer) = await call() { return answer }
         }
-        return false
+        return nil
     }
 
     /// The like flow as it stands, into scene storage: an open Be sure or message sheet kept, with
@@ -1229,9 +1205,4 @@ final class SearchModel {
     private func report(_ event: (String, [String: any Sendable])) {
         analytics?.report(event)
     }
-
-    /// How often a playing card's readout moves.
-    private static let tickMs = 100
-    /// How long the clock keeps polling past a clip's stated length: a backstop, not a timing rule.
-    private static let playClockGraceMs = 1_000
 }

@@ -1,4 +1,6 @@
 import {
+  COORDINATE_UNLOCKED,
+  coordinateUnlockedEvent,
   DATE_CANCELLED,
   DATE_COMPLETED,
   DATE_CONFIRMED,
@@ -37,5 +39,13 @@ describe('date analytics events', () => {
       eventName: DATE_CANCELLED,
       properties: { date_id: 'd5', had_reason: false },
     });
+  });
+
+  it('coordinate_unlocked carries only minutes_before_start (Date 01, registry 1.4.32)', () => {
+    expect(coordinateUnlockedEvent(90)).toEqual({
+      eventName: COORDINATE_UNLOCKED,
+      properties: { minutes_before_start: 90 },
+    });
+    expect(COORDINATE_UNLOCKED).toBe('coordinate_unlocked');
   });
 });

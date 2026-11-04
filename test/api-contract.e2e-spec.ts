@@ -89,6 +89,10 @@ const PROTECTED: Route[] = [
   { method: 'post', path: `/dates/${ID}/no-show` },
   { method: 'get', path: `/dates/${ID}/chat` },
   { method: 'post', path: `/dates/${ID}/chat` },
+  // SHOWUP-193 -- the Date screen: the active date and the match's profile are the viewer's own.
+  { method: 'post', path: `/dates/${ID}/chat/read` },
+  { method: 'get', path: '/me/date' },
+  { method: 'get', path: '/me/date/profile' },
   // matching.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },
@@ -100,6 +104,10 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/me/search-coach/hide' },
   { method: 'get', path: '/me/likes/open-count' },
   { method: 'put', path: '/dev/plan-tier' },
+  // SHOWUP-193 -- the Date screen's dev helpers: authenticated, like the plan switch.
+  { method: 'post', path: '/dev/date' },
+  { method: 'post', path: '/dev/date/message' },
+  { method: 'post', path: '/dev/date/end' },
   // SHOWUP-185 / 186 -- who liked the viewer, and what they wrote: authenticated, then Premium.
   { method: 'get', path: '/search/grid' },
   { method: 'post', path: '/search/availability' },

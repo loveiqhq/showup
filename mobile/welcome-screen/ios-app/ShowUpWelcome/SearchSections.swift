@@ -38,6 +38,9 @@ struct CSSLinearGradient: View {
     let angle: Double
     let colors: [Color]
     let stops: [CGFloat]
+    /// The CSS box's height when the drawing runs past it -- a blurred edge smearing its colours on
+    /// (the Date screen's wash, SHOWUP-193): the line is the box's, and the colours clamp beyond it.
+    var boxHeight: CGFloat? = nil
 
     var body: some View {
         GeometryReader { g in
@@ -46,11 +49,12 @@ struct CSSLinearGradient: View {
             let dy = -cos(a)
             let w = max(g.size.width, 1)
             let h = max(g.size.height, 1)
-            let half = (abs(w * dx) + abs(h * dy)) / 2
+            let box = boxHeight ?? h
+            let half = (abs(w * dx) + abs(box * dy)) / 2
             LinearGradient(
                 stops: zip(colors, stops).map { Gradient.Stop(color: $0, location: $1) },
-                startPoint: UnitPoint(x: (w / 2 - dx * half) / w, y: (h / 2 - dy * half) / h),
-                endPoint: UnitPoint(x: (w / 2 + dx * half) / w, y: (h / 2 + dy * half) / h))
+                startPoint: UnitPoint(x: (w / 2 - dx * half) / w, y: (box / 2 - dy * half) / h),
+                endPoint: UnitPoint(x: (w / 2 + dx * half) / w, y: (box / 2 + dy * half) / h))
         }
     }
 }
@@ -94,6 +98,8 @@ struct SearchPhoto<Overlay: View>: View {
 struct PhotoBackdrop: View {
     let url: URL?
     let index: Int
+    /// `object-position: center 24%` (the Date screen's hero, SHOWUP-193) instead of the centre.
+    var focusTop24 = false
 
     var body: some View {
         ZStack {
@@ -104,12 +110,22 @@ struct PhotoBackdrop: View {
                 AsyncImage(url: url) { phase in
                     if let image = phase.image { image.resizable().scaledToFill() }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity,
+                       alignment: focusTop24 ? Alignment(horizontal: .center, vertical: .objectPosition24) : .center)
                 .clipped()
             }
             PhotoWashes()
         }
     }
+}
+
+extension VerticalAlignment {
+    /// CSS `object-position: … 24%`: the point 24% down the image meets the point 24% down the box --
+    /// both sides of the alignment default to 24% of their own height, which is exactly CSS's rule.
+    private enum ObjectPosition24: AlignmentID {
+        static func defaultValue(in d: ViewDimensions) -> CGFloat { d.height * 0.24 }
+    }
+    static let objectPosition24 = VerticalAlignment(ObjectPosition24.self)
 }
 
 /// The painterly washes, softened for a loaded photo exactly as the kit softens them.

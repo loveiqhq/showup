@@ -27,4 +27,7 @@ enum AppRoute: Hashable, Sendable {
     /// The location gate pushed over a profile opened from the Likes tab (SHOWUP-188 D): `Confirm date`
     /// found location unavailable. Whether it is up is the gate model's (`LocationGateUiState.overProfile`).
     case locationGate
+    /// The match's profile, read-only, opened from the Date screen (SHOWUP-193 ⑫). Whether it is up is
+    /// `DateProfileModel`'s, as the Search profile's is `SearchModel`'s.
+    case dateProfile
 }

@@ -1436,6 +1436,32 @@ export class SearchService {
     return new Set(rows.map((r) => r.user_id));
   }
 
+  /**
+   * One person's profile, built exactly as the queue builds it -- the Date screen's match
+   * (SHOWUP-193): its summary and "See {name}'s full profile". Same builder, so a hidden field is
+   * just as absent there as here. Null when the person has no profile.
+   */
+  async profileFor(
+    partnerId: string,
+    window: CheckInWindow | null,
+    meters: number,
+    meetAt: Date,
+    now: Date,
+    zone: string | undefined,
+  ): Promise<SearchProfileDto | null> {
+    const profile = await this.db
+      .getRepository(Profile)
+      .findOne({ where: { userId: partnerId } });
+    if (!profile) return null;
+    const tz = isTimeZone(zone) ? zone : 'UTC';
+    const [dto] = await this.loadProfiles(
+      [{ userId: partnerId, window, profile, meters, meetAt }],
+      now,
+      tz,
+    );
+    return dto ?? null;
+  }
+
   /** The full payload for the first profiles of the queue, in queue order. */
   private async loadProfiles(
     top: Candidate[],

@@ -8,6 +8,7 @@
 export const DATE_CONFIRMED = 'date_confirmed';
 export const DATE_COMPLETED = 'date_completed';
 export const DATE_CANCELLED = 'date_cancelled';
+export const COORDINATE_UNLOCKED = 'coordinate_unlocked';
 
 export interface DateEventInput {
   id: string;
@@ -41,5 +42,19 @@ export function dateCancelledEvent(date: DateEventInput): AnalyticsEventSpec {
       date_id: date.id,
       had_reason: (date.cancelReason ?? null) != null,
     },
+  };
+}
+
+/**
+ * The Date screen's Coordinate card unlocked: meet − 1:30 (Date 01, SHOWUP-193; registry 1.4.32).
+ * Server-sent, once per person per date, by the unlock job -- never by the in-place A → B swap on
+ * the screen, which sends nothing.
+ */
+export function coordinateUnlockedEvent(
+  minutesBeforeStart: number,
+): AnalyticsEventSpec {
+  return {
+    eventName: COORDINATE_UNLOCKED,
+    properties: { minutes_before_start: minutesBeforeStart },
   };
 }

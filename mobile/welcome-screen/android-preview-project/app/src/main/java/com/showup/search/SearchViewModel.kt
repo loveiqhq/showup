@@ -37,19 +37,20 @@ import com.showup.api.Outcome
 import com.showup.designsystem.Motion
 import com.showup.profile.MediaKind
 import com.showup.profile.MediaPlayerFactory
-import com.showup.profile.MediaPlayerSession
 import com.showup.profile.ProfileAnalytics
 import com.showup.profile.ProfileScreen
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** Which of the like flow's sheets is open. [Refused] is the sorry sheet, after a refused confirm. */
@@ -275,10 +276,20 @@ open class SearchViewModel(
     private var likesJob: Job? = null
     private var recheckJob: Job? = null
     private var confirmJob: Job? = null
-    private var session: MediaPlayerSession? = null
-    private var ticker: Job? = null
-    /** Every stop moves it on, so a play still opening when it moves knows it was superseded. */
-    private var playGeneration = 0
+    /** The one clip that plays (ClipPlayback.kt); what it reports is reported here. */
+    private val clips = ClipPlayback(
+        viewModelScope, players,
+        update = { change -> _state.update { it.copy(playback = change(it.playback)) } },
+        ended = { stopPlayback() },
+    )
+
+    /**
+     * A date was made from here: a like the server answered `matched`, or a won `Confirm date`. The
+     * host moves to the Date screen (SHOWUP-193). A channel, so a date made while nothing listens --
+     * the app in the background as a retried like lands -- is still delivered when it comes back.
+     */
+    private val dates = Channel<Unit>(Channel.CONFLATED)
+    val matched: Flow<Unit> = dates.receiveAsFlow()
 
     // ── the Undo window ─────────────────────────────────────────────────────────────────────────
     private var undoJob: Job? = null
@@ -855,7 +866,7 @@ open class SearchViewModel(
         keepLikeFlow()
         decided += profile.userId
         answered += profile.userId
-        sendInBackground { store.like(profile.userId, message, position) }
+        sendInBackground { store.like(profile.userId, message, position).also { if ((it as? Outcome.Ok)?.value == true) dates.trySend(Unit) } }
         if (s.opened != null) returnToList { it.copy(leaving = Leave.Liked) } else next()
     }
 
@@ -878,6 +889,7 @@ open class SearchViewModel(
                 is Outcome.Failed -> _state.update { it.copy(confirming = false) }
                 is Outcome.Ok -> when (val a = answer.value) {
                     ConfirmAnswer.Won -> {
+                        dates.trySend(Unit)
                         decided += opened.userId
                         answered += opened.userId
                         val won: (PremiumCard) -> PremiumCard = { c ->
@@ -1100,38 +1112,7 @@ open class SearchViewModel(
         stopPlayback()
         if (playing?.kind == kind) return
         val media = (if (kind == MediaKind.Voice) profile.voice else profile.video) ?: return
-        val factory = players ?: return
-        val generation = playGeneration
-        viewModelScope.launch {
-            val next = factory.create(kind)
-            val started = next.start(media.url)
-            // SUPERSEDED while the clip was opening -- a pass, a like, a sheet, the app leaving. Without
-            // this, a voice note tapped just before `Not now` played over the next profile.
-            if (generation != playGeneration) {
-                next.stop()
-                return@launch
-            }
-            if (!started) return@launch
-            session = next
-            _state.update { it.copy(playback = SearchPlayback(kind, 0, media.durationMs)) }
-            // BOUNDED by the clip's own length and a grace, as iOS's clock is: a player that never
-            // reports an ending cannot keep it alive.
-            ticker = launch {
-                var waited = 0L
-                while (isActive && waited < media.durationMs + PLAY_CLOCK_GRACE_MS) {
-                    delay(TICK_MS)
-                    waited += TICK_MS
-                    val position = next.positionMs()
-                    if (next.hasFinished()) {
-                        _state.update { st -> st.playback?.let { st.copy(playback = it.copy(positionMs = it.durationMs)) } ?: st }
-                        stopPlayback()
-                        return@launch
-                    }
-                    _state.update { st -> st.playback?.let { st.copy(playback = it.copy(positionMs = position)) } ?: st }
-                }
-                if (isActive) stopPlayback()
-            }
-        }
+        clips.start(kind, media)
     }
 
     /** A playing card scrolled out of view: it pauses. */
@@ -1144,12 +1125,7 @@ open class SearchViewModel(
      * playback stops (end, pause, scrolled out, profile changed)".
      */
     private fun stopPlayback() {
-        playGeneration++
-        ticker?.cancel()
-        ticker = null
-        val ending = session
-        session = null
-        if (ending != null) viewModelScope.launch { ending.stop() }
+        clips.stop()
         val playing = _state.value.playback ?: return
         _state.update { it.copy(playback = null) }
         val prompt = if (playing.kind == MediaKind.Voice) SearchAnalytics.Prompt.Voice else SearchAnalytics.Prompt.Video
@@ -1182,12 +1158,12 @@ open class SearchViewModel(
      * Runs [call] until it lands, waiting longer each time; gives up after the last delay. Silent by
      * design ("If it fails, retry silently"): the user has already moved on.
      */
-    private fun sendInBackground(call: suspend () -> Outcome<Unit>) {
+    private fun sendInBackground(call: suspend () -> Outcome<*>) {
         viewModelScope.launch { sendWithRetries(call) }
     }
 
     /** [sendInBackground]'s loop: true once a call landed. */
-    private suspend fun sendWithRetries(call: suspend () -> Outcome<Unit>): Boolean {
+    private suspend fun sendWithRetries(call: suspend () -> Outcome<*>): Boolean {
         if (call() is Outcome.Ok) return true
         for (wait in retryDelaysMs) {
             delay(wait)
@@ -1218,12 +1194,6 @@ open class SearchViewModel(
         super.onCleared()
     }
 
-    private companion object {
-        /** How often a playing card's readout moves. */
-        const val TICK_MS = 100L
-        /** How long the clock keeps polling past a clip's stated length: a backstop, not a timing rule. */
-        const val PLAY_CLOCK_GRACE_MS = 1_000L
-    }
 }
 
 /**
