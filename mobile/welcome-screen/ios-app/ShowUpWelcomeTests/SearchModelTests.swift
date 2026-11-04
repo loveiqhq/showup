@@ -383,8 +383,12 @@ final class SearchModelTests: XCTestCase {
         XCTAssertEqual(events.of(SearchAnalytics.passSentName).map { $0["pass_type"] as? String }, ["not_now", "not_interested"])
         XCTAssertEqual(events.of(SearchAnalytics.passSentName).map { $0["position"] as? Int }, [1, 2])
         XCTAssertTrue(events.of(SearchAnalytics.passSentName).allSatisfy { $0["surface"] as? String == "profile" })
+        // Each pass is its own background Task, and two Tasks reach the store actor in no promised
+        // order (CI saw mara before leonie, 4 Nov 2026) -- the server needs one pass per profile, not
+        // an order. The order the screen acted in is the events' `position`, above.
         let passes = await store.passes
-        XCTAssertEqual(passes.map(\.0), [SearchSamples.full.userId, "sample-mara"])
+        XCTAssertEqual(passes.count, 2)
+        XCTAssertEqual(Set(passes.map(\.0)), [SearchSamples.full.userId, "sample-mara"])
         XCTAssertEqual(m.state.current?.userId, "sample-ana")
     }
 
