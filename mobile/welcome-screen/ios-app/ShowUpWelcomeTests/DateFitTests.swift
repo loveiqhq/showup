@@ -99,6 +99,11 @@ final class DateFitTests: XCTestCase {
                         }
                     }
                     if bar.minX < -0.5 || bar.maxX > device.width + 0.5 { failures.append("\(tag): the bar is wider than the phone") }
+                    // Which piece is the widest, when anything is: the screen, the footer, the bar.
+                    if let screen = f["date:screen"], let footer = f["date:footer"],
+                       max(screen.width, footer.width, bar.width) > device.width + 0.5 {
+                        failures.append("\(tag): widths screen \(screen.width) footer \(footer.width) bar \(bar.width)")
+                    }
                     if bar.minY < 0 { failures.append("\(tag): the bar starts above the screen") }
                 }
             }

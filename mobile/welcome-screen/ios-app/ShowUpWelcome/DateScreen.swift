@@ -136,6 +136,10 @@ struct DateScreen: View {
         let bar = heights["bar"] ?? 0
         let tab = heights["tab"] ?? 0
         let barInFlow = frame > 0 && bar + tab > frame * Self.footerMaxShare
+        // THE SCREEN IS THE PHONE'S WIDTH, EXACTLY. A ZStack takes the width of its widest child, so a
+        // footer a point too rigid (a long name at the 402-wide phone's exact width) widened the scroll
+        // with it and moved every card off its 16 gutter. Pinned here, nothing inside can.
+        GeometryReader { g in
         ZStack(alignment: .bottom) {
             if let date = ui.date, let state = ui.state {
                 ScrollView {
@@ -154,6 +158,7 @@ struct DateScreen: View {
                     if !barInFlow { barView(date) }
                     tabBar
                 }
+                .fitAnchor("date:footer")
             } else {
                 // The first read failed with nothing to show (offline as a match lands): Search's failed
                 // statement, said of the date, and the locked bar -- the lock holds whatever the network.
@@ -166,7 +171,8 @@ struct DateScreen: View {
                 tabBar
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: g.size.width, height: g.size.height)
+        }
         .measuredHeight("frame")
         .background(Color.liqCream.ignoresSafeArea())
         .onPreferenceChange(DateHeightsKey.self) { heights = $0 }
