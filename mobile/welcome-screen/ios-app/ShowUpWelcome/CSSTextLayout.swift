@@ -43,10 +43,25 @@ enum CSSTextLayout {
         let firstBaseline: CGFloat
     }
 
+    /// `text` as its words wrap. A UILabel writes its `lineBreakMode` into its attributed text, and a
+    /// truncating paragraph lays TextKit out on ONE line -- so the Date screen's clamped preview
+    /// measured a single line and never re-wrapped its orphan (iOS evidence C, 4 Nov 2026). The
+    /// breaks are the paragraph's; the clamp is the label's.
+    static func wrapping(_ text: NSAttributedString) -> NSAttributedString {
+        let out = NSMutableAttributedString(attributedString: text)
+        text.enumerateAttribute(.paragraphStyle, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            guard let style = value as? NSParagraphStyle, style.lineBreakMode != .byWordWrapping,
+                  let copy = style.mutableCopy() as? NSMutableParagraphStyle else { return }
+            copy.lineBreakMode = .byWordWrapping
+            out.addAttribute(.paragraphStyle, value: copy, range: range)
+        }
+        return out
+    }
+
     /// `text` laid out at `width` by TextKit, with no padding in the line fragments -- as UILabel
     /// lays it out.
     static func lines(_ text: NSAttributedString, width: CGFloat) -> Lines {
-        let storage = NSTextStorage(attributedString: text)
+        let storage = NSTextStorage(attributedString: wrapping(text))
         let manager = NSLayoutManager()
         let container = NSTextContainer(size: CGSize(width: max(width, 1), height: .greatestFiniteMagnitude))
         container.lineFragmentPadding = 0
@@ -314,7 +329,10 @@ final class PrettyLabel: UILabel {
     var balance = false
 
     override func drawText(in rect: CGRect) {
-        guard pretty || balance, let text = attributedText else { return super.drawText(in: rect) }
+        guard pretty || balance, let label = attributedText else { return super.drawText(in: rect) }
+        // Wrapping, as measured: `truncatesLastVisibleLine` puts the clamp's ellipsis on the last line
+        // that fits, and only over a word-wrapping paragraph.
+        let text = CSSTextLayout.wrapping(label)
         let used = CSSTextLayout.wrapWidth(text, within: rect.width, pretty: pretty, balance: balance)
         guard used < rect.width else { return super.drawText(in: rect) }
         let centred = textAlignment == .center
