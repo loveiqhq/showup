@@ -330,8 +330,6 @@ final class PrettyLabel: UILabel {
 
     override func drawText(in rect: CGRect) {
         guard pretty || balance, let label = attributedText else { return super.drawText(in: rect) }
-        // Wrapping, as measured: `truncatesLastVisibleLine` puts the clamp's ellipsis on the last line
-        // that fits, and only over a word-wrapping paragraph.
         let text = CSSTextLayout.wrapping(label)
         let used = CSSTextLayout.wrapWidth(text, within: rect.width, pretty: pretty, balance: balance)
         guard used < rect.width else { return super.drawText(in: rect) }
@@ -339,17 +337,25 @@ final class PrettyLabel: UILabel {
             || (text.length > 0
                 && (text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment == .center)
         let x = centred ? rect.minX + (rect.width - used) / 2 : rect.minX
-        // DRAWN HERE, not by `super.drawText(in:)` with a narrowed rect: UILabel lays its text out for
-        // its own bounds, so handed a narrower rect it drew only the first line, centred in the space
-        // for all of them -- the Date screen's `Sort last-minute details before` lost `you meet`
-        // (SHOWUP-193 iOS evidence, 3 Nov 2026). Every line, at the narrowed width; clamped, the last
-        // line that fits takes the ellipsis.
-        var options: NSStringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
-        if numberOfLines > 0 { options.insert(.truncatesLastVisibleLine) }
-        let needed = ceil(text.boundingRect(with: CGSize(width: used, height: .greatestFiniteMagnitude),
-                                            options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).height)
-        let height = min(needed, rect.height)
-        text.draw(with: CGRect(x: x, y: rect.minY + max(0, (rect.height - height) / 2), width: used, height: height),
-                  options: options, context: nil)
+        // DRAWN BY TEXTKIT, the engine that measured the breaks. Not `super.drawText(in:)` with a
+        // narrowed rect: UILabel lays out for its own bounds and drew only the first line. Not
+        // NSAttributedString drawing capped at the label's height either: it measures a hair taller
+        // than UILabel sizes, and a line that does not wholly fit is silently left out. Both ways the
+        // Date screen's `Sort last-minute details before` lost `you meet` (SHOWUP-193 iOS evidence, 3
+        // and 4 Nov 2026). The container has no height to fall short of; clamped, it stops at
+        // `numberOfLines` and the last of them takes the ellipsis.
+        let storage = NSTextStorage(attributedString: text)
+        let manager = NSLayoutManager()
+        let container = NSTextContainer(size: CGSize(width: used, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        container.maximumNumberOfLines = numberOfLines
+        container.lineBreakMode = numberOfLines > 0 ? .byTruncatingTail : .byWordWrapping
+        storage.addLayoutManager(manager)
+        manager.addTextContainer(container)
+        let glyphs = manager.glyphRange(for: container)
+        let height = manager.usedRect(for: container).height
+        let origin = CGPoint(x: x, y: rect.minY + max(0, (rect.height - height) / 2))
+        manager.drawBackground(forGlyphRange: glyphs, at: origin)
+        manager.drawGlyphs(forGlyphRange: glyphs, at: origin)
     }
 }
