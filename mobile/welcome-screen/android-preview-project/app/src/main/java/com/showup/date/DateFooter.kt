@@ -36,7 +36,6 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -177,23 +176,25 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
                 }
             },
             action = {
-                Box(
-                    Modifier
-                        .height(46.dp)
-                        .pressable(Role.Button, onClick = onCheckIn)
-                        .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), ShadowCta)
-                        .padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        DateCopy.CHECK_IN,
-                        color = Color.White,
-                        fontFamily = Manrope,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
+                // Drawn 46 as the reference, answering at 48 over it: a 48 pill would grow the bar.
+                DrawnSmall(DateCopy.CHECK_IN, onCheckIn) { press ->
+                    Box(
+                        press
+                            .height(46.dp)
+                            .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), ShadowCta)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            DateCopy.CHECK_IN,
+                            color = Color.White,
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
             },
         )

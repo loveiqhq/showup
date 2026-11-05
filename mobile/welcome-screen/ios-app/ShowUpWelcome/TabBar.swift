@@ -130,11 +130,14 @@ struct TabBar: View {
                         // The kit's `right: -7; bottom: -3`.
                         if locked { LockBadge().offset(x: 7, y: 3) }
                     }
+                // A label wider than its quarter of the bar at the largest type shrinks just enough
+                // instead of truncating (the 4 Nov 2026 device audit). Nothing changes while it fits.
                 Text(tab.label)
                     .font(F.manrope(10, .semibold))
                     .tracking(0.2)
                     .foregroundColor(tint)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.5)
             }
             .padding(.vertical, Spacing.md)
             .frame(maxWidth: .infinity)
