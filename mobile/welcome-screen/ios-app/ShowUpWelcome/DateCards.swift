@@ -235,6 +235,7 @@ private struct CoordinateCta: View {
             .frame(maxWidth: .infinity)
             .frame(height: 48)
             .background(ShadowedPill(fill: fill, shadows: shadows))
+            .fitTapArea()
         }
         .buttonStyle(PressScale())
     }
@@ -498,6 +499,7 @@ struct ReportRow: View {
             .padding(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
             .background(RoundedRectangle(cornerRadius: 16).fill(Color.liqDanger.opacity(0.06)))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.liqDanger.opacity(0.20), lineWidth: 1))
+            .fitTapArea()
         }
         .buttonStyle(PressScale())
     }
@@ -616,6 +618,7 @@ struct QuickActions: View {
             .frame(maxWidth: .infinity)
             .background(RoundedRectangle(cornerRadius: 16).fill(Color.liqElevated))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.liqBorderSoft, lineWidth: 1))
+            .fitTapArea()
         }
         .buttonStyle(PressScale())
     }

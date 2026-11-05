@@ -152,6 +152,8 @@ struct DateScreen: View {
                         if barInFlow { barView(date) }
                         Color.clear.frame(height: tab + (barInFlow ? 0 : bar))
                     }
+                    // The whole scroll, reserve included: where its end comes to rest (DateFitTests).
+                    .fitAnchor("date:content")
                 }
                 .fitAnchor("date:screen")
                 VStack(spacing: 0) {
@@ -159,6 +161,7 @@ struct DateScreen: View {
                     tabBar
                 }
                 .fitAnchor("date:footer")
+                .fitPinnedBar()
             } else {
                 // The first read failed with nothing to show (offline as a match lands): Search's failed
                 // statement, said of the date, and the locked bar -- the lock holds whatever the network.
@@ -184,6 +187,7 @@ struct DateScreen: View {
         TabBar(active: nil, onTab: onTab, likes: 0, disabled: dateLockedTabs, disabledHint: DateCopy.tabHint)
             .background(Color.liqCream.ignoresSafeArea(edges: .bottom))
             .measuredHeight("tab")
+            .fitAnchor(FitAnchorID.tabBar)
     }
 
     private func barView(_ date: ActiveDate) -> some View {
