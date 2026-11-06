@@ -71,10 +71,21 @@ struct ShowUpCount<Glass: View>: View {
                     // `line-height: 1` as CSS lays it out: the pill is the icon and its padding, not
                     // Manrope's natural line.
                     .cssLineBox(fs * shrink * typeScale)
-                // Wrapped: Manrope's own line, since SwiftUI sets no line closer than the font's.
-                label(isNew: isNew, scale: shrink)
-                    .foregroundColor(ink)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Wrapped: Manrope's own line, since SwiftUI sets no line closer than the font's. Fitted
+                // to a column it was not told the width of (`.infinity`), a word wider than that column
+                // shrinks where it is laid out -- it read `atten` / `ded` at AX5 on a 320 phone.
+                if fitWidth == .infinity {
+                    FitWords(text: isNew ? showUpNew : showUpCountLabel(count),
+                             font: { s in F.manrope(fs * shrink * s, .heavy) }) { s in
+                        label(isNew: isNew, scale: shrink * s)
+                            .foregroundColor(ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    label(isNew: isNew, scale: shrink)
+                        .foregroundColor(ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .padding(.horizontal, size.horizontal)

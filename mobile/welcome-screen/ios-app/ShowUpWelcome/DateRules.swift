@@ -161,3 +161,18 @@ func activeDate(_ read: Result<DateRead, CallFailure>) -> ActiveDate? {
     if case .success(.active(let date)) = read { return date }
     return nil
 }
+
+/// `s` with a zero-width space after each hyphen, so a long hyphenated name or district may break after
+/// its hyphen, as CSS breaks it -- Android's twin (`DateRules.kt`), where the line breaker would not
+/// (the 4 Nov 2026 device audit). Invisible, and silent to VoiceOver.
+func breakAfterHyphens(_ s: String) -> String {
+    s.replacingOccurrences(of: "-(?!\u{200B})", with: "-\u{200B}", options: .regularExpression)
+}
+
+/// `date` with its match's name and district breakable after their hyphens (`breakAfterHyphens`).
+func withBreakableNames(_ date: ActiveDate) -> ActiveDate {
+    var shown = date
+    shown.match.name = breakAfterHyphens(date.match.name)
+    shown.match.district = date.match.district.map(breakAfterHyphens)
+    return shown
+}

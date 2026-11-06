@@ -49,6 +49,7 @@ import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -254,6 +255,15 @@ fun measureFit(
             val top = (node.positionInRoot.y - originY) / density
             val right = left + node.size.width / density
             val bottom = top + node.size.height / density
+            // The right edge as DRAWN, for "off the right" alone: `fitWords` lays a long word out wide
+            // and draws it scaled into its box, and the laid-out size read it as past the edge (the
+            // 4 Nov 2026 device audit). The scale is read off the node's own coordinates -- its width
+            // in root space over its width laid out -- and is exactly 1 for anything not scaled.
+            val inner = node.layoutInfo.coordinates
+            val drawnScale = if (inner.size.width > 0) {
+                (inner.localToRoot(Offset(inner.size.width.toFloat(), 0f)).x - inner.localToRoot(Offset.Zero).x) / inner.size.width
+            } else 1f
+            val drawnRight = left + node.size.width * drawnScale / density
             val name = if (inText != null) "link in $inText" else label(node)
 
             // 1. the squashing case: the renderer could not draw all it was given.
@@ -327,9 +337,9 @@ fun measureFit(
                             "by %.1fdp".format(bottom - hDp))
                     }
                 }
-                if (right > wDp + SLACK_DP) {
+                if (drawnRight > wDp + SLACK_DP) {
                     found += Violation(device, screen, name, "OFF THE RIGHT",
-                        "by %.1fdp".format(right - wDp))
+                        "by %.1fdp".format(drawnRight - wDp))
                 }
                 if (left < -SLACK_DP) {
                     found += Violation(device, screen, name, "OFF THE LEFT",
@@ -458,6 +468,22 @@ class FitFrame internal constructor(
         val root = root()
         return nodes(tag)
             .firstOrNull { it.layoutInfo.isPlaced }?.let { rect(it, root) }
+    }
+
+    /** Every placed paragraph's text and the breaks the renderer chose: where each line but the last
+     *  ends, as offsets into the text. Text cleared from semantics (a TabBar label) is not here. */
+    fun lineBreaks(): List<Pair<String, List<Int>>> {
+        val out = mutableListOf<Pair<String, List<Int>>>()
+        fun walk(node: SemanticsNode) {
+            if (!node.layoutInfo.isPlaced) return
+            layoutOf(node)?.let { layout ->
+                val ends = (0 until layout.lineCount - 1).map { layout.getLineEnd(it) }
+                out += layout.layoutInput.text.text to ends
+            }
+            node.children.forEach { walk(it) }
+        }
+        walk(root())
+        return out
     }
 
     /** Every placed node that answers a tap, named as the shared checks name it. Inline links -- a

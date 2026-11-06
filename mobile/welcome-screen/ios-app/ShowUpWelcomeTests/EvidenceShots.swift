@@ -142,9 +142,24 @@ final class EvidenceShots: XCTestCase {
         for (name, ui) in extremes {
             try shoot(DateScreen(ui: ui, zone: DateSamples.zone), name, on: smallest, type: .accessibility5, into: dir)
         }
-        let smallTall = FitDevice(name: "full length, smallest", width: 320, height: 6000, top: 0, bottom: 0)
+        // 5450 tall, not more: at the shots' 3x a taller window passes the 16384 px a drawn image may
+        // have, and the fallback renderer draws shapes wrong -- capsule chips grew straight edges.
+        let smallTall = FitDevice(name: "full length, smallest", width: 320, height: 5450, top: 0, bottom: 0)
         try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
                              zone: DateSamples.zone), "H-full-AX5", on: smallTall, type: .accessibility5, into: dir)
+        // AX3, the largest size every other screen is held to, on the same phone.
+        let smallAX3 = FitDevice(name: "full length, smallest, AX3", width: 320, height: 4200, top: 0, bottom: 0)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "H-full-AX3", on: smallAX3, type: .accessibility3, into: dir)
+        // The two chip cards on their own at the largest type, drawn by the ordinary renderer.
+        let cards = FitDevice(name: "chip cards", width: 320, height: 1800, top: 0, bottom: 0)
+        try shoot(VStack(spacing: 8) {
+            IntentCard(date: DateSamples.date)
+            CommonCard(date: DateSamples.date)
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(Color.liqCream), "J-chips-AX5", on: cards, type: .accessibility5, into: dir)
         try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
                              zone: DateSamples.zone), "I-widest", on: widest, into: dir)
     }

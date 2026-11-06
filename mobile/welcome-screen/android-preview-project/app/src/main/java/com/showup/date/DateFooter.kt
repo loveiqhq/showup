@@ -56,6 +56,7 @@ import com.showup.designsystem.ShadowCta
 import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.cssBlurToShadowRadius
 import com.showup.designsystem.cssLineBox
+import com.showup.designsystem.fitWordsOf
 import com.showup.designsystem.pillShadows
 import com.showup.designsystem.prettyWrap
 import com.showup.welcome.BrandIcon
@@ -158,7 +159,9 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
                     Column {
                         Text(
                             DateCopy.BAR_TITLE.format(name),
-                            modifier = Modifier.cssLineBox((18 * 1.15).sp),
+                            modifier = Modifier
+                                .fitWordsOf(DateCopy.BAR_TITLE.format(name), TextStyle(fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 18.sp))
+                                .cssLineBox((18 * 1.15).sp),
                             color = Color.White,
                             fontFamily = Lora,
                             fontWeight = FontWeight.Bold,
@@ -169,7 +172,11 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
                         val sub = TextStyle(color = Color.White, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = (12.5 * 1.4).sp)
                         Text(
                             DateCopy.CHECK_IN_BAR_SUB,
-                            modifier = Modifier.padding(top = 3.dp).prettyWrap(AnnotatedString(DateCopy.CHECK_IN_BAR_SUB), sub).cssLineBox(sub.lineHeight),
+                            modifier = Modifier
+                                .padding(top = 3.dp)
+                                .fitWordsOf(DateCopy.CHECK_IN_BAR_SUB, sub)
+                                .prettyWrap(AnnotatedString(DateCopy.CHECK_IN_BAR_SUB), sub)
+                                .cssLineBox(sub.lineHeight),
                             style = sub,
                         )
                     }
@@ -234,6 +241,10 @@ internal fun DateStatusBar(name: String, onEndDate: () -> Unit) {
                     Column {
                         Text(
                             DateCopy.BAR_TITLE.format(name),
+                            modifier = Modifier.fitWordsOf(
+                                DateCopy.BAR_TITLE.format(name),
+                                TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp),
+                            ),
                             color = Fg,
                             fontFamily = Manrope,
                             fontWeight = FontWeight.Bold,
@@ -242,7 +253,10 @@ internal fun DateStatusBar(name: String, onEndDate: () -> Unit) {
                         val sub = TextStyle(color = Muted, fontFamily = Manrope, fontSize = 11.5.sp, lineHeight = (11.5 * 1.35).sp)
                         Text(
                             DateCopy.END_BAR_SUB,
-                            modifier = Modifier.prettyWrap(AnnotatedString(DateCopy.END_BAR_SUB), sub).cssLineBox(sub.lineHeight),
+                            modifier = Modifier
+                                .fitWordsOf(DateCopy.END_BAR_SUB, sub)
+                                .prettyWrap(AnnotatedString(DateCopy.END_BAR_SUB), sub)
+                                .cssLineBox(sub.lineHeight),
                             style = sub,
                         )
                     }

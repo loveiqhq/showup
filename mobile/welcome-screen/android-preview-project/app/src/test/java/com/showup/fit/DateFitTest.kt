@@ -98,7 +98,7 @@ class DateFitTest {
     )
 
     /** The Date screen's own rules, run in each render after the shared ones. */
-    private fun dateRules(scroll: ScrollState?, androidFloor: Boolean = true): (FitFrame) -> List<Violation> = { f ->
+    private fun dateRules(scroll: ScrollState?, dateOwned: Boolean = true): (FitFrame) -> List<Violation> = { f ->
         val found = mutableListOf<Violation>()
         fun fail(element: String, problem: String, detail: String) {
             found += Violation(f.device, f.screen, element, problem, detail)
@@ -119,7 +119,7 @@ class DateFitTest {
         // one. One inside another is a nested control and fine. A control in the scroll passing under
         // the pinned footer is not an overlap: the footer is on top and the control scrolls clear.
         val taps = f.tapTargets()
-        if (androidFloor) taps.forEach { (name, r) ->
+        if (dateOwned) taps.forEach { (name, r) ->
             if (r.width < ANDROID_TAP_DP - SLACK || r.height < ANDROID_TAP_DP - SLACK) {
                 fail(name, "TAP AREA UNDER 48DP", "%.1f x %.1fdp".format(r.width, r.height))
             }
@@ -133,6 +133,18 @@ class DateFitTest {
             val w = minOf(ra.right, rb.right) - maxOf(ra.left, rb.left)
             val h = minOf(ra.bottom, rb.bottom) - maxOf(ra.top, rb.top)
             if (w > SLACK && h > SLACK) fail("$a / $b", "TAP AREAS OVERLAP", "%.1f x %.1fdp".format(w, h))
+        }
+
+        // 1b. No word broken between two letters: Compose breaks a word wider than its line wherever it
+        // must, and nothing above sees it -- the text is all drawn, none of it clipped. CSS keeps a
+        // word whole; where one cannot fit, `fitWords` shrinks it (the 4 Nov 2026 device audit).
+        if (dateOwned) f.lineBreaks().forEach { (text, ends) ->
+            ends.filter { it in 1 until text.length && text[it - 1].isLetterOrDigit() && text[it].isLetterOrDigit() }
+                .forEach { end ->
+                    val from = text.lastIndexOf(' ', end - 1) + 1
+                    val to = text.indexOf(' ', end).let { if (it < 0) text.length else it }
+                    fail("\"${text.take(40)}\"", "WORD BROKEN", "`${text.substring(from, end)}` / `${text.substring(end, to)}`")
+                }
         }
 
         // 2. The cards: a column, every one inside the 16 gutters, none on the next.
@@ -179,12 +191,14 @@ class DateFitTest {
 
     /**
      * The match's profile, read-only (12): Search's screen with the back pill and the locked bar. Held to
-     * the shared 44 and to "none on another", not to the Date screen's 48: its back pill (44) and voice
-     * button (46) are Search's, shared with the Search tab, and Compose already widens a touch under 48
-     * at the input layer when nothing else is hit -- reported to Search's owner, not changed here.
+     * the shared rules and to "no two touch areas on each other", not to the Date screen's 48 or its
+     * whole words: its back pill (44), voice button (46) and the section values that break inside a word
+     * at large type (`Flexitari` / `an`, `SMOKIN` / `G`) are Search's, shared with the Search tab, and
+     * Compose already widens a touch under 48 when nothing else is hit -- reported to Search's owner (the
+     * 4 Nov 2026 device audit), not changed here.
      */
     private fun profile(device: Device, scale: Float): List<String> =
-        measureFit(device, "Date/read-only profile @$scale", scale, 0, extra = dateRules(null, androidFloor = false)) {
+        measureFit(device, "Date/read-only profile @$scale", scale, 0, extra = dateRules(null, dateOwned = false)) {
             com.showup.search.SearchProfileScreen(
                 state = com.showup.search.SearchUiState(loading = false, queue = listOf(com.showup.search.SearchSamples.FULL)),
                 zone = berlin, readOnly = true, backLabel = com.showup.date.DateCopy.PROFILE_BACK,

@@ -89,11 +89,15 @@ struct DateHero: View {
     var body: some View {
         ZStack(alignment: .top) {
             PhotoBackdrop(url: photoUrl, index: 0, focusTop24: true)
+            // One line, as the sheet: at the largest type it shrinks to the photo's width instead of
+            // being cut to `It's a...` (the 4 Nov 2026 device audit).
             Text(DateCopy.hero)
                 .font(F.lora(30, bold: true, italic: true))
                 .tracking(-0.02 * 30)
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
                 .shadow(color: Color.black.opacity(0.18), radius: 6, y: 2)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 14)
@@ -119,7 +123,11 @@ private struct BaselineWrap: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(label).font(F.manrope(14, .bold)).tracking(0.02).foregroundColor(.liqPurple)
                     .fixedSize(horizontal: false, vertical: true)
-                valueText.fixedSize(horizontal: false, vertical: true)
+                // Wrapped, a word wider than the column shrinks rather than breaks (`FitWords`).
+                FitWords(text: value, font: { s in F.lora(20 * s, bold: true) }) { s in
+                    Text(value).font(F.lora(20 * s, bold: true)).foregroundColor(.liqFg)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -140,6 +148,7 @@ struct TimePlaceCard: View {
     let zone: TimeZone
     let copied: Bool
     let onCopy: () -> Void
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
         let headline = meetingHeadline(name: date.match.name, day: date.meetDay)
@@ -165,22 +174,45 @@ struct TimePlaceCard: View {
                     IconTile(size: 40, radius: 13, fill: Color.liqElevated, icon: .mapPin, iconSize: 19, tint: .liqPurple, stroke: 2.2)
                     VStack(alignment: .leading, spacing: 0) {
                         BaselineWrap(label: DateCopy.meetingPlace, value: place.name)
-                        HStack(alignment: .center, spacing: 8) {
+                        // The address wraps beside Copy while its widest word fits there; where it does not
+                        // (the largest type on a narrow phone) Copy goes under it, rather than the address
+                        // breaking inside a word -- `Oran` / `iens` / `tras` / `se` (the 4 Nov 2026 audit).
+                        Group {
                             if let address = place.address {
-                                Text(address)
-                                    .font(F.manrope(12.5, .regular))
-                                    .foregroundColor(.liqMuted)
-                                    .lineSpacing(TypeMetrics.lineSpacing(PS.manropeRegular, size: 12.5, multiple: 1.35))
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .cssLineBox(12.5 * 1.35)
+                                ViewThatFits(in: .horizontal) {
+                                    HStack(alignment: .center, spacing: 8) {
+                                        addressText(address)
+                                        CopyAddress(copied: copied, onCopy: onCopy)
+                                    }
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        addressText(address)
+                                        CopyAddress(copied: copied, onCopy: onCopy)
+                                    }
+                                }
+                            } else {
+                                CopyAddress(copied: copied, onCopy: onCopy)
                             }
-                            CopyAddress(copied: copied, onCopy: onCopy)
                         }
                         .padding(.top, 3)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+        }
+    }
+}
+
+extension TimePlaceCard {
+    /// The address, 12.5 / 1.35 muted, its line box growing with the type; a word wider than its
+    /// column shrinks (`FitWords`).
+    fileprivate func addressText(_ address: String) -> some View {
+        FitWords(text: address, font: { s in F.manrope(12.5 * s, .regular) }) { s in
+            Text(address)
+                .font(F.manrope(12.5 * s, .regular))
+                .foregroundColor(.liqMuted)
+                .lineSpacing(TypeMetrics.lineSpacing(PS.manropeRegular, size: 12.5 * s, multiple: 1.35))
+                .fixedSize(horizontal: false, vertical: true)
+                .cssLineBox(12.5 * 1.35 * s * typeScale)
         }
     }
 }
@@ -242,11 +274,26 @@ private struct CoordinateCta: View {
 }
 
 private func coordinateTitle(_ name: String) -> some View {
-    Text(DateCopy.coordTitle(name))
-        .font(F.lora(20, bold: true))
-        .foregroundColor(.liqFg)
-        .fixedSize(horizontal: false, vertical: true)
-        .cssLineBox(20 * 1.1)
+    CoordinateTitle(name: name)
+}
+
+/// Lora 20 / 1.1. The line box grows with the type, as the font does -- unscaled, each line past the
+/// first ran over the sub line under it at the largest sizes (the 4 Nov 2026 device audit). A word
+/// wider than the column shrinks rather than breaks (`FitWords`).
+private struct CoordinateTitle: View {
+    let name: String
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
+
+    var body: some View {
+        let title = DateCopy.coordTitle(name)
+        FitWords(text: title, font: { s in F.lora(20 * s, bold: true) }) { s in
+            Text(title)
+                .font(F.lora(20 * s, bold: true))
+                .foregroundColor(.liqFg)
+                .fixedSize(horizontal: false, vertical: true)
+                .cssLineBox(20 * 1.1 * s * typeScale)
+        }
+    }
 }
 
 /// The sub line: 14 / 1.35 muted, `textWrap: 'pretty'` -- the sheet's A reads `… before` / `you meet`.
@@ -321,6 +368,7 @@ private struct UnreadCoordinate: View {
     let now: Date
     let zone: TimeZone
     let onOpenChat: () -> Void
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
         let style = chatReasonStyle(unread.reason)
@@ -368,18 +416,23 @@ private struct UnreadCoordinate: View {
     }
 
     private var name: some View {
-        Text(match.name).font(F.lora(19, bold: true)).foregroundColor(.liqFg).cssLineBox(19 * 1.1)
+        FitWords(text: match.name, font: { s in F.lora(19 * s, bold: true) }) { s in
+            Text(match.name).font(F.lora(19 * s, bold: true)).foregroundColor(.liqFg)
+                .cssLineBox(19 * 1.1 * s * typeScale)
+        }
     }
 
     private func tag(_ tone: ToneColors) -> some View {
         HStack(spacing: 4) {
             Circle().fill(tone.fg).frame(width: 5, height: 5)
+            // Shrinks rather than widens the card where even the stacked form leaves it too little room
+            // (AX5 on a 320 phone pushed the whole screen 35 wider, the 4 Nov 2026 device audit).
             Text(unreadTag(unread.count).uppercased())
                 .font(F.manrope(10, .heavy))
                 .tracking(0.05)
                 .foregroundColor(tone.fg)
                 .lineLimit(1)
-                .fixedSize()
+                .minimumScaleFactor(0.5)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
@@ -481,6 +534,7 @@ private struct MatchAvatar: View {
 /// ⑨ Always present while the date is active. Danger 6 % fill, 1 px danger 20 %, shield tile 40.
 struct ReportRow: View {
     let onReport: () -> Void
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
         Button(action: onReport) {
@@ -491,7 +545,7 @@ struct ReportRow: View {
                     .lineSpacing(TypeMetrics.lineSpacing(PS.manropeRegular, size: 13.5, multiple: 1.4))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                    .cssLineBox(13.5 * 1.4)
+                    .cssLineBox(13.5 * 1.4 * typeScale)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 BrandIconView(icon: .chevronRight, size: 18, stroke: 2.2, tint: .liqSubtle)
             }
@@ -640,9 +694,12 @@ struct AboutCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(match.age.map { DateCopy.nameAge(match.name, $0) } ?? match.name)
-                        .font(F.lora(20, bold: true))
-                        .foregroundColor(.liqFg)
+                    // A word wider than the column beside the photo shrinks: it was cut to `Leo...`.
+                    let title = match.age.map { DateCopy.nameAge(match.name, $0) } ?? match.name
+                    FitWords(text: title, font: { s in F.lora(20 * s, bold: true) }) { s in
+                        Text(title).font(F.lora(20 * s, bold: true)).foregroundColor(.liqFg)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     if let line = aboutLine(district: match.district, distanceKm: match.distanceKm) {
                         Text(line).font(F.manrope(12, .medium)).foregroundColor(.liqSubtle)
                     }
@@ -700,6 +757,7 @@ struct CommonCard: View {
 struct DateWorksCard: View {
     let date: ActiveDate
     let zone: TimeZone
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
         let rows: [(BrandIcon, String, String)] = [
@@ -729,7 +787,7 @@ struct DateWorksCard: View {
                                 .foregroundColor(.liqMuted)
                                 .lineSpacing(TypeMetrics.lineSpacing(PS.manropeRegular, size: 13, multiple: 1.4))
                                 .fixedSize(horizontal: false, vertical: true)
-                                .cssLineBox(13 * 1.4)
+                                .cssLineBox(13 * 1.4 * typeScale)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }

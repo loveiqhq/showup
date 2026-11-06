@@ -141,7 +141,8 @@ struct DateScreen: View {
         // with it and moved every card off its 16 gutter. Pinned here, nothing inside can.
         GeometryReader { g in
         ZStack(alignment: .bottom) {
-            if let date = ui.date, let state = ui.state {
+            // Names and districts breakable after their hyphens, as Android's (the 4 Nov 2026 audit).
+            if let date = ui.date.map(withBreakableNames), let state = ui.state {
                 ScrollView {
                     VStack(spacing: 0) {
                         content(date, state)
