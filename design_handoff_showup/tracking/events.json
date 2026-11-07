@@ -4365,7 +4365,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "The Coordinate chat tutorial (“Must read — how messaging works”) is shown. Before the FIRST open of the chat, per date and per user — never again for that date. variant REMOVED (one tutorial). Respecified 1.4.26, Date 02, 5 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "chat_tutorial_acknowledged",
@@ -4385,7 +4385,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "“Open the chat” tapped on the tutorial. Respecified 1.4.26, Date 02, 5 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "chat_opened",
@@ -4411,9 +4411,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
+          "backend_status": "Client only",
           "trigger": "The Coordinate chat is shown (entry screen or thread). Once per visit. trigger and layout REMOVED → entry (§39). Respecified 1.4.26, Date 02, 5 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "action_chip_used",
@@ -4439,9 +4439,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
+          "backend_status": "Client only",
           "trigger": "An action chip is tapped in the chat — on the tap, whatever it then opens: change_time / change_place open the Date 05 picker, arrived before check-in runs the Date 03 gate, cant_make_it shows the cancel guide. chip_id REMOVED → reason (§40). Respecified 1.4.26, Date 02, 5 Nov 2026. coordinate_card: the two change tiles on the locked Coordinate card (Date 01, reason change_time | change_place only) — the same act before the chat opens.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "message_sent",
@@ -4475,9 +4475,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
+          "backend_status": "Client only",
           "trigger": "Send tapped and the message accepted. Metadata only — NEVER the text. chip_seeded REMOVED → reason + prefill_edited; minutes_before_date RENAMED minutes_before_start. Respecified 1.4.26, Date 02, 5 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "message_received",
@@ -4499,9 +4499,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
+          "backend_status": "Client only",
           "trigger": "An inbound message is rendered in the thread. Respecified 1.4.26, Date 02, 5 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "unread_reminder_shown",
@@ -4549,8 +4549,8 @@
           "code_anchor": null,
           "tier": "T1",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "implemented": false,
+          "backend_status": "Client only",
+          "implemented": true,
           "payload": [
             {
               "name": "date_id",
@@ -4573,8 +4573,8 @@
           "code_anchor": null,
           "tier": "T1",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "implemented": false,
+          "backend_status": "Client only",
+          "implemented": true,
           "payload": [
             {
               "name": "date_id",
@@ -4597,8 +4597,8 @@
           "code_anchor": null,
           "tier": "T1",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "implemented": false,
+          "backend_status": "Built (SHOWUP-194)",
+          "implemented": true,
           "payload": [
             {
               "name": "date_id",
@@ -4635,9 +4635,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
+          "backend_status": "Client only",
           "trigger": "The user leaves the chat (back, or a hand-off that replaces it). Respecified 1.4.26, Date 02, 5 Nov 2026.",
-          "implemented": false
+          "implemented": true
         }
       ]
     },
