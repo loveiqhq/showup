@@ -42,7 +42,8 @@ struct ChatBackButton: View {
                 .frame(width: 34, height: 34)
         }
         .buttonStyle(PressScale())
-        .overflowTapTarget()
+        // Across as well: drawn 34 wide, it answered 34 wide (the SHOWUP-194 fit sweep in CI).
+        .overflowTapTarget(wide: true)
         .accessibilityLabel(ChatCopy.back)
     }
 }
@@ -78,7 +79,12 @@ struct ChatHeader: View {
             MatchPhoto(name: date.match.name, photoURL: date.match.photoUrl, size: 40)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 7) {
-                    Text(date.match.name).font(F.lora(17, bold: true)).foregroundColor(.liqFg).lineLimit(1)
+                    // One line wherever it fits; at the largest type on a narrow phone a name too wide for the
+                    // room beside `DATE ON` shrinks, or wraps between its words, rather than be cut.
+                    FitWords(text: date.match.name, font: { s in F.lora(17 * s, bold: true) }) { s in
+                        Text(date.match.name).font(F.lora(17 * s, bold: true)).foregroundColor(.liqFg)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     dateOn
                 }
                 // One line wherever it fits, as the reference sets it; at large type it wraps rather than cut the
@@ -319,13 +325,17 @@ struct BigActionChip: View {
             HStack(spacing: compact ? 8 : 12) {
                 IconTile(size: compact ? 26 : 42, radius: compact ? 8 : 13, fill: tone.bg, icon: reason.icon,
                          iconSize: compact ? 14 : 21, tint: tone.fg, stroke: 2.3)
-                Text(reason.label)
-                    .font(F.manrope(size, .bold))
-                    .lineSpacing(TypeMetrics.lineSpacing(PS.manropeBold, size: size, multiple: 1.16))
-                    .foregroundColor(tone == .darkRed || tone == .danger ? tone.fg : .liqFg)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
+                // The full label always: it wraps, and a word wider than its column shrinks rather than break,
+                // as Android's `fitWordsOf`.
+                FitWords(text: reason.label, font: { s in F.manrope(size * s, .bold) }) { s in
+                    Text(reason.label)
+                        .font(F.manrope(size * s, .bold))
+                        .lineSpacing(TypeMetrics.lineSpacing(PS.manropeBold, size: size * s, multiple: 1.16))
+                        .foregroundColor(tone == .darkRed || tone == .danger ? tone.fg : .liqFg)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             // The reference's padding plus the 1.5 border, which CSS counts and SwiftUI only draws: tiles come
             // out 75 tall as the sheet renders them. The compact chip takes the border at its sides only, so
@@ -346,22 +356,51 @@ struct BigActionChip: View {
 
 /// The chips in two columns, in the vocabulary's order: tiles 10 apart on the start grid, compact chips 6
 /// apart in the dock. The two in a row are one height, as a CSS grid row stretches them.
+///
+/// Tiles go to one column where a label's widest word would not fit a two-column tile even at the least
+/// `FitWords` shrinks it to -- the largest type on a 320 phone, where the label has 52 and `running` broke
+/// (the SHOWUP-194 fit sweep). One column gives each label the tile's width rather than shrink it below
+/// the default size. Measured, so it happens there and nowhere else. Android's `ChipGrid`.
 struct ChipGrid: View {
     let reasons: [ChatReason]
     let selected: ChatReason?
     let compact: Bool
     let onPick: (ChatReason) -> Void
 
+    /// The type size as a factor of the default, relative to body as `F.manrope` scales.
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
+
+    /// A tile's width that is not its label: the 16.5 padding either side, the icon box 42 and the gap 12.
+    private let tileChrome: CGFloat = 16.5 * 2 + 42 + 12
+
     var body: some View {
         let gap: CGFloat = compact ? 6 : 10
-        let rows = stride(from: 0, to: reasons.count, by: 2).map { Array(reasons[$0..<min($0 + 2, reasons.count)]) }
-        VStack(spacing: gap) {
+        if compact {
+            rows(columns: 2, gap: gap)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                rows(columns: 2, gap: gap).frame(idealWidth: twoColumns(gap: gap), maxWidth: .infinity)
+                rows(columns: 1, gap: gap)
+            }
+        }
+    }
+
+    /// The narrowest width two columns of tiles fit: each label room for its widest word at the floor.
+    private func twoColumns(gap: CGFloat) -> CGFloat {
+        let font = chatFont(PS.manropeBold, 15 * typeScale, .bold)
+        let widest = reasons.map { widestWordWidth($0.label, font) }.max() ?? 0
+        return 2 * (tileChrome + widest * wordFitFloor(typeScale: typeScale)) + gap
+    }
+
+    private func rows(columns: Int, gap: CGFloat) -> some View {
+        let rows = stride(from: 0, to: reasons.count, by: columns).map { Array(reasons[$0..<min($0 + columns, reasons.count)]) }
+        return VStack(spacing: gap) {
             ForEach(rows, id: \.first) { row in
                 HStack(spacing: gap) {
                     ForEach(row, id: \.self) { reason in
                         BigActionChip(reason: reason, active: reason == selected, compact: compact) { onPick(reason) }
                     }
-                    if row.count == 1 { Color.clear.frame(maxWidth: .infinity) }
+                    ForEach(row.count..<columns, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }

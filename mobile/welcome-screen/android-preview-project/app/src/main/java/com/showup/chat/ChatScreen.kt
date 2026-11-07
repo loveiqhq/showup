@@ -20,6 +20,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -95,6 +97,9 @@ import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline
 import java.time.ZoneId
+
+/** The least the thread keeps under the dock: a short message and its time (pad 14, bubble 40, time 18). */
+private val ThreadLeast = 72.dp
 
 /** The field's text: 14.5 / 500 / 1.4, ink. */
 private val FieldText = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 14.5.sp, lineHeight = (14.5 * 1.4).sp, color = Fg)
@@ -138,9 +143,18 @@ fun ChatScreen(
                     CentredStatement(ChatCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
                 }
                 ui.start -> StartGrid(Modifier.weight(1f), onPick)
-                else -> Thread(ui, date, zone, Modifier.weight(1f), onAckGuide, onEndCard)
+                else -> BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    // The thread always keeps [ThreadLeast]; the dock may take the rest. On a split screen
+                    // or at the largest type the dock wanted more than the window, and the chips were
+                    // squeezed to nothing (the SHOWUP-194 fit sweep). On a phone, even with the keys up
+                    // and a draft of two lines, the dock is under it and nothing changes.
+                    val dockMost = (maxHeight - ThreadLeast).coerceAtLeast(0.dp)
+                    Column(Modifier.fillMaxSize()) {
+                        Thread(ui, date, zone, Modifier.weight(1f), onAckGuide, onEndCard)
+                        Dock(ui, date, dockMost, onPick, onEdit, onSend)
+                    }
+                }
             }
-            if (!ui.loading && ui.failed == null && !ui.start) Dock(ui, date, onPick, onEdit, onSend)
         }
         if (ui.endSheet) {
             EndDateSheet(date.match.name, ending = ui.ending, failed = ui.endFailed != null, onKeep = onKeep, onEnd = onEnd)
@@ -238,35 +252,43 @@ private fun Thread(
 /**
  * The field (pad 11 14 9, gap 9) and the compact chips (pad 2 14 10, gap 6, no heading) on cream 96%
  * glass under a soft rule. A failed send says so between the two and keeps the draft and the chip.
+ * At most [most] tall: the field always shows, and where the chips do not fit under it they scroll --
+ * only on a split screen or at the largest type on a small phone; everywhere else the dock is its
+ * content's height and nothing scrolls.
  */
 @Composable
 private fun Dock(
     ui: ChatUi,
     date: ActiveDate,
+    most: Dp,
     onPick: (ChatReason, ChipSurface) -> Unit,
     onEdit: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().pinnedGlass().testTag(CHAT_DOCK_TAG)) {
+    Column(Modifier.fillMaxWidth().heightIn(max = most).pinnedGlass().testTag(CHAT_DOCK_TAG)) {
         Composer(ui, date.match.name, onEdit, onSend)
-        if (ui.sendFailed) {
-            Text(
-                ChatCopy.SEND_FAILED,
-                modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 6.dp),
-                color = DangerFg,
-                fontFamily = Manrope,
-                fontWeight = FontWeight.Medium,
-                fontSize = 12.sp,
+        // The failure line scrolls with the chips: on a split screen it was cut, fighting the field for
+        // the room. At rest the scroll is at its top, so the line is what shows first.
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+            if (ui.sendFailed) {
+                Text(
+                    ChatCopy.SEND_FAILED,
+                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 6.dp),
+                    color = DangerFg,
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp,
+                )
+            }
+            ChipGrid(
+                SHOWN_REASONS,
+                selected = ui.selected,
+                compact = true,
+                surface = ChipSurface.Dock,
+                onPick = onPick,
+                modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 10.dp),
             )
         }
-        ChipGrid(
-            SHOWN_REASONS,
-            selected = ui.selected,
-            compact = true,
-            surface = ChipSurface.Dock,
-            onPick = onPick,
-            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 10.dp),
-        )
     }
 }
 

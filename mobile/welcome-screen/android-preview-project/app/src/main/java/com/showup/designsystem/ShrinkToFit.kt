@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
@@ -84,9 +85,13 @@ fun Modifier.fitWords(longestWord: Int, minScale: Float = 0.6f): Modifier = layo
     }
     val box = constraints.maxWidth
     val scale = maxOf(minScale, box.toFloat() / longestWord)
-    val p = measurable.measure(constraints.copy(minWidth = 0, maxWidth = ceil(box / scale).toInt()))
+    // The height too is the drawing's, so the text laid out at full size gets it over the scale. A
+    // parent that fixes the height (a grid row's tiles, one height) cut the text to the scaled height
+    // -- up to 70 px of a chat tile's label at 150 % (the SHOWUP-194 fit sweep, 7 Nov 2026).
+    val tall = if (constraints.hasBoundedHeight) ceil(constraints.maxHeight / scale).toInt() else Constraints.Infinity
+    val p = measurable.measure(Constraints(maxWidth = ceil(box / scale).toInt(), maxHeight = tall))
     val width = (p.width * scale).toInt().coerceIn(constraints.minWidth, box)
-    val height = (p.height * scale).toInt()
+    val height = (p.height * scale).toInt().coerceIn(constraints.minHeight, constraints.maxHeight)
     layout(width, height) {
         p.placeWithLayer(0, 0) {
             scaleX = scale
@@ -109,10 +114,15 @@ fun Modifier.fitWords(longestWord: Int, minScale: Float = 0.6f): Modifier = layo
 fun Modifier.fitWordsOf(text: String, style: TextStyle): Modifier {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val minScale = minOf(0.6f, 1f / density.fontScale)
-    val widest = remember(text, style, density) {
-        text.split(' ', '\n', '\u200B').filter { it.isNotEmpty() }
-            .maxOfOrNull { measurer.measure(it, style, softWrap = false).size.width } ?: 0
-    }
-    return fitWords(widest, minScale)
+    val widest = remember(text, style, density) { widestWord(measurer, text, style) }
+    return fitWords(widest, wordFitFloor())
 }
+
+/** The widest word of [text] in [style], in px: what [fitWordsOf] shrinks to its box. */
+fun widestWord(measurer: TextMeasurer, text: String, style: TextStyle): Int =
+    text.split(' ', '\n', '\u200B').filter { it.isNotEmpty() }
+        .maxOfOrNull { measurer.measure(it, style, softWrap = false).size.width } ?: 0
+
+/** The least [fitWordsOf] shrinks a word to at the user's type size: 60 %, or the default size. */
+@Composable
+fun wordFitFloor(): Float = minOf(0.6f, 1f / LocalDensity.current.fontScale)

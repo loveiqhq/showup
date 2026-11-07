@@ -44,8 +44,10 @@ struct ChatScreen: View {
                     } else if ui.start {
                         startGrid
                     } else {
-                        thread(date)
-                        dock(date)
+                        ThreadAndDock {
+                            thread(date)
+                            dock(date)
+                        }
                     }
                 }
                 // `ModalShell`'s backdrop blur, arriving with the sheet.
@@ -122,9 +124,23 @@ struct ChatScreen: View {
 
     /// The field (pad 11 14 9, gap 9) and the compact chips (pad 2 14 10, gap 6, no heading) on cream 96%
     /// glass under a soft rule. A failed send says so between the two and keeps the draft and the chip.
+    /// The field always shows; where the failure line and the chips do not fit under it they scroll -- only
+    /// on a split screen or at the largest type on a small phone, where `ThreadAndDock` caps the dock.
     private func dock(_ date: ActiveDate) -> some View {
         VStack(spacing: 0) {
             composer(date)
+            ViewThatFits(in: .vertical) {
+                dockChips
+                ScrollView { dockChips }.scrollBounceBehavior(.basedOnSize)
+            }
+        }
+        .modifier(PinnedGlass())
+        .fitPinnedBar()
+        .fitAnchor("chat:dock")
+    }
+
+    private var dockChips: some View {
+        VStack(spacing: 0) {
             if ui.sendFailed {
                 Text(ChatCopy.sendFailed).font(F.manrope(12, .medium)).foregroundColor(.liqDangerFg)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -133,9 +149,6 @@ struct ChatScreen: View {
             ChipGrid(reasons: shownReasons, selected: ui.selected, compact: true) { onPick($0, .dock) }
                 .padding(EdgeInsets(top: 2, leading: 14, bottom: 10, trailing: 14))
         }
-        .modifier(PinnedGlass())
-        .fitPinnedBar()
-        .fitAnchor("chat:dock")
     }
 
     /// The field and Send. The field: radius 20, pad 9 14, a 1.5 border in the ink while a chip is selected
@@ -184,5 +197,25 @@ struct ChatScreen: View {
         .disabled(!on)
         .overflowTapTarget()
         .accessibilityLabel(ChatCopy.send)
+    }
+}
+
+/// The thread over the dock: the thread always keeps 72 -- a short message and its time (pad 14, bubble 40,
+/// time 18) -- and the dock its own height in the rest. On a split screen or at the largest type the dock
+/// wanted more than the window and squeezed the thread out (the SHOWUP-194 fit sweep); on a phone, even with
+/// the keys up and a draft of two lines, nothing changes. Android's `ThreadLeast` in `ChatScreen`.
+private struct ThreadAndDock: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        let most = Swift.max(bounds.height - 72, 0)
+        let dock = Swift.min(subviews[1].sizeThatFits(ProposedViewSize(width: bounds.width, height: most)).height, most)
+        subviews[0].place(at: bounds.origin, anchor: .topLeading,
+                          proposal: ProposedViewSize(width: bounds.width, height: bounds.height - dock))
+        subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.maxY - dock), anchor: .topLeading,
+                          proposal: ProposedViewSize(width: bounds.width, height: dock))
     }
 }

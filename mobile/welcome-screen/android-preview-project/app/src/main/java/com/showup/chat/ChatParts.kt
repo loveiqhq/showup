@@ -72,8 +72,8 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,6 +103,8 @@ import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.TabBarGlass
 import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.fitWordsOf
+import com.showup.designsystem.widestWord
+import com.showup.designsystem.wordFitFloor
 import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.rememberMotion
 import com.showup.designsystem.roundedShadows
@@ -193,15 +195,13 @@ internal fun ChatHeader(date: ActiveDate, now: Instant, zone: ZoneId, onBack: ()
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // One line wherever it fits; at the largest type on a narrow phone a name too wide for
+                    // the room beside `DATE ON` shrinks, or wraps between its words, rather than be cut.
                     Text(
                         date.match.name,
-                        modifier = Modifier.weight(1f, fill = false),
+                        modifier = Modifier.weight(1f, fill = false).fitWordsOf(date.match.name, HeaderName),
                         color = Fg,
-                        fontFamily = Lora,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        style = HeaderName,
                     )
                     Spacer(Modifier.width(7.dp))
                     DateOnPill()
@@ -226,6 +226,9 @@ internal fun ChatHeader(date: ActiveDate, now: Instant, zone: ZoneId, onBack: ()
         }
     }
 }
+
+/** The header's name: Lora 700 17. */
+private val HeaderName = TextStyle(fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 17.sp)
 
 /** `DATE ON`: success 12% pill, pad 2 7, the 5 dot, 10 / 800 uppercase in the success ink. */
 @Composable
@@ -464,13 +467,7 @@ internal fun BigActionChip(
     val radius = if (compact) 11.dp else 18.dp
     val shape = RoundedCornerShape(radius)
     val interaction = remember { MutableInteractionSource() }
-    val label = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Bold,
-        fontSize = if (compact) 11.5.sp else 15.sp,
-        lineHeight = ((if (compact) 11.5 else 15.0) * 1.16).sp,
-        color = if (tone == ReasonTone.DarkRed || tone == ReasonTone.Danger) tone.fg else Fg,
-    )
+    val label = chipLabel(compact).copy(color = if (tone == ReasonTone.DarkRed || tone == ReasonTone.Danger) tone.fg else Fg)
     Row(
         modifier
             .testTag(chipTag(reason, surface))
@@ -508,10 +505,26 @@ internal fun BigActionChip(
     }
 }
 
+/** A chip's label: Manrope 700, 15 / 1.16 on a tile, 11.5 / 1.16 compact. */
+private fun chipLabel(compact: Boolean) = TextStyle(
+    fontFamily = Manrope,
+    fontWeight = FontWeight.Bold,
+    fontSize = if (compact) 11.5.sp else 15.sp,
+    lineHeight = ((if (compact) 11.5 else 15.0) * 1.16).sp,
+)
+
+/** A tile's width that is not its label: the 16.5 padding either side, the icon box 42 and the gap 12. */
+private val TileChrome = (16.5 * 2 + 42 + 12).dp
+
 /**
  * The chips in two columns, in the vocabulary's order: tiles 10 apart on the start grid, compact chips
  * 6 apart in the dock. The two in a row are one height, as a CSS grid row stretches them; an odd last
  * chip keeps its column's width.
+ *
+ * Tiles go to one column where a label's widest word would not fit a two-column tile even at the least
+ * [fitWordsOf] shrinks it to -- the largest type on a 320 phone, where the label has 52 and `running`
+ * broke as `runnin / g` (the SHOWUP-194 fit sweep). One column gives each label the tile's width
+ * rather than shrink it below the default size. Measured, so it happens there and nowhere else.
  */
 @Composable
 internal fun ChipGrid(
@@ -523,20 +536,28 @@ internal fun ChipGrid(
     modifier: Modifier = Modifier,
 ) {
     val gap: Dp = if (compact) 6.dp else 10.dp
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
-        for (row in reasons.chunked(2)) {
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                for (reason in row) {
-                    BigActionChip(
-                        reason = reason,
-                        active = reason == selected,
-                        compact = compact,
-                        surface = surface,
-                        onClick = { onPick(reason, surface) },
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    )
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val floor = wordFitFloor()
+    val widest = remember(reasons, density) { reasons.maxOfOrNull { widestWord(measurer, it.label, chipLabel(compact = false)) } ?: 0 }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val room = with(density) { ((maxWidth - gap) / 2 - TileChrome).toPx() }
+        val columns = if (compact || widest * floor <= room) 2 else 1
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
+            for (row in reasons.chunked(columns)) {
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    for (reason in row) {
+                        BigActionChip(
+                            reason = reason,
+                            active = reason == selected,
+                            compact = compact,
+                            surface = surface,
+                            onClick = { onPick(reason, surface) },
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                    }
+                    if (row.size < columns) Spacer(Modifier.weight((columns - row.size).toFloat()))
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
