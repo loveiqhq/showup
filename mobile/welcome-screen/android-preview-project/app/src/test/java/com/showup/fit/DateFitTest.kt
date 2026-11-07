@@ -95,6 +95,8 @@ class DateFitTest {
         ),
         "tomorrow" to DateUi(date.copy(meetDay = "tomorrow"), Instant.parse("2026-11-02T22:00:00Z"), loading = false),
         "checked in" to DateUi(date.copy(checkedIn = true), unlock, loading = false),
+        // A with the change tiles switched on (5 Nov 2026), as they will be once Date 05 ships.
+        "A change tiles" to DateUi(date, stateA, loading = false),
         "failed first read" to DateUi(now = stateA, loading = false, failed = com.showup.api.CallFailure.Network),
     )
 
@@ -181,8 +183,9 @@ class DateFitTest {
 
     private fun date(ui: DateUi, device: Device, label: String, scale: Float): List<String> {
         val scroll = ScrollState(0)
+        val tiles = if (label == "A change tiles") listOf(ChatReason.ChangeTime, ChatReason.ChangePlace) else emptyList()
         return measureFit(device, "Date/$label @$scale", scale, 0, extra = dateRules(scroll)) {
-            DateScreen(ui, zone = berlin, scroll = scroll)
+            DateScreen(ui, zone = berlin, scroll = scroll, changeTiles = tiles)
         }
             .filterNot { it.advisory }
             .map { "$it" }

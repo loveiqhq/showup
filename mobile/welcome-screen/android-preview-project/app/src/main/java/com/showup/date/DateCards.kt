@@ -11,6 +11,9 @@
  */
 package com.showup.date
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import com.showup.chat.ChatReason
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.InfiniteRepeatableSpec
 import androidx.compose.animation.core.RepeatMode
@@ -401,6 +404,9 @@ internal fun CoordinateModule(
     zone: ZoneId,
     onOpenChat: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The change tiles under the locked line: [CHANGE_TILES], empty until Date 05 ships. */
+    changeTiles: List<ChatReason> = emptyList(),
+    onChangeTile: (ChatReason) -> Unit = {},
 ) {
     val unread = date.unread
     if (state == DateState.Unread && unread != null) {
@@ -428,6 +434,7 @@ internal fun CoordinateModule(
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
             )
+            if (changeTiles.isNotEmpty()) ChangeTiles(changeTiles, onChangeTile)
         } else {
             Row(verticalAlignment = Alignment.Top) {
                 IconTile(48.dp, 14.dp, SolidColor(Purple), BrandIcon.MessageCircle, 22.dp, Color.White, 2.1f)
@@ -543,6 +550,44 @@ private fun UnreadCoordinate(
             }
             CoordinateCta(DateCopy.READ_AND_REPLY, tone.fg, shadows, onOpenChat)
         }
+    }
+}
+
+/**
+ * The locked card's change line and tiles (5 Nov 2026): `Request to change the location or meet time.`
+ * (13.5 / 1.4 muted, 4 below the locked line), then the tiles in two columns, gap 8, 14 below -- each white
+ * with a 1 px soft border, radius 16, pad 14 8, the violet icon 18 / 2 over the label 13 / 600. The card is
+ * still not tappable; only the tiles are, each opening the Date 05 picker. The two in a row are one height.
+ */
+@Composable
+private fun ChangeTiles(tiles: List<ChatReason>, onTap: (ChatReason) -> Unit) {
+    val line = TextStyle(fontFamily = Manrope, fontSize = 13.5.sp, lineHeight = (13.5 * 1.4).sp, color = Muted)
+    val text = AnnotatedString(DateCopy.COORD_CHANGE_LINE)
+    Text(text, Modifier.padding(top = 4.dp).prettyWrap(text, line).cssLineBox(line.lineHeight), style = line)
+    Row(
+        Modifier.padding(top = 14.dp).fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        for (reason in tiles) {
+            val shape = RoundedCornerShape(16.dp)
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .pressable(Role.Button) { onTap(reason) }
+                    .background(Elevated, shape)
+                    .border(1.dp, BorderSoft, shape)
+                    // Pad 14 8, plus the 1 px border, which CSS counts in the box.
+                    .padding(vertical = 15.dp, horizontal = 9.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+            ) {
+                Icon(reason.icon, 18.dp, tint = Purple, strokeWidth = 2f)
+                val label = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Fg, textAlign = TextAlign.Center)
+                Text(reason.label, Modifier.fitWordsOf(reason.label, label), style = label)
+            }
+        }
+        if (tiles.size == 1) Spacer(Modifier.weight(1f))
     }
 }
 

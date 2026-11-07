@@ -1149,6 +1149,10 @@ class EvidenceScreenshots {
             loading = false,
         )
         shoot("SHOWUP-193", "A-announced") { com.showup.date.DateScreen(a, zone) }
+        // Philipp's 5 Nov update: A once with the change tiles switched on, as Date 05 will show them.
+        shoot("SHOWUP-193", "A-change-tiles") {
+            com.showup.date.DateScreen(a, zone, changeTiles = listOf(com.showup.chat.ChatReason.ChangeTime, com.showup.chat.ChatReason.ChangePlace))
+        }
         shoot("SHOWUP-193", "B-available") { com.showup.date.DateScreen(b, zone) }
         shoot("SHOWUP-193", "C-unread") { com.showup.date.DateScreen(c, zone) }
         val end = androidx.compose.foundation.ScrollState(0)
@@ -1157,6 +1161,11 @@ class EvidenceScreenshots {
         // kit's `tall` phone takes the content's height; this frame is that height, so nothing scrolls.
         val tall = listOf(Device("full length", 390, 2350, 0, 0))
         shoot("SHOWUP-193", "D-full", devices = tall) { com.showup.date.DateScreen(a, zone) }
+        // The change tiles sit low in the locked card, under the pinned bar in the frames above: the full
+        // length shows them where they are.
+        shoot("SHOWUP-193", "A-change-tiles-full", devices = tall) {
+            com.showup.date.DateScreen(a, zone, changeTiles = listOf(com.showup.chat.ChatReason.ChangeTime, com.showup.chat.ChatReason.ChangePlace))
+        }
         // The match's profile, read-only (12), and the first read failing -- the two states this
         // ticket adds that the sheet does not draw.
         shoot("SHOWUP-193", "E-profile") {

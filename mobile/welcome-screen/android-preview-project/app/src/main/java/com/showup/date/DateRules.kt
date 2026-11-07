@@ -8,6 +8,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import com.showup.search.interestLabel
 import com.showup.search.meetTime
 import com.showup.search.motivationOf
@@ -33,6 +34,14 @@ fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOp
     unread != null -> DateState.Unread
     else -> DateState.Available
 }
+
+/**
+ * The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet
+ * time` and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the
+ * vocabulary's own switch. They are hidden until Date 05 ships (epic rule 8): the day Date 05 shows those
+ * chips, the tiles and their line appear with them, and nothing on the Date screen changes.
+ */
+val CHANGE_TILES: List<ChatReason> = listOf(ChatReason.ChangeTime, ChatReason.ChangePlace).filter { it.shown }
 
 /**
  * How often the Date screen re-reads the date while it is on screen (SHOWUP-194, the design's §3):

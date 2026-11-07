@@ -1041,7 +1041,9 @@ private struct TutorialFlow: View {
             // Locked tabs never call this: only Settings does, and it fires nothing -- `tab_switched`
             // needs a tab it switched from, and no tab is active here.
             onTab: { tab in if tab == .settings { go(to: .checkInSettings) } },
-            onRetry: { dateModel.retry() })
+            onRetry: { dateModel.retry() },
+            // The tile's event now; the Date 05 picker it opens arrives with Date 05.
+            onChangeTile: { dateModel.changeTile($0) })
         // One visit per arrival: launch, a match, or back from Settings or the profile.
         .onAppear { dateModel.arrived(referrer: profileScreen(of: cameFrom)) }
         // THE MATCH'S END REACHES THIS PHONE (SHOWUP-194): the date is read again every 15 s while the screen

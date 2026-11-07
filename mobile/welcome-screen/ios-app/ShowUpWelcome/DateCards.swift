@@ -315,6 +315,9 @@ struct CoordinateModule: View {
     let now: Date
     let zone: TimeZone
     let onOpenChat: () -> Void
+    /// The change tiles under the locked line: `changeTileReasons`, empty until Date 05 ships.
+    var changeTiles: [ChatReason] = []
+    var onChangeTile: (ChatReason) -> Void = { _ in }
 
     var body: some View {
         if state == .unread, let unread = date.unread {
@@ -342,6 +345,7 @@ struct CoordinateModule: View {
                         .foregroundColor(.liqPurple)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 14)
+                    if !changeTiles.isEmpty { ChangeTiles(tiles: changeTiles, onTap: onChangeTile) }
                 } else {
                     HStack(alignment: .top, spacing: 14) {
                         IconTile(size: 48, radius: 14, fill: Color.liqPurple, icon: .messageCircle,
@@ -445,6 +449,44 @@ private struct UnreadCoordinate: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .background(Capsule().fill(tone.bg))
+    }
+}
+
+/// The locked card's change line and tiles (5 Nov 2026): `Request to change the location or meet time.` (13.5 /
+/// 1.4 muted, 4 below the locked line), then the tiles in two columns, gap 8, 14 below -- each white with a 1 px
+/// soft border, radius 16, pad 14 8, the violet icon 18 / 2 over the label 13 / 600. The card is still not
+/// tappable; only the tiles are, each opening the Date 05 picker. The two in a row are one height. Android's
+/// `ChangeTiles`.
+private struct ChangeTiles: View {
+    let tiles: [ChatReason]
+    let onTap: (ChatReason) -> Void
+
+    var body: some View {
+        PrettyText(DateCopy.coordChangeLine, font: uiFont(PS.manropeRegular, 13.5, .regular), lineHeight: 13.5 * 1.4,
+                   color: .liqMuted)
+            .padding(.top, 4)
+        HStack(spacing: 8) {
+            ForEach(tiles, id: \.self) { reason in
+                Button(action: { onTap(reason) }) {
+                    VStack(spacing: 6) {
+                        BrandIconView(icon: reason.icon, size: 18, stroke: 2, tint: .liqPurple)
+                        Text(reason.label).font(F.manrope(13, .semibold)).foregroundColor(.liqFg)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    // Pad 14 8, plus the 1 px border, which CSS counts in the box.
+                    .padding(EdgeInsets(top: 15, leading: 9, bottom: 15, trailing: 9))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.liqElevated))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.liqBorderSoft, lineWidth: 1))
+                }
+                .buttonStyle(PressScale())
+                .fitTapArea()
+            }
+            if tiles.count == 1 { Color.clear.frame(maxWidth: .infinity) }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.top, 14)
     }
 }
 

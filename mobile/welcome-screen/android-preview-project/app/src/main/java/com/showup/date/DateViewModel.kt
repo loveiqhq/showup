@@ -24,6 +24,9 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChipSurface
+import com.showup.chat.ChatReason
+import com.showup.chat.ChatAnalytics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
@@ -134,6 +137,15 @@ class DateViewModel(
 
     /** The clock moved. The state follows it; nothing is reported. */
     fun tick() = _state.update { it.copy(now = clock()) }
+
+    /**
+     * A change tile on the locked card (5 Nov 2026): `action_chip_used` with `surface: coordinate_card`, the
+     * same event as the chat's chips -- never `date_quick_action_tapped`. The Date 05 picker opens after it.
+     */
+    fun changeTile(reason: ChatReason) {
+        val date = _state.value.date ?: return
+        analytics?.report(ChatAnalytics.actionChipUsed(date, reason, ChipSurface.CoordinateCard, clock()))
+    }
 
     fun quickAction(action: QuickAction) {
         val date = _state.value.date ?: return

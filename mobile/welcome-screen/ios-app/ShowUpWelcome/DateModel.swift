@@ -136,6 +136,13 @@ final class DateModel {
         read()
     }
 
+    /// A change tile on the locked card (5 Nov 2026): `action_chip_used` with `surface: coordinate_card`, the
+    /// same event as the chat's chips -- never `date_quick_action_tapped`. The Date 05 picker opens after it.
+    func changeTile(_ reason: ChatReason) {
+        guard let date = state.date else { return }
+        analytics?.report(ChatAnalytics.actionChipUsed(date, reason: reason, surface: .coordinateCard, now: clock()))
+    }
+
     func quickAction(_ action: QuickAction) {
         guard let date = state.date else { return }
         analytics?.report(DateAnalytics.quickActionTapped(date, action: action, now: clock()))

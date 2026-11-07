@@ -147,6 +147,12 @@ func endedOutcome(_ read: Result<DateRead, CallFailure>) -> EndedInChat? {
     return nil
 }
 
+/// The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet time`
+/// and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the vocabulary's
+/// own switch. Hidden until Date 05 ships (epic rule 8): the day Date 05 shows those chips, the tiles and their
+/// line appear with them, and nothing on the Date screen changes. Android's `CHANGE_TILES`.
+let changeTileReasons: [ChatReason] = [ChatReason.changeTime, .changePlace].filter(\.shown)
+
 /// How often the Date screen re-reads the date while it is up (SHOWUP-194, the design's §3): the match's End
 /// date lands on H within seconds when the app is open. Polling, as the chat's; there is no socket.
 let datePollSeconds: TimeInterval = 15

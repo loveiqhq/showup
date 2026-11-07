@@ -188,6 +188,22 @@ class DateViewModelTest {
     }
 
     @Test
+    fun `a change tile fires action_chip_used on the coordinate card, never a quick action`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        analytics.clear()
+        vm.changeTile(ChatReason.ChangeTime)
+        val used = analytics.of("action_chip_used").single().properties
+        assertEquals("d1", used["date_id"])
+        assertEquals("change_time", used["reason"])
+        assertEquals("coordinate_card", used["surface"])
+        assertEquals(180, used["minutes_before_start"])
+        assertTrue(analytics.of("date_quick_action_tapped").isEmpty())
+    }
+
+    @Test
     fun `no date on a re-read leaves the screen`() = runTest(dispatcher) {
         store.read = Outcome.Ok(DateRead.Active(date()))
         val vm = vm()

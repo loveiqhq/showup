@@ -78,9 +78,9 @@ sw = norm(joined_literals("\n".join(read(p) for p in sw_files)))
 ticket = read(TICKET)
 section = ticket.split("## Copy", 1)[1].split("\n## ", 1)[0]
 quoted = re.findall(r"`([^`]+)`", section)
-# Not copy: the component the intent card names, and the hidden action (checked absent below). And the
-# locked card's change line: Date 05's, not rendered until Date 05 ships (AC A, rewritten 5 Nov 2026).
-NOT_COPY = {"ShowUpCount", "Order Ride", "Request to change the location or meet time."}
+# Not copy: the component the intent card names, and the hidden action (checked absent below). The locked
+# card's change line is copy like the rest: built on both apps (5 Nov 2026), shown once Date 05 ships.
+NOT_COPY = {"ShowUpCount", "Order Ride"}
 
 
 def runs(s):

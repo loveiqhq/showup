@@ -2484,6 +2484,8 @@ class MainActivity : ComponentActivity() {
                             ui = shown,
                             zone = zone,
                             onOpenChat = { openChat() },
+                            // The tile's event now; the Date 05 picker it opens arrives with Date 05.
+                            onChangeTile = date::changeTile,
                             onDirections = {
                                 shown.date?.place?.let {
                                     date.quickAction(QuickAction.Directions)

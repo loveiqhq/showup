@@ -181,6 +181,26 @@ final class DateFitTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, "\(failures.count) problems: " + failures.prefix(40).joined(separator: " · "))
     }
 
+    /// A with the change tiles switched on (5 Nov 2026), as Date 05 will show them: the card a column inside
+    /// the gutters, every touch area 44 and none on another, on every phone at every size.
+    func testTheChangeTilesAreCleanOnEveryPhoneAtEveryTypeSize() {
+        var failures: [String] = []
+        let ui = DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false)
+        for type in types {
+            for device in phones {
+                let shot = layout(DateScreen(ui: ui, zone: DateSamples.zone, changeTiles: [.changeTime, .changePlace]),
+                                  on: device, type: type)
+                let tag = "A change tiles \(device.described) @\(type)"
+                guard let coordinate = shot.frames["date:coordinate"] else { failures.append("\(tag): no Coordinate card"); continue }
+                if coordinate.minX < 15.5 || coordinate.maxX > device.width - 15.5 {
+                    failures.append("\(tag): the card is outside the 16 gutters")
+                }
+                failures += tapFailures(shot.taps, tag)
+            }
+        }
+        XCTAssertTrue(failures.isEmpty, "\(failures.count) problems: " + failures.prefix(40).joined(separator: " · "))
+    }
+
     /// The first read failed with nothing to show: the statement and the locked TabBar, on every phone.
     func testTheFailedFirstReadIsCleanOnEveryPhoneAtEveryTypeSize() {
         var failures: [String] = []

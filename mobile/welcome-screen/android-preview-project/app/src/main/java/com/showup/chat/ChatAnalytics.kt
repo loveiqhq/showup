@@ -31,10 +31,14 @@ enum class ChatEntry(val wire: String) {
     }
 }
 
-/** `action_chip_used.surface`: the start grid (B) or the dock under the thread (C to E). */
+/**
+ * `action_chip_used.surface`: the start grid (B), the dock under the thread (C to E), or the change tiles
+ * on the Date screen's locked Coordinate card (Date 01, 5 Nov 2026) -- the same act before the chat opens.
+ */
 enum class ChipSurface(val wire: String) {
     Entry("entry"),
     Dock("dock"),
+    CoordinateCard("coordinate_card"),
 }
 
 object ChatAnalytics {

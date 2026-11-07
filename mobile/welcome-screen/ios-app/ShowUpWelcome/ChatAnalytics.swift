@@ -24,10 +24,12 @@ enum ChatEntry: String, CaseIterable, Sendable {
     static func fromWire(_ wire: String) -> ChatEntry? { ChatEntry(rawValue: wire) }
 }
 
-/// `action_chip_used.surface`: the start grid (B) or the dock under the thread (C to E).
+/// `action_chip_used.surface`: the start grid (B), the dock under the thread (C to E), or the change tiles on
+/// the Date screen's locked Coordinate card (Date 01, 5 Nov 2026) -- the same act before the chat opens.
 enum ChipSurface: String, Sendable {
     case entry = "entry"
     case dock = "dock"
+    case coordinateCard = "coordinate_card"
 
     var wire: String { rawValue }
 }

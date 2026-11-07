@@ -178,6 +178,26 @@ final class DateModelTests: XCTestCase {
         XCTAssertEqual(after, stopped)
     }
 
+    func testAChangeTileFiresActionChipUsedOnTheCoordinateCardNeverAQuickAction() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let analytics = RecordingAnalytics()
+        let m = model(store, analytics, TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        m.changeTile(.changeTime)
+        let used = analytics.entries.filter { $0.event == "action_chip_used" }.map(\.properties)
+        XCTAssertEqual(used.count, 1)
+        XCTAssertEqual(used.first?["reason"] as? String, "change_time")
+        XCTAssertEqual(used.first?["surface"] as? String, "coordinate_card")
+        XCTAssertEqual(used.first?["minutes_before_start"] as? Int, 180)
+        XCTAssertFalse(names(analytics).contains("date_quick_action_tapped"))
+    }
+
+    func testTheChangeTilesStayHiddenUntilDate05Ships() {
+        XCTAssertTrue(changeTileReasons.isEmpty, "no change chip is shown yet")
+    }
+
     func testOpenTheChatMarksTheHeldDatesTutorialAsSeenAtOnce() async {
         let store = FakeDateStore()
         await store.setRead(.success(.active(date())))

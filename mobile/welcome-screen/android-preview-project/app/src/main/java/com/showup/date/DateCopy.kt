@@ -26,6 +26,9 @@ object DateCopy {
     const val COORD_LOCKED_SUB = "Sort last-minute details before you meet"
     const val COORD_LOCKED_LINE = "Messaging available from %s"
     const val COORD_LOCKED_LINE_TOMORROW = "Messaging available tomorrow from %s"
+
+    /** The locked card's change line (5 Nov 2026), over the two tiles; shown with them, once Date 05 ships. */
+    const val COORD_CHANGE_LINE = "Request to change the location or meet time."
     const val COORD_OPEN_SUB = "Running late / Can't find your date at the spot? Tell %s here!"
     const val OPEN_CHAT = "Open chat"
     const val UNREAD_ONE = "New message"

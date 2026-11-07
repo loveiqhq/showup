@@ -141,6 +141,9 @@ final class EvidenceShots: XCTestCase {
             for (name, ui) in shots {
                 try shoot(DateScreen(ui: ui, zone: DateSamples.zone), name, on: device, into: dir)
             }
+            // Philipp's 5 Nov update: A once with the change tiles switched on, as Date 05 will show them.
+            try shoot(DateScreen(ui: shots[0].1, zone: DateSamples.zone, changeTiles: [.changeTime, .changePlace]),
+                      "A-change-tiles", on: device, into: dir)
             try shoot(SearchProfileView(state: SearchUiState(loading: false, queue: [SearchSamples.full]),
                                         zone: DateSamples.zone, readOnly: true, backLabel: DateCopy.profileBack,
                                         disabledTabs: dateLockedTabs, disabledHint: DateCopy.tabHint),
