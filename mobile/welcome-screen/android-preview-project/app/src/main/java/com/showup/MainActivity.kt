@@ -86,6 +86,20 @@ import com.showup.dev.DevDateAction
 import com.showup.date.DateCopy
 import com.showup.date.DateProfileViewModel
 import com.showup.date.DateRepository
+import com.showup.date.EndedInChat
+import com.showup.chat.ApiChatStore
+import com.showup.chat.ChatEntry
+import com.showup.chat.ChatHostEvents
+import com.showup.chat.ChatSamples
+import com.showup.chat.ChatScreen
+import com.showup.chat.ChatTutorialScreen
+import com.showup.chat.ChatViewModel
+import com.showup.chat.DateEndedScreen
+import com.showup.chat.chatEntryFor
+import com.showup.chat.chatRoute
+import com.showup.chat.outcomeRoute
+import androidx.navigation.toRoute
+import kotlinx.coroutines.awaitCancellation
 import com.showup.date.DateScreen
 import com.showup.date.DateViewModel
 import com.showup.date.QuickAction
@@ -855,6 +869,21 @@ class MainActivity : ComponentActivity() {
             val dated = dateState.date != null && !dateState.left
             val dateScope = rememberCoroutineScope()
 
+            // ── the coordinate chat (SHOWUP-194) ──────────────────────────────
+            //
+            // One chat model per date, held for the session -- the thread, a typed draft and a selected
+            // chip survive leaving the chat and coming back -- keyed on the account and the date.
+            val chatStore = remember(api) { ApiChatStore(api) }
+            val chatEvents = remember { ChatHostEvents(analytics = AppAnalytics) }
+            val chat: ChatViewModel? = dateState.date?.id?.let { id ->
+                viewModel(
+                    key = "chat-$account-$id",
+                    factory = viewModelFactory { initializer { ChatViewModel(chatStore, dateStore, analytics = AppAnalytics) } },
+                )
+            }
+            /** Where G or H was reached from, for its `screen_viewed` referrer. */
+            var outcomeFrom by remember { mutableStateOf(ProfileScreen.DateScreen) }
+
             /** Onto the Date screen from wherever the user is, a Search profile over it closed first. */
             fun toDate() {
                 search.closeProfileForElsewhere()
@@ -1189,6 +1218,30 @@ class MainActivity : ComponentActivity() {
             /** The gate's CTA, Search tab or Instant tab: the intro until it has been passed, Today after. */
             fun reopenCheckIn(target: CheckInAnalytics.GateTarget) =
                 checkIn.gateTapped(target) { step -> goTo(step.flowScreen()) }
+
+            /** `Open chat` (B) or `Read & reply` (C): the tutorial until it has been seen, then the chat. */
+            fun openChat() {
+                val d = dateState.date ?: return
+                navController.navigate(chatRoute(d, chatEntryFor(d))) { launchSingleTop = true }
+            }
+
+            /** G or H over whatever is up, with only the flow under it: back from it never reopens the chat. */
+            fun showOutcome(outcome: EndedInChat, from: ProfileScreen) {
+                outcomeFrom = from
+                navController.navigate(outcomeRoute(outcome, dateState.date?.match?.photoUrl)) {
+                    popUpTo(AppRoute.Flow) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+
+            /** `Find your next date`: the date is over, so Search, Likes and Instant open, and Search shows. */
+            fun findNextDate() {
+                date.outcomeShown()
+                dateProfile.close()
+                checkIn.refresh()
+                navController.popBackStack(AppRoute.Flow, inclusive = false)
+                goTo(searchTab())
+            }
 
             // THE SYSTEM PICKER. No permission is requested and none is declared: it runs out of
             // process, shows the user their whole library, and returns only what they chose.
@@ -2408,10 +2461,29 @@ class MainActivity : ComponentActivity() {
                                 goTo(searchTab())
                             }
                         }
+                        // THE MATCH'S END REACHES THIS PHONE (SHOWUP-194): while the screen is up and
+                        // the app in front, the date is read again every 15 s.
+                        LaunchedEffect(onTop) {
+                            if (!onTop) return@LaunchedEffect
+                            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                                date.onScreen(true)
+                                try {
+                                    awaitCancellation()
+                                } finally {
+                                    date.onScreen(false)
+                                }
+                            }
+                        }
+                        // A DATE ENDED IN THE CHAT AND NOT YET SEEN: G or H before anything else.
+                        LaunchedEffect(onTop, dateState.ended) {
+                            val ended = dateState.ended
+                            if (onTop && ended != null) showOutcome(ended, ProfileScreen.DateScreen)
+                        }
                         val shown = heldWhileLeaving(dateState, onTop)
                         DateScreen(
                             ui = shown,
                             zone = zone,
+                            onOpenChat = { openChat() },
                             onDirections = {
                                 shown.date?.place?.let {
                                     date.quickAction(QuickAction.Directions)
@@ -2487,6 +2559,141 @@ class MainActivity : ComponentActivity() {
                     backLabel = DateCopy.PROFILE_BACK,
                     disabledTabs = DATE_LOCKED_TABS,
                     disabledHint = DateCopy.TAB_HINT,
+                )
+            }
+
+            // THE COORDINATE CHAT (SHOWUP-194): the tutorial, the chat and the outcome, each pushed over
+            // the Date screen as its profile is. The chat model is the session's; these only show it.
+            composable<AppRoute.ChatTutorial>(
+                enterTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideInHorizontally(tween(ms)) { w -> w / 6 } + fadeIn(tween(if (motion.enabled) 220 else 0))
+                },
+                popExitTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideOutHorizontally(tween(ms)) { w -> w / 6 } + fadeOut(tween(if (motion.enabled) Motion.FAST else 0))
+                },
+            ) {
+                val d = dateState.date
+                if (d == null) {
+                    LaunchedEffect(Unit) { navController.popBackStack(AppRoute.Flow, inclusive = false) }
+                    return@composable
+                }
+                // Once per showing, not again on a configuration change.
+                var reported by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    if (!reported) {
+                        reported = true
+                        chatEvents.tutorialShown(d)
+                    }
+                }
+                ChatTutorialScreen(
+                    name = d.match.name,
+                    onOpen = {
+                        chatEvents.tutorialAcknowledged(d)
+                        dateScope.launch { chatStore.markTutorialSeen(d.id) }
+                        date.chatTutorialSeen()
+                        navController.navigate(AppRoute.Chat(ChatEntry.Tutorial.wire)) {
+                            popUpTo(AppRoute.ChatTutorial) { inclusive = true }
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<AppRoute.Chat>(
+                enterTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideInHorizontally(tween(ms)) { w -> w / 6 } + fadeIn(tween(if (motion.enabled) 220 else 0))
+                },
+                popExitTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideOutHorizontally(tween(ms)) { w -> w / 6 } + fadeOut(tween(if (motion.enabled) Motion.FAST else 0))
+                },
+            ) { entry ->
+                val vm = chat
+                val d = dateState.date
+                if (vm == null || d == null) {
+                    LaunchedEffect(Unit) { navController.popBackStack(AppRoute.Flow, inclusive = false) }
+                    return@composable
+                }
+                val ui by vm.ui.collectAsStateWithLifecycle()
+                val zone = remember { ZoneId.systemDefault() }
+                val reached = ChatEntry.fromWire(entry.toRoute<AppRoute.Chat>().entry) ?: ChatEntry.OpenChat
+                // One visit per showing, not again on a configuration change.
+                var opened by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    if (!opened) {
+                        opened = true
+                        vm.open(d, reached)
+                        chatEvents.chatShown(if (reached == ChatEntry.Tutorial) ProfileScreen.DateChatTutorial else ProfileScreen.DateScreen)
+                    }
+                }
+                // The thread and the date are read only while the chat is in front.
+                LaunchedEffect(vm) {
+                    lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        vm.onScreen(true)
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            vm.onScreen(false)
+                        }
+                    }
+                }
+                val leave = {
+                    vm.close()
+                    navController.popBackStack(AppRoute.Flow, inclusive = false)
+                    Unit
+                }
+                BackHandler(onBack = leave)
+                // Ended from anywhere -- this phone, the match, a second tap -- or gone some other way.
+                LaunchedEffect(ui.outcome) {
+                    ui.outcome?.let {
+                        vm.close()
+                        showOutcome(it, ProfileScreen.DateChat)
+                    }
+                }
+                LaunchedEffect(ui.left) {
+                    if (ui.left) {
+                        vm.close()
+                        navController.popBackStack(AppRoute.Flow, inclusive = false)
+                        date.foreground()
+                    }
+                }
+                ChatScreen(
+                    ui = ui,
+                    zone = zone,
+                    onBack = leave,
+                    onPick = vm::pick,
+                    onEdit = vm::edit,
+                    onAckGuide = vm::ackGuide,
+                    onSend = vm::send,
+                    onEndCard = vm::openEndSheet,
+                    onKeep = vm::keepDate,
+                    onEnd = vm::endDate,
+                    onRetry = vm::retry,
+                )
+            }
+
+            composable<AppRoute.DateEnded>(
+                enterTransition = { fadeIn(tween(if (motion.enabled) Motion.SCREEN else 0)) },
+            ) { entry ->
+                val route = entry.toRoute<AppRoute.DateEnded>()
+                var reported by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    if (!reported) {
+                        reported = true
+                        chatEvents.outcomeShown(outcomeFrom)
+                        // Seen once it has shown: a crash before this frame shows it again next launch.
+                        dateScope.launch { chatStore.markEndSeen(route.dateId) }
+                    }
+                }
+                // The date is over: back leaves for Search, as the CTA does -- there is no date to return to.
+                BackHandler { findNextDate() }
+                DateEndedScreen(
+                    outcome = EndedInChat(route.dateId, route.name, route.endedByYou),
+                    photoUrl = route.photoUrl,
+                    onFindNext = { findNextDate() },
                 )
             }
 
@@ -2729,6 +2936,8 @@ class MainActivity : ComponentActivity() {
                                 when (action) {
                                     is DevDateAction.CreateIn -> dateStore.createTestDate(action.minutes)
                                     DevDateAction.Message -> dateStore.messageFromMatch(com.showup.chat.ChatReason.RunningLate, DateSamples.UNREAD_BODY)
+                                    DevDateAction.MatchCantMakeIt -> dateStore.messageFromMatch(com.showup.chat.ChatReason.CantMakeIt, ChatSamples.MATCH_CANT_MAKE_IT)
+                                    DevDateAction.MatchEndsInChat -> dateStore.matchEndsInChat()
                                     DevDateAction.End -> dateStore.endTestDate()
                                 }
                                 // The Date screen's own read shows the result: a new date or message

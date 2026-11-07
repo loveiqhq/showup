@@ -50,6 +50,11 @@ import com.showup.checkin.CheckInVibeScreen
 import com.showup.checkin.SlotTier
 import com.showup.checkin.checkInDays
 import com.showup.checkin.gridOf
+import com.showup.chat.ChatSamples
+import com.showup.chat.ChatScreen
+import com.showup.chat.ChatTutorialScreen
+import com.showup.chat.ChatUi
+import com.showup.chat.DateEndedScreen
 
 class CheckInGalleryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -132,6 +137,19 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
             disabledTabs = DATE_LOCKED_TABS, disabledHint = DateCopy.TAB_HINT,
         )
         "193-failed" -> DateScreen(DateUi(now = DateSamples.A_NOW, loading = false, failed = CallFailure.Network), DateSamples.ZONE)
+        "194A" -> ChatTutorialScreen(ChatSamples.DATE.match.name, onOpen = {}, onBack = leave)
+        "194B" -> ChatFrame(ChatSamples.B, leave)
+        "194C" -> ChatFrame(ChatSamples.C, leave)
+        "194D" -> ChatFrame(ChatSamples.D, leave)
+        "194E" -> ChatFrame(ChatSamples.E, leave)
+        "194F" -> ChatFrame(ChatSamples.F, leave)
+        "194G" -> DateEndedScreen(ChatSamples.G, photoUrl = null, onFindNext = leave)
+        "194H" -> DateEndedScreen(ChatSamples.H, photoUrl = null, onFindNext = leave)
         else -> Text("Unknown state $state")
     }
 }
+
+/** One of the chat's frames, still: nothing it draws reacts, and back leaves it. */
+@Composable
+private fun ChatFrame(ui: ChatUi, leave: () -> Unit) =
+    ChatScreen(ui, DateSamples.ZONE, leave, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})

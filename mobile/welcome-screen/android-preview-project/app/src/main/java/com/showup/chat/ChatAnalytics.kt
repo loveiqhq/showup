@@ -23,6 +23,12 @@ enum class ChatEntry(val wire: String) {
     ReadReply("read_reply"),
     Tutorial("tutorial"),
     Notification("notification"),
+    ;
+
+    companion object {
+        /** The entry a wire value names (a route's argument), or null for one this build does not know. */
+        fun fromWire(wire: String): ChatEntry? = entries.firstOrNull { it.wire == wire }
+    }
 }
 
 /** `action_chip_used.surface`: the start grid (B) or the dock under the thread (C to E). */

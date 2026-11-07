@@ -35,6 +35,13 @@ fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOp
 }
 
 /**
+ * How often the Date screen re-reads the date while it is on screen (SHOWUP-194, the design's §3):
+ * the match's End date lands on H within seconds when the app is open. Polling, as the chat's; there
+ * is no socket.
+ */
+const val DATE_POLL_MS = 15_000L
+
+/**
  * Whole minutes from [now] to the latest agreed meet time, negative after it, rounded toward zero
  * -- the server's `minutesBeforeStart`, so the client's and the server's events agree.
  */

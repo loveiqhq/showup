@@ -206,6 +206,15 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
      * time state is `date_screen_viewed`'s `state`, never a second screen.
      */
     DateScreen("date_screen", "Date - Date screen"),
+
+    /** The chat tutorial (SHOWUP-194 A; §11 row added 5 Nov 2026, registry 1.4.33). */
+    DateChatTutorial("date_chat_tutorial", "Date - Chat tutorial"),
+
+    /** The coordinate chat: ONE screen id for the start grid (B) and the thread (C to E). */
+    DateChat("date_chat", "Date - Coordinate chat"),
+
+    /** G and H, after a date ended in the chat: one screen id for both. */
+    DateEndedInChat("date_ended_in_chat", "Date - Ended in chat"),
 }
 
 /**

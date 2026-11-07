@@ -37,6 +37,12 @@ interface DateStore {
 
     /** Debug only: ends the viewer's date, the escape from a screen whose exits are later tickets. */
     suspend fun endTestDate(): Result<Boolean>
+
+    /**
+     * Debug only: the test match ends the date in the chat (SHOWUP-194), through the real path -- so it
+     * needs her "I can't make it today" message in the thread, and the viewer lands on H.
+     */
+    suspend fun matchEndsInChat(): Result<Boolean>
 }
 
 class DateRepository(private val api: ShowUpApi) : DateStore {
@@ -67,6 +73,10 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
 
     override suspend fun endTestDate(): Result<Boolean> = callCatching {
         api.dev.endDevDate().isSuccessful
+    }
+
+    override suspend fun matchEndsInChat(): Result<Boolean> = callCatching {
+        api.dev.endDevDateInChat().isSuccessful
     }
 
     private fun ActiveDateDto.toActiveDate() = ActiveDate(

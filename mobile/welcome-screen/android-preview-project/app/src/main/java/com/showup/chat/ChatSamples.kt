@@ -47,4 +47,7 @@ object ChatSamples {
 
     /** H: the match ended it. */
     val H = G.copy(endedByYou = false)
+
+    /** What the developer menu's "Leonie can't make it" sends, with the cancel chip. */
+    const val MATCH_CANT_MAKE_IT = "So sorry, something came up at work and I can't make it today. Could we do Saturday instead?"
 }

@@ -229,6 +229,8 @@ private fun ScreensPage(
                 DevTextButton("Test date in 3 hours (A, locked)") { onDateAction(DevDateAction.CreateIn(180)) }
                 DevTextButton("Test date in 1 hour (B, chat open)") { onDateAction(DevDateAction.CreateIn(60)) }
                 DevTextButton("Message from Leonie (C, needs B)") { onDateAction(DevDateAction.Message) }
+                DevTextButton("Leonie can't make it (End date card, needs B)") { onDateAction(DevDateAction.MatchCantMakeIt) }
+                DevTextButton("Leonie ends the date in the chat (H, needs her can't-make-it)") { onDateAction(DevDateAction.MatchEndsInChat) }
                 DevTextButton("End test date") { onDateAction(DevDateAction.End) }
             }
         }

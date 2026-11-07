@@ -44,6 +44,15 @@ class DateRoutingTest {
     }
 
     @Test
+    fun `a date ended in the chat and not yet seen opens on the Date screen, which shows the outcome`() {
+        val ended: Outcome<DateRead> = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        assertEquals(FlowScreen.Date, launchTarget(ended, checkInActive = true))
+        assertEquals(FlowScreen.Date, launchTarget(ended, checkInActive = null))
+        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), ended.endedOutcome())
+        assertEquals(null, active.endedOutcome())
+    }
+
+    @Test
     fun `a failed date read is no date`() {
         assertEquals(FlowScreen.CheckInSearch, launchTarget(failed, checkInActive = true))
         assertEquals(FlowScreen.CheckInGate, launchTarget(failed, checkInActive = null))
