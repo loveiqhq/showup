@@ -141,7 +141,8 @@ struct DateScreen: View {
         // with it and moved every card off its 16 gutter. Pinned here, nothing inside can.
         GeometryReader { g in
         ZStack(alignment: .bottom) {
-            if let date = ui.date, let state = ui.state {
+            // Names and districts breakable after their hyphens, as Android's (the 4 Nov 2026 audit).
+            if let date = ui.date.map(withBreakableNames), let state = ui.state {
                 ScrollView {
                     VStack(spacing: 0) {
                         content(date, state)
@@ -152,6 +153,8 @@ struct DateScreen: View {
                         if barInFlow { barView(date) }
                         Color.clear.frame(height: tab + (barInFlow ? 0 : bar))
                     }
+                    // The whole scroll, reserve included: where its end comes to rest (DateFitTests).
+                    .fitAnchor("date:content")
                 }
                 .fitAnchor("date:screen")
                 VStack(spacing: 0) {
@@ -159,14 +162,20 @@ struct DateScreen: View {
                     tabBar
                 }
                 .fitAnchor("date:footer")
+                .fitPinnedBar()
             } else {
                 // The first read failed with nothing to show (offline as a match lands): Search's failed
                 // statement, said of the date, and the locked bar -- the lock holds whatever the network.
                 // Loading is cream and the bar alone: the screen is reached only once a read found a date.
                 if !ui.loading, ui.failed != nil {
-                    CentredStatement(text: DateCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.bottom, tab)
+                    // Centred above the TabBar, scrolling where it is taller than that room -- at the
+                    // largest type in split screen it pushed the TabBar off the screen (the 4 Nov 2026
+                    // device audit).
+                    ScrollView {
+                        CentredStatement(text: DateCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
+                            .frame(maxWidth: .infinity, minHeight: max(0, g.size.height - tab))
+                    }
+                    .padding(.bottom, tab)
                 }
                 tabBar
             }
@@ -184,6 +193,7 @@ struct DateScreen: View {
         TabBar(active: nil, onTab: onTab, likes: 0, disabled: dateLockedTabs, disabledHint: DateCopy.tabHint)
             .background(Color.liqCream.ignoresSafeArea(edges: .bottom))
             .measuredHeight("tab")
+            .fitAnchor(FitAnchorID.tabBar)
     }
 
     private func barView(_ date: ActiveDate) -> some View {

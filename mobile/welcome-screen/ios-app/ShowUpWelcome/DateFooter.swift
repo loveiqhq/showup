@@ -94,6 +94,7 @@ struct CheckInBar: View {
                                                            stops: Color.suGradSunsetStops.map(\.location))
                                     .clipShape(Capsule()))
                         )
+                        .fitTapArea()
                 }
                 .buttonStyle(PressScale())
             }

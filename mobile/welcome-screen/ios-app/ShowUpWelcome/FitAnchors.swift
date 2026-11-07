@@ -31,6 +31,60 @@ extension View {
     }
 }
 
+/// One touch area, in window coordinates, and whether it sits in a bar pinned over a scroll. A
+/// control in the scroll lying under that bar at rest is passing beneath it, not sharing its place,
+/// and only the structure can tell the two apart -- a card wholly below the bar's top edge looks,
+/// by position alone, like part of the bar.
+struct FitTap: Equatable, Sendable {
+    let frame: CGRect
+    let pinned: Bool
+}
+
+/// Every touch area a fit test measures. The tap floor and "no two on each other" are about the area
+/// a finger hits, which for `overflowTapTarget` is not the drawn frame (the 4 Nov 2026 device audit).
+/// Like `FitFrameKey`, nothing in the app reads it.
+struct FitTapKey: PreferenceKey {
+    static let defaultValue: [FitTap] = []
+
+    static func reduce(value: inout [FitTap], nextValue: () -> [FitTap]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+private struct FitTapPinnedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// True inside a bar pinned over a scroll, for `fitTapArea`.
+    var fitTapPinned: Bool {
+        get { self[FitTapPinnedKey.self] }
+        set { self[FitTapPinnedKey.self] = newValue }
+    }
+}
+
+private struct FitTapArea: ViewModifier {
+    @Environment(\.fitTapPinned) private var pinned
+
+    func body(content: Content) -> some View {
+        content.background(GeometryReader { g in
+            Color.clear.preference(key: FitTapKey.self, value: [FitTap(frame: g.frame(in: .global), pinned: pinned)])
+        })
+    }
+}
+
+extension View {
+    /// Publishes this view's frame as a touch area, for the fit tests' tap checks.
+    func fitTapArea() -> some View {
+        modifier(FitTapArea())
+    }
+
+    /// Marks this subtree as a bar pinned over a scroll, for the fit tests' tap checks.
+    func fitPinnedBar() -> some View {
+        environment(\.fitTapPinned, true)
+    }
+}
+
 /// The ids, one place, so the screens and the tests cannot spell one differently.
 enum FitAnchorID {
     static let searchTopBar = "search-top-bar"

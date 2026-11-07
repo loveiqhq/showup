@@ -187,7 +187,8 @@ fun DateScreen(
             .onSizeChanged { frameHeight = it.height }
             .testTag(DATE_SCREEN_TAG),
     ) {
-        val date = ui.date
+        // Names and districts breakable after their hyphens: `Friedrichshain-Kreuzberg` broke mid-letter.
+        val date = ui.date?.let(::withBreakableNames)
         val state = ui.state
         if (date != null && state != null) {
             Column(Modifier.fillMaxSize().verticalScroll(scroll)) {

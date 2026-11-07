@@ -621,16 +621,23 @@ def _rows(text, pattern):
 KT_FIT = os.path.join(ROOT, "android-preview-project/app/src/test/java/com/showup/fit")
 SW_FIT = os.path.join(ROOT, "ios-app/ShowUpWelcomeTests")
 
-_kt_devices = _rows(
-    read(KT_FIT, "Devices.kt"),
-    r'Device\("([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)')
-_sw_devices = _rows(
-    read(SW_FIT, "FitDevices.swift"),
-    r'FitDevice\(name: "([^"]+)", width: (\d+), height: (\d+), top: (\d+), bottom: (\d+)\)')
+# The shared list, and after it the edge screens only the Date screen measures so far (the 4 Nov 2026
+# device audit: Display Zoom, split screen, unfolded foldables) -- counted apart, compared alike.
+_KT_ROW = r'Device\("([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)'
+_SW_ROW = r'FitDevice\(name: "([^"]+)", width: (\d+), height: (\d+), top: (\d+), bottom: (\d+)\)'
+_kt_main, _, _kt_edge = read(KT_FIT, "Devices.kt").partition("val EDGE_DEVICES")
+_sw_main, _, _sw_edge = read(SW_FIT, "FitDevices.swift").partition("let edgeFitDevices")
+_kt_devices = _rows(_kt_main, _KT_ROW)
+_sw_devices = _rows(_sw_main, _SW_ROW)
+_kt_edge_devices = _rows(_kt_edge, _KT_ROW)
+_sw_edge_devices = _rows(_sw_edge, _SW_ROW)
 
 FIT_PHONES = 23
+FIT_EDGE_SCREENS = 4
 check("fit matrix has all %d phones (kotlin)" % FIT_PHONES, len(_kt_devices) == FIT_PHONES)
 check("fit matrix has all %d phones (swift)" % FIT_PHONES, len(_sw_devices) == FIT_PHONES)
+check("the edge screens are the same %d on both platforms" % FIT_EDGE_SCREENS,
+      len(_kt_edge_devices) == FIT_EDGE_SCREENS and _kt_edge_devices == _sw_edge_devices)
 check("the two fit matrices are the same %d phones" % FIT_PHONES, _kt_devices == _sw_devices)
 
 # ── the offline stand-in can never reach a release build ────────────────────

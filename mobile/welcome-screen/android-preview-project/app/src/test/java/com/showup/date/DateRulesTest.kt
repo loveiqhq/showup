@@ -34,6 +34,15 @@ class DateRulesTest {
     // ── the state ───────────────────────────────────────────────────────────
 
     @Test
+    fun `a hyphenated name or district may break after its hyphen, as CSS and iOS break it`() {
+        assertEquals("Maximiliana-\u200BKonstantina", breakAfterHyphens("Maximiliana-Konstantina"))
+        assertEquals("Friedrichshain-\u200BKreuzberg", breakAfterHyphens("Friedrichshain-Kreuzberg"))
+        assertEquals("Leonie", breakAfterHyphens("Leonie"))
+        // Already breakable: never a second mark.
+        assertEquals("Anna-\u200BLena", breakAfterHyphens("Anna-\u200BLena"))
+    }
+
+    @Test
     fun `the state flips exactly at meet minus 1h30`() {
         assertEquals(DateState.Locked, dateState(unlock.minusSeconds(1), unlock, null))
         assertEquals(DateState.Available, dateState(unlock, unlock, null))

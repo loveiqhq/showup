@@ -54,6 +54,17 @@ let fitDevices: [FitDevice] = [
     FitDevice(name: "iPhone 16 / 17 Pro Max", width: 440, height: 956, top: 62, bottom: 34),
 ]
 
+/// The twin of `Devices.kt`'s `EDGE_DEVICES`, row for row: real screens `fitDevices` does not hold,
+/// measured by the Date screen first (the 4 Nov 2026 device audit) -- Display Zoom on the iPhone SE,
+/// split screen, unfolded foldables. See there for why each row exists and why it is not in the
+/// shared list yet.
+let edgeFitDevices: [FitDevice] = [
+    FitDevice(name: "iPhone SE, Display Zoom", width: 320, height: 568, top: 20, bottom: 0),
+    FitDevice(name: "split screen, top half", width: 360, height: 380, top: 24, bottom: 0),
+    FitDevice(name: "unfolded foldable, Fold 5 / 6 class", width: 700, height: 840, top: 24, bottom: 24),
+    FitDevice(name: "unfolded foldable, Fold 7", width: 984, height: 1092, top: 24, bottom: 24),
+]
+
 //  WHY THERE IS NO ELEMENT-LEVEL FIT HARNESS ON iOS
 //
 //  Android's FitHarness.kt measures every screen element at every one of these sizes: text

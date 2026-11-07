@@ -49,6 +49,7 @@ import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -58,6 +59,7 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.text.TextLayoutResult
@@ -162,12 +164,26 @@ private fun layoutOf(node: SemanticsNode): TextLayoutResult? {
  *   the usable height, which is exactly what `WindowInsets.ime` does to a layout that respects it;
  *   a screen that ignores the inset will not notice this and is caught by reading instead.
  */
-@OptIn(ExperimentalTestApi::class)
 fun measureFit(
     device: Device,
     screen: String,
     fontScale: Float = 1f,
     keyboardDp: Int = 0,
+    content: @Composable () -> Unit,
+): List<Violation> = measureFit(device, screen, fontScale, keyboardDp, extra = null, content = content)
+
+/**
+ * [measureFit] with a suite's own checks, [extra], run in the same render after the shared ones --
+ * see [FitFrame]. A second signature rather than a defaulted parameter: callers pass `content` by
+ * position, and a new parameter before it would have moved it.
+ */
+@OptIn(ExperimentalTestApi::class)
+fun measureFit(
+    device: Device,
+    screen: String,
+    fontScale: Float,
+    keyboardDp: Int,
+    extra: ((FitFrame) -> List<Violation>)?,
     content: @Composable () -> Unit,
 ): List<Violation> {
     val found = mutableListOf<Violation>()
@@ -239,6 +255,15 @@ fun measureFit(
             val top = (node.positionInRoot.y - originY) / density
             val right = left + node.size.width / density
             val bottom = top + node.size.height / density
+            // The right edge as DRAWN, for "off the right" alone: `fitWords` lays a long word out wide
+            // and draws it scaled into its box, and the laid-out size read it as past the edge (the
+            // 4 Nov 2026 device audit). The scale is read off the node's own coordinates -- its width
+            // in root space over its width laid out -- and is exactly 1 for anything not scaled.
+            val inner = node.layoutInfo.coordinates
+            val drawnScale = if (inner.size.width > 0) {
+                (inner.localToRoot(Offset(inner.size.width.toFloat(), 0f)).x - inner.localToRoot(Offset.Zero).x) / inner.size.width
+            } else 1f
+            val drawnRight = left + node.size.width * drawnScale / density
             val name = if (inText != null) "link in $inText" else label(node)
 
             // 1. the squashing case: the renderer could not draw all it was given.
@@ -312,9 +337,9 @@ fun measureFit(
                             "by %.1fdp".format(bottom - hDp))
                     }
                 }
-                if (right > wDp + SLACK_DP) {
+                if (drawnRight > wDp + SLACK_DP) {
                     found += Violation(device, screen, name, "OFF THE RIGHT",
-                        "by %.1fdp".format(right - wDp))
+                        "by %.1fdp".format(drawnRight - wDp))
                 }
                 if (left < -SLACK_DP) {
                     found += Violation(device, screen, name, "OFF THE LEFT",
@@ -397,9 +422,93 @@ fun measureFit(
             node.children.forEach { walk(it, scrollable, null, childText) }
         }
         walk(boxNode)
+        if (extra != null) {
+            found += extra(
+                FitFrame(
+                    device, screen, density,
+                    nodes = { tag -> onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes() },
+                    root = { onNodeWithTag(FIT_ROOT, useUnmergedTree = true).fetchSemanticsNode() },
+                    settle = { action -> runOnIdle(action); waitForIdle() },
+                ),
+            )
+        }
     }
     return found.distinctBy { it.element to it.problem }
 }
+
+/**
+ * One render's device frame, for the checks a suite adds of its own: boxes in dp from the frame's
+ * top-left, read fresh on every call -- so a check that scrolls and reads again sees where things
+ * moved to.
+ */
+class FitFrame internal constructor(
+    val device: Device,
+    val screen: String,
+    private val density: Float,
+    // The render's own reads, handed in so that no experimental test type leaves `measureFit`.
+    private val nodes: (String) -> List<SemanticsNode>,
+    private val root: () -> SemanticsNode,
+    private val settle: (() -> Unit) -> Unit,
+) {
+    /** The usable height: the safe area the content was rendered into. */
+    val height: Float get() = device.safeHeight.toFloat()
+
+    /** Runs [action] on the UI thread once the frame is idle -- a scroll, say -- and waits for the
+     *  frame it caused, so the next read sees where things moved to. */
+    fun settle(action: () -> Unit) = settle.invoke(action)
+
+    private fun rect(node: SemanticsNode, root: SemanticsNode): FitRect {
+        val top = (node.positionInRoot.y - root.positionInRoot.y) / density
+        val left = (node.positionInRoot.x - root.positionInRoot.x) / density
+        return FitRect(top, top + node.size.height / density, left, left + node.size.width / density)
+    }
+
+    /** The placed node tagged [tag], or null when nothing carries it. */
+    fun tagged(tag: String): FitRect? {
+        val root = root()
+        return nodes(tag)
+            .firstOrNull { it.layoutInfo.isPlaced }?.let { rect(it, root) }
+    }
+
+    /** Every placed paragraph's text and the breaks the renderer chose: where each line but the last
+     *  ends, as offsets into the text. Text cleared from semantics (a TabBar label) is not here. */
+    fun lineBreaks(): List<Pair<String, List<Int>>> {
+        val out = mutableListOf<Pair<String, List<Int>>>()
+        fun walk(node: SemanticsNode) {
+            if (!node.layoutInfo.isPlaced) return
+            layoutOf(node)?.let { layout ->
+                val ends = (0 until layout.lineCount - 1).map { layout.getLineEnd(it) }
+                out += layout.layoutInput.text.text to ends
+            }
+            node.children.forEach { walk(it) }
+        }
+        walk(root())
+        return out
+    }
+
+    /** Every placed node that answers a tap, named as the shared checks name it. Inline links -- a
+     *  clickable under a text layout -- are left out: the shared walk already judges those. */
+    fun tapTargets(): List<FitTap> {
+        val root = root()
+        val out = mutableListOf<FitTap>()
+        fun walk(node: SemanticsNode, inText: Boolean, inScroll: Boolean) {
+            if (!node.layoutInfo.isPlaced) return
+            val clickable = node.config.getOrNull(SemanticsActions.OnClick) != null
+            if (clickable && !inText && node.size.width > 0 && node.size.height > 0) {
+                out += FitTap(label(node), rect(node, root), inScroll)
+            }
+            val text = inText || node.config.getOrNull(SemanticsActions.GetTextLayoutResult) != null
+            val scroll = inScroll || node.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) != null
+            node.children.forEach { walk(it, text, scroll) }
+        }
+        walk(root, inText = false, inScroll = false)
+        return out
+    }
+}
+
+/** A touch area: its name, its box, and whether it moves with a scroll -- a control in a scroll that
+ *  lies under a pinned bar is passing beneath it, not sharing a place with it. */
+data class FitTap(val name: String, val rect: FitRect, val inScroll: Boolean)
 
 
 // ── geometry shots ──────────────────────────────────────────────────────────────────────────────

@@ -41,9 +41,11 @@ final class EvidenceShots: XCTestCase {
         return dir
     }
 
-    /// `view` on `device`, saved as `<state>-<w>x<h>.png` in `dir`; a picture of one flat colour fails.
-    private func shoot(_ view: some View, _ state: String, on device: FitDevice, into dir: URL) throws {
-        let controller = UIHostingController(rootView: AnyView(view))
+    /// `view` on `device` at `type`, saved as `<state>-<w>x<h>.png` in `dir`; a picture of one flat
+    /// colour fails.
+    private func shoot(_ view: some View, _ state: String, on device: FitDevice, type: DynamicTypeSize = .large,
+                       into dir: URL) throws {
+        let controller = UIHostingController(rootView: AnyView(view.environment(\.dynamicTypeSize, type)))
         controller.overrideUserInterfaceStyle = .light
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { FixedInsetWindow(windowScene: $0) }
@@ -124,6 +126,42 @@ final class EvidenceShots: XCTestCase {
         let tall = FitDevice(name: "full length", width: 390, height: 2350, top: 0, bottom: 0)
         try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
                              zone: DateSamples.zone), "D-full", on: tall, into: dir)
+
+        // THE EXTREMES (the 4 Nov 2026 device audit), to be looked at, not only measured: the smallest
+        // screen a supported iPhone shows (an SE with Display Zoom) at the largest type, its whole scroll
+        // at that size, and the widest phone (an unfolded Fold 7) at the default.
+        let smallest = try XCTUnwrap(edgeFitDevices.first { $0.width == 320 })
+        let widest = try XCTUnwrap(edgeFitDevices.first { $0.width == 984 })
+        var checkedIn = DateSamples.date
+        checkedIn.checkedIn = true
+        let extremes: [(String, DateUi)] = [
+            ("G-A-AX5", DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false)),
+            ("G-C-AX5", DateUi(date: unread, now: DateSamples.bNow, loading: false)),
+            ("G-checked-in-AX5", DateUi(date: checkedIn, now: DateSamples.bNow, loading: false)),
+        ]
+        for (name, ui) in extremes {
+            try shoot(DateScreen(ui: ui, zone: DateSamples.zone), name, on: smallest, type: .accessibility5, into: dir)
+        }
+        // 5450 tall, not more: at the shots' 3x a taller window passes the 16384 px a drawn image may
+        // have, and the fallback renderer draws shapes wrong -- capsule chips grew straight edges.
+        let smallTall = FitDevice(name: "full length, smallest", width: 320, height: 5450, top: 0, bottom: 0)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "H-full-AX5", on: smallTall, type: .accessibility5, into: dir)
+        // AX3, the largest size every other screen is held to, on the same phone.
+        let smallAX3 = FitDevice(name: "full length, smallest, AX3", width: 320, height: 4200, top: 0, bottom: 0)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "H-full-AX3", on: smallAX3, type: .accessibility3, into: dir)
+        // The two chip cards on their own at the largest type, drawn by the ordinary renderer.
+        let cards = FitDevice(name: "chip cards", width: 320, height: 1800, top: 0, bottom: 0)
+        try shoot(VStack(spacing: 8) {
+            IntentCard(date: DateSamples.date)
+            CommonCard(date: DateSamples.date)
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(Color.liqCream), "J-chips-AX5", on: cards, type: .accessibility5, into: dir)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "I-widest", on: widest, into: dir)
     }
 
     /// SHOWUP-188: A, B and C on the Search tab, D over a Likes profile in B as the sheet draws it.

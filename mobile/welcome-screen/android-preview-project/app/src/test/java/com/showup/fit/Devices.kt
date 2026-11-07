@@ -79,3 +79,24 @@ val DEVICES: List<Device> = listOf(
     Device("iPhone 15/16 Pro Max", 430, 932, 59, 34, inAcceptanceCriteria = true),
     Device("iPhone 16 / 17 Pro Max", 440, 956, 62, 34),
 )
+
+/**
+ * Real screens [DEVICES] does not hold, measured by the Date screen first (the 4 Nov 2026 device
+ * audit). Not in [DEVICES] because every suite would then fail on them at once, and whether the other
+ * screens fit them is a finding to report to the product side, not one to break CI with mid-ticket.
+ *
+ * Settings and postures, not models -- each is a size a supported phone really shows:
+ */
+val EDGE_DEVICES: List<Device> = listOf(
+    // DISPLAY ZOOM on the iPhone SE (2nd / 3rd gen): 320 x 568 points, the original SE's size again --
+    // the narrowest AND shortest screen a supported iPhone shows. An Android at its largest display
+    // size reaches the same 320 dp floor.
+    Device("iPhone SE, Display Zoom", 320, 568, 20, 0),
+    // SPLIT SCREEN: MainActivity is resizeable, so a phone's top half is a real window.
+    Device("split screen, top half", 360, 380, 24, 0),
+    // UNFOLDED FOLDABLES keep this portrait app full size (the manifest's restricted-resizability
+    // opt-out): ~700 dp wide on a Fold 5 / 6 class inner screen, 984 x 1092 on the Fold 7 at its 2.0
+    // density. Estimated from published pixels and densities, not read off a device.
+    Device("unfolded foldable, Fold 5 / 6 class", 700, 840, 24, 24),
+    Device("unfolded foldable, Fold 7", 984, 1092, 24, 24),
+)
