@@ -1181,4 +1181,29 @@ class EvidenceScreenshots {
         }
         shoot("SHOWUP-193", "I-widest", devices = widest) { com.showup.date.DateScreen(a, zone) }
     }
+
+    /**
+     * SHOWUP-194's evidence: A to H at the three frames the acceptance criteria name -- 24 images. The
+     * frames are the spec sheet's (`ScreenChatOpen` with its seeds, [com.showup.chat.ChatSamples]).
+     */
+    @Test
+    fun `SHOWUP-194 the coordinate chat, A to H`() {
+        val zone = java.time.ZoneId.of("Europe/Berlin")
+        val samples = com.showup.chat.ChatSamples
+        val chat: @Composable (com.showup.chat.ChatUi) -> Unit = { ui ->
+            com.showup.chat.ChatScreen(ui, zone, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})
+        }
+        val before = written.size
+        shoot("SHOWUP-194", "A-tutorial") { com.showup.chat.ChatTutorialScreen("Leonie", onOpen = {}, onBack = {}) }
+        shoot("SHOWUP-194", "B-start") { chat(samples.B) }
+        shoot("SHOWUP-194", "C-thread") { chat(samples.C) }
+        shoot("SHOWUP-194", "D-cancel-guide") { chat(samples.D) }
+        shoot("SHOWUP-194", "E-end-card") { chat(samples.E) }
+        shoot("SHOWUP-194", "F-end-sheet") { chat(samples.F) }
+        shoot("SHOWUP-194", "G-you-ended") { com.showup.chat.DateEndedScreen(samples.G, photoUrl = null, onFindNext = {}) }
+        shoot("SHOWUP-194", "H-match-ended") { com.showup.chat.DateEndedScreen(samples.H, photoUrl = null, onFindNext = {}) }
+        val images = written.drop(before)
+        assertEquals("A to H at the three frames", 24, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+    }
 }

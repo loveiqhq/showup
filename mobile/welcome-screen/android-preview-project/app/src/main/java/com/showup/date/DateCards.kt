@@ -555,19 +555,7 @@ private fun UnreadCoordinate(
 private fun MatchAvatar(match: DateMatch, count: Int, tone: Color) {
     val motion = rememberMotion()
     Box(Modifier.size(46.dp)) {
-        Box(Modifier.size(46.dp).aboveWash("avatar", CircleShape).clip(CircleShape)) {
-            PhotoBackdrop(match.photoUrl.orEmpty(), 0, Modifier.fillMaxSize())
-            if (match.photoUrl == null) {
-                Text(
-                    match.name.take(1),
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White.copy(alpha = 0.92f),
-                    fontFamily = Lora,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = (46 * 0.42).sp,
-                )
-            }
-        }
+        MatchPhoto(match.name, match.photoUrl, 46.dp, Modifier.aboveWash("avatar", CircleShape))
         if (motion.enabled) {
             val transition = rememberInfiniteTransition(label = "pulse")
             val spec = InfiniteRepeatableSpec<Float>(

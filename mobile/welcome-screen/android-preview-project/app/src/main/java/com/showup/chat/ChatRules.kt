@@ -8,8 +8,11 @@
  */
 package com.showup.chat
 
+import com.showup.date.ActiveDate
 import com.showup.date.minutesBeforeStart
+import com.showup.search.meetTime
 import java.time.Instant
+import java.time.ZoneId
 import java.util.Locale
 
 /** The server's limit on one message: `SendChatMessageDto.body`, 1 to 1000 characters after trimming. */
@@ -62,3 +65,15 @@ fun prefillEdited(reason: ChatReason?, sent: String): Boolean? =
  */
 fun cantMakeItFrom(messages: List<ChatMessage>): String? =
     messages.lastOrNull { it.reason == ChatReason.CantMakeIt }?.let { if (it.fromYou) "self" else "match" }
+
+/**
+ * The header's line before the countdown, from the latest AGREED values: `Today · 19:00 · Cafe Krone`.
+ * A date with no place stops at the time.
+ */
+fun headerLine(date: ActiveDate, zone: ZoneId): String {
+    val day = if (date.meetDay == "tomorrow") ChatCopy.TOMORROW else ChatCopy.TODAY
+    return listOfNotNull(day, meetTime(date.meetAt, zone), date.place?.name).joinToString(" · ")
+}
+
+/** A bubble's time: the clock time it was sent, in the date's zone. */
+fun messageTime(sentAt: Instant, zone: ZoneId): String = meetTime(sentAt, zone)
