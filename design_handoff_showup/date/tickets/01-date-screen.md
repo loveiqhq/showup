@@ -5,6 +5,8 @@
 **Blocks:** Date 02 Coordinate chat · Date 03 Arrival check-in · Date 04 Match notified · Date 05 Change meet time and place · Date 06 End date and report a problem · Date 07 Cancel this date · Date 09 Switch to flow 10 · Date 10 Match Mate
 **Blocked by:** Search 01 (`ShowUpCount`), Search 03 (the four-tab `TabBar`)
 
+> ⚠ **Reissued 5 Nov 2026 — one addition.** The locked Coordinate card (state A) now carries **Change meet time · Change location** tiles. See *Decided before build*, callout ⑥ on the re-exported sheet, *Copy*, *Behaviour*, the rewritten AC and the new tracking row. Nothing else changed. If you started from the 2 Nov version, only the locked card is affected.
+
 ## Description
 
 The screen both people live on **from the moment they match until the date ends**. It is where the app opens while a date is active, and it is the host for everything else in 07a: the chat, the check-in, time and place changes, ending, reporting and cancelling all start here.
@@ -34,6 +36,7 @@ All times count from the **latest agreed meet time**. A suggestion that is still
 - **"After the date" is removed** from this screen; it is designed with the review (flow 10). (2 Nov 2026)
 - **Order Ride is hidden** until a ride-app API (e.g. Uber) is built. Quick actions are three tiles. (2 Nov 2026)
 - **The locked Coordinate card has no progress bar** — only `Messaging available from {meet − 1:30}`. (2 Nov 2026)
+- **Time and place can be changed from the match on, not only once the chat opens.** The locked card gains a line `Request to change the location or meet time.` and two tiles, **Change meet time · Change location**, in the quick-action tile style. **This ticket builds the tiles**; each opens the **Date 05** picker, and they ship **hidden until Date 05 ships** (epic rule 8). The card itself stays non-tappable. ⚠ *Superseded 5 Nov 2026 (decision of 3 Nov, kit Change · 12): the 2 Nov version of this ticket had no tiles on the locked card.* A change request received while the chat is locked (Change · 14–15) is the unread slot's request variant, built in **Date 05**.
 - **Match Mate is a slot here.** Its content is designed and built in **Date 10**. (2 Nov 2026)
 - **No header, no back.** While a date is active this screen *is* the app's home.
 
@@ -65,7 +68,7 @@ At 390 × 844 the footer covers the lower part of the first screen, so the Coord
 
 **Hero:** `It's a date.`
 **Time + place:** `You and {name} are meeting {day}` — `{day}` italic, violet · `Meeting time:` · `Meeting place:` · Copy pill `Copy` → `Copied`
-**Coordinate, locked (A):** `Coordinate with {name}` · `Sort last-minute details before you meet` · `Messaging available from {meet − 1:30}` (if the date is tomorrow: `Messaging available tomorrow from {meet − 1:30}`). No progress bar.
+**Coordinate, locked (A):** `Coordinate with {name}` · `Sort last-minute details before you meet` · `Messaging available from {meet − 1:30}` (if the date is tomorrow: `Messaging available tomorrow from {meet − 1:30}`). No progress bar. Then `Request to change the location or meet time.` and the tiles `Change meet time` · `Change location` — same labels as the chat chips.
 **Coordinate, available (B):** `Coordinate with {name}` · `Running late / Can't find your date at the spot? Tell {name} here!` · CTA `Open chat`
 **Coordinate, unread (C):** tag `New message` / `{n} new` · `needs a response · {time}` · CTA `Read & reply`
 **Report row:** **`Report a problem`** `If you feel unsafe or uncomfortable, let us know.`
@@ -97,6 +100,7 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Che
 
 - **Copy (④):** copies `{place}, {address}` to the clipboard and shows `Copied` for 1600 ms. No toast.
 - **Open chat / Read & reply:** opens the Coordinate chat (Date 02), with the tutorial first if not seen.
+- **Change meet time / Change location (locked card, A):** open the Date 05 time / place picker — the same pickers as the chat chips. Nothing else on the locked card is tappable. Hidden until Date 05 ships. In B and C the tiles are not shown: the chat's chips do the same job.
 - **Report a problem:** opens the Report sheet (Date 06). Always present while the date is active.
 - **Directions:** opens the platform maps app with the agreed place as destination.
 - **Order Ride:** hidden. It returns as a fourth tile when a ride-app API exists (own ticket).
@@ -114,7 +118,7 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Che
 
 ## Build inventory
 
-- **Client:** `ScreenMatchCoord` with the A / B / C states, `CoordinateModule` (locked, available, unread; the arrival variant is Date 04), `CopyAddress`, `DateWorksCard`, the Match Mate slot, the sticky footer slot with its `checkedIn` swap, the `TabBar` disabled state. The three OS hand-offs.
+- **Client:** `ScreenMatchCoord` with the A / B / C states, `CoordinateModule` (locked **with the two change tiles**, available, unread; the arrival variant is Date 04, the request variant Date 05), `CopyAddress`, `DateWorksCard`, the Match Mate slot, the sticky footer slot with its `checkedIn` swap, the `TabBar` disabled state. The three OS hand-offs.
 - **Server:** the date payload this screen reads — both people, the latest **agreed** time and place, both §30 motivations (the client shows the line only when they are equal), the **shared** vibes, shared interests, show-up count, age, job, area, distance. The unlock time (meet − 1:30) and `coordinate_unlocked`.
 - **Not built here:** both footer bars, the change tags and binding note, every sheet, Match Mate's content, Order Ride. A slot whose content is not built yet ships **empty**, not as a placeholder.
 
@@ -124,7 +128,7 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Che
 - [ ] Hero: first photo h 196, radius 24, `It's a date.` in Lora 700 italic 30, white, centred
 - [ ] Time + place card shows the **latest agreed** values and `{day}` as `today` or `tomorrow`; a pending suggestion never replaces them
 - [ ] Copy writes `{place}, {address}` to the clipboard and shows `Copied` for 1600 ms
-- [ ] **A** shows the locked Coordinate card, not tappable, with `Messaging available from {meet − 1:30}`
+- [ ] **A** shows the locked Coordinate card with `Messaging available from {meet − 1:30}`, the line `Request to change the location or meet time.` and the two tiles `Change meet time` · `Change location` (2 columns, gap 8, tile padding 14 / 8, radius 16). **The card is not tappable; only the tiles are**, each opening the Date 05 picker. Until Date 05 ships, the line and tiles are not rendered. *(Rewritten 5 Nov 2026 — was: "the locked Coordinate card, not tappable", with no tiles.)*
 - [ ] **A → B unlocks in place** at meet − 1:30 with the screen open — no reload, no toast
 - [ ] **C** moves the same Coordinate card above the time + place card, in the message's tone, preview clamped to 2 lines; it returns to its slot after the thread is opened
 - [ ] `Report a problem` is present in every state while the date is active
@@ -153,6 +157,7 @@ Event names come from `design_handoff_showup/tracking/events.json` (family **K �
 | Date screen state | `date_screen_viewed` | `date_id`, `state` (`locked` / `available`), **`has_unread`**, **`checked_in`** — **NEW properties**, `minutes_before_start` — from the latest agreed meet time |
 | Coordinate unlocks | `coordinate_unlocked` | server, at meet − 1:30 · `minutes_before_start` |
 | **Quick action or Copy** | `date_quick_action_tapped` | **NEW event** · `date_id`, `action` (§38 — **NEW**; `ride` is reserved until Order Ride ships), `minutes_before_start` |
+| **Change tile (locked card)** | `action_chip_used` | `date_id`, `reason` (`change_time` / `change_place`, §40), **`surface: "coordinate_card"`** — **added 5 Nov 2026**, taxonomy 1.4.26. Same event as the chat chips, so "change requested" is one funnel whatever the surface |
 | Full profile | `screen_viewed` | `screen_id: "search_profile"`, `referrer_screen_id: "date_screen"` — no new event |
 
 **Rules for this screen**
@@ -160,13 +165,14 @@ Event names come from `design_handoff_showup/tracking/events.json` (family **K �
 - `date_screen_viewed` fires **once per visit**, alongside `screen_viewed` — **not** on the in-place A → B unlock (`coordinate_unlocked` records that).
 - `date_quick_action_tapped` fires **on the tap**, before the hand-off. Whether the user completes the OS sheet is not ours and is not measured.
 - **A tap on a disabled tab fires nothing.** No `tab_switched`.
-- **Must NOT fire from this ticket:** `match_mate_*` (Date 10), `coordinate_viewed` (Date 02 respecifies it), `arrival_*` (Date 03), `date_status_*` (Date 06), `date_cancelled` (Date 07). Their entry points are on this screen; their events belong to their tickets.
+- **Must NOT fire from this ticket:** `match_mate_*` (Date 10), `coordinate_viewed` (**retired** 5 Nov 2026 by Date 02 — do not emit), `arrival_*` (Date 03), `date_status_*` (**retired** by Date 02), `date_cancelled` (Date 07), any Date 05 suggestion event (the picker fires those). Their entry points are on this screen; their events belong to their tickets.
 
 **Tracking acceptance criteria**
 
 - [ ] `screen_viewed` carries `screen_id: "date_screen"` and `screen_name: "Date - Date screen"`, read from §11, not literals
 - [ ] `date_screen_viewed` carries `has_unread` and `checked_in`, and `minutes_before_start` counts from the latest **agreed** time (negative after it)
 - [ ] `date_quick_action_tapped.action` uses only `directions`, `share`, `calendar`, `copy_address`
+- [ ] A change tile tap fires `action_chip_used` with `surface: "coordinate_card"` and nothing from the quick-action event
 - [ ] No event fires on a disabled-tab tap or on the in-place unlock (except the server's `coordinate_unlocked`)
 
 **Currently in the build: none of it.** Every row above is `Not built`.
@@ -181,7 +187,7 @@ The Coordinate chat and its tutorial (Date 02). The Check-in bar, both pop-ups a
 - **Search 03:** the four-tab `TabBar` with its disabled state
 - **Check-In 03:** §30 motivation labels
 - **The date payload** listed under *Build inventory*, with the **agreed** time and place kept separate from any pending suggestion
-- **Tracking registry 1.4.32 / taxonomy 1.4.25**
+- **Tracking registry 1.4.32 / taxonomy 1.4.25** — plus **taxonomy 1.4.26** for the change-tile row (`action_chip_used.surface`)
 
 ## Open (not blocking)
 

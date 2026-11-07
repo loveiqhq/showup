@@ -10,10 +10,10 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 ## Rules
 - **Cancel date** link under the Check-in bar → existing Cancel this date flow (penalty guard). ⚠ *Superseded 2 Nov 2026:* the link is **End date** — it does what the End Date bar does (wrap-up sheet), available before check-in. **Cancel this date** stays as its own link at the end of the date screen.
 - **Match sees in-app:** "{name} has arrived at the meeting location" in the same slot and style as a new chat message (artboard Check-in · 4). CTA Open chat.
-- **Chat stays evidence:** when check-ins are missing or > 200 m apart, the chat (chips + sent/replied) is reviewed to decide what happened.
+- **Chat stays evidence:** when check-ins are missing or not overlapping (150 m radius each), the chat (chips + sent/replied) is reviewed to decide what happened.
 - **"I arrived at the spot" chip** (chat): not checked in yet → runs the same check-in flow (guard → done); nothing is sent to the chat. Already checked in → opens the chat with the chip's prefill, as today.
 - **Stored on Yes:** the device's current location + timestamp, against this date. Internal only — never shown to either user, never sent to analytics.
-- **Match:** within **200 m** of each other's check-in.
+- **Match:** each check-in has a **150 m** radius; the two count as "together" when the circles overlap. Compared with each other only — the system never knows for sure where they agreed to meet (they may have agreed in free text). *(3 Nov 2026 — was 200 m.)*
 - **Available:** always while the date is active (meet time can be changed in the chat).
 - **Location off:** show the existing location-off screen (as Search 04). No check-in without a location. Mention in the ticket — not drawn in 07a.
 - **Match notified:** push to the other person that {name} has arrived at the meeting location. Copy TBD.
@@ -24,13 +24,13 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - The "Change meet time" and "Change location" chips open pickers, not free text.
 - **Time:** later the same day only, within the match's availability. 15-min slots.
 - **Place:** public places only (cafés, bars, restaurants — Google Maps places). No private addresses.
-- Sending posts a suggestion card. The main screen and chat header show the new value at once, tagged "Waiting for {name}" with the old value struck through.
+- Sending posts a suggestion card. The main screen and chat header show the new value at once, tagged "Waiting for {name}" with the old value struck through. ⚠ *Superseded 3 Nov 2026 (round 4): the binding value stays big; the suggestion is shown small.*
 - **Binding rule** (picker, sent card, main screen): "Until {name} agrees, {time} at {place} stays binding. Not showing up there counts as a no-show."
 - The match answers **I agree** or **Suggest another** (a new suggestion replaces the open one).
-- Agreed → tag "Agreed", system line "Meet time is now 19:30". Check-in distance (200 m) is compared against the agreed place.
+- Agreed → tag "Agreed", system line "Meet time is now 19:30". Check-ins are compared with each other (150 m radius each, circles overlap), not with the agreed place.
 
 ## Show-up Rate (new logic)
-- Both checked in within 200 m → date happened.
+- Both check-ins overlap (150 m radius each) → date happened.
 - No check-ins, both confirm in the review → date happened.
 - One checked in and reports the other absent → no-show for the other. The other can claim they were there → chat happened during the date? yes = no no-show · no = no-show.
 
@@ -38,7 +38,7 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - 07a is the only version — no separate section 07.
 - UI copy says **Check-in**. Tickets and tracking say **arrival check-in** (keeps it apart from the 48 h Check-In).
 - **Auto-switch to flow 10:** a date still open 2 h after the agreed meet time moves both users into flow 10 Review your date. Search stays blocked until each has done the review. Anchor = latest *agreed* time (a pending suggestion doesn't move it).
-- **Suggestions expire** at the binding meet time. Unanswered → expired, the original stays binding.
+- **Suggestions expire** at the binding meet time. Unanswered → expired, the original stays binding. ⚠ *Superseded 3 Nov 2026 (round 4): the deadline is meet − 0:30.*
 - **One open suggestion per type:** one time + one place can be open together, answered separately. A new suggestion of the same type replaces the open one. Binding line always combines the agreed values (e.g. agreed time + still-binding place).
 
 - **Places source:** plan with Google Places; may swap during implementation.
@@ -55,7 +55,37 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - **Order Ride** = a ride-app API (e.g. Uber) later. Hidden until it exists; quick actions are 3 tiles.
 - **Locked Coordinate card:** no progress bar, only "Messaging available from {meet − 1:30}".
 
+## Decided 3 Nov 2026 (round 4 — Date 05)
+- **Answer deadline = binding meet time − 30 min**, for time and place alike. Until a suggestion is agreed, the original time and place stay binding; not agreed by then → **expired**, the original stays binding.
+- The deadline counts from the **binding** time, never the suggested one (19:00 binding, 19:30 suggested → answer by 18:30). After a time is agreed, a still-open place suggestion takes its deadline from the new time.
+- Suggestions can therefore only be made and answered from the match until meet − 0:30 — before the chat unlocks through the locked Coordinate card's tiles, after it in the chat. *(Corrected 5 Nov 2026 — was: "between the chat unlock (meet − 1:30) and meet − 0:30 — a 60-minute window", superseded by the 3 Nov decision to allow changes from the match on.)*
+- Shown in the binding note ("unless {name} agrees by {deadline}"), on the receiver's card ("Answer by {deadline}"), and on expiry as a system line ("No answer by {deadline} — {time} at {place} stays.") with the card marked *Expired*. Kit: Change · 9.
+- **The binding value is the big one.** While a suggestion is pending, the main screen and the chat header keep the binding time / place at full size; the suggestion sits underneath, small: `You suggested {value}` + `Waiting for {name} to agree` (or `{name} suggested {value}` + `Waiting for you to agree`). Only on **Agreed** does the new value become the big one, with `was {old}` struck through.
+- **Change requests use the Coordinate card** for the person who has to answer (Change · 10 time, · 11 place): hoisted under the hero like an unread message, tag `Change request`, `{name} suggested {value}` with the old value struck through, `Answer by {deadline}` / `Until you agree, {time} at {place} stays binding. Not being there counts as a no-show.` (explicit — 3 Nov 2026), buttons **`Open chat`** (first, secondary) · **`I agree`** (second, primary) — agreeing is possible right on the card; **Suggest another** lives in the chat (it needs the picker and the conversation). The binding action sits second so a quick tap on the first never agrees. Agreeing on the card posts the same system line in the thread (`Meet time is now {value}`), so the evidence is identical. Outranks an ordinary unread message.
+- **The Coordinate card is always orange when it needs a reaction** — new message, change request, arrival — whatever the reason's tone. Users learn: orange = chat, react. Only the reason badge inside keeps its own tone.
+- **Purple is REAL, orange is change requests and chat.** The time + place card shows only binding values. A suggestion **from the match** appears only on the orange Coordinate card — no line and no binding note on the purple card. **Your own** waiting suggestion keeps its small line (`You suggested {value}` · `Waiting for {name} to agree`) plus the compact binding note, because nothing on the orange card covers it. Agreed → the new value is big with one quiet hint, `Changed · was {original}` — the **original** value only, never a chain (full history is in the chat), no "Agreed" pill (everything on purple is agreed), hidden after the meet time. Applied per field: a time and a place in opposite directions each follow their own rule; two of the same type cannot both be open (rule 3).
+- **To decide:** whether the Change meet time / Change location chips hide after meet − 0:30 (a suggestion sent then could never be agreed).
+
+## Decided 3 Nov 2026 (round 5)
+- **Check-in radius 150 m**, circles overlap → together. Grey areas (agreed elsewhere in free text, one arrives and leaves) are accepted for MVP: check-ins + review answers + chat usage give a good-enough guess.
+- **Exits stay as they are.** Cancel this date = clear no-show. End date / "I'm heading out" = check what happened.
+- **Chat tutorial stays** — always before the first open; it explains why the rules matter.
+- **"Binding" stays** in UI copy — it is the brand's own word (Welcome: "A match is a *binding* date").
+- **Commitment at the source:** the 48 h Check-In availability step should say that a match in that window is a binding date. To check / design.
+- **Change time / place from the match on** (not only once the chat opens). Free chat still opens at meet − 1:30. The locked Coordinate card shows `Messaging available from {meet − 1:30}` + two tiles **Change meet time · Change location** (Date-screen quick-action style), opening the same pickers as the chat. A request while the chat is locked shows the orange card with **Suggest another** (opens the picker) · **I agree**, and `Messaging opens at {time}` underneath. Deadline, one-per-type and "original stays binding" unchanged; the suggestion is already in the thread when it opens. Kit: Change · 12–15.
+- **Epic rule 3 to update:** "Changes happen through the chat" → through the Coordinate card before unlock, the chat after.
+
+## Decided 5 Nov 2026
+- **"I can't make it today" chip** shows a guide in the thread (local, never sent): Show Up is for reliable people · explain why and say sorry · better: move to later today or another place · **a different day can't be set in the app — agree on it between yourselves**. Button **Got it**.
+- **Field and send stay locked until Got it.** No prefill for this chip — the user writes the message themselves. After Got it the guide collapses to one line and the field gets focus. Kit: Coordinate · B2 (`chat-open-cancel`).
+- Chat dock: the "Tap a chip…" line is removed; compact chips are 36 px high (full labels kept).
+- **No move to another day in the app (MVP).** If they want another day, they agree on it in the chat; then one of them ends the date so both can search again. The guide says so.
+- **Ending after talking in the chat → no review** (the date didn't happen). The other person sees `{name} had to cancel the date` · "We hope you two found another day to meet. Search is open again" · rate untouched · **Find your next date**. Kit: Cancel this date · 4b (`coord-cancel-4-partner-chat`).
+- **Ending in the chat (built 5 Nov 2026):** the chat's **End the date** exists ONLY after an "I can't make it today" message has been sent (either side) — no other chip, message or state shows it. Then both see an **End the date** card in the thread → sheet `End the date with {name}?` · Keep the date · End the date → no review, both can search again. Ender sees `You ended the date` (B5), the other `{name} had to cancel the date` (4b). The card only appears after the apology message, so the chat end always follows an explanation. Kit: Coordinate · B3–B5.
+- **Settled 5 Nov 2026:** ending in the chat costs **nobody** Show-up Rate (accepted risk: one message avoids the drop) · the card stays available **until the date has ended**, no cut-off at the meet time · the chat buttons say **End date**, same as the Date screen, to keep copy small.
+
 ## Open
+- **Show-up Rate "10-min grace" line** (`screens-score.jsx`) — nothing measures lateness against the binding time. Drop it or define it (check-in > binding time + 10 min).
 - Review deadline: if one person never reviews, when does the Show-up Rate outcome become final?
 - "I was there" claim — decide with flow 10 / Show-up Rate logic. Includes B disputing "You didn't show up" inside the review.
 - Notification copy.

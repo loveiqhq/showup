@@ -1,6 +1,11 @@
 {
-  "registry_version": "1.4.32",
+  "registry_version": "1.4.33",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_33": [
+    "§11 date_chat_tutorial / Date - Chat tutorial · date_chat / Date - Coordinate chat · date_ended_in_chat / Date - Ended in chat — NEW rows, Date 02. 5 Nov 2026.",
+    "§39 chat_entry — NEW value set: open_chat · read_reply · tutorial · notification. Date 02.",
+    "§40 chat_reason — NEW value set: the eight chat chips. Date 02."
+  ],
   "changed_in_1_4_32": [
     "§11 date_screen / Date - Date screen — NEW row, Date 01. 2 Nov 2026.",
     "§38 date_quick_action — NEW value set: directions · ride · share · calendar · copy_address. Date 01, 2 Nov 2026.",
@@ -1234,6 +1239,30 @@
               "ticket": "Date 01",
               "status": "ticketed — not built",
               "notes": "The screen both people live on from the match until the date ends, ScreenMatchCoord. Added 2 Nov 2026 (registry 1.4.32). ONE screen_id; the time state is a property on date_screen_viewed (state locked | available, has_unread), never a second screen. Entered from the match (Search 02 / 03 confirm), the match push / SMS / WhatsApp / email deep links, and app launch while a date is active. The Coordinate chat (Date 02), the check-in pop-ups (Date 03), the change pickers (Date 05) and every sheet opened from here are their own rows or overlays. Exits: Date 06 / 07 / 08 hand-offs and the +2 h switch to flow 10 (Date 09)."
+            },
+            {
+              "screen_id": "date_chat_tutorial",
+              "screen_name": "Date - Chat tutorial",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 02",
+              "status": "ticketed — not built",
+              "notes": "“Must read — how messaging works”. Shown before the first open of the chat, per date and user. Exit: Open the chat → date_chat. Added 5 Nov 2026 (registry 1.4.33)."
+            },
+            {
+              "screen_id": "date_chat",
+              "screen_name": "Date - Coordinate chat",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 02",
+              "status": "ticketed — not built",
+              "notes": "The Coordinate chat. ONE screen_id for the start grid (no message yet) and the thread; the difference is chat_opened.is_first and the thread contents, never a second screen. The cancel guide, the End the date card and sheet are overlays/content on this screen, not rows. Added 5 Nov 2026 (registry 1.4.33)."
+            },
+            {
+              "screen_id": "date_ended_in_chat",
+              "screen_name": "Date - Ended in chat",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 02",
+              "status": "ticketed — not built",
+              "notes": "Shown to BOTH people after date_ended_in_chat: the one who ended it (“You ended the date”) and the match (“{name} had to cancel the date”). One screen_id; who is who is date_ended_in_chat.cant_make_it_from. Exit: Find your next date → Search. Added 5 Nov 2026 (registry 1.4.33)."
             }
           ]
         }
@@ -1833,6 +1862,34 @@
         "share",
         "calendar",
         "copy_address"
+      ]
+    },
+    {
+      "id": "e39",
+      "num": "39",
+      "name": "chat_entry",
+      "note": "HOW THE COORDINATE CHAT WAS OPENED (chat_opened.entry). open_chat = Coordinate card CTA in state B · read_reply = the hoisted unread card in state C · tutorial = straight from Open the chat on the tutorial · notification = a push / in-app notification deep link. Created 5 Nov 2026 with Date 02.",
+      "values": [
+        "open_chat",
+        "read_reply",
+        "tutorial",
+        "notification"
+      ]
+    },
+    {
+      "id": "e40",
+      "num": "40",
+      "name": "chat_reason",
+      "note": "THE CHAT ACTION CHIPS (action_chip_used.reason, message_sent.reason, message_received.reason), in grid order. Kit keys: onway · arrived · find · when · time · place · late · cancel. change_time / change_place never produce a message here — they open the Date 05 picker; cant_make_it has NO prefill and is the only reason that shows the cancel guide and, once sent, the End the date card. Created 5 Nov 2026 with Date 02.",
+      "values": [
+        "on_my_way",
+        "arrived",
+        "cant_find",
+        "when_arrive",
+        "change_time",
+        "change_place",
+        "running_late",
+        "cant_make_it"
       ]
     }
   ],

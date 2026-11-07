@@ -358,6 +358,9 @@ enum Stamp {
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
     ///
+    /// 1.4.33 (7 November 2026): §11 `date_chat_tutorial` / `date_chat` / `date_ended_in_chat`, §39
+    /// `chat_entry` and §40 `chat_reason` (SHOWUP-194, Date 02). No value an event here sends moved.
+    ///
     /// 1.4.32 (3 November 2026): §11 `date_screen` and §38 `date_quick_action` (SHOWUP-193, Date 01).
     /// No value an event here sends moved.
     ///
@@ -366,7 +369,7 @@ enum Stamp {
     ///
     /// 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186). No value an event
     /// here sends moved between 1.4.25 and 1.4.29 - the stamp follows the file the code reads.
-    static let fieldRegistryVersion = "1.4.32"
+    static let fieldRegistryVersion = "1.4.33"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]
