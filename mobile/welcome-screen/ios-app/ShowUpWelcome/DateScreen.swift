@@ -168,9 +168,14 @@ struct DateScreen: View {
                 // statement, said of the date, and the locked bar -- the lock holds whatever the network.
                 // Loading is cream and the bar alone: the screen is reached only once a read found a date.
                 if !ui.loading, ui.failed != nil {
-                    CentredStatement(text: DateCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.bottom, tab)
+                    // Centred above the TabBar, scrolling where it is taller than that room -- at the
+                    // largest type in split screen it pushed the TabBar off the screen (the 4 Nov 2026
+                    // device audit).
+                    ScrollView {
+                        CentredStatement(text: DateCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
+                            .frame(maxWidth: .infinity, minHeight: max(0, g.size.height - tab))
+                    }
+                    .padding(.bottom, tab)
                 }
                 tabBar
             }

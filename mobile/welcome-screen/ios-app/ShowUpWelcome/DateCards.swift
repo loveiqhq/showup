@@ -561,11 +561,25 @@ struct ReportRow: View {
 
 // MARK: - ⑩ intent + Show-up count
 
-private func eyebrow(_ text: String, size: CGFloat = 11) -> some View {
+/// The eyebrow on one line, as the intent row measures it beside the count.
+private func oneLineEyebrow(_ text: String, size: CGFloat = 11) -> some View {
     Text(text.uppercased())
         .font(F.manrope(size, .bold))
         .tracking(0.08)
         .foregroundColor(.liqSubtle)
+}
+
+/// The eyebrow, wrapping; a word wider than its column shrinks rather than being cut -- it read
+/// `MUTUAL INTE...` at AX5 (the 4 Nov 2026 device audit).
+private func eyebrow(_ text: String, size: CGFloat = 11) -> some View {
+    let upper = text.uppercased()
+    return FitWords(text: upper, font: { s in F.manrope(size * s, .bold) }) { s in
+        Text(upper)
+            .font(F.manrope(size * s, .bold))
+            .tracking(0.08)
+            .foregroundColor(.liqSubtle)
+            .fixedSize(horizontal: false, vertical: true)
+    }
 }
 
 /// A shared value as a selected chip, with the icon the sheet draws (`vibeIcon`, `commonChips`).
@@ -590,11 +604,11 @@ struct IntentCard: View {
                 // (the largest type, or the narrowest phone) -- fitted to the card, never past it.
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .center, spacing: 12) {
-                        intentLine(shared)
+                        intentLine(shared, fitted: false)
                         ShowUpCount(count: date.match.attendedCount, size: .sm)
                     }
                     VStack(alignment: .leading, spacing: 8) {
-                        intentLine(shared)
+                        intentLine(shared, fitted: true)
                         ShowUpCount(count: date.match.attendedCount, size: .sm, fitWidth: .infinity)
                     }
                 }
@@ -616,7 +630,10 @@ struct IntentCard: View {
 
 extension IntentCard {
     /// The heart (shared) or the shield, and the eyebrow over the shared motivation.
-    fileprivate func intentLine(_ shared: Bool) -> some View {
+    /// `fitted`: wrapping, its words shrunk to the column (`FitWords`) -- under the count. Beside it, the
+    /// one-line texts, so the row picks "beside" only where the whole intent fits on one line, as
+    /// Android's `BesideOrUnder` does.
+    fileprivate func intentLine(_ shared: Bool, fitted: Bool) -> some View {
         HStack(alignment: .center, spacing: 12) {
             if shared {
                 BrandIconView(icon: .heartFilled, size: 20, tint: .liqOrange)
@@ -624,11 +641,18 @@ extension IntentCard {
                 BrandIconView(icon: .shieldCheck, size: 20, tint: .liqPurple)
             }
             VStack(alignment: .leading, spacing: 0) {
-                eyebrow(shared ? DateCopy.mutualIntent : DateCopy.theirShowUp(date.match.name))
+                let label = shared ? DateCopy.mutualIntent : DateCopy.theirShowUp(date.match.name)
+                if fitted { eyebrow(label) } else { oneLineEyebrow(label) }
                 if shared {
-                    Text(motivationOf(date.motivationThem)?.title ?? date.motivationThem ?? "")
-                        .font(F.manrope(15, .semibold))
-                        .foregroundColor(.liqFg)
+                    let title = motivationOf(date.motivationThem)?.title ?? date.motivationThem ?? ""
+                    if fitted {
+                        FitWords(text: title, font: { s in F.manrope(15 * s, .semibold) }) { s in
+                            Text(title).font(F.manrope(15 * s, .semibold)).foregroundColor(.liqFg)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } else {
+                        Text(title).font(F.manrope(15, .semibold)).foregroundColor(.liqFg)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
