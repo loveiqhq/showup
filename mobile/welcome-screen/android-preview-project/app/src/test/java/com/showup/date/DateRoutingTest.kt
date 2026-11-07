@@ -23,7 +23,7 @@ class DateRoutingTest {
         unlockAt = Instant.parse("2026-11-03T16:30:00Z"), coordinateOpen = false,
         place = null, match = DateMatch("u2", "Leonie", 28, null, null, null, 0),
         motivationYou = null, motivationThem = null,
-        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false,
+        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false, chatTutorialSeen = false,
     )
     private val active: Outcome<DateRead> = Outcome.Ok(DateRead.Active(date))
     private val none: Outcome<DateRead> = Outcome.Ok(DateRead.None)

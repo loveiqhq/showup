@@ -15,6 +15,7 @@
  */
 package com.showup.fit
 
+import com.showup.chat.ChatReason
 import androidx.compose.foundation.ScrollState
 import com.showup.date.ActiveDate
 import com.showup.date.DATE_ABOUT_TAG
@@ -63,10 +64,10 @@ class DateFitTest {
         motivationYou = "long_term", motivationThem = "long_term",
         sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
         sharedInterests = listOf("reading", "hiking", "brunch"),
-        unread = null, checkedIn = false,
+        unread = null, checkedIn = false, chatTutorialSeen = false,
     )
     private val unread = DateUnread(
-        2, "running_late",
+        2, ChatReason.RunningLate,
         "Running about 10 min late — sorry! Almost there, the tram stopped twice and I am nearly at the door.",
         unlock,
     )

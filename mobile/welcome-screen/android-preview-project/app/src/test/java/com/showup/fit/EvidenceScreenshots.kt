@@ -1136,12 +1136,12 @@ class EvidenceScreenshots {
             motivationYou = "long_term", motivationThem = "long_term",
             sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
             sharedInterests = listOf("reading", "brunch", "hiking"),
-            unread = null, checkedIn = false,
+            unread = null, checkedIn = false, chatTutorialSeen = false,
         )
         val a = com.showup.date.DateUi(date, java.time.Instant.parse("2026-11-03T14:55:00Z"), loading = false)
         val b = com.showup.date.DateUi(date, java.time.Instant.parse("2026-11-03T16:42:00Z"), loading = false)
         val c = com.showup.date.DateUi(
-            date.copy(unread = com.showup.date.DateUnread(1, "running_late", "Running about 10 min late — sorry! Almost there.", java.time.Instant.parse("2026-11-03T16:42:00Z"))),
+            date.copy(unread = com.showup.date.DateUnread(1, com.showup.chat.ChatReason.RunningLate, "Running about 10 min late — sorry! Almost there.", java.time.Instant.parse("2026-11-03T16:42:00Z"))),
             java.time.Instant.parse("2026-11-03T16:42:20Z"),
             loading = false,
         )

@@ -9,23 +9,6 @@ import SwiftUI
 
 // MARK: - tones and small parts
 
-/// The reference's `REASON_TONES`: ink, panel fill, chip border.
-struct ToneColors {
-    let fg: Color
-    let bg: Color
-    let border: Color
-}
-
-func toneColors(_ tone: ReasonTone) -> ToneColors {
-    switch tone {
-    case .violet: return ToneColors(fg: .liqPurple, bg: Color.liqPurple.opacity(0.10), border: Color.liqPurple.opacity(0.20))
-    case .orange: return ToneColors(fg: .liqOrange, bg: Color.liqOrange.opacity(0.11), border: Color.liqOrange.opacity(0.22))
-    case .danger: return ToneColors(fg: .liqDangerFg, bg: Color.liqDanger.opacity(0.10), border: Color.liqDanger.opacity(0.22))
-    case .darkRed: return ToneColors(fg: .liqReasonDarkRed, bg: Color.liqReasonDarkRed.opacity(0.09),
-                                     border: Color.liqReasonDarkRed.opacity(0.28))
-    }
-}
-
 /// One layer of a CSS `box-shadow`, as Card.swift draws `--liq-shadow-md`: each layer on its own copy of
 /// the shape, so neither is a shadow of the other. A SwiftUI shadow radius is the CSS blur / 2.
 struct ShadowLayer {
@@ -238,7 +221,7 @@ struct CopyAddress: View {
             .padding(EdgeInsets(top: 5, leading: 9, bottom: 5, trailing: 11))
             .background(Capsule().fill(copied ? Color.liqSuccess.opacity(0.14) : Color.liqElevated))
             .overlay(Capsule().strokeBorder(copied ? Color.liqSuccess.opacity(0.32) : Color.liqBorderSoft, lineWidth: 1))
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: copied)
+            .animation(reduceMotion ? nil : .easeInOut(duration: Motion.tint), value: copied)
             .overflowTapTarget()
         }
         .buttonStyle(PressScale())
@@ -371,10 +354,12 @@ private struct UnreadCoordinate: View {
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
-        let style = chatReasonStyle(unread.reason)
-        let tone = toneColors(style.tone)
+        let reason = unread.reason
+        // A message sent with no chip draws no badge; its card keeps the orange the reference's
+        // `reasonFor` falls back to, so it still reads as waiting for a reply.
+        let tone = reason?.tone ?? .orange
         // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
-        Card(borderColor: tone.border, borderWidth: 1.5, padding: EdgeInsets(top: 1.5, leading: 1.5, bottom: 1.5, trailing: 1.5)) {
+        Card(borderColor: tone.chipBorder, borderWidth: 1.5, padding: EdgeInsets(top: 1.5, leading: 1.5, bottom: 1.5, trailing: 1.5)) {
             UnevenRoundedRectangle(topLeadingRadius: 18.5, topTrailingRadius: 18.5)
                 .fill(tone.fg)
                 .frame(height: 4)
@@ -394,7 +379,7 @@ private struct UnreadCoordinate: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 7) {
-                    ReasonBadge(style: style, onLight: true)
+                    if let reason { ReasonBadge(reason: reason, onLight: true) }
                     if let body = unread.body {
                         // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `… sorry!` / `Almost there.”`.
                         PrettyText("“\(body)”", font: uiFont(PS.manropeMedium, 14, .medium), lineHeight: 14 * 1.4,
@@ -407,7 +392,7 @@ private struct UnreadCoordinate: View {
                 .background(RoundedRectangle(cornerRadius: 14).fill(tone.bg))
                 .padding(.top, 13)
                 CoordinateCta(label: DateCopy.readAndReply, fill: tone.fg,
-                              shadows: style.tone == .orange ? shadowCta : (style.tone == .danger ? [] : shadowViolet),
+                              shadows: tone == .orange ? shadowCta : (tone == .danger ? [] : shadowViolet),
                               action: onOpenChat)
                     .padding(.top, 14)
             }
@@ -422,7 +407,7 @@ private struct UnreadCoordinate: View {
         }
     }
 
-    private func tag(_ tone: ToneColors) -> some View {
+    private func tag(_ tone: ReasonTone) -> some View {
         HStack(spacing: 4) {
             Circle().fill(tone.fg).frame(width: 5, height: 5)
             // Shrinks rather than widens the card where even the stacked form leaves it too little room
@@ -437,28 +422,6 @@ private struct UnreadCoordinate: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .background(Capsule().fill(tone.bg))
-    }
-}
-
-/// The reference's `ReasonBadge`: uppercase reason label with its icon, in the tone's tint.
-struct ReasonBadge: View {
-    let style: ChatReasonStyle
-    let onLight: Bool
-
-    var body: some View {
-        let tone = toneColors(style.tone)
-        HStack(spacing: 5) {
-            BrandIconView(icon: style.icon, size: 11, stroke: 2.5, tint: onLight ? tone.fg : .white)
-            // One line wherever it fits; at the largest type on a narrow phone it wraps rather than runs
-            // past the panel.
-            Text(style.label.uppercased())
-                .font(F.manrope(10.5, .heavy))
-                .tracking(0.05)
-                .foregroundColor(onLight ? tone.fg : .white)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(EdgeInsets(top: 3, leading: 7, bottom: 3, trailing: 9))
-        .background(Capsule().fill(onLight ? tone.bg : Color.white.opacity(0.22)))
     }
 }
 

@@ -8,6 +8,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import java.time.Instant
 import java.time.ZoneId
 
@@ -27,9 +28,10 @@ object DateSamples {
         motivationYou = "long_term", motivationThem = "long_term",
         sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
         sharedInterests = listOf("reading", "brunch", "hiking"),
-        unread = null, checkedIn = false,
+        unread = null, checkedIn = false, chatTutorialSeen = false,
     )
 
-    /** C: the sheet's running-late message, sent at 17:42. */
-    val UNREAD = DateUnread(1, "running_late", "Running about 10 min late — sorry! Almost there.", B_NOW)
+    /** C: the sheet's running-late message, sent at 17:42; the dev menu sends the same text. */
+    const val UNREAD_BODY = "Running about 10 min late — sorry! Almost there."
+    val UNREAD = DateUnread(1, ChatReason.RunningLate, UNREAD_BODY, B_NOW)
 }

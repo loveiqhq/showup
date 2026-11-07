@@ -26,10 +26,10 @@ struct DateMatch: Equatable, Sendable {
     var attendedCount: Int
 }
 
-/// The newest unread message from the match. `reason` is the server's chat reason wire value.
+/// The newest unread message from the match. `reason` is its chip, nil for a message sent with none.
 struct DateUnread: Equatable, Sendable {
     var count: Int
-    var reason: String
+    var reason: ChatReason?
     var body: String?
     var sentAt: Date
 }
@@ -53,10 +53,23 @@ struct ActiveDate: Equatable, Sendable {
     var unread: DateUnread?
     /// The viewer's own arrival check-in. Always false until Date 03.
     var checkedIn: Bool
+    /// The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial.
+    var chatTutorialSeen: Bool
 }
 
-/// What `GET /me/date` found: a date, or none. A failed call is the `Result`'s.
+/// A date ended in the chat after "I can't make it today" (Date 02) that the viewer has not seen yet: the
+/// other person's first name and whether the viewer ended it. Shown once; after it is marked seen the read
+/// is `.none`.
+struct EndedInChat: Equatable, Sendable {
+    var dateId: String
+    var name: String
+    var endedByYou: Bool
+}
+
+/// What `GET /me/date` found: a date, an ended-in-chat outcome to show, or neither. A failed call is the
+/// `Result`'s.
 enum DateRead: Equatable, Sendable {
     case active(ActiveDate)
+    case ended(EndedInChat)
     case none
 }

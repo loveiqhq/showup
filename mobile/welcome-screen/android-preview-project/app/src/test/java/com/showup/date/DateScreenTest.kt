@@ -7,6 +7,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -46,7 +47,7 @@ class DateScreenTest {
         match = DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
         motivationYou = "long_term", motivationThem = "long_term",
         sharedVibes = listOf("coffee_chat", "deep_talk"), sharedInterests = listOf("reading", "hiking"),
-        unread = unread, checkedIn = checkedIn,
+        unread = unread, checkedIn = checkedIn, chatTutorialSeen = false,
     )
 
     private fun ui(now: Instant = locked, unread: DateUnread? = null, checkedIn: Boolean = false, copied: Boolean = false) =
@@ -76,7 +77,7 @@ class DateScreenTest {
     fun `C moves the one Coordinate card above the time and place card`() = runComposeUiTest {
         setContent {
             DateScreen(
-                ui(now = unlock.plusSeconds(60), unread = DateUnread(1, "running_late", "Running late!", unlock)),
+                ui(now = unlock.plusSeconds(60), unread = DateUnread(1, ChatReason.RunningLate, "Running late!", unlock)),
                 zone = berlin,
             )
         }
@@ -103,7 +104,7 @@ class DateScreenTest {
     fun `never a percentage, never Order Ride, never Match Mate content, and Report in every state`() = runComposeUiTest {
         var state by mutableStateOf(ui())
         setContent { DateScreen(state, zone = berlin) }
-        for (s in listOf(ui(), ui(now = unlock), ui(now = unlock, unread = DateUnread(2, "on_my_way", null, unlock)))) {
+        for (s in listOf(ui(), ui(now = unlock), ui(now = unlock, unread = DateUnread(2, ChatReason.OnMyWay, null, unlock)))) {
             state = s
             waitForIdle()
             onAllNodesWithText("%", substring = true).assertCountEquals(0)

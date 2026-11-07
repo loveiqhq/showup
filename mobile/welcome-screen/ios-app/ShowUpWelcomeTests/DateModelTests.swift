@@ -23,7 +23,7 @@ actor FakeDateStore: DateStoring {
 
     func partnerProfile(zone: String) async -> Result<SearchProfile, CallFailure> { profile }
     func createTestDate(minutes: Int) async -> Bool { true }
-    func messageFromMatch(reason: String, body: String?) async -> Bool { true }
+    func messageFromMatch(reason: ChatReason?, body: String) async -> Bool { true }
     func endTestDate() async -> Bool { true }
 }
 
@@ -44,7 +44,7 @@ final class DateModelTests: XCTestCase {
                    match: DateMatch(userId: "u2", name: "Leonie", age: 28, district: "Neukölln", distanceKm: 1,
                                     photoUrl: nil, attendedCount: 4),
                    motivationYou: "long_term", motivationThem: "long_term",
-                   sharedVibes: [], sharedInterests: [], unread: unread, checkedIn: checkedIn)
+                   sharedVibes: [], sharedInterests: [], unread: unread, checkedIn: checkedIn, chatTutorialSeen: false)
     }
 
     private func settle(_ seconds: Double = 0.05) async {
@@ -86,7 +86,7 @@ final class DateModelTests: XCTestCase {
 
     func testAVisitInCReportsAvailableWithHasUnreadAndTheReferrer() async {
         let store = FakeDateStore()
-        let u = DateUnread(count: 1, reason: "running_late", body: "Ten minutes late!", sentAt: unlock)
+        let u = DateUnread(count: 1, reason: .runningLate, body: "Ten minutes late!", sentAt: unlock)
         await store.setRead(.success(.active(date(unread: u))))
         let analytics = RecordingAnalytics()
         let m = model(store, analytics, TestClock(unlock.addingTimeInterval(60)))
@@ -130,6 +130,18 @@ final class DateModelTests: XCTestCase {
         await settle()
         XCTAssertEqual(m.state.state, .available)
         XCTAssertEqual(names(analytics), ["screen_viewed", "date_screen_viewed"])
+    }
+
+    func testADateEndedInTheChatLeavesTheScreenAsNoDateDoes() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        await store.setRead(.success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))))
+        m.foreground()
+        await settle()
+        XCTAssertTrue(m.state.left)
     }
 
     func testNoDateOnAReReadLeavesTheScreen() async {

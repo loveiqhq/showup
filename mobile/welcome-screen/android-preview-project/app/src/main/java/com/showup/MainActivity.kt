@@ -2728,7 +2728,7 @@ class MainActivity : ComponentActivity() {
                             dateScope.launch {
                                 when (action) {
                                     is DevDateAction.CreateIn -> dateStore.createTestDate(action.minutes)
-                                    DevDateAction.Message -> dateStore.messageFromMatch("running_late", DateSamples.UNREAD.body)
+                                    DevDateAction.Message -> dateStore.messageFromMatch(com.showup.chat.ChatReason.RunningLate, DateSamples.UNREAD_BODY)
                                     DevDateAction.End -> dateStore.endTestDate()
                                 }
                                 // The Date screen's own read shows the result: a new date or message

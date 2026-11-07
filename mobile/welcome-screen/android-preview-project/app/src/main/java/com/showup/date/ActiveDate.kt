@@ -7,6 +7,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import java.time.Instant
 
 /** The agreed meeting place. [address] is null for a venue stored without one. */
@@ -28,8 +29,8 @@ data class DateMatch(
     val attendedCount: Int,
 )
 
-/** The newest unread message from the match. [reason] is the server's chat reason wire value. */
-data class DateUnread(val count: Int, val reason: String, val body: String?, val sentAt: Instant)
+/** The newest unread message from the match. [reason] is its chip, null for a message sent with none. */
+data class DateUnread(val count: Int, val reason: ChatReason?, val body: String?, val sentAt: Instant)
 
 /** Everything the Date screen renders. Time and place are the latest AGREED values. */
 data class ActiveDate(
@@ -50,10 +51,23 @@ data class ActiveDate(
     val unread: DateUnread?,
     /** The viewer's own arrival check-in. Always false until Date 03. */
     val checkedIn: Boolean,
+    /** The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial. */
+    val chatTutorialSeen: Boolean,
 )
 
-/** What `GET /me/date` found: a date, or none. A failed call is the [com.showup.api.Outcome]'s. */
+/**
+ * A date ended in the chat after "I can't make it today" (Date 02) that the viewer has not seen yet:
+ * the other person's first name and whether the viewer ended it. Shown once; after it is marked seen
+ * the read is [DateRead.None].
+ */
+data class EndedInChat(val dateId: String, val name: String, val endedByYou: Boolean)
+
+/**
+ * What `GET /me/date` found: a date, an ended-in-chat outcome to show, or neither. A failed call is the
+ * [com.showup.api.Outcome]'s.
+ */
 sealed interface DateRead {
     data class Active(val date: ActiveDate) : DateRead
+    data class Ended(val outcome: EndedInChat) : DateRead
     data object None : DateRead
 }

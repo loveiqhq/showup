@@ -7,6 +7,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import com.showup.analytics.RecordingAnalytics
 import com.showup.api.CallFailure
 import com.showup.api.Outcome
@@ -44,7 +45,7 @@ class DateViewModelTest {
         place = DatePlace("Cafe Krone", "Oranienstrasse 42, Kreuzberg"),
         match = DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
         motivationYou = "long_term", motivationThem = "long_term",
-        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = unread, checkedIn = checkedIn,
+        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = unread, checkedIn = checkedIn, chatTutorialSeen = false,
     )
 
     private fun vm() = DateViewModel(store, analytics, clock = { now }, zone = { ZoneId.of("Europe/Berlin") })
@@ -79,7 +80,7 @@ class DateViewModelTest {
     @Test
     fun `a visit in C reports available with has_unread, and the referrer`() = runTest(dispatcher) {
         now = unlock.plusSeconds(60)
-        store.read = Outcome.Ok(DateRead.Active(date(unread = DateUnread(1, "running_late", "Late!", now))))
+        store.read = Outcome.Ok(DateRead.Active(date(unread = DateUnread(1, ChatReason.RunningLate, "Late!", now))))
         val vm = vm()
         vm.arrived(referrer = ProfileScreen.SearchProfile)
         advanceUntilIdle()
@@ -133,6 +134,18 @@ class DateViewModelTest {
         vm.arrived(referrer = null)
         advanceUntilIdle()
         assertEquals(1, analytics.of("date_screen_viewed").size)
+    }
+
+    @Test
+    fun `a date ended in the chat leaves the screen, as no date does`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        store.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        vm.foreground()
+        advanceUntilIdle()
+        assertTrue(vm.state.value.left)
     }
 
     @Test
@@ -281,6 +294,6 @@ class FakeDateStore : DateStore {
 
     override suspend fun partnerProfile(zone: String): Outcome<SearchProfile> = profile
     override suspend fun createTestDate(minutes: Int) = Result.success(true)
-    override suspend fun messageFromMatch(reason: String, body: String?) = Result.success(true)
+    override suspend fun messageFromMatch(reason: ChatReason?, body: String) = Result.success(true)
     override suspend fun endTestDate() = Result.success(true)
 }
