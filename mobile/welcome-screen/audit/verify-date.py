@@ -61,10 +61,13 @@ def joined_literals(source):
     return re.sub(r'"\s*\+\s*"', "", re.sub(r'"\s*\+\s*\n\s*"', "", source))
 
 
-kt_files = sorted(glob.glob(os.path.join(KT, "date", "*.kt")))
+# The chat's vocabulary is the Date screen's too: the unread card's badge and the locked card's tiles
+# take their labels from it (SHOWUP-194 builds it once, for Dates 01, 02, 03 and 05).
+kt_files = sorted(glob.glob(os.path.join(KT, "date", "*.kt")) + [os.path.join(KT, "chat", "ChatReasons.kt")])
 sw_files = sorted(
     glob.glob(os.path.join(SW, "Date*.swift"))
     + [p for p in (os.path.join(SW, n) for n in ("CoordinateModule.swift", "CopyAddress.swift")) if os.path.exists(p)]
+    + [os.path.join(SW, "ChatReasons.swift")]
 )
 check("the Android date package was found", len(kt_files) >= 8)
 check("the iOS date files were found", len(sw_files) >= 8)
@@ -75,8 +78,9 @@ sw = norm(joined_literals("\n".join(read(p) for p in sw_files)))
 ticket = read(TICKET)
 section = ticket.split("## Copy", 1)[1].split("\n## ", 1)[0]
 quoted = re.findall(r"`([^`]+)`", section)
-# Not copy: the component the intent card names, and the hidden action (checked absent below).
-NOT_COPY = {"ShowUpCount", "Order Ride"}
+# Not copy: the component the intent card names, and the hidden action (checked absent below). And the
+# locked card's change line: Date 05's, not rendered until Date 05 ships (AC A, rewritten 5 Nov 2026).
+NOT_COPY = {"ShowUpCount", "Order Ride", "Request to change the location or meet time."}
 
 
 def runs(s):

@@ -8,10 +8,11 @@ import { DateStatus } from '../dates/util/date-lifecycle';
 import { dateLocksUser } from '../dates/util/date-lock';
 import { Profile } from '../profiles/entities/profile.entity';
 import { SearchProfileDto } from '../search/dto/search.dto';
+import { firstName } from '../search/util/search-profile';
 import { SearchService } from '../search/search.service';
 import { isTimeZone, meetDay } from '../search/util/search';
-import { ActiveDateDto } from './dto/active-date.dto';
-import { toActiveDate, unreadOf } from './util/active-date';
+import { ActiveDateDto, EndedInChatDto } from './dto/active-date.dto';
+import { endedOutcomeOf, toActiveDate, unreadOf } from './util/active-date';
 
 /**
  * The Date screen's reads (Date 01, SHOWUP-193).
@@ -97,9 +98,36 @@ export class DateScreenService {
       ),
       // Date 03 adds the arrival check-in store; until then nobody has checked in.
       checkedIn: false,
+      chatTutorialSeen:
+        (viewerIsA ? date.aChatTutorialAt : date.bChatTutorialAt) !== null,
       meetDay: meetDay(date.scheduledAt, now, tz),
       now,
     });
+  }
+
+  /**
+   * With no active date: the newest date that ended in the chat whose outcome the viewer has still to
+   * see (Date 02) -- how the match lands on H, and how the ender still sees G after a crash.
+   */
+  async endedOutcome(viewerId: string): Promise<EndedInChatDto | null> {
+    const rows = await this.db.getRepository(DateEntity).find({
+      where: [
+        { userAId: viewerId, status: DateStatus.EndedInChat },
+        { userBId: viewerId, status: DateStatus.EndedInChat },
+      ],
+      order: { endedAt: 'DESC' },
+    });
+    const row = rows.find((d) => endedOutcomeOf(d, viewerId, '') !== null);
+    if (!row) return null;
+    const partnerId = row.userAId === viewerId ? row.userBId : row.userAId;
+    const profile = await this.db
+      .getRepository(Profile)
+      .findOne({ where: { userId: partnerId } });
+    return endedOutcomeOf(
+      row,
+      viewerId,
+      firstName(profile?.displayName ?? null),
+    );
   }
 
   /** `GET /me/date/profile`: the match's full profile, built as the queue builds it. */

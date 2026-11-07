@@ -1410,7 +1410,7 @@ final class CheckInModelTests: XCTestCase {
         XCTAssertEqual(Set(seen.map(\.0)), Set(registry.keys))
         for (name, properties) in seen {
             XCTAssertEqual(Set(properties.keys).subtracting(stamp), registry[name], name)
-            XCTAssertEqual(properties["field_registry_version"] as? String, "1.4.32", name)
+            XCTAssertEqual(properties["field_registry_version"] as? String, "1.4.33", name)
         }
     }
 }

@@ -1,5 +1,11 @@
 import { SearchProfileDto } from '../../search/dto/search.dto';
-import { sharedInOrder, toActiveDate, unreadOf } from './active-date';
+import { DateStatus } from '../../dates/util/date-lifecycle';
+import {
+  endedOutcomeOf,
+  sharedInOrder,
+  toActiveDate,
+  unreadOf,
+} from './active-date';
 
 const VIEWER = 'viewer';
 const PARTNER = 'partner';
@@ -48,14 +54,14 @@ describe('unreadOf', () => {
         msg(PARTNER, '2026-11-03T16:00:00Z'),
         msg(VIEWER, '2026-11-03T16:05:00Z'),
         msg(PARTNER, '2026-11-03T16:10:00Z', 'on_my_way'),
-        msg(PARTNER, '2026-11-03T16:20:00Z', 'cant_find_you'),
+        msg(PARTNER, '2026-11-03T16:20:00Z', 'cant_find'),
       ],
       VIEWER,
       at('2026-11-03T16:01:00Z'),
     );
     expect(unread).toEqual({
       count: 2,
-      reason: 'cant_find_you',
+      reason: 'cant_find',
       body: 'body 2026-11-03T16:20:00Z',
       sentAt: '2026-11-03T16:20:00.000Z',
     });
@@ -76,6 +82,47 @@ describe('unreadOf', () => {
         ],
         VIEWER,
         at('2026-11-03T16:00:00Z'),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('endedOutcomeOf (Date 02)', () => {
+  const ended = {
+    id: 'd1',
+    status: DateStatus.EndedInChat,
+    userAId: VIEWER,
+    userBId: PARTNER,
+    endedById: VIEWER as string | null,
+    aEndSeenAt: null as Date | null,
+    bEndSeenAt: null as Date | null,
+  };
+
+  it('tells the ender they ended it, and the match that the ender did', () => {
+    expect(endedOutcomeOf(ended, VIEWER, 'Leonie')).toEqual({
+      dateId: 'd1',
+      name: 'Leonie',
+      endedByYou: true,
+    });
+    expect(endedOutcomeOf(ended, PARTNER, 'Max')).toEqual({
+      dateId: 'd1',
+      name: 'Max',
+      endedByYou: false,
+    });
+  });
+
+  it('is null once that person has seen it, or for a date that did not end in the chat', () => {
+    expect(
+      endedOutcomeOf({ ...ended, aEndSeenAt: new Date() }, VIEWER, 'Leonie'),
+    ).toBeNull();
+    expect(
+      endedOutcomeOf({ ...ended, aEndSeenAt: new Date() }, PARTNER, 'Max'),
+    ).not.toBeNull();
+    expect(
+      endedOutcomeOf(
+        { ...ended, status: DateStatus.Cancelled },
+        VIEWER,
+        'Leonie',
       ),
     ).toBeNull();
   });

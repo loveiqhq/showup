@@ -17,6 +17,7 @@ import {
 import {
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Max,
@@ -46,16 +47,18 @@ export class CreateDevDateDto {
   minutesFromNow: number;
 }
 
+/** The test match's message, as the real send takes it (Date 02): text, and a reason or none. */
 export class DevDateMessageDto {
-  @ApiProperty({ enum: ChatReason, enumName: 'ChatReason' })
-  @IsEnum(ChatReason)
-  reason: ChatReason;
-
-  @ApiPropertyOptional({ maxLength: CHAT_MESSAGE_MAX_LENGTH })
+  @ApiPropertyOptional({ enum: ChatReason, enumName: 'ChatReason' })
   @IsOptional()
+  @IsEnum(ChatReason)
+  reason?: ChatReason;
+
+  @ApiProperty({ minLength: 1, maxLength: CHAT_MESSAGE_MAX_LENGTH })
   @IsString()
+  @IsNotEmpty()
   @MaxLength(CHAT_MESSAGE_MAX_LENGTH)
-  body?: string;
+  body: string;
 }
 
 /**
@@ -92,7 +95,7 @@ export class DateDevController {
     @Body() dto: DevDateMessageDto,
   ): Promise<void> {
     this.refuseInProduction();
-    await this.dev.message(user.id, dto.reason, dto.body);
+    await this.dev.message(user.id, dto.reason ?? null, dto.body);
   }
 
   @Post('end')
@@ -102,6 +105,19 @@ export class DateDevController {
   async end(@CurrentUser() user: User): Promise<void> {
     this.refuseInProduction();
     await this.dev.endDate(user.id);
+  }
+
+  /**
+   * The test match ends the caller's date in the chat (Date 02), through the real path -- so it needs
+   * an "I can't make it today" message in the thread, and the caller lands on H.
+   */
+  @Post('end-in-chat')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'endDevDateInChat' })
+  @ApiNoContentResponse()
+  async endInChat(@CurrentUser() user: User): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.endInChat(user.id);
   }
 
   private refuseInProduction(): void {

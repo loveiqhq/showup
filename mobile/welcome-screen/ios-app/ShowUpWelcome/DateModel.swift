@@ -131,7 +131,8 @@ final class DateModel {
                 // A new date after one that went away is shown, not left.
                 self.state.left = false
                 self.reportVisit(date, now: now)
-            case .success(.none):
+            case .success(.none), .success(.ended):
+                // An ended-in-chat outcome leaves the screen as no date does; the routing shows it.
                 self.state.left = true
             case .failure(let why):
                 self.state.failed = why

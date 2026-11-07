@@ -7,6 +7,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import com.showup.api.CallFailure
 import com.showup.api.InMemoryTokenStore
 import com.showup.api.Outcome
@@ -52,7 +53,7 @@ class DateRepositoryTest {
          "motivations":{"you":"long_term","them":"long_term"},
          "sharedVibes":["coffee_chat","playful"],"sharedInterests":["reading"],
          "unread":{"count":2,"reason":"running_late","body":"Ten minutes late!","sentAt":"2026-11-03T17:10:00.000Z"},
-         "checkedIn":false}}
+         "checkedIn":false,"chatTutorialSeen":true},"ended":null}
     """.trimIndent()
 
     @Test
@@ -77,8 +78,9 @@ class DateRepositoryTest {
         assertEquals("long_term", date.motivationThem)
         assertEquals(listOf("coffee_chat", "playful"), date.sharedVibes)
         assertEquals(listOf("reading"), date.sharedInterests)
-        assertEquals(DateUnread(2, "running_late", "Ten minutes late!", Instant.parse("2026-11-03T17:10:00Z")), date.unread)
+        assertEquals(DateUnread(2, ChatReason.RunningLate, "Ten minutes late!", Instant.parse("2026-11-03T17:10:00Z")), date.unread)
         assertEquals(false, date.checkedIn)
+        assertEquals(true, date.chatTutorialSeen)
         assertEquals("/me/date?tz=Europe%2FBerlin", server.takeRequest().path)
     }
 
@@ -89,7 +91,7 @@ class DateRepositoryTest {
                "unlockAt":"2026-11-03T16:30:00.000Z","coordinateOpen":true,"place":null,
                "match":{"userId":"u2","name":"Leonie","attendedCount":0},
                "motivations":{"you":null,"them":"casual"},"sharedVibes":[],"sharedInterests":[],
-               "unread":null,"checkedIn":false}}""",
+               "unread":null,"checkedIn":false,"chatTutorialSeen":false},"ended":null}""",
         )
         val date = (((repo.active("UTC")) as Outcome.Ok<DateRead>).value as DateRead.Active).date
         assertNull(date.place)
@@ -104,8 +106,21 @@ class DateRepositoryTest {
 
     @Test
     fun `no active date is None, not a failure`() = runTest {
-        json("""{"date":null}""")
+        json("""{"date":null,"ended":null}""")
         assertEquals(Outcome.Ok(DateRead.None), repo.active("UTC"))
+    }
+
+    @Test
+    fun `a date ended in the chat and not yet seen is Ended, with the other person's first name`() = runTest {
+        json("""{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false}}""")
+        assertEquals(Outcome.Ok(DateRead.Ended(EndedInChat("d9", "Leonie", endedByYou = false))), repo.active("UTC"))
+    }
+
+    @Test
+    fun `an unread message sent with no chip has no reason, and keeps its text`() = runTest {
+        json(full.replace("\"reason\":\"running_late\"", "\"reason\":null"))
+        val date = ((repo.active("UTC") as Outcome.Ok<DateRead>).value as DateRead.Active).date
+        assertEquals(DateUnread(2, null, "Ten minutes late!", Instant.parse("2026-11-03T17:10:00Z")), date.unread)
     }
 
     @Test

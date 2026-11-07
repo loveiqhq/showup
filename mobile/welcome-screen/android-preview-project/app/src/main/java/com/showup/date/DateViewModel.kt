@@ -131,7 +131,8 @@ class DateViewModel(
                         _state.update { it.copy(date = read.date, now = now, loading = false, failed = null, left = false) }
                         reportVisit(read.date, now)
                     }
-                    DateRead.None -> _state.update { it.copy(now = now, loading = false, left = true) }
+                    // An ended-in-chat outcome leaves the screen as no date does; the routing shows it.
+                    DateRead.None, is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, left = true) }
                 }
                 is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = answer.why) }
             }

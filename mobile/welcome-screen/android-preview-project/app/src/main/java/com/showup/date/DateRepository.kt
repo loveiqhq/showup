@@ -10,12 +10,13 @@ import com.showup.api.Outcome
 import com.showup.api.ShowUpApi
 import com.showup.api.callCatching
 import com.showup.api.generated.model.ActiveDateDto
-import com.showup.api.generated.model.ChatReason
 import com.showup.api.generated.model.CreateDevDateDto
 import com.showup.api.generated.model.DevDateMessageDto
 import com.showup.api.outcome
+import com.showup.chat.ChatReason
 import com.showup.search.SearchProfile
 import com.showup.search.toProfile
+import com.showup.api.generated.model.ChatReason as WireReason
 
 /** The Date screen's calls, behind an interface so the view model is tested with no network. */
 interface DateStore {
@@ -28,8 +29,11 @@ interface DateStore {
     /** Debug only: a date with the test match Leonie in [minutes]. */
     suspend fun createTestDate(minutes: Int): Result<Boolean>
 
-    /** Debug only: a message from Leonie (the chat must be open: 90 minutes or less to go). */
-    suspend fun messageFromMatch(reason: String, body: String?): Result<Boolean>
+    /**
+     * Debug only: a message from Leonie (the chat must be open: 90 minutes or less to go). A null
+     * [reason] sends it with no chip, as a message typed without one.
+     */
+    suspend fun messageFromMatch(reason: ChatReason?, body: String): Result<Boolean>
 
     /** Debug only: ends the viewer's date, the escape from a screen whose exits are later tickets. */
     suspend fun endTestDate(): Result<Boolean>
@@ -40,7 +44,9 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
     override suspend fun active(zone: String): Outcome<DateRead> = outcome {
         val response = api.dates.getActiveDate(zone)
         response.body()?.takeIf { response.isSuccessful }?.let { body ->
-            body.date?.let { DateRead.Active(it.toActiveDate()) } ?: DateRead.None
+            body.date?.let { DateRead.Active(it.toActiveDate()) }
+                ?: body.ended?.let { DateRead.Ended(EndedInChat(it.dateId, it.name, it.endedByYou)) }
+                ?: DateRead.None
         }
     }
 
@@ -53,10 +59,10 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         api.dev.createDevDate(CreateDevDateDto(minutesFromNow = minutes)).isSuccessful
     }
 
-    override suspend fun messageFromMatch(reason: String, body: String?): Result<Boolean> = callCatching {
+    override suspend fun messageFromMatch(reason: ChatReason?, body: String): Result<Boolean> = callCatching {
         // By wire value, not constant name: a regenerated enum constant must not change what is sent.
-        val wire = ChatReason.entries.first { it.value == reason }
-        api.dev.sendDevDateMessage(DevDateMessageDto(reason = wire, body = body)).isSuccessful
+        val wire = reason?.let { chip -> WireReason.entries.first { it.value == chip.wire } }
+        api.dev.sendDevDateMessage(DevDateMessageDto(body = body, reason = wire)).isSuccessful
     }
 
     override suspend fun endTestDate(): Result<Boolean> = callCatching {
@@ -83,7 +89,8 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         motivationThem = motivations.them,
         sharedVibes = sharedVibes,
         sharedInterests = sharedInterests,
-        unread = unread?.let { DateUnread(it.count, it.reason.value, it.body, it.sentAt.toInstant()) },
+        unread = unread?.let { DateUnread(it.count, ChatReason.fromWire(it.reason?.value), it.body, it.sentAt.toInstant()) },
         checkedIn = checkedIn,
+        chatTutorialSeen = chatTutorialSeen,
     )
 }

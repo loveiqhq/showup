@@ -784,7 +784,10 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  // The Date screen (SHOWUP-193): `copy` is the time + place card's Copy pill, `share`
                  // the Share Date tile; `hourglass`, `binoculars` and `frown` the unread card's reason
                  // badges; `coffee` the Coffee & a chat vibe's chip. Each from its `d` string.
-                 copy, share, hourglass, binoculars, frown, coffee }
+                 copy, share, hourglass, binoculars, frown, coffee,
+                 // The chat (SHOWUP-194): `walking` is the "When will you arrive?" chip's mark,
+                 // from its `circle` and `d` strings.
+                 walking }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -1416,6 +1419,9 @@ struct BrandIconView: View {
             case .coffee:
                 filled = false
                 p = Self.coffeePath
+            case .walking:
+                filled = false
+                p = Self.walkingPath
             case .phone:
                 filled = false
                 p = Self.phonePath
@@ -1517,6 +1523,11 @@ struct BrandIconView: View {
     )
     /// The cup and its handle, and the three steam `line`s at x 6, 10 and 14.
     static let coffeePath = SVGPath.parse("M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1L6 4M10 1L10 4M14 1L14 4")
+    /// `walking` (SHOWUP-194): the head (`circle 13,4 r1.7`), the body, the two legs and the two arms --
+    /// the same string as Android's `KitPaths.walking`.
+    static let walkingPath = SVGPath.parse(
+        "M14.7 4A1.7 1.7 0 1 1 11.3 4A1.7 1.7 0 1 1 14.7 4ZM13 6v6M13 12l3 4v5M13 12l-3 4-1 5M13 8l4 1.2M13 8l-3-1"
+    )
 
     /// How far a mark's ink is from the centre of its artboard, in 24-grid units.
     ///

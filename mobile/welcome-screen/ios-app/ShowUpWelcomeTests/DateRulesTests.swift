@@ -13,7 +13,7 @@ final class DateRulesTests: XCTestCase {
     private let place = DatePlace(name: "Cafe Krone", address: "Oranienstrasse 42, Kreuzberg")
 
     private func unread() -> DateUnread {
-        DateUnread(count: 1, reason: "running_late", body: "Ten minutes late!", sentAt: meet.addingTimeInterval(-50 * 60))
+        DateUnread(count: 1, reason: .runningLate, body: "Ten minutes late!", sentAt: meet.addingTimeInterval(-50 * 60))
     }
 
     /// `place` nil uses the sample place; `.some(nil)` is a date with none.
@@ -23,7 +23,7 @@ final class DateRulesTests: XCTestCase {
                    match: DateMatch(userId: "u2", name: name, age: 28, district: "Neukölln", distanceKm: 1,
                                     photoUrl: nil, attendedCount: 4),
                    motivationYou: "long_term", motivationThem: "long_term",
-                   sharedVibes: [], sharedInterests: [], unread: nil, checkedIn: false)
+                   sharedVibes: [], sharedInterests: [], unread: nil, checkedIn: false, chatTutorialSeen: false)
     }
 
     // MARK: - the state
@@ -124,17 +124,6 @@ final class DateRulesTests: XCTestCase {
         let headline = meetingHeadline(name: "Leonie", day: "today")
         XCTAssertEqual(headline.lead, "You and Leonie are meeting ")
         XCTAssertEqual(headline.day, "today")
-    }
-
-    func testEveryServerChatReasonHasTheReferencesBadgeAndAnUnknownOneFallsBack() {
-        XCTAssertEqual(chatReasonStyle("running_late").label, "I'm running late")
-        XCTAssertEqual(chatReasonStyle("running_late").tone, .orange)
-        XCTAssertEqual(chatReasonStyle("change_meet_time").label, "Change meet time")
-        XCTAssertEqual(chatReasonStyle("change_location").tone, .violet)
-        XCTAssertEqual(chatReasonStyle("cant_make_it_today").tone, .darkRed)
-        XCTAssertEqual(chatReasonStyle("cant_find_you").label, "I can't spot you")
-        XCTAssertEqual(chatReasonStyle("on_my_way").label, "I'm on my way")
-        XCTAssertEqual(chatReasonStyle("something_new").label, "I'm on my way")
     }
 
     func testTheUnreadTagSaysNewMessageForOneAndNNewForMore() {

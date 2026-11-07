@@ -24,9 +24,9 @@ enum DateSamples {
         motivationYou: "long_term", motivationThem: "long_term",
         sharedVibes: ["coffee_chat", "nature_walk", "playful", "deep_talk"],
         sharedInterests: ["reading", "brunch", "hiking"],
-        unread: nil, checkedIn: false)
+        unread: nil, checkedIn: false, chatTutorialSeen: false)
 
     /// C: the sheet's running-late message, sent at 17:42.
-    static let unread = DateUnread(count: 1, reason: "running_late",
+    static let unread = DateUnread(count: 1, reason: .runningLate,
                                    body: "Running about 10 min late — sorry! Almost there.", sentAt: bNow)
 }

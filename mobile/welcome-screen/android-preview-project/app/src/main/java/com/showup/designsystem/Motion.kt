@@ -91,9 +91,16 @@ object Motion {
 
     /**
      * How long the Date screen's Copy pill reads `Copied` (SHOWUP-193 ④: "shows `Copied` for 1600
-     * ms. No toast"). Its colours cross over [FAST]-ish 160 ms, the kit's own transition.
+     * ms. No toast"). Its colours cross over [TINT].
      */
     const val COPIED = 1600
+
+    /**
+     * A control's colours following its state: the chat's composer border and fill and its Send
+     * button waking (`160ms`, SHOWUP-194), and the Date screen's Copy pill (SHOWUP-193). A touch
+     * under [FAST]: a tint travels nowhere, and the reference times every one of these at 160.
+     */
+    const val TINT = 160
 
     /**
      * One beat of the unread badge's pulsing ring (`su-pulse-ring 1.8s cubic-bezier(.22,1,.36,1)
