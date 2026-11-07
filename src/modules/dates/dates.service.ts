@@ -353,6 +353,24 @@ export class DatesService {
     );
   }
 
+  /**
+   * The caller tapped "Open the chat" on this date's tutorial (Date 02). The first tap is the one
+   * kept; later calls change nothing.
+   */
+  async markChatTutorialSeen(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const date = await this.participantDate(dateId, userId);
+    const isA = date.userAId === userId;
+    if ((isA ? date.aChatTutorialAt : date.bChatTutorialAt) !== null) return;
+    await this.dates.update(
+      { id: date.id },
+      isA ? { aChatTutorialAt: now } : { bChatTutorialAt: now },
+    );
+  }
+
   /** Load a date and confirm the caller is one of its two participants. */
   private async participantDate(
     dateId: string,

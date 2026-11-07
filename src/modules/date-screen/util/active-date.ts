@@ -1,3 +1,4 @@
+import { DateStatus } from '../../dates/util/date-lifecycle';
 import { chatOpensAt, ChatReason } from '../../dates/util/pre-date-chat';
 import { SearchProfileDto } from '../../search/dto/search.dto';
 import { roundedDistanceKm } from '../../search/util/search';
@@ -5,6 +6,7 @@ import {
   ActiveDateDto,
   DateMatchDto,
   DateUnreadDto,
+  EndedInChatDto,
 } from '../dto/active-date.dto';
 
 /** One chat message, as far as "is it unread" needs it. */
@@ -28,8 +30,41 @@ export interface ActiveDateSource {
   viewer: { motivation: string | null; vibes: string[]; interests: string[] };
   unread: DateUnreadDto | null;
   checkedIn: boolean;
+  /** The viewer has tapped "Open the chat" on this date's tutorial (Date 02). */
+  chatTutorialSeen: boolean;
   meetDay: 'today' | 'tomorrow';
   now: Date;
+}
+
+/** A date as far as "has this person still to see that it ended in the chat" needs it. */
+export interface EndedRow {
+  id: string;
+  status: DateStatus;
+  userAId: string;
+  userBId: string;
+  endedById: string | null;
+  aEndSeenAt: Date | null;
+  bEndSeenAt: Date | null;
+}
+
+/**
+ * The outcome `viewerId` is still to see -- G for the one who ended the date in the chat, H for the
+ * match -- or null once they have seen it, or when the date did not end in the chat (Date 02).
+ * `partnerName` is the other person's first name.
+ */
+export function endedOutcomeOf(
+  row: EndedRow,
+  viewerId: string,
+  partnerName: string,
+): EndedInChatDto | null {
+  if (row.status !== DateStatus.EndedInChat) return null;
+  const seen = row.userAId === viewerId ? row.aEndSeenAt : row.bEndSeenAt;
+  if (seen) return null;
+  return {
+    dateId: row.id,
+    name: partnerName,
+    endedByYou: row.endedById === viewerId,
+  };
 }
 
 /**
@@ -98,5 +133,6 @@ export function toActiveDate(src: ActiveDateSource): ActiveDateDto {
     sharedInterests: sharedInOrder(p.interests ?? [], src.viewer.interests),
     unread: src.unread,
     checkedIn: src.checkedIn,
+    chatTutorialSeen: src.chatTutorialSeen,
   };
 }

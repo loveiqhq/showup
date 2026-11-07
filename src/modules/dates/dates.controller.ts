@@ -91,7 +91,10 @@ export class DatesController {
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ChatMessageDto[]> {
-    const { messages, otherReadAt } = await this.dates.listChatMessages(id, user.id);
+    const { messages, otherReadAt } = await this.dates.listChatMessages(
+      id,
+      user.id,
+    );
     return messages.map((m) => ChatMessageDto.from(m, user.id, otherReadAt));
   }
 
@@ -109,6 +112,18 @@ export class DatesController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     await this.dates.markChatRead(id, user.id);
+  }
+
+  /** The caller tapped "Open the chat" on this date's tutorial (Date 02, frame A). Idempotent. */
+  @Post('dates/:id/chat/tutorial')
+  @ApiOperation({ operationId: 'markChatTutorialSeen' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async markChatTutorialSeen(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.dates.markChatTutorialSeen(id, user.id);
   }
 
   /** Send a chat message: the text, with the selected chip's reason or none (Date 02). */

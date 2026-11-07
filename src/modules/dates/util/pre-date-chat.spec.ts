@@ -75,7 +75,7 @@ describe('pre-date chat rules (SHOWUP-115)', () => {
   });
 
   describe('ChatReason', () => {
-    it('is the registry\'s §40 chat_reason, in grid order (Date 02)', () => {
+    it("is the registry's §40 chat_reason, in grid order (Date 02)", () => {
       expect(Object.values(ChatReason)).toEqual([
         'on_my_way',
         'arrived',

@@ -199,7 +199,7 @@ describe('The Date screen (e2e)', () => {
 
   it('answers date: null when there is no active date', async () => {
     const res = await getDate();
-    expect(res.body).toEqual({ date: null });
+    expect(res.body).toEqual({ date: null, ended: null });
   });
 
   it('shows a date three hours away as locked, with the agreed time and place', async () => {
@@ -363,7 +363,7 @@ describe('The Date screen (e2e)', () => {
 
   it('is not someone else’s date', async () => {
     await makeDate(180);
-    expect((await getDate('other')).body).toEqual({ date: null });
+    expect((await getDate('other')).body).toEqual({ date: null, ended: null });
   });
 
   it('walks every state with the dev helpers: create, message as the match, end', async () => {
@@ -405,6 +405,6 @@ describe('The Date screen (e2e)', () => {
       .post('/dev/date/end')
       .set('Authorization', as('other'))
       .expect(204);
-    expect((await getDate('other')).body).toEqual({ date: null });
+    expect((await getDate('other')).body).toEqual({ date: null, ended: null });
   });
 });

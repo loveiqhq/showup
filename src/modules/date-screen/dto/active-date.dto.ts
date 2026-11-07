@@ -132,6 +132,27 @@ export class ActiveDateDto {
       "The viewer's own arrival check-in. Always false until Date 03 adds the check-in store",
   })
   checkedIn: boolean;
+
+  @ApiProperty({
+    description:
+      'The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial',
+  })
+  chatTutorialSeen: boolean;
+}
+
+/**
+ * A date that ended in the chat, still to be shown to the viewer (Date 02): G "You ended the date"
+ * when `endedByYou`, otherwise H "{name} had to cancel the date". Until that person marks it seen.
+ */
+export class EndedInChatDto {
+  @ApiProperty()
+  dateId: string;
+
+  @ApiProperty({ description: "The other person's first name" })
+  name: string;
+
+  @ApiProperty()
+  endedByYou: boolean;
 }
 
 /**
@@ -142,4 +163,12 @@ export class ActiveDateDto {
 export class ActiveDateResponseDto {
   @ApiProperty({ type: ActiveDateDto, nullable: true })
   date: ActiveDateDto | null;
+
+  @ApiProperty({
+    type: EndedInChatDto,
+    nullable: true,
+    description:
+      'With no active date: an ended-in-chat outcome the viewer has not yet seen (Date 02)',
+  })
+  ended: EndedInChatDto | null;
 }

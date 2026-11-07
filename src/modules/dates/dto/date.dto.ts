@@ -97,7 +97,8 @@ export class SendChatMessageDto {
   @ApiPropertyOptional({
     enum: ChatReason,
     enumName: 'ChatReason',
-    description: "The selected chip's reason (§40); absent for a message typed with no chip",
+    description:
+      "The selected chip's reason (§40); absent for a message typed with no chip",
     example: ChatReason.RunningLate,
   })
   @IsOptional()
@@ -109,7 +110,9 @@ export class SendChatMessageDto {
     minLength: 1,
     maxLength: CHAT_MESSAGE_MAX_LENGTH,
   })
-  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(CHAT_MESSAGE_MAX_LENGTH)
@@ -128,7 +131,8 @@ export class ChatMessageDto {
   @ApiProperty({
     type: String,
     nullable: true,
-    description: 'The text. Null only on a SHOWUP-115 message sent with a reason alone',
+    description:
+      'The text. Null only on a SHOWUP-115 message sent with a reason alone',
   })
   body: string | null;
 
@@ -141,12 +145,17 @@ export class ChatMessageDto {
   @ApiProperty({
     type: Boolean,
     nullable: true,
-    description: "Your message: whether the other person has read the chat since. Theirs: null",
+    description:
+      'Your message: whether the other person has read the chat since. Theirs: null',
   })
   read: boolean | null;
 
   /** `otherReadAt`: when the OTHER person last read the chat, for the receipt on the viewer's own messages. */
-  static from(m: DateChatMessage, viewerId: string, otherReadAt: Date | null): ChatMessageDto {
+  static from(
+    m: DateChatMessage,
+    viewerId: string,
+    otherReadAt: Date | null,
+  ): ChatMessageDto {
     const fromYou = m.senderId === viewerId;
     return {
       id: m.id,
@@ -154,7 +163,9 @@ export class ChatMessageDto {
       body: m.body,
       fromYou,
       createdAt: m.createdAt,
-      read: fromYou ? otherReadAt !== null && otherReadAt.getTime() >= m.createdAt.getTime() : null,
+      read: fromYou
+        ? otherReadAt !== null && otherReadAt.getTime() >= m.createdAt.getTime()
+        : null,
     };
   }
 }
