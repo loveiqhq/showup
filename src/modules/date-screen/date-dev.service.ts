@@ -60,8 +60,8 @@ export class DateDevService {
   /** A message from the test match, through the real send path (the chat window applies). */
   async message(
     userId: string,
-    reason: ChatReason,
-    body?: string,
+    reason: ChatReason | null,
+    body: string,
   ): Promise<void> {
     const date = await this.screen.activeDateRow(userId);
     if (!date) throw new NotFoundException('No active date');

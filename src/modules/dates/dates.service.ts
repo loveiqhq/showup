@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -24,7 +25,11 @@ import { reviewWindowError } from './util/date-review';
 import { dateLocksUser } from './util/date-lock';
 import { DateStatus, transitionError } from './util/date-lifecycle';
 import { noShowReportError } from './util/no-show';
-import { ChatReason, chatWindowError } from './util/pre-date-chat';
+import {
+  ChatReason,
+  SENDABLE_REASONS,
+  chatWindowError,
+} from './util/pre-date-chat';
 
 @Injectable()
 export class DatesService {
@@ -258,38 +263,42 @@ export class DatesService {
   async sendChatMessage(
     dateId: string,
     userId: string,
-    reason: ChatReason,
-    body?: string,
+    reason: ChatReason | null,
+    body: string,
   ): Promise<DateChatMessage> {
+    if (reason !== null && !SENDABLE_REASONS.has(reason)) {
+      throw new BadRequestException(
+        'This reason opens the change picker; it is never a message',
+      );
+    }
     const date = await this.participantDate(dateId, userId);
     if (date.status !== DateStatus.Confirmed) {
-      throw new BadRequestException(
-        'The chat is only open for an upcoming date',
-      );
+      throw new ConflictException('The chat has closed: the date is over');
     }
     const windowError = chatWindowError(date.scheduledAt);
     if (windowError) throw new BadRequestException(windowError);
 
     return this.chat.save(
-      this.chat.create({
-        dateId: date.id,
-        senderId: userId,
-        reason,
-        body: body ?? null,
-      }),
+      this.chat.create({ dateId: date.id, senderId: userId, reason, body }),
     );
   }
 
-  /** SHOWUP-115 — the chat messages on a date, oldest first. Only a participant may read them. */
+  /**
+   * The chat messages on a date, oldest first, and when the OTHER person last read the chat (the
+   * receipt on the caller's own messages, Date 02). Only a participant may read them.
+   */
   async listChatMessages(
     dateId: string,
     userId: string,
-  ): Promise<DateChatMessage[]> {
-    await this.participantDate(dateId, userId);
-    return this.chat.find({
+  ): Promise<{ messages: DateChatMessage[]; otherReadAt: Date | null }> {
+    const date = await this.participantDate(dateId, userId);
+    const messages = await this.chat.find({
       where: { dateId },
       order: { createdAt: 'ASC' },
     });
+    const otherReadAt =
+      date.userAId === userId ? date.bChatReadAt : date.aChatReadAt;
+    return { messages, otherReadAt };
   }
 
   /**

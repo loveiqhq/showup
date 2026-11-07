@@ -83,7 +83,7 @@ export class DatesController {
     return DateDto.from(date, user.id);
   }
 
-  /** The pre-date chat messages on a date, oldest first (SHOWUP-115). */
+  /** The chat messages on a date, oldest first, with read receipts on your own (SHOWUP-115, Date 02). */
   @Get('dates/:id/chat')
   @ApiOperation({ operationId: 'listDateChatMessages' })
   @ApiOkResponse({ type: [ChatMessageDto] })
@@ -91,8 +91,8 @@ export class DatesController {
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ChatMessageDto[]> {
-    const messages = await this.dates.listChatMessages(id, user.id);
-    return messages.map((m) => ChatMessageDto.from(m, user.id));
+    const { messages, otherReadAt } = await this.dates.listChatMessages(id, user.id);
+    return messages.map((m) => ChatMessageDto.from(m, user.id, otherReadAt));
   }
 
   /**
@@ -111,7 +111,7 @@ export class DatesController {
     await this.dates.markChatRead(id, user.id);
   }
 
-  /** Send a pre-date chat message: pick a preset reason, optionally add a note (SHOWUP-115). */
+  /** Send a chat message: the text, with the selected chip's reason or none (Date 02). */
   @Post('dates/:id/chat')
   @ApiOperation({ operationId: 'sendDateChatMessage' })
   @HttpCode(201)
@@ -124,9 +124,10 @@ export class DatesController {
     const message = await this.dates.sendChatMessage(
       id,
       user.id,
-      dto.reason,
+      dto.reason ?? null,
       dto.body,
     );
-    return ChatMessageDto.from(message, user.id);
+    // Just sent: the other person cannot have read it yet.
+    return ChatMessageDto.from(message, user.id, null);
   }
 }
