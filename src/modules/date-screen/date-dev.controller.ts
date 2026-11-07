@@ -107,6 +107,19 @@ export class DateDevController {
     await this.dev.endDate(user.id);
   }
 
+  /**
+   * The test match ends the caller's date in the chat (Date 02), through the real path -- so it needs
+   * an "I can't make it today" message in the thread, and the caller lands on H.
+   */
+  @Post('end-in-chat')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'endDevDateInChat' })
+  @ApiNoContentResponse()
+  async endInChat(@CurrentUser() user: User): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.endInChat(user.id);
+  }
+
   private refuseInProduction(): void {
     if (this.config.get<string>('app.env') === 'production') {
       throw new NotFoundException();

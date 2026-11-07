@@ -93,6 +93,10 @@ const PROTECTED: Route[] = [
   { method: 'post', path: `/dates/${ID}/chat/read` },
   { method: 'get', path: '/me/date' },
   { method: 'get', path: '/me/date/profile' },
+  // SHOWUP-194 -- the Coordinate chat: the tutorial flag, ending the date from the chat, the outcome seen.
+  { method: 'post', path: `/dates/${ID}/chat/tutorial` },
+  { method: 'post', path: `/dates/${ID}/end-in-chat` },
+  { method: 'post', path: `/dates/${ID}/ended/seen` },
   // matching.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },
@@ -108,6 +112,8 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/dev/date' },
   { method: 'post', path: '/dev/date/message' },
   { method: 'post', path: '/dev/date/end' },
+  // SHOWUP-194 -- the test match ends the date in the chat.
+  { method: 'post', path: '/dev/date/end-in-chat' },
   // SHOWUP-185 / 186 -- who liked the viewer, and what they wrote: authenticated, then Premium.
   { method: 'get', path: '/search/grid' },
   { method: 'post', path: '/search/availability' },
