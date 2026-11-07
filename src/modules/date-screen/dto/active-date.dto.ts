@@ -60,8 +60,9 @@ export class DateUnreadDto {
   @ApiProperty({ type: 'integer', minimum: 1 })
   count: number;
 
-  @ApiProperty({ enum: ChatReason, enumName: 'ChatReason' })
-  reason: ChatReason;
+  /** Null when the newest unread message was typed with no chip selected (Date 02). */
+  @ApiProperty({ enum: ChatReason, enumName: 'ChatReason', nullable: true })
+  reason: ChatReason | null;
 
   @ApiProperty({ type: String, nullable: true })
   body: string | null;

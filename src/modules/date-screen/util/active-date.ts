@@ -10,7 +10,7 @@ import {
 /** One chat message, as far as "is it unread" needs it. */
 export interface DateMessageRow {
   senderId: string;
-  reason: ChatReason | string;
+  reason: ChatReason | string | null;
   body: string | null;
   createdAt: Date;
 }
@@ -59,7 +59,7 @@ export function unreadOf(
   if (!newest) return null;
   return {
     count: unread.length,
-    reason: newest.reason as ChatReason,
+    reason: (newest.reason as ChatReason | null) ?? null,
     body: newest.body,
     sentAt: newest.createdAt.toISOString(),
   };

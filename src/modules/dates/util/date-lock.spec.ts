@@ -30,6 +30,15 @@ describe('dateLocksUser', () => {
     );
   });
 
+  it('does not lock either person on a date ended in the chat (Date 02)', () => {
+    expect(dateLocksUser(row({ status: DateStatus.EndedInChat }), 'A')).toBe(
+      false,
+    );
+    expect(dateLocksUser(row({ status: DateStatus.EndedInChat }), 'B')).toBe(
+      false,
+    );
+  });
+
   it('does not lock on a completed date', () => {
     expect(
       dateLocksUser(

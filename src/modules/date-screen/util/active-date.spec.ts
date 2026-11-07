@@ -48,14 +48,14 @@ describe('unreadOf', () => {
         msg(PARTNER, '2026-11-03T16:00:00Z'),
         msg(VIEWER, '2026-11-03T16:05:00Z'),
         msg(PARTNER, '2026-11-03T16:10:00Z', 'on_my_way'),
-        msg(PARTNER, '2026-11-03T16:20:00Z', 'cant_find_you'),
+        msg(PARTNER, '2026-11-03T16:20:00Z', 'cant_find'),
       ],
       VIEWER,
       at('2026-11-03T16:01:00Z'),
     );
     expect(unread).toEqual({
       count: 2,
-      reason: 'cant_find_you',
+      reason: 'cant_find',
       body: 'body 2026-11-03T16:20:00Z',
       sentAt: '2026-11-03T16:20:00.000Z',
     });

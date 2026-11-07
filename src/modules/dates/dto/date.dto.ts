@@ -111,8 +111,9 @@ export class ChatMessageDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ enum: ChatReason })
-  reason: ChatReason;
+  /** Null for a message typed with no chip selected (Date 02). */
+  @ApiProperty({ enum: ChatReason, enumName: 'ChatReason', nullable: true })
+  reason: ChatReason | null;
 
   @ApiProperty({
     type: String,

@@ -317,14 +317,14 @@ describe('The Date screen (e2e)', () => {
       messages.create({
         dateId,
         senderId: id.leonie,
-        reason: ChatReason.CantFindYou,
+        reason: ChatReason.CantFind,
         body: 'Where are you sitting?',
         createdAt: new Date(Date.now() + 1000),
       }),
     );
     expect((await getDate()).body.date.unread).toMatchObject({
       count: 1,
-      reason: 'cant_find_you',
+      reason: 'cant_find',
     });
   });
 
