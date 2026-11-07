@@ -5,6 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { EndedInChatDto } from '../date-screen/dto/active-date.dto';
+import { cantMakeItFrom } from './util/end-in-chat';
+import { firstName } from '../search/util/search-profile';
+import { Profile } from '../profiles/entities/profile.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, IsNull, Repository } from 'typeorm';
 
@@ -14,6 +18,7 @@ import {
   dateCancelledEvent,
   dateCompletedEvent,
   dateConfirmedEvent,
+  dateEndedInChatEvent,
 } from '../analytics/events/date-events';
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { LocationService } from '../location/location.service';
@@ -40,6 +45,8 @@ export class DatesService {
     private readonly history: Repository<DateStatusChange>,
     @InjectRepository(DateChatMessage)
     private readonly chat: Repository<DateChatMessage>,
+    @InjectRepository(Profile)
+    private readonly profiles: Repository<Profile>,
     private readonly checkIns: CheckInsService,
     private readonly location: LocationService,
     private readonly analytics: AnalyticsService,
@@ -368,6 +375,80 @@ export class DatesService {
     await this.dates.update(
       { id: date.id },
       isA ? { aChatTutorialAt: now } : { bChatTutorialAt: now },
+    );
+  }
+
+  /**
+   * Ends the date for both people from the chat (Date 02): only a `confirmed` date with an "I can't
+   * make it today" message in its thread, at any time until it has ended -- there is no cut-off at the
+   * meet time. No review follows and nobody's Show-up Rate moves: nothing here touches a rating, a
+   * confirmation or a no-show field. Both people are released from the date lock by the status alone.
+   * `date_ended_in_chat` is sent once; `date_cancelled` never is.
+   */
+  async endInChat(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<EndedInChatDto> {
+    const date = await this.participantDate(dateId, userId);
+    if (date.status !== DateStatus.Confirmed) {
+      throw new ConflictException('This date has already ended');
+    }
+    const messages = await this.chat.find({
+      where: { dateId: date.id },
+      order: { createdAt: 'ASC' },
+      select: { senderId: true, reason: true, createdAt: true },
+    });
+    const from = cantMakeItFrom(messages, userId);
+    if (from === null) {
+      throw new ConflictException(
+        'A date can be ended from the chat only after an "I can\'t make it today" message',
+      );
+    }
+    // Conditional on the status, so a second tap -- or the other person's -- ends it once.
+    const ended = await this.dates.update(
+      { id: date.id, status: DateStatus.Confirmed },
+      { status: DateStatus.EndedInChat, endedById: userId, endedAt: now },
+    );
+    if (!ended.affected) {
+      throw new ConflictException('This date has already ended');
+    }
+    await this.logChange(
+      date.id,
+      DateStatus.Confirmed,
+      DateStatus.EndedInChat,
+      userId,
+    );
+    void this.analytics.trackServerEvent({
+      userId,
+      ...dateEndedInChatEvent(
+        date.id,
+        from,
+        minutesBeforeStart(date.scheduledAt, now),
+      ),
+    });
+
+    const partnerId = date.userAId === userId ? date.userBId : date.userAId;
+    const profile = await this.profiles.findOne({
+      where: { userId: partnerId },
+    });
+    return {
+      dateId: date.id,
+      name: firstName(profile?.displayName ?? null),
+      endedByYou: true,
+    };
+  }
+
+  /** The caller has seen their outcome screen for a date ended in the chat (Date 02). Idempotent. */
+  async markEndSeen(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const date = await this.participantDate(dateId, userId);
+    await this.dates.update(
+      { id: date.id },
+      date.userAId === userId ? { aEndSeenAt: now } : { bEndSeenAt: now },
     );
   }
 

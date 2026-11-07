@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
+import { EndedInChatDto } from '../date-screen/dto/active-date.dto';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -124,6 +125,33 @@ export class DatesController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     await this.dates.markChatTutorialSeen(id, user.id);
+  }
+
+  /**
+   * Ends the date for both people from the chat (Date 02, frame F). 409 unless the date is still on and
+   * an "I can't make it today" message is in its thread. The caller then sees G.
+   */
+  @Post('dates/:id/end-in-chat')
+  @ApiOperation({ operationId: 'endDateInChat' })
+  @HttpCode(200)
+  @ApiOkResponse({ type: EndedInChatDto })
+  async endInChat(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<EndedInChatDto> {
+    return this.dates.endInChat(id, user.id);
+  }
+
+  /** The caller has seen their outcome screen, G or H, for a date ended in the chat (Date 02). */
+  @Post('dates/:id/ended/seen')
+  @ApiOperation({ operationId: 'markDateEndSeen' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async markEndSeen(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.dates.markEndSeen(id, user.id);
   }
 
   /** Send a chat message: the text, with the selected chip's reason or none (Date 02). */

@@ -10,6 +10,8 @@ import request from 'supertest';
 import { In, Repository } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
+import { AnalyticsService } from './../src/modules/analytics/analytics.service';
+import { DatesService } from './../src/modules/dates/dates.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
 import { Profile } from './../src/modules/profiles/entities/profile.entity';
@@ -225,5 +227,90 @@ describe('The Coordinate chat (e2e)', () => {
 
     const theirs = (await list(dateId, 'leonie')).body[0];
     expect(theirs).toMatchObject({ fromYou: false, read: null });
+  });
+
+  describe('ending the date in the chat', () => {
+    const end = (dateId: string, who: keyof typeof PHONES) =>
+      request(server)
+        .post(`/dates/${dateId}/end-in-chat`)
+        .set('Authorization', as(who));
+    const seen = (dateId: string, who: keyof typeof PHONES) =>
+      request(server)
+        .post(`/dates/${dateId}/ended/seen`)
+        .set('Authorization', as(who));
+
+    it('refuses to end it before an "I can\'t make it today" message is in the thread', async () => {
+      const dateId = await makeDate(60);
+      await send(dateId, 'you', {
+        reason: 'running_late',
+        body: 'Running late',
+      }).expect(201);
+      await end(dateId, 'you').expect(409);
+    });
+
+    it('ends it for both after the match says they cannot make it -- once, released, no cancel event', async () => {
+      const dateId = await makeDate(60);
+      const datesService = app.get(DatesService);
+      const sent: Array<{
+        eventName: string;
+        properties?: Record<string, unknown>;
+      }> = [];
+      const spy = jest
+        .spyOn(app.get(AnalyticsService), 'trackServerEvent')
+        .mockImplementation((e) => {
+          sent.push(e);
+          return Promise.resolve();
+        });
+      try {
+        expect(await datesService.isLockedFromMatching(id.you)).toBe(true);
+        await send(dateId, 'leonie', {
+          reason: 'cant_make_it',
+          body: 'So sorry, something came up at work and I cannot make it.',
+        }).expect(201);
+
+        const res = await end(dateId, 'you').expect(200);
+        expect(res.body).toEqual({ dateId, name: 'Leonie', endedByYou: true });
+        await end(dateId, 'you').expect(409);
+
+        expect((await getDate('you')).body).toEqual({
+          date: null,
+          ended: { dateId, name: 'Leonie', endedByYou: true },
+        });
+        expect((await getDate('leonie')).body).toEqual({
+          date: null,
+          ended: { dateId, name: 'Max', endedByYou: false },
+        });
+        expect(await datesService.isLockedFromMatching(id.you)).toBe(false);
+        expect(await datesService.isLockedFromMatching(id.leonie)).toBe(false);
+
+        await seen(dateId, 'leonie').expect(204);
+        expect((await getDate('leonie')).body.ended).toBeNull();
+        expect((await getDate('you')).body.ended).not.toBeNull();
+        await seen(dateId, 'you').expect(204);
+        expect((await getDate('you')).body.ended).toBeNull();
+
+        const ended = sent.filter((e) => e.eventName === 'date_ended_in_chat');
+        expect(ended).toHaveLength(1);
+        expect(ended[0].properties).toMatchObject({
+          date_id: dateId,
+          cant_make_it_from: 'match',
+        });
+        expect(typeof ended[0].properties?.minutes_before_start).toBe('number');
+        expect(sent.some((e) => e.eventName === 'date_cancelled')).toBe(false);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('can still be ended after the meet time has passed', async () => {
+      const dateId = await makeDate(60);
+      await send(dateId, 'you', {
+        reason: 'cant_make_it',
+        body: 'Sorry, I really cannot.',
+      }).expect(201);
+      await dates.update({ id: dateId }, { scheduledAt: minutesFromNow(-30) });
+      const res = await end(dateId, 'leonie').expect(200);
+      expect(res.body).toEqual({ dateId, name: 'Max', endedByYou: true });
+    });
   });
 });
