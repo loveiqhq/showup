@@ -198,7 +198,11 @@ struct CSSLineBox: Layout {
         let pitch = max(lineHeight, ascent + descent)
         let lines = max(1, Int(((last - first) / pitch).rounded()) + 1)
         let cssFirst = lineHeight / 2 + (ascent - descent) / 2
-        let height = max(lineHeight * CGFloat(lines), lineHeight)
+        // The first line's box, then each further line where SwiftUI actually set it: `pitch` apart,
+        // not `lineHeight` -- n lines of the CSS height left every line past the first running over
+        // what lay under the box wherever the font's own line is the taller (the 4 Nov 2026 device
+        // audit). One line, or lines set at the CSS pitch, measure exactly as CSS does.
+        let height = lines > 1 ? (last - first) + lineHeight : lineHeight
         return (size, height, ascent - cssFirst)
     }
 }

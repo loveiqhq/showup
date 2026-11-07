@@ -73,6 +73,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -177,14 +178,25 @@ fun TabBar(
                         if (locked) LockBadge()
                     }
                     Spacer(Modifier.height(3.dp))
-                    Text(
-                        tab.label,
-                        modifier = Modifier.clearAndSetSemantics {},
+                    // A label wider than its quarter of the bar (`Settings` at 200 % on a 320 phone) shrinks
+                    // just enough instead of breaking inside the word -- it read `Setting` / `s` (the 4 Nov
+                    // 2026 device audit). Nothing changes while the word fits.
+                    val style = TextStyle(
                         color = tint,
                         fontFamily = Manrope,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 10.sp,
                         letterSpacing = 0.2.sp,
+                    )
+                    val measurer = rememberTextMeasurer()
+                    val density = LocalDensity.current
+                    val longestWord = remember(tab.label, density) {
+                        tab.label.split(' ').maxOf { measurer.measure(it, style, softWrap = false).size.width }
+                    }
+                    Text(
+                        tab.label,
+                        modifier = Modifier.fitWords(longestWord).clearAndSetSemantics {},
+                        style = style,
                     )
                 }
             }

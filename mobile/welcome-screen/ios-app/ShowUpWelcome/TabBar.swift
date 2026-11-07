@@ -130,17 +130,29 @@ struct TabBar: View {
                         // The kit's `right: -7; bottom: -3`.
                         if locked { LockBadge().offset(x: 7, y: 3) }
                     }
+                // The label grows with the type up to the largest standard size and no further, as
+                // the system's own tab bar does; past it a long press shows it large (below). At AX5 the
+                // four labels ran into each other (the 4 Nov 2026 device audit). One still too wide
+                // for its quarter shrinks rather than truncates.
                 Text(tab.label)
                     .font(F.manrope(10, .semibold))
                     .tracking(0.2)
                     .foregroundColor(tint)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
             .padding(.vertical, Spacing.md)
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // The large content viewer: at the accessibility sizes a long press shows the tab's icon and
+        // name large, since the label itself stops growing.
+        .accessibilityShowsLargeContentViewer {
+            BrandIconView(icon: tab.icon, size: 24, stroke: 2, tint: tint)
+            Text(tab.label)
+        }
         .accessibilityElement(children: .ignore)
         // "Likes, 2 open likes" (SHOWUP-186 accessibility): the badge is part of the tab's name.
         .accessibilityLabel(Text(badge != nil ? "\(tab.label), \(likesBadgeLabel(likes))" : tab.label))

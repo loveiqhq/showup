@@ -1166,5 +1166,19 @@ class EvidenceScreenshots {
         shoot("SHOWUP-193", "F-failed") {
             com.showup.date.DateScreen(com.showup.date.DateUi(now = a.now, loading = false, failed = com.showup.api.CallFailure.Network), zone)
         }
+        // THE EXTREMES (the 4 Nov 2026 device audit), to be looked at, not only measured: the smallest
+        // screen (an iPhone SE with Display Zoom; an Android at its largest display size) at the
+        // largest type, the end of its scroll there, and the widest phone (an unfolded Fold 7).
+        val smallest = listOf(EDGE_DEVICES.first { it.width == 320 })
+        val widest = listOf(EDGE_DEVICES.first { it.width == 984 })
+        val checkedIn = com.showup.date.DateUi(date.copy(checkedIn = true), b.now, loading = false)
+        shoot("SHOWUP-193", "G-A", fontScale = 2f, devices = smallest) { com.showup.date.DateScreen(a, zone) }
+        shoot("SHOWUP-193", "G-C", fontScale = 2f, devices = smallest) { com.showup.date.DateScreen(c, zone) }
+        shoot("SHOWUP-193", "G-checked-in", fontScale = 2f, devices = smallest) { com.showup.date.DateScreen(checkedIn, zone) }
+        val smallEnd = androidx.compose.foundation.ScrollState(0)
+        shoot("SHOWUP-193", "G-D-end", fontScale = 2f, devices = smallest, scrolled = smallEnd) {
+            com.showup.date.DateScreen(a, zone, scroll = smallEnd)
+        }
+        shoot("SHOWUP-193", "I-widest", devices = widest) { com.showup.date.DateScreen(a, zone) }
     }
 }

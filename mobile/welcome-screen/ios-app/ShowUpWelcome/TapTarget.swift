@@ -56,7 +56,7 @@ extension View {
     func overflowTapTarget() -> some View {
         OverflowTapLayout {
             self
-            Color.clear.contentShape(Rectangle())
+            Color.clear.contentShape(Rectangle()).fitTapArea()
         }
     }
 }

@@ -62,19 +62,20 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.text
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -96,6 +97,7 @@ import com.showup.designsystem.Manrope
 import com.showup.designsystem.Motion
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Orange
+import com.showup.designsystem.OverflowTapTarget
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Raised
 import com.showup.designsystem.ReasonDarkRed
@@ -107,12 +109,12 @@ import com.showup.designsystem.ShowUpEasing
 import com.showup.designsystem.Success
 import com.showup.designsystem.SuccessFg
 import com.showup.designsystem.cssBlurToShadowRadius
-import com.showup.designsystem.pillShadows
 import com.showup.designsystem.cssLineBox
+import com.showup.designsystem.fitWords
+import com.showup.designsystem.fitWordsOf
+import com.showup.designsystem.pillShadows
 import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.rememberMotion
-import com.showup.designsystem.fitWords
-import com.showup.designsystem.OverflowTapTarget
 import com.showup.search.PhotoBackdrop
 import com.showup.search.motivationOf
 import com.showup.search.vibeLabel
@@ -158,9 +160,11 @@ internal fun Modifier.pressable(role: Role, label: String? = null, onClick: () -
 }
 
 /**
- * A button DRAWN at the reference's size that ANSWERS at the 44 floor: the touch area is laid over
- * the drawing ([OverflowTapTarget]) instead of growing the row it sits in. `minTapTarget` on these
+ * A button DRAWN at the reference's size that ANSWERS at Android's 48 floor: the touch area is laid
+ * over the drawing ([OverflowTapTarget]) instead of growing the row it sits in. `minTapTarget` on these
  * pushed the time card 18 taller than the sheet (the Copy pill) and the Check-in bar 10 (End date).
+ * 48, not the shared 44, since the 4 Nov 2026 device audit measured every touch area here against this
+ * module's CLAUDE.md -- invisible, the drawing does not move.
  *
  * The touch area is a sibling of the drawing, so it carries the name: the drawing's own text is
  * cleared and TalkBack reads one button, once. [content] gets the press scale for its drawing.
@@ -179,6 +183,7 @@ internal fun DrawnSmall(
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
             .semantics { text = AnnotatedString(label) },
         modifier = modifier,
+        floor = 48.dp,
     ) {
         Box(Modifier.clearAndSetSemantics {}) { content(Modifier.press(interaction)) }
     }
@@ -300,7 +305,7 @@ internal fun TimePlaceCard(
                     append(lead)
                     withStyle(SpanStyle(color = Purple, fontStyle = FontStyle.Italic)) { append(day) }
                 },
-                modifier = Modifier.cssLineBox((20 * 1.15).sp),
+                modifier = Modifier.fitWordsOf(lead + day, SerifBold.copy(fontSize = 20.sp)).cssLineBox((20 * 1.15).sp),
                 style = SerifBold.copy(fontSize = 20.sp, lineHeight = (20 * 1.15).sp),
             )
         }
@@ -318,19 +323,11 @@ internal fun TimePlaceCard(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     BaselineWrap({ MeetLabel(DateCopy.MEETING_PLACE) }, { MeetValue(place.name) })
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 3.dp)) {
-                        place.address?.let {
-                            Text(
-                                it,
-                                modifier = Modifier.weight(1f, fill = false).cssLineBox((12.5 * 1.35).sp),
-                                color = Muted,
-                                fontFamily = Manrope,
-                                fontSize = 12.5.sp,
-                                lineHeight = (12.5 * 1.35).sp,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        CopyAddress(copied, onCopy)
+                    val address = place.address
+                    if (address != null) {
+                        AddressRow(address, copied, onCopy, Modifier.padding(top = 3.dp))
+                    } else {
+                        Box(Modifier.padding(top = 3.dp)) { CopyAddress(copied, onCopy) }
                     }
                 }
             }
@@ -393,7 +390,7 @@ private fun CoordinateCta(label: String, fill: Color, shadows: List<com.showup.d
 @Composable
 private fun CoordinateTitle(name: String) = Text(
     DateCopy.COORD_TITLE.format(name),
-    modifier = Modifier.cssLineBox((20 * 1.1).sp),
+    modifier = Modifier.fitWordsOf(DateCopy.COORD_TITLE.format(name), SerifBold.copy(fontSize = 20.sp)).cssLineBox((20 * 1.1).sp),
     style = SerifBold.copy(fontSize = 20.sp, lineHeight = (20 * 1.1).sp),
 )
 
@@ -401,7 +398,7 @@ private fun CoordinateTitle(name: String) = Text(
 private fun CoordinateSub(text: String) {
     // `textWrap: 'pretty'`: the sheet's A reads `… before` / `you meet`, not `meet` alone.
     val style = TextStyle(color = Muted, fontFamily = Manrope, fontSize = 14.sp, lineHeight = (14 * 1.35).sp)
-    Text(text, Modifier.prettyWrap(AnnotatedString(text), style).cssLineBox(style.lineHeight), style = style)
+    Text(text, Modifier.fitWordsOf(text, style).prettyWrap(AnnotatedString(text), style).cssLineBox(style.lineHeight), style = style)
 }
 
 /**
@@ -710,7 +707,10 @@ internal fun ReportRow(onReport: () -> Unit, modifier: Modifier = Modifier) {
                 append(" ")
                 append(DateCopy.REPORT_BODY)
             },
-            modifier = Modifier.weight(1f).cssLineBox((13.5 * 1.4).sp),
+            modifier = Modifier
+                .weight(1f)
+                .fitWordsOf("${DateCopy.REPORT_TITLE} ${DateCopy.REPORT_BODY}", TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp))
+                .cssLineBox((13.5 * 1.4).sp),
             color = Muted,
             fontFamily = Manrope,
             fontSize = 13.5.sp,
@@ -726,12 +726,125 @@ internal fun ReportRow(onReport: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun Eyebrow(text: String, size: Float = 11f) = Text(
     text.uppercase(),
+    modifier = Modifier.fitWordsOf(
+        text.uppercase(),
+        TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = size.sp, letterSpacing = 0.08.sp),
+    ),
     color = FgSubtle,
     fontFamily = Manrope,
     fontWeight = FontWeight.Bold,
     fontSize = size.sp,
     letterSpacing = 0.08.sp,
 )
+
+/** The heart (shared) or the shield, and the eyebrow over the shared motivation. */
+@Composable
+private fun IntentLine(shared: Boolean, date: ActiveDate) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (shared) {
+            Icon(BrandIcon.HeartFilled, 20.dp, tint = Orange)
+        } else {
+            Icon(BrandIcon.ShieldCheck, 20.dp, tint = Purple)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Eyebrow(if (shared) DateCopy.MUTUAL_INTENT else DateCopy.THEIR_SHOW_UP.format(date.match.name))
+            if (shared) {
+                val title = motivationOf(date.motivationThem)?.title ?: date.motivationThem.orEmpty()
+                Text(
+                    title,
+                    modifier = Modifier.fitWordsOf(title, TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)),
+                    color = Fg,
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * [line] with [count] at the end of it, [gap] apart and centred, where the line fits on one line beside
+ * the count; [count] under the line, start-aligned, where it does not -- iOS's `ViewThatFits`. Always
+ * beside, a 320 phone narrowed the intent's column one letter short of `Long-term` (the 4 Nov 2026
+ * device audit).
+ */
+@Composable
+private fun BesideOrUnder(gap: Dp, line: @Composable () -> Unit, count: @Composable () -> Unit) {
+    Layout(contents = listOf(line, count)) { (lines, counts), constraints ->
+        val l = lines.first()
+        val c = counts.first()
+        val space = gap.roundToPx()
+        val oneLine = l.maxIntrinsicWidth(Constraints.Infinity)
+        val pill = c.measure(Constraints(maxWidth = constraints.maxWidth))
+        if (oneLine + space + pill.width <= constraints.maxWidth) {
+            val drawn = l.measure(Constraints(maxWidth = constraints.maxWidth - space - pill.width))
+            val height = maxOf(drawn.height, pill.height)
+            layout(constraints.maxWidth, height) {
+                drawn.place(0, (height - drawn.height) / 2)
+                pill.place(constraints.maxWidth - pill.width, (height - pill.height) / 2)
+            }
+        } else {
+            val drawn = l.measure(Constraints(maxWidth = constraints.maxWidth))
+            val under = space * 2 / 3
+            layout(constraints.maxWidth, drawn.height + under + pill.height) {
+                drawn.place(0, 0)
+                pill.place(0, drawn.height + under)
+            }
+        }
+    }
+}
+
+/**
+ * The address and Copy: the address wrapping beside Copy while its widest word fits there; where it
+ * does not (the largest type on a narrow phone) Copy under it, rather than the address breaking inside
+ * a word -- `Oranienstrass` / `e` (the 4 Nov 2026 device audit). iOS's `ViewThatFits` the same.
+ */
+@Composable
+private fun AddressRow(address: String, copied: Boolean, onCopy: () -> Unit, modifier: Modifier = Modifier) {
+    val style = TextStyle(fontFamily = Manrope, fontSize = 12.5.sp)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val widest = remember(address, density) {
+        address.split(' ', '\u200B').filter { it.isNotEmpty() }.maxOfOrNull { measurer.measure(it, style, softWrap = false).size.width } ?: 0
+    }
+    Layout(
+        contents = listOf(
+            {
+                Text(
+                    address,
+                    modifier = Modifier.fitWords(widest).cssLineBox((12.5 * 1.35).sp),
+                    color = Muted,
+                    fontFamily = Manrope,
+                    fontSize = 12.5.sp,
+                    lineHeight = (12.5 * 1.35).sp,
+                )
+            },
+            { CopyAddress(copied, onCopy) },
+        ),
+        modifier = modifier,
+    ) { (texts, copies), constraints ->
+        val gap = 8.dp.roundToPx()
+        val pill = copies.first().measure(Constraints())
+        val room = constraints.maxWidth - pill.width - gap
+        if (widest <= room) {
+            val text = texts.first().measure(Constraints(maxWidth = room))
+            val height = maxOf(text.height, pill.height)
+            layout(text.width + gap + pill.width, height) {
+                text.place(0, (height - text.height) / 2)
+                pill.place(text.width + gap, (height - pill.height) / 2)
+            }
+        } else {
+            val text = texts.first().measure(Constraints(maxWidth = constraints.maxWidth))
+            val under = 6.dp.roundToPx()
+            layout(maxOf(text.width, pill.width), text.height + under + pill.height) {
+                text.place(0, 0)
+                pill.place(0, text.height + under)
+            }
+        }
+    }
+}
 
 /** A shared value as a selected chip with the shared check -- Search's shared mark. */
 @Composable
@@ -754,28 +867,11 @@ internal fun IntentCard(date: ActiveDate, modifier: Modifier = Modifier) {
     // 11 / 13 inside the 1 px border.
     Card(modifier, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (shared) {
-                    Icon(BrandIcon.HeartFilled, 20.dp, tint = Orange)
-                } else {
-                    Icon(BrandIcon.ShieldCheck, 20.dp, tint = Purple)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Eyebrow(if (shared) DateCopy.MUTUAL_INTENT else DateCopy.THEIR_SHOW_UP.format(date.match.name))
-                    if (shared) {
-                        Text(
-                            motivationOf(date.motivationThem)?.title ?: date.motivationThem.orEmpty(),
-                            color = Fg,
-                            fontFamily = Manrope,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                ShowUpCount(date.match.attendedCount, size = ShowUpCountSize.Sm)
-            }
+            BesideOrUnder(
+                gap = 12.dp,
+                line = { IntentLine(shared, date) },
+                count = { ShowUpCount(date.match.attendedCount, size = ShowUpCountSize.Sm) },
+            )
             if (date.sharedVibes.isNotEmpty()) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(BorderSoft))
                 Column {
@@ -857,12 +953,21 @@ internal fun AboutCard(match: DateMatch, onSeeProfile: () -> Unit, modifier: Mod
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                val title = match.age?.let { DateCopy.NAME_AGE.format(match.name, it) } ?: match.name
                 Text(
-                    match.age?.let { DateCopy.NAME_AGE.format(match.name, it) } ?: match.name,
+                    title,
+                    modifier = Modifier.fitWordsOf(title, SerifBold.copy(fontSize = 20.sp)),
                     style = SerifBold.copy(fontSize = 20.sp),
                 )
                 aboutLine(match.district, match.distanceKm)?.let {
-                    Text(it, color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                    Text(
+                        it,
+                        modifier = Modifier.fitWordsOf(it, TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 12.sp)),
+                        color = FgSubtle,
+                        fontFamily = Manrope,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                    )
                 }
                 ShowUpCount(match.attendedCount, size = ShowUpCountSize.Xs)
             }
@@ -883,6 +988,10 @@ internal fun AboutCard(match: DateMatch, onSeeProfile: () -> Unit, modifier: Mod
             ) {
                 Text(
                     DateCopy.SEE_PROFILE.format(match.name),
+                    modifier = Modifier.fitWordsOf(
+                        DateCopy.SEE_PROFILE.format(match.name),
+                        TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.sp),
+                    ),
                     color = Purple,
                     fontFamily = Manrope,
                     fontWeight = FontWeight.SemiBold,
@@ -945,10 +1054,20 @@ internal fun DateWorksCard(date: ActiveDate, zone: ZoneId, modifier: Modifier = 
                     )
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(title, color = Fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(
+                            title,
+                            modifier = Modifier.fitWordsOf(title, TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp)),
+                            color = Fg,
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                        )
                         Text(
                             sub,
-                            modifier = Modifier.padding(top = 2.dp).cssLineBox((13 * 1.4).sp),
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .fitWordsOf(sub, TextStyle(fontFamily = Manrope, fontSize = 13.sp))
+                                .cssLineBox((13 * 1.4).sp),
                             color = Muted,
                             fontFamily = Manrope,
                             fontSize = 13.sp,

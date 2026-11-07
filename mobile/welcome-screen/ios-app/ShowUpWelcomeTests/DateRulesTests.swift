@@ -28,6 +28,14 @@ final class DateRulesTests: XCTestCase {
 
     // MARK: - the state
 
+    func testAHyphenatedNameOrDistrictMayBreakAfterItsHyphenAsCSSAndAndroidNowDo() {
+        XCTAssertEqual(breakAfterHyphens("Maximiliana-Konstantina"), "Maximiliana-\u{200B}Konstantina")
+        XCTAssertEqual(breakAfterHyphens("Friedrichshain-Kreuzberg"), "Friedrichshain-\u{200B}Kreuzberg")
+        XCTAssertEqual(breakAfterHyphens("Leonie"), "Leonie")
+        // Already breakable: never a second mark.
+        XCTAssertEqual(breakAfterHyphens("Anna-\u{200B}Lena"), "Anna-\u{200B}Lena")
+    }
+
     func testTheStateFlipsExactlyAtMeetMinus1h30() {
         XCTAssertEqual(dateState(now: unlock.addingTimeInterval(-1), unlockAt: unlock, unread: nil), .locked)
         XCTAssertEqual(dateState(now: unlock, unlockAt: unlock, unread: nil), .available)

@@ -146,3 +146,18 @@ fun chatReasonStyle(reason: String): ChatReasonStyle = when (reason) {
     "cant_make_it_today" -> ChatReasonStyle("I can't make it today", BrandIcon.Frown, ReasonTone.DarkRed)
     else -> ChatReasonStyle("I'm on my way", BrandIcon.Navigation, ReasonTone.Orange)
 }
+
+/**
+ * [s] with a zero-width space after each hyphen, so a long hyphenated name or district may break after
+ * its hyphen, as CSS and iOS break it. Android's line breaker does not: `Friedrichshain-Kreuzberg`
+ * broke mid-letter wherever the whole word did not fit (the 4 Nov 2026 device audit). Invisible, and
+ * silent to TalkBack.
+ */
+fun breakAfterHyphens(s: String): String = s.replace(HYPHEN_UNMARKED, "-\u200B")
+
+private val HYPHEN_UNMARKED = Regex("-(?!\u200B)")
+
+/** [date] with its match's name and district breakable after their hyphens ([breakAfterHyphens]). */
+fun withBreakableNames(date: ActiveDate): ActiveDate = date.copy(
+    match = date.match.copy(name = breakAfterHyphens(date.match.name), district = date.match.district?.let(::breakAfterHyphens)),
+)
