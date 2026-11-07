@@ -129,6 +129,9 @@ func meetingHeadline(name: String, day: String) -> (lead: String, day: String) {
 /// server's `dateLocksUser`). A date read that failed is no date: the launch never opens on a guess.
 func launchTarget(date: Result<DateRead, CallFailure>, checkInActive: Bool?) -> FlowScreen {
     if activeDate(date) != nil { return .date }
+    // A date ended in the chat and not yet seen (SHOWUP-194): the Date screen's read finds it and shows G
+    // or H, which must be seen before Search.
+    if endedOutcome(date) != nil { return .date }
     return checkInActive == true ? .checkInSearch : .checkInGate
 }
 
@@ -137,6 +140,16 @@ func activeDate(_ read: Result<DateRead, CallFailure>) -> ActiveDate? {
     if case .success(.active(let date)) = read { return date }
     return nil
 }
+
+/// The ended-in-chat outcome this read found and the viewer has not seen, or nil.
+func endedOutcome(_ read: Result<DateRead, CallFailure>) -> EndedInChat? {
+    if case .success(.ended(let outcome)) = read { return outcome }
+    return nil
+}
+
+/// How often the Date screen re-reads the date while it is up (SHOWUP-194, the design's §3): the match's End
+/// date lands on H within seconds when the app is open. Polling, as the chat's; there is no socket.
+let datePollSeconds: TimeInterval = 15
 
 /// `s` with a zero-width space after each hyphen, so a long hyphenated name or district may break after
 /// its hyphen, as CSS breaks it -- Android's twin (`DateRules.kt`), where the line breaker would not

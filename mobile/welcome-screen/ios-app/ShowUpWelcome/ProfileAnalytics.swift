@@ -148,6 +148,12 @@ enum ProfileScreen: String {
     /// Date 01 (SHOWUP-193, §11 `date_screen`): the screen both people live on from the match until
     /// the date ends. Once per visit, never on the in-place unlock.
     case dateScreen = "date_screen"
+    /// The chat tutorial (SHOWUP-194 A; §11 row added 5 Nov 2026, registry 1.4.33).
+    case dateChatTutorial = "date_chat_tutorial"
+    /// The coordinate chat: ONE screen id for the start grid (B) and the thread (C to E).
+    case dateChat = "date_chat"
+    /// G and H, after a date ended in the chat: one screen id for both.
+    case dateEndedInChat = "date_ended_in_chat"
 
     var screenId: String { rawValue }
 
@@ -190,6 +196,9 @@ enum ProfileScreen: String {
         case .likesReceived: return "Search - Likes received"
         case .searchLocationGate: return "Search - Location gate"
         case .dateScreen: return "Date - Date screen"
+        case .dateChatTutorial: return "Date - Chat tutorial"
+        case .dateChat: return "Date - Coordinate chat"
+        case .dateEndedInChat: return "Date - Ended in chat"
         }
     }
 }

@@ -24,6 +24,29 @@ let shadowCta = [ShadowLayer(color: Color.liqOrange.opacity(0.32), y: 8, blur: 2
 let shadowViolet = [ShadowLayer(color: Color.liqPurple.opacity(0.28), y: 8, blur: 20),
                     ShadowLayer(color: Color.liqPurple.opacity(0.18), y: 2, blur: 6)]
 
+/// `--liq-shadow-sm`: `0 1 2` at .04 of the shadow ink -- the outlined buttons' and chips' lift (SHOWUP-194).
+let shadowSm = [ShadowLayer(color: Color.liqShadowInk.opacity(0.04), y: 1, blur: 2)]
+/// `--liq-shadow-md`: `0 4 12` at .06 and `0 1 3` at .04 of the shadow ink -- the kit's `Card` (SHOWUP-194).
+let shadowMd = [ShadowLayer(color: Color.liqShadowInk.opacity(0.06), y: 4, blur: 12),
+                ShadowLayer(color: Color.liqShadowInk.opacity(0.04), y: 1, blur: 3)]
+
+/// Any shape filled with `fill` under `shadows`, each layer on its own copy of the shape so neither is a
+/// shadow of the other (SHOWUP-194: the chat's bubbles and chips). CSS's first layer is listed last.
+struct ShadowedShape<S: Shape, Fill: ShapeStyle>: View {
+    let shape: S
+    let fill: Fill
+    let shadows: [ShadowLayer]
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(shadows.reversed().enumerated()), id: \.offset) { _, layer in
+                shape.fill(fill).shadow(color: layer.color, radius: layer.blur / 2, y: layer.y)
+            }
+            if shadows.isEmpty { shape.fill(fill) }
+        }
+    }
+}
+
 /// A full pill filled with `fill` under `shadows`.
 struct ShadowedPill<Fill: ShapeStyle>: View {
     let fill: Fill
@@ -442,17 +465,8 @@ private struct MatchAvatar: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            ZStack {
-                PhotoBackdrop(url: match.photoUrl, index: 0)
-                if match.photoUrl == nil {
-                    Text(String(match.name.prefix(1)))
-                        .font(F.lora(46 * 0.42, bold: true))
-                        .foregroundColor(Color.white.opacity(0.92))
-                }
-            }
-            .frame(width: 46, height: 46)
-            .clipShape(Circle())
-            .aboveWash(.circle)
+            MatchPhoto(name: match.name, photoURL: match.photoUrl, size: 46)
+                .aboveWash(.circle)
             if !reduceMotion {
                 Circle()
                     .fill(tone)

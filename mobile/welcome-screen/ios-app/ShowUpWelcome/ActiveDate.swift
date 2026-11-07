@@ -60,7 +60,7 @@ struct ActiveDate: Equatable, Sendable {
 /// A date ended in the chat after "I can't make it today" (Date 02) that the viewer has not seen yet: the
 /// other person's first name and whether the viewer ended it. Shown once; after it is marked seen the read
 /// is `.none`.
-struct EndedInChat: Equatable, Sendable {
+struct EndedInChat: Hashable, Sendable {
     var dateId: String
     var name: String
     var endedByYou: Bool

@@ -297,6 +297,20 @@ private struct TutorialFlow: View {
                                                            analytics: AppAnalytics.shared, players: sharedMediaPlayer)
     /// The read-only profile as it last was, drawn while it slides away.
     @State private var heldDateProfile: SearchUiState?
+
+    // ── the coordinate chat (SHOWUP-194) ──────────────────────────────────────
+    //
+    // One chat model per date, held for the session -- the thread, a typed draft and a selected chip survive
+    // leaving the chat and coming back -- and the chat's destinations over the Date screen. Android's
+    // ChatViewModel and its three routes.
+    private let chatStore = ChatRepository(api: APIAccess.client)
+    @State private var chatModel: ChatModel?
+    @State private var chatDateId: String?
+    /// The tutorial, the chat or G / H, pushed over the Date screen; empty when none is up.
+    @State private var chatPath: [AppRoute] = []
+    @State private var chatEvents = ChatHostEvents(analytics: AppAnalytics.shared)
+    /// Where G or H was reached from, for its `screen_viewed` referrer.
+    @State private var outcomeFrom: ProfileScreen = .dateScreen
     /// The share sheet's sentence while it is up, and the calendar sheet's event.
     @State private var sharingText: String?
     @State private var calendarSheetEvent: CalendarEvent?
@@ -349,6 +363,8 @@ private struct TutorialFlow: View {
     /// own back is hidden on it; its back pill and the edge swipe ask the model.
     private var navPath: Binding<[AppRoute]> {
         Binding(get: {
+                    // The chat's destinations (SHOWUP-194), over the Date screen.
+                    if !chatPath.isEmpty { return chatPath }
                     // The match's read-only profile (SHOWUP-193), over the Date screen.
                     if dateProfileModel.state != nil { return [.dateProfile] }
                     guard search.state.opened != nil else { return [] }
@@ -356,6 +372,11 @@ private struct TutorialFlow: View {
                     return locationGate.ui.overProfile ? [.searchProfile, .locationGate] : [.searchProfile]
                 },
                 set: { path in
+                    // A swipe back off a chat destination: the chat closes, G or H moves on to Search.
+                    if !chatPath.isEmpty {
+                        if path.count < chatPath.count { leaveChatRoute() }
+                        return
+                    }
                     if path.isEmpty, dateProfileModel.state != nil {
                         dateProfileModel.close()
                     } else if path.isEmpty {
@@ -742,6 +763,9 @@ private struct TutorialFlow: View {
         dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
         dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
+        chatModel = nil
+        chatDateId = nil
+        chatPath = []
         firstName = ""
         email = ""
         marketingConsent = false
@@ -991,6 +1015,7 @@ private struct TutorialFlow: View {
         DateScreen(
             ui: dateModel.state,
             zone: .current,
+            onOpenChat: { openChat() },
             onDirections: {
                 guard let place = dateModel.state.date?.place, let url = directionsURL(place) else { return }
                 dateModel.quickAction(.directions)
@@ -1019,6 +1044,13 @@ private struct TutorialFlow: View {
             onRetry: { dateModel.retry() })
         // One visit per arrival: launch, a match, or back from Settings or the profile.
         .onAppear { dateModel.arrived(referrer: profileScreen(of: cameFrom)) }
+        // THE MATCH'S END REACHES THIS PHONE (SHOWUP-194): the date is read again every 15 s while the screen
+        // is up, and an outcome not yet seen is shown before anything else.
+        .onAppear { dateModel.onScreen(true) }
+        .onDisappear { dateModel.onScreen(false) }
+        .onChange(of: dateModel.state.ended) { _, ended in
+            if let ended { showOutcome(ended, from: .dateScreen) }
+        }
         // THE CLOCK, while the screen is up: A becomes B at meet − 1:30 in place, and C's `now` becomes
         // the time it was sent.
         .task {
@@ -1043,6 +1075,121 @@ private struct TutorialFlow: View {
                 CalendarSheet(event: event, onDone: { calendarSheetEvent = nil })
             }
         }
+    }
+
+    /// `Open chat` (B) or `Read & reply` (C): the tutorial until it has been seen, then the chat. The chat model
+    /// is this date's for the session, made on the first open.
+    private func openChat() {
+        guard let date = dateModel.state.date else { return }
+        if chatModel == nil || chatDateId != date.id {
+            chatModel = ChatModel(store: chatStore, dates: dateStore, analytics: AppAnalytics.shared)
+            chatDateId = date.id
+        }
+        chatPath = [chatRoute(date, entry: chatEntryFor(date))]
+    }
+
+    /// G or H over whatever is up: back from it never reopens the chat.
+    private func showOutcome(_ outcome: EndedInChat, from: ProfileScreen) {
+        outcomeFrom = from
+        chatPath = [outcomeRoute(outcome, photoURL: dateModel.state.date?.match.photoUrl)]
+    }
+
+    /// `Find your next date`: the date is over, so Search, Likes and Instant open, and Search shows.
+    private func findNextDate() {
+        dateModel.outcomeShown()
+        dateProfileModel.close()
+        checkIn.refresh()
+        chatPath = []
+        go(to: searchTab)
+    }
+
+    /// Back off the top chat destination: the chat ends its visit; G or H moves on to Search.
+    private func leaveChatRoute() {
+        switch chatPath.last {
+        case .chat?:
+            chatModel?.close()
+            chatPath = []
+        case .dateEnded?:
+            findNextDate()
+        default:
+            chatPath = []
+        }
+    }
+
+    /// A: the chat tutorial over the Date screen.
+    @ViewBuilder private var chatTutorialView: some View {
+        if let date = dateModel.state.date {
+            ChatTutorialScreen(
+                name: date.match.name,
+                onOpen: {
+                    chatEvents.tutorialAcknowledged(date)
+                    let store = chatStore
+                    let id = date.id
+                    Task { await store.markTutorialSeen(dateId: id) }
+                    dateModel.chatTutorialSeen()
+                    chatPath = [.chat(.tutorial)]
+                },
+                onBack: { chatPath = [] })
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarBackButtonHidden(true)
+                .onAppear { chatEvents.tutorialShown(date) }
+        }
+    }
+
+    /// B to F: the chat over the Date screen, reached from `entry`.
+    @ViewBuilder private func chatView(_ entry: ChatEntry) -> some View {
+        if let model = chatModel, let date = dateModel.state.date {
+            ChatScreen(
+                ui: model.ui,
+                zone: .current,
+                onBack: {
+                    model.close()
+                    chatPath = []
+                },
+                onPick: { model.pick($0, surface: $1) },
+                onEdit: { model.edit($0) },
+                onAckGuide: { model.ackGuide() },
+                onSend: { model.send() },
+                onEndCard: { model.openEndSheet() },
+                onKeep: { model.keepDate() },
+                onEnd: { model.endDate() },
+                onRetry: { model.retry() })
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarBackButtonHidden(true)
+                .onAppear {
+                    model.open(date, entry: entry)
+                    chatEvents.chatShown(referrer: entry == .tutorial ? .dateChatTutorial : .dateScreen)
+                }
+                // The thread and the date are read only while the app is in front.
+                .onChange(of: scenePhase) { _, phase in model.onScreen(phase == .active) }
+                // Ended from anywhere -- this phone, the match, a second tap -- or gone some other way.
+                .onChange(of: model.ui.outcome) { _, outcome in
+                    if let outcome {
+                        model.close()
+                        showOutcome(outcome, from: .dateChat)
+                    }
+                }
+                .onChange(of: model.ui.left) { _, left in
+                    if left {
+                        model.close()
+                        chatPath = []
+                        dateModel.foreground()
+                    }
+                }
+        }
+    }
+
+    /// G or H. Seen once it has shown: a crash before this frame shows it again next launch.
+    private func dateEndedView(_ outcome: EndedInChat, photoURL: URL?) -> some View {
+        DateEndedScreen(outcome: outcome, photoURL: photoURL, onFindNext: { findNextDate() })
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarBackButtonHidden(true)
+            .onAppear {
+                chatEvents.outcomeShown(referrer: outcomeFrom)
+                let store = chatStore
+                let id = outcome.dateId
+                Task { await store.markEndSeen(dateId: id) }
+            }
     }
 
     /// The match's profile, read-only (SHOWUP-193 ⑫): Search's profile view with nothing to decide,
@@ -1599,7 +1746,25 @@ private struct TutorialFlow: View {
                     devMenuOpen = false
                 },
                 onClose: { devMenuOpen = false },
-                onPremium: { search.setPremium($0) }
+                onPremium: { search.setPremium($0) },
+                onDateAction: { action in
+                    devMenuOpen = false
+                    let store = dateStore
+                    Task {
+                        switch action {
+                        case .createIn180: _ = await store.createTestDate(minutes: 180)
+                        case .createIn60: _ = await store.createTestDate(minutes: 60)
+                        case .message: _ = await store.messageFromMatch(reason: .runningLate, body: DateSamples.unread.body ?? "")
+                        case .matchCantMakeIt: _ = await store.messageFromMatch(reason: .cantMakeIt, body: ChatSamples.matchCantMakeIt)
+                        case .matchEndsInChat: _ = await store.matchEndsInChat()
+                        case .end: _ = await store.endTestDate()
+                        }
+                        // The Date screen's own read shows the result: a new date or message lands in place,
+                        // an ended one leaves, and one ended in the chat shows H.
+                        dateModel.foreground()
+                        if action != .end { toDate() }
+                    }
+                }
             )
             // Read each time the menu opens: a sign-in or a session end since last time changes
             // which screens can be reached, and a permission answered changes which are skipped.
@@ -1681,6 +1846,9 @@ private struct TutorialFlow: View {
                     case .searchProfile: openedProfile
                     case .locationGate: gateOverProfile
                     case .dateProfile: readOnlyProfile
+                    case .chatTutorial: chatTutorialView
+                    case .chat(let entry): chatView(entry)
+                    case .dateEnded(let outcome, let photoURL): dateEndedView(outcome, photoURL: photoURL)
                     }
                 }
         }

@@ -20,6 +20,9 @@ protocol DateStoring: Sendable {
     func messageFromMatch(reason: ChatReason?, body: String) async -> Bool
     /// Debug only: ends the viewer's date, the escape from a screen whose exits are later tickets.
     func endTestDate() async -> Bool
+    /// Debug only: the test match ends the date in the chat (SHOWUP-194), through the real path -- so it needs
+    /// her "I can't make it today" message in the thread, and the viewer lands on H.
+    func matchEndsInChat() async -> Bool
 }
 
 struct DateRepository: DateStoring {
@@ -68,6 +71,11 @@ struct DateRepository: DateStoring {
         }
         let dto = Components.Schemas.DevDateMessageDto(body: body, reason: payload)
         guard case .noContent? = try? await api.client.sendDevDateMessage(body: .json(dto)) else { return false }
+        return true
+    }
+
+    func matchEndsInChat() async -> Bool {
+        guard case .noContent? = try? await api.client.endDevDateInChat() else { return false }
         return true
     }
 

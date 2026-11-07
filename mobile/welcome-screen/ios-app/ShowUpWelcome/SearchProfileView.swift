@@ -94,7 +94,7 @@ struct SearchProfileView: View {
                 actionBar(profile)
             }
             // The like sheets' backdrop blur, arriving with the sheet. The coach's scrim has none.
-            .blur(radius: state.sheet != nil ? searchSheetBlur : 0)
+            .blur(radius: state.sheet != nil ? modalShellBlur : 0)
             .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.sheet), value: state.sheet)
 
             if let profile {

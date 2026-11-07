@@ -179,7 +179,7 @@ let heroSpace = "searchHero"
 /// behind them is known, though -- only photo 1 -- so each pill draws it again at the photo's own size
 /// and place, blurs it whole, and is clipped to it by its caller: the same pixels a backdrop filter
 /// would blur. Blurring the whole photo rather than the pill's patch keeps the edges sampling the real
-/// neighbouring pixels. The radius is the CSS px, as `searchSheetBlur` is.
+/// neighbouring pixels. The radius is the CSS px, as `modalShellBlur` is.
 struct HeroGlass: View {
     let blur: CGFloat
     @Environment(\.heroBackdrop) private var backdrop
