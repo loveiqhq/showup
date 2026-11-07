@@ -18,10 +18,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Manrope
+import com.showup.designsystem.fitWordsOf
 import com.showup.welcome.Icon
 
 /** Uppercase reason label with its icon, in the tone's tint: pad 3 9 3 7, gap 5, Manrope 800 10.5. */
@@ -36,14 +38,15 @@ fun ReasonBadge(reason: ChatReason, onLight: Boolean) {
     ) {
         Icon(reason.icon, 11.dp, tint = if (onLight) tone.fg else Color.White, strokeWidth = 2.5f)
         Spacer(Modifier.width(5.dp))
+        // One line wherever it fits; in a narrow bubble at the largest type it wraps, a word wider than the
+        // badge shrinking to fit, rather than be cut -- as iOS's badge has always done.
+        val text = reason.label.uppercase()
+        val style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = 10.5.sp, letterSpacing = 0.05.sp)
         Text(
-            reason.label.uppercase(),
+            text,
+            modifier = Modifier.fitWordsOf(text, style),
             color = if (onLight) tone.fg else Color.White,
-            fontFamily = Manrope,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 10.5.sp,
-            letterSpacing = 0.05.sp,
-            maxLines = 1,
+            style = style,
         )
     }
 }

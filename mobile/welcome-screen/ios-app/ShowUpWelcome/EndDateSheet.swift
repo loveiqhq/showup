@@ -50,6 +50,7 @@ struct EndDateSheet: View {
                         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.liqBorderSoft, lineWidth: 1))
                 }
                 .buttonStyle(PressScale())
+                .fitTapArea()
                 .padding(.top, 22)
                 Button(action: { if !ending { onEnd() } }) {
                     Text(ChatCopy.endDate).font(F.manrope(16.5, .bold)).foregroundColor(.white)
@@ -57,6 +58,7 @@ struct EndDateSheet: View {
                         .background(RoundedRectangle(cornerRadius: 18).fill(tone.fg.opacity(ending ? 0.6 : 1)))
                 }
                 .buttonStyle(PressScale())
+                .fitTapArea()
                 .padding(.top, 10)
             }
             .frame(maxWidth: .infinity)

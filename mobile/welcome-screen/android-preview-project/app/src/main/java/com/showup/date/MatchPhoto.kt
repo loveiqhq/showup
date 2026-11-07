@@ -18,10 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.sp
 import com.showup.designsystem.Lora
 import com.showup.search.PhotoBackdrop
 
@@ -40,8 +40,9 @@ internal fun MatchPhoto(name: String, photoUrl: String?, size: Dp, modifier: Mod
                 color = Color.White.copy(alpha = 0.92f),
                 fontFamily = Lora,
                 fontWeight = FontWeight.SemiBold,
-                // In sp, as the Date screen's unread card has always drawn it.
-                fontSize = (size.value * 0.42f).sp,
+                // A fixed-size mark: it scales with the circle, never with the user's type size, which ran it
+                // out of the 26 bubble avatar at 2x (the 194 fit sweep).
+                fontSize = with(LocalDensity.current) { (size * 0.42f).toSp() },
             )
         }
     }

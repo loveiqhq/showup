@@ -115,6 +115,7 @@ struct ChatScreen: View {
                 if guide { CancelGuide(name: date.match.name, acked: ui.guide == .acked, onAck: onAckGuide) }
             })
             .background(Color.liqElevated)
+            .fitAnchor("chat:thread")
     }
 
     // MARK: the dock
@@ -133,6 +134,8 @@ struct ChatScreen: View {
                 .padding(EdgeInsets(top: 2, leading: 14, bottom: 10, trailing: 14))
         }
         .modifier(PinnedGlass())
+        .fitPinnedBar()
+        .fitAnchor("chat:dock")
     }
 
     /// The field and Send. The field: radius 20, pad 9 14, a 1.5 border in the ink while a chip is selected
@@ -153,6 +156,7 @@ struct ChatScreen: View {
                 .lineLimit(1...4)
                 .disabled(ui.locked)
                 .focused($fieldFocused)
+                .fitTapArea()
                 // Pad 9 14, plus the 1.5 border CSS counts, plus the 2 every browser pads a textarea with.
                 .padding(EdgeInsets(top: 12.5, leading: 17.5, bottom: 12.5, trailing: 17.5))
                 .background(shape.fill(ui.locked ? Color.liqBorderSoft : Color.liqElevated))

@@ -119,6 +119,13 @@ const val CHAT_SEND_TAG = "chat-send"
 const val CHAT_END_CARD_BUTTON_TAG = "chat-end-card-button"
 const val END_SHEET_KEEP_TAG = "end-sheet-keep"
 const val END_SHEET_END_TAG = "end-sheet-end"
+const val CHAT_THREAD_TAG = "chat:thread"
+const val CHAT_DOCK_TAG = "chat:dock"
+const val CHAT_GUIDE_TAG = "chat:guide"
+const val CHAT_GOT_IT_TAG = "chat:got-it"
+const val CHAT_END_CARD_TAG = "chat:end-card"
+const val CHAT_SHEET_TAG = "chat:sheet"
+const val CHAT_CTA_TAG = "chat:cta"
 
 /** One chip on one surface: the start grid's tile and the dock's compact chip are different nodes. */
 fun chipTag(reason: ChatReason, surface: ChipSurface) = "chat-chip-${surface.wire}-${reason.wire}"
@@ -212,8 +219,8 @@ internal fun ChatHeader(date: ActiveDate, now: Instant, zone: ZoneId, onBack: ()
                     fontFamily = Manrope,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    // One line wherever it fits, as the reference sets it; at large type it wraps rather than
+                    // cut the place or the countdown off -- the header always shows the agreed time and place.
                 )
             }
         }
@@ -491,9 +498,11 @@ internal fun BigActionChip(
             stroke = 2.3f,
         )
         Spacer(Modifier.width(if (compact) 8.dp else 12.dp))
+        // Weighted, so the row's intrinsic height -- one height for both chips in a grid row -- measures
+        // the label at the width it really gets, wrapped, not on one line.
         Text(
             reason.label,
-            modifier = Modifier.fitWordsOf(reason.label, label).cssLineBox(label.lineHeight),
+            modifier = Modifier.weight(1f).fitWordsOf(reason.label, label).cssLineBox(label.lineHeight),
             style = label,
         )
     }

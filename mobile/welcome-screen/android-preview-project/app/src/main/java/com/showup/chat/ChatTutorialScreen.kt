@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -79,8 +80,9 @@ fun ChatTutorialScreen(name: String, onOpen: () -> Unit, onBack: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Cream)) {
         SunsetWash()
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
-            // Back and the context line: pad 4 12 8, gap 8; 13 / 700 muted.
-            Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Back and the context line: pad 4 12 8, gap 8; 13 / 700 muted. 7 above, not 4: the chevron draws
+            // 34 and answers at 48, and at 4 its touch area ran 3 above the screen.
+            Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 ChatBackButton(onBack)
                 Spacer(Modifier.width(8.dp))
                 Text(ChatCopy.TUTORIAL_HEADER.format(name), color = Muted, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -154,6 +156,7 @@ fun ChatTutorialScreen(name: String, onOpen: () -> Unit, onBack: () -> Unit) {
                 PrimaryButton(
                     ChatCopy.OPEN_THE_CHAT,
                     onOpen,
+                    modifier = Modifier.testTag(CHAT_CTA_TAG),
                     height = 54.dp,
                     labelSize = 16.sp,
                     shadows = ShadowCta,

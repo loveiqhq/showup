@@ -24,7 +24,8 @@ struct ChatTutorialScreen: View {
                     Text(ChatCopy.tutorialHeader(name)).font(F.manrope(13, .bold)).foregroundColor(.liqMuted).lineLimit(1)
                     Spacer(minLength: 0)
                 }
-                .padding(EdgeInsets(top: 4, leading: 12, bottom: 8, trailing: 12))
+                // 7 above, not the reference's 4: the chevron draws 34 and answers at 44, which ran above the screen.
+                .padding(EdgeInsets(top: 7, leading: 12, bottom: 8, trailing: 12))
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         // The hero: Lora 700 30, −0.02em, 1.12, `Must read` washed; 4 above, 8 below.
@@ -49,10 +50,13 @@ struct ChatTutorialScreen: View {
                     PrimaryButton(label: ChatCopy.openTheChat, height: 54, labelSize: 16, glow: shadowCta, action: onOpen) {
                         BrandIconView(icon: .messageCircle, size: 19, stroke: 2.2, tint: .white)
                     }
+                    .fitTapArea()
+                    .fitAnchor("chat:cta")
                     LockLine(text: ChatCopy.tutorialPrivate)
                 }
                 .padding(EdgeInsets(top: 12, leading: 16, bottom: 16, trailing: 16))
                 .modifier(PinnedGlass())
+                .fitPinnedBar()
             }
         }
     }

@@ -81,11 +81,14 @@ struct ChatHeader: View {
                     Text(date.match.name).font(F.lora(17, bold: true)).foregroundColor(.liqFg).lineLimit(1)
                     dateOn
                 }
-                line.font(F.manrope(12, .semibold)).lineLimit(1).truncationMode(.tail)
+                // One line wherever it fits, as the reference sets it; at large type it wraps rather than cut the
+                // place or the countdown off -- the header always shows the agreed time and place.
+                line.font(F.manrope(12, .semibold)).fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(EdgeInsets(top: 4, leading: 10, bottom: 10, trailing: 10))
+        .fitPinnedBar()
         .background(Color.liqTabBarGlass.ignoresSafeArea(edges: .top))
         .overlay(alignment: .bottom) { Rectangle().fill(Color.liqBorderSoft).frame(height: 1) }
     }
@@ -336,6 +339,7 @@ struct BigActionChip: View {
             .animation(reduceMotion ? nil : .easeInOut(duration: Motion.tint), value: active)
         }
         .buttonStyle(PressScale())
+        .fitTapArea()
         .accessibilityAddTraits(active ? .isSelected : [])
     }
 }

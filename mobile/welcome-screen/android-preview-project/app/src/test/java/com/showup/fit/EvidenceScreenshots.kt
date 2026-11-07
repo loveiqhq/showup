@@ -68,6 +68,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
@@ -1202,8 +1205,21 @@ class EvidenceScreenshots {
         shoot("SHOWUP-194", "F-end-sheet") { chat(samples.F) }
         shoot("SHOWUP-194", "G-you-ended") { com.showup.chat.DateEndedScreen(samples.G, photoUrl = null, onFindNext = {}) }
         shoot("SHOWUP-194", "H-match-ended") { com.showup.chat.DateEndedScreen(samples.H, photoUrl = null, onFindNext = {}) }
+        // C to E with the bottom taken by a keyboard-sized stand-in: the harness has no IME, and only the
+        // evidence simulates one -- the thread absorbs the height, the dock sits on the keys.
+        for ((name, ui) in listOf("C-thread" to samples.C, "D-cancel-guide" to samples.D, "E-end-card" to samples.E)) {
+            shoot("SHOWUP-194", "$name-keyboard") {
+                androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.fillMaxSize()) {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.weight(1f)) { chat(ui) }
+                    androidx.compose.foundation.layout.Box(
+                        androidx.compose.ui.Modifier.fillMaxWidth().height(291.dp)
+                            .background(androidx.compose.ui.graphics.Color(0xFFD1D3D9)),
+                    )
+                }
+            }
+        }
         val images = written.drop(before)
-        assertEquals("A to H at the three frames", 24, images.size)
+        assertEquals("A to H at the three frames, and C to E over a keyboard", 33, images.size)
         images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
 }

@@ -24,21 +24,23 @@ struct DateEndedScreen: View {
             Color.liqCream.ignoresSafeArea()
             WelcomeBackdrop(peachWash: false, placement: .atmosphere, orangeAlpha: 0.26, violetAlpha: 0.22)
                 .ignoresSafeArea()
-            GeometryReader { geo in
+            // The CTA is pinned, as the reference draws it at the foot once the flexible space has taken the rest;
+            // what is above it scrolls only when it must (a split screen, the largest type) -- the CTA never does.
+            VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 0) {
                         hero(g: g, name: name)
                         row(g: g, name: name).padding(.top, 14)
-                        Spacer(minLength: 12)
-                        PrimaryButton(label: ChatCopy.findNext, action: onFindNext) {
-                            BrandIconView(icon: .search, size: 18, stroke: 2.4, tint: .white)
-                        }
-                        .padding(.bottom, 6)
                     }
-                    .padding(EdgeInsets(top: 4, leading: 20, bottom: 0, trailing: 20))
-                    .frame(minHeight: geo.size.height)
+                    .padding(EdgeInsets(top: 4, leading: 20, bottom: 12, trailing: 20))
                 }
                 .scrollBounceBehavior(.basedOnSize)
+                PrimaryButton(label: ChatCopy.findNext, action: onFindNext) {
+                    BrandIconView(icon: .search, size: 18, stroke: 2.4, tint: .white)
+                }
+                .fitTapArea()
+                .fitAnchor("chat:cta")
+                .padding(EdgeInsets(top: 0, leading: 20, bottom: 6, trailing: 20))
             }
         }
     }

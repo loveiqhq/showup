@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -82,79 +83,76 @@ fun DateEndedScreen(outcome: EndedInChat, photoUrl: String?, onFindNext: () -> U
     val name = outcome.name
     Box(Modifier.fillMaxSize().background(Cream)) {
         WelcomeBackdrop(peachWash = false, placement = OrbPlacement.Atmosphere, orangeAlpha = 0.26f, violetAlpha = 0.22f)
-        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
-            val frame = maxHeight
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Column(
-                    Modifier
-                        .heightIn(min = frame)
-                        .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 6.dp),
-                    verticalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Column {
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .background(LilacWash, RoundedCornerShape(28.dp))
-                                .padding(start = 24.dp, end = 24.dp, top = 26.dp, bottom = 24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Box(Modifier.size(72.dp)) {
-                                MatchPhoto(name, photoUrl, 72.dp)
-                                Box(
-                                    Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .offset(x = 3.dp, y = 3.dp)
-                                        .size(28.dp)
-                                        .pillShadows(SolidColor(Color.White), ShadowMd)
-                                        .padding(3.dp)
-                                        .background(Orange, CircleShape),
-                                    contentAlignment = Alignment.Center,
-                                ) { Icon(BrandIcon.Close, 15.dp, tint = Color.White, strokeWidth = 2.6f) }
-                            }
-                            Spacer(Modifier.height(16.dp))
-                            WashHeadline(
-                                parts = if (g) {
-                                    listOf(ChatCopy.G_HEADLINE_LEAD to false, ChatCopy.G_HEADLINE_ITALIC to true, ChatCopy.G_HEADLINE_REST to false)
-                                } else {
-                                    listOf(ChatCopy.H_HEADLINE_LEAD.format(name) to false, ChatCopy.H_HEADLINE_ITALIC to true, ChatCopy.H_HEADLINE_REST to false)
-                                },
-                                fontSize = 26.sp,
-                                lineHeight = (26 * 1.15).sp,
-                                letterSpacing = (-0.01).em,
-                                balance = true,
-                                textAlign = TextAlign.Center,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            val body = withBold(if (g) ChatCopy.G_BODY.format(name) else ChatCopy.H_BODY, ChatCopy.OUTCOME_BOLD)
-                            Text(body, modifier = Modifier.prettyWrap(body, HeroText, centered = true).cssLineBox(HeroText.lineHeight), style = HeroText)
+        // The CTA is pinned, as the reference draws it at the foot once the flexible space has taken the rest;
+        // what is above it scrolls only when it must (a split screen, the largest type) -- the CTA never does.
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
+            ) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(LilacWash, RoundedCornerShape(28.dp))
+                            .padding(start = 24.dp, end = 24.dp, top = 26.dp, bottom = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(Modifier.size(72.dp)) {
+                            MatchPhoto(name, photoUrl, 72.dp)
+                            Box(
+                                Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .offset(x = 3.dp, y = 3.dp)
+                                    .size(28.dp)
+                                    .pillShadows(SolidColor(Color.White), ShadowMd)
+                                    .padding(3.dp)
+                                    .background(Orange, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(BrandIcon.Close, 15.dp, tint = Color.White, strokeWidth = 2.6f) }
                         }
-                        Spacer(Modifier.height(14.dp))
-                        val rowShape = RoundedCornerShape(14.dp)
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .background(Elevated, rowShape)
-                                .border(1.dp, BorderSoft, rowShape)
-                                // Pad 13 plus the 1 px border, which CSS counts in the box.
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            IconTile(34.dp, 11.dp, SolidColor(Success.copy(alpha = 0.12f)), BrandIcon.ShieldCheck, 17.dp, SuccessFg, 2f)
-                            Spacer(Modifier.width(12.dp))
-                            val row = withBold(if (g) ChatCopy.G_ROW.format(name) else ChatCopy.H_ROW, ChatCopy.OUTCOME_BOLD)
-                            Text(row, modifier = Modifier.weight(1f).prettyWrap(row, RowText).cssLineBox(RowText.lineHeight), style = RowText)
-                        }
+                        Spacer(Modifier.height(16.dp))
+                        WashHeadline(
+                            parts = if (g) {
+                                listOf(ChatCopy.G_HEADLINE_LEAD to false, ChatCopy.G_HEADLINE_ITALIC to true, ChatCopy.G_HEADLINE_REST to false)
+                            } else {
+                                listOf(ChatCopy.H_HEADLINE_LEAD.format(name) to false, ChatCopy.H_HEADLINE_ITALIC to true, ChatCopy.H_HEADLINE_REST to false)
+                            },
+                            fontSize = 26.sp,
+                            lineHeight = (26 * 1.15).sp,
+                            letterSpacing = (-0.01).em,
+                            balance = true,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        val body = withBold(if (g) ChatCopy.G_BODY.format(name) else ChatCopy.H_BODY, ChatCopy.OUTCOME_BOLD)
+                        Text(body, modifier = Modifier.prettyWrap(body, HeroText, centered = true).cssLineBox(HeroText.lineHeight), style = HeroText)
                     }
-                    // `flex: 1, min-height 12`, then the CTA.
-                    PrimaryButton(
-                        ChatCopy.FIND_NEXT,
-                        onFindNext,
-                        modifier = Modifier.padding(top = 12.dp),
-                        leading = { Icon(BrandIcon.Search, 18.dp, tint = Color.White, strokeWidth = 2.4f) },
-                    )
-                }
+                    Spacer(Modifier.height(14.dp))
+                    val rowShape = RoundedCornerShape(14.dp)
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(Elevated, rowShape)
+                            .border(1.dp, BorderSoft, rowShape)
+                            // Pad 13 plus the 1 px border, which CSS counts in the box.
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconTile(34.dp, 11.dp, SolidColor(Success.copy(alpha = 0.12f)), BrandIcon.ShieldCheck, 17.dp, SuccessFg, 2f)
+                        Spacer(Modifier.width(12.dp))
+                        val row = withBold(if (g) ChatCopy.G_ROW.format(name) else ChatCopy.H_ROW, ChatCopy.OUTCOME_BOLD)
+                        Text(row, modifier = Modifier.weight(1f).prettyWrap(row, RowText).cssLineBox(RowText.lineHeight), style = RowText)
+                    }
             }
+            PrimaryButton(
+                ChatCopy.FIND_NEXT,
+                onFindNext,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 6.dp).testTag(CHAT_CTA_TAG),
+                leading = { Icon(BrandIcon.Search, 18.dp, tint = Color.White, strokeWidth = 2.4f) },
+            )
         }
     }
 }

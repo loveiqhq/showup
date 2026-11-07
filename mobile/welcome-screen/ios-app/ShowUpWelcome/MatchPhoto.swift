@@ -18,9 +18,12 @@ struct MatchPhoto: View {
         ZStack {
             PhotoBackdrop(url: photoURL, index: 0)
             if photoURL == nil {
+                // A fixed-size mark: it scales with the circle, never with the user's type size, which ran it out of
+                // the 26 bubble avatar at the largest sizes (the 194 fit sweep).
                 Text(String(name.prefix(1)))
                     .font(F.lora(size * 0.42, bold: true))
                     .foregroundColor(Color.white.opacity(0.92))
+                    .dynamicTypeSize(.large)
             }
         }
         .frame(width: size, height: size)

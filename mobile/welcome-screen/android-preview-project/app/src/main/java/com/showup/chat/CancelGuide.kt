@@ -78,6 +78,7 @@ internal fun CancelGuide(name: String, acked: Boolean, onAck: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     Column(
         Modifier
+            .testTag(CHAT_GUIDE_TAG)
             .fillMaxWidth()
             .background(tone.bg, shape)
             .border(1.5.dp, tone.chipBorder, shape)
@@ -92,7 +93,7 @@ internal fun CancelGuide(name: String, acked: Boolean, onAck: () -> Unit) {
         }
         Paragraph(withBold(ChatCopy.GUIDE_1.format(name), ChatCopy.GUIDE_1_BOLD))
         Paragraph(withBold(ChatCopy.GUIDE_2, ChatCopy.GUIDE_2_BOLD))
-        DrawnSmall(ChatCopy.GOT_IT, onAck, Modifier.padding(top = 3.dp).fillMaxWidth()) { press ->
+        DrawnSmall(ChatCopy.GOT_IT, onAck, Modifier.padding(top = 3.dp).fillMaxWidth(), touch = Modifier.testTag(CHAT_GOT_IT_TAG)) { press ->
             Box(
                 press
                     .fillMaxWidth()
@@ -115,6 +116,7 @@ internal fun EndDateCard(onEnd: () -> Unit) {
     val tone = ReasonTone.DarkRed
     Row(
         Modifier
+            .testTag(CHAT_END_CARD_TAG)
             .fillMaxWidth()
             .background(Fg.copy(alpha = 0.04f), RoundedCornerShape(16.dp))
             .padding(horizontal = 13.dp, vertical = 11.dp),

@@ -72,7 +72,7 @@ internal fun EndDateSheet(name: String, ending: Boolean, failed: Boolean, onKeep
         onDismiss = { onKeep() },
         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 24.dp),
     ) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().testTag(CHAT_SHEET_TAG), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier.padding(top = 8.dp).size(80.dp).background(tone.bg, CircleShape),
                 contentAlignment = Alignment.Center,

@@ -45,12 +45,15 @@ struct CancelGuide: View {
                 }
                 .buttonStyle(PressScale())
                 .minTapTarget(alignment: .center)
+                .fitTapArea()
+                .fitAnchor("chat:got-it")
                 .padding(.top, 3)
             }
             // Pad 10 12 plus the 1.5 border, which CSS counts in the box.
             .padding(EdgeInsets(top: 11.5, leading: 13.5, bottom: 11.5, trailing: 13.5))
             .background(shape.fill(tone.bg))
             .overlay(shape.strokeBorder(tone.chipBorder, lineWidth: 1.5))
+            .fitAnchor("chat:guide")
         }
     }
 

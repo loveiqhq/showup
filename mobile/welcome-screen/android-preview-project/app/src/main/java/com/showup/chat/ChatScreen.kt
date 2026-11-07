@@ -218,7 +218,7 @@ private fun Thread(
         contentPadding = if (waiting) PaddingValues(horizontal = 14.dp, vertical = 6.dp) else PaddingValues(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 8.dp),
         messageCount = ui.messages.size,
         footKey = footKey,
-        modifier = modifier.fillMaxWidth().background(Elevated),
+        modifier = modifier.fillMaxWidth().background(Elevated).testTag(CHAT_THREAD_TAG),
         foot = if (guide) {
             { CancelGuide(date.match.name, acked = ui.guide == Guide.Acked, onAck = onAckGuide) }
         } else {
@@ -247,7 +247,7 @@ private fun Dock(
     onEdit: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().pinnedGlass()) {
+    Column(Modifier.fillMaxWidth().pinnedGlass().testTag(CHAT_DOCK_TAG)) {
         Composer(ui, date.match.name, onEdit, onSend)
         if (ui.sendFailed) {
             Text(
@@ -312,6 +312,8 @@ private fun Composer(ui: ChatUi, name: String, onEdit: (String) -> Unit, onSend:
             decorationBox = { inner ->
                 Box(
                     Modifier
+                        // Android's 48 floor: the reference's field is 45.6 tall, a touch area under it.
+                        .heightIn(min = 48.dp)
                         .background(fill, shape)
                         .border(1.5.dp, border, shape)
                         // Pad 9 14, plus the 1.5 border CSS counts in the box, plus the 2 every browser
@@ -320,7 +322,7 @@ private fun Composer(ui: ChatUi, name: String, onEdit: (String) -> Unit, onSend:
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     if (ui.draft.isEmpty()) {
-                        Text(placeholder, style = FieldText.copy(color = FgSubtle), maxLines = 2)
+                        Text(placeholder, style = FieldText.copy(color = FgSubtle))
                     }
                     // The reference's textarea `max-height: 90`: past it the field scrolls.
                     Box(Modifier.heightIn(max = 90.dp)) { inner() }
