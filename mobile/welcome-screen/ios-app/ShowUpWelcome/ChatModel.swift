@@ -71,10 +71,10 @@ final class ChatModel {
     private let clock: () -> Date
     private let zone: () -> TimeZone
     private let pollEvery: TimeInterval
+    /// The match's messages already reported, by id, in this launch and earlier ones: once per message.
+    private let received: any ReceivedLedger
 
     @ObservationIgnored private var poll: Task<Void, Never>?
-    /// The match's messages already reported as received this session, by id: once per message.
-    @ObservationIgnored private var received = Set<String>()
     /// Sent this session and not yet in a read: a poll that left before the send must not drop them.
     @ObservationIgnored private var unconfirmed: [ChatMessage] = []
     @ObservationIgnored private var visit: Visit?
@@ -91,7 +91,8 @@ final class ChatModel {
         analytics: (any AnalyticsTracking)? = nil,
         clock: @escaping () -> Date = { Date() },
         zone: @escaping () -> TimeZone = { TimeZone.current },
-        pollEvery: TimeInterval = chatPollSeconds
+        pollEvery: TimeInterval = chatPollSeconds,
+        received: (any ReceivedLedger)? = nil
     ) {
         self.store = store
         self.dates = dates
@@ -99,6 +100,8 @@ final class ChatModel {
         self.clock = clock
         self.zone = zone
         self.pollEvery = pollEvery
+        // Made here rather than as the default: the in-memory ledger is the main actor's, as this is.
+        self.received = received ?? InMemoryReceivedLedger()
         self.ui = ChatUi(now: clock())
     }
 
@@ -132,6 +135,9 @@ final class ChatModel {
             while !Task.isCancelled {
                 do {
                     guard let model = self else { return }
+                    // The countdown moves with the clock whether or not the reads land: offline near the
+                    // meet time it kept `in 0h 3m` after it (the SHOWUP-194 review).
+                    model.ui.now = model.clock()
                     await model.refresh(id)
                 }
                 try? await Task.sleep(nanoseconds: UInt64(every * 1_000_000_000))
@@ -220,8 +226,12 @@ final class ChatModel {
                     prefillEdited: prefillEdited(reason: reason, sent: body), isFirst: isFirst, now: self.clock()))
                 await self.refresh(date.id)
             case .failure:
-                self.ui.sending = false
-                self.ui.sendFailed = true
+                // Refused because the date ended meanwhile: the date read shows the outcome at once, not
+                // `Couldn't send` until the next poll. Still on, it was the send that failed.
+                if await self.readDate(date.id) {
+                    self.ui.sending = false
+                    self.ui.sendFailed = true
+                }
             }
         }
     }
@@ -234,8 +244,10 @@ final class ChatModel {
         analytics?.report(ChatAnalytics.endDateSheetOpened(date, cantMakeItFrom: from, now: clock()))
     }
 
-    /// `Keep the date` or the scrim: the sheet closes and nothing changes. No event.
+    /// `Keep the date` or the scrim: the sheet closes and nothing changes. No event. Not while the end is on its
+    /// way: the sheet closed, the end landed anyway and the outcome replaced the chat.
     func keepDate() {
+        guard !ui.ending else { return }
         ui.endSheet = false
         ui.endFailed = nil
     }
@@ -274,10 +286,9 @@ final class ChatModel {
         case .success(let read):
             unconfirmed.removeAll { sent in read.contains { $0.id == sent.id } }
             let messages = read + unconfirmed
-            var arrived: [ChatMessage] = []
-            for message in messages where !message.fromYou && received.insert(message.id).inserted {
-                arrived.append(message)
-            }
+            // Not yet reported on this phone, in an earlier launch either: once per message.
+            let reported = received.reported(id)
+            let arrived = messages.filter { !$0.fromYou && !reported.contains($0.id) }
             ui.messages = messages
             ui.loading = false
             ui.failed = nil
@@ -285,6 +296,7 @@ final class ChatModel {
             for message in arrived {
                 analytics?.report(ChatAnalytics.messageReceived(dateId: id, reason: message.reason, charCount: charCount(message.body)))
             }
+            received.record(id, arrived.map(\.id))
             if !arrived.isEmpty { await store.markRead(dateId: id) }
         case .failure(let why):
             // A failed re-read keeps the thread on screen: a dropped connection is not an empty chat.
@@ -336,12 +348,12 @@ final class ChatModel {
         ui.left = true
         ui.endSheet = false
         ui.ending = false
+        ui.sending = false
     }
 
     private func reset() {
         poll?.cancel()
         poll = nil
-        received.removeAll()
         unconfirmed.removeAll()
         visit = nil
         guideShownAt = nil

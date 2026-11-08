@@ -1084,7 +1084,9 @@ private struct TutorialFlow: View {
     private func openChat() {
         guard let date = dateModel.state.date else { return }
         if chatModel == nil || chatDateId != date.id {
-            chatModel = ChatModel(store: chatStore, dates: dateStore, analytics: AppAnalytics.shared)
+            // `message_received` once per message across launches: what was reported is kept on the phone.
+            chatModel = ChatModel(store: chatStore, dates: dateStore, analytics: AppAnalytics.shared,
+                                  received: UserDefaultsReceivedLedger())
             chatDateId = date.id
         }
         chatPath = [chatRoute(date, entry: chatEntryFor(date))]
@@ -1134,7 +1136,7 @@ private struct TutorialFlow: View {
                 onBack: { chatPath = [] })
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
-                .onAppear { chatEvents.tutorialShown(date) }
+                .onFirstAppear { chatEvents.tutorialShown(date) }
         }
     }
 
@@ -1158,7 +1160,8 @@ private struct TutorialFlow: View {
                 onRetry: { model.retry() })
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
-                .onAppear {
+                // Once per showing: a second `onAppear` reported the visit twice and restarted it.
+                .onFirstAppear {
                     model.open(date, entry: entry)
                     chatEvents.chatShown(referrer: entry == .tutorial ? .dateChatTutorial : .dateScreen)
                 }
@@ -1186,7 +1189,7 @@ private struct TutorialFlow: View {
         DateEndedScreen(outcome: outcome, photoURL: photoURL, onFindNext: { findNextDate() })
             .toolbar(.hidden, for: .navigationBar)
             .navigationBarBackButtonHidden(true)
-            .onAppear {
+            .onFirstAppear {
                 chatEvents.outcomeShown(referrer: outcomeFrom)
                 let store = chatStore
                 let id = outcome.dateId

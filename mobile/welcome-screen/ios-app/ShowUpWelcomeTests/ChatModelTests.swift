@@ -13,6 +13,8 @@ actor FakeChatStore: ChatStoring {
     private(set) var thread: Result<[ChatMessage], CallFailure> = .success([])
     private(set) var sendFails: CallFailure?
     private(set) var end: EndResult = .ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))
+    /// How long End date takes to answer: the end on its way.
+    private(set) var endDelay: Double = 0
     private(set) var calls: [String] = []
     private(set) var sent: [String] = []
     private var next = 0
@@ -20,6 +22,7 @@ actor FakeChatStore: ChatStoring {
     func setThread(_ value: Result<[ChatMessage], CallFailure>) { thread = value }
     func setSendFails(_ value: CallFailure?) { sendFails = value }
     func setEnd(_ value: EndResult) { end = value }
+    func setEndDelay(_ value: Double) { endDelay = value }
 
     func thread(dateId: String) async -> Result<[ChatMessage], CallFailure> {
         calls.append("thread")
@@ -41,6 +44,7 @@ actor FakeChatStore: ChatStoring {
     func markTutorialSeen(dateId: String) async { calls.append("tutorial") }
     func endInChat(dateId: String) async -> EndResult {
         calls.append("end")
+        if endDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(endDelay * 1_000_000_000)) }
         return end
     }
     func markEndSeen(dateId: String) async { calls.append("end-seen") }
@@ -75,14 +79,134 @@ final class ChatModelTests: XCTestCase {
 
     /// Opens the chat and lets the first read land.
     private func opened(_ store: FakeChatStore, _ dates: FakeDateStore, _ analytics: RecordingAnalytics,
-                        entry: ChatEntry = .openChat) async -> ChatModel {
+                        entry: ChatEntry = .openChat, ledger: InMemoryReceivedLedger? = nil) async -> ChatModel {
         await dates.setRead(.success(.active(date)))
         let model = ChatModel(store: store, dates: dates, analytics: analytics, clock: { [unowned self] in self.now },
-                              zone: { TimeZone(identifier: "Europe/Berlin")! }, pollEvery: 0.05)
+                              zone: { TimeZone(identifier: "Europe/Berlin")! }, pollEvery: 0.05, received: ledger)
         models.append(model)
         model.open(date, entry: entry)
         await settle()
         return model
+    }
+
+    // MARK: - the final review's cases (Android's, case for case)
+
+    func testAMessageReportedInAnEarlierLaunchIsNotReportedAgainAndANewOneIsOnce() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        let analytics = RecordingAnalytics()
+        let ledger = InMemoryReceivedLedger()
+        await store.setThread(.success([theirs("t1", .runningLate)]))
+        let first = await opened(store, dates, analytics, ledger: ledger)
+        first.onScreen(false)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_received" }.count, 1)
+        // The next launch: a new model on the same phone, the same thread.
+        let t1 = theirs("t1", .runningLate)
+        now = now.addingTimeInterval(60)
+        let second = await opened(store, dates, analytics, ledger: ledger)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_received" }.count, 1, "an old message is not news")
+        await store.setThread(.success([t1, theirs("t2", nil)]))
+        await settle(0.15)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_received" }.count, 2)
+        second.onScreen(false)
+    }
+
+    func testTheCountdownMovesWithTheClockWhileEveryReadFails() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        let model = await opened(store, dates, RecordingAnalytics())
+        XCTAssertEqual(model.ui.countdownText, "in 1h 18m")
+        await dates.setRead(.failure(.network))
+        await store.setThread(.failure(.network))
+        now = meet.addingTimeInterval(60)
+        await settle(0.15)
+        XCTAssertNil(model.ui.countdownText, "offline too, past the meet time the countdown leaves the header")
+        model.onScreen(false)
+    }
+
+    func testASendRefusedBecauseTheDateHasEndedShowsTheOutcomeNotASendFailure() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        let model = await opened(store, dates, RecordingAnalytics())
+        // The poll stopped, so only the send can find the end.
+        model.onScreen(false)
+        model.pick(.runningLate, surface: .dock)
+        await store.setSendFails(.server)
+        let ended = EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false)
+        await dates.setRead(.success(.ended(ended)))
+        model.send()
+        await settle()
+        XCTAssertFalse(model.ui.sendFailed)
+        XCTAssertEqual(model.ui.outcome, ended)
+    }
+
+    func testKeepTheDateAndTheScrimDoNothingWhileTheEndIsOnItsWay() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        await store.setThread(.success([theirs("t1", .cantMakeIt)]))
+        await store.setEndDelay(0.3)
+        let model = await opened(store, dates, RecordingAnalytics())
+        model.openEndSheet()
+        model.endDate()
+        await settle(0.05)
+        XCTAssertTrue(model.ui.ending)
+        model.keepDate()
+        XCTAssertTrue(model.ui.endSheet, "the sheet stays while the end is on its way")
+        await settle(0.4)
+        XCTAssertEqual(model.ui.outcome, EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))
+        model.onScreen(false)
+    }
+
+    func testTheHeaderFollowsTheLatestAgreedTimeFromTheDateRead() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        let model = await opened(store, dates, RecordingAnalytics())
+        var later = date
+        later.meetAt = meet.addingTimeInterval(30 * 60)
+        later.place = DatePlace(name: "Bar Nova", address: nil)
+        await dates.setRead(.success(.active(later)))
+        await settle(0.15)
+        XCTAssertEqual(model.ui.date, later)
+        model.onScreen(false)
+    }
+
+    func testAFirstReadThatFailsShowsTheFailureAndALaterFailedPollKeepsTheThread() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        await store.setThread(.failure(.network))
+        let model = await opened(store, dates, RecordingAnalytics())
+        XCTAssertEqual(model.ui.failed, .network)
+        await store.setThread(.success([theirs("t1", nil)]))
+        model.retry()
+        await settle()
+        XCTAssertNil(model.ui.failed)
+        XCTAssertEqual(model.ui.messages.count, 1)
+        await store.setThread(.failure(.server))
+        await settle(0.15)
+        XCTAssertNil(model.ui.failed)
+        XCTAssertEqual(model.ui.messages.count, 1)
+        model.onScreen(false)
+    }
+
+    func testNoEndSheetWithoutAnICantMakeItTodayMessage() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        let analytics = RecordingAnalytics()
+        await store.setThread(.success([theirs("t1", .runningLate)]))
+        let model = await opened(store, dates, analytics)
+        model.openEndSheet()
+        XCTAssertFalse(model.ui.endSheet)
+        XCTAssertTrue(analytics.entries.filter { $0.event == "end_date_sheet_opened" }.isEmpty)
+        model.onScreen(false)
+    }
+
+    func testADateGoneSomeOtherWayLeavesTheChat() async {
+        let store = FakeChatStore()
+        let dates = FakeDateStore()
+        let model = await opened(store, dates, RecordingAnalytics())
+        await dates.setRead(.success(DateRead.none))
+        await settle(0.15)
+        XCTAssertTrue(model.ui.left)
     }
 
     override func tearDown() async throws {

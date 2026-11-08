@@ -91,15 +91,13 @@ class ChatViewModel(
     private val analytics: AnalyticsTracker? = null,
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
+    private val received: ReceivedLedger = InMemoryReceivedLedger(),
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(ChatUi(now = clock()))
     val ui: StateFlow<ChatUi> = _ui.asStateFlow()
 
     private var poll: Job? = null
-
-    /** The match's messages already reported as received this session, by id: once per message. */
-    private val received = mutableSetOf<String>()
 
     /** Sent this session and not yet in a read: a poll that left before the send must not drop them. */
     private val unconfirmed = mutableListOf<ChatMessage>()
@@ -138,6 +136,9 @@ class ChatViewModel(
         if (poll?.isActive == true || ui.outcome != null || ui.left) return
         poll = viewModelScope.launch {
             while (true) {
+                // The countdown moves with the clock whether or not the reads land: offline near the
+                // meet time it kept `in 0h 3m` after it (the SHOWUP-194 review).
+                _ui.update { it.copy(now = clock()) }
                 refresh(id)
                 delay(CHAT_POLL_MS)
             }
@@ -222,7 +223,9 @@ class ChatViewModel(
                     analytics?.report(ChatAnalytics.messageSent(latest, reason, body.length, prefillEdited(reason, body), isFirst, clock()))
                     refresh(date.id)
                 }
-                is Outcome.Failed -> _ui.update { it.copy(sending = false, sendFailed = true) }
+                // Refused because the date ended meanwhile: the date read shows the outcome at once,
+                // not `Couldn't send` until the next poll. Still on, it was the send that failed.
+                is Outcome.Failed -> if (readDate(date.id)) _ui.update { it.copy(sending = false, sendFailed = true) }
             }
         }
     }
@@ -237,8 +240,11 @@ class ChatViewModel(
         analytics?.report(ChatAnalytics.endDateSheetOpened(date, from, clock()))
     }
 
-    /** `Keep the date` or the scrim: the sheet closes and nothing changes. No event. */
-    fun keepDate() = _ui.update { it.copy(endSheet = false, endFailed = null) }
+    /**
+     * `Keep the date` or the scrim: the sheet closes and nothing changes. No event. Not while the end is
+     * on its way: the sheet closed, the end landed anyway and the outcome replaced the chat.
+     */
+    fun keepDate() = _ui.update { if (it.ending) it else it.copy(endSheet = false, endFailed = null) }
 
     /** `End date` on the sheet: ends the date for both. */
     fun endDate() {
@@ -266,9 +272,12 @@ class ChatViewModel(
                 val read = thread.value
                 unconfirmed.removeAll { sent -> read.any { it.id == sent.id } }
                 val messages = read + unconfirmed
-                val arrived = messages.filter { !it.fromYou && received.add(it.id) }
+                // Not yet reported on this phone, in an earlier launch either: once per message.
+                val reported = received.reported(id)
+                val arrived = messages.filter { !it.fromYou && it.id !in reported }
                 _ui.update { it.copy(messages = messages, loading = false, failed = null, now = clock()) }
                 arrived.forEach { analytics?.report(ChatAnalytics.messageReceived(id, it.reason, it.body.length)) }
+                received.record(id, arrived.map { it.id })
                 if (arrived.isNotEmpty()) store.markRead(id)
             }
             // A failed re-read keeps the thread on screen: a dropped connection is not an empty chat.
@@ -310,13 +319,12 @@ class ChatViewModel(
     private fun leave() {
         poll?.cancel()
         poll = null
-        _ui.update { it.copy(left = true, endSheet = false, ending = false) }
+        _ui.update { it.copy(left = true, endSheet = false, ending = false, sending = false) }
     }
 
     private fun reset() {
         poll?.cancel()
         poll = null
-        received.clear()
         unconfirmed.clear()
         visit = null
         guideShownAt = null

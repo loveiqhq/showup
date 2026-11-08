@@ -94,6 +94,7 @@ import com.showup.chat.ChatSamples
 import com.showup.chat.ChatScreen
 import com.showup.chat.ChatTutorialScreen
 import com.showup.chat.ChatViewModel
+import com.showup.chat.SharedPrefsReceivedLedger
 import com.showup.chat.DateEndedScreen
 import com.showup.chat.chatEntryFor
 import com.showup.chat.chatRoute
@@ -875,10 +876,14 @@ class MainActivity : ComponentActivity() {
             // chip survive leaving the chat and coming back -- keyed on the account and the date.
             val chatStore = remember(api) { ApiChatStore(api) }
             val chatEvents = remember { ChatHostEvents(analytics = AppAnalytics) }
+            // `message_received` once per message across launches: what was reported is kept on the phone.
+            val receivedLedger = remember { SharedPrefsReceivedLedger(applicationContext) }
             val chat: ChatViewModel? = dateState.date?.id?.let { id ->
                 viewModel(
                     key = "chat-$account-$id",
-                    factory = viewModelFactory { initializer { ChatViewModel(chatStore, dateStore, analytics = AppAnalytics) } },
+                    factory = viewModelFactory {
+                        initializer { ChatViewModel(chatStore, dateStore, analytics = AppAnalytics, received = receivedLedger) }
+                    },
                 )
             }
             /** Where G or H was reached from, for its `screen_viewed` referrer. */

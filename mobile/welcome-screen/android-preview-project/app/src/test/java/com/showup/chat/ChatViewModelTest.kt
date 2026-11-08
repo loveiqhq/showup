@@ -19,6 +19,7 @@ import com.showup.date.DateRead
 import com.showup.date.EndedInChat
 import com.showup.date.FakeDateStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -63,8 +64,9 @@ class ChatViewModelTest {
 
     private val models = mutableListOf<ChatViewModel>()
 
-    private fun vm() =
-        ChatViewModel(store, dates, analytics = analytics, clock = { now }, zone = { ZoneId.of("Europe/Berlin") }).also { models += it }
+    private fun vm(ledger: ReceivedLedger = InMemoryReceivedLedger()) =
+        ChatViewModel(store, dates, analytics = analytics, clock = { now }, zone = { ZoneId.of("Europe/Berlin") }, received = ledger)
+            .also { models += it }
 
     /**
      * [runTest] that stops every poll its models started, whatever happens. A poll left running keeps
@@ -240,6 +242,54 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `a message reported in an earlier launch is not reported again, and a new one is, once`() = chatTest {
+        val ledger = InMemoryReceivedLedger()
+        store.thread = Outcome.Ok(listOf(theirs("t1", ChatReason.RunningLate)))
+        dates.read = Outcome.Ok(DateRead.Active(date))
+        val first = vm(ledger)
+        first.open(date, ChatEntry.OpenChat)
+        runCurrent()
+        stop(first)
+        assertEquals(1, analytics.of("message_received").size)
+        // The next launch: a new model on the same phone, the same thread.
+        now = now.plusSeconds(60)
+        val second = vm(ledger)
+        second.open(date, ChatEntry.OpenChat)
+        runCurrent()
+        assertEquals("an old message is not news", 1, analytics.of("message_received").size)
+        store.thread = Outcome.Ok(listOf(theirs("t1", ChatReason.RunningLate), theirs("t2", null)))
+        advanceTimeBy(5_001)
+        advanceTimeBy(5_000)
+        assertEquals(2, analytics.of("message_received").size)
+        stop(second)
+    }
+
+    @Test
+    fun `the countdown moves with the clock while every read fails, and leaves at the meet time`() = chatTest {
+        val vm = opened()
+        assertEquals("in 1h 18m", vm.ui.value.countdown)
+        dates.read = Outcome.Failed(CallFailure.Network)
+        store.thread = Outcome.Failed(CallFailure.Network)
+        now = meet.plusSeconds(60)
+        advanceTimeBy(5_001)
+        assertNull("offline too, past the meet time the countdown leaves the header", vm.ui.value.countdown)
+        stop(vm)
+    }
+
+    @Test
+    fun `a send refused because the date has ended shows the outcome, not a send failure`() = chatTest {
+        val vm = opened()
+        vm.pick(ChatReason.RunningLate, ChipSurface.Dock)
+        store.sendFails = CallFailure.Server
+        dates.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        vm.send()
+        runCurrent()
+        assertFalse(vm.ui.value.sendFailed)
+        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
+        stop(vm)
+    }
+
+    @Test
     fun `the header follows the latest agreed time from the date read`() = chatTest {
         val vm = opened()
         val later = date.copy(meetAt = meet.plusSeconds(30 * 60), place = DatePlace("Bar Nova", null))
@@ -375,6 +425,25 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `Keep the date and the scrim do nothing while the end is on its way`() = chatTest {
+        store.thread = Outcome.Ok(listOf(theirs("t1", ChatReason.CantMakeIt)))
+        store.end = EndResult.Ended(EndedInChat("d1", "Leonie", endedByYou = true))
+        val gate = CompletableDeferred<Unit>()
+        store.endGate = gate
+        val vm = opened()
+        vm.openEndSheet()
+        vm.endDate()
+        runCurrent()
+        assertTrue(vm.ui.value.ending)
+        vm.keepDate()
+        assertTrue("the sheet stays while the end is on its way", vm.ui.value.endSheet)
+        gate.complete(Unit)
+        runCurrent()
+        assertEquals(EndedInChat("d1", "Leonie", endedByYou = true), vm.ui.value.outcome)
+        stop(vm)
+    }
+
+    @Test
     fun `a failed End date keeps the sheet open and says why`() = chatTest {
         store.thread = Outcome.Ok(listOf(theirs("t1", ChatReason.CantMakeIt)))
         store.end = EndResult.Failed(CallFailure.Network)
@@ -493,8 +562,12 @@ class FakeChatStore : ChatStore {
         calls += "tutorial"
     }
 
+    /** While set, End date waits on it: the end is on its way. */
+    var endGate: CompletableDeferred<Unit>? = null
+
     override suspend fun endInChat(dateId: String): EndResult {
         calls += "end"
+        endGate?.await()
         return end
     }
 

@@ -264,6 +264,14 @@ struct ThreadScroll<Messages: View, Foot: View>: View {
                 .onAppear { reveal(proxy, viewport: viewport, animated: false) }
                 .onChange(of: messageCount) { _, _ in reveal(proxy, viewport: viewport, animated: true) }
                 .onChange(of: footKey) { _, _ in reveal(proxy, viewport: viewport, animated: true) }
+                // The keyboard takes the thread's height from below, and with the scroll held from the top the
+                // newest messages slid out of sight -- Read & reply, a tap on the field, and the message being
+                // answered was gone (the SHOWUP-194 review). A thread at its end stays at its end; one the
+                // reader scrolled up stays where they left it.
+                .onChange(of: viewport) { old, new in
+                    let atEnd = -metrics.contentTop >= metrics.contentHeight - old - 1
+                    if new < old, atEnd { proxy.scrollTo("thread.end", anchor: .bottom) }
+                }
                 .overlay(alignment: .topTrailing) { indicator(viewport: viewport) }
             }
         }

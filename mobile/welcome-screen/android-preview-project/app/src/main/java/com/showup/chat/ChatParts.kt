@@ -47,6 +47,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -354,7 +356,8 @@ private fun Receipt(read: Boolean) {
  * THE REVEAL RULE. When the foot changes ([footKey]) or a message arrives, the thread scrolls to the
  * end -- unless the foot is taller than the viewport (the guide on a short phone), when it scrolls to the
  * foot's top less 8, so its title and `Got it` are what is seen. The first scroll jumps; later ones glide
- * on the brand curve, and jump with reduced motion.
+ * on the brand curve, and jump with reduced motion. When the viewport shrinks (the keyboard), a thread
+ * at its end stays at its end.
  *
  * THE INDICATOR. Track `rgba(29,17,41,.06)` and thumb `.34`, 6 wide, 3 from the right, inset 8, the
  * thumb at least 30; drawn only while the thread overflows, fading over [Motion.TINT]. It is drawn in
@@ -411,6 +414,18 @@ internal fun ThreadScroll(
             }
             if (first || !motion.enabled) state.scrollTo(target) else state.animateScrollTo(target, tween(Motion.SCREEN, easing = ShowUpEasing))
             first = false
+        }
+        // How far the reader is from the end, as they or a reveal scroll -- not as the viewport changes.
+        var fromEnd by remember { mutableIntStateOf(0) }
+        LaunchedEffect(state) { snapshotFlow { state.value }.collect { fromEnd = state.maxValue - it } }
+        // The keyboard takes the thread's height from below, and with the scroll held from the top the
+        // newest messages slid out of sight -- Read & reply, a tap on the field, and the message being
+        // answered was gone (the SHOWUP-194 review). A thread at its end stays at its end; one the
+        // reader scrolled up stays where they left it.
+        LaunchedEffect(viewport) {
+            if (first) return@LaunchedEffect
+            withFrameNanos { }
+            if (fromEnd <= 1) state.scrollTo(state.maxValue)
         }
         val shown by animateFloatAsState(
             targetValue = if (state.maxValue > with(density) { 2.dp.toPx() }) 1f else 0f,
