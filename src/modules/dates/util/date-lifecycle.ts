@@ -15,6 +15,15 @@ export enum DateStatus {
   EndedInChat = 'ended_in_chat',
 }
 
+/**
+ * A date that never happened: cancelled, or ended from the chat before anyone met (Date 02). Search
+ * reads neither as a past date -- it hides no pair from each other and books nobody a date.
+ */
+export const NEVER_HAPPENED: readonly DateStatus[] = [
+  DateStatus.Cancelled,
+  DateStatus.EndedInChat,
+];
+
 /** For each stage, the stages it is allowed to move to. Empty = terminal. */
 const ALLOWED_TRANSITIONS: Record<DateStatus, DateStatus[]> = {
   [DateStatus.Confirmed]: [

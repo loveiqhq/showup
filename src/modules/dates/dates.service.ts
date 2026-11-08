@@ -9,6 +9,8 @@ import type { EndedInChatDto } from '../date-screen/dto/active-date.dto';
 import { cantMakeItFrom } from './util/end-in-chat';
 import { firstName } from '../search/util/search-profile';
 import { Profile } from '../profiles/entities/profile.entity';
+import { Match } from '../matching/entities/match.entity';
+import { MatchStatus, orderedUserPair } from '../matching/util/match';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, IsNull, Repository } from 'typeorm';
 
@@ -47,6 +49,8 @@ export class DatesService {
     private readonly chat: Repository<DateChatMessage>,
     @InjectRepository(Profile)
     private readonly profiles: Repository<Profile>,
+    @InjectRepository(Match)
+    private readonly matches: Repository<Match>,
     private readonly checkIns: CheckInsService,
     private readonly location: LocationService,
     private readonly analytics: AnalyticsService,
@@ -382,7 +386,8 @@ export class DatesService {
    * Ends the date for both people from the chat (Date 02): only a `confirmed` date with an "I can't
    * make it today" message in its thread, at any time until it has ended -- there is no cut-off at the
    * meet time. No review follows and nobody's Show-up Rate moves: nothing here touches a rating, a
-   * confirmation or a no-show field. Both people are released from the date lock by the status alone.
+   * confirmation or a no-show field. Both people are released: the date lock by the status, and
+   * Search's "has a date" by the pair's match, which is cancelled with it.
    * `date_ended_in_chat` is sent once; `date_cancelled` never is.
    */
   async endInChat(
@@ -413,6 +418,15 @@ export class DatesService {
     if (!ended.affected) {
       throw new ConflictException('This date has already ended');
     }
+    // The pair's match ends with the date. Search, Likes and Instant read an active match from the
+    // open Check-In as "has a date", so the date's status alone left both shut out until their
+    // Check-Ins closed, up to 48 h (the SHOWUP-194 review). Dates are saved with no match id, so
+    // the pair finds it.
+    const [userAId, userBId] = orderedUserPair(date.userAId, date.userBId);
+    await this.matches.update(
+      { userAId, userBId, status: MatchStatus.Active },
+      { status: MatchStatus.Cancelled },
+    );
     await this.logChange(
       date.id,
       DateStatus.Confirmed,

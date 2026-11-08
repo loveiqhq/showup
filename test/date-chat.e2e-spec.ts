@@ -7,14 +7,17 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
 import { AnalyticsService } from './../src/modules/analytics/analytics.service';
 import { DatesService } from './../src/modules/dates/dates.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
+import { orderedUserPair } from './../src/modules/matching/util/match';
 import { Profile } from './../src/modules/profiles/entities/profile.entity';
+import { SearchService } from './../src/modules/search/search.service';
+import { Availability } from './../src/modules/search/util/likes';
 import { User } from './../src/modules/users/entities/user.entity';
 
 const PHONES = {
@@ -302,6 +305,60 @@ describe('The Coordinate chat (e2e)', () => {
       }
     });
 
+    it('opens Search again for both: the match no longer holds either of them', async () => {
+      // The real gate, not the date lock alone: Search, Likes and Instant read an active match from
+      // the open Check-In as "has a date" (the SHOWUP-194 review found ending left both shut).
+      const db = app.get(DataSource);
+      const pair = orderedUserPair(id.you, id.leonie);
+      const people = [id.you, id.leonie];
+      await db.query(
+        `UPDATE "users" SET "status" = 'active' WHERE "id" = ANY($1::uuid[])`,
+        [people],
+      );
+      for (const who of people) {
+        await db.query(
+          `INSERT INTO "check_in_windows"
+             ("user_id", "opened_at", "committed_at", "closes_at", "motivation", "vibes", "uplift",
+              "district")
+           VALUES ($1, now() - interval '1 hour', now() - interval '1 hour',
+                   now() + interval '47 hours', 'long_term',
+                   ARRAY['coffee_chat']::check_in_vibe_enum[], 'A walk', 'Kreuzberg')`,
+          [who],
+        );
+      }
+      await db.query(
+        `INSERT INTO "matches" ("user_a_id", "user_b_id", "status") VALUES ($1, $2, 'active')`,
+        pair,
+      );
+      const search = app.get(SearchService);
+      const held = async () => [
+        (await search.availabilityOf(id.leonie, id.you)).status,
+        (await search.availabilityOf(id.you, id.leonie)).status,
+      ];
+      try {
+        const dateId = await makeDate(60);
+        expect(await held()).toEqual([
+          Availability.Matched,
+          Availability.Matched,
+        ]);
+        await send(dateId, 'leonie', {
+          reason: 'cant_make_it',
+          body: 'So sorry, something came up and I cannot make it.',
+        }).expect(201);
+        await end(dateId, 'you').expect(200);
+        expect(await held()).not.toContain(Availability.Matched);
+      } finally {
+        await db.query(
+          `DELETE FROM "matches" WHERE "user_a_id" = $1 AND "user_b_id" = $2`,
+          pair,
+        );
+        await db.query(
+          `DELETE FROM "check_in_windows" WHERE "user_id" = ANY($1::uuid[])`,
+          [people],
+        );
+      }
+    });
+
     it('can still be ended after the meet time has passed', async () => {
       const dateId = await makeDate(60);
       await send(dateId, 'you', {
@@ -311,6 +368,38 @@ describe('The Coordinate chat (e2e)', () => {
       await dates.update({ id: dateId }, { scheduledAt: minutesFromNow(-30) });
       const res = await end(dateId, 'leonie').expect(200);
       expect(res.body).toEqual({ dateId, name: 'Max', endedByYou: true });
+    });
+
+    it('is not a past date to Search: it hides neither from the other and books nobody a date', async () => {
+      // Ended in the chat, the date never happened -- as a cancelled one never did. Filter 10 would
+      // hide the two from each other for good (the guide tells them to agree another day), and
+      // Reliability would count it booked but not attended for both (the SHOWUP-194 review).
+      const dateId = await makeDate(60);
+      await send(dateId, 'you', {
+        reason: 'cant_make_it',
+        body: 'Sorry, I really cannot.',
+      }).expect(201);
+      await dates.update({ id: dateId }, { scheduledAt: minutesFromNow(-30) });
+      await end(dateId, 'leonie').expect(200);
+      // Search's own two reads, run against the database: they are private to the ranker.
+      const probe: {
+        pastDatePartners(
+          v: string,
+          ids: string[],
+          now: Date,
+        ): Promise<Set<string>>;
+        pastDatesOf(
+          ids: string[],
+          now: Date,
+        ): Promise<Map<string, { booked: number; attended: number }>>;
+      } = app.get(SearchService);
+      const now = new Date();
+      expect([
+        ...(await probe.pastDatePartners(id.you, [id.leonie], now)),
+      ]).toEqual([]);
+      const past = await probe.pastDatesOf([id.you, id.leonie], now);
+      expect(past.get(id.you)?.booked ?? 0).toBe(0);
+      expect(past.get(id.leonie)?.booked ?? 0).toBe(0);
     });
   });
 });

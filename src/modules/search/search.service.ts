@@ -25,7 +25,7 @@ import {
   searchFeedRankedEvent,
 } from '../analytics/events/server-events';
 import { DatesService } from '../dates/dates.service';
-import { DateStatus } from '../dates/util/date-lifecycle';
+import { NEVER_HAPPENED } from '../dates/util/date-lifecycle';
 import { Like } from '../matching/entities/like.entity';
 import {
   INELIGIBLE_USER_STATUSES,
@@ -1330,9 +1330,9 @@ export class SearchService {
   }
 
   /**
-   * Filter 10's people: anyone the viewer had a date with whose time has passed (a cancelled one was
-   * never a date). Only both answering `would_meet_again: true` would bring them back, and nothing
-   * stores that answer yet.
+   * Filter 10's people: anyone the viewer had a date with whose time has passed (a cancelled one, or
+   * one ended in the chat, was never a date). Only both answering `would_meet_again: true` would
+   * bring them back, and nothing stores that answer yet.
    */
   private async pastDatePartners(
     viewerId: string,
@@ -1345,8 +1345,8 @@ export class SearchService {
          FROM "dates"
         WHERE ("user_a_id" = $1 AND "user_b_id" = ANY($2::uuid[])
             OR "user_b_id" = $1 AND "user_a_id" = ANY($2::uuid[]))
-          AND "scheduled_at" < $3 AND "status" <> $4`,
-      [viewerId, ids, now, DateStatus.Cancelled],
+          AND "scheduled_at" < $3 AND "status"::text <> ALL($4::text[])`,
+      [viewerId, ids, now, NEVER_HAPPENED],
     );
     return new Set(rows.map((r) => r.user_id));
   }
@@ -1364,8 +1364,9 @@ export class SearchService {
   }
 
   /**
-   * Reliability's inputs per person: dates booked whose time has passed (not cancelled --
-   * cancellations and no-shows are not inputs yet) and dates both people confirmed happened.
+   * Reliability's inputs per person: dates booked whose time has passed (not cancelled or ended in
+   * the chat -- cancellations and no-shows are not inputs yet, and ending in the chat costs nobody)
+   * and dates both people confirmed happened.
    */
   private async pastDatesOf(
     ids: string[],
@@ -1376,7 +1377,7 @@ export class SearchService {
       Array<{ user_id: string; booked: number; attended: number }>
     >(
       `SELECT u AS "user_id",
-              count(*) FILTER (WHERE "scheduled_at" < $2 AND "status" <> $3)::int AS "booked",
+              count(*) FILTER (WHERE "scheduled_at" < $2 AND "status"::text <> ALL($3::text[]))::int AS "booked",
               count(*) FILTER (WHERE "a_confirmed_happened" AND "b_confirmed_happened")::int AS "attended"
          FROM (
            SELECT "user_a_id" AS u, "scheduled_at", "status", "a_confirmed_happened", "b_confirmed_happened"
@@ -1385,7 +1386,7 @@ export class SearchService {
            SELECT "user_b_id" AS u, "scheduled_at", "status", "a_confirmed_happened", "b_confirmed_happened"
              FROM "dates" WHERE "user_b_id" = ANY($1::uuid[])
          ) d GROUP BY u`,
-      [ids, now, DateStatus.Cancelled],
+      [ids, now, NEVER_HAPPENED],
     );
     return new Map(
       rows.map((r) => [r.user_id, { booked: r.booked, attended: r.attended }]),

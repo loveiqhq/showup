@@ -142,6 +142,7 @@ describe('toActiveDate', () => {
     },
     unread: null,
     checkedIn: false,
+    chatTutorialSeen: false,
     meetDay: 'today' as const,
   };
 
