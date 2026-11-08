@@ -67,3 +67,7 @@ docs/*.docx
 #
 # Decision: 25 September 2026, on adding the handoff from "Show Up Design System (2).zip".
 design_handoff_showup/**/spec-sheets/*.png
+
+# Semgrep Guardian's local state: its login (with an anonymous user id) and a lock, written into every
+# folder it scans. Never committed -- 18 had slipped in, 6 of them on the SHOWUP-194 branch.
+.semgrep/
