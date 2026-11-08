@@ -5,7 +5,7 @@
 //
 //  The Swift twin of `search/SearchSheets.kt`. Behaviour is `SheetScaffold`'s, the one bottom sheet in
 //  the app: the 42% scrim, a scrim tap as `backdrop`, the swipe down, and a bottom inset that clears
-//  the keyboard. The SURFACE is Search's own `ModalShell` -- 28 corners, at most 88% of the screen, the
+//  the keyboard. The SURFACE is the kit's `ModalShell` (ModalShell.swift, shared with the chat since 194) -- 28 corners, at most 88% of the screen, the
 //  canvas colour, a 36 grabber in `--liq-fg-faint`, an upward violet shadow -- because the design draws
 //  two sheet surfaces and both stay (the profile flow's is 32 / 660 / 40).
 //
@@ -16,81 +16,12 @@
 import SwiftUI
 import UIKit
 
-/// `ModalShell`'s `backdrop-filter: blur(8px)` -- NOT `blurBehindSheet`'s 1.5, the profile flow's
-/// "softening". Borrowing that one put this sheet over a screen barely softened (the 184 evidence
-/// review, 24 Oct 2026). iOS passes the CSS value as the radius, as the Check-In dialog's 3 does.
-let searchSheetBlur: CGFloat = 8
-
 /// CSS `line-height: normal` for Lora: its hhea ascent, descent and gap, 1006 + 274 + 0 per 1000. The
 /// sheets' titles set no line height, so it is this -- not WashHeadline's default 1.05.
 private let loraNormalLine: CGFloat = 1.28
 
 /// The kit's `Button size="md"`: 48 tall, 15 type.
 private let sheetButtonHeight: CGFloat = 48
-
-/// The id at the very end of a sheet's surface, for `endOnKeyboard`. File scope because a generic
-/// type cannot hold a static stored property; a `let` String, so nothing for concurrency to question.
-private let searchSheetEnd = "search.sheet.end"
-
-/// Search's `ModalShell` surface inside the app's one sheet behaviour.
-struct SearchSheet<Content: View>: View {
-    let label: String
-    let onDismiss: (SheetDismissMethod) -> Void
-    /// When the keyboard comes up, scroll to the sheet's end -- Android's `endOnKeyboard`. On a short
-    /// phone the message sheet outgrows the space above the keys, and its two buttons would sit
-    /// behind them until the user thought to scroll; at the end, the field, the counter and both
-    /// buttons show together.
-    var endOnKeyboard = false
-    /// The content's padding: 24 all round for the like sheets, `20 24 24` for the sorry sheet.
-    var contentPadding = EdgeInsets(top: 24, leading: 24, bottom: 24, trailing: 24)
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        SheetScaffold(onDismiss: onDismiss) {
-            GeometryReader { g in
-                // `max-height: 88%` of the frame the sheet is docked in; past it the sheet scrolls.
-                let cap = g.size.height * 0.88
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    ViewThatFits(in: .vertical) {
-                        surface
-                        ScrollViewReader { proxy in
-                            ScrollView { surface }
-                                .scrollBounceBehavior(.basedOnSize)
-                                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
-                                    if endOnKeyboard { proxy.scrollTo(searchSheetEnd, anchor: .bottom) }
-                                }
-                        }
-                    }
-                    .frame(maxHeight: cap)
-                    .background(
-                        UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28)
-                            .fill(Color.liqCream)
-                            // `0 -8px 32px rgba(46,1,71,.18)`, cast upward over the screen.
-                            .shadow(color: Color.liqShadowInk.opacity(0.18), radius: 16, y: -8)
-                            // Docked to the edge: its colour runs down into the home indicator's inset.
-                            .ignoresSafeArea(edges: .bottom)
-                    )
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityAddTraits(.isModal)
-            .accessibilityLabel(Text(label))
-        }
-    }
-
-    private var surface: some View {
-        VStack(spacing: 0) {
-            Capsule().fill(Color.liqFaint).frame(width: 36, height: 4)
-                .padding(.top, 8)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 0) { content() }
-                .padding(contentPadding)
-            Color.clear.frame(height: 0).id(searchSheetEnd)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
 
 /// The send mark on the sheets' primary buttons: `send` 16 / 2.2.
 private struct SendMark: View {
@@ -122,7 +53,7 @@ struct BeSureSheet: View {
     var confirming = false
 
     var body: some View {
-        SearchSheet(label: SearchCopy.beSure, onDismiss: onCancel) {
+        ModalShell(label: SearchCopy.beSure, onDismiss: onCancel) {
             VStack(spacing: 0) {
                 // `<em>Be sure.</em>` -- the whole phrase is the italic run, washed, in --liq-primary.
                 // No letter spacing in the reference: 0, not WashHeadline's default -0.02em.
@@ -207,7 +138,7 @@ struct ConfirmRefusedSheet: View {
     let onDone: () -> Void
 
     var body: some View {
-        SearchSheet(label: "\(reason.pill). \(name)", onDismiss: { _ in onDone() },
+        ModalShell(label: "\(reason.pill). \(name)", onDismiss: { _ in onDone() },
                     contentPadding: EdgeInsets(top: 20, leading: 24, bottom: 24, trailing: 24)) {
             VStack(spacing: 14) {
                 // 96 wide as drawn -- and wider only when the pill is, at a large type, so the reason
@@ -260,7 +191,7 @@ struct MessageSheet: View {
     let onSend: () -> Void
 
     var body: some View {
-        SearchSheet(label: SearchCopy.messageTitleEmphasis + SearchCopy.messageTitleRest(name), onDismiss: onDismiss,
+        ModalShell(label: SearchCopy.messageTitleEmphasis + SearchCopy.messageTitleRest(name), onDismiss: onDismiss,
                     endOnKeyboard: true) {
             // CSS `normal`, Lora's own 1.28: at 375 the title takes two lines.
             WashHeadline(parts: [(SearchCopy.messageTitleEmphasis, true), (SearchCopy.messageTitleRest(name), false)],

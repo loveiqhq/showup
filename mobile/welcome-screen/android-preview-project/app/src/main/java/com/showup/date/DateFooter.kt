@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -36,10 +37,12 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +62,8 @@ import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.fitWordsOf
 import com.showup.designsystem.pillShadows
 import com.showup.designsystem.prettyWrap
+import com.showup.designsystem.widestWord
+import com.showup.designsystem.wordFitFloor
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 
@@ -69,17 +74,18 @@ private val BAR_TEXT_MIN = 140.dp
 
 /**
  * [lead] (the tile and the text) and [action] on one row, `gap` apart and centred, while [lead] keeps
- * at least [BAR_TEXT_MIN]; otherwise [action] goes under it, full width. Words never truncate: at 2x
- * type on a narrow phone the layout yields instead.
+ * at least [BAR_TEXT_MIN] and [leadLeast] -- the width its text keeps every word whole in; otherwise
+ * [action] goes under it, full width. Words never truncate: at 2x type on a narrow phone the layout
+ * yields instead.
  */
 @Composable
-private fun BarRow(gap: Dp, lead: @Composable () -> Unit, action: @Composable () -> Unit) {
+private fun BarRow(gap: Dp, leadLeast: Dp, lead: @Composable () -> Unit, action: @Composable () -> Unit) {
     androidx.compose.ui.layout.Layout(contents = listOf(lead, action)) { (l, a), constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val gapPx = gap.roundToPx()
         val actionNatural = a.first().maxIntrinsicWidth(constraints.maxHeight.coerceAtMost(10_000))
         val room = constraints.maxWidth - actionNatural - gapPx
-        if (room >= BAR_TEXT_MIN.roundToPx()) {
+        if (room >= maxOf(BAR_TEXT_MIN, leadLeast).roundToPx()) {
             val actionP = a.first().measure(loose)
             val leadP = l.first().measure(loose.copy(maxWidth = room))
             val h = maxOf(leadP.height, actionP.height)
@@ -96,6 +102,21 @@ private fun BarRow(gap: Dp, lead: @Composable () -> Unit, action: @Composable ()
             }
         }
     }
+}
+
+/**
+ * The narrowest [BarRow] lead whose text keeps every word whole: the tile and its gap, and the widest
+ * word of each text at the least [fitWordsOf] shrinks it to. On the Galaxy Z Fold 5's cover screen
+ * (344) at 180 % the row left the title 98 and a long name broke inside a word -- stacked, it fit (the
+ * 8 Nov 2026 device sweep). Measured, so the bar stacks there and nowhere it did not before.
+ */
+@Composable
+private fun barLeadLeast(tile: Dp, vararg texts: Pair<String, TextStyle>): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val floor = wordFitFloor()
+    val widest = remember(texts.toList(), density) { texts.maxOf { (text, style) -> widestWord(measurer, text, style) } }
+    return tile + with(density) { (widest * floor).toDp() }
 }
 
 /**
@@ -141,6 +162,11 @@ private fun Modifier.barShadow(radius: Dp): Modifier = drawBehind {
  */
 @Composable
 internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Unit) {
+    val title = DateCopy.BAR_TITLE.format(name)
+    val titleStyle = TextStyle(fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+    // `textWrap: 'pretty'`, as both bars' sublines.
+    val sub = TextStyle(color = Color.White, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = (12.5 * 1.4).sp)
+    val leadLeast = barLeadLeast(46.dp + 14.dp, title to titleStyle, DateCopy.CHECK_IN_BAR_SUB to sub)
     Column(
         Modifier
             .fillMaxWidth()
@@ -152,15 +178,16 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
     ) {
         BarRow(
             gap = 14.dp,
+            leadLeast = leadLeast,
             lead = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(46.dp, 14.dp, SolidColor(Color.White.copy(alpha = 0.12f)), BrandIcon.MapPin, 22.dp, Color.White, 2.2f)
                     Spacer(Modifier.width(14.dp))
                     Column {
                         Text(
-                            DateCopy.BAR_TITLE.format(name),
+                            title,
                             modifier = Modifier
-                                .fitWordsOf(DateCopy.BAR_TITLE.format(name), TextStyle(fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 18.sp))
+                                .fitWordsOf(title, titleStyle)
                                 .cssLineBox((18 * 1.15).sp),
                             color = Color.White,
                             fontFamily = Lora,
@@ -168,8 +195,6 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
                             fontSize = 18.sp,
                             lineHeight = (18 * 1.15).sp,
                         )
-                        // `textWrap: 'pretty'`, as both bars' sublines.
-                        val sub = TextStyle(color = Color.White, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = (12.5 * 1.4).sp)
                         Text(
                             DateCopy.CHECK_IN_BAR_SUB,
                             modifier = Modifier
@@ -224,6 +249,10 @@ internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Un
  */
 @Composable
 internal fun DateStatusBar(name: String, onEndDate: () -> Unit) {
+    val title = DateCopy.BAR_TITLE.format(name)
+    val titleStyle = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+    val sub = TextStyle(color = Muted, fontFamily = Manrope, fontSize = 11.5.sp, lineHeight = (11.5 * 1.35).sp)
+    val leadLeast = barLeadLeast(38.dp + 12.dp, title to titleStyle, DateCopy.END_BAR_SUB to sub)
     Box(
         Modifier
             .fillMaxWidth()
@@ -234,23 +263,20 @@ internal fun DateStatusBar(name: String, onEndDate: () -> Unit) {
     ) {
         BarRow(
             gap = 12.dp,
+            leadLeast = leadLeast,
             lead = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(38.dp, 12.dp, SolidColor(Purple.copy(alpha = 0.10f)), BrandIcon.Calendar, 19.dp, Purple, 2.1f)
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            DateCopy.BAR_TITLE.format(name),
-                            modifier = Modifier.fitWordsOf(
-                                DateCopy.BAR_TITLE.format(name),
-                                TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp),
-                            ),
+                            title,
+                            modifier = Modifier.fitWordsOf(title, titleStyle),
                             color = Fg,
                             fontFamily = Manrope,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.5.sp,
                         )
-                        val sub = TextStyle(color = Muted, fontFamily = Manrope, fontSize = 11.5.sp, lineHeight = (11.5 * 1.35).sp)
                         Text(
                             DateCopy.END_BAR_SUB,
                             modifier = Modifier

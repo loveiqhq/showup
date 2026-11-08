@@ -36,7 +36,7 @@ final class DateRepositoryTests: XCTestCase {
     "photoUrl":"/uploads/leonie.jpg","attendedCount":4},"motivations":{"you":"long_term","them":"long_term"},\
     "sharedVibes":["coffee_chat","playful"],"sharedInterests":["reading"],\
     "unread":{"count":2,"reason":"running_late","body":"Ten minutes late!","sentAt":"2026-11-03T17:10:00Z"},\
-    "checkedIn":false}}
+    "checkedIn":false,"chatTutorialSeen":true},"ended":null}
     """
 
     func testADateMapsFieldForField() async {
@@ -58,15 +58,41 @@ final class DateRepositoryTests: XCTestCase {
         XCTAssertEqual(date.sharedVibes, ["coffee_chat", "playful"])
         XCTAssertEqual(date.sharedInterests, ["reading"])
         XCTAssertEqual(date.unread?.count, 2)
-        XCTAssertEqual(date.unread?.reason, "running_late")
+        XCTAssertEqual(date.unread?.reason, .runningLate)
         XCTAssertEqual(date.unread?.body, "Ten minutes late!")
         XCTAssertFalse(date.checkedIn)
+        XCTAssertTrue(date.chatTutorialSeen)
     }
 
     func testNoDateIsNone() async {
-        guard case .success(.none) = await repo(status: 200, body: #"{"date":null}"#).active(zone: "Europe/Berlin") else {
+        guard case .success(.none) = await repo(status: 200, body: #"{"date":null,"ended":null}"#).active(zone: "Europe/Berlin") else {
             return XCTFail("expected no date")
         }
+    }
+
+    func testADateEndedInTheChatAndNotYetSeenIsEndedWithTheOtherPersonsFirstName() async {
+        let body = #"{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false}}"#
+        let read = await repo(status: 200, body: body).active(zone: "Europe/Berlin")
+        guard case .success(.ended(let outcome)) = read else { return XCTFail("expected an ended outcome, got \(read)") }
+        XCTAssertEqual(outcome, EndedInChat(dateId: "d9", name: "Leonie", endedByYou: false))
+    }
+
+    func testAnEndedOutcomeBringsTheMatchsPhotoAsALoadableURLForHAtTheNextLaunch() async {
+        let body = #"{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"photoUrl":"/uploads/p9.jpg"}}"#
+        guard case .success(.ended(let outcome)) = await repo(status: 200, body: body).active(zone: "Europe/Berlin") else {
+            return XCTFail("expected an ended outcome")
+        }
+        XCTAssertTrue(outcome.photoUrl?.absoluteString.hasSuffix("/uploads/p9.jpg") == true,
+                      "a relative path becomes a loadable URL: \(String(describing: outcome.photoUrl))")
+    }
+
+    func testAnUnreadMessageSentWithNoChipHasNoReasonAndKeepsItsText() async {
+        let noChip = full.replacingOccurrences(of: #""reason":"running_late""#, with: #""reason":null"#)
+        guard case .success(.active(let date)) = await repo(status: 200, body: noChip).active(zone: "Europe/Berlin") else {
+            return XCTFail("expected an active date")
+        }
+        XCTAssertNil(date.unread?.reason)
+        XCTAssertEqual(date.unread?.body, "Ten minutes late!")
     }
 
     func testAServerErrorIsTheServers() async {

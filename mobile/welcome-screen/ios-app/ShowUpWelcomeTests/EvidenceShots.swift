@@ -102,6 +102,30 @@ final class EvidenceShots: XCTestCase {
 
     /// SHOWUP-193: the Date screen's A, B and C at the three ticket frames, D as the sheet's full scroll,
     /// and the two states the sheet does not draw -- the match's read-only profile and a failed first read.
+    /// SHOWUP-194's evidence: A to H at the three frames the acceptance criteria name -- 24 images -- and C to E
+    /// again with the bottom taken by a keyboard-sized inset (the harness has no keyboard; only the evidence
+    /// simulates one).
+    func testCoordinateChatEvidence() throws {
+        let dir = try folder("194-coordinate-chat")
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        let chats: [(String, ChatUi)] = [("B-start", ChatSamples.b), ("C-thread", ChatSamples.c),
+                                         ("D-cancel-guide", ChatSamples.d), ("E-end-card", ChatSamples.e),
+                                         ("F-end-sheet", ChatSamples.f)]
+        for device in frames {
+            try shoot(ChatTutorialScreen(name: "Leonie"), "A-tutorial", on: device, into: dir)
+            for (name, ui) in chats {
+                try shoot(ChatScreen(ui: ui, zone: DateSamples.zone), name, on: device, into: dir)
+            }
+            try shoot(DateEndedScreen(outcome: ChatSamples.g), "G-you-ended", on: device, into: dir)
+            try shoot(DateEndedScreen(outcome: ChatSamples.h), "H-match-ended", on: device, into: dir)
+            for (name, ui) in chats where ["C-thread", "D-cancel-guide", "E-end-card"].contains(name) {
+                try shoot(ChatScreen(ui: ui, zone: DateSamples.zone).safeAreaInset(edge: .bottom, spacing: 0) {
+                    Color(white: 0.82).frame(height: 291)
+                }, name + "-keyboard", on: device, into: dir)
+            }
+        }
+    }
+
     func testDateScreenEvidence() throws {
         let dir = try folder("193-date-screen")
         var unread = DateSamples.date
@@ -117,6 +141,9 @@ final class EvidenceShots: XCTestCase {
             for (name, ui) in shots {
                 try shoot(DateScreen(ui: ui, zone: DateSamples.zone), name, on: device, into: dir)
             }
+            // Philipp's 5 Nov update: A once with the change tiles switched on, as Date 05 will show them.
+            try shoot(DateScreen(ui: shots[0].1, zone: DateSamples.zone, changeTiles: [.changeTime, .changePlace]),
+                      "A-change-tiles", on: device, into: dir)
             try shoot(SearchProfileView(state: SearchUiState(loading: false, queue: [SearchSamples.full]),
                                         zone: DateSamples.zone, readOnly: true, backLabel: DateCopy.profileBack,
                                         disabledTabs: dateLockedTabs, disabledHint: DateCopy.tabHint),

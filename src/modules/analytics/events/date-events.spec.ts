@@ -1,12 +1,14 @@
 import {
   COORDINATE_UNLOCKED,
-  coordinateUnlockedEvent,
   DATE_CANCELLED,
   DATE_COMPLETED,
   DATE_CONFIRMED,
+  DATE_ENDED_IN_CHAT,
+  coordinateUnlockedEvent,
   dateCancelledEvent,
   dateCompletedEvent,
   dateConfirmedEvent,
+  dateEndedInChatEvent,
 } from './date-events';
 
 describe('date analytics events', () => {
@@ -47,5 +49,17 @@ describe('date analytics events', () => {
       properties: { minutes_before_start: 90 },
     });
     expect(COORDINATE_UNLOCKED).toBe('coordinate_unlocked');
+  });
+
+  it('date_ended_in_chat carries date_id, cant_make_it_from and minutes_before_start, nothing else (Date 02, registry 1.4.33)', () => {
+    expect(dateEndedInChatEvent('d6', 'match', 42)).toEqual({
+      eventName: DATE_ENDED_IN_CHAT,
+      properties: {
+        date_id: 'd6',
+        cant_make_it_from: 'match',
+        minutes_before_start: 42,
+      },
+    });
+    expect(DATE_ENDED_IN_CHAT).toBe('date_ended_in_chat');
   });
 });

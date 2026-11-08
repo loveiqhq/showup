@@ -24,6 +24,9 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChipSurface
+import com.showup.chat.ChatReason
+import com.showup.chat.ChatAnalytics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
@@ -54,6 +57,11 @@ data class DateUi(
     val copied: Boolean = false,
     /** The date is gone (ended or cancelled elsewhere): the host leaves the screen. */
     val left: Boolean = false,
+    /**
+     * The date ended in the chat and the viewer has not seen it (SHOWUP-194): the host shows G or H.
+     * [date] stays as it was, for the match's face on that screen.
+     */
+    val ended: EndedInChat? = null,
 ) {
     val state: DateState? get() = date?.let { dateState(now, it.unlockAt, it.unread, it.coordinateOpen) }
 }
@@ -71,6 +79,7 @@ class DateViewModel(
     /** A visit waiting for its first read, and where it came from. */
     private var pendingVisit: Visit? = null
     private var copiedJob: Job? = null
+    private var poll: Job? = null
 
     private class Visit(val referrer: ProfileScreen?)
 
@@ -102,8 +111,41 @@ class DateViewModel(
         read()
     }
 
+    /**
+     * The screen is on screen, or not. While it is, the date is read again every [DATE_POLL_MS], so the
+     * match's End date reaches this phone within seconds. Reads report nothing.
+     */
+    fun onScreen(visible: Boolean) {
+        poll?.cancel()
+        poll = if (visible) {
+            viewModelScope.launch {
+                while (true) {
+                    delay(DATE_POLL_MS)
+                    read()
+                }
+            }
+        } else {
+            null
+        }
+    }
+
+    /** `Open the chat` stamped the tutorial seen on the server; the held date says so at once. */
+    fun chatTutorialSeen() = _state.update { it.copy(date = it.date?.copy(chatTutorialSeen = true)) }
+
+    /** G or H has been seen and left: no date is held, so Search, Likes and Instant open again. */
+    fun outcomeShown() = _state.update { it.copy(date = null, ended = null, left = false) }
+
     /** The clock moved. The state follows it; nothing is reported. */
     fun tick() = _state.update { it.copy(now = clock()) }
+
+    /**
+     * A change tile on the locked card (5 Nov 2026): `action_chip_used` with `surface: coordinate_card`, the
+     * same event as the chat's chips -- never `date_quick_action_tapped`. The Date 05 picker opens after it.
+     */
+    fun changeTile(reason: ChatReason) {
+        val date = _state.value.date ?: return
+        analytics?.report(ChatAnalytics.actionChipUsed(date, reason, ChipSurface.CoordinateCard, clock()))
+    }
 
     fun quickAction(action: QuickAction) {
         val date = _state.value.date ?: return
@@ -128,9 +170,10 @@ class DateViewModel(
                 is Outcome.Ok -> when (val read = answer.value) {
                     is DateRead.Active -> {
                         // `left` back to false: a new date after one that went away is shown, not left.
-                        _state.update { it.copy(date = read.date, now = now, loading = false, failed = null, left = false) }
+                        _state.update { it.copy(date = read.date, now = now, loading = false, failed = null, left = false, ended = null) }
                         reportVisit(read.date, now)
                     }
+                    is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, ended = read.outcome) }
                     DateRead.None -> _state.update { it.copy(now = now, loading = false, left = true) }
                 }
                 is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = answer.why) }

@@ -739,7 +739,13 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
     // `binoculars` and `frown` are the unread card's reason badges (running late, can't find you,
     // can't make it); `coffee` is the `Coffee & a chat` vibe's chip. From `components/shared.jsx`
     // as path data, VERBATIM -- see [KitPaths].
-    Copy, Share, Hourglass, Binoculars, Frown, Coffee }
+    Copy, Share, Hourglass, Binoculars, Frown, Coffee,
+
+    // ── added for the chat (SHOWUP-194) ─────────────────────────────────────
+    //
+    // `walking` is the "When will you arrive?" chip's mark, from `components/shared.jsx` with its
+    // circle written as path commands -- see [KitPaths].
+    Walking }
 
 @Composable
 /**
@@ -1337,6 +1343,7 @@ fun Icon(
                 BrandIcon.Binoculars -> drawPath(KitPaths.binoculars, tint, style = stroke)
                 BrandIcon.Frown -> drawPath(KitPaths.frown, tint, style = stroke)
                 BrandIcon.Coffee -> drawPath(KitPaths.coffee, tint, style = stroke)
+                BrandIcon.Walking -> drawPath(KitPaths.walking, tint, style = stroke)
 
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
@@ -1482,6 +1489,9 @@ private object KitPaths {
 
     /** The cup and its handle, and the three steam `line`s at x 6, 10 and 14. */
     val coffee = parse("M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1L6 4M10 1L10 4M14 1L14 4")
+
+    /** `walking`: the head (`circle 13,4 r1.7`), the body, the two legs and the two arms. */
+    val walking = parse("M14.7 4A1.7 1.7 0 1 1 11.3 4A1.7 1.7 0 1 1 14.7 4ZM13 6v6M13 12l3 4v5M13 12l-3 4-1 5M13 8l4 1.2M13 8l-3-1")
 
     /** `leaf`. */
     val leaf = parse("M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2c1 3.5.5 8-3 11-2.5 2.5-6 2.5-7.5 1M2 21c0-3 1.85-5.36 5.08-6")

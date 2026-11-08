@@ -30,4 +30,13 @@ enum AppRoute: Hashable, Sendable {
     /// The match's profile, read-only, opened from the Date screen (SHOWUP-193 ⑫). Whether it is up is
     /// `DateProfileModel`'s, as the Search profile's is `SearchModel`'s.
     case dateProfile
+    /// The chat tutorial (SHOWUP-194 A), pushed over the Date screen before the first open of each date's
+    /// chat. `Open the chat` replaces it with `chat`; back pops it.
+    case chatTutorial
+    /// The coordinate chat (SHOWUP-194 B to F), pushed over the Date screen, with the §39 entry it was
+    /// opened from. The thread, the draft and the chip are the chat model's, held for the session.
+    case chat(ChatEntry)
+    /// G or H (SHOWUP-194), after a date ended in the chat: the outcome rides in the route, with the
+    /// match's photo for the avatar.
+    case dateEnded(EndedInChat, photoURL: URL?)
 }

@@ -68,6 +68,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
@@ -1136,16 +1139,20 @@ class EvidenceScreenshots {
             motivationYou = "long_term", motivationThem = "long_term",
             sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
             sharedInterests = listOf("reading", "brunch", "hiking"),
-            unread = null, checkedIn = false,
+            unread = null, checkedIn = false, chatTutorialSeen = false,
         )
         val a = com.showup.date.DateUi(date, java.time.Instant.parse("2026-11-03T14:55:00Z"), loading = false)
         val b = com.showup.date.DateUi(date, java.time.Instant.parse("2026-11-03T16:42:00Z"), loading = false)
         val c = com.showup.date.DateUi(
-            date.copy(unread = com.showup.date.DateUnread(1, "running_late", "Running about 10 min late — sorry! Almost there.", java.time.Instant.parse("2026-11-03T16:42:00Z"))),
+            date.copy(unread = com.showup.date.DateUnread(1, com.showup.chat.ChatReason.RunningLate, "Running about 10 min late — sorry! Almost there.", java.time.Instant.parse("2026-11-03T16:42:00Z"))),
             java.time.Instant.parse("2026-11-03T16:42:20Z"),
             loading = false,
         )
         shoot("SHOWUP-193", "A-announced") { com.showup.date.DateScreen(a, zone) }
+        // Philipp's 5 Nov update: A once with the change tiles switched on, as Date 05 will show them.
+        shoot("SHOWUP-193", "A-change-tiles") {
+            com.showup.date.DateScreen(a, zone, changeTiles = listOf(com.showup.chat.ChatReason.ChangeTime, com.showup.chat.ChatReason.ChangePlace))
+        }
         shoot("SHOWUP-193", "B-available") { com.showup.date.DateScreen(b, zone) }
         shoot("SHOWUP-193", "C-unread") { com.showup.date.DateScreen(c, zone) }
         val end = androidx.compose.foundation.ScrollState(0)
@@ -1154,6 +1161,11 @@ class EvidenceScreenshots {
         // kit's `tall` phone takes the content's height; this frame is that height, so nothing scrolls.
         val tall = listOf(Device("full length", 390, 2350, 0, 0))
         shoot("SHOWUP-193", "D-full", devices = tall) { com.showup.date.DateScreen(a, zone) }
+        // The change tiles sit low in the locked card, under the pinned bar in the frames above: the full
+        // length shows them where they are.
+        shoot("SHOWUP-193", "A-change-tiles-full", devices = tall) {
+            com.showup.date.DateScreen(a, zone, changeTiles = listOf(com.showup.chat.ChatReason.ChangeTime, com.showup.chat.ChatReason.ChangePlace))
+        }
         // The match's profile, read-only (12), and the first read failing -- the two states this
         // ticket adds that the sheet does not draw.
         shoot("SHOWUP-193", "E-profile") {
@@ -1180,5 +1192,43 @@ class EvidenceScreenshots {
             com.showup.date.DateScreen(a, zone, scroll = smallEnd)
         }
         shoot("SHOWUP-193", "I-widest", devices = widest) { com.showup.date.DateScreen(a, zone) }
+    }
+
+    /**
+     * SHOWUP-194's evidence: A to H at the three frames the acceptance criteria name -- 24 images. The
+     * frames are the spec sheet's (`ScreenChatOpen` with its seeds, [com.showup.chat.ChatSamples]).
+     */
+    @Test
+    fun `SHOWUP-194 the coordinate chat, A to H`() {
+        val zone = java.time.ZoneId.of("Europe/Berlin")
+        val samples = com.showup.chat.ChatSamples
+        val chat: @Composable (com.showup.chat.ChatUi) -> Unit = { ui ->
+            com.showup.chat.ChatScreen(ui, zone, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})
+        }
+        val before = written.size
+        shoot("SHOWUP-194", "A-tutorial") { com.showup.chat.ChatTutorialScreen("Leonie", onOpen = {}, onBack = {}) }
+        shoot("SHOWUP-194", "B-start") { chat(samples.B) }
+        shoot("SHOWUP-194", "C-thread") { chat(samples.C) }
+        shoot("SHOWUP-194", "D-cancel-guide") { chat(samples.D) }
+        shoot("SHOWUP-194", "E-end-card") { chat(samples.E) }
+        shoot("SHOWUP-194", "F-end-sheet") { chat(samples.F) }
+        shoot("SHOWUP-194", "G-you-ended") { com.showup.chat.DateEndedScreen(samples.G, photoUrl = null, onFindNext = {}) }
+        shoot("SHOWUP-194", "H-match-ended") { com.showup.chat.DateEndedScreen(samples.H, photoUrl = null, onFindNext = {}) }
+        // C to E with the bottom taken by a keyboard-sized stand-in: the harness has no IME, and only the
+        // evidence simulates one -- the thread absorbs the height, the dock sits on the keys.
+        for ((name, ui) in listOf("C-thread" to samples.C, "D-cancel-guide" to samples.D, "E-end-card" to samples.E)) {
+            shoot("SHOWUP-194", "$name-keyboard") {
+                androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.fillMaxSize()) {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.weight(1f)) { chat(ui) }
+                    androidx.compose.foundation.layout.Box(
+                        androidx.compose.ui.Modifier.fillMaxWidth().height(291.dp)
+                            .background(androidx.compose.ui.graphics.Color(0xFFD1D3D9)),
+                    )
+                }
+            }
+        }
+        val images = written.drop(before)
+        assertEquals("A to H at the three frames, and C to E over a keyboard", 33, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
 }

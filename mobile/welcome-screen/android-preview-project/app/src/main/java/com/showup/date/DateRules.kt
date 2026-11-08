@@ -8,6 +8,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import com.showup.search.interestLabel
 import com.showup.search.meetTime
 import com.showup.search.motivationOf
@@ -33,6 +34,21 @@ fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOp
     unread != null -> DateState.Unread
     else -> DateState.Available
 }
+
+/**
+ * The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet
+ * time` and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the
+ * vocabulary's own switch. They are hidden until Date 05 ships (epic rule 8): the day Date 05 shows those
+ * chips, the tiles and their line appear with them, and nothing on the Date screen changes.
+ */
+val CHANGE_TILES: List<ChatReason> = listOf(ChatReason.ChangeTime, ChatReason.ChangePlace).filter { it.shown }
+
+/**
+ * How often the Date screen re-reads the date while it is on screen (SHOWUP-194, the design's §3):
+ * the match's End date lands on H within seconds when the app is open. Polling, as the chat's; there
+ * is no socket.
+ */
+const val DATE_POLL_MS = 15_000L
 
 /**
  * Whole minutes from [now] to the latest agreed meet time, negative after it, rounded toward zero
@@ -126,26 +142,6 @@ fun worksMeetLine(date: ActiveDate, zone: ZoneId): String {
 
 /** The time + place card's headline, split so the day can be set italic and violet. */
 fun meetingHeadline(name: String, day: String): Pair<String, String> = DateCopy.MEETING_LEAD.format(name) to day
-
-/** A chat reason's tone: the four the reference's `REASON_TONES` defines. */
-enum class ReasonTone { Violet, Orange, Danger, DarkRed }
-
-/** How a chat reason looks on the unread card: the reference's `CHAT_REASONS` entry. */
-data class ChatReasonStyle(val label: String, val icon: BrandIcon, val tone: ReasonTone)
-
-/**
- * The server's six chat reasons onto the reference's `CHAT_REASONS` (Date 02 owns the vocabulary;
- * this screen only reads it for the unread badge). An unknown reason falls back to the first entry,
- * as the reference's `reasonFor` does, so a newer server never blanks the card.
- */
-fun chatReasonStyle(reason: String): ChatReasonStyle = when (reason) {
-    "running_late" -> ChatReasonStyle("I'm running late", BrandIcon.Hourglass, ReasonTone.Orange)
-    "cant_find_you" -> ChatReasonStyle("I can't spot you", BrandIcon.Binoculars, ReasonTone.Orange)
-    "change_meet_time" -> ChatReasonStyle("Change meet time", BrandIcon.Clock, ReasonTone.Violet)
-    "change_location" -> ChatReasonStyle("Change location", BrandIcon.MapPin, ReasonTone.Violet)
-    "cant_make_it_today" -> ChatReasonStyle("I can't make it today", BrandIcon.Frown, ReasonTone.DarkRed)
-    else -> ChatReasonStyle("I'm on my way", BrandIcon.Navigation, ReasonTone.Orange)
-}
 
 /**
  * [s] with a zero-width space after each hyphen, so a long hyphenated name or district may break after

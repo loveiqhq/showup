@@ -4,6 +4,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -16,7 +17,7 @@ class DateRulesTest {
     private val berlin = ZoneId.of("Europe/Berlin")
     private val meet = Instant.parse("2026-11-03T18:00:00Z") // 19:00 in Berlin
     private val unlock = Instant.parse("2026-11-03T16:30:00Z") // 17:30 in Berlin
-    private val unread = DateUnread(1, "running_late", "Ten minutes late!", Instant.parse("2026-11-03T17:10:00Z"))
+    private val unread = DateUnread(1, ChatReason.RunningLate, "Ten minutes late!", Instant.parse("2026-11-03T17:10:00Z"))
     private val place = DatePlace("Cafe Krone", "Oranienstrasse 42, Kreuzberg")
 
     private fun date(
@@ -28,7 +29,7 @@ class DateRulesTest {
         place = place,
         match = DateMatch("u2", name, 28, "Neukölln", 1, null, 4),
         motivationYou = "long_term", motivationThem = "long_term",
-        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false,
+        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false, chatTutorialSeen = false,
     )
 
     // ── the state ───────────────────────────────────────────────────────────
@@ -142,18 +143,6 @@ class DateRulesTest {
     @Test
     fun `the meeting headline puts the day in its own run`() {
         assertEquals("You and Leonie are meeting " to "today", meetingHeadline("Leonie", "today"))
-    }
-
-    @Test
-    fun `every server chat reason has the reference's badge, and an unknown one falls back`() {
-        assertEquals("I'm running late", chatReasonStyle("running_late").label)
-        assertEquals(ReasonTone.Orange, chatReasonStyle("running_late").tone)
-        assertEquals("Change meet time", chatReasonStyle("change_meet_time").label)
-        assertEquals(ReasonTone.Violet, chatReasonStyle("change_location").tone)
-        assertEquals(ReasonTone.DarkRed, chatReasonStyle("cant_make_it_today").tone)
-        assertEquals("I can't spot you", chatReasonStyle("cant_find_you").label)
-        assertEquals("I'm on my way", chatReasonStyle("on_my_way").label)
-        assertEquals("I'm on my way", chatReasonStyle("something_new").label)
     }
 
     @Test

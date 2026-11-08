@@ -8,13 +8,15 @@
  * drawn as a placeholder); tomorrow; and after check-in (the End Date bar).
  *
  * THE 4 NOV 2026 DEVICE AUDIT widened it to every phone and every type size there is: the shared
- * list plus [EDGE_DEVICES] (Display Zoom, split screen, unfolded foldables), all seven Android font
- * steps, Android 11 and 15 beside 14 -- and added the Date screen's own rules to the shared ones:
+ * list plus [EDGE_DEVICES] (Display Zoom, split screen, foldables open and folded, 16:9, budget HD+,
+ * the smallest display size, a tablet), all seven Android font steps, every Android from 11 to 15
+ * (8 Nov 2026) -- and added the Date screen's own rules to the shared ones:
  * every touch area 48 dp both ways and none on another, the cards in a column that never overlaps,
  * and the end of the scroll resting above the footer, scrolled there and measured.
  */
 package com.showup.fit
 
+import com.showup.chat.ChatReason
 import androidx.compose.foundation.ScrollState
 import com.showup.date.ActiveDate
 import com.showup.date.DATE_ABOUT_TAG
@@ -63,10 +65,10 @@ class DateFitTest {
         motivationYou = "long_term", motivationThem = "long_term",
         sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
         sharedInterests = listOf("reading", "hiking", "brunch"),
-        unread = null, checkedIn = false,
+        unread = null, checkedIn = false, chatTutorialSeen = false,
     )
     private val unread = DateUnread(
-        2, "running_late",
+        2, ChatReason.RunningLate,
         "Running about 10 min late — sorry! Almost there, the tram stopped twice and I am nearly at the door.",
         unlock,
     )
@@ -94,6 +96,8 @@ class DateFitTest {
         ),
         "tomorrow" to DateUi(date.copy(meetDay = "tomorrow"), Instant.parse("2026-11-02T22:00:00Z"), loading = false),
         "checked in" to DateUi(date.copy(checkedIn = true), unlock, loading = false),
+        // A with the change tiles switched on (5 Nov 2026), as they will be once Date 05 ships.
+        "A change tiles" to DateUi(date, stateA, loading = false),
         "failed first read" to DateUi(now = stateA, loading = false, failed = com.showup.api.CallFailure.Network),
     )
 
@@ -180,8 +184,9 @@ class DateFitTest {
 
     private fun date(ui: DateUi, device: Device, label: String, scale: Float): List<String> {
         val scroll = ScrollState(0)
+        val tiles = if (label == "A change tiles") listOf(ChatReason.ChangeTime, ChatReason.ChangePlace) else emptyList()
         return measureFit(device, "Date/$label @$scale", scale, 0, extra = dateRules(scroll)) {
-            DateScreen(ui, zone = berlin, scroll = scroll)
+            DateScreen(ui, zone = berlin, scroll = scroll, changeTiles = tiles)
         }
             .filterNot { it.advisory }
             .map { "$it" }
@@ -222,11 +227,12 @@ class DateFitTest {
         report(fresh, "date-fit-findings.txt")
     }
 
-    /** The oldest Android the app installs on and the newest Robolectric draws, at the default and the
-     *  largest type: text and drawing differ between Android versions, layouts must not. */
+    /** Every Android the app installs on that Robolectric draws -- 11, 12, 12L and 13, and 15 beside the
+     *  14 above (16 is past this Robolectric) -- at the default and the largest type: text and drawing
+     *  differ between Android versions, layouts must not. */
     @Test
-    @Config(sdk = [30, 35])
-    fun `the Date screen is clean on Android 11 and Android 15 too`() {
+    @Config(sdk = [30, 31, 32, 33, 35])
+    fun `the Date screen is clean on every Android from 11 to 15`() {
         val fresh = mutableListOf<String>()
         for ((name, ui) in frames) for (scale in listOf(1f, 2f)) phones.forEach { d -> fresh += date(ui, d, name, scale) }
         for (scale in listOf(1f, 2f)) phones.forEach { d -> fresh += profile(d, scale) }

@@ -15,10 +15,14 @@ protocol DateStoring: Sendable {
     func partnerProfile(zone: String) async -> Result<SearchProfile, CallFailure>
     /// Debug only: a date with the test match Leonie in `minutes`.
     func createTestDate(minutes: Int) async -> Bool
-    /// Debug only: a message from Leonie (the chat must be open: 90 minutes or less to go).
-    func messageFromMatch(reason: String, body: String?) async -> Bool
+    /// Debug only: a message from Leonie (the chat must be open: 90 minutes or less to go). A nil `reason`
+    /// sends it with no chip, as a message typed without one.
+    func messageFromMatch(reason: ChatReason?, body: String) async -> Bool
     /// Debug only: ends the viewer's date, the escape from a screen whose exits are later tickets.
     func endTestDate() async -> Bool
+    /// Debug only: the test match ends the date in the chat (SHOWUP-194), through the real path -- so it needs
+    /// her "I can't make it today" message in the thread, and the viewer lands on H.
+    func matchEndsInChat() async -> Bool
 }
 
 struct DateRepository: DateStoring {
@@ -28,8 +32,13 @@ struct DateRepository: DateStoring {
         do {
             if case .ok(let ok) = try await api.client.getActiveDate(query: .init(tz: zone)) {
                 let dto = try ok.body.json
-                guard let date = dto.date?.value1 else { return .success(.none) }
-                return .success(.active(ActiveDate(date, api: api)))
+                if let date = dto.date?.value1 { return .success(.active(ActiveDate(date, api: api))) }
+                if let ended = dto.ended?.value1 {
+                    return .success(.ended(EndedInChat(dateId: ended.dateId, name: ended.name,
+                                                       endedByYou: ended.endedByYou,
+                                                       photoUrl: ended.photoUrl.flatMap { api.absoluteURL($0) })))
+                }
+                return .success(.none)
             }
             return .failure(.server)
         } catch {
@@ -54,12 +63,20 @@ struct DateRepository: DateStoring {
         return true
     }
 
-    func messageFromMatch(reason: String, body: String?) async -> Bool {
+    func messageFromMatch(reason: ChatReason?, body: String) async -> Bool {
         // By wire value, not case name: a regenerated enum case must not change what is sent.
-        guard let wire = Components.Schemas.ChatReason(rawValue: reason) else { return false }
-        let dto = Components.Schemas.DevDateMessageDto(
-            body: body, reason: Components.Schemas.DevDateMessageDto.reasonPayload(value1: wire))
+        var payload: Components.Schemas.DevDateMessageDto.reasonPayload?
+        if let reason {
+            guard let wire = Components.Schemas.ChatReason(rawValue: reason.rawValue) else { return false }
+            payload = .init(value1: wire)
+        }
+        let dto = Components.Schemas.DevDateMessageDto(body: body, reason: payload)
         guard case .noContent? = try? await api.client.sendDevDateMessage(body: .json(dto)) else { return false }
+        return true
+    }
+
+    func matchEndsInChat() async -> Bool {
+        guard case .noContent? = try? await api.client.endDevDateInChat() else { return false }
         return true
     }
 
@@ -100,8 +117,10 @@ extension ActiveDate {
             sharedVibes: dto.sharedVibes,
             sharedInterests: dto.sharedInterests,
             unread: unread.map {
-                DateUnread(count: $0.count, reason: $0.reason.value1.rawValue, body: $0.body, sentAt: $0.sentAt)
+                DateUnread(count: $0.count, reason: ChatReason.fromWire($0.reason?.value1.rawValue), body: $0.body,
+                           sentAt: $0.sentAt)
             },
-            checkedIn: dto.checkedIn)
+            checkedIn: dto.checkedIn,
+            chatTutorialSeen: dto.chatTutorialSeen)
     }
 }

@@ -53,27 +53,53 @@ extension View {
     /// From the MEASURED height, as the twin does: a control Dynamic Type has grown to 44 or more
     /// overflows by nothing. Until 13 October 2026 this worked from the design's drawn height, so a
     /// grown chip still reached 3 into the gap, a pill 5 and the toggle 9 — into the next row's.
-    func overflowTapTarget() -> some View {
-        OverflowTapLayout {
-            self
-            Color.clear.contentShape(Rectangle()).fitTapArea()
+    ///
+    /// `wide` grows it across too, for a control narrower than the floor with nothing beside it to reach
+    /// into -- the chat's back chevron, drawn 34. Off by default: Check-In's hour cells sit 4 apart and
+    /// must not reach into each other. (Android's `OverflowTapTarget` always grows both ways.)
+    ///
+    /// The control itself takes the touch over the whole area: its content shape is the area, and SwiftUI
+    /// hit-tests outside a frame. The layer laid out with it only publishes the area to the fit tests, and
+    /// sits BEHIND the control taking no touches. Until 7 Nov 2026 it was a `Color.clear` with a content
+    /// shape and no action, in FRONT of the control -- and SwiftUI hands a touch to the front-most view
+    /// with a shape, so a touch there could stop on it and never reach the control.
+    func overflowTapTarget(wide: Bool = false) -> some View {
+        OverflowTapLayout(wide: wide) {
+            Color.clear.allowsHitTesting(false).fitTapArea()
+            self.contentShape(TapFloorShape(wide: wide))
         }
     }
 }
 
-/// `overflowTapTarget`'s two layers: the control, reported at its own size, and a touch layer at
-/// least `ComponentSizes.minTapTarget` tall centred on it. SwiftUI hit-tests a child outside its
-/// parent's frame, so the overflow answers as long as nothing clips it.
+/// A control's own rect grown to `ComponentSizes.minTapTarget` about its centre: tall always, across when
+/// `wide` -- the same area `OverflowTapLayout` publishes.
+private struct TapFloorShape: Shape {
+    let wide: Bool
+
+    func path(in rect: CGRect) -> Path {
+        let tall = Swift.max(rect.height, ComponentSizes.minTapTarget)
+        let across = wide ? Swift.max(rect.width, ComponentSizes.minTapTarget) : rect.width
+        return Path(CGRect(x: rect.midX - across / 2, y: rect.midY - tall / 2, width: across, height: tall))
+    }
+}
+
+/// `overflowTapTarget`'s two layers: behind, the published area -- at least `ComponentSizes.minTapTarget`
+/// tall (and across, when `wide`) centred on the control -- and the control, reported at its own size.
+/// SwiftUI hit-tests a child outside its parent's frame, so the overflow answers as long as nothing clips
+/// it.
 private struct OverflowTapLayout: Layout {
+    let wide: Bool
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        subviews.first?.sizeThatFits(proposal) ?? .zero
+        subviews.last?.sizeThatFits(proposal) ?? .zero
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 2 else { return }
-        subviews[0].place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(bounds.size))
         let touch = Swift.max(bounds.height, ComponentSizes.minTapTarget)
-        subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.midY - touch / 2), anchor: .topLeading,
-                          proposal: ProposedViewSize(width: bounds.width, height: touch))
+        let across = wide ? Swift.max(bounds.width, ComponentSizes.minTapTarget) : bounds.width
+        subviews[0].place(at: CGPoint(x: bounds.midX - across / 2, y: bounds.midY - touch / 2), anchor: .topLeading,
+                          proposal: ProposedViewSize(width: across, height: touch))
+        subviews[1].place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(bounds.size))
     }
 }

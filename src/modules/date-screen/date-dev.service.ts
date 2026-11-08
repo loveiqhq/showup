@@ -60,13 +60,21 @@ export class DateDevService {
   /** A message from the test match, through the real send path (the chat window applies). */
   async message(
     userId: string,
-    reason: ChatReason,
-    body?: string,
+    reason: ChatReason | null,
+    body: string,
   ): Promise<void> {
     const date = await this.screen.activeDateRow(userId);
     if (!date) throw new NotFoundException('No active date');
     const partnerId = date.userAId === userId ? date.userBId : date.userAId;
     await this.dates.sendChatMessage(date.id, partnerId, reason, body);
+  }
+
+  /** The test match ends the caller's date in the chat, through the real path (Date 02). */
+  async endInChat(userId: string): Promise<void> {
+    const date = await this.screen.activeDateRow(userId);
+    if (!date) throw new NotFoundException('No active date');
+    const partnerId = date.userAId === userId ? date.userBId : date.userAId;
+    await this.dates.endInChat(date.id, partnerId);
   }
 
   /** Cancels every confirmed date of the caller's -- the dev escape from the Date screen. */

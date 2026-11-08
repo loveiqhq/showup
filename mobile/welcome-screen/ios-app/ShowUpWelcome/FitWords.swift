@@ -17,6 +17,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct FitWords<Label: View>: View {
     /// The words `label` draws: what is measured.
@@ -57,6 +58,22 @@ struct FitWords<Label: View>: View {
             label(scale)
         }
     }
+}
+
+/// The least `FitWords` shrinks a word to at `typeScale` (the type size as a factor of the default): 60 %,
+/// and below that only while the word stays at least its default size. Android's `wordFitFloor`.
+func wordFitFloor(typeScale: CGFloat) -> CGFloat {
+    if typeScale >= 3 { return 1 / 3 }
+    if typeScale >= 2.5 { return 0.4 }
+    if typeScale >= 2 { return 0.5 }
+    return 0.6
+}
+
+/// The widest word of `text` in `font`: what `FitWords` shrinks to its box.
+func widestWordWidth(_ text: String, _ font: UIFont) -> CGFloat {
+    text.split(whereSeparator: { $0.isWhitespace || $0 == "\u{200B}" })
+        .map { ceil((String($0) as NSString).size(withAttributes: [.font: font]).width) }
+        .max() ?? 0
 }
 
 /// Two subviews, the hidden words then the text. Asked for its ideal width, it answers the widest

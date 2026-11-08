@@ -101,7 +101,7 @@ struct DevState: Identifiable, Equatable, Sendable {
     let label: String
 }
 
-/// Every frame of SHOWUP-178 to 184's evidence, in ticket order -- plus the states between them.
+/// Every frame of SHOWUP-178 to 184's and 194's evidence, in ticket order -- plus the states between them.
 /// Android's `DEV_STATES`, row for row.
 let devStates: [DevState] = [
     DevState(id: "178A", ticket: "SHOWUP-178 Intro + gate", label: "A · Intro"),
@@ -137,6 +137,14 @@ let devStates: [DevState] = [
     DevState(id: "184-loading", ticket: "SHOWUP-184 Search profile", label: "Loading"),
     DevState(id: "184-failed", ticket: "SHOWUP-184 Search profile", label: "Could not load (offline)"),
     DevState(id: "184-empty", ticket: "SHOWUP-184 Search profile", label: "No results (proposed copy)"),
+    DevState(id: "194A", ticket: "SHOWUP-194 Coordinate chat", label: "A · Tutorial, before the first open"),
+    DevState(id: "194B", ticket: "SHOWUP-194 Coordinate chat", label: "B · Start, no message yet"),
+    DevState(id: "194C", ticket: "SHOWUP-194 Coordinate chat", label: "C · Thread, a chip picked"),
+    DevState(id: "194D", ticket: "SHOWUP-194 Coordinate chat", label: "D · I can't make it today, guide waiting"),
+    DevState(id: "194E", ticket: "SHOWUP-194 Coordinate chat", label: "E · End date card"),
+    DevState(id: "194F", ticket: "SHOWUP-194 Coordinate chat", label: "F · End the date sheet"),
+    DevState(id: "194G", ticket: "SHOWUP-194 Coordinate chat", label: "G · You ended the date"),
+    DevState(id: "194H", ticket: "SHOWUP-194 Coordinate chat", label: "H · The match ended the date"),
 ]
 
 /// The tickets, in the order their frames are listed.
@@ -155,6 +163,7 @@ enum DevFrame: Equatable, CaseIterable {
     case upliftEmpty, upliftTyping, upliftBlocked, upliftSaving, upliftFailed
     case searchRest, searchBeSure, searchMessage, searchMinimum, searchCoach
     case searchVoice, searchViewer, searchLoading, searchFailed, searchEmpty
+    case chatTutorial, chatStart, chatThread, chatGuide, chatEndCard, chatEndSheet, chatYouEnded, chatMatchEnded
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -191,6 +200,14 @@ enum DevFrame: Equatable, CaseIterable {
         case "184-loading": return .searchLoading
         case "184-failed": return .searchFailed
         case "184-empty": return .searchEmpty
+        case "194A": return .chatTutorial
+        case "194B": return .chatStart
+        case "194C": return .chatThread
+        case "194D": return .chatGuide
+        case "194E": return .chatEndCard
+        case "194F": return .chatEndSheet
+        case "194G": return .chatYouEnded
+        case "194H": return .chatMatchEnded
         default: return nil
         }
     }
@@ -272,6 +289,14 @@ struct CheckInGalleryFrame: View {
                               zone: SearchSamples.zone)
         case .searchEmpty?:
             SearchProfileView(state: { var s = SearchUiState(); s.loading = false; return s }(), zone: SearchSamples.zone)
+        case .chatTutorial?: ChatTutorialScreen(name: ChatSamples.date.match.name, onBack: leave)
+        case .chatStart?: ChatScreen(ui: ChatSamples.b, zone: DateSamples.zone, onBack: leave)
+        case .chatThread?: ChatScreen(ui: ChatSamples.c, zone: DateSamples.zone, onBack: leave)
+        case .chatGuide?: ChatScreen(ui: ChatSamples.d, zone: DateSamples.zone, onBack: leave)
+        case .chatEndCard?: ChatScreen(ui: ChatSamples.e, zone: DateSamples.zone, onBack: leave)
+        case .chatEndSheet?: ChatScreen(ui: ChatSamples.f, zone: DateSamples.zone, onBack: leave)
+        case .chatYouEnded?: DateEndedScreen(outcome: ChatSamples.g, onFindNext: leave)
+        case .chatMatchEnded?: DateEndedScreen(outcome: ChatSamples.h, onFindNext: leave)
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
             Text("Unknown state \(state)")

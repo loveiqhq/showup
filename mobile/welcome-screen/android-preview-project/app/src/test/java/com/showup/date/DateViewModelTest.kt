@@ -7,6 +7,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import com.showup.analytics.RecordingAnalytics
 import com.showup.api.CallFailure
 import com.showup.api.Outcome
@@ -44,7 +45,7 @@ class DateViewModelTest {
         place = DatePlace("Cafe Krone", "Oranienstrasse 42, Kreuzberg"),
         match = DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
         motivationYou = "long_term", motivationThem = "long_term",
-        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = unread, checkedIn = checkedIn,
+        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = unread, checkedIn = checkedIn, chatTutorialSeen = false,
     )
 
     private fun vm() = DateViewModel(store, analytics, clock = { now }, zone = { ZoneId.of("Europe/Berlin") })
@@ -79,7 +80,7 @@ class DateViewModelTest {
     @Test
     fun `a visit in C reports available with has_unread, and the referrer`() = runTest(dispatcher) {
         now = unlock.plusSeconds(60)
-        store.read = Outcome.Ok(DateRead.Active(date(unread = DateUnread(1, "running_late", "Late!", now))))
+        store.read = Outcome.Ok(DateRead.Active(date(unread = DateUnread(1, ChatReason.RunningLate, "Late!", now))))
         val vm = vm()
         vm.arrived(referrer = ProfileScreen.SearchProfile)
         advanceUntilIdle()
@@ -133,6 +134,73 @@ class DateViewModelTest {
         vm.arrived(referrer = null)
         advanceUntilIdle()
         assertEquals(1, analytics.of("date_screen_viewed").size)
+    }
+
+    @Test
+    fun `a date ended in the chat shows its outcome instead of leaving, the date kept for its face`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        store.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        vm.foreground()
+        advanceUntilIdle()
+        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), vm.state.value.ended)
+        assertFalse(vm.state.value.left)
+        assertEquals("the match's photo stays for the outcome screen", date(), vm.state.value.date)
+    }
+
+    @Test
+    fun `once the outcome has been seen, no date is held and the tabs unlock`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = true)))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        vm.outcomeShown()
+        assertEquals(null, vm.state.value.ended)
+        assertEquals(null, vm.state.value.date)
+    }
+
+    @Test
+    fun `while on screen the date is read again every 15 s, and not once it is off screen`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceTimeBy(1)
+        val reads = store.reads
+        vm.onScreen(true)
+        advanceTimeBy(15_001)
+        assertTrue("re-read within 15 s", store.reads >= reads + 1)
+        vm.onScreen(false)
+        val after = store.reads
+        advanceTimeBy(60_000)
+        assertEquals(after, store.reads)
+    }
+
+    @Test
+    fun `Open the chat marks the held date's tutorial as seen at once`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        vm.chatTutorialSeen()
+        assertEquals(true, vm.state.value.date?.chatTutorialSeen)
+    }
+
+    @Test
+    fun `a change tile fires action_chip_used on the coordinate card, never a quick action`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        analytics.clear()
+        vm.changeTile(ChatReason.ChangeTime)
+        val used = analytics.of("action_chip_used").single().properties
+        assertEquals("d1", used["date_id"])
+        assertEquals("change_time", used["reason"])
+        assertEquals("coordinate_card", used["surface"])
+        assertEquals(180, used["minutes_before_start"])
+        assertTrue(analytics.of("date_quick_action_tapped").isEmpty())
     }
 
     @Test
@@ -281,6 +349,7 @@ class FakeDateStore : DateStore {
 
     override suspend fun partnerProfile(zone: String): Outcome<SearchProfile> = profile
     override suspend fun createTestDate(minutes: Int) = Result.success(true)
-    override suspend fun messageFromMatch(reason: String, body: String?) = Result.success(true)
+    override suspend fun messageFromMatch(reason: ChatReason?, body: String) = Result.success(true)
     override suspend fun endTestDate() = Result.success(true)
+    override suspend fun matchEndsInChat() = Result.success(true)
 }

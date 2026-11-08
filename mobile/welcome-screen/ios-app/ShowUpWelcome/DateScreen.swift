@@ -124,6 +124,10 @@ struct DateScreen: View {
     var onTab: (AppTab) -> Void = { _ in }
     /// `Try again` when the first read failed and there is nothing to show.
     var onRetry: () -> Void = {}
+    /// The locked card's change tiles: `changeTileReasons`, empty until Date 05 ships; the evidence passes both.
+    var changeTiles: [ChatReason] = changeTileReasons
+    /// A change tile was tapped: the Date 05 picker opens, once it exists.
+    var onChangeTile: (ChatReason) -> Void = { _ in }
 
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
@@ -229,7 +233,9 @@ struct DateScreen: View {
     }
 
     private func coordinate(_ date: ActiveDate, _ state: DateState) -> some View {
-        CoordinateModule(state: state, date: date, now: ui.now, zone: zone, onOpenChat: onOpenChat)
+        // The tiles only in A: from B on, the chat's chips do the same job.
+        CoordinateModule(state: state, date: date, now: ui.now, zone: zone, onOpenChat: onOpenChat,
+                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile)
             .fitAnchor("date:coordinate")
     }
 }

@@ -7,6 +7,16 @@ describe('date lifecycle state machine', () => {
     expect(DateStatus.Completed).toBe('completed');
     expect(DateStatus.NoShowReported).toBe('no_show_reported');
     expect(DateStatus.Disputed).toBe('disputed');
+    expect(DateStatus.EndedInChat).toBe('ended_in_chat');
+  });
+
+  it('lets a confirmed date end in the chat, and nothing follows it (Date 02)', () => {
+    expect(canTransition(DateStatus.Confirmed, DateStatus.EndedInChat)).toBe(
+      true,
+    );
+    for (const to of Object.values(DateStatus)) {
+      expect(canTransition(DateStatus.EndedInChat, to)).toBe(false);
+    }
   });
 
   it('allows the moves out of "confirmed"', () => {

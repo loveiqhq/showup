@@ -11,6 +11,9 @@
  */
 package com.showup.date
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import com.showup.chat.ChatReason
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.InfiniteRepeatableSpec
 import androidx.compose.animation.core.RepeatMode
@@ -79,6 +82,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.showup.chat.ReasonBadge
+import com.showup.chat.ReasonTone
 import com.showup.designsystem.BlushStops
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Card
@@ -86,7 +91,6 @@ import com.showup.designsystem.Chip
 import com.showup.designsystem.ChipSize
 import com.showup.designsystem.ChipTone
 import com.showup.designsystem.Danger
-import com.showup.designsystem.DangerFg
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
 import com.showup.designsystem.FgSubtle
@@ -100,7 +104,6 @@ import com.showup.designsystem.Orange
 import com.showup.designsystem.OverflowTapTarget
 import com.showup.designsystem.Purple
 import com.showup.designsystem.Raised
-import com.showup.designsystem.ReasonDarkRed
 import com.showup.designsystem.ShadowCta
 import com.showup.designsystem.ShadowViolet
 import com.showup.designsystem.ShowUpCount
@@ -122,18 +125,6 @@ import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import java.time.Instant
 import java.time.ZoneId
-
-// ── tones ───────────────────────────────────────────────────────────────────
-
-/** The reference's `REASON_TONES`: ink, panel fill, chip border. */
-internal data class ToneColors(val fg: Color, val bg: Color, val border: Color)
-
-internal fun toneColors(tone: ReasonTone): ToneColors = when (tone) {
-    ReasonTone.Violet -> ToneColors(Purple, Purple.copy(alpha = 0.10f), Purple.copy(alpha = 0.20f))
-    ReasonTone.Orange -> ToneColors(Orange, Orange.copy(alpha = 0.11f), Orange.copy(alpha = 0.22f))
-    ReasonTone.Danger -> ToneColors(DangerFg, Danger.copy(alpha = 0.10f), Danger.copy(alpha = 0.22f))
-    ReasonTone.DarkRed -> ToneColors(ReasonDarkRed, ReasonDarkRed.copy(alpha = 0.09f), ReasonDarkRed.copy(alpha = 0.28f))
-}
 
 private val SerifBold = TextStyle(fontFamily = Lora, fontWeight = FontWeight.Bold, color = Fg)
 
@@ -337,11 +328,11 @@ internal fun TimePlaceCard(
 
 /**
  * ④ The Copy pill: padding 4 10 4 8, white, 1 px border-soft, violet 11.5 / 700, copy icon 13.
- * `Copied` + check in the success tint while [copied]; the colours cross over 160 ms. No toast.
+ * `Copied` + check in the success tint while [copied]; the colours cross over [Motion.TINT]. No toast.
  */
 @Composable
 internal fun CopyAddress(copied: Boolean, onCopy: () -> Unit) {
-    val spec = tween<Color>(160, easing = ShowUpEasing)
+    val spec = tween<Color>(Motion.TINT, easing = ShowUpEasing)
     val fill by animateColorAsState(if (copied) Success.copy(alpha = 0.14f) else Elevated, spec, label = "copy-fill")
     val stroke by animateColorAsState(if (copied) Success.copy(alpha = 0.32f) else BorderSoft, spec, label = "copy-stroke")
     val ink by animateColorAsState(if (copied) SuccessFg else Purple, spec, label = "copy-ink")
@@ -413,6 +404,9 @@ internal fun CoordinateModule(
     zone: ZoneId,
     onOpenChat: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The change tiles under the locked line: [CHANGE_TILES], empty until Date 05 ships. */
+    changeTiles: List<ChatReason> = emptyList(),
+    onChangeTile: (ChatReason) -> Unit = {},
 ) {
     val unread = date.unread
     if (state == DateState.Unread && unread != null) {
@@ -440,6 +434,7 @@ internal fun CoordinateModule(
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
             )
+            if (changeTiles.isNotEmpty()) ChangeTiles(changeTiles, onChangeTile)
         } else {
             Row(verticalAlignment = Alignment.Top) {
                 IconTile(48.dp, 14.dp, SolidColor(Purple), BrandIcon.MessageCircle, 22.dp, Color.White, 2.1f)
@@ -473,10 +468,12 @@ private fun UnreadCoordinate(
     onOpenChat: () -> Unit,
     modifier: Modifier,
 ) {
-    val style = chatReasonStyle(unread.reason)
-    val tone = toneColors(style.tone)
+    val reason = unread.reason
+    // A message sent with no chip draws no badge; its card keeps the orange the reference's
+    // `reasonFor` falls back to, so it still reads as waiting for a reply.
+    val tone = reason?.tone ?: ReasonTone.Orange
     // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
-    Card(modifier, border = BorderStroke(1.5.dp, tone.border), contentPadding = PaddingValues(1.5.dp)) {
+    Card(modifier, border = BorderStroke(1.5.dp, tone.chipBorder), contentPadding = PaddingValues(1.5.dp)) {
         Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(topStart = 18.5.dp, topEnd = 18.5.dp)).background(tone.fg))
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -525,7 +522,7 @@ private fun UnreadCoordinate(
                     .padding(horizontal = 13.dp, vertical = 11.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                ReasonBadge(style, onLight = true)
+                reason?.let { ReasonBadge(it, onLight = true) }
                 unread.body?.let {
                     // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `… sorry!` / `Almost there.”`.
                     val quoted = "“$it”"
@@ -546,7 +543,7 @@ private fun UnreadCoordinate(
                 }
             }
             Spacer(Modifier.height(14.dp))
-            val shadows = when (style.tone) {
+            val shadows = when (tone) {
                 ReasonTone.Orange -> ShadowCta
                 ReasonTone.Danger -> emptyList()
                 else -> ShadowViolet
@@ -556,27 +553,41 @@ private fun UnreadCoordinate(
     }
 }
 
-/** The reference's `ReasonBadge`: uppercase reason label with its icon, in the tone's tint. */
+/**
+ * The locked card's change line and tiles (5 Nov 2026): `Request to change the location or meet time.`
+ * (13.5 / 1.4 muted, 4 below the locked line), then the tiles in two columns, gap 8, 14 below -- each white
+ * with a 1 px soft border, radius 16, pad 14 8, the violet icon 18 / 2 over the label 13 / 600. The card is
+ * still not tappable; only the tiles are, each opening the Date 05 picker. The two in a row are one height.
+ */
 @Composable
-internal fun ReasonBadge(style: ChatReasonStyle, onLight: Boolean) {
-    val tone = toneColors(style.tone)
+private fun ChangeTiles(tiles: List<ChatReason>, onTap: (ChatReason) -> Unit) {
+    val line = TextStyle(fontFamily = Manrope, fontSize = 13.5.sp, lineHeight = (13.5 * 1.4).sp, color = Muted)
+    val text = AnnotatedString(DateCopy.COORD_CHANGE_LINE)
+    Text(text, Modifier.padding(top = 4.dp).prettyWrap(text, line).cssLineBox(line.lineHeight), style = line)
     Row(
-        Modifier
-            .background(if (onLight) tone.bg else Color.White.copy(alpha = 0.22f), RoundedCornerShape(50))
-            .padding(start = 7.dp, end = 9.dp, top = 3.dp, bottom = 3.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.padding(top = 14.dp).fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(style.icon, 11.dp, tint = if (onLight) tone.fg else Color.White, strokeWidth = 2.5f)
-        Spacer(Modifier.width(5.dp))
-        Text(
-            style.label.uppercase(),
-            color = if (onLight) tone.fg else Color.White,
-            fontFamily = Manrope,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 10.5.sp,
-            letterSpacing = 0.05.sp,
-            maxLines = 1,
-        )
+        for (reason in tiles) {
+            val shape = RoundedCornerShape(16.dp)
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .pressable(Role.Button) { onTap(reason) }
+                    .background(Elevated, shape)
+                    .border(1.dp, BorderSoft, shape)
+                    // Pad 14 8, plus the 1 px border, which CSS counts in the box.
+                    .padding(vertical = 15.dp, horizontal = 9.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+            ) {
+                Icon(reason.icon, 18.dp, tint = Purple, strokeWidth = 2f)
+                val label = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Fg, textAlign = TextAlign.Center)
+                Text(reason.label, Modifier.fitWordsOf(reason.label, label), style = label)
+            }
+        }
+        if (tiles.size == 1) Spacer(Modifier.weight(1f))
     }
 }
 
@@ -589,19 +600,7 @@ internal fun ReasonBadge(style: ChatReasonStyle, onLight: Boolean) {
 private fun MatchAvatar(match: DateMatch, count: Int, tone: Color) {
     val motion = rememberMotion()
     Box(Modifier.size(46.dp)) {
-        Box(Modifier.size(46.dp).aboveWash("avatar", CircleShape).clip(CircleShape)) {
-            PhotoBackdrop(match.photoUrl.orEmpty(), 0, Modifier.fillMaxSize())
-            if (match.photoUrl == null) {
-                Text(
-                    match.name.take(1),
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White.copy(alpha = 0.92f),
-                    fontFamily = Lora,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = (46 * 0.42).sp,
-                )
-            }
-        }
+        MatchPhoto(match.name, match.photoUrl, 46.dp, Modifier.aboveWash("avatar", CircleShape))
         if (motion.enabled) {
             val transition = rememberInfiniteTransition(label = "pulse")
             val spec = InfiniteRepeatableSpec<Float>(

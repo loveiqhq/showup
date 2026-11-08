@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
+import { EndedInChatDto } from '../date-screen/dto/active-date.dto';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -83,7 +84,7 @@ export class DatesController {
     return DateDto.from(date, user.id);
   }
 
-  /** The pre-date chat messages on a date, oldest first (SHOWUP-115). */
+  /** The chat messages on a date, oldest first, with read receipts on your own (SHOWUP-115, Date 02). */
   @Get('dates/:id/chat')
   @ApiOperation({ operationId: 'listDateChatMessages' })
   @ApiOkResponse({ type: [ChatMessageDto] })
@@ -91,8 +92,11 @@ export class DatesController {
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ChatMessageDto[]> {
-    const messages = await this.dates.listChatMessages(id, user.id);
-    return messages.map((m) => ChatMessageDto.from(m, user.id));
+    const { messages, otherReadAt } = await this.dates.listChatMessages(
+      id,
+      user.id,
+    );
+    return messages.map((m) => ChatMessageDto.from(m, user.id, otherReadAt));
   }
 
   /**
@@ -111,7 +115,46 @@ export class DatesController {
     await this.dates.markChatRead(id, user.id);
   }
 
-  /** Send a pre-date chat message: pick a preset reason, optionally add a note (SHOWUP-115). */
+  /** The caller tapped "Open the chat" on this date's tutorial (Date 02, frame A). Idempotent. */
+  @Post('dates/:id/chat/tutorial')
+  @ApiOperation({ operationId: 'markChatTutorialSeen' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async markChatTutorialSeen(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.dates.markChatTutorialSeen(id, user.id);
+  }
+
+  /**
+   * Ends the date for both people from the chat (Date 02, frame F). 409 unless the date is still on and
+   * an "I can't make it today" message is in its thread. The caller then sees G.
+   */
+  @Post('dates/:id/end-in-chat')
+  @ApiOperation({ operationId: 'endDateInChat' })
+  @HttpCode(200)
+  @ApiOkResponse({ type: EndedInChatDto })
+  async endInChat(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<EndedInChatDto> {
+    return this.dates.endInChat(id, user.id);
+  }
+
+  /** The caller has seen their outcome screen, G or H, for a date ended in the chat (Date 02). */
+  @Post('dates/:id/ended/seen')
+  @ApiOperation({ operationId: 'markDateEndSeen' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async markEndSeen(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.dates.markEndSeen(id, user.id);
+  }
+
+  /** Send a chat message: the text, with the selected chip's reason or none (Date 02). */
   @Post('dates/:id/chat')
   @ApiOperation({ operationId: 'sendDateChatMessage' })
   @HttpCode(201)
@@ -124,9 +167,10 @@ export class DatesController {
     const message = await this.dates.sendChatMessage(
       id,
       user.id,
-      dto.reason,
+      dto.reason ?? null,
       dto.body,
     );
-    return ChatMessageDto.from(message, user.id);
+    // Just sent: the other person cannot have read it yet.
+    return ChatMessageDto.from(message, user.id, null);
   }
 }

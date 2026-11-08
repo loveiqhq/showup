@@ -11,17 +11,19 @@ import SwiftUI
 private let barTextMin: CGFloat = 140
 
 /// `lead` (the tile and the text) and `action` on one row, `gap` apart and centred, while `lead` keeps
-/// at least `barTextMin`; otherwise `action` goes under it, full width. Words never truncate: at the
-/// largest type on a narrow phone the layout yields instead.
+/// at least `barTextMin` and `leadLeast` -- the width its text keeps every word whole in; otherwise
+/// `action` goes under it, full width. Words never truncate: at the largest type on a narrow phone the
+/// layout yields instead.
 private struct BarRowLayout: Layout {
     let gap: CGFloat
+    var leadLeast: CGFloat = 0
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard subviews.count == 2 else { return .zero }
         let width = proposal.width ?? 390
         let action = subviews[1].sizeThatFits(.unspecified)
         let room = width - action.width - gap
-        if room >= barTextMin {
+        if room >= max(barTextMin, leadLeast) {
             let lead = subviews[0].sizeThatFits(ProposedViewSize(width: room, height: nil))
             return CGSize(width: width, height: max(lead.height, action.height))
         }
@@ -34,7 +36,7 @@ private struct BarRowLayout: Layout {
         guard subviews.count == 2 else { return }
         let action = subviews[1].sizeThatFits(.unspecified)
         let room = bounds.width - action.width - gap
-        if room >= barTextMin {
+        if room >= max(barTextMin, leadLeast) {
             let lead = subviews[0].sizeThatFits(ProposedViewSize(width: room, height: nil))
             subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.midY - lead.height / 2), anchor: .topLeading,
                               proposal: ProposedViewSize(width: room, height: lead.height))
@@ -54,6 +56,14 @@ private func uiFont(_ name: String, _ size: CGFloat, _ weight: UIFont.Weight) ->
     TypeMetrics.uiFont(name, size, fallback: .systemFont(ofSize: size, weight: weight))
 }
 
+/// The narrowest bar lead whose text keeps every word whole: the tile and its gap, and the widest word of
+/// each text at its size -- the bars' titles and lines do not shrink a word here. On the Galaxy Z Fold 5's
+/// cover screen (344) at the largest type the row left the title too little and a long name broke inside a
+/// word; stacked, it fit (the 8 Nov 2026 device sweep). Android's `barLeadLeast`.
+private func barLeadLeast(tile: CGFloat, _ texts: [(String, UIFont)]) -> CGFloat {
+    tile + (texts.map { widestWordWidth($0.0, $0.1) }.max() ?? 0)
+}
+
 /// The Check-in bar (Date 03's, the reference's `CheckInBar`): deep ink, top corners 22, a map pin tile,
 /// `Your date with {name}`, the sunset `Check-in` pill, and the `End date` link under it -- which opens
 /// the same wrap-up sheet as the End Date bar (2 Nov 2026), never the cancel flow.
@@ -62,10 +72,15 @@ struct CheckInBar: View {
     let onCheckIn: () -> Void
     let onEndDate: () -> Void
 
+    /// The type size as a factor of the default, as `PrettyText` scales its fonts.
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
+
     var body: some View {
         let shape = UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22)
+        let leadLeast = barLeadLeast(tile: 46 + 14, [(DateCopy.barTitle(name), uiFont(PS.loraBold, 18 * typeScale, .bold)),
+                                                     (DateCopy.checkInBarSub, uiFont(PS.manropeRegular, 12.5 * typeScale, .regular))])
         VStack(spacing: 6) {
-            BarRowLayout(gap: 14) {
+            BarRowLayout(gap: 14, leadLeast: leadLeast) {
                 HStack(alignment: .center, spacing: 14) {
                     IconTile(size: 46, radius: 14, fill: Color.white.opacity(0.12), icon: .mapPin, iconSize: 22, tint: .white, stroke: 2.2)
                     VStack(alignment: .leading, spacing: 3) {
@@ -131,8 +146,13 @@ struct DateStatusBar: View {
     let name: String
     let onEndDate: () -> Void
 
+    /// The type size as a factor of the default, as `F.manrope` and `PrettyText` scale their fonts.
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
+
     var body: some View {
-        BarRowLayout(gap: 12) {
+        let leadLeast = barLeadLeast(tile: 38 + 12, [(DateCopy.barTitle(name), uiFont(PS.manropeBold, 13.5 * typeScale, .bold)),
+                                                     (DateCopy.endBarSub, uiFont(PS.manropeRegular, 11.5 * typeScale, .regular))])
+        BarRowLayout(gap: 12, leadLeast: leadLeast) {
             HStack(alignment: .center, spacing: 12) {
                 IconTile(size: 38, radius: 12, fill: Color.liqPurple.opacity(0.10), icon: .calendar, iconSize: 19,
                          tint: .liqPurple, stroke: 2.1)

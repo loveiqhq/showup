@@ -23,7 +23,7 @@ class DateRoutingTest {
         unlockAt = Instant.parse("2026-11-03T16:30:00Z"), coordinateOpen = false,
         place = null, match = DateMatch("u2", "Leonie", 28, null, null, null, 0),
         motivationYou = null, motivationThem = null,
-        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false,
+        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false, chatTutorialSeen = false,
     )
     private val active: Outcome<DateRead> = Outcome.Ok(DateRead.Active(date))
     private val none: Outcome<DateRead> = Outcome.Ok(DateRead.None)
@@ -41,6 +41,15 @@ class DateRoutingTest {
         assertEquals(FlowScreen.CheckInSearch, launchTarget(none, checkInActive = true))
         assertEquals(FlowScreen.CheckInGate, launchTarget(none, checkInActive = false))
         assertEquals("an unknown Check-In is the gate", FlowScreen.CheckInGate, launchTarget(none, checkInActive = null))
+    }
+
+    @Test
+    fun `a date ended in the chat and not yet seen opens on the Date screen, which shows the outcome`() {
+        val ended: Outcome<DateRead> = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        assertEquals(FlowScreen.Date, launchTarget(ended, checkInActive = true))
+        assertEquals(FlowScreen.Date, launchTarget(ended, checkInActive = null))
+        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), ended.endedOutcome())
+        assertEquals(null, active.endedOutcome())
     }
 
     @Test

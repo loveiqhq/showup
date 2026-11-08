@@ -22,6 +22,7 @@
  */
 package com.showup.search
 
+import com.showup.designsystem.blurBehindModalShell
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -198,7 +199,7 @@ fun SearchProfileScreen(
 
     Box(Modifier.fillMaxSize().background(Cream)) {
         SearchFrame(
-            modifier = Modifier.blurBehindSearchSheet(sheetBlur),
+            modifier = Modifier.blurBehindModalShell(sheetBlur),
             topBar = {
                 // The tag on a wrapper, outside the cleared semantics: a modal hides the bar from a
                 // screen reader, and the fit tests still have to find its edge.

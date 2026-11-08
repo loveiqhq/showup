@@ -206,6 +206,15 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
      * time state is `date_screen_viewed`'s `state`, never a second screen.
      */
     DateScreen("date_screen", "Date - Date screen"),
+
+    /** The chat tutorial (SHOWUP-194 A; §11 row added 5 Nov 2026, registry 1.4.33). */
+    DateChatTutorial("date_chat_tutorial", "Date - Chat tutorial"),
+
+    /** The coordinate chat: ONE screen id for the start grid (B) and the thread (C to E). */
+    DateChat("date_chat", "Date - Coordinate chat"),
+
+    /** G and H, after a date ended in the chat: one screen id for both. */
+    DateEndedInChat("date_ended_in_chat", "Date - Ended in chat"),
 }
 
 /**
@@ -374,6 +383,9 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.33 (7 November 2026): §11 `date_chat_tutorial` / `date_chat` / `date_ended_in_chat`, §39
+     * `chat_entry` and §40 `chat_reason` (SHOWUP-194, Date 02). No value an event here sends moved.
+     *
      * 1.4.32 (3 November 2026): §11 `date_screen` and §38 `date_quick_action` (SHOWUP-193, Date 01).
      * No value an event here sends moved.
      *
@@ -407,7 +419,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.32"
+    const val FIELD_REGISTRY_VERSION = "1.4.33"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,

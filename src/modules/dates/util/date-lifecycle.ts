@@ -11,7 +11,18 @@ export enum DateStatus {
   Completed = 'completed',
   NoShowReported = 'no_show_reported',
   Disputed = 'disputed',
+  /** Ended from the chat after an "I can't make it today" message (Date 02): no review, no flow 10. */
+  EndedInChat = 'ended_in_chat',
 }
+
+/**
+ * A date that never happened: cancelled, or ended from the chat before anyone met (Date 02). Search
+ * reads neither as a past date -- it hides no pair from each other and books nobody a date.
+ */
+export const NEVER_HAPPENED: readonly DateStatus[] = [
+  DateStatus.Cancelled,
+  DateStatus.EndedInChat,
+];
 
 /** For each stage, the stages it is allowed to move to. Empty = terminal. */
 const ALLOWED_TRANSITIONS: Record<DateStatus, DateStatus[]> = {
@@ -19,11 +30,13 @@ const ALLOWED_TRANSITIONS: Record<DateStatus, DateStatus[]> = {
     DateStatus.Cancelled,
     DateStatus.Completed,
     DateStatus.NoShowReported,
+    DateStatus.EndedInChat,
   ],
   [DateStatus.NoShowReported]: [DateStatus.Disputed, DateStatus.Completed],
   [DateStatus.Disputed]: [DateStatus.Completed, DateStatus.Cancelled],
   [DateStatus.Cancelled]: [],
   [DateStatus.Completed]: [],
+  [DateStatus.EndedInChat]: [],
 };
 
 /** Whether a date may move from `from` to `to`. */

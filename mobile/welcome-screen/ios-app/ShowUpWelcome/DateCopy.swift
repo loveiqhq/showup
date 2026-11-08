@@ -26,6 +26,8 @@ enum DateCopy {
     static let coordLockedSub = "Sort last-minute details before you meet"
     static func coordLockedLine(_ time: String) -> String { "Messaging available from \(time)" }
     static func coordLockedLineTomorrow(_ time: String) -> String { "Messaging available tomorrow from \(time)" }
+    /// The locked card's change line (5 Nov 2026), over the two tiles; shown with them, once Date 05 ships.
+    static let coordChangeLine = "Request to change the location or meet time."
     static func coordOpenSub(_ name: String) -> String { "Running late / Can't find your date at the spot? Tell \(name) here!" }
     static let openChat = "Open chat"
     static let unreadOne = "New message"

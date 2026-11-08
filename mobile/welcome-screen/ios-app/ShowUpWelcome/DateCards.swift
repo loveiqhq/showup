@@ -9,23 +9,6 @@ import SwiftUI
 
 // MARK: - tones and small parts
 
-/// The reference's `REASON_TONES`: ink, panel fill, chip border.
-struct ToneColors {
-    let fg: Color
-    let bg: Color
-    let border: Color
-}
-
-func toneColors(_ tone: ReasonTone) -> ToneColors {
-    switch tone {
-    case .violet: return ToneColors(fg: .liqPurple, bg: Color.liqPurple.opacity(0.10), border: Color.liqPurple.opacity(0.20))
-    case .orange: return ToneColors(fg: .liqOrange, bg: Color.liqOrange.opacity(0.11), border: Color.liqOrange.opacity(0.22))
-    case .danger: return ToneColors(fg: .liqDangerFg, bg: Color.liqDanger.opacity(0.10), border: Color.liqDanger.opacity(0.22))
-    case .darkRed: return ToneColors(fg: .liqReasonDarkRed, bg: Color.liqReasonDarkRed.opacity(0.09),
-                                     border: Color.liqReasonDarkRed.opacity(0.28))
-    }
-}
-
 /// One layer of a CSS `box-shadow`, as Card.swift draws `--liq-shadow-md`: each layer on its own copy of
 /// the shape, so neither is a shadow of the other. A SwiftUI shadow radius is the CSS blur / 2.
 struct ShadowLayer {
@@ -40,6 +23,29 @@ let shadowCta = [ShadowLayer(color: Color.liqOrange.opacity(0.32), y: 8, blur: 2
 /// `--liq-shadow-violet`: `0 8 20` at .28 and `0 2 6` at .18 of the violet.
 let shadowViolet = [ShadowLayer(color: Color.liqPurple.opacity(0.28), y: 8, blur: 20),
                     ShadowLayer(color: Color.liqPurple.opacity(0.18), y: 2, blur: 6)]
+
+/// `--liq-shadow-sm`: `0 1 2` at .04 of the shadow ink -- the outlined buttons' and chips' lift (SHOWUP-194).
+let shadowSm = [ShadowLayer(color: Color.liqShadowInk.opacity(0.04), y: 1, blur: 2)]
+/// `--liq-shadow-md`: `0 4 12` at .06 and `0 1 3` at .04 of the shadow ink -- the kit's `Card` (SHOWUP-194).
+let shadowMd = [ShadowLayer(color: Color.liqShadowInk.opacity(0.06), y: 4, blur: 12),
+                ShadowLayer(color: Color.liqShadowInk.opacity(0.04), y: 1, blur: 3)]
+
+/// Any shape filled with `fill` under `shadows`, each layer on its own copy of the shape so neither is a
+/// shadow of the other (SHOWUP-194: the chat's bubbles and chips). CSS's first layer is listed last.
+struct ShadowedShape<S: Shape, Fill: ShapeStyle>: View {
+    let shape: S
+    let fill: Fill
+    let shadows: [ShadowLayer]
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(shadows.reversed().enumerated()), id: \.offset) { _, layer in
+                shape.fill(fill).shadow(color: layer.color, radius: layer.blur / 2, y: layer.y)
+            }
+            if shadows.isEmpty { shape.fill(fill) }
+        }
+    }
+}
 
 /// A full pill filled with `fill` under `shadows`.
 struct ShadowedPill<Fill: ShapeStyle>: View {
@@ -238,7 +244,7 @@ struct CopyAddress: View {
             .padding(EdgeInsets(top: 5, leading: 9, bottom: 5, trailing: 11))
             .background(Capsule().fill(copied ? Color.liqSuccess.opacity(0.14) : Color.liqElevated))
             .overlay(Capsule().strokeBorder(copied ? Color.liqSuccess.opacity(0.32) : Color.liqBorderSoft, lineWidth: 1))
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: copied)
+            .animation(reduceMotion ? nil : .easeInOut(duration: Motion.tint), value: copied)
             .overflowTapTarget()
         }
         .buttonStyle(PressScale())
@@ -309,6 +315,9 @@ struct CoordinateModule: View {
     let now: Date
     let zone: TimeZone
     let onOpenChat: () -> Void
+    /// The change tiles under the locked line: `changeTileReasons`, empty until Date 05 ships.
+    var changeTiles: [ChatReason] = []
+    var onChangeTile: (ChatReason) -> Void = { _ in }
 
     var body: some View {
         if state == .unread, let unread = date.unread {
@@ -336,6 +345,7 @@ struct CoordinateModule: View {
                         .foregroundColor(.liqPurple)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 14)
+                    if !changeTiles.isEmpty { ChangeTiles(tiles: changeTiles, onTap: onChangeTile) }
                 } else {
                     HStack(alignment: .top, spacing: 14) {
                         IconTile(size: 48, radius: 14, fill: Color.liqPurple, icon: .messageCircle,
@@ -371,10 +381,12 @@ private struct UnreadCoordinate: View {
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
-        let style = chatReasonStyle(unread.reason)
-        let tone = toneColors(style.tone)
+        let reason = unread.reason
+        // A message sent with no chip draws no badge; its card keeps the orange the reference's
+        // `reasonFor` falls back to, so it still reads as waiting for a reply.
+        let tone = reason?.tone ?? .orange
         // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
-        Card(borderColor: tone.border, borderWidth: 1.5, padding: EdgeInsets(top: 1.5, leading: 1.5, bottom: 1.5, trailing: 1.5)) {
+        Card(borderColor: tone.chipBorder, borderWidth: 1.5, padding: EdgeInsets(top: 1.5, leading: 1.5, bottom: 1.5, trailing: 1.5)) {
             UnevenRoundedRectangle(topLeadingRadius: 18.5, topTrailingRadius: 18.5)
                 .fill(tone.fg)
                 .frame(height: 4)
@@ -394,7 +406,7 @@ private struct UnreadCoordinate: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 7) {
-                    ReasonBadge(style: style, onLight: true)
+                    if let reason { ReasonBadge(reason: reason, onLight: true) }
                     if let body = unread.body {
                         // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `… sorry!` / `Almost there.”`.
                         PrettyText("“\(body)”", font: uiFont(PS.manropeMedium, 14, .medium), lineHeight: 14 * 1.4,
@@ -407,7 +419,7 @@ private struct UnreadCoordinate: View {
                 .background(RoundedRectangle(cornerRadius: 14).fill(tone.bg))
                 .padding(.top, 13)
                 CoordinateCta(label: DateCopy.readAndReply, fill: tone.fg,
-                              shadows: style.tone == .orange ? shadowCta : (style.tone == .danger ? [] : shadowViolet),
+                              shadows: tone == .orange ? shadowCta : (tone == .danger ? [] : shadowViolet),
                               action: onOpenChat)
                     .padding(.top, 14)
             }
@@ -422,7 +434,7 @@ private struct UnreadCoordinate: View {
         }
     }
 
-    private func tag(_ tone: ToneColors) -> some View {
+    private func tag(_ tone: ReasonTone) -> some View {
         HStack(spacing: 4) {
             Circle().fill(tone.fg).frame(width: 5, height: 5)
             // Shrinks rather than widens the card where even the stacked form leaves it too little room
@@ -440,25 +452,41 @@ private struct UnreadCoordinate: View {
     }
 }
 
-/// The reference's `ReasonBadge`: uppercase reason label with its icon, in the tone's tint.
-struct ReasonBadge: View {
-    let style: ChatReasonStyle
-    let onLight: Bool
+/// The locked card's change line and tiles (5 Nov 2026): `Request to change the location or meet time.` (13.5 /
+/// 1.4 muted, 4 below the locked line), then the tiles in two columns, gap 8, 14 below -- each white with a 1 px
+/// soft border, radius 16, pad 14 8, the violet icon 18 / 2 over the label 13 / 600. The card is still not
+/// tappable; only the tiles are, each opening the Date 05 picker. The two in a row are one height. Android's
+/// `ChangeTiles`.
+private struct ChangeTiles: View {
+    let tiles: [ChatReason]
+    let onTap: (ChatReason) -> Void
 
     var body: some View {
-        let tone = toneColors(style.tone)
-        HStack(spacing: 5) {
-            BrandIconView(icon: style.icon, size: 11, stroke: 2.5, tint: onLight ? tone.fg : .white)
-            // One line wherever it fits; at the largest type on a narrow phone it wraps rather than runs
-            // past the panel.
-            Text(style.label.uppercased())
-                .font(F.manrope(10.5, .heavy))
-                .tracking(0.05)
-                .foregroundColor(onLight ? tone.fg : .white)
-                .fixedSize(horizontal: false, vertical: true)
+        PrettyText(DateCopy.coordChangeLine, font: uiFont(PS.manropeRegular, 13.5, .regular), lineHeight: 13.5 * 1.4,
+                   color: .liqMuted)
+            .padding(.top, 4)
+        HStack(spacing: 8) {
+            ForEach(tiles, id: \.self) { reason in
+                Button(action: { onTap(reason) }) {
+                    VStack(spacing: 6) {
+                        BrandIconView(icon: reason.icon, size: 18, stroke: 2, tint: .liqPurple)
+                        Text(reason.label).font(F.manrope(13, .semibold)).foregroundColor(.liqFg)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    // Pad 14 8, plus the 1 px border, which CSS counts in the box.
+                    .padding(EdgeInsets(top: 15, leading: 9, bottom: 15, trailing: 9))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.liqElevated))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.liqBorderSoft, lineWidth: 1))
+                }
+                .buttonStyle(PressScale())
+                .fitTapArea()
+            }
+            if tiles.count == 1 { Color.clear.frame(maxWidth: .infinity) }
         }
-        .padding(EdgeInsets(top: 3, leading: 7, bottom: 3, trailing: 9))
-        .background(Capsule().fill(onLight ? tone.bg : Color.white.opacity(0.22)))
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.top, 14)
     }
 }
 
@@ -479,17 +507,8 @@ private struct MatchAvatar: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            ZStack {
-                PhotoBackdrop(url: match.photoUrl, index: 0)
-                if match.photoUrl == nil {
-                    Text(String(match.name.prefix(1)))
-                        .font(F.lora(46 * 0.42, bold: true))
-                        .foregroundColor(Color.white.opacity(0.92))
-                }
-            }
-            .frame(width: 46, height: 46)
-            .clipShape(Circle())
-            .aboveWash(.circle)
+            MatchPhoto(name: match.name, photoURL: match.photoUrl, size: 46)
+                .aboveWash(.circle)
             if !reduceMotion {
                 Circle()
                     .fill(tone)

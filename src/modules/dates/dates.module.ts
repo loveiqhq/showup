@@ -1,4 +1,6 @@
 import { BullModule } from '@nestjs/bullmq';
+import { Profile } from '../profiles/entities/profile.entity';
+import { Match } from '../matching/entities/match.entity';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -17,7 +19,13 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
 /** Date scheduling & lifecycle (Epic 7), and the Date screen's unlock job (Date 01). */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DateEntity, DateStatusChange, DateChatMessage]),
+    TypeOrmModule.forFeature([
+      DateEntity,
+      DateStatusChange,
+      DateChatMessage,
+      Profile,
+      Match,
+    ]),
     BullModule.registerQueue({ name: QUEUE_COORDINATE_UNLOCK }),
     CheckInsModule,
     LocationModule,

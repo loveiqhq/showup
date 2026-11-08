@@ -27,7 +27,10 @@ const TZ_QUERY = {
 export class DateScreenController {
   constructor(private readonly dates: DateScreenService) {}
 
-  /** Everything the Date screen renders; `date` is null when there is no active date. */
+  /**
+   * Everything the Date screen renders; `date` is null when there is no active date, and then `ended`
+   * carries an ended-in-chat outcome the viewer has still to see (Date 02).
+   */
   @Get()
   @ApiOperation({ operationId: 'getActiveDate' })
   @ApiQuery(TZ_QUERY)
@@ -36,7 +39,11 @@ export class DateScreenController {
     @CurrentUser() user: User,
     @Query('tz') tz?: string,
   ): Promise<ActiveDateResponseDto> {
-    return { date: await this.dates.activeDate(user.id, tz) };
+    const date = await this.dates.activeDate(user.id, tz);
+    return {
+      date,
+      ended: date ? null : await this.dates.endedOutcome(user.id),
+    };
   }
 
   /** "See {name}'s full profile": the match, read-only, built as Search builds a profile. */

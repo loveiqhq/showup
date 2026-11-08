@@ -70,6 +70,9 @@ enum Motion {
     /// The Copy pill reads `Copied` for this long (SHOWUP-193 ④: "1600 ms, no toast"). Android's
     /// `Motion.COPIED`.
     static let copied: TimeInterval = 1.6
+    /// A control's colours following its state: the chat's composer border and fill and its Send button
+    /// waking (`160ms`, SHOWUP-194), and the Date screen's Copy pill (SHOWUP-193). Android's `Motion.TINT`.
+    static let tint: TimeInterval = 0.16
     /// The unread count's `su-pulse-ring`: one ring every 1.8 s, the kit's keyframes (SHOWUP-193 ⑧).
     /// Android's `Motion.PULSE_RING`.
     static let pulseRing: TimeInterval = 1.8

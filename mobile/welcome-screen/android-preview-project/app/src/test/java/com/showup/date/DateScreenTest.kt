@@ -7,6 +7,8 @@
  */
 package com.showup.date
 
+import androidx.compose.ui.test.performClick
+import com.showup.chat.ChatReason
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -46,7 +48,7 @@ class DateScreenTest {
         match = DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
         motivationYou = "long_term", motivationThem = "long_term",
         sharedVibes = listOf("coffee_chat", "deep_talk"), sharedInterests = listOf("reading", "hiking"),
-        unread = unread, checkedIn = checkedIn,
+        unread = unread, checkedIn = checkedIn, chatTutorialSeen = false,
     )
 
     private fun ui(now: Instant = locked, unread: DateUnread? = null, checkedIn: Boolean = false, copied: Boolean = false) =
@@ -76,7 +78,7 @@ class DateScreenTest {
     fun `C moves the one Coordinate card above the time and place card`() = runComposeUiTest {
         setContent {
             DateScreen(
-                ui(now = unlock.plusSeconds(60), unread = DateUnread(1, "running_late", "Running late!", unlock)),
+                ui(now = unlock.plusSeconds(60), unread = DateUnread(1, ChatReason.RunningLate, "Running late!", unlock)),
                 zone = berlin,
             )
         }
@@ -88,6 +90,33 @@ class DateScreenTest {
         onNodeWithText("NEW MESSAGE").assertExists()
         onNodeWithText("I'M RUNNING LATE").assertExists()
         onAllNodesWithText("Open chat").assertCountEquals(0)
+    }
+
+    @Test
+    fun `the change line and tiles stay hidden until Date 05 ships`() = runComposeUiTest {
+        setContent { DateScreen(ui(), zone = berlin) }
+        assertTrue("no change chip is shown yet", CHANGE_TILES.isEmpty())
+        onAllNodesWithText("Request to change the location or meet time.").assertCountEquals(0)
+        onAllNodesWithText("Change meet time").assertCountEquals(0)
+    }
+
+    @Test
+    fun `switched on, A shows the change line and both tiles, and a tile opens its picker`() = runComposeUiTest {
+        val tapped = mutableListOf<ChatReason>()
+        setContent {
+            DateScreen(ui(), zone = berlin, changeTiles = listOf(ChatReason.ChangeTime, ChatReason.ChangePlace), onChangeTile = { tapped += it })
+        }
+        onNodeWithText("Request to change the location or meet time.").assertExists()
+        onNodeWithText("Change location").assertExists()
+        onNodeWithText("Change meet time").performClick()
+        assertEquals(listOf(ChatReason.ChangeTime), tapped)
+    }
+
+    @Test
+    fun `the tiles are A's alone -- B never shows them`() = runComposeUiTest {
+        setContent { DateScreen(ui(now = unlock), zone = berlin, changeTiles = listOf(ChatReason.ChangeTime, ChatReason.ChangePlace)) }
+        onAllNodesWithText("Request to change the location or meet time.").assertCountEquals(0)
+        onAllNodesWithText("Change meet time").assertCountEquals(0)
     }
 
     @Test
@@ -103,7 +132,7 @@ class DateScreenTest {
     fun `never a percentage, never Order Ride, never Match Mate content, and Report in every state`() = runComposeUiTest {
         var state by mutableStateOf(ui())
         setContent { DateScreen(state, zone = berlin) }
-        for (s in listOf(ui(), ui(now = unlock), ui(now = unlock, unread = DateUnread(2, "on_my_way", null, unlock)))) {
+        for (s in listOf(ui(), ui(now = unlock), ui(now = unlock, unread = DateUnread(2, ChatReason.OnMyWay, null, unlock)))) {
             state = s
             waitForIdle()
             onAllNodesWithText("%", substring = true).assertCountEquals(0)

@@ -3,6 +3,10 @@
     "schemas": {
       "ActiveDateDto": {
         "properties": {
+          "chatTutorialSeen": {
+            "description": "The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial",
+            "type": "boolean"
+          },
           "checkedIn": {
             "description": "The viewer's own arrival check-in. Always false until Date 03 adds the check-in store",
             "type": "boolean"
@@ -83,7 +87,8 @@
           "sharedVibes",
           "sharedInterests",
           "unread",
-          "checkedIn"
+          "checkedIn",
+          "chatTutorialSeen"
         ],
         "type": "object"
       },
@@ -97,10 +102,21 @@
             ],
             "nullable": true,
             "type": "object"
+          },
+          "ended": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EndedInChatDto"
+              }
+            ],
+            "description": "With no active date: an ended-in-chat outcome the viewer has not yet seen (Date 02)",
+            "nullable": true,
+            "type": "object"
           }
         },
         "required": [
-          "date"
+          "date",
+          "ended"
         ],
         "type": "object"
       },
@@ -276,7 +292,7 @@
       "ChatMessageDto": {
         "properties": {
           "body": {
-            "description": "The optional free-text note, if the sender added one",
+            "description": "The text. Null only on a SHOWUP-115 message sent with a reason alone",
             "nullable": true,
             "type": "string"
           },
@@ -291,16 +307,18 @@
           "id": {
             "type": "string"
           },
+          "read": {
+            "description": "Your message: whether the other person has read the chat since. Theirs: null",
+            "nullable": true,
+            "type": "boolean"
+          },
           "reason": {
-            "enum": [
-              "change_meet_time",
-              "change_location",
-              "on_my_way",
-              "running_late",
-              "cant_find_you",
-              "cant_make_it_today"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatReason"
+              }
             ],
-            "type": "string"
+            "nullable": true
           }
         },
         "required": [
@@ -308,18 +326,21 @@
           "reason",
           "body",
           "fromYou",
-          "createdAt"
+          "createdAt",
+          "read"
         ],
         "type": "object"
       },
       "ChatReason": {
         "enum": [
-          "change_meet_time",
-          "change_location",
           "on_my_way",
+          "arrived",
+          "cant_find",
+          "when_arrive",
+          "change_time",
+          "change_place",
           "running_late",
-          "cant_find_you",
-          "cant_make_it_today"
+          "cant_make_it"
         ],
         "type": "string"
       },
@@ -757,7 +778,8 @@
               "cancelled",
               "completed",
               "no_show_reported",
-              "disputed"
+              "disputed",
+              "ended_in_chat"
             ],
             "type": "string"
           },
@@ -866,7 +888,8 @@
               {
                 "$ref": "#/components/schemas/ChatReason"
               }
-            ]
+            ],
+            "nullable": true
           },
           "sentAt": {
             "format": "date-time",
@@ -911,6 +934,7 @@
         "properties": {
           "body": {
             "maxLength": 1000,
+            "minLength": 1,
             "type": "string"
           },
           "reason": {
@@ -922,7 +946,7 @@
           }
         },
         "required": [
-          "reason"
+          "body"
         ],
         "type": "object"
       },
@@ -999,6 +1023,30 @@
           "phd"
         ],
         "type": "string"
+      },
+      "EndedInChatDto": {
+        "properties": {
+          "dateId": {
+            "type": "string"
+          },
+          "endedByYou": {
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The other person's first name",
+            "type": "string"
+          },
+          "photoUrl": {
+            "description": "The other person's first photo that may be shown, for G or H drawn without the date held -- at the next launch",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dateId",
+          "name",
+          "endedByYou"
+        ],
+        "type": "object"
       },
       "FilterSettingsDto": {
         "properties": {
@@ -2617,25 +2665,23 @@
       "SendChatMessageDto": {
         "properties": {
           "body": {
-            "description": "Optional free-text note attached to the reason (max 1000 characters)",
+            "description": "The message, trimmed: 1 to 1000 characters. Private to the two people.",
+            "maxLength": 1000,
+            "minLength": 1,
             "type": "string"
           },
           "reason": {
-            "description": "The preset reason you picked to open this message",
-            "enum": [
-              "change_meet_time",
-              "change_location",
-              "on_my_way",
-              "running_late",
-              "cant_find_you",
-              "cant_make_it_today"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatReason"
+              }
             ],
-            "example": "running_late",
-            "type": "string"
+            "description": "The selected chip's reason (§40); absent for a message typed with no chip",
+            "example": "running_late"
           }
         },
         "required": [
-          "reason"
+          "body"
         ],
         "type": "object"
       },
@@ -4963,6 +5009,65 @@
         ]
       }
     },
+    "/dates/{id}/chat/tutorial": {
+      "post": {
+        "operationId": "markChatTutorialSeen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
     "/dates/{id}/confirm": {
       "post": {
         "operationId": "confirmDate",
@@ -4995,6 +5100,131 @@
                 }
               }
             },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
+    "/dates/{id}/end-in-chat": {
+      "post": {
+        "operationId": "endDateInChat",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndedInChatDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
+    "/dates/{id}/ended/seen": {
+      "post": {
+        "operationId": "markDateEndSeen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
             "description": ""
           },
           "400": {
@@ -5168,6 +5398,46 @@
     "/dev/date/end": {
       "post": {
         "operationId": "endDevDate",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/end-in-chat": {
+      "post": {
+        "operationId": "endDevDateInChat",
         "parameters": [],
         "responses": {
           "204": {

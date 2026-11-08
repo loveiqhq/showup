@@ -131,7 +131,7 @@ function ChangeTag({ change, name = 'Leonie' }) {
   );
 }
 
-function CoordinateModule({ open = false, name = 'Leonie', opensAt = '17:30', countdown = '3h 05m', onOpen, unread = null }) {
+function CoordinateModule({ open = false, name = 'Leonie', opensAt = '17:30', countdown = '3h 05m', onOpen, onChangeTime, onChangePlace, unread = null }) {
   // ── Live + a message from the match is waiting, unread ──
   // The card stops being a passive "open chat" affordance and becomes the
   // signal itself: it adopts the reason's tone, surfaces WHO + WHY + a
@@ -221,6 +221,24 @@ function CoordinateModule({ open = false, name = 'Leonie', opensAt = '17:30', co
         {/* Progress bar removed 2 Nov 2026 — the time alone says it. */}
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--liq-primary-500)', marginTop: 14 }}>
           Messaging available from {opensAt}
+        </div>
+        {/* Change tiles — added 5 Nov 2026 (decided 3 Nov). Built in Date 01;
+            each opens the Date 05 picker. Hidden until Date 05 ships. The card
+            itself stays non-tappable; only the two tiles are. */}
+        <div style={{ fontSize: 13.5, color: 'var(--liq-fg-muted)', marginTop: 4, lineHeight: 1.4, textWrap: 'pretty' }}>
+          Request to change the location or meet time.
+        </div>
+        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {[['clock', 'Change meet time', onChangeTime], ['map-pin', 'Change location', onChangePlace]].map(([ic, lb, fn]) => (
+            <button key={lb} onClick={fn} style={{
+              padding: '14px 8px', borderRadius: 16, background: '#fff', cursor: 'pointer',
+              border: '1px solid var(--liq-border-soft)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              fontFamily: 'var(--liq-font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--liq-fg)',
+            }}>
+              <Icon name={ic} size={18} stroke={2} style={{ color: 'var(--liq-primary-500)' }}/>{lb}
+            </button>
+          ))}
         </div>
       </Card>
     );

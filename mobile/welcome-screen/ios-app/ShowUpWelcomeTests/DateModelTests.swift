@@ -23,8 +23,9 @@ actor FakeDateStore: DateStoring {
 
     func partnerProfile(zone: String) async -> Result<SearchProfile, CallFailure> { profile }
     func createTestDate(minutes: Int) async -> Bool { true }
-    func messageFromMatch(reason: String, body: String?) async -> Bool { true }
+    func messageFromMatch(reason: ChatReason?, body: String) async -> Bool { true }
     func endTestDate() async -> Bool { true }
+    func matchEndsInChat() async -> Bool { true }
 }
 
 /// The model's clock: read through its closure, moved by the test.
@@ -44,7 +45,7 @@ final class DateModelTests: XCTestCase {
                    match: DateMatch(userId: "u2", name: "Leonie", age: 28, district: "Neukölln", distanceKm: 1,
                                     photoUrl: nil, attendedCount: 4),
                    motivationYou: "long_term", motivationThem: "long_term",
-                   sharedVibes: [], sharedInterests: [], unread: unread, checkedIn: checkedIn)
+                   sharedVibes: [], sharedInterests: [], unread: unread, checkedIn: checkedIn, chatTutorialSeen: false)
     }
 
     private func settle(_ seconds: Double = 0.05) async {
@@ -86,7 +87,7 @@ final class DateModelTests: XCTestCase {
 
     func testAVisitInCReportsAvailableWithHasUnreadAndTheReferrer() async {
         let store = FakeDateStore()
-        let u = DateUnread(count: 1, reason: "running_late", body: "Ten minutes late!", sentAt: unlock)
+        let u = DateUnread(count: 1, reason: .runningLate, body: "Ten minutes late!", sentAt: unlock)
         await store.setRead(.success(.active(date(unread: u))))
         let analytics = RecordingAnalytics()
         let m = model(store, analytics, TestClock(unlock.addingTimeInterval(60)))
@@ -130,6 +131,81 @@ final class DateModelTests: XCTestCase {
         await settle()
         XCTAssertEqual(m.state.state, .available)
         XCTAssertEqual(names(analytics), ["screen_viewed", "date_screen_viewed"])
+    }
+
+    func testADateEndedInTheChatShowsItsOutcomeInsteadOfLeavingTheDateKeptForItsFace() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        await store.setRead(.success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))))
+        m.foreground()
+        await settle()
+        XCTAssertEqual(m.state.ended, EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))
+        XCTAssertFalse(m.state.left)
+        XCTAssertEqual(m.state.date, date(), "the match's photo stays for the outcome screen")
+    }
+
+    func testOnceTheOutcomeHasBeenSeenNoDateIsHeld() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        m.outcomeShown()
+        XCTAssertNil(m.state.ended)
+        XCTAssertNil(m.state.date)
+    }
+
+    func testWhileOnScreenTheDateIsReadAgainAndNotOnceItIsOffScreen() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = DateModel(store: store, analytics: RecordingAnalytics(), clock: { self.meet },
+                          zone: { TimeZone(identifier: "Europe/Berlin")! }, pollEvery: 0.05)
+        m.arrived(referrer: nil)
+        await settle()
+        let before = await store.reads
+        m.onScreen(true)
+        await settle(0.2)
+        let during = await store.reads
+        XCTAssertGreaterThan(during, before, "re-read while on screen")
+        m.onScreen(false)
+        await settle(0.05)
+        let stopped = await store.reads
+        await settle(0.2)
+        let after = await store.reads
+        XCTAssertEqual(after, stopped)
+    }
+
+    func testAChangeTileFiresActionChipUsedOnTheCoordinateCardNeverAQuickAction() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let analytics = RecordingAnalytics()
+        let m = model(store, analytics, TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        m.changeTile(.changeTime)
+        let used = analytics.entries.filter { $0.event == "action_chip_used" }.map(\.properties)
+        XCTAssertEqual(used.count, 1)
+        XCTAssertEqual(used.first?["reason"] as? String, "change_time")
+        XCTAssertEqual(used.first?["surface"] as? String, "coordinate_card")
+        XCTAssertEqual(used.first?["minutes_before_start"] as? Int, 180)
+        XCTAssertFalse(names(analytics).contains("date_quick_action_tapped"))
+    }
+
+    func testTheChangeTilesStayHiddenUntilDate05Ships() {
+        XCTAssertTrue(changeTileReasons.isEmpty, "no change chip is shown yet")
+    }
+
+    func testOpenTheChatMarksTheHeldDatesTutorialAsSeenAtOnce() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        m.chatTutorialSeen()
+        XCTAssertEqual(m.state.date?.chatTutorialSeen, true)
     }
 
     func testNoDateOnAReReadLeavesTheScreen() async {

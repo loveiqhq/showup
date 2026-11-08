@@ -33,6 +33,7 @@
  */
 package com.showup.date
 
+import com.showup.chat.ChatReason
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -161,6 +162,10 @@ fun DateScreen(
     onRetry: () -> Unit = {},
     /** The scroll, hoisted only so the evidence harness can photograph frame D's end. */
     scroll: ScrollState = rememberScrollState(),
+    /** The locked card's change tiles: [CHANGE_TILES], empty until Date 05 ships; the evidence passes both. */
+    changeTiles: List<ChatReason> = CHANGE_TILES,
+    /** A change tile was tapped: the Date 05 picker opens, once it exists. */
+    onChangeTile: (ChatReason) -> Unit = {},
 ) {
     val density = LocalDensity.current
     var frameHeight by remember { mutableIntStateOf(0) }
@@ -195,7 +200,7 @@ fun DateScreen(
                 val holes = remember { WashHoles() }
                 Box(Modifier.onPlaced { holes.origin = it }) {
                     CompositionLocalProvider(LocalWashHoles provides holes) {
-                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate)
+                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles, onChangeTile)
                     }
                     // ① The sunset wash: top 0, h 320, opacity .18, blur 40 -- scrolling with the content,
                     // drawn after it (see the header).
@@ -268,6 +273,8 @@ private fun DateContent(
     onSeeProfile: () -> Unit,
     onCancel: () -> Unit,
     matchMate: @Composable () -> Unit,
+    changeTiles: List<ChatReason>,
+    onChangeTile: (ChatReason) -> Unit,
 ) {
     Column(
         Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
@@ -279,7 +286,12 @@ private fun DateContent(
         )
         Spacer(Modifier.height(12.dp))
         val coordinate = @Composable {
-            CoordinateModule(state, date, ui.now, zone, onOpenChat, Modifier.testTag(DATE_COORDINATE_TAG))
+            CoordinateModule(
+                state, date, ui.now, zone, onOpenChat, Modifier.testTag(DATE_COORDINATE_TAG),
+                // Only in A: from B on, the chat's chips do the same job.
+                changeTiles = if (state == DateState.Locked) changeTiles else emptyList(),
+                onChangeTile = onChangeTile,
+            )
         }
         if (state == DateState.Unread) coordinate()
         TimePlaceCard(date, zone, ui.copied, onCopy, Modifier.testTag(DATE_TIME_CARD_TAG))

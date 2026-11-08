@@ -25,6 +25,9 @@ struct DateUi: Equatable, Sendable {
     var copied = false
     /// The date is gone (ended or cancelled elsewhere): the host leaves the screen.
     var left = false
+    /// The date ended in the chat and the viewer has not seen it (SHOWUP-194): the host shows G or H.
+    /// `date` stays as it was, for the match's face on that screen.
+    var ended: EndedInChat?
 
     var state: DateState? {
         date.map { dateState(now: now, unlockAt: $0.unlockAt, unread: $0.unread, coordinateOpen: $0.coordinateOpen) }
@@ -46,6 +49,9 @@ final class DateModel {
     /// A visit waiting for its first read, and where it came from.
     private var pendingVisit: Visit?
     private var copiedTask: Task<Void, Never>?
+    @ObservationIgnored private var poll: Task<Void, Never>?
+    /// How often the screen re-reads while it is up: `datePollSeconds`. Short in tests.
+    private let pollEvery: TimeInterval
 
     private struct Visit { let referrer: ProfileScreen? }
 
@@ -54,13 +60,15 @@ final class DateModel {
         analytics: (any AnalyticsTracking)? = nil,
         clock: @escaping () -> Date = { Date() },
         zone: @escaping () -> TimeZone = { TimeZone.current },
-        copiedFor: TimeInterval = Motion.copied
+        copiedFor: TimeInterval = Motion.copied,
+        pollEvery: TimeInterval = datePollSeconds
     ) {
         self.store = store
         self.analytics = analytics
         self.clock = clock
         self.zone = zone
         self.copiedFor = copiedFor
+        self.pollEvery = pollEvery
         self.state = DateUi(now: clock())
     }
 
@@ -80,6 +88,36 @@ final class DateModel {
     /// The clock moved. The state follows it; nothing is reported.
     func tick() { state.now = clock() }
 
+    /// The screen is on screen, or not. While it is, the date is read again every `datePollSeconds`, so the
+    /// match's End date reaches this phone within seconds. Reads report nothing. The poll holds the model
+    /// weakly and lets go of it before each sleep, so it ends with the model too.
+    func onScreen(_ visible: Bool) {
+        poll?.cancel()
+        poll = nil
+        guard visible else { return }
+        let every = pollEvery
+        poll = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(every * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                do {
+                    guard let model = self else { return }
+                    model.read()
+                }
+            }
+        }
+    }
+
+    /// `Open the chat` stamped the tutorial seen on the server; the held date says so at once.
+    func chatTutorialSeen() { state.date?.chatTutorialSeen = true }
+
+    /// G or H has been seen and left: no date is held, so Search, Likes and Instant open again.
+    func outcomeShown() {
+        state.date = nil
+        state.ended = nil
+        state.left = false
+    }
+
     /// The launch read already found `date`: draw it at once rather than a blank frame while the
     /// screen reads it again. Reports nothing -- the visit is `arrived`'s, from its own read.
     func seed(_ date: ActiveDate) {
@@ -96,6 +134,13 @@ final class DateModel {
         state.loading = true
         state.failed = nil
         read()
+    }
+
+    /// A change tile on the locked card (5 Nov 2026): `action_chip_used` with `surface: coordinate_card`, the
+    /// same event as the chat's chips -- never `date_quick_action_tapped`. The Date 05 picker opens after it.
+    func changeTile(_ reason: ChatReason) {
+        guard let date = state.date else { return }
+        analytics?.report(ChatAnalytics.actionChipUsed(date, reason: reason, surface: .coordinateCard, now: clock()))
     }
 
     func quickAction(_ action: QuickAction) {
@@ -130,7 +175,10 @@ final class DateModel {
                 self.state.failed = nil
                 // A new date after one that went away is shown, not left.
                 self.state.left = false
+                self.state.ended = nil
                 self.reportVisit(date, now: now)
+            case .success(.ended(let outcome)):
+                self.state.ended = outcome
             case .success(.none):
                 self.state.left = true
             case .failure(let why):

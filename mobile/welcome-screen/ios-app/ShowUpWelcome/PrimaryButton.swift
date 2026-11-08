@@ -83,6 +83,9 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     @ViewBuilder var leading: () -> Leading
     /// Mirrors `leading`. Used once: the tutorial CTA's trailing arrow.
     @ViewBuilder var trailing: () -> Trailing
+    /// The glow under `.sunset` and `.violet`: `--liq-shadow-violet` unless a reference names another
+    /// (the chat tutorial's orange `--liq-shadow-cta`, SHOWUP-194). Last, so every existing call is unchanged.
+    var glowLayers: [ShadowLayer]? = nil
 
     var body: some View {
         Button(action: { if enabled { action() } }) {
@@ -158,7 +161,16 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     /// shape under each shadow is the button's own fill, so its antialiased edge carries no fringe
     /// of another colour; CSS's first layer is listed last, so it ends on top.
     @ViewBuilder private var glow: some View {
-        if variant == .sunset || variant == .violet {
+        if let layers = glowLayers, variant == .sunset || variant == .violet {
+            // A reference that names another glow (the chat tutorial's `--liq-shadow-cta`, SHOWUP-194).
+            ZStack {
+                ForEach(Array(layers.reversed().enumerated()), id: \.offset) { _, layer in
+                    Capsule().fill(Color.liqPurple)
+                        .overlay(background.clipShape(Capsule()))
+                        .shadow(color: layer.color, radius: layer.blur / 2, y: layer.y)
+                }
+            }
+        } else if variant == .sunset || variant == .violet {
             ZStack {
                 Capsule().fill(Color.liqPurple)
                     .overlay(background.clipShape(Capsule()))
@@ -215,11 +227,12 @@ extension PrimaryButton where Leading == EmptyView, Trailing == EmptyView {
 extension PrimaryButton where Trailing == EmptyView {
     init(label: String, variant: PrimaryButtonVariant = .sunset, enabled: Bool = true,
          height: CGFloat = 56, labelSize: CGFloat = 16,
-         labelWidth: CGFloat? = nil, horizontalPadding: CGFloat = 28, action: @escaping () -> Void,
+         labelWidth: CGFloat? = nil, horizontalPadding: CGFloat = 28, glow: [ShadowLayer]? = nil,
+         action: @escaping () -> Void,
          @ViewBuilder leading: @escaping () -> Leading) {
         self.init(label: label, variant: variant, enabled: enabled, height: height,
                   labelSize: labelSize, labelWidth: labelWidth, horizontalPadding: horizontalPadding,
-                  action: action, leading: leading, trailing: { EmptyView() })
+                  action: action, leading: leading, trailing: { EmptyView() }, glowLayers: glow)
     }
 }
 

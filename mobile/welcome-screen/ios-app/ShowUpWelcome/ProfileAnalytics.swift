@@ -148,6 +148,12 @@ enum ProfileScreen: String {
     /// Date 01 (SHOWUP-193, §11 `date_screen`): the screen both people live on from the match until
     /// the date ends. Once per visit, never on the in-place unlock.
     case dateScreen = "date_screen"
+    /// The chat tutorial (SHOWUP-194 A; §11 row added 5 Nov 2026, registry 1.4.33).
+    case dateChatTutorial = "date_chat_tutorial"
+    /// The coordinate chat: ONE screen id for the start grid (B) and the thread (C to E).
+    case dateChat = "date_chat"
+    /// G and H, after a date ended in the chat: one screen id for both.
+    case dateEndedInChat = "date_ended_in_chat"
 
     var screenId: String { rawValue }
 
@@ -190,6 +196,9 @@ enum ProfileScreen: String {
         case .likesReceived: return "Search - Likes received"
         case .searchLocationGate: return "Search - Location gate"
         case .dateScreen: return "Date - Date screen"
+        case .dateChatTutorial: return "Date - Chat tutorial"
+        case .dateChat: return "Date - Coordinate chat"
+        case .dateEndedInChat: return "Date - Ended in chat"
         }
     }
 }
@@ -358,6 +367,9 @@ enum Stamp {
     /// READ IT FROM HERE AND NOWHERE ELSE - a payload stamped with a version the values did not
     /// come from is worse than an unstamped one, because it looks checked.
     ///
+    /// 1.4.33 (7 November 2026): §11 `date_chat_tutorial` / `date_chat` / `date_ended_in_chat`, §39
+    /// `chat_entry` and §40 `chat_reason` (SHOWUP-194, Date 02). No value an event here sends moved.
+    ///
     /// 1.4.32 (3 November 2026): §11 `date_screen` and §38 `date_quick_action` (SHOWUP-193, Date 01).
     /// No value an event here sends moved.
     ///
@@ -366,7 +378,7 @@ enum Stamp {
     ///
     /// 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186). No value an event
     /// here sends moved between 1.4.25 and 1.4.29 - the stamp follows the file the code reads.
-    static let fieldRegistryVersion = "1.4.32"
+    static let fieldRegistryVersion = "1.4.33"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]

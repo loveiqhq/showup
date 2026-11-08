@@ -120,30 +120,6 @@ func worksMeetLine(_ date: ActiveDate, zone: TimeZone) -> String {
 /// The time + place card's headline, split so the day can be set italic and violet.
 func meetingHeadline(name: String, day: String) -> (lead: String, day: String) { (DateCopy.meetingLead(name), day) }
 
-/// A chat reason's tone: the four the reference's `REASON_TONES` defines.
-enum ReasonTone: Equatable, Sendable { case violet, orange, danger, darkRed }
-
-/// How a chat reason looks on the unread card: the reference's `CHAT_REASONS` entry.
-struct ChatReasonStyle: Equatable, Sendable {
-    let label: String
-    let icon: BrandIcon
-    let tone: ReasonTone
-}
-
-/// The server's six chat reasons onto the reference's `CHAT_REASONS` (Date 02 owns the vocabulary;
-/// this screen only reads it for the unread badge). An unknown reason falls back to the first entry, as
-/// the reference's `reasonFor` does, so a newer server never blanks the card.
-func chatReasonStyle(_ reason: String) -> ChatReasonStyle {
-    switch reason {
-    case "running_late": return ChatReasonStyle(label: "I'm running late", icon: .hourglass, tone: .orange)
-    case "cant_find_you": return ChatReasonStyle(label: "I can't spot you", icon: .binoculars, tone: .orange)
-    case "change_meet_time": return ChatReasonStyle(label: "Change meet time", icon: .clock, tone: .violet)
-    case "change_location": return ChatReasonStyle(label: "Change location", icon: .mapPin, tone: .violet)
-    case "cant_make_it_today": return ChatReasonStyle(label: "I can't make it today", icon: .frown, tone: .darkRed)
-    default: return ChatReasonStyle(label: "I'm on my way", icon: .navigation, tone: .orange)
-    }
-}
-
 // MARK: - routing
 
 /// Where a finished profile opens: the Date screen while a date is active, else the Search tab's rule.
@@ -153,6 +129,9 @@ func chatReasonStyle(_ reason: String) -> ChatReasonStyle {
 /// server's `dateLocksUser`). A date read that failed is no date: the launch never opens on a guess.
 func launchTarget(date: Result<DateRead, CallFailure>, checkInActive: Bool?) -> FlowScreen {
     if activeDate(date) != nil { return .date }
+    // A date ended in the chat and not yet seen (SHOWUP-194): the Date screen's read finds it and shows G
+    // or H, which must be seen before Search.
+    if endedOutcome(date) != nil { return .date }
     return checkInActive == true ? .checkInSearch : .checkInGate
 }
 
@@ -161,6 +140,22 @@ func activeDate(_ read: Result<DateRead, CallFailure>) -> ActiveDate? {
     if case .success(.active(let date)) = read { return date }
     return nil
 }
+
+/// The ended-in-chat outcome this read found and the viewer has not seen, or nil.
+func endedOutcome(_ read: Result<DateRead, CallFailure>) -> EndedInChat? {
+    if case .success(.ended(let outcome)) = read { return outcome }
+    return nil
+}
+
+/// The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet time`
+/// and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the vocabulary's
+/// own switch. Hidden until Date 05 ships (epic rule 8): the day Date 05 shows those chips, the tiles and their
+/// line appear with them, and nothing on the Date screen changes. Android's `CHANGE_TILES`.
+let changeTileReasons: [ChatReason] = [ChatReason.changeTime, .changePlace].filter(\.shown)
+
+/// How often the Date screen re-reads the date while it is up (SHOWUP-194, the design's §3): the match's End
+/// date lands on H within seconds when the app is open. Polling, as the chat's; there is no socket.
+let datePollSeconds: TimeInterval = 15
 
 /// `s` with a zero-width space after each hyphen, so a long hyphenated name or district may break after
 /// its hyphen, as CSS breaks it -- Android's twin (`DateRules.kt`), where the line breaker would not

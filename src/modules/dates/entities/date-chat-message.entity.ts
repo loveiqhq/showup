@@ -28,12 +28,14 @@ export class DateChatMessage {
   @Column({ name: 'sender_id', type: 'uuid' })
   senderId: string;
 
+  // Null when the message was typed with no chip selected (Date 02).
   @Column({
     type: 'enum',
     enum: ChatReason,
     enumName: 'date_chat_reason_enum',
+    nullable: true,
   })
-  reason: ChatReason;
+  reason: ChatReason | null;
 
   // Optional free-text note attached to the chosen reason. Private between the two participants.
   @Column({ name: 'body', type: 'varchar', length: 1000, nullable: true })

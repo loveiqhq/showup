@@ -7,8 +7,9 @@
 // time + place), and the footer bar on the screen.
 //
 // THE 4 NOV 2026 DEVICE AUDIT widened it to every phone and every type size there is -- the shared
-// list plus `edgeFitDevices` (Display Zoom, split screen, unfolded foldables), the default size, the
-// largest standard one and three accessibility sizes up to AX5 -- and added Android's new rules:
+// list plus `edgeFitDevices` (Display Zoom, split screen, foldables open and folded, 16:9, budget HD+,
+// the smallest display size, a tablet) and, since 8 Nov 2026, all twelve Dynamic Type sizes from xSmall
+// to AX5 -- and added Android's new rules:
 // every touch area 44 both ways and none partly on another, cards that never overlap, the screen
 // exactly the phone's width, and the end of the scroll resting above the footer.
 
@@ -38,8 +39,13 @@ final class DateFitTests: XCTestCase {
         let taps: [FitTap]
     }
 
-    /// `view` laid out on `device` at `type`.
+    /// `view` laid out on `device` at `type`. Each layout's window and controller let go at once: a sweep lays
+    /// out thousands, and held to the end of the test they ran the runner out (the 8 Nov 2026 CI run).
     private func layout(_ view: some View, on device: FitDevice, type: DynamicTypeSize) -> Shot {
+        autoreleasepool { shot(view, on: device, type: type) }
+    }
+
+    private func shot(_ view: some View, on device: FitDevice, type: DynamicTypeSize) -> Shot {
         let sink = Sink()
         let root = view
             .environment(\.dynamicTypeSize, type)
@@ -63,14 +69,15 @@ final class DateFitTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         controller.view.layoutIfNeeded()
         window.isHidden = true
+        window.rootViewController = nil
         return Shot(frames: sink.frames, taps: sink.taps)
     }
 
     /// Every phone: the shared list and the edge cases it does not hold yet.
     private var phones: [FitDevice] { fitDevices + edgeFitDevices }
 
-    /// The default size, the largest standard size, and three accessibility sizes up to the largest.
-    private let types: [DynamicTypeSize] = [.large, .xxxLarge, .accessibility1, .accessibility3, .accessibility5]
+    /// Every Dynamic Type size there is, xSmall to AX5: the seven standard and the five accessibility sizes.
+    private let types = DynamicTypeSize.allCases
 
     private var frames: [(String, DateUi)] {
         var long = DateSamples.date
@@ -129,7 +136,22 @@ final class DateFitTests: XCTestCase {
         return failures
     }
 
-    func testEveryStateOfTheDateScreenIsCleanOnEveryPhoneAtEveryTypeSize() {
+    // Every state on every phone at all twelve sizes, in six tests of two sizes each: one test of all twelve
+    // ran past the runner's ten minutes a test and was cut off (the 8 Nov 2026 CI run).
+    func testEveryStateOfTheDateScreenIsCleanAtXSmallAndSmall() { sweep([.xSmall, .small]) }
+    func testEveryStateOfTheDateScreenIsCleanAtMediumAndTheDefault() { sweep([.medium, .large]) }
+    func testEveryStateOfTheDateScreenIsCleanAtXLargeAndXXLarge() { sweep([.xLarge, .xxLarge]) }
+    func testEveryStateOfTheDateScreenIsCleanAtXXXLargeAndAX1() { sweep([.xxxLarge, .accessibility1]) }
+    func testEveryStateOfTheDateScreenIsCleanAtAX2AndAX3() { sweep([.accessibility2, .accessibility3]) }
+    func testEveryStateOfTheDateScreenIsCleanAtAX4AndAX5() { sweep([.accessibility4, .accessibility5]) }
+
+    func testTheSixSweepsCoverEveryTypeSize() {
+        let swept: [DynamicTypeSize] = [.xSmall, .small, .medium, .large, .xLarge, .xxLarge, .xxxLarge,
+                                        .accessibility1, .accessibility2, .accessibility3, .accessibility4, .accessibility5]
+        XCTAssertEqual(Set(swept), Set(types))
+    }
+
+    private func sweep(_ types: [DynamicTypeSize]) {
         var failures: [String] = []
         for (name, ui) in frames {
             for type in types {
@@ -176,6 +198,26 @@ final class DateFitTests: XCTestCase {
                     }
                     failures += tapFailures(shot.taps, tag)
                 }
+            }
+        }
+        XCTAssertTrue(failures.isEmpty, "\(failures.count) problems: " + failures.prefix(40).joined(separator: " · "))
+    }
+
+    /// A with the change tiles switched on (5 Nov 2026), as Date 05 will show them: the card a column inside
+    /// the gutters, every touch area 44 and none on another, on every phone at every size.
+    func testTheChangeTilesAreCleanOnEveryPhoneAtEveryTypeSize() {
+        var failures: [String] = []
+        let ui = DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false)
+        for type in types {
+            for device in phones {
+                let shot = layout(DateScreen(ui: ui, zone: DateSamples.zone, changeTiles: [.changeTime, .changePlace]),
+                                  on: device, type: type)
+                let tag = "A change tiles \(device.described) @\(type)"
+                guard let coordinate = shot.frames["date:coordinate"] else { failures.append("\(tag): no Coordinate card"); continue }
+                if coordinate.minX < 15.5 || coordinate.maxX > device.width - 15.5 {
+                    failures.append("\(tag): the card is outside the 16 gutters")
+                }
+                failures += tapFailures(shot.taps, tag)
             }
         }
         XCTAssertTrue(failures.isEmpty, "\(failures.count) problems: " + failures.prefix(40).joined(separator: " · "))
