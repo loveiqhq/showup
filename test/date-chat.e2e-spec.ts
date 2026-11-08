@@ -359,6 +359,35 @@ describe('The Coordinate chat (e2e)', () => {
       }
     });
 
+    it("carries the match's photo in the outcome, for H shown at the next launch", async () => {
+      // At the next launch there is no held date to take the photo from: H drew an initial (the
+      // SHOWUP-194 review). The outcome brings it.
+      const db = app.get(DataSource);
+      const key = `${id.leonie}/outcome-photo.jpg`;
+      await db.query(
+        `INSERT INTO "profile_photos" ("user_id", "storage_key", "content_type", "position")
+         VALUES ($1, $2, 'image/jpeg', 0)`,
+        [id.leonie, key],
+      );
+      try {
+        const dateId = await makeDate(60);
+        await send(dateId, 'you', {
+          reason: 'cant_make_it',
+          body: 'Sorry, I really cannot.',
+        }).expect(201);
+        await end(dateId, 'you').expect(200);
+        const ended = (await getDate('you')).body.ended as {
+          photoUrl?: string;
+        };
+        expect(ended.photoUrl).toContain(key);
+      } finally {
+        await db.query(
+          `DELETE FROM "profile_photos" WHERE "storage_key" = $1`,
+          [key],
+        );
+      }
+    });
+
     it('can still be ended after the meet time has passed', async () => {
       const dateId = await makeDate(60);
       await send(dateId, 'you', {

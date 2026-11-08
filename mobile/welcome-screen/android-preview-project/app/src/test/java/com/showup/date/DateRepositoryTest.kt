@@ -117,6 +117,15 @@ class DateRepositoryTest {
     }
 
     @Test
+    fun `an ended outcome brings the match's photo as a loadable URL, for H at the next launch`() = runTest {
+        json("""{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"photoUrl":"/uploads/p9.jpg"}}""")
+        val read = repo.active("UTC")
+        assertTrue("expected Ok, got $read", read is Outcome.Ok<*>)
+        val outcome = ((read as Outcome.Ok<DateRead>).value as DateRead.Ended).outcome
+        assertEquals(server.url("/uploads/p9.jpg").toString(), outcome.photoUrl)
+    }
+
+    @Test
     fun `an unread message sent with no chip has no reason, and keeps its text`() = runTest {
         json(full.replace("\"reason\":\"running_late\"", "\"reason\":null"))
         val date = ((repo.active("UTC") as Outcome.Ok<DateRead>).value as DateRead.Active).date

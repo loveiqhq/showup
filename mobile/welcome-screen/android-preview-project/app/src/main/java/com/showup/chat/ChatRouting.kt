@@ -31,7 +31,9 @@ fun chatEntryFor(date: ActiveDate): ChatEntry = if (date.unread != null) ChatEnt
 
 /** G or H, with everything they draw. */
 fun outcomeRoute(outcome: EndedInChat, photoUrl: String?): AppRoute.DateEnded =
-    AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, photoUrl)
+    // The outcome's own photo first: at the next launch no date is held, and [photoUrl] -- the held
+    // date's -- is null, so H drew an initial (the SHOWUP-194 review).
+    AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl)
 
 /**
  * The events the host reports for the chat's destinations: `screen_viewed` for the tutorial, the chat

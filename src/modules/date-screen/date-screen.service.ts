@@ -120,14 +120,19 @@ export class DateScreenService {
     const row = rows.find((d) => endedOutcomeOf(d, viewerId, '') !== null);
     if (!row) return null;
     const partnerId = row.userAId === viewerId ? row.userBId : row.userAId;
-    const profile = await this.db
-      .getRepository(Profile)
-      .findOne({ where: { userId: partnerId } });
-    return endedOutcomeOf(
+    const [profile, photo] = await Promise.all([
+      this.db.getRepository(Profile).findOne({ where: { userId: partnerId } }),
+      this.search.firstPhotoUrl(partnerId),
+    ]);
+    const outcome = endedOutcomeOf(
       row,
       viewerId,
       firstName(profile?.displayName ?? null),
     );
+    // The match's photo travels with the outcome: at the next launch no date is held to take it from,
+    // and H drew an initial (the SHOWUP-194 review).
+    if (outcome && photo) outcome.photoUrl = photo;
+    return outcome;
   }
 
   /** `GET /me/date/profile`: the match's full profile, built as the queue builds it. */

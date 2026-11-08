@@ -60,7 +60,13 @@ data class ActiveDate(
  * the other person's first name and whether the viewer ended it. Shown once; after it is marked seen
  * the read is [DateRead.None].
  */
-data class EndedInChat(val dateId: String, val name: String, val endedByYou: Boolean)
+data class EndedInChat(
+    val dateId: String,
+    val name: String,
+    val endedByYou: Boolean,
+    /** The match's first photo, as the server sent it: G or H drawn with no date held, at the next launch. */
+    val photoUrl: String? = null,
+)
 
 /**
  * What `GET /me/date` found: a date, an ended-in-chat outcome to show, or neither. A failed call is the

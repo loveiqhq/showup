@@ -64,6 +64,8 @@ struct EndedInChat: Hashable, Sendable {
     var dateId: String
     var name: String
     var endedByYou: Bool
+    /// The match's first photo, as the server sent it: G or H drawn with no date held, at the next launch.
+    var photoUrl: URL? = nil
 }
 
 /// What `GET /me/date` found: a date, an ended-in-chat outcome to show, or neither. A failed call is the

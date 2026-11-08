@@ -153,6 +153,12 @@ export class EndedInChatDto {
 
   @ApiProperty()
   endedByYou: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "The other person's first photo that may be shown, for G or H drawn without the date held -- at the next launch",
+  })
+  photoUrl?: string;
 }
 
 /**

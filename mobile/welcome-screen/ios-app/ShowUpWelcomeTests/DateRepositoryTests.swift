@@ -77,6 +77,15 @@ final class DateRepositoryTests: XCTestCase {
         XCTAssertEqual(outcome, EndedInChat(dateId: "d9", name: "Leonie", endedByYou: false))
     }
 
+    func testAnEndedOutcomeBringsTheMatchsPhotoAsALoadableURLForHAtTheNextLaunch() async {
+        let body = #"{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"photoUrl":"/uploads/p9.jpg"}}"#
+        guard case .success(.ended(let outcome)) = await repo(status: 200, body: body).active(zone: "Europe/Berlin") else {
+            return XCTFail("expected an ended outcome")
+        }
+        XCTAssertTrue(outcome.photoUrl?.absoluteString.hasSuffix("/uploads/p9.jpg") == true,
+                      "a relative path becomes a loadable URL: \(String(describing: outcome.photoUrl))")
+    }
+
     func testAnUnreadMessageSentWithNoChipHasNoReasonAndKeepsItsText() async {
         let noChip = full.replacingOccurrences(of: #""reason":"running_late""#, with: #""reason":null"#)
         guard case .success(.active(let date)) = await repo(status: 200, body: noChip).active(zone: "Europe/Berlin") else {

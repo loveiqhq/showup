@@ -35,7 +35,8 @@ struct DateRepository: DateStoring {
                 if let date = dto.date?.value1 { return .success(.active(ActiveDate(date, api: api))) }
                 if let ended = dto.ended?.value1 {
                     return .success(.ended(EndedInChat(dateId: ended.dateId, name: ended.name,
-                                                       endedByYou: ended.endedByYou)))
+                                                       endedByYou: ended.endedByYou,
+                                                       photoUrl: ended.photoUrl.flatMap { api.absoluteURL($0) })))
                 }
                 return .success(.none)
             }

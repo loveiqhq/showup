@@ -51,7 +51,7 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         val response = api.dates.getActiveDate(zone)
         response.body()?.takeIf { response.isSuccessful }?.let { body ->
             body.date?.let { DateRead.Active(it.toActiveDate()) }
-                ?: body.ended?.let { DateRead.Ended(EndedInChat(it.dateId, it.name, it.endedByYou)) }
+                ?: body.ended?.let { DateRead.Ended(EndedInChat(it.dateId, it.name, it.endedByYou, it.photoUrl?.let(api::absoluteUrl))) }
                 ?: DateRead.None
         }
     }

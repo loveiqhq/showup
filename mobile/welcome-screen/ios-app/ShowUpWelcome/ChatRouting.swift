@@ -16,8 +16,11 @@ func chatRoute(_ date: ActiveDate, entry: ChatEntry) -> AppRoute {
 /// is B with an unread message, so the waiting message says which it was.
 func chatEntryFor(_ date: ActiveDate) -> ChatEntry { date.unread != nil ? .readReply : .openChat }
 
-/// G or H, with everything they draw.
-func outcomeRoute(_ outcome: EndedInChat, photoURL: URL?) -> AppRoute { .dateEnded(outcome, photoURL: photoURL) }
+/// G or H, with everything they draw. The outcome's own photo first: at the next launch no date is held, and
+/// `photoURL` -- the held date's -- is nil, so H drew an initial (the SHOWUP-194 review).
+func outcomeRoute(_ outcome: EndedInChat, photoURL: URL?) -> AppRoute {
+    .dateEnded(outcome, photoURL: outcome.photoUrl ?? photoURL)
+}
 
 /// The events the app reports for the chat's destinations: `screen_viewed` for the tutorial, the chat (B and
 /// C to E are one screen, one view per open) and the outcome (G and H are one); the tutorial's

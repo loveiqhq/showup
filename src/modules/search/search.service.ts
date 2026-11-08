@@ -856,6 +856,11 @@ export class SearchService {
     return new Map(windows.map((w) => [w.userId, w]));
   }
 
+  /** One person's first photo that may be shown, as a loadable URL -- an ended date's outcome (Date 02). */
+  async firstPhotoUrl(userId: string): Promise<string | null> {
+    return (await this.firstPhotoUrls([userId])).get(userId) ?? null;
+  }
+
   /** Each person's first photo that may be shown, as a loadable URL -- the closed card's picture. */
   private async firstPhotoUrls(ids: string[]): Promise<Map<string, string>> {
     if (ids.length === 0) return new Map();

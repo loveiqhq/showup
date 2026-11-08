@@ -1035,6 +1035,10 @@
           "name": {
             "description": "The other person's first name",
             "type": "string"
+          },
+          "photoUrl": {
+            "description": "The other person's first photo that may be shown, for G or H drawn without the date held -- at the next launch",
+            "type": "string"
           }
         },
         "required": [

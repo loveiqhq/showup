@@ -47,6 +47,13 @@ class ChatRoutingTest {
     }
 
     @Test
+    fun `the outcome's own photo wins, and the held date's stands in when it has none`() {
+        val held = "https://x/held.jpg"
+        assertEquals("https://x/own.jpg", outcomeRoute(EndedInChat("d1", "Leonie", false, photoUrl = "https://x/own.jpg"), held).photoUrl)
+        assertEquals(held, outcomeRoute(EndedInChat("d1", "Leonie", false), held).photoUrl)
+    }
+
+    @Test
     fun `the host reports the tutorial's view and shown, then its acknowledgement with the read time`() {
         val analytics = RecordingAnalytics()
         val events = ChatHostEvents(analytics, clock = { now })
