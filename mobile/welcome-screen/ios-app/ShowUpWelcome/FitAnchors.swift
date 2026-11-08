@@ -34,10 +34,12 @@ extension View {
 /// One touch area, in window coordinates, and whether it sits in a bar pinned over a scroll. A
 /// control in the scroll lying under that bar at rest is passing beneath it, not sharing its place,
 /// and only the structure can tell the two apart -- a card wholly below the bar's top edge looks,
-/// by position alone, like part of the bar.
+/// by position alone, like part of the bar. `modal`: in a sheet over the screen, under whose backdrop
+/// nothing answers -- the sheet's panel covers the controls below it, so position cannot tell either.
 struct FitTap: Equatable, Sendable {
     let frame: CGRect
     let pinned: Bool
+    var modal = false
 }
 
 /// Every touch area a fit test measures. The tap floor and "no two on each other" are about the area
@@ -55,20 +57,32 @@ private struct FitTapPinnedKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct FitTapModalKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     /// True inside a bar pinned over a scroll, for `fitTapArea`.
     var fitTapPinned: Bool {
         get { self[FitTapPinnedKey.self] }
         set { self[FitTapPinnedKey.self] = newValue }
     }
+
+    /// True inside a sheet over the screen, for `fitTapArea`.
+    var fitTapModal: Bool {
+        get { self[FitTapModalKey.self] }
+        set { self[FitTapModalKey.self] = newValue }
+    }
 }
 
 private struct FitTapArea: ViewModifier {
     @Environment(\.fitTapPinned) private var pinned
+    @Environment(\.fitTapModal) private var modal
 
     func body(content: Content) -> some View {
         content.background(GeometryReader { g in
-            Color.clear.preference(key: FitTapKey.self, value: [FitTap(frame: g.frame(in: .global), pinned: pinned)])
+            Color.clear.preference(key: FitTapKey.self,
+                                   value: [FitTap(frame: g.frame(in: .global), pinned: pinned, modal: modal)])
         })
     }
 }
@@ -82,6 +96,11 @@ extension View {
     /// Marks this subtree as a bar pinned over a scroll, for the fit tests' tap checks.
     func fitPinnedBar() -> some View {
         environment(\.fitTapPinned, true)
+    }
+
+    /// Marks this subtree as a sheet over the screen, for the fit tests' tap checks.
+    func fitModal() -> some View {
+        environment(\.fitTapModal, true)
     }
 }
 

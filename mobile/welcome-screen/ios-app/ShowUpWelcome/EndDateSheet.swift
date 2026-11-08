@@ -63,5 +63,6 @@ struct EndDateSheet: View {
             }
             .frame(maxWidth: .infinity)
         }
+        .fitModal()
     }
 }

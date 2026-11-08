@@ -94,6 +94,10 @@ struct ChatHeader: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(EdgeInsets(top: 4, leading: 10, bottom: 10, trailing: 10))
+        // The header's type grows to AX2 -- about Android's largest, 200 % -- and no further, as a bar's
+        // does. At AX5 its line wrapped to four and the header took 310 of a short window's 380, leaving
+        // less than the field (the SHOWUP-194 fit sweep). The Date screen shows the same time and place.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .fitPinnedBar()
         .background(Color.liqTabBarGlass.ignoresSafeArea(edges: .top))
         .overlay(alignment: .bottom) { Rectangle().fill(Color.liqBorderSoft).frame(height: 1) }

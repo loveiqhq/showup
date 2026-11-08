@@ -95,10 +95,12 @@ final class ChatFitTests: XCTestCase {
             }
         }
         func holds(_ a: CGRect, _ b: CGRect) -> Bool { a.insetBy(dx: -0.5, dy: -0.5).contains(b) }
-        for i in areas.indices {
-            for j in areas.indices where j > i {
-                if areas[i].pinned != areas[j].pinned { continue }
-                let a = areas[i].frame, b = areas[j].frame
+        // With the end sheet up only its own controls answer: the rest are under its backdrop.
+        let live = areas.contains(where: \.modal) ? areas.filter(\.modal) : areas
+        for i in live.indices {
+            for j in live.indices where j > i {
+                if live[i].pinned != live[j].pinned { continue }
+                let a = live[i].frame, b = live[j].frame
                 if holds(a, b) || holds(b, a) { continue }
                 let both = a.intersection(b)
                 if !both.isNull, both.width > 0.5, both.height > 0.5 {

@@ -169,11 +169,16 @@ struct ChatScreen: View {
                 .lineLimit(1...4)
                 .disabled(ui.locked)
                 .focused($fieldFocused)
-                .fitTapArea()
                 // Pad 9 14, plus the 1.5 border CSS counts, plus the 2 every browser pads a textarea with.
                 .padding(EdgeInsets(top: 12.5, leading: 17.5, bottom: 12.5, trailing: 17.5))
                 .background(shape.fill(ui.locked ? Color.liqBorderSoft : Color.liqElevated))
                 .overlay(shape.strokeBorder(strong ? Color.liqFg : Color.liqBorder, lineWidth: 1.5))
+                // The whole box takes the touch, not only the line of text inside it: a tap on its padding
+                // focused nothing -- a touch area 21 tall in a field 46 tall (the SHOWUP-194 fit sweep).
+                // Android's field is its decoration box, so it never had this.
+                .contentShape(shape)
+                .simultaneousGesture(TapGesture().onEnded { if !ui.locked { fieldFocused = true } })
+                .fitTapArea()
                 .animation(reduceMotion ? nil : .easeInOut(duration: Motion.tint), value: strong)
                 .animation(reduceMotion ? nil : .easeInOut(duration: Motion.tint), value: ui.locked)
             sendButton
