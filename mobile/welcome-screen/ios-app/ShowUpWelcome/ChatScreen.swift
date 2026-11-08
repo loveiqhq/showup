@@ -162,7 +162,9 @@ struct ChatScreen: View {
         let strong = ui.selected != nil && !ui.locked
         return HStack(alignment: .bottom, spacing: 9) {
             TextField("", text: Binding(get: { ui.draft }, set: { onEdit($0) }),
-                      prompt: Text(placeholder).foregroundColor(.liqSubtle), axis: .vertical)
+                      // Never one word alone on the prompt's last line: on a narrow phone the locked prompt
+                      // split the button's name, `... tap Got` / `it` (the 8 Nov 2026 device sweep).
+                      prompt: Text(lastWordsTogether(placeholder)).foregroundColor(.liqSubtle), axis: .vertical)
                 .font(F.manrope(14.5, .medium))
                 .lineSpacing(TypeMetrics.lineSpacing(PS.manropeMedium, size: 14.5, multiple: 1.4))
                 .foregroundColor(.liqFg)
@@ -205,10 +207,12 @@ struct ChatScreen: View {
     }
 }
 
-/// The thread over the dock: the thread always keeps 72 -- a short message and its time (pad 14, bubble 40,
-/// time 18) -- and the dock its own height in the rest. On a split screen or at the largest type the dock
-/// wanted more than the window and squeezed the thread out (the SHOWUP-194 fit sweep); on a phone, even with
-/// the keys up and a draft of two lines, nothing changes. Android's `ThreadLeast` in `ChatScreen`.
+/// The thread over the dock: the thread keeps 72 -- a short message and its time (pad 14, bubble 40, time
+/// 18) -- and the dock its own height in the rest. On a split screen or at the largest type the dock wanted
+/// more than the window and squeezed the thread out (the SHOWUP-194 fit sweep); on a phone, even with the
+/// keys up and a draft of two lines, nothing changes. The field is never cut for it: where the field alone
+/// is taller than that -- its placeholder in three lines at the largest type with the keys up -- the thread
+/// gives way (the SHOWUP-194 keyboard sweep). Android's `ThreadLeast` and `Dock` in `ChatScreen`.
 private struct ThreadAndDock: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         proposal.replacingUnspecifiedDimensions()
@@ -217,7 +221,9 @@ private struct ThreadAndDock: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 2 else { return }
         let most = Swift.max(bounds.height - 72, 0)
-        let dock = Swift.min(subviews[1].sizeThatFits(ProposedViewSize(width: bounds.width, height: most)).height, most)
+        // The dock's own answer at `most`: the field whole, and the chips (scrolling) in what is left.
+        let dock = Swift.min(subviews[1].sizeThatFits(ProposedViewSize(width: bounds.width, height: most)).height,
+                             bounds.height)
         subviews[0].place(at: bounds.origin, anchor: .topLeading,
                           proposal: ProposedViewSize(width: bounds.width, height: bounds.height - dock))
         subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.maxY - dock), anchor: .topLeading,

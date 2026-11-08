@@ -1,12 +1,13 @@
 // ChatFitTests.swift
 // ShowUp · the coordinate chat on every phone at every type size (SHOWUP-194). Android's `ChatFitTest.kt`.
 //
-// A to H as the spec sheet draws them, a long thread and D after Got it, on the 193 audit's phones (the
-// shared list and `edgeFitDevices`) from the default size to AX5. The 193 rules -- every touch area 44 both
-// ways and none partly on another -- and the chat's own: the dock under the thread, never over it; the
-// tutorial's and the outcome's CTA on screen; and on the 375 x 667 phone D's guide and Got it inside the
-// thread once revealed. The dock's chips are the one touch area allowed under 44: the ticket fixes them 36
-// high, 6 apart.
+// A to H as the spec sheet draws them, a long thread and D after Got it, on every phone (the shared list
+// and `edgeFitDevices`) at all twelve Dynamic Type sizes, xSmall to AX5; and the chat with the keyboard up
+// on every full-screen phone. The 193 rules -- every touch area 44 both ways and none partly on another --
+// and the chat's own: the dock under the thread, never over it, and above the keys; the tutorial's and the
+// outcome's CTA on screen; and on the 375 x 667 phone D's guide and Got it inside the thread once
+// revealed. The dock's chips are the one touch area allowed under 44: the ticket fixes them 36 high, 6
+// apart.
 
 import XCTest
 import SwiftUI
@@ -33,8 +34,10 @@ final class ChatFitTests: XCTestCase {
         let taps: [FitTap]
     }
 
-    /// `view` laid out on `device` at `type`, given time for the thread's reveal to run.
-    private func layout(_ view: some View, on device: FitDevice, type: DynamicTypeSize, settle: TimeInterval = 0.05) -> Shot {
+    /// `view` laid out on `device` at `type`, given time for the thread's reveal to run. `keyboard`: the keys'
+    /// height, laid in as the bottom inset, as the system lays them.
+    private func layout(_ view: some View, on device: FitDevice, type: DynamicTypeSize, settle: TimeInterval = 0.05,
+                        keyboard: CGFloat = 0) -> Shot {
         let sink = Sink()
         let root = view
             .environment(\.dynamicTypeSize, type)
@@ -49,7 +52,7 @@ final class ChatFitTests: XCTestCase {
         let controller = UIHostingController(rootView: root)
         controller.overrideUserInterfaceStyle = .light
         let window = FixedInsetWindow(frame: CGRect(x: 0, y: 0, width: device.width, height: device.height))
-        window.fixedInsets = UIEdgeInsets(top: device.top, left: 0, bottom: device.bottom, right: 0)
+        window.fixedInsets = UIEdgeInsets(top: device.top, left: 0, bottom: max(device.bottom, keyboard), right: 0)
         window.rootViewController = controller
         window.isHidden = false
         window.layoutIfNeeded()
@@ -62,7 +65,8 @@ final class ChatFitTests: XCTestCase {
     }
 
     private var phones: [FitDevice] { fitDevices + edgeFitDevices }
-    private let types: [DynamicTypeSize] = [.large, .xxxLarge, .accessibility1, .accessibility3, .accessibility5]
+    /// Every Dynamic Type size there is, xSmall to AX5.
+    private let types = DynamicTypeSize.allCases
 
     private var chats: [(String, ChatUi)] {
         var acked = ChatSamples.d
@@ -156,6 +160,33 @@ final class ChatFitTests: XCTestCase {
         }
         return order.prefix(30).compactMap { kind in seen[kind].map { "\($0.count) x \($0.first)" } }
             .joined(separator: " · ")
+    }
+
+    /// The chat with the keyboard up, on every full-screen phone at the default, a large and an accessibility
+    /// size: the dock above the keys, the thread over the dock. Not the guide (its field is locked) nor the
+    /// sheet. Not a split screen's top half: the keys cover the other app. Android's keyboard sweep.
+    func testTheChatWithTheKeyboardUpIsCleanOnEveryPhone() {
+        var failures: [String] = []
+        let typing = chats.filter { !["B start", "D guide", "F end sheet"].contains($0.0) }
+        for type in [DynamicTypeSize.large, .xxxLarge, .accessibility2] {
+            for device in phones where device.height >= 500 {
+                // About two fifths of a phone, as the iOS keyboard and Gboard take, 250 to 330.
+                let keys = min(330, max(250, (device.height * 0.38).rounded()))
+                for (name, ui) in typing {
+                    let shot = layout(ChatScreen(ui: ui, zone: DateSamples.zone), on: device, type: type, keyboard: keys)
+                    let tag = "\(name), keyboard \(Int(keys)) \(device.described) @\(type)"
+                    failures += tapFailures(shot, tag)
+                    guard let thread = shot.frames["chat:thread"], let dock = shot.frames["chat:dock"] else {
+                        failures.append("\(tag): no thread or no dock"); continue
+                    }
+                    if thread.maxY > dock.minY + 0.5 { failures.append("\(tag): the thread runs \(thread.maxY - dock.minY) under the dock") }
+                    if dock.maxY > device.height - max(device.bottom, keys) + 0.5 {
+                        failures.append("\(tag): the dock runs \(dock.maxY - device.height + max(device.bottom, keys)) under the keyboard")
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(failures.isEmpty, "\(failures.count) problems: " + summary(failures))
     }
 
     /// The acceptance criteria's own check: D at 375 x 667, the guide's title and Got it visible once revealed.

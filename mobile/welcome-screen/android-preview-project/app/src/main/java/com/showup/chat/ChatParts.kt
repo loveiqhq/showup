@@ -51,6 +51,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -79,6 +80,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Density
 import com.showup.date.ActiveDate
 import com.showup.date.DrawnSmall
 import com.showup.date.IconTile
@@ -164,7 +166,10 @@ internal fun LockLine(text: String, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Icon(BrandIcon.Lock, 12.dp, tint = FgSubtle, strokeWidth = 2.3f)
         Spacer(Modifier.width(6.dp))
-        Text(text, color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp)
+        // `pretty`, as the paragraphs are: at 320 the line ended `... never what you` / `type.` (the 8 Nov
+        // 2026 device sweep).
+        val style = TextStyle(color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp)
+        Text(text, modifier = Modifier.weight(1f, fill = false).prettyWrap(AnnotatedString(text), style), style = style)
     }
 }
 
@@ -179,6 +184,21 @@ internal fun LockLine(text: String, modifier: Modifier = Modifier) {
 internal fun ChatHeader(date: ActiveDate, now: Instant, zone: ZoneId, onBack: () -> Unit) {
     val line = headerLine(date, zone)
     val countdown = countdown(now, date.meetAt)
+    // The header's type grows to 165 % -- iOS's AX1 -- and no further, as a bar's title does. At 200 % its
+    // line wrapped to three and the header took 148 of the 298 the keys leave on a 320 x 568 screen, and
+    // the field no longer fit under it (the SHOWUP-194 keyboard sweep). The Date screen shows the same
+    // time and place at full size.
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density, minOf(density.fontScale, HEADER_MOST_SCALE))) {
+        HeaderBar(date, line, countdown, onBack)
+    }
+}
+
+/** The most the header's type grows: iOS's AX1, 165 %. */
+private const val HEADER_MOST_SCALE = 1.65f
+
+@Composable
+private fun HeaderBar(date: ActiveDate, line: String, countdown: String?, onBack: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()

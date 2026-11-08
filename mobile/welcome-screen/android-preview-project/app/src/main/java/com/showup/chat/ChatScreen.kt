@@ -73,6 +73,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import com.showup.date.ActiveDate
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
@@ -144,10 +147,11 @@ fun ChatScreen(
                 }
                 ui.start -> StartGrid(Modifier.weight(1f), onPick)
                 else -> BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                    // The thread always keeps [ThreadLeast]; the dock may take the rest. On a split screen
-                    // or at the largest type the dock wanted more than the window, and the chips were
-                    // squeezed to nothing (the SHOWUP-194 fit sweep). On a phone, even with the keys up
-                    // and a draft of two lines, the dock is under it and nothing changes.
+                    // The thread keeps [ThreadLeast] and the dock may take the rest -- unless the field
+                    // alone needs more, when the thread gives way (see [Dock]). On a split screen or at
+                    // the largest type the dock wanted more than the window, and the chips were squeezed
+                    // to nothing (the SHOWUP-194 fit sweep). On a phone, even with the keys up and a draft
+                    // of two lines, the dock is under it and nothing changes.
                     val dockMost = (maxHeight - ThreadLeast).coerceAtLeast(0.dp)
                     Column(Modifier.fillMaxSize()) {
                         Thread(ui, date, zone, Modifier.weight(1f), onAckGuide, onEndCard)
@@ -252,9 +256,11 @@ private fun Thread(
 /**
  * The field (pad 11 14 9, gap 9) and the compact chips (pad 2 14 10, gap 6, no heading) on cream 96%
  * glass under a soft rule. A failed send says so between the two and keeps the draft and the chip.
- * At most [most] tall: the field always shows, and where the chips do not fit under it they scroll --
- * only on a split screen or at the largest type on a small phone; everywhere else the dock is its
- * content's height and nothing scrolls.
+ * The field always shows whole; the failure line and the chips have what is left of [most] under it, and
+ * scroll there -- only on a split screen or at the largest type on a small phone; everywhere else the
+ * dock is its content's height and nothing scrolls. Where the field alone is taller than [most] -- its
+ * placeholder in three lines at 200 % with the keys up on a 360 x 640 phone -- the thread gives way, not
+ * the field, which was cut by up to 54 px (the SHOWUP-194 keyboard sweep).
  */
 @Composable
 private fun Dock(
@@ -265,30 +271,50 @@ private fun Dock(
     onEdit: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().heightIn(max = most).pinnedGlass().testTag(CHAT_DOCK_TAG)) {
-        Composer(ui, date.match.name, onEdit, onSend)
-        // The failure line scrolls with the chips: on a split screen it was cut, fighting the field for
-        // the room. At rest the scroll is at its top, so the line is what shows first.
-        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
-            if (ui.sendFailed) {
-                Text(
-                    ChatCopy.SEND_FAILED,
-                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 6.dp),
-                    color = DangerFg,
-                    fontFamily = Manrope,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp,
-                )
-            }
-            ChipGrid(
-                SHOWN_REASONS,
-                selected = ui.selected,
-                compact = true,
-                surface = ChipSurface.Dock,
-                onPick = onPick,
-                modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 10.dp),
+    val mostPx = with(LocalDensity.current) { most.roundToPx() }
+    Layout(
+        modifier = Modifier.fillMaxWidth().pinnedGlass().testTag(CHAT_DOCK_TAG),
+        content = {
+            Composer(ui, date.match.name, onEdit, onSend)
+            DockChips(ui, onPick)
+        },
+    ) { (field, chips), constraints ->
+        val loose = constraints.copy(minHeight = 0)
+        val f = field.measure(loose.copy(maxHeight = Constraints.Infinity))
+        val c = chips.measure(loose.copy(maxHeight = (mostPx - f.height).coerceAtLeast(0)))
+        layout(constraints.maxWidth, f.height + c.height) {
+            f.place(0, 0)
+            c.place(0, f.height)
+        }
+    }
+}
+
+/**
+ * The failure line and the chips, scrolling together where the dock leaves them less than they need: on
+ * a split screen the line was cut, fighting the field for the room. At rest the scroll is at its top, so
+ * the line is what shows first.
+ */
+@Composable
+private fun DockChips(ui: ChatUi, onPick: (ChatReason, ChipSurface) -> Unit) {
+    Column(Modifier.verticalScroll(rememberScrollState())) {
+        if (ui.sendFailed) {
+            Text(
+                ChatCopy.SEND_FAILED,
+                modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 6.dp),
+                color = DangerFg,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Medium,
+                fontSize = 12.sp,
             )
         }
+        ChipGrid(
+            SHOWN_REASONS,
+            selected = ui.selected,
+            compact = true,
+            surface = ChipSurface.Dock,
+            onPick = onPick,
+            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 10.dp),
+        )
     }
 }
 
@@ -344,7 +370,9 @@ private fun Composer(ui: ChatUi, name: String, onEdit: (String) -> Unit, onSend:
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     if (ui.draft.isEmpty()) {
-                        Text(placeholder, style = FieldText.copy(color = FgSubtle))
+                        // `pretty`: on a 360 phone the locked line split the button's name, `... tap Got` /
+                        // `it` (the 8 Nov 2026 device sweep).
+                        Text(placeholder, modifier = Modifier.prettyWrap(AnnotatedString(placeholder), FieldText), style = FieldText.copy(color = FgSubtle))
                     }
                     // The reference's textarea `max-height: 90`: past it the field scrolls.
                     Box(Modifier.heightIn(max = 90.dp)) { inner() }

@@ -308,9 +308,9 @@ jobs:
       # THE OLDEST iOS ON THE RUNNER, as well as the newest (the 4 Nov 2026 device audit). The step
       # above tests on the newest iPhone runtime, but the app installs from iOS 17.0, and text layout is
       # where versions differ -- the clamped-paragraph bug of 4 Nov 2026 was TextKit behaviour. This
-      # prints every runtime the image holds and runs the Date screen's layout and text tests again on
-      # the oldest. With only one runtime on the image it says so and runs nothing more.
-      - name: Date screen on the oldest iOS runtime
+      # prints every runtime the image holds and runs the Date screen's and the chat's layout and text
+      # tests again on the oldest. With only one runtime on the image it says so and runs nothing more.
+      - name: Date screen and chat on the oldest iOS runtime
         run: |
           set -o pipefail
           xcrun simctl list runtimes
@@ -340,6 +340,7 @@ jobs:
             -clonedSourcePackagesDirPath .spm \
             -skipPackagePluginValidation \
             -only-testing:ShowUpWelcomeTests/DateFitTests \
+            -only-testing:ShowUpWelcomeTests/ChatFitTests \
             -only-testing:ShowUpWelcomeTests/CSSTextLayoutTests \
             test \
             2>&1 | tee xcodebuild-oldest.log \

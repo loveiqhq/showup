@@ -16,6 +16,14 @@ func chatFont(_ name: String, _ size: CGFloat, _ weight: UIFont.Weight) -> UIFon
     TypeMetrics.uiFont(name, size, fallback: .systemFont(ofSize: size, weight: weight))
 }
 
+/// `text` with its last two words joined by a no-break space, so a wrapped line never ends on one word
+/// alone -- for a SwiftUI `Text` or a field's prompt, which `PrettyText` cannot draw. The words and the copy
+/// are unchanged; only where the line may break is.
+func lastWordsTogether(_ text: String) -> String {
+    guard let space = text.lastIndex(of: " ") else { return text }
+    return text.replacingCharacters(in: space...space, with: "\u{00A0}")
+}
+
 /// `[(text, bold)]` runs for `PrettyText` from a paragraph and the parts of it the reference sets bold.
 func boldRuns(_ text: String, _ bold: [String]) -> [(String, Bool)] {
     var marks = [(Range<String.Index>)]()
@@ -55,7 +63,9 @@ struct LockLine: View {
     var body: some View {
         HStack(spacing: 6) {
             BrandIconView(icon: .lock, size: 12, stroke: 2.3, tint: .liqSubtle)
-            Text(text).font(F.manrope(11.5, .semibold)).foregroundColor(.liqSubtle)
+            // Never one word alone on the last line: at 320 it ended `... never what you` / `type.` (the 8 Nov
+            // 2026 device sweep). Android wraps it `pretty`.
+            Text(lastWordsTogether(text)).font(F.manrope(11.5, .semibold)).foregroundColor(.liqSubtle)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
@@ -94,10 +104,11 @@ struct ChatHeader: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(EdgeInsets(top: 4, leading: 10, bottom: 10, trailing: 10))
-        // The header's type grows to AX2 -- about Android's largest, 200 % -- and no further, as a bar's
-        // does. At AX5 its line wrapped to four and the header took 310 of a short window's 380, leaving
-        // less than the field (the SHOWUP-194 fit sweep). The Date screen shows the same time and place.
-        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        // The header's type grows to AX1 -- 165 %, as Android's does -- and no further, as a bar's title
+        // does. At AX5 its line wrapped to four and the header took 310 of a short window's 380; at 200 %
+        // with the keys up on a 320 x 568 screen it took half of what they leave, and the field no longer
+        // fit (the SHOWUP-194 fit and keyboard sweeps). The Date screen shows the same time and place.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .fitPinnedBar()
         .background(Color.liqTabBarGlass.ignoresSafeArea(edges: .top))
         .overlay(alignment: .bottom) { Rectangle().fill(Color.liqBorderSoft).frame(height: 1) }

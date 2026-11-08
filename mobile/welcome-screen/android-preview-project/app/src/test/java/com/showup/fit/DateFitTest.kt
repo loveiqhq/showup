@@ -8,8 +8,9 @@
  * drawn as a placeholder); tomorrow; and after check-in (the End Date bar).
  *
  * THE 4 NOV 2026 DEVICE AUDIT widened it to every phone and every type size there is: the shared
- * list plus [EDGE_DEVICES] (Display Zoom, split screen, unfolded foldables), all seven Android font
- * steps, Android 11 and 15 beside 14 -- and added the Date screen's own rules to the shared ones:
+ * list plus [EDGE_DEVICES] (Display Zoom, split screen, foldables open and folded, 16:9, budget HD+,
+ * the smallest display size, a tablet), all seven Android font steps, every Android from 11 to 15
+ * (8 Nov 2026) -- and added the Date screen's own rules to the shared ones:
  * every touch area 48 dp both ways and none on another, the cards in a column that never overlaps,
  * and the end of the scroll resting above the footer, scrolled there and measured.
  */
@@ -226,11 +227,12 @@ class DateFitTest {
         report(fresh, "date-fit-findings.txt")
     }
 
-    /** The oldest Android the app installs on and the newest Robolectric draws, at the default and the
-     *  largest type: text and drawing differ between Android versions, layouts must not. */
+    /** Every Android the app installs on that Robolectric draws -- 11, 12, 12L and 13, and 15 beside the
+     *  14 above (16 is past this Robolectric) -- at the default and the largest type: text and drawing
+     *  differ between Android versions, layouts must not. */
     @Test
-    @Config(sdk = [30, 35])
-    fun `the Date screen is clean on Android 11 and Android 15 too`() {
+    @Config(sdk = [30, 31, 32, 33, 35])
+    fun `the Date screen is clean on every Android from 11 to 15`() {
         val fresh = mutableListOf<String>()
         for ((name, ui) in frames) for (scale in listOf(1f, 2f)) phones.forEach { d -> fresh += date(ui, d, name, scale) }
         for (scale in listOf(1f, 2f)) phones.forEach { d -> fresh += profile(d, scale) }

@@ -4,10 +4,12 @@
  *
  * A to H as the spec sheet draws them, plus the inputs most likely to break the thread and the dock: a
  * long thread (the end of the scroll must rest above the dock), a long message, D after Got it, and a
- * failed send -- on the 193 audit's 27 sizes, all seven Android font steps, and Android 11 and 15 beside
- * 14. Beyond the shared checks, the 193 rules: every touch area 48 dp and none partly on another, no word
- * broken between its letters; and the chat's own: the dock never covers the thread, the tutorial's and the
- * outcome's CTA on screen, and at 375 x 667 D's guide title and Got it inside the thread once revealed.
+ * failed send -- on every phone of the shared list and [EDGE_DEVICES], all seven Android font steps, and
+ * every Android from 11 to 15; and the chat with the keyboard up on every full-screen phone. Beyond the
+ * shared checks, the 193 rules: every touch area 48 dp and none partly on another, no word broken between
+ * its letters; and the chat's own: the dock never covers the thread and stays above the keys, the
+ * tutorial's and the outcome's CTA on screen, and at 375 x 667 D's guide title and Got it inside the
+ * thread once revealed.
  */
 package com.showup.fit
 
@@ -32,6 +34,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.ZoneId
+import kotlin.math.roundToInt
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -62,8 +65,8 @@ class ChatFitTest {
         "failed send" to ChatSamples.C.copy(sendFailed = true),
     )
 
-    /** The chat's rules, run in each render after the shared ones. */
-    private fun chatRules(guideCheck: Boolean): (FitFrame) -> List<Violation> = { f ->
+    /** The chat's rules, run in each render after the shared ones; [keyboard] is the keys' height, if up. */
+    private fun chatRules(guideCheck: Boolean, keyboard: Int = 0): (FitFrame) -> List<Violation> = { f ->
         val found = mutableListOf<Violation>()
         fun fail(element: String, problem: String, detail: String) {
             found += Violation(f.device, f.screen, element, problem, detail)
@@ -124,13 +127,14 @@ class ChatFitTest {
         if (thread != null && dock != null && thread.bottom > dock.top + SLACK) {
             fail("the thread", "UNDER THE DOCK", "%.1fdp".format(thread.bottom - dock.top))
         }
-        if (dock != null && dock.bottom > f.height + SLACK) {
-            fail("the dock", "OFF THE BOTTOM", "%.1fdp".format(dock.bottom - f.height))
+        if (dock != null && dock.bottom > f.height - keyboard + SLACK) {
+            fail("the dock", if (keyboard > 0) "UNDER THE KEYBOARD" else "OFF THE BOTTOM", "%.1fdp".format(dock.bottom - f.height + keyboard))
         }
 
         // 4. A CTA (the tutorial's, the outcome's) is on screen whole.
         f.tagged(CHAT_CTA_TAG)?.let { cta ->
-            if (cta.bottom > f.height + SLACK || cta.top < -SLACK) fail("the CTA", "OFF SCREEN", "%.1f..%.1f of %.1f".format(cta.top, cta.bottom, f.height))
+            val shown = f.height - keyboard
+            if (cta.bottom > shown + SLACK || cta.top < -SLACK) fail("the CTA", "OFF SCREEN", "%.1f..%.1f of %.1f".format(cta.top, cta.bottom, shown))
         }
 
         // 5. D on the 375 x 667 phone: the guide's title and Got it inside the thread's visible part, once
@@ -162,8 +166,15 @@ class ChatFitTest {
     /** One of the end sheet's two buttons, by its tag. */
     private fun isSheet(name: String) = name.contains(com.showup.chat.END_SHEET_KEEP_TAG) || name.contains(com.showup.chat.END_SHEET_END_TAG)
 
-    private fun run(device: Device, label: String, scale: Float, guideCheck: Boolean = false, content: @androidx.compose.runtime.Composable () -> Unit): List<String> =
-        measureFit(device, "Chat/$label @$scale", scale, 0, extra = chatRules(guideCheck), content = content)
+    private fun run(
+        device: Device,
+        label: String,
+        scale: Float,
+        guideCheck: Boolean = false,
+        keyboard: Int = 0,
+        content: @androidx.compose.runtime.Composable () -> Unit,
+    ): List<String> =
+        measureFit(device, "Chat/$label @$scale", scale, keyboard, extra = chatRules(guideCheck, keyboard), content = content)
             .filterNot { it.advisory }
             // The shared harness holds every control to 44; the dock's chips are the ticket's 36 (rule 1 above).
             .filterNot { it.problem == "TAP TARGET TOO SMALL" && isDockChip(it.element) }
@@ -210,17 +221,44 @@ class ChatFitTest {
         report(fresh, "chat-fit-guide.txt")
     }
 
-    /** The oldest Android the app installs on and the newest Robolectric draws, at the default and the largest type. */
+    /** Every Android the app installs on that Robolectric draws -- 11, 12, 12L, 13, and 15 beside the 14
+     *  above (16 is past this Robolectric) -- at the default and the largest type. */
     @Test
-    @Config(sdk = [30, 35])
-    fun `the chat is clean on Android 11 and Android 15 too`() {
+    @Config(sdk = [30, 31, 32, 33, 35])
+    fun `the chat is clean on every Android from 11 to 15`() {
         report(all(listOf(1f, 2f)), "chat-fit-findings-sdk.txt")
     }
+
+    /**
+     * The chat with the keyboard up, on every full-screen phone at the default, a large and the largest
+     * type: the dock and the field above the keys, the thread over the dock, nothing cut. Not the guide
+     * (its field is locked) nor the sheet (it covers the dock). Not a split screen's top half either:
+     * the keys cover the other app, and this window keeps its size.
+     */
+    @Test
+    fun `the chat with the keyboard up is clean on every phone`() {
+        val typing = chats.filter { (name, _) -> name !in setOf("B start", "D guide", "F end sheet") }
+        val fresh = mutableListOf<String>()
+        for (scale in listOf(1f, 1.3f, 2f)) phones.filter { it.height >= FULL_SCREEN_DP }.forEach { d ->
+            val keys = keyboardOn(d)
+            for ((name, ui) in typing) {
+                fresh += run(d, "$name, keyboard $keys", scale, keyboard = keys) {
+                    ChatScreen(ui, berlin, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})
+                }
+            }
+        }
+        report(fresh, "chat-fit-keyboard.txt")
+    }
+
+    /** The keys' height on [d]: about two fifths of a phone, as Gboard and the iOS keyboard take, 250 to 330. */
+    private fun keyboardOn(d: Device) = (d.height * 0.38f).roundToInt().coerceIn(250, 330)
 
     private companion object {
         /** Android's touch floor: Material's 48, as `android-preview-project/CLAUDE.md` states it. */
         const val ANDROID_TAP_DP = 48f
         const val SLACK = 0.75f
+        /** A window this tall or taller is a whole phone; a split screen's half is under it. */
+        const val FULL_SCREEN_DP = 500
         /** The thread's padding while the guide waits (6 above, 6 below), and the 12 over the guide. */
         const val GUIDE_PADDING = 12f
         val DOCK_CHIP_TAGS = SHOWN_REASONS.map { com.showup.chat.chipTag(it, com.showup.chat.ChipSurface.Dock) }

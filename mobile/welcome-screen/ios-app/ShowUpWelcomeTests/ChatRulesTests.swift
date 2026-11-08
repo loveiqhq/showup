@@ -123,6 +123,13 @@ final class ChatRulesTests: XCTestCase {
         XCTAssertEqual(outcomeRoute(outcome, photoURL: nil), .dateEnded(outcome, photoURL: nil))
     }
 
+    func testTheLastTwoWordsStayTogetherAndNothingElseChanges() {
+        XCTAssertEqual(lastWordsTogether("Read the note above, then tap Got it"), "Read the note above, then tap Got\u{00A0}it")
+        XCTAssertEqual(lastWordsTogether("Alone"), "Alone")
+        XCTAssertEqual(lastWordsTogether("Read the note above, then tap Got it").replacingOccurrences(of: "\u{00A0}", with: " "),
+                       "Read the note above, then tap Got it")
+    }
+
     func testTheOutcomesOwnPhotoWinsAndTheHeldDatesStandsInWhenItHasNone() {
         let held = URL(string: "https://x/held.jpg")
         let own = URL(string: "https://x/own.jpg")

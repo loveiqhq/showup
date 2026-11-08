@@ -7,8 +7,9 @@
 // time + place), and the footer bar on the screen.
 //
 // THE 4 NOV 2026 DEVICE AUDIT widened it to every phone and every type size there is -- the shared
-// list plus `edgeFitDevices` (Display Zoom, split screen, unfolded foldables), the default size, the
-// largest standard one and three accessibility sizes up to AX5 -- and added Android's new rules:
+// list plus `edgeFitDevices` (Display Zoom, split screen, foldables open and folded, 16:9, budget HD+,
+// the smallest display size, a tablet) and, since 8 Nov 2026, all twelve Dynamic Type sizes from xSmall
+// to AX5 -- and added Android's new rules:
 // every touch area 44 both ways and none partly on another, cards that never overlap, the screen
 // exactly the phone's width, and the end of the scroll resting above the footer.
 
@@ -69,8 +70,8 @@ final class DateFitTests: XCTestCase {
     /// Every phone: the shared list and the edge cases it does not hold yet.
     private var phones: [FitDevice] { fitDevices + edgeFitDevices }
 
-    /// The default size, the largest standard size, and three accessibility sizes up to the largest.
-    private let types: [DynamicTypeSize] = [.large, .xxxLarge, .accessibility1, .accessibility3, .accessibility5]
+    /// Every Dynamic Type size there is, xSmall to AX5: the seven standard and the five accessibility sizes.
+    private let types = DynamicTypeSize.allCases
 
     private var frames: [(String, DateUi)] {
         var long = DateSamples.date
