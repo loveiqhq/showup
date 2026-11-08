@@ -6,8 +6,7 @@
 // on every full-screen phone. The 193 rules -- every touch area 44 both ways and none partly on another --
 // and the chat's own: the dock under the thread, never over it, and above the keys; the tutorial's and the
 // outcome's CTA on screen; and on the 375 x 667 phone D's guide and Got it inside the thread once
-// revealed. The dock's chips are the one touch area allowed under 44: the ticket fixes them 36 high, 6
-// apart.
+// revealed. The dock's chips keep the 44 floor too, since they were raised from the ticket's 36 (9 Nov 2026).
 
 import XCTest
 import SwiftUI
@@ -101,8 +100,10 @@ final class ChatFitTests: XCTestCase {
             let inDock = dock.map { d in
                 tap.frame.minY >= d.minY - 0.5 && tap.frame.minX >= d.minX - 0.5 && tap.frame.maxX <= d.maxX + 0.5
             } == true
-            let dockChip = inDock && tap.frame.height >= 35
-            if !dockChip {
+            // The dock's chips keep the floor too (raised from the ticket's 36, 9 Nov 2026); only a chip scrolled
+            // out of the dock -- out of sight -- is not judged.
+            let scrolledAway = inDock && dock.map { tap.frame.minY >= $0.maxY - 0.5 } == true
+            if !scrolledAway {
                 failures.append("\(tag): a touch area \(tap.frame.width) x \(tap.frame.height) at \(tap.frame.origin), under 44")
             }
         }

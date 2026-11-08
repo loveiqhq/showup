@@ -2,7 +2,7 @@
  * ChatScreenTest.kt
  * ShowUp · the coordinate chat's structure (SHOWUP-194): B, C, the guide, the card and the sheet
  *
- * Measured from the laid-out nodes where the ticket gives a number (two columns, chips 36 high, Keep
+ * Measured from the laid-out nodes where the ticket gives a number (two columns, chips 48 high, Keep
  * above End), read from the tree where it gives a string.
  */
 package com.showup.chat
@@ -93,13 +93,14 @@ class ChatScreenTest {
     }
 
     @Test
-    fun `the dock has no heading line, five chips, and each chip is 36 high`() = runComposeUiTest {
+    // 48, Android's touch floor, as every other control: the ticket's 36 was raised on 9 Nov 2026 (Esma).
+    fun `the dock has no heading line, five chips, and each chip is 48 high`() = runComposeUiTest {
         setContent { Screen(ChatSamples.C) }
         onAllNodesWithText("Tap a chip", substring = true).assertCountEquals(0)
         onAllNodesWithText("Quick", substring = true).assertCountEquals(0)
         for (r in SHOWN_REASONS) {
             val node = onNodeWithTag(chipTag(r, ChipSurface.Dock), useUnmergedTree = true).fetchSemanticsNode()
-            assertEquals("${r.wire} is 36 high", 36f, node.size.height / node.layoutInfo.density.density, 0.5f)
+            assertEquals("${r.wire} is 48 high", 48f, node.size.height / node.layoutInfo.density.density, 0.5f)
         }
         onAllNodesWithText(ChatReason.Arrived.label).assertCountEquals(0)
     }

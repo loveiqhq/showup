@@ -329,7 +329,9 @@ struct ThreadScroll<Messages: View, Foot: View>: View {
 // MARK: - BigActionChip
 
 /// The reference's `BigActionChip`: a tile on the start grid (pad 15, radius 18, at least 68, icon box 42 / 13
-/// with the icon 21, label 15 / 700) or the dock's compact chip (pad 4 10 4 5, radius 11, at least 36, icon box
+/// with the icon 21, label 15 / 700) or the dock's compact chip (radius 13, at least 44 -- the touch floor, raised
+/// from the ticket's 36 on 9 Nov 2026 -- icon box 30 / 9 with the icon 16, label 13 / 700; was: pad 4 10 4 5, radius
+/// 11, at least 36, icon box
 /// 26 / 8 with the icon 14, label 11.5 / 700). Selected: the tone's fill and a border in the tone's ink;
 /// otherwise white with the tone's chip border. The small shadow either way. The full label always.
 struct BigActionChip: View {
@@ -341,13 +343,13 @@ struct BigActionChip: View {
 
     var body: some View {
         let tone = reason.tone
-        let radius: CGFloat = compact ? 11 : 18
+        let radius: CGFloat = compact ? 13 : 18
         let shape = RoundedRectangle(cornerRadius: radius)
-        let size: CGFloat = compact ? 11.5 : 15
+        let size: CGFloat = compact ? 13 : 15
         Button(action: onTap) {
-            HStack(spacing: compact ? 8 : 12) {
-                IconTile(size: compact ? 26 : 42, radius: compact ? 8 : 13, fill: tone.bg, icon: reason.icon,
-                         iconSize: compact ? 14 : 21, tint: tone.fg, stroke: 2.3)
+            HStack(spacing: compact ? 9 : 12) {
+                IconTile(size: compact ? 30 : 42, radius: compact ? 9 : 13, fill: tone.bg, icon: reason.icon,
+                         iconSize: compact ? 16 : 21, tint: tone.fg, stroke: 2.3)
                 // The full label always: it wraps, and a word wider than its column shrinks rather than break,
                 // as Android's `fitWordsOf`.
                 FitWords(text: reason.label, font: { s in F.manrope(size * s, .bold) }) { s in
@@ -363,9 +365,11 @@ struct BigActionChip: View {
             // The reference's padding plus the 1.5 border, which CSS counts and SwiftUI only draws: tiles come
             // out 75 tall as the sheet renders them. The compact chip takes the border at its sides only, so
             // its label wraps as the reference's and it stays the ticket's 36 high.
-            .padding(compact ? EdgeInsets(top: 4, leading: 6.5, bottom: 4, trailing: 11.5)
+            .padding(compact ? EdgeInsets(top: 5, leading: 9.5, bottom: 5, trailing: 13.5)
                              : EdgeInsets(top: 16.5, leading: 16.5, bottom: 16.5, trailing: 16.5))
-            .frame(maxWidth: .infinity, minHeight: compact ? 36 : 68, maxHeight: .infinity, alignment: .leading)
+            // The dock chip at the touch floor every other control keeps: 44, raised from the ticket's 36 on
+            // 9 Nov 2026 (Esma).
+            .frame(maxWidth: .infinity, minHeight: compact ? 44 : 68, maxHeight: .infinity, alignment: .leading)
             .background(ShadowedShape(shape: shape, fill: active ? tone.bg : Color.liqElevated, shadows: shadowSm))
             .overlay(shape.strokeBorder(active ? tone.fg : tone.chipBorder, lineWidth: 1.5))
             .contentShape(shape)
@@ -397,7 +401,7 @@ struct ChipGrid: View {
     private let tileChrome: CGFloat = 16.5 * 2 + 42 + 12
 
     var body: some View {
-        let gap: CGFloat = compact ? 6 : 10
+        let gap: CGFloat = compact ? 8 : 10
         if compact {
             rows(columns: 2, gap: gap)
         } else {

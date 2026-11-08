@@ -73,14 +73,11 @@ class ChatFitTest {
         }
         val dock = f.tagged(CHAT_DOCK_TAG)
 
-        // 1. Every touch area 48 dp both ways, none partly on another. THE DOCK'S CHIPS ARE THE ONE
-        // EXCEPTION: the ticket fixes them 36 high, 6 apart, so no area can be 48 without lying on its
-        // neighbour's; Compose gives each the half of the gap nearer it. Reported for Philipp. Where the
-        // chips scroll (a split screen) the last rows sit below the dock's foot, out of sight.
+        // 1. Every touch area 48 dp both ways, none partly on another -- the dock's chips too, since they
+        // were raised from the ticket's 36 to the floor (9 Nov 2026).
         val taps = f.tapTargets()
         taps.forEach { (name, r, _) ->
-            val dockChip = isDockChip(name) && dock != null && r.top >= dock.top - SLACK
-            if (!dockChip && (r.width < ANDROID_TAP_DP - SLACK || r.height < ANDROID_TAP_DP - SLACK)) {
+            if (r.width < ANDROID_TAP_DP - SLACK || r.height < ANDROID_TAP_DP - SLACK) {
                 fail(name, "TAP AREA UNDER 48DP", "%.1f x %.1fdp".format(r.width, r.height))
             }
         }
@@ -176,8 +173,6 @@ class ChatFitTest {
     ): List<String> =
         measureFit(device, "Chat/$label @$scale", scale, keyboard, extra = chatRules(guideCheck, keyboard), content = content)
             .filterNot { it.advisory }
-            // The shared harness holds every control to 44; the dock's chips are the ticket's 36 (rule 1 above).
-            .filterNot { it.problem == "TAP TARGET TOO SMALL" && isDockChip(it.element) }
             .map { "$it" }
 
     private fun all(scales: List<Float>): List<String> {
