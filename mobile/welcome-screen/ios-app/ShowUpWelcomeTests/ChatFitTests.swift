@@ -38,6 +38,13 @@ final class ChatFitTests: XCTestCase {
     /// height, laid in as the bottom inset, as the system lays them.
     private func layout(_ view: some View, on device: FitDevice, type: DynamicTypeSize, settle: TimeInterval = 0.05,
                         keyboard: CGFloat = 0) -> Shot {
+        // Each layout's window and controller let go at once: a sweep lays out thousands, and held to the end
+        // of the test they ran the runner out before the sweep ended (the 8 Nov 2026 CI run, at twelve sizes).
+        autoreleasepool { shot(view, on: device, type: type, settle: settle, keyboard: keyboard) }
+    }
+
+    private func shot(_ view: some View, on device: FitDevice, type: DynamicTypeSize, settle: TimeInterval,
+                      keyboard: CGFloat) -> Shot {
         let sink = Sink()
         let root = view
             .environment(\.dynamicTypeSize, type)
@@ -61,6 +68,7 @@ final class ChatFitTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(settle))
         controller.view.layoutIfNeeded()
         window.isHidden = true
+        window.rootViewController = nil
         return Shot(frames: sink.frames, taps: sink.taps)
     }
 
@@ -115,7 +123,31 @@ final class ChatFitTests: XCTestCase {
         return failures
     }
 
-    func testEveryFrameOfTheChatIsCleanOnEveryPhoneAtEveryTypeSize() {
+    // Every frame on every phone at all twelve sizes, in four tests of a few sizes each: one test of all twelve
+    // ran nineteen minutes and the runner gave out before it ended (the 8 Nov 2026 CI run).
+    func testEveryFrameOfTheChatIsCleanAtTheStandardSizesUpToTheDefault() {
+        sweep([.xSmall, .small, .medium, .large])
+    }
+
+    func testEveryFrameOfTheChatIsCleanAtTheLargerStandardSizes() {
+        sweep([.xLarge, .xxLarge, .xxxLarge])
+    }
+
+    func testEveryFrameOfTheChatIsCleanAtAX1ToAX3() {
+        sweep([.accessibility1, .accessibility2, .accessibility3])
+    }
+
+    func testEveryFrameOfTheChatIsCleanAtAX4AndAX5() {
+        sweep([.accessibility4, .accessibility5])
+    }
+
+    func testTheFourSweepsCoverEveryTypeSize() {
+        let swept: [DynamicTypeSize] = [.xSmall, .small, .medium, .large, .xLarge, .xxLarge, .xxxLarge,
+                                        .accessibility1, .accessibility2, .accessibility3, .accessibility4, .accessibility5]
+        XCTAssertEqual(Set(swept), Set(types))
+    }
+
+    private func sweep(_ types: [DynamicTypeSize]) {
         var failures: [String] = []
         for type in types {
             for device in phones {
