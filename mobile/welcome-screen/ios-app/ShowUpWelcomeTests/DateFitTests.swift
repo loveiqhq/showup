@@ -39,8 +39,13 @@ final class DateFitTests: XCTestCase {
         let taps: [FitTap]
     }
 
-    /// `view` laid out on `device` at `type`.
+    /// `view` laid out on `device` at `type`. Each layout's window and controller let go at once: a sweep lays
+    /// out thousands, and held to the end of the test they ran the runner out (the 8 Nov 2026 CI run).
     private func layout(_ view: some View, on device: FitDevice, type: DynamicTypeSize) -> Shot {
+        autoreleasepool { shot(view, on: device, type: type) }
+    }
+
+    private func shot(_ view: some View, on device: FitDevice, type: DynamicTypeSize) -> Shot {
         let sink = Sink()
         let root = view
             .environment(\.dynamicTypeSize, type)
@@ -64,6 +69,7 @@ final class DateFitTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         controller.view.layoutIfNeeded()
         window.isHidden = true
+        window.rootViewController = nil
         return Shot(frames: sink.frames, taps: sink.taps)
     }
 
@@ -130,7 +136,22 @@ final class DateFitTests: XCTestCase {
         return failures
     }
 
-    func testEveryStateOfTheDateScreenIsCleanOnEveryPhoneAtEveryTypeSize() {
+    // Every state on every phone at all twelve sizes, in six tests of two sizes each: one test of all twelve
+    // ran past the runner's ten minutes a test and was cut off (the 8 Nov 2026 CI run).
+    func testEveryStateOfTheDateScreenIsCleanAtXSmallAndSmall() { sweep([.xSmall, .small]) }
+    func testEveryStateOfTheDateScreenIsCleanAtMediumAndTheDefault() { sweep([.medium, .large]) }
+    func testEveryStateOfTheDateScreenIsCleanAtXLargeAndXXLarge() { sweep([.xLarge, .xxLarge]) }
+    func testEveryStateOfTheDateScreenIsCleanAtXXXLargeAndAX1() { sweep([.xxxLarge, .accessibility1]) }
+    func testEveryStateOfTheDateScreenIsCleanAtAX2AndAX3() { sweep([.accessibility2, .accessibility3]) }
+    func testEveryStateOfTheDateScreenIsCleanAtAX4AndAX5() { sweep([.accessibility4, .accessibility5]) }
+
+    func testTheSixSweepsCoverEveryTypeSize() {
+        let swept: [DynamicTypeSize] = [.xSmall, .small, .medium, .large, .xLarge, .xxLarge, .xxxLarge,
+                                        .accessibility1, .accessibility2, .accessibility3, .accessibility4, .accessibility5]
+        XCTAssertEqual(Set(swept), Set(types))
+    }
+
+    private func sweep(_ types: [DynamicTypeSize]) {
         var failures: [String] = []
         for (name, ui) in frames {
             for type in types {

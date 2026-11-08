@@ -123,25 +123,17 @@ final class ChatFitTests: XCTestCase {
         return failures
     }
 
-    // Every frame on every phone at all twelve sizes, in four tests of a few sizes each: one test of all twelve
-    // ran nineteen minutes and the runner gave out before it ended (the 8 Nov 2026 CI run).
-    func testEveryFrameOfTheChatIsCleanAtTheStandardSizesUpToTheDefault() {
-        sweep([.xSmall, .small, .medium, .large])
-    }
+    // Every frame on every phone at all twelve sizes, in six tests of two sizes each: one test of all twelve ran
+    // past the runner's ten minutes a test and was cut off, and four sizes took 7.4 of them (the 8 Nov 2026 CI
+    // runs).
+    func testEveryFrameOfTheChatIsCleanAtXSmallAndSmall() { sweep([.xSmall, .small]) }
+    func testEveryFrameOfTheChatIsCleanAtMediumAndTheDefault() { sweep([.medium, .large]) }
+    func testEveryFrameOfTheChatIsCleanAtXLargeAndXXLarge() { sweep([.xLarge, .xxLarge]) }
+    func testEveryFrameOfTheChatIsCleanAtXXXLargeAndAX1() { sweep([.xxxLarge, .accessibility1]) }
+    func testEveryFrameOfTheChatIsCleanAtAX2AndAX3() { sweep([.accessibility2, .accessibility3]) }
+    func testEveryFrameOfTheChatIsCleanAtAX4AndAX5() { sweep([.accessibility4, .accessibility5]) }
 
-    func testEveryFrameOfTheChatIsCleanAtTheLargerStandardSizes() {
-        sweep([.xLarge, .xxLarge, .xxxLarge])
-    }
-
-    func testEveryFrameOfTheChatIsCleanAtAX1ToAX3() {
-        sweep([.accessibility1, .accessibility2, .accessibility3])
-    }
-
-    func testEveryFrameOfTheChatIsCleanAtAX4AndAX5() {
-        sweep([.accessibility4, .accessibility5])
-    }
-
-    func testTheFourSweepsCoverEveryTypeSize() {
+    func testTheSixSweepsCoverEveryTypeSize() {
         let swept: [DynamicTypeSize] = [.xSmall, .small, .medium, .large, .xLarge, .xxLarge, .xxxLarge,
                                         .accessibility1, .accessibility2, .accessibility3, .accessibility4, .accessibility5]
         XCTAssertEqual(Set(swept), Set(types))
