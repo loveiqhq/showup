@@ -52,6 +52,13 @@ struct SearchProfileView: View {
     var onConfirmDate: () -> Void = {}
     /// The sorry sheet closed, any way.
     var onRefusedDone: () -> Void = {}
+    /// A profile to look at, nothing to decide (SHOWUP-193: the match, from the Date screen): no action
+    /// bar, no likes chip or Filters, a back pill named `backLabel` that is `onBack`.
+    var readOnly = false
+    var backLabel: String? = nil
+    /// The TabBar's locked tabs while a date is active, and the hint a tap on one shows.
+    var disabledTabs: Set<AppTab> = []
+    var disabledHint: String? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -59,7 +66,7 @@ struct SearchProfileView: View {
         let profile = state.current
         let opened = state.opened
         let fromLikes = opened?.from == .likes
-        let activeTab: AppTab = fromLikes ? .likes : .search
+        let activeTab: AppTab? = readOnly ? nil : (fromLikes ? .likes : .search)
         // Behind any modal, the screen is out of VoiceOver's reach -- the coach's three buttons too.
         let modal = state.coach || state.sheet != nil || state.viewerAt != nil
         ZStack {
@@ -68,23 +75,26 @@ struct SearchProfileView: View {
                     // On the Likes tab: the wordmark and the tag only -- "the chip shows on the Search
                     // and Instant tabs only, never on ... a profile opened from it".
                     SearchTopBar(likes: state.likesBadge, onLikes: onLikesChip, onFilters: onFilters,
-                                 premium: opened != nil, filter: !fromLikes, chip: !fromLikes)
+                                 premium: opened != nil, filter: !fromLikes && !readOnly, chip: !fromLikes && !readOnly)
                     if opened != nil {
                         BackPill(label: fromLikes ? PremiumCopy.allLikes : PremiumCopy.allProfiles, onBack: onBack)
+                    } else if readOnly, let backLabel {
+                        BackPill(label: backLabel, onBack: onBack)
                     }
                 }
                 .accessibilityHidden(modal)
                 .fitAnchor(FitAnchorID.searchTopBar)
                 region(profile)
                     .accessibilityHidden(modal)
-                TabBar(active: activeTab, onTab: onTab, likes: state.likesBadge)
+                TabBar(active: activeTab, onTab: onTab, likes: state.likesBadge,
+                       disabled: disabledTabs, disabledHint: disabledHint)
                     .accessibilityHidden(modal)
                     .fitAnchor(FitAnchorID.tabBar)
                 scrim
                 actionBar(profile)
             }
             // The like sheets' backdrop blur, arriving with the sheet. The coach's scrim has none.
-            .blur(radius: state.sheet != nil ? searchSheetBlur : 0)
+            .blur(radius: state.sheet != nil ? modalShellBlur : 0)
             .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: Motion.sheet), value: state.sheet)
 
             if let profile {
@@ -115,7 +125,7 @@ struct SearchProfileView: View {
         .background(Color.liqCream.ignoresSafeArea())
         // Opened from a list, with nothing over it: the swipe from the edge is the back pill. A sheet,
         // the viewer and the coach each keep the swipe for themselves.
-        .modifier(EdgeSwipeBack(onBack: { if opened != nil && !modal { onBack() } }))
+        .modifier(EdgeSwipeBack(onBack: { if (opened != nil || readOnly) && !modal { onBack() } }))
     }
 
     @ViewBuilder private func region(_ profile: SearchProfile?) -> some View {
@@ -162,7 +172,7 @@ struct SearchProfileView: View {
     }
 
     @ViewBuilder private func actionBar(_ profile: SearchProfile?) -> some View {
-        if profile != nil {
+        if profile != nil && !readOnly {
             SearchActionBar(coach: state.coach, covered: state.coach || state.sheet != nil,
                             likedYou: state.likedYou, onLike: onLike, onPass: onPass,
                             onCoachDone: { dontShow in onCoachDone(.close, dontShow) })

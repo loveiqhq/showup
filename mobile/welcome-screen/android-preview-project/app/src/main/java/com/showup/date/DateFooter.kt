@@ -1,0 +1,331 @@
+/*
+ * DateFooter.kt
+ * ShowUp · the Date screen's sticky footer: the Check-in bar or the End Date bar, over the TabBar
+ * (SHOWUP-193 ⑯ ⑰)
+ *
+ * ONE CONTAINER, swapped on `checkedIn`: the Check-in bar (with its `End date` link) from the match
+ * until check-in, the End Date bar after. The bars are Date 03's and Date 06's -- this ticket's
+ * acceptance criteria draw them here now, and those tickets add what their buttons do. The TabBar is
+ * the shared one, in its disabled state.
+ */
+package com.showup.date
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.showup.designsystem.BorderSoft
+import com.showup.designsystem.Cream
+import com.showup.designsystem.Elevated
+import com.showup.designsystem.Fg
+import com.showup.designsystem.LilacCard
+import com.showup.designsystem.Lora
+import com.showup.designsystem.Manrope
+import com.showup.designsystem.Muted
+import com.showup.designsystem.Purple
+import com.showup.designsystem.ShadowCta
+import com.showup.designsystem.SunsetStops
+import com.showup.designsystem.cssBlurToShadowRadius
+import com.showup.designsystem.cssLineBox
+import com.showup.designsystem.fitWordsOf
+import com.showup.designsystem.pillShadows
+import com.showup.designsystem.prettyWrap
+import com.showup.designsystem.widestWord
+import com.showup.designsystem.wordFitFloor
+import com.showup.welcome.BrandIcon
+import com.showup.welcome.Icon
+
+const val DATE_FOOTER_BAR_TAG = "date:footer-bar"
+
+/** Below this the bar's text column is too narrow to read, and its action takes its own line. */
+private val BAR_TEXT_MIN = 140.dp
+
+/**
+ * [lead] (the tile and the text) and [action] on one row, `gap` apart and centred, while [lead] keeps
+ * at least [BAR_TEXT_MIN] and [leadLeast] -- the width its text keeps every word whole in; otherwise
+ * [action] goes under it, full width. Words never truncate: at 2x type on a narrow phone the layout
+ * yields instead.
+ */
+@Composable
+private fun BarRow(gap: Dp, leadLeast: Dp, lead: @Composable () -> Unit, action: @Composable () -> Unit) {
+    androidx.compose.ui.layout.Layout(contents = listOf(lead, action)) { (l, a), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val gapPx = gap.roundToPx()
+        val actionNatural = a.first().maxIntrinsicWidth(constraints.maxHeight.coerceAtMost(10_000))
+        val room = constraints.maxWidth - actionNatural - gapPx
+        if (room >= maxOf(BAR_TEXT_MIN, leadLeast).roundToPx()) {
+            val actionP = a.first().measure(loose)
+            val leadP = l.first().measure(loose.copy(maxWidth = room))
+            val h = maxOf(leadP.height, actionP.height)
+            layout(constraints.maxWidth, h) {
+                leadP.place(0, (h - leadP.height) / 2)
+                actionP.place(constraints.maxWidth - actionP.width, (h - actionP.height) / 2)
+            }
+        } else {
+            val leadP = l.first().measure(loose)
+            val actionP = a.first().measure(loose.copy(minWidth = constraints.maxWidth))
+            layout(constraints.maxWidth, leadP.height + gapPx + actionP.height) {
+                leadP.place(0, 0)
+                actionP.place(0, leadP.height + gapPx)
+            }
+        }
+    }
+}
+
+/**
+ * The narrowest [BarRow] lead whose text keeps every word whole: the tile and its gap, and the widest
+ * word of each text at the least [fitWordsOf] shrinks it to. On the Galaxy Z Fold 5's cover screen
+ * (344) at 180 % the row left the title 98 and a long name broke inside a word -- stacked, it fit (the
+ * 8 Nov 2026 device sweep). Measured, so the bar stacks there and nowhere it did not before.
+ */
+@Composable
+private fun barLeadLeast(tile: Dp, vararg texts: Pair<String, TextStyle>): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val floor = wordFitFloor()
+    val widest = remember(texts.toList(), density) { texts.maxOf { (text, style) -> widestWord(measurer, text, style) } }
+    return tile + with(density) { (widest * floor).toDp() }
+}
+
+/**
+ * `rgba(29,17,41,.86)` over `backdrop-filter: blur(20px)`: the kit's bar blurs what scrolls behind it
+ * into its own tint, which over this screen's cream is the ink at .86 laid on cream. Compose has no
+ * backdrop blur, and the glass alone let the cards' text read through the bar; this is the colour
+ * the blurred glass shows.
+ */
+private val BarInk = Fg.copy(alpha = 0.86f).compositeOver(Cream)
+
+/** `0 -6px 24px rgba(29,17,41,.22)`: the Check-in bar's shadow, cast upward over the scroll. */
+private val BarShadow = Fg.copy(alpha = 0.22f)
+
+/**
+ * The bar's upward shadow, OUTSIDE its rounded top only, as CSS draws an outer `box-shadow`: the
+ * shape is drawn far off-canvas with its shadow offset back into place, so only the shadow lands,
+ * and the bar's own area and everything below its top edge are clipped out.
+ */
+private fun Modifier.barShadow(radius: Dp): Modifier = drawBehind {
+    val r = radius.toPx()
+    val far = 100_000f
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.BLACK
+        setShadowLayer(cssBlurToShadowRadius(24.dp.toPx()), -far, -6.dp.toPx(), BarShadow.toArgb())
+    }
+    val shape = android.graphics.Path().apply {
+        addRoundRect(0f, 0f, size.width, size.height, floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f), android.graphics.Path.Direction.CW)
+    }
+    drawIntoCanvas { canvas ->
+        val n = canvas.nativeCanvas
+        n.save()
+        n.clipRect(-far, -far, size.width + far, r)
+        n.clipOutPath(shape)
+        n.drawRoundRect(far, 0f, far + size.width, size.height + r, r, r, paint)
+        n.restore()
+    }
+}
+
+/**
+ * The Check-in bar (Date 03's, from the reference's `CheckInBar`): deep ink, top corners 22, a map pin
+ * tile, `Your date with {name}`, the sunset `Check-in` pill, and the `End date` link under it -- which
+ * opens the same wrap-up sheet as the End Date bar (2 Nov 2026), never the cancel flow.
+ */
+@Composable
+internal fun CheckInBar(name: String, onCheckIn: () -> Unit, onEndDate: () -> Unit) {
+    val title = DateCopy.BAR_TITLE.format(name)
+    val titleStyle = TextStyle(fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+    // `textWrap: 'pretty'`, as both bars' sublines.
+    val sub = TextStyle(color = Color.White, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = (12.5 * 1.4).sp)
+    val leadLeast = barLeadLeast(46.dp + 14.dp, title to titleStyle, DateCopy.CHECK_IN_BAR_SUB to sub)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .barShadow(22.dp)
+            .background(BarInk, RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 10.dp)
+            .testTag(DATE_FOOTER_BAR_TAG),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        BarRow(
+            gap = 14.dp,
+            leadLeast = leadLeast,
+            lead = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(46.dp, 14.dp, SolidColor(Color.White.copy(alpha = 0.12f)), BrandIcon.MapPin, 22.dp, Color.White, 2.2f)
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            title,
+                            modifier = Modifier
+                                .fitWordsOf(title, titleStyle)
+                                .cssLineBox((18 * 1.15).sp),
+                            color = Color.White,
+                            fontFamily = Lora,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            lineHeight = (18 * 1.15).sp,
+                        )
+                        Text(
+                            DateCopy.CHECK_IN_BAR_SUB,
+                            modifier = Modifier
+                                .padding(top = 3.dp)
+                                .fitWordsOf(DateCopy.CHECK_IN_BAR_SUB, sub)
+                                .prettyWrap(AnnotatedString(DateCopy.CHECK_IN_BAR_SUB), sub)
+                                .cssLineBox(sub.lineHeight),
+                            style = sub,
+                        )
+                    }
+                }
+            },
+            action = {
+                // Drawn 46 as the reference, answering at 48 over it: a 48 pill would grow the bar.
+                DrawnSmall(DateCopy.CHECK_IN, onCheckIn) { press ->
+                    Box(
+                        press
+                            .height(46.dp)
+                            .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), ShadowCta)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            DateCopy.CHECK_IN,
+                            color = Color.White,
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                }
+            },
+        )
+        DrawnSmall(DateCopy.END_DATE_LINK, onEndDate, Modifier.align(Alignment.CenterHorizontally)) { press ->
+            Text(
+                DateCopy.END_DATE_LINK,
+                modifier = press.padding(horizontal = 12.dp, vertical = 8.dp),
+                color = LilacCard,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+            )
+        }
+    }
+}
+
+/**
+ * The End Date bar (Date 06's, the reference's `DateStatusBar`, not complete): cream glass, a 1 px
+ * border-soft top rule, a calendar tile, and the outlined `End Date` pill.
+ */
+@Composable
+internal fun DateStatusBar(name: String, onEndDate: () -> Unit) {
+    val title = DateCopy.BAR_TITLE.format(name)
+    val titleStyle = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+    val sub = TextStyle(color = Muted, fontFamily = Manrope, fontSize = 11.5.sp, lineHeight = (11.5 * 1.35).sp)
+    val leadLeast = barLeadLeast(38.dp + 12.dp, title to titleStyle, DateCopy.END_BAR_SUB to sub)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(Cream.copy(alpha = 0.96f))
+            .drawBehind { drawRect(BorderSoft, size = Size(size.width, 1.dp.toPx())) }
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .testTag(DATE_FOOTER_BAR_TAG),
+    ) {
+        BarRow(
+            gap = 12.dp,
+            leadLeast = leadLeast,
+            lead = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(38.dp, 12.dp, SolidColor(Purple.copy(alpha = 0.10f)), BrandIcon.Calendar, 19.dp, Purple, 2.1f)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            title,
+                            modifier = Modifier.fitWordsOf(title, titleStyle),
+                            color = Fg,
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp,
+                        )
+                        Text(
+                            DateCopy.END_BAR_SUB,
+                            modifier = Modifier
+                                .fitWordsOf(DateCopy.END_BAR_SUB, sub)
+                                .prettyWrap(AnnotatedString(DateCopy.END_BAR_SUB), sub)
+                                .cssLineBox(sub.lineHeight),
+                            style = sub,
+                        )
+                    }
+                }
+            },
+            action = {
+                // Drawn 40 tall as the reference.
+                DrawnSmall(DateCopy.END_DATE, onEndDate) { press ->
+                Box(
+                    Modifier
+                        .height(40.dp)
+                        .then(press)
+                        .background(Elevated, RoundedCornerShape(50))
+                        .border(1.5.dp, Purple, RoundedCornerShape(50))
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        DateCopy.END_DATE,
+                        color = Purple,
+                        fontFamily = Manrope,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+                }
+            },
+        )
+    }
+}
+
+/** ⑯ The bar for [checkedIn]: the Check-in bar before check-in, the End Date bar after. */
+@Composable
+internal fun DateBar(
+    checkedIn: Boolean,
+    name: String,
+    onCheckIn: () -> Unit,
+    onEndDate: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.fillMaxWidth()) {
+        if (checkedIn) DateStatusBar(name, onEndDate) else CheckInBar(name, onCheckIn, onEndDate)
+    }
+}

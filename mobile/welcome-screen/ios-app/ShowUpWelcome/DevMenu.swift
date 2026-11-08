@@ -21,6 +21,7 @@ enum DevSection: String, CaseIterable {
     case reachable = "Reachability and location"
     case details = "Share some details"
     case checkIn = "48hrs Check-In"
+    case date = "The date"
     case home = "Home"
 }
 
@@ -50,6 +51,7 @@ extension FlowScreen {
              .checkInVibe, .checkInFilters, .checkInUplift, .checkInSearch, .searchFilters, .likesReceived,
              .checkInSettings:
             return .checkIn
+        case .date: return .date
         case .home: return .home
         }
     }
@@ -98,6 +100,7 @@ extension FlowScreen {
         case .searchFilters: return "Search · Filters"
         case .likesReceived: return "Likes tab (Premium)"
         case .checkInSettings: return "Settings (placeholder)"
+        case .date: return "Date 01 · Date screen"
         case .home: return "Home (placeholder)"
         }
     }
@@ -105,7 +108,7 @@ extension FlowScreen {
     /// Whether the screen reads or writes the account. Signed out, every save on it fails.
     var needsAccount: Bool {
         switch devSection {
-        case .basics, .realYou, .reachable, .details, .checkIn: return true
+        case .basics, .realYou, .reachable, .details, .checkIn, .date: return true
         case .signUp, .tutorial, .home: return false
         }
     }
@@ -210,6 +213,8 @@ struct DevMenu: View {
     let onClose: () -> Void
     /// The plan switch: the server's dev-only route, a 404 in production.
     var onPremium: (Bool) -> Void = { _ in }
+    /// The Date actions (SHOWUP-193, and the chat's, SHOWUP-194): each a dev-server route.
+    var onDateAction: (DevDateAction) -> Void = { _ in }
 
     private enum Page { case screens, states, events }
     @State private var page = Page.screens
@@ -272,6 +277,16 @@ struct DevMenu: View {
                     }
                     .tint(.liqPurple)
                     .frame(minHeight: ComponentSizes.minTapTarget)
+                }
+                // The test date with Leonie and her side of the chat (SHOWUP-193 and 194): dev-server
+                // routes on this account, so signed in only, as on Android.
+                if facts.signedIn == true {
+                    Text("THE DATE").font(F.manrope(11, .bold)).foregroundColor(.liqSubtle)
+                        .padding(.top, Spacing.xl).padding(.bottom, Spacing.sm)
+                    ForEach(DevDateAction.allCases, id: \.self) { action in
+                        Button(action.label) { onDateAction(action) }
+                            .frame(minHeight: ComponentSizes.minTapTarget)
+                    }
                 }
                 ForEach(DevSection.allCases, id: \.self) { section in
                     Text(section.rawValue.uppercased())
@@ -424,3 +439,20 @@ struct DevMenu: View {
     }
 }
 #endif
+
+/// The developer menu's Date actions (SHOWUP-193, which iOS lacked until 194, and the chat's), each a
+/// dev-server route. Android's `DevDateAction`, with the same labels.
+enum DevDateAction: CaseIterable, Hashable, Sendable {
+    case createIn180, createIn60, message, matchCantMakeIt, matchEndsInChat, end
+
+    var label: String {
+        switch self {
+        case .createIn180: return "Test date in 3 hours (A, locked)"
+        case .createIn60: return "Test date in 1 hour (B, chat open)"
+        case .message: return "Message from Leonie (C, needs B)"
+        case .matchCantMakeIt: return "Leonie can't make it (End date card, needs B)"
+        case .matchEndsInChat: return "Leonie ends the date in the chat (H, needs her can't-make-it)"
+        case .end: return "End test date"
+        }
+    }
+}

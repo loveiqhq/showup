@@ -1,6 +1,7 @@
 import {
   CHAT_OPENS_MINUTES_BEFORE,
   ChatReason,
+  SENDABLE_REASONS,
   chatOpensAt,
   chatWindowError,
   isChatOpen,
@@ -74,17 +75,32 @@ describe('pre-date chat rules (SHOWUP-115)', () => {
   });
 
   describe('ChatReason', () => {
-    it('has exactly the six preset reasons from the design', () => {
-      expect(Object.values(ChatReason).sort()).toEqual(
+    it("is the registry's §40 chat_reason, in grid order (Date 02)", () => {
+      expect(Object.values(ChatReason)).toEqual([
+        'on_my_way',
+        'arrived',
+        'cant_find',
+        'when_arrive',
+        'change_time',
+        'change_place',
+        'running_late',
+        'cant_make_it',
+      ]);
+    });
+
+    it('sends every reason but the two that open the Date 05 picker', () => {
+      expect([...SENDABLE_REASONS].sort()).toEqual(
         [
-          'cant_find_you',
-          'cant_make_it_today',
-          'change_location',
-          'change_meet_time',
+          'arrived',
+          'cant_find',
+          'cant_make_it',
           'on_my_way',
           'running_late',
+          'when_arrive',
         ].sort(),
       );
+      expect(SENDABLE_REASONS.has(ChatReason.ChangeTime)).toBe(false);
+      expect(SENDABLE_REASONS.has(ChatReason.ChangePlace)).toBe(false);
     });
   });
 });

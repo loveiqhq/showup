@@ -15,6 +15,9 @@ export const QUEUE_CHECK_IN_EXPIRY_NOTIFY = 'check-in-expiry-notify';
 /** Like expiry (Search 03): closes open likes whose two Check-Ins have no meet hour left. */
 export const QUEUE_LIKE_EXPIRY = 'like-expiry';
 
+/** Coordinate unlock (Date 01): sends `coordinate_unlocked` at meet − 1:30, once per date. */
+export const QUEUE_COORDINATE_UNLOCK = 'coordinate-unlock';
+
 /**
  * Default options applied to every job (SHOWUP-94/95):
  *  - `attempts` + exponential `backoff`: a failed job is retried a few times, spaced further apart.

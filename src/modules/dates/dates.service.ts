@@ -1,28 +1,42 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { EndedInChatDto } from '../date-screen/dto/active-date.dto';
+import { cantMakeItFrom } from './util/end-in-chat';
+import { firstName } from '../search/util/search-profile';
+import { Profile } from '../profiles/entities/profile.entity';
+import { Match } from '../matching/entities/match.entity';
+import { MatchStatus, orderedUserPair } from '../matching/util/match';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, In, IsNull, Repository } from 'typeorm';
 
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
+  coordinateUnlockedEvent,
   dateCancelledEvent,
   dateCompletedEvent,
   dateConfirmedEvent,
+  dateEndedInChatEvent,
 } from '../analytics/events/date-events';
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { LocationService } from '../location/location.service';
 import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
+import { dueForUnlock, minutesBeforeStart } from './util/coordinate-unlock';
 import { reviewWindowError } from './util/date-review';
 import { dateLocksUser } from './util/date-lock';
 import { DateStatus, transitionError } from './util/date-lifecycle';
 import { noShowReportError } from './util/no-show';
-import { ChatReason, chatWindowError } from './util/pre-date-chat';
+import {
+  ChatReason,
+  SENDABLE_REASONS,
+  chatWindowError,
+} from './util/pre-date-chat';
 
 @Injectable()
 export class DatesService {
@@ -33,6 +47,10 @@ export class DatesService {
     private readonly history: Repository<DateStatusChange>,
     @InjectRepository(DateChatMessage)
     private readonly chat: Repository<DateChatMessage>,
+    @InjectRepository(Profile)
+    private readonly profiles: Repository<Profile>,
+    @InjectRepository(Match)
+    private readonly matches: Repository<Match>,
     private readonly checkIns: CheckInsService,
     private readonly location: LocationService,
     private readonly analytics: AnalyticsService,
@@ -256,38 +274,196 @@ export class DatesService {
   async sendChatMessage(
     dateId: string,
     userId: string,
-    reason: ChatReason,
-    body?: string,
+    reason: ChatReason | null,
+    body: string,
   ): Promise<DateChatMessage> {
+    if (reason !== null && !SENDABLE_REASONS.has(reason)) {
+      throw new BadRequestException(
+        'This reason opens the change picker; it is never a message',
+      );
+    }
     const date = await this.participantDate(dateId, userId);
     if (date.status !== DateStatus.Confirmed) {
-      throw new BadRequestException(
-        'The chat is only open for an upcoming date',
-      );
+      throw new ConflictException('The chat has closed: the date is over');
     }
     const windowError = chatWindowError(date.scheduledAt);
     if (windowError) throw new BadRequestException(windowError);
 
     return this.chat.save(
-      this.chat.create({
-        dateId: date.id,
-        senderId: userId,
-        reason,
-        body: body ?? null,
-      }),
+      this.chat.create({ dateId: date.id, senderId: userId, reason, body }),
     );
   }
 
-  /** SHOWUP-115 — the chat messages on a date, oldest first. Only a participant may read them. */
+  /**
+   * The chat messages on a date, oldest first, and when the OTHER person last read the chat (the
+   * receipt on the caller's own messages, Date 02). Only a participant may read them.
+   */
   async listChatMessages(
     dateId: string,
     userId: string,
-  ): Promise<DateChatMessage[]> {
-    await this.participantDate(dateId, userId);
-    return this.chat.find({
+  ): Promise<{ messages: DateChatMessage[]; otherReadAt: Date | null }> {
+    const date = await this.participantDate(dateId, userId);
+    const messages = await this.chat.find({
       where: { dateId },
       order: { createdAt: 'ASC' },
     });
+    const otherReadAt =
+      date.userAId === userId ? date.bChatReadAt : date.aChatReadAt;
+    return { messages, otherReadAt };
+  }
+
+  /**
+   * Sends `coordinate_unlocked` for every date whose meet − 1:30 has come (Date 01, SHOWUP-193).
+   * Run once a minute by the unlock job. Returns how many dates unlocked.
+   *
+   * ONCE PER DATE, HOWEVER MANY WORKERS RUN IT: the stamp is set by a conditional UPDATE that only
+   * an unstamped row passes, and only the rows it returned are reported. Both people get the event.
+   */
+  async unlockDueCoordinates(now: Date = new Date()): Promise<number> {
+    const candidates = await this.dates.find({
+      where: {
+        status: DateStatus.Confirmed,
+        coordinateUnlockedAt: IsNull(),
+        scheduledAt: Between(now, new Date(now.getTime() + 90 * 60_000)),
+      },
+    });
+    const due = dueForUnlock(candidates, now);
+    if (due.length === 0) return 0;
+    const [stamped] = await this.dates.query<
+      [
+        Array<{ user_a_id: string; user_b_id: string; scheduled_at: Date }>,
+        number,
+      ]
+    >(
+      `UPDATE "dates" SET "coordinate_unlocked_at" = $1
+        WHERE "id" = ANY($2::uuid[]) AND "coordinate_unlocked_at" IS NULL
+        RETURNING "user_a_id", "user_b_id", "scheduled_at"`,
+      [now, due],
+    );
+    for (const d of stamped) {
+      const event = coordinateUnlockedEvent(
+        minutesBeforeStart(new Date(d.scheduled_at), now),
+      );
+      for (const userId of [d.user_a_id, d.user_b_id]) {
+        void this.analytics.trackServerEvent({ userId, ...event });
+      }
+    }
+    return stamped.length;
+  }
+
+  /** Stamps the caller's read time on the date's chat (Date 01). Only a participant may. */
+  async markChatRead(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const date = await this.participantDate(dateId, userId);
+    await this.dates.update(
+      { id: date.id },
+      date.userAId === userId ? { aChatReadAt: now } : { bChatReadAt: now },
+    );
+  }
+
+  /**
+   * The caller tapped "Open the chat" on this date's tutorial (Date 02). The first tap is the one
+   * kept; later calls change nothing.
+   */
+  async markChatTutorialSeen(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const date = await this.participantDate(dateId, userId);
+    const isA = date.userAId === userId;
+    if ((isA ? date.aChatTutorialAt : date.bChatTutorialAt) !== null) return;
+    await this.dates.update(
+      { id: date.id },
+      isA ? { aChatTutorialAt: now } : { bChatTutorialAt: now },
+    );
+  }
+
+  /**
+   * Ends the date for both people from the chat (Date 02): only a `confirmed` date with an "I can't
+   * make it today" message in its thread, at any time until it has ended -- there is no cut-off at the
+   * meet time. No review follows and nobody's Show-up Rate moves: nothing here touches a rating, a
+   * confirmation or a no-show field. Both people are released: the date lock by the status, and
+   * Search's "has a date" by the pair's match, which is cancelled with it.
+   * `date_ended_in_chat` is sent once; `date_cancelled` never is.
+   */
+  async endInChat(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<EndedInChatDto> {
+    const date = await this.participantDate(dateId, userId);
+    if (date.status !== DateStatus.Confirmed) {
+      throw new ConflictException('This date has already ended');
+    }
+    const messages = await this.chat.find({
+      where: { dateId: date.id },
+      order: { createdAt: 'ASC' },
+      select: { senderId: true, reason: true, createdAt: true },
+    });
+    const from = cantMakeItFrom(messages, userId);
+    if (from === null) {
+      throw new ConflictException(
+        'A date can be ended from the chat only after an "I can\'t make it today" message',
+      );
+    }
+    // Conditional on the status, so a second tap -- or the other person's -- ends it once.
+    const ended = await this.dates.update(
+      { id: date.id, status: DateStatus.Confirmed },
+      { status: DateStatus.EndedInChat, endedById: userId, endedAt: now },
+    );
+    if (!ended.affected) {
+      throw new ConflictException('This date has already ended');
+    }
+    // The pair's match ends with the date. Search, Likes and Instant read an active match from the
+    // open Check-In as "has a date", so the date's status alone left both shut out until their
+    // Check-Ins closed, up to 48 h (the SHOWUP-194 review). Dates are saved with no match id, so
+    // the pair finds it.
+    const [userAId, userBId] = orderedUserPair(date.userAId, date.userBId);
+    await this.matches.update(
+      { userAId, userBId, status: MatchStatus.Active },
+      { status: MatchStatus.Cancelled },
+    );
+    await this.logChange(
+      date.id,
+      DateStatus.Confirmed,
+      DateStatus.EndedInChat,
+      userId,
+    );
+    void this.analytics.trackServerEvent({
+      userId,
+      ...dateEndedInChatEvent(
+        date.id,
+        from,
+        minutesBeforeStart(date.scheduledAt, now),
+      ),
+    });
+
+    const partnerId = date.userAId === userId ? date.userBId : date.userAId;
+    const profile = await this.profiles.findOne({
+      where: { userId: partnerId },
+    });
+    return {
+      dateId: date.id,
+      name: firstName(profile?.displayName ?? null),
+      endedByYou: true,
+    };
+  }
+
+  /** The caller has seen their outcome screen for a date ended in the chat (Date 02). Idempotent. */
+  async markEndSeen(
+    dateId: string,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const date = await this.participantDate(dateId, userId);
+    await this.dates.update(
+      { id: date.id },
+      date.userAId === userId ? { aEndSeenAt: now } : { bEndSeenAt: now },
+    );
   }
 
   /** Load a date and confirm the caller is one of its two participants. */

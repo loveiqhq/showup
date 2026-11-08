@@ -21,6 +21,7 @@ enum class DevSection(val title: String) {
     Reachable("Reachability and location"),
     Details("Share some details"),
     CheckIn("48hrs Check-In"),
+    Date("The date"),
     Home("Home"),
 }
 
@@ -79,6 +80,7 @@ fun FlowScreen.devSection(): DevSection = when (this) {
     FlowScreen.LikesReceived,
     FlowScreen.CheckInSettings,
     -> DevSection.CheckIn
+    FlowScreen.Date -> DevSection.Date
     FlowScreen.Home -> DevSection.Home
 }
 
@@ -125,6 +127,7 @@ fun FlowScreen.devLabel(): String = when (this) {
     FlowScreen.SearchFilters -> "Search · Filters"
     FlowScreen.LikesReceived -> "Likes tab (Premium)"
     FlowScreen.CheckInSettings -> "Settings (placeholder)"
+    FlowScreen.Date -> "Date 01 · Date screen"
     FlowScreen.Home -> "Home (placeholder)"
 }
 
@@ -134,7 +137,9 @@ fun FlowScreen.devLabel(): String = when (this) {
  */
 val FlowScreen.needsAccount: Boolean
     get() = when (devSection()) {
-        DevSection.Basics, DevSection.RealYou, DevSection.Reachable, DevSection.Details, DevSection.CheckIn -> true
+        DevSection.Basics, DevSection.RealYou, DevSection.Reachable, DevSection.Details, DevSection.CheckIn,
+        DevSection.Date,
+        -> true
         DevSection.SignUp, DevSection.Tutorial, DevSection.Home -> false
     }
 
@@ -202,7 +207,7 @@ fun devJump(
  */
 data class DevState(val id: String, val ticket: String, val label: String)
 
-/** Every frame of SHOWUP-178 to 184's evidence, in ticket order -- plus the states between them. */
+/** Every frame of SHOWUP-178 to 184's, 193's and 194's evidence, in ticket order -- plus the states between them. */
 val DEV_STATES: List<DevState> = listOf(
     DevState("178A", "SHOWUP-178 Intro + gate", "A · Intro"),
     DevState("178B", "SHOWUP-178 Intro + gate", "B · Date search not available"),
@@ -237,7 +242,39 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("184-loading", "SHOWUP-184 Search profile", "Loading"),
     DevState("184-failed", "SHOWUP-184 Search profile", "Could not load (offline)"),
     DevState("184-empty", "SHOWUP-184 Search profile", "No results (proposed copy)"),
+    DevState("193A", "SHOWUP-193 Date screen", "A · Announced, more than 1:30 before"),
+    DevState("193B", "SHOWUP-193 Date screen", "B · Available, 1:30 or less before"),
+    DevState("193C", "SHOWUP-193 Date screen", "C · Unread message waiting"),
+    DevState("193D-end", "SHOWUP-193 Date screen", "D · Scrolled to the end"),
+    DevState("193-profile", "SHOWUP-193 Date screen", "See full profile, read-only"),
+    DevState("193-failed", "SHOWUP-193 Date screen", "First read failed (proposed copy)"),
+    DevState("194A", "SHOWUP-194 Coordinate chat", "A · Tutorial, before the first open"),
+    DevState("194B", "SHOWUP-194 Coordinate chat", "B · Start, no message yet"),
+    DevState("194C", "SHOWUP-194 Coordinate chat", "C · Thread, a chip picked"),
+    DevState("194D", "SHOWUP-194 Coordinate chat", "D · I can't make it today, guide waiting"),
+    DevState("194E", "SHOWUP-194 Coordinate chat", "E · End date card"),
+    DevState("194F", "SHOWUP-194 Coordinate chat", "F · End the date sheet"),
+    DevState("194G", "SHOWUP-194 Coordinate chat", "G · You ended the date"),
+    DevState("194H", "SHOWUP-194 Coordinate chat", "H · The match ended the date"),
 )
+
+/** The developer menu's Date actions (SHOWUP-193), each a dev-server route. */
+sealed interface DevDateAction {
+    /** A test date with Leonie [minutes] from now: 180 shows A, 60 shows B. */
+    data class CreateIn(val minutes: Int) : DevDateAction
+
+    /** Leonie's running-late message: C, once the chat is open. */
+    data object Message : DevDateAction
+
+    /** Leonie's "I can't make it today" message: the End date card, for both (SHOWUP-194 E). */
+    data object MatchCantMakeIt : DevDateAction
+
+    /** Leonie ends the date in the chat, after her can't-make-it message: this phone lands on H. */
+    data object MatchEndsInChat : DevDateAction
+
+    /** Ends the test date: the screen leaves for the normal resume. */
+    data object End : DevDateAction
+}
 
 /** The gallery activity, named by string: it exists in debug builds only, so main code cannot import it. */
 const val DEV_GALLERY_ACTIVITY = "com.showup.dev.CheckInGalleryActivity"

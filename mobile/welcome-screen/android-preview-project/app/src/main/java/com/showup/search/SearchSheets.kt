@@ -88,6 +88,7 @@ import com.showup.designsystem.Manrope
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Neutral
 import com.showup.designsystem.Lora
+import com.showup.designsystem.ModalShell
 import com.showup.designsystem.PrimaryButton
 import com.showup.designsystem.PrimaryButtonVariant
 import com.showup.designsystem.PrimaryDeep
@@ -102,89 +103,11 @@ import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 import com.showup.welcome.WashHeadline
 
-/**
- * `ModalShell`'s `backdrop-filter: blur(8px)`: sigma 8 as the radius `Modifier.blur` takes,
- * (8 - 0.5) / 0.57735, the conversion `Shadows.kt` documents.
- *
- * NOT `blurBehindSheet`, which is the profile flow's 1.5 -- "a softening" by its own spec. The design
- * draws two sheet surfaces with two backdrops; borrowing that one put this sheet over a screen that
- * was barely softened (the 184 evidence review, 24 Oct 2026). Robolectric does not render a
- * RenderEffect, so no screenshot here could have shown it. A no-op on Android 11, where the 42%
- * scrim alone separates the sheet, as with every blur in this app.
- */
-private val SearchSheetBlur = 12.99.dp
-
-/** The blur behind either like sheet, [fraction] 0 to 1 so it arrives with the sheet rather than snapping on. */
-fun Modifier.blurBehindSearchSheet(fraction: Float): Modifier =
-    if (fraction > 0f) blur(SearchSheetBlur * fraction) else this
-
-/** `0 -8px 32px rgba(46,1,71,.18)` -- the sheet's shadow, cast upward over the screen. */
-private val SheetLift = listOf(CssShadow(ShadowInk.copy(alpha = 0.18f), offsetY = (-8).dp, blur = 32.dp))
-
-
 /** CSS `line-height: normal` for Lora: its hhea ascent, descent and gap, 1006 + 274 + 0 per 1000. */
 private const val LORA_NORMAL_LINE = 1.28f
 
 /** The kit's `Button size="md"`: 48 tall, 15 type. */
 private val SHEET_BUTTON_HEIGHT = 48.dp
-
-/**
- * Search's `ModalShell` surface inside the app's one sheet behaviour.
- *
- * @param endOnKeyboard while the keyboard is up, keep the sheet scrolled to its end. On a short
- *   phone the message sheet outgrows the space above the keys, and its two buttons would sit behind
- *   them until the user thought to scroll; held at the end, the field, the counter and both buttons
- *   show together. Pinned again only when the scroll range changes -- the keyboard rising, the field
- *   growing a line -- so a user who scrolls up to read keeps their place.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SearchSheet(
-    label: String,
-    onDismiss: (SheetDismissMethod) -> Unit,
-    endOnKeyboard: Boolean = false,
-    /** The content's padding: 24 all round for the like sheets, `20 24 24` for the sorry sheet. */
-    contentPadding: PaddingValues = PaddingValues(24.dp),
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val scroll = rememberScrollState()
-    val keyboard = endOnKeyboard && WindowInsets.isImeVisible
-    LaunchedEffect(keyboard) {
-        if (keyboard) snapshotFlow { scroll.maxValue }.collect { scroll.scrollTo(it) }
-    }
-    SheetScaffold(onDismiss = onDismiss) {
-        // The scaffold keeps the sheet above the gesture bar (or the keyboard); the kit's sheet runs
-        // to the bottom edge, so its colour is painted down into that inset too -- otherwise a strip
-        // of scrim shows under it on every gesture-navigation phone.
-        val inset = WindowInsets.safeDrawing.getBottom(LocalDensity.current).toFloat()
-        BoxWithConstraints(
-            Modifier.drawBehind {
-                drawRect(Cream, topLeft = Offset(0f, size.height - 1f), size = Size(size.width, inset + 1f))
-            },
-        ) {
-            // `max-height: 88%` of the frame the sheet is docked in; past it the sheet scrolls.
-            val cap = maxHeight * 0.88f
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = cap)
-                    .roundedShadows(SolidColor(Cream), 28.dp, SheetLift)
-                    // Square bottom corners: docked to the edge, so only the top two round.
-                    .background(Cream, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                    .verticalScroll(scroll)
-                    .semantics {
-                        dialog()
-                        paneTitle = label
-                    },
-            ) {
-                Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
-                    SheetGrabber(width = 36.dp, color = Faint)
-                }
-                Column(Modifier.padding(contentPadding), content = content)
-            }
-        }
-    }
-}
 
 /** The send mark on the sheets' primary buttons: `send` 16 / 2.2. */
 @Composable
@@ -213,7 +136,7 @@ fun BeSureSheet(
     mutual: Boolean = false,
     confirming: Boolean = false,
 ) {
-    SearchSheet(label = SearchCopy.BE_SURE, onDismiss = onCancel) {
+    ModalShell(label = SearchCopy.BE_SURE, onDismiss = onCancel) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -314,7 +237,7 @@ fun ConfirmRefusedSheet(
     buttonLabel: String,
     onDone: () -> Unit,
 ) {
-    SearchSheet(
+    ModalShell(
         label = "${reason.pill}. $name",
         onDismiss = { onDone() },
         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
@@ -387,7 +310,7 @@ fun MessageSheet(
     onSkip: () -> Unit,
     onSend: () -> Unit,
 ) {
-    SearchSheet(
+    ModalShell(
         label = SearchCopy.MESSAGE_TITLE_EMPHASIS + SearchCopy.MESSAGE_TITLE_REST.format(name),
         onDismiss = onDismiss,
         endOnKeyboard = true,

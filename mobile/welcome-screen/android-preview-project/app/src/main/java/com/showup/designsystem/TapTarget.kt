@@ -70,18 +70,23 @@ fun Modifier.minTapTarget(min: Dp = ComponentSizes.minTapTarget): Modifier {
  * The touch area is the SECOND child, so it is on top and takes the press; [content] should carry no
  * semantics of its own (`clearAndSetSemantics {}`), and [touch] carries the role, the state and the
  * label for both.
+ *
+ * [floor] is the shared 44 unless a caller holds itself to Android's 48 -- the Date screen does, since
+ * its device audit (4 Nov 2026) measured every touch area there; the 44 / 48 split is the unresolved
+ * one documented above.
  */
 @Composable
 fun OverflowTapTarget(
     touch: Modifier,
     modifier: Modifier = Modifier,
+    floor: Dp = ComponentSizes.minTapTarget,
     content: @Composable () -> Unit,
 ) {
     Layout(contents = listOf(content, { Box(touch) }), modifier = modifier) { (drawn, hit), constraints ->
         val drawing = drawn.first().measure(constraints)
-        val floor = ComponentSizes.minTapTarget.roundToPx()
-        val w = maxOf(drawing.width, floor)
-        val h = maxOf(drawing.height, floor)
+        val least = floor.roundToPx()
+        val w = maxOf(drawing.width, least)
+        val h = maxOf(drawing.height, least)
         val area = hit.first().measure(Constraints.fixed(w, h))
         layout(drawing.width, drawing.height) {
             drawing.place(0, 0)

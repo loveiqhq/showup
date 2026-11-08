@@ -8,6 +8,8 @@
 export const DATE_CONFIRMED = 'date_confirmed';
 export const DATE_COMPLETED = 'date_completed';
 export const DATE_CANCELLED = 'date_cancelled';
+export const COORDINATE_UNLOCKED = 'coordinate_unlocked';
+export const DATE_ENDED_IN_CHAT = 'date_ended_in_chat';
 
 export interface DateEventInput {
   id: string;
@@ -40,6 +42,40 @@ export function dateCancelledEvent(date: DateEventInput): AnalyticsEventSpec {
     properties: {
       date_id: date.id,
       had_reason: (date.cancelReason ?? null) != null,
+    },
+  };
+}
+
+/**
+ * The Date screen's Coordinate card unlocked: meet − 1:30 (Date 01, SHOWUP-193; registry 1.4.32).
+ * Server-sent, once per person per date, by the unlock job -- never by the in-place A → B swap on
+ * the screen, which sends nothing.
+ */
+export function coordinateUnlockedEvent(
+  minutesBeforeStart: number,
+): AnalyticsEventSpec {
+  return {
+    eventName: COORDINATE_UNLOCKED,
+    properties: { minutes_before_start: minutesBeforeStart },
+  };
+}
+
+/**
+ * `date_ended_in_chat` (Date 02, registry 1.4.33, server). Sent once, when either person ends the date
+ * from the chat after an "I can't make it today" message: who sent that message, seen from the one who
+ * ended it, and the minutes to the latest agreed meet time (negative after it). Never `date_cancelled`.
+ */
+export function dateEndedInChatEvent(
+  dateId: string,
+  cantMakeItFrom: 'self' | 'match',
+  minutesBeforeStart: number,
+): AnalyticsEventSpec {
+  return {
+    eventName: DATE_ENDED_IN_CHAT,
+    properties: {
+      date_id: dateId,
+      cant_make_it_from: cantMakeItFrom,
+      minutes_before_start: minutesBeforeStart,
     },
   };
 }

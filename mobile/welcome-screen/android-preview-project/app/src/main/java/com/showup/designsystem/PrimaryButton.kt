@@ -112,6 +112,12 @@ fun PrimaryButton(
     leading: (@Composable () -> Unit)? = null,
     /** Mirrors [leading]. Used once: the tutorial CTA's trailing arrow. */
     trailing: (@Composable () -> Unit)? = null,
+    /**
+     * The glow under [PrimaryButtonVariant.Sunset] and [PrimaryButtonVariant.Violet]: the kit's
+     * `--liq-shadow-violet` unless a reference names another. The chat tutorial's `Open the chat` names
+     * `--liq-shadow-cta` (SHOWUP-194), the orange one. Ignored by the other variants, which draw none.
+     */
+    shadows: List<CssShadow> = ShadowViolet,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -150,11 +156,11 @@ fun PrimaryButton(
                     // ever showed the deviation. verify-spec.py already forbade exactly this in
                     // TutorialShell.kt. Found comparing the Check-In footer against its sheets.
                     PrimaryButtonVariant.Sunset -> Modifier
-                        .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), ShadowViolet)
+                        .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), shadows)
                         .clip(shape)
                     // Flat violet, not a gradient. The same glow as [Sunset], drawn the same way.
                     PrimaryButtonVariant.Violet -> Modifier
-                        .pillShadows(SolidColor(Purple), ShadowViolet)
+                        .pillShadows(SolidColor(Purple), shadows)
                         .clip(shape)
                     PrimaryButtonVariant.Ghost -> Modifier
                         .clip(shape)

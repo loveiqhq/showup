@@ -74,6 +74,11 @@ val Lavender = Color(0xFFA78BFA)       // --liq-lavender-400
  * the accent, this one is a named step in the ramp.
  */
 val LavenderWash = Color(0xFFF9F7FF)   // --liq-lavender-50 · the palest surface in the ramp
+val Lavender100 = Color(0xFFE0D9FF)    // --liq-lavender-100 · the Date screen's Coordinate card border
+/** `#E8DCF5`, `--su-grad-lilac`'s end stop, used flat: the Date screen's time + place card (SHOWUP-193 ③). */
+val LilacCard = Color(0xFFE8DCF5)
+/** The `darkred` chat-reason tone (`#8E1116`, the reference's `REASON_TONES`): "I can't make it today". */
+val ReasonDarkRed = Color(0xFF8E1116)
 
 // ── added for SHOWUP-165 to SHOWUP-173 ─────────────────────────────────────
 //

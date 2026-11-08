@@ -26,6 +26,11 @@ import com.showup.search.SearchPlayback
 import com.showup.search.LikeSheet
 import com.showup.profile.MediaKind
 import com.showup.api.CallFailure
+import com.showup.date.DATE_LOCKED_TABS
+import com.showup.date.DateCopy
+import com.showup.date.DateSamples
+import com.showup.date.DateScreen
+import com.showup.date.DateUi
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ScrollState
 import androidx.compose.runtime.Composable
@@ -45,6 +50,11 @@ import com.showup.checkin.CheckInVibeScreen
 import com.showup.checkin.SlotTier
 import com.showup.checkin.checkInDays
 import com.showup.checkin.gridOf
+import com.showup.chat.ChatSamples
+import com.showup.chat.ChatScreen
+import com.showup.chat.ChatTutorialScreen
+import com.showup.chat.ChatUi
+import com.showup.chat.DateEndedScreen
 
 class CheckInGalleryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,6 +123,33 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "184-loading" -> SearchProfileScreen(SearchUiState(loading = true), SearchSamples.ZONE)
         "184-failed" -> SearchProfileScreen(SearchUiState(loading = false, failure = CallFailure.Network), SearchSamples.ZONE)
         "184-empty" -> SearchProfileScreen(SearchUiState(loading = false), SearchSamples.ZONE)
+        "193A" -> DateScreen(DateUi(DateSamples.DATE, DateSamples.A_NOW, loading = false), DateSamples.ZONE)
+        "193B" -> DateScreen(DateUi(DateSamples.DATE, DateSamples.B_NOW, loading = false), DateSamples.ZONE)
+        "193C" -> DateScreen(DateUi(DateSamples.DATE.copy(unread = DateSamples.UNREAD), DateSamples.B_NOW, loading = false), DateSamples.ZONE)
+        "193D-end" -> {
+            val scroll = remember { ScrollState(0) }
+            LaunchedEffect(scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
+            DateScreen(DateUi(DateSamples.DATE, DateSamples.A_NOW, loading = false), DateSamples.ZONE, scroll = scroll)
+        }
+        "193-profile" -> SearchProfileScreen(
+            SearchUiState(loading = false, queue = listOf(SearchSamples.FULL)), SearchSamples.ZONE,
+            onBack = leave, readOnly = true, backLabel = DateCopy.PROFILE_BACK,
+            disabledTabs = DATE_LOCKED_TABS, disabledHint = DateCopy.TAB_HINT,
+        )
+        "193-failed" -> DateScreen(DateUi(now = DateSamples.A_NOW, loading = false, failed = CallFailure.Network), DateSamples.ZONE)
+        "194A" -> ChatTutorialScreen(ChatSamples.DATE.match.name, onOpen = {}, onBack = leave)
+        "194B" -> ChatFrame(ChatSamples.B, leave)
+        "194C" -> ChatFrame(ChatSamples.C, leave)
+        "194D" -> ChatFrame(ChatSamples.D, leave)
+        "194E" -> ChatFrame(ChatSamples.E, leave)
+        "194F" -> ChatFrame(ChatSamples.F, leave)
+        "194G" -> DateEndedScreen(ChatSamples.G, photoUrl = null, onFindNext = leave)
+        "194H" -> DateEndedScreen(ChatSamples.H, photoUrl = null, onFindNext = leave)
         else -> Text("Unknown state $state")
     }
 }
+
+/** One of the chat's frames, still: nothing it draws reacts, and back leaves it. */
+@Composable
+private fun ChatFrame(ui: ChatUi, leave: () -> Unit) =
+    ChatScreen(ui, DateSamples.ZONE, leave, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})

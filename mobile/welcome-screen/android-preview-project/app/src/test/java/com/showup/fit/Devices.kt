@@ -79,3 +79,43 @@ val DEVICES: List<Device> = listOf(
     Device("iPhone 15/16 Pro Max", 430, 932, 59, 34, inAcceptanceCriteria = true),
     Device("iPhone 16 / 17 Pro Max", 440, 956, 62, 34),
 )
+
+/**
+ * Real screens [DEVICES] does not hold, measured by the Date screen and the chat (SHOWUP-193, 194;
+ * the 4 Nov 2026 device audit, widened 8 Nov 2026). Not in [DEVICES] because every suite would then
+ * fail on them at once, and whether the other screens fit them is a finding to report to the product
+ * side, not one to break CI with mid-ticket.
+ *
+ * Settings, postures and the classes the shared list skips -- each is a size a supported phone shows:
+ */
+val EDGE_DEVICES: List<Device> = listOf(
+    // DISPLAY ZOOM on the iPhone SE (2nd / 3rd gen): 320 x 568 points, the original SE's size again --
+    // the narrowest AND shortest screen a supported iPhone shows. An Android at its largest display
+    // size reaches the same 320 dp floor.
+    Device("iPhone SE, Display Zoom", 320, 568, 20, 0),
+    // SPLIT SCREEN: MainActivity is resizeable, so a phone's top half is a real window.
+    Device("split screen, top half", 360, 380, 24, 0),
+    // UNFOLDED FOLDABLES keep this portrait app full size (the manifest's restricted-resizability
+    // opt-out): ~700 dp wide on a Fold 5 / 6 class inner screen, 984 x 1092 on the Fold 7 at its 2.0
+    // density. Estimated from published pixels and densities, not read off a device.
+    Device("unfolded foldable, Fold 5 / 6 class", 700, 840, 24, 24),
+    Device("unfolded foldable, Fold 7", 984, 1092, 24, 24),
+
+    // ── widened 8 Nov 2026: every class of screen the lists above still skipped ──
+    // DISPLAY ZOOM on a 6.1-inch iPhone (12 to 16, 16e): 390 or 393 points shown at 320 x 693. The
+    // Dynamic Island's insets: the conservative end.
+    Device("6.1-inch iPhone, Display Zoom", 320, 693, 59, 34),
+    // The book foldables' COVER SCREENS, 904 x 2316 and 968 x 2376 px at 2.625: the narrow, tall
+    // widths between 320 and 375, here with the 3-button bar.
+    Device("Galaxy Z Fold 5, cover screen", 344, 882, 24, 48),
+    Device("Galaxy Z Fold 6, cover screen", 369, 905, 24, 48),
+    // 16:9, 1080 x 1920 at 2.625: the short, wide phones Android 11 still runs on (Pixel 2 class).
+    Device("16:9 Android, Pixel 2 class", 411, 731, 24, 48),
+    // HD+ budget phones at 2.0: 720 x 1440 (18:9) and 720 x 1520 (19:9).
+    Device("18:9 budget Android", 360, 720, 24, 48),
+    Device("19:9 HD+ Android", 360, 760, 24, 48),
+    // A 1080 px phone at its SMALLEST display size (density x 0.85): the widest a phone gets.
+    Device("1080 px phone, smallest display size", 480, 1066, 24, 24),
+    // A TABLET, portrait: the manifest keeps the app portrait on a large screen, at the tablet's size.
+    Device("Android tablet, portrait", 800, 1280, 24, 48),
+)

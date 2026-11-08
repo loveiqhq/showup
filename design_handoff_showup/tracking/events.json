@@ -1,11 +1,24 @@
 {
-  "taxonomy_version": "1.4.24",
+  "taxonomy_version": "1.4.26",
   "changed_in_1_4_24": [
     "Search 01 decisions, 27 Oct 2026: filters_active compares saved genders with checkinGenderDefault on the viewer's current profile and lists true dealbreakers; gender values are never sent. Search filter saves add opened_from: search to check_in_filters_changed without Check-In funnel events. Returning from Filters is a new Search visit, position resets to 1, and the coach remains suppressed. The no-results state emits search_empty_shown with reason no_results."
   ],
   "reconciled_against": "loveiqhq/showup development @ 8540ee4",
   "generated": "2026-09-25",
-  "event_count": 305,
+  "event_count": 306,
+  "changed_in_1_4_26": [
+    "Date 02 (Coordinate chat), 5 Nov 2026 — family L respecified: chat_tutorial_shown · chat_tutorial_acknowledged · chat_opened · action_chip_used · message_sent · message_received · chat_closed all carry date_id.",
+    "chat_opened: trigger + layout REMOVED → entry (§39 chat_entry) + is_first + minutes_before_start.",
+    "action_chip_used: chip_id REMOVED → reason (§40 chat_reason) + surface (entry | dock).",
+    "message_sent: chip_seeded REMOVED → reason (§40) + prefill_edited; minutes_before_date RENAMED minutes_before_start. A half-written emitter using the old names still compiles — check it.",
+    "cancel_guide_acknowledged · end_date_sheet_opened · date_ended_in_chat (server) — NEW.",
+    "RETIRED (removed): coordinate_viewed (described the old venue unlock; chat_opened measures the chat) · date_status_sent and date_status_undone (the status broadcast with Undo no longer exists; a chip message is message_sent with a reason). Do not reuse the names.",
+    "action_chip_used.surface gains coordinate_card — the Change meet time / Change location tiles on the locked Coordinate card (Date 01 rework, 5 Nov 2026). One event for \"change requested\", whatever the surface."
+  ],
+  "changed_in_1_4_25": [
+    "date_screen_viewed — respecified for Date 01: date_id, has_unread, checked_in NEW; minutes_before_start counts from the latest agreed meet time. 2 Nov 2026.",
+    "date_quick_action_tapped — NEW (family K), action §38. Date 01, 2 Nov 2026."
+  ],
   "changed_in_1_4_23": [
     "Check-In 05b (Filters v2), 26 Oct 2026: check_in_filters_changed — age_dealbreaker NEW · distance_dealbreaker NEW (bool, §10). filters_changed order extended to meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker. Cadence unchanged: once per accepted Continue. A switch tap fires nothing."
   ],
@@ -4004,18 +4017,30 @@
           "tier": "T2",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
               "name": "state",
               "type": "\"locked\"|\"available\""
             },
             {
+              "name": "has_unread",
+              "type": "bool — NEW 1.4.25. True when the Coordinate card is hoisted (state C on the Date 01 sheet). Always false while locked."
+            },
+            {
+              "name": "checked_in",
+              "type": "bool — NEW 1.4.25. The viewer's own arrival check-in, read at render."
+            },
+            {
               "name": "minutes_before_start",
-              "type": "int"
+              "type": "int — negative after the latest agreed meet time"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "Date coordination screen rendered",
-          "implemented": false
+          "trigger": "Date screen (Date 01, screen_id date_screen) rendered or returned to — fires alongside screen_viewed, once per visit, not on the in-place unlock. Respecified 2 Nov 2026 (1.4.25): date_id, has_unread and checked_in added; minutes_before_start counts from the latest AGREED meet time.",
+          "implemented": true
         },
         {
           "name": "date_confirm_submitted",
@@ -4089,23 +4114,7 @@
           "sensitivity_class": 0,
           "backend_status": "Partial",
           "trigger": "System unlocks exact venue location",
-          "implemented": false
-        },
-        {
-          "name": "coordinate_viewed",
-          "code_anchor": null,
-          "source": "client",
-          "tier": "T2",
-          "payload": [
-            {
-              "name": "date_id",
-              "type": "str"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Client only",
-          "trigger": "User views unlocked venue details",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "navigation_opened",
@@ -4311,6 +4320,30 @@
           "backend_status": "Not built",
           "trigger": "User enters re-matching pool post-cancel",
           "implemented": false
+        },
+        {
+          "name": "date_quick_action_tapped",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "action",
+              "type": "enums.json §38 date_quick_action"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "A quick-action tile (Directions · Order Ride · Share Date · Calendar) or the Copy address pill on the Date screen is tapped — on the tap, before the OS hand-off; whether the user completes the OS sheet is not ours and is not measured. NEW 1.4.25, Date 01, 2 Nov 2026.",
+          "implemented": true
         }
       ]
     },
@@ -4325,14 +4358,14 @@
           "tier": "T1",
           "payload": [
             {
-              "name": "variant",
+              "name": "date_id",
               "type": "str"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "Ephemeral chat rules overlay mounted",
-          "implemented": false
+          "trigger": "The Coordinate chat tutorial (“Must read — how messaging works”) is shown. Before the FIRST open of the chat, per date and per user — never again for that date. variant REMOVED (one tutorial). Respecified 1.4.26, Date 02, 5 Nov 2026.",
+          "implemented": true
         },
         {
           "name": "chat_tutorial_acknowledged",
@@ -4341,14 +4374,18 @@
           "tier": "T1",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
               "name": "read_time_s",
-              "type": "int"
+              "type": "int — tutorial shown → Open the chat tapped"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "User dismisses chat rules overlay",
-          "implemented": false
+          "trigger": "“Open the chat” tapped on the tutorial. Respecified 1.4.26, Date 02, 5 Nov 2026.",
+          "implemented": true
         },
         {
           "name": "chat_opened",
@@ -4357,18 +4394,26 @@
           "tier": "T1",
           "payload": [
             {
-              "name": "trigger",
-              "type": "\"chip\"|\"banner\"|\"unread\""
+              "name": "date_id",
+              "type": "str"
             },
             {
-              "name": "layout",
-              "type": "str"
+              "name": "entry",
+              "type": "str — enums.json §39 chat_entry"
+            },
+            {
+              "name": "is_first",
+              "type": "bool — first open of this date’s chat by this user"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time; negative after it"
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Chat message thread mounted",
-          "implemented": false
+          "backend_status": "Client only",
+          "trigger": "The Coordinate chat is shown (entry screen or thread). Once per visit. trigger and layout REMOVED → entry (§39). Respecified 1.4.26, Date 02, 5 Nov 2026.",
+          "implemented": true
         },
         {
           "name": "action_chip_used",
@@ -4377,14 +4422,26 @@
           "tier": "T1",
           "payload": [
             {
-              "name": "chip_id",
+              "name": "date_id",
               "type": "str"
+            },
+            {
+              "name": "reason",
+              "type": "str — enums.json §40 chat_reason"
+            },
+            {
+              "name": "surface",
+              "type": "\"entry\"|\"dock\"|\"coordinate_card\" — the chat start grid, the chips above the keyboard, or the Change meet time / Change location tiles on the locked Coordinate card (Date 01)"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time; negative after it"
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Structured action button pressed in chat",
-          "implemented": false
+          "backend_status": "Client only",
+          "trigger": "An action chip is tapped in the chat — on the tap, whatever it then opens: change_time / change_place open the Date 05 picker, arrived before check-in runs the Date 03 gate, cant_make_it shows the cancel guide. chip_id REMOVED → reason (§40). Respecified 1.4.26, Date 02, 5 Nov 2026. coordinate_card: the two change tiles on the locked Coordinate card (Date 01, reason change_time | change_place only) — the same act before the chat opens.",
+          "implemented": true
         },
         {
           "name": "message_sent",
@@ -4393,26 +4450,34 @@
           "tier": "T1",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "reason",
+              "type": "str|null — enums.json §40 chat_reason; null for a message with no chip selected"
+            },
+            {
               "name": "char_count",
               "type": "int"
             },
             {
-              "name": "chip_seeded",
-              "type": "bool"
+              "name": "prefill_edited",
+              "type": "bool|null — the chip’s prefill was changed before sending; null when the chip has no prefill (cant_make_it) or no chip"
             },
             {
-              "name": "minutes_before_date",
-              "type": "int"
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time; negative after it"
             },
             {
               "name": "is_first",
-              "type": "bool"
+              "type": "bool — first message this user sent for this date"
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Send button tapped (Metadata only - NO CHAT TEXT)",
-          "implemented": false
+          "backend_status": "Client only",
+          "trigger": "Send tapped and the message accepted. Metadata only — NEVER the text. chip_seeded REMOVED → reason + prefill_edited; minutes_before_date RENAMED minutes_before_start. Respecified 1.4.26, Date 02, 5 Nov 2026.",
+          "implemented": true
         },
         {
           "name": "message_received",
@@ -4421,14 +4486,22 @@
           "tier": "T1",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "reason",
+              "type": "str|null — enums.json §40"
+            },
+            {
               "name": "char_count",
               "type": "int"
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Inbound message payload rendered",
-          "implemented": false
+          "backend_status": "Client only",
+          "trigger": "An inbound message is rendered in the thread. Respecified 1.4.26, Date 02, 5 Nov 2026.",
+          "implemented": true
         },
         {
           "name": "unread_reminder_shown",
@@ -4471,14 +4544,90 @@
           "implemented": false
         },
         {
+          "name": "cancel_guide_acknowledged",
+          "source": "client",
+          "code_anchor": null,
+          "tier": "T1",
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "implemented": true,
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "read_time_s",
+              "type": "int — guide shown → Got it tapped"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time; negative after it"
+            }
+          ],
+          "trigger": "“Got it” tapped on the cancel guide shown after the “I can't make it today” chip. Unlocks the message field. NEW 1.4.26, Date 02, 5 Nov 2026."
+        },
+        {
+          "name": "end_date_sheet_opened",
+          "source": "client",
+          "code_anchor": null,
+          "tier": "T1",
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "implemented": true,
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "cant_make_it_from",
+              "type": "\"self\"|\"match\" — who sent the I can't make it today message that made the card appear"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time; negative after it"
+            }
+          ],
+          "trigger": "“End the date” tapped on the in-thread card → the End the date sheet opens. The card exists ONLY after a cant_make_it message. Keeping the date = this event with no date_ended_in_chat. NEW 1.4.26, Date 02, 5 Nov 2026."
+        },
+        {
+          "name": "date_ended_in_chat",
+          "source": "server",
+          "code_anchor": null,
+          "tier": "T1",
+          "sensitivity_class": 0,
+          "backend_status": "Built (SHOWUP-194)",
+          "implemented": true,
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "cant_make_it_from",
+              "type": "\"self\"|\"match\" — relative to the user who ended it"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time; negative after it"
+            }
+          ],
+          "trigger": "The date is ended from the chat sheet. Ends the date for both, no review (flow 10 is NOT entered), Search / Likes / Instant open again for both. Distinct from date_cancelled (Date 07). NEW 1.4.26, Date 02, 5 Nov 2026."
+        },
+        {
           "name": "chat_closed",
           "code_anchor": null,
           "source": "client",
           "tier": "T1",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
               "name": "messages_sent",
-              "type": "int"
+              "type": "int — this visit"
             },
             {
               "name": "duration_s",
@@ -4486,9 +4635,9 @@
             }
           ],
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "User navigates away from chat screen",
-          "implemented": false
+          "backend_status": "Client only",
+          "trigger": "The user leaves the chat (back, or a hand-off that replaces it). Respecified 1.4.26, Date 02, 5 Nov 2026.",
+          "implemented": true
         }
       ]
     },
@@ -4510,50 +4659,6 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "Live coordination sheet opened",
-          "implemented": false
-        },
-        {
-          "name": "date_status_sent",
-          "code_anchor": null,
-          "source": "client",
-          "tier": "T2",
-          "payload": [
-            {
-              "name": "type",
-              "type": "str"
-            },
-            {
-              "name": "minutes_late",
-              "type": "int"
-            },
-            {
-              "name": "over_10_min",
-              "type": "bool"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Status update dispatched to partner",
-          "implemented": false
-        },
-        {
-          "name": "date_status_undone",
-          "code_anchor": null,
-          "source": "client",
-          "tier": "T2",
-          "payload": [
-            {
-              "name": "type",
-              "type": "str"
-            },
-            {
-              "name": "seconds_to_undo",
-              "type": "int"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "User taps \"Undo\" on status broadcast",
           "implemented": false
         },
         {

@@ -22,6 +22,7 @@
  */
 package com.showup.search
 
+import com.showup.designsystem.blurBehindModalShell
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -172,6 +173,15 @@ fun SearchProfileScreen(
     onConfirmDate: () -> Unit = {},
     /** The sorry sheet closed, any way. */
     onRefusedDone: () -> Unit = {},
+    /**
+     * A profile to look at, nothing to decide (SHOWUP-193: the match, from the Date screen): no
+     * action bar, no likes chip or Filters, a back pill named [backLabel] that is [onBack].
+     */
+    readOnly: Boolean = false,
+    backLabel: String? = null,
+    /** The TabBar's locked tabs while a date is active, and the hint a tap on one shows. */
+    disabledTabs: Set<Tab> = emptySet(),
+    disabledHint: String? = null,
 ) {
     val profile = state.current
     val opened = state.opened
@@ -189,7 +199,7 @@ fun SearchProfileScreen(
 
     Box(Modifier.fillMaxSize().background(Cream)) {
         SearchFrame(
-            modifier = Modifier.blurBehindSearchSheet(sheetBlur),
+            modifier = Modifier.blurBehindModalShell(sheetBlur),
             topBar = {
                 // The tag on a wrapper, outside the cleared semantics: a modal hides the bar from a
                 // screen reader, and the fit tests still have to find its edge.
@@ -199,10 +209,12 @@ fun SearchProfileScreen(
                         // Search and Instant tabs only, never on ... a profile opened from it".
                         SearchTopBar(
                             state.likesBadge, onLikesChip, onFilters,
-                            premium = opened != null, filter = !fromLikes, chip = !fromLikes,
+                            premium = opened != null, filter = !fromLikes && !readOnly, chip = !fromLikes && !readOnly,
                         )
                         if (opened != null) {
                             BackPill(if (fromLikes) PremiumCopy.ALL_LIKES else PremiumCopy.ALL_PROFILES, onBack)
+                        } else if (readOnly && backLabel != null) {
+                            BackPill(backLabel, onBack)
                         }
                     }
                 }
@@ -236,7 +248,15 @@ fun SearchProfileScreen(
                 }
             },
             tabBar = {
-                TabBar(active = if (fromLikes) Tab.Likes else Tab.Search, onTab = onTab, modifier = behind, likes = state.likesBadge)
+                TabBar(
+                    active = when {
+                        readOnly -> null
+                        fromLikes -> Tab.Likes
+                        else -> Tab.Search
+                    },
+                    onTab = onTab, modifier = behind, likes = state.likesBadge,
+                    disabled = disabledTabs, disabledHint = disabledHint,
+                )
             },
             scrim = if (state.coach) {
                 {
@@ -254,7 +274,7 @@ fun SearchProfileScreen(
             } else {
                 null
             },
-            actionBar = if (profile != null) {
+            actionBar = if (profile != null && !readOnly) {
                 {
                     SearchActionBar(
                         coach = state.coach,
@@ -306,7 +326,7 @@ fun SearchProfileScreen(
         }
         // Opened from a list, with nothing over it: Android back is the back pill. A sheet, the
         // viewer and the coach each take back first (declared after this, they are asked first).
-        if (opened != null && !modal) {
+        if ((opened != null || readOnly) && !modal) {
             androidx.activity.compose.BackHandler { onBack() }
         }
     }

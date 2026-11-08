@@ -60,11 +60,12 @@ class DevSearchStore(
         return Outcome.Ok(SearchQueue(queue.size, queue.toList(), SearchSamples.VIEWER))
     }
 
-    override suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Unit> {
+    override suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Boolean> {
         delay(latencyMs / 3)
         queue.removeAll { it.userId == targetUserId }
         answered += targetUserId
-        return Outcome.Ok(Unit)
+        // The samples never like back: a date needs the real server (the dev menu's Date actions).
+        return Outcome.Ok(false)
     }
 
     override suspend fun pass(targetUserId: String, type: SearchAnalytics.PassType): Outcome<Unit> {

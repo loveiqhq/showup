@@ -67,9 +67,9 @@ private actor PremiumStore: SearchStoring {
         return .success(SearchQueue(resultsCount: profiles.count, profiles: profiles, viewer: SearchSamples.viewer))
     }
 
-    func like(targetUserId: String, message: String?, position: Int) async -> Result<Void, CallFailure> {
+    func like(targetUserId: String, message: String?, position: Int) async -> Result<Bool, CallFailure> {
         likes.append((targetUserId, message, position))
-        return .success(())
+        return .success(false)
     }
 
     func pass(targetUserId: String, type: SearchAnalytics.PassType) async -> Result<Void, CallFailure> {
@@ -401,11 +401,22 @@ final class PremiumModelTests: XCTestCase {
         m.like()
         m.confirmDate()
         await settle()
+        XCTAssertEqual(m.datesMade, 1, "a won confirm makes the date (SHOWUP-193)")
         XCTAssertNil(m.state.opened)
         XCTAssertFalse(m.state.confirming)
         XCTAssertEqual(card(m, .grid, leonie)?.leaving, .liked)
         XCTAssertTrue(events.of(SearchAnalytics.likeConfirmFailedName).isEmpty)
         XCTAssertTrue(events.of(SearchAnalytics.likeMessageAttachedName).isEmpty, "no message on a confirm")
+    }
+
+    func testARefusedConfirmMakesNoDate() async {
+        await store.setAnswer(.refused(.matched))
+        let m = await onGrid()
+        open(m, .grid, leonie)
+        m.like()
+        m.confirmDate()
+        await settle()
+        XCTAssertEqual(m.datesMade, 0)
     }
 
     func testARefusedConfirmShowsTheSorrySheetFiresLikeConfirmFailedOnceAndClosesTheCardInItsSlot() async {

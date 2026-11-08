@@ -54,11 +54,12 @@ actor DevSearchStore: SearchStoring {
         return .success(SearchQueue(resultsCount: queue.count, profiles: queue, viewer: SearchSamples.viewer))
     }
 
-    func like(targetUserId: String, message: String?, position: Int) async -> Result<Void, CallFailure> {
+    func like(targetUserId: String, message: String?, position: Int) async -> Result<Bool, CallFailure> {
         try? await Task.sleep(nanoseconds: latency / 3)
         queue.removeAll { $0.userId == targetUserId }
         answered.insert(targetUserId)
-        return .success(())
+        // The samples never like back: a date needs the real server (the dev menu's Date actions).
+        return .success(false)
     }
 
     func pass(targetUserId: String, type: SearchAnalytics.PassType) async -> Result<Void, CallFailure> {

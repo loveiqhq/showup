@@ -131,6 +131,8 @@ fun DevMenu(
     onOpenState: (DevState) -> Unit = {},
     /** The plan switch: the server's dev-only route, a 404 in production. */
     onPremium: (Boolean) -> Unit = {},
+    /** The Date screen's test routes (SHOWUP-193): dev server only, a 404 in production. */
+    onDateAction: (DevDateAction) -> Unit = {},
 ) {
     var page by rememberSaveable { mutableStateOf(DevTabPage.Screens) }
     // A text field on the screen underneath keeps its keyboard up over the menu otherwise.
@@ -166,7 +168,7 @@ fun DevMenu(
             DevPageTab("Events (${events.size})", page == DevTabPage.Events) { page = DevTabPage.Events }
         }
         when (page) {
-            DevTabPage.Screens -> ScreensPage(facts, onJump, onTestServer, onHideTab, onPremium)
+            DevTabPage.Screens -> ScreensPage(facts, onJump, onTestServer, onHideTab, onPremium, onDateAction)
             DevTabPage.States -> StatesPage(onOpenState)
             DevTabPage.Events -> EventsPage(events, onClearEvents)
         }
@@ -180,6 +182,7 @@ private fun ScreensPage(
     onTestServer: (FlowScreen) -> Unit,
     onHideTab: () -> Unit,
     onPremium: (Boolean) -> Unit,
+    onDateAction: (DevDateAction) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -214,6 +217,21 @@ private fun ScreensPage(
                     Text("Premium plan (date search)", color = Muted, fontFamily = Manrope, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     Switch(checked = facts.premium, onCheckedChange = onPremium)
                 }
+            }
+            // A date with the test match Leonie, her message, and its end -- the way out of a screen
+            // whose exits are later tickets. Writes to this account on the dev server only.
+            if (facts.signedIn == true) {
+                Text(
+                    "The date (local server): each opens the Date screen.",
+                    color = Muted, fontFamily = Manrope, fontSize = 13.sp,
+                    modifier = Modifier.padding(top = Spacing.md),
+                )
+                DevTextButton("Test date in 3 hours (A, locked)") { onDateAction(DevDateAction.CreateIn(180)) }
+                DevTextButton("Test date in 1 hour (B, chat open)") { onDateAction(DevDateAction.CreateIn(60)) }
+                DevTextButton("Message from Leonie (C, needs B)") { onDateAction(DevDateAction.Message) }
+                DevTextButton("Leonie can't make it (End date card, needs B)") { onDateAction(DevDateAction.MatchCantMakeIt) }
+                DevTextButton("Leonie ends the date in the chat (H, needs her can't-make-it)") { onDateAction(DevDateAction.MatchEndsInChat) }
+                DevTextButton("End test date") { onDateAction(DevDateAction.End) }
             }
         }
         DevSection.entries.forEach { section ->

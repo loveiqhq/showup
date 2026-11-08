@@ -41,9 +41,11 @@ final class EvidenceShots: XCTestCase {
         return dir
     }
 
-    /// `view` on `device`, saved as `<state>-<w>x<h>.png` in `dir`; a picture of one flat colour fails.
-    private func shoot(_ view: some View, _ state: String, on device: FitDevice, into dir: URL) throws {
-        let controller = UIHostingController(rootView: AnyView(view))
+    /// `view` on `device` at `type`, saved as `<state>-<w>x<h>.png` in `dir`; a picture of one flat
+    /// colour fails.
+    private func shoot(_ view: some View, _ state: String, on device: FitDevice, type: DynamicTypeSize = .large,
+                       into dir: URL) throws {
+        let controller = UIHostingController(rootView: AnyView(view.environment(\.dynamicTypeSize, type)))
         controller.overrideUserInterfaceStyle = .light
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { FixedInsetWindow(windowScene: $0) }
@@ -96,6 +98,97 @@ final class EvidenceShots: XCTestCase {
         guard drawn else { return true }
         let first = Array(pixels[0..<4])
         return stride(from: 0, to: pixels.count, by: 4).allSatisfy { Array(pixels[$0..<($0 + 4)]) == first }
+    }
+
+    /// SHOWUP-193: the Date screen's A, B and C at the three ticket frames, D as the sheet's full scroll,
+    /// and the two states the sheet does not draw -- the match's read-only profile and a failed first read.
+    /// SHOWUP-194's evidence: A to H at the three frames the acceptance criteria name -- 24 images -- and C to E
+    /// again with the bottom taken by a keyboard-sized inset (the harness has no keyboard; only the evidence
+    /// simulates one).
+    func testCoordinateChatEvidence() throws {
+        let dir = try folder("194-coordinate-chat")
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        let chats: [(String, ChatUi)] = [("B-start", ChatSamples.b), ("C-thread", ChatSamples.c),
+                                         ("D-cancel-guide", ChatSamples.d), ("E-end-card", ChatSamples.e),
+                                         ("F-end-sheet", ChatSamples.f)]
+        for device in frames {
+            try shoot(ChatTutorialScreen(name: "Leonie"), "A-tutorial", on: device, into: dir)
+            for (name, ui) in chats {
+                try shoot(ChatScreen(ui: ui, zone: DateSamples.zone), name, on: device, into: dir)
+            }
+            try shoot(DateEndedScreen(outcome: ChatSamples.g), "G-you-ended", on: device, into: dir)
+            try shoot(DateEndedScreen(outcome: ChatSamples.h), "H-match-ended", on: device, into: dir)
+            for (name, ui) in chats where ["C-thread", "D-cancel-guide", "E-end-card"].contains(name) {
+                try shoot(ChatScreen(ui: ui, zone: DateSamples.zone).safeAreaInset(edge: .bottom, spacing: 0) {
+                    Color(white: 0.82).frame(height: 291)
+                }, name + "-keyboard", on: device, into: dir)
+            }
+        }
+    }
+
+    func testDateScreenEvidence() throws {
+        let dir = try folder("193-date-screen")
+        var unread = DateSamples.date
+        unread.unread = DateSamples.unread
+        let shots: [(String, DateUi)] = [
+            ("A-announced", DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false)),
+            ("B-available", DateUi(date: DateSamples.date, now: DateSamples.bNow, loading: false)),
+            ("C-unread", DateUi(date: unread, now: DateSamples.bNow, loading: false)),
+            ("F-failed", DateUi(now: DateSamples.aNow, loading: false, failed: .network)),
+        ]
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        for device in frames {
+            for (name, ui) in shots {
+                try shoot(DateScreen(ui: ui, zone: DateSamples.zone), name, on: device, into: dir)
+            }
+            // Philipp's 5 Nov update: A once with the change tiles switched on, as Date 05 will show them.
+            try shoot(DateScreen(ui: shots[0].1, zone: DateSamples.zone, changeTiles: [.changeTime, .changePlace]),
+                      "A-change-tiles", on: device, into: dir)
+            try shoot(SearchProfileView(state: SearchUiState(loading: false, queue: [SearchSamples.full]),
+                                        zone: DateSamples.zone, readOnly: true, backLabel: DateCopy.profileBack,
+                                        disabledTabs: dateLockedTabs, disabledHint: DateCopy.tabHint),
+                      "E-profile", on: device, into: dir)
+        }
+        // D: every section in order, the footer at the foot of the scroll -- a frame as tall as the content.
+        let tall = FitDevice(name: "full length", width: 390, height: 2350, top: 0, bottom: 0)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "D-full", on: tall, into: dir)
+
+        // THE EXTREMES (the 4 Nov 2026 device audit), to be looked at, not only measured: the smallest
+        // screen a supported iPhone shows (an SE with Display Zoom) at the largest type, its whole scroll
+        // at that size, and the widest phone (an unfolded Fold 7) at the default.
+        let smallest = try XCTUnwrap(edgeFitDevices.first { $0.width == 320 })
+        let widest = try XCTUnwrap(edgeFitDevices.first { $0.width == 984 })
+        var checkedIn = DateSamples.date
+        checkedIn.checkedIn = true
+        let extremes: [(String, DateUi)] = [
+            ("G-A-AX5", DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false)),
+            ("G-C-AX5", DateUi(date: unread, now: DateSamples.bNow, loading: false)),
+            ("G-checked-in-AX5", DateUi(date: checkedIn, now: DateSamples.bNow, loading: false)),
+        ]
+        for (name, ui) in extremes {
+            try shoot(DateScreen(ui: ui, zone: DateSamples.zone), name, on: smallest, type: .accessibility5, into: dir)
+        }
+        // 5450 tall, not more: at the shots' 3x a taller window passes the 16384 px a drawn image may
+        // have, and the fallback renderer draws shapes wrong -- capsule chips grew straight edges.
+        let smallTall = FitDevice(name: "full length, smallest", width: 320, height: 5450, top: 0, bottom: 0)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "H-full-AX5", on: smallTall, type: .accessibility5, into: dir)
+        // AX3, the largest size every other screen is held to, on the same phone.
+        let smallAX3 = FitDevice(name: "full length, smallest, AX3", width: 320, height: 4200, top: 0, bottom: 0)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "H-full-AX3", on: smallAX3, type: .accessibility3, into: dir)
+        // The two chip cards on their own at the largest type, drawn by the ordinary renderer.
+        let cards = FitDevice(name: "chip cards", width: 320, height: 1800, top: 0, bottom: 0)
+        try shoot(VStack(spacing: 8) {
+            IntentCard(date: DateSamples.date)
+            CommonCard(date: DateSamples.date)
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(Color.liqCream), "J-chips-AX5", on: cards, type: .accessibility5, into: dir)
+        try shoot(DateScreen(ui: DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false),
+                             zone: DateSamples.zone), "I-widest", on: widest, into: dir)
     }
 
     /// SHOWUP-188: A, B and C on the Search tab, D over a Likes profile in B as the sheet draws it.

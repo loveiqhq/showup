@@ -9,13 +9,29 @@
 
 /** The preset reasons a person can pick when opening the chat (from the current design mockup). */
 export enum ChatReason {
-  ChangeMeetTime = 'change_meet_time',
-  ChangeLocation = 'change_location',
   OnMyWay = 'on_my_way',
+  Arrived = 'arrived',
+  CantFind = 'cant_find',
+  WhenArrive = 'when_arrive',
+  ChangeTime = 'change_time',
+  ChangePlace = 'change_place',
   RunningLate = 'running_late',
-  CantFindYou = 'cant_find_you',
-  CantMakeItToday = 'cant_make_it_today',
+  CantMakeIt = 'cant_make_it',
 }
+
+/**
+ * The reasons a message may carry. `change_time` / `change_place` never produce a message: those chips
+ * open the Date 05 picker (Date 02's chip table). `arrived` is sendable -- Date 03 gates it on the
+ * phone, not here.
+ */
+export const SENDABLE_REASONS: ReadonlySet<ChatReason> = new Set([
+  ChatReason.OnMyWay,
+  ChatReason.Arrived,
+  ChatReason.CantFind,
+  ChatReason.WhenArrive,
+  ChatReason.RunningLate,
+  ChatReason.CantMakeIt,
+]);
 
 /**
  * How long before the date's scheduled time the chat opens. ~1.5 hours. A tunable product setting —

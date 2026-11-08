@@ -75,6 +75,42 @@ export class DateEntity {
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;
 
+  /** When `coordinate_unlocked` was sent (meet − 1:30). Null until then; the job's once-only stamp. */
+  @Column({
+    name: 'coordinate_unlocked_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  coordinateUnlockedAt: Date | null;
+
+  /** Who ended the date from the chat, and when (Date 02); null unless `ended_in_chat`. */
+  @Column({ name: 'ended_by_id', type: 'uuid', nullable: true })
+  endedById: string | null;
+
+  @Column({ name: 'ended_at', type: 'timestamptz', nullable: true })
+  endedAt: Date | null;
+
+  /** When each person tapped "Open the chat" on this date's tutorial (Date 02). */
+  @Column({ name: 'a_chat_tutorial_at', type: 'timestamptz', nullable: true })
+  aChatTutorialAt: Date | null;
+
+  @Column({ name: 'b_chat_tutorial_at', type: 'timestamptz', nullable: true })
+  bChatTutorialAt: Date | null;
+
+  /** When each person saw their outcome screen after the date ended in the chat (Date 02). */
+  @Column({ name: 'a_end_seen_at', type: 'timestamptz', nullable: true })
+  aEndSeenAt: Date | null;
+
+  @Column({ name: 'b_end_seen_at', type: 'timestamptz', nullable: true })
+  bEndSeenAt: Date | null;
+
+  /** When each person last read this date's chat. A later message from the other side is unread. */
+  @Column({ name: 'a_chat_read_at', type: 'timestamptz', nullable: true })
+  aChatReadAt: Date | null;
+
+  @Column({ name: 'b_chat_read_at', type: 'timestamptz', nullable: true })
+  bChatReadAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

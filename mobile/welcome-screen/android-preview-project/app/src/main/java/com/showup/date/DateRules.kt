@@ -1,0 +1,159 @@
+/*
+ * DateRules.kt
+ * ShowUp · the Date screen's rules, as plain functions (SHOWUP-193)
+ *
+ * Which state the screen is in, the minutes every event carries, and every string built from
+ * values. No view, so each is tested without one (`DateRulesTest`); Swift has the same functions
+ * under the same names.
+ */
+package com.showup.date
+
+import com.showup.chat.ChatReason
+import com.showup.search.interestLabel
+import com.showup.search.meetTime
+import com.showup.search.motivationOf
+import com.showup.search.searchDistance
+import com.showup.welcome.BrandIcon
+import java.time.Instant
+import java.time.ZoneId
+
+/**
+ * The three time states. D, the full scroll, is not a state -- it is the same screen, scrolled.
+ *
+ * UNREAD ONLY ONCE OPEN. A message cannot arrive before the chat opens, and if one somehow had, the
+ * locked card has nothing to hoist: it is not tappable and has no reply.
+ */
+enum class DateState { Locked, Available, Unread }
+
+/**
+ * [coordinateOpen] is the server's word at the last read: the device clock flips the card at
+ * [unlockAt], and the foreground re-read corrects a clock that is behind (spec section 3).
+ */
+fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOpen: Boolean = false): DateState = when {
+    !coordinateOpen && now < unlockAt -> DateState.Locked
+    unread != null -> DateState.Unread
+    else -> DateState.Available
+}
+
+/**
+ * The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet
+ * time` and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the
+ * vocabulary's own switch. They are hidden until Date 05 ships (epic rule 8): the day Date 05 shows those
+ * chips, the tiles and their line appear with them, and nothing on the Date screen changes.
+ */
+val CHANGE_TILES: List<ChatReason> = listOf(ChatReason.ChangeTime, ChatReason.ChangePlace).filter { it.shown }
+
+/**
+ * How often the Date screen re-reads the date while it is on screen (SHOWUP-194, the design's §3):
+ * the match's End date lands on H within seconds when the app is open. Polling, as the chat's; there
+ * is no socket.
+ */
+const val DATE_POLL_MS = 15_000L
+
+/**
+ * Whole minutes from [now] to the latest agreed meet time, negative after it, rounded toward zero
+ * -- the server's `minutesBeforeStart`, so the client's and the server's events agree.
+ */
+fun minutesBeforeStart(meetAt: Instant, now: Instant): Int {
+    val seconds = meetAt.epochSecond - now.epochSecond
+    return (seconds / 60).toInt()
+}
+
+/**
+ * `Messaging available from 17:30`, or `… tomorrow from …` "if the date is tomorrow" -- by [meetDay],
+ * the date's own day that the headline shows, so the two never disagree.
+ */
+fun lockedLine(meetDay: String, unlockAt: Instant, zone: ZoneId): String {
+    val template = if (meetDay == "tomorrow") DateCopy.COORD_LOCKED_LINE_TOMORROW else DateCopy.COORD_LOCKED_LINE
+    return template.format(meetTime(unlockAt, zone))
+}
+
+/** `{place}, {address}` -- what Copy writes, and where Calendar says the event is. */
+fun placeText(place: DatePlace): String =
+    place.address?.let { "${place.name}, $it" } ?: place.name
+
+/** The Share Date sentence. Without a place it ends at the time. */
+fun shareText(date: ActiveDate, zone: ZoneId): String {
+    val time = meetTime(date.meetAt, zone)
+    return date.place?.let {
+        DateCopy.SHARE_TEXT.format(date.match.name, date.meetDay, time, placeText(it))
+    } ?: DateCopy.SHARE_TEXT_NO_PLACE.format(date.match.name, date.meetDay, time)
+}
+
+/** What the OS calendar sheet is pre-filled with. One hour, as the ticket says. */
+data class CalendarEvent(val title: String, val start: Instant, val end: Instant, val location: String?)
+
+fun calendarEvent(date: ActiveDate): CalendarEvent = CalendarEvent(
+    title = DateCopy.CALENDAR_TITLE.format(date.match.name),
+    start = date.meetAt,
+    end = date.meetAt.plusSeconds(3600),
+    location = date.place?.let(::placeText),
+)
+
+/** The unread card's `{time}`: `now` within the minute, then the clock time it was sent. */
+fun unreadTime(sentAt: Instant, now: Instant, zone: ZoneId): String =
+    if (now.epochSecond - sentAt.epochSecond < 60) DateCopy.NOW else meetTime(sentAt, zone)
+
+/** `New message` for one, `{n} new` for more. */
+fun unreadTag(count: Int): String = if (count == 1) DateCopy.UNREAD_ONE else DateCopy.UNREAD_MANY.format(count)
+
+/**
+ * About's line: `{area} · {distance} away`. The ticket's `{job}` has no source -- no profile question
+ * asks for one -- so the line starts at the area; whatever is missing is left out, never a placeholder.
+ */
+fun aboutLine(district: String?, distanceKm: Int?): String? =
+    listOfNotNull(district, distanceKm?.let { "${searchDistance(it)} away" })
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(" · ")
+
+/** Only what matches is shown: the intent line only when both motivations are the same. */
+fun intentShared(you: String?, them: String?): Boolean = you != null && you == them
+
+/**
+ * ⑬'s chips in order -- the shared motivation, then the shared interests -- each with the icon the
+ * sheet draws: the kit's `heart` on the motivation; none on an interest, whose reference names
+ * (`reading`, `brunch`, `hiking`, `festivals`) are not in the kit's icon set and render nothing.
+ */
+fun commonChips(date: ActiveDate): List<Pair<String, BrandIcon?>> = buildList {
+    if (intentShared(date.motivationYou, date.motivationThem)) {
+        add((motivationOf(date.motivationThem)?.title ?: date.motivationThem.orEmpty()) to BrandIcon.Heart)
+    }
+    date.sharedInterests.forEach { add((interestLabel(it) ?: it) to null) }
+}
+
+/**
+ * ⑩ `You both want`: the icon the reference gives a vibe's chip. It names four -- `coffee`,
+ * `navigation`, `flame`, and `reading` for Deep conversation, which the kit does not have and so
+ * draws nothing -- and no other vibe has one. No icon is invented for the rest.
+ */
+fun vibeIcon(id: String): BrandIcon? = when (id) {
+    "coffee_chat" -> BrandIcon.Coffee
+    "nature_walk" -> BrandIcon.Navigation
+    "playful" -> BrandIcon.Flame
+    else -> null
+}
+
+/** How the date works, row 1: the agreed place and time, or the time alone with no place. */
+fun worksMeetLine(date: ActiveDate, zone: ZoneId): String {
+    val time = meetTime(date.meetAt, zone)
+    return date.place?.let { DateCopy.WORKS_MEET.format(it.name, time) }
+        ?: DateCopy.WORKS_MEET_NO_PLACE.format(time)
+}
+
+/** The time + place card's headline, split so the day can be set italic and violet. */
+fun meetingHeadline(name: String, day: String): Pair<String, String> = DateCopy.MEETING_LEAD.format(name) to day
+
+/**
+ * [s] with a zero-width space after each hyphen, so a long hyphenated name or district may break after
+ * its hyphen, as CSS and iOS break it. Android's line breaker does not: `Friedrichshain-Kreuzberg`
+ * broke mid-letter wherever the whole word did not fit (the 4 Nov 2026 device audit). Invisible, and
+ * silent to TalkBack.
+ */
+fun breakAfterHyphens(s: String): String = s.replace(HYPHEN_UNMARKED, "-\u200B")
+
+private val HYPHEN_UNMARKED = Regex("-(?!\u200B)")
+
+/** [date] with its match's name and district breakable after their hyphens ([breakAfterHyphens]). */
+fun withBreakableNames(date: ActiveDate): ActiveDate = date.copy(
+    match = date.match.copy(name = breakAfterHyphens(date.match.name), district = date.match.district?.let(::breakAfterHyphens)),
+)

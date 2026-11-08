@@ -780,7 +780,14 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  // Date search 01 (SHOWUP-184): the kit's filter, send, shield-check, user, star,
                  // gift and pause, and SEARCH_ICONS' section marks -- each from its `d` string.
                  filter, send, shieldCheck, user, star, gift, pause,
-                 globe, bookOpen, faith, vote, wine, cigarette, leaf }
+                 globe, bookOpen, faith, vote, wine, cigarette, leaf,
+                 // The Date screen (SHOWUP-193): `copy` is the time + place card's Copy pill, `share`
+                 // the Share Date tile; `hourglass`, `binoculars` and `frown` the unread card's reason
+                 // badges; `coffee` the Coffee & a chat vibe's chip. Each from its `d` string.
+                 copy, share, hourglass, binoculars, frown, coffee,
+                 // The chat (SHOWUP-194): `walking` is the "When will you arrive?" chip's mark,
+                 // from its `circle` and `d` strings.
+                 walking }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -1394,6 +1401,27 @@ struct BrandIconView: View {
             case .leaf:
                 filled = false
                 p = Self.leafPath
+            case .copy:
+                filled = false
+                p = Self.copyPath
+            case .share:
+                filled = false
+                p = Self.sharePath
+            case .hourglass:
+                filled = false
+                p = Self.hourglassPath
+            case .binoculars:
+                filled = false
+                p = Self.binocularsPath
+            case .frown:
+                filled = false
+                p = Self.frownPath
+            case .coffee:
+                filled = false
+                p = Self.coffeePath
+            case .walking:
+                filled = false
+                p = Self.walkingPath
             case .phone:
                 filled = false
                 p = Self.phonePath
@@ -1469,6 +1497,36 @@ struct BrandIconView: View {
     static let flamePath = SVGPath.parse(
         "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 " +
         "1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+    )
+    // The Date screen's (SHOWUP-193), from `components/shared.jsx` as path data, VERBATIM -- the same
+    // strings as Android's `KitPaths`; circles and rects written as path commands.
+    /// `rect 9,9 13x13 rx2` and the back sheet's path.
+    static let copyPath = SVGPath.parse(
+        "M11 9H20A2 2 0 0 1 22 11V20A2 2 0 0 1 20 22H11A2 2 0 0 1 9 20V11A2 2 0 0 1 11 9Z" +
+        "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+    )
+    /// Three circles r3 and the two links.
+    static let sharePath = SVGPath.parse(
+        "M21 5A3 3 0 1 1 15 5A3 3 0 1 1 21 5ZM9 12A3 3 0 1 1 3 12A3 3 0 1 1 9 12Z" +
+        "M21 19A3 3 0 1 1 15 19A3 3 0 1 1 21 19ZM8.59 13.51L15.42 17.49M15.41 6.51L8.59 10.49"
+    )
+    static let hourglassPath = SVGPath.parse("M6 3h12M6 21h12M6 3c0 4 4 7 6 9 2-2 6-5 6-9M6 21c0-4 4-7 6-9 2 2 6 5 6 9")
+    /// Two `rect 6x13 rx3` at x 3 and 15, the bridge path, and `line 9,13.5 15,13.5`.
+    static let binocularsPath = SVGPath.parse(
+        "M6 7A3 3 0 0 1 9 10V17A3 3 0 0 1 6 20A3 3 0 0 1 3 17V10A3 3 0 0 1 6 7Z" +
+        "M18 7A3 3 0 0 1 21 10V17A3 3 0 0 1 18 20A3 3 0 0 1 15 17V10A3 3 0 0 1 18 7Z" +
+        "M9 6.5a1.5 1.5 0 0 1 3 0v3.5M15 6.5a1.5 1.5 0 0 0-3 0M9 13.5L15 13.5"
+    )
+    /// `circle 12,12 r10`, the mouth, and the two eye dots (zero-length lines under a round cap).
+    static let frownPath = SVGPath.parse(
+        "M22 12A10 10 0 1 1 2 12A10 10 0 1 1 22 12ZM16 16s-1.5-2-4-2-4 2-4 2M9 9.2L9.01 9.2M15 9.2L15.01 9.2"
+    )
+    /// The cup and its handle, and the three steam `line`s at x 6, 10 and 14.
+    static let coffeePath = SVGPath.parse("M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1L6 4M10 1L10 4M14 1L14 4")
+    /// `walking` (SHOWUP-194): the head (`circle 13,4 r1.7`), the body, the two legs and the two arms --
+    /// the same string as Android's `KitPaths.walking`.
+    static let walkingPath = SVGPath.parse(
+        "M14.7 4A1.7 1.7 0 1 1 11.3 4A1.7 1.7 0 1 1 14.7 4ZM13 6v6M13 12l3 4v5M13 12l-3 4-1 5M13 8l4 1.2M13 8l-3-1"
     )
 
     /// How far a mark's ink is from the centre of its artboard, in 24-grid units.

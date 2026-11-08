@@ -5,6 +5,7 @@ import com.showup.api.generated.api.AccountApi
 import com.showup.api.generated.api.AuthApi
 import com.showup.api.generated.api.CheckInApi
 import com.showup.api.generated.api.CheckInsApi
+import com.showup.api.generated.api.DatesApi
 import com.showup.api.generated.api.DevApi
 import com.showup.api.generated.api.MatchingApi
 import com.showup.api.generated.api.NotificationsApi
@@ -101,6 +102,9 @@ class ShowUpApi(
      * notifications off is not sent pushes it would never show.
      */
     val permissions: PermissionsApi by lazy { client.createService(PermissionsApi::class.java) }
+
+    /** A date's calls, and the Date screen's reads (SHOWUP-193): `/me/date`, the match's profile. */
+    val dates: DatesApi by lazy { client.createService(DatesApi::class.java) }
 
     /** Date search (SHOWUP-184): the queue, passes, the coach flag and the open-likes count. */
     val search: SearchApi by lazy { client.createService(SearchApi::class.java) }

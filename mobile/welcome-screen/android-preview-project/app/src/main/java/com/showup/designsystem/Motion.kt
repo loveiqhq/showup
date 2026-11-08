@@ -83,6 +83,31 @@ object Motion {
      */
     const val REVEAL = 200
 
+    /**
+     * How long the TabBar's disabled-tab hint stays up (SHOWUP-193 ⑰: "3200 ms; re-tap restarts
+     * it"). A reading duration, like [TOAST]; it fades in and out over [REVEAL], as the kit's.
+     */
+    const val TAB_HINT = 3200
+
+    /**
+     * How long the Date screen's Copy pill reads `Copied` (SHOWUP-193 ④: "shows `Copied` for 1600
+     * ms. No toast"). Its colours cross over [TINT].
+     */
+    const val COPIED = 1600
+
+    /**
+     * A control's colours following its state: the chat's composer border and fill and its Send
+     * button waking (`160ms`, SHOWUP-194), and the Date screen's Copy pill (SHOWUP-193). A touch
+     * under [FAST]: a tint travels nowhere, and the reference times every one of these at 160.
+     */
+    const val TINT = 160
+
+    /**
+     * One beat of the unread badge's pulsing ring (`su-pulse-ring 1.8s cubic-bezier(.22,1,.36,1)
+     * infinite`, the Date screen's state C, SHOWUP-193 ⑧): 1 → 2.6 and .55 → 0 by 70 %, then held.
+     */
+    const val PULSE_RING = 1800
+
     /** The No hours today? card popping in (`su-checkin-pop 260ms`). SHOWUP-179. */
     const val POP = 260
 

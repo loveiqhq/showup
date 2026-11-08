@@ -43,10 +43,25 @@ enum CSSTextLayout {
         let firstBaseline: CGFloat
     }
 
+    /// `text` as its words wrap. A UILabel writes its `lineBreakMode` into its attributed text, and a
+    /// truncating paragraph lays TextKit out on ONE line -- so the Date screen's clamped preview
+    /// measured a single line and never re-wrapped its orphan (iOS evidence C, 4 Nov 2026). The
+    /// breaks are the paragraph's; the clamp is the label's.
+    static func wrapping(_ text: NSAttributedString) -> NSAttributedString {
+        let out = NSMutableAttributedString(attributedString: text)
+        text.enumerateAttribute(.paragraphStyle, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            guard let style = value as? NSParagraphStyle, style.lineBreakMode != .byWordWrapping,
+                  let copy = style.mutableCopy() as? NSMutableParagraphStyle else { return }
+            copy.lineBreakMode = .byWordWrapping
+            out.addAttribute(.paragraphStyle, value: copy, range: range)
+        }
+        return out
+    }
+
     /// `text` laid out at `width` by TextKit, with no padding in the line fragments -- as UILabel
     /// lays it out.
     static func lines(_ text: NSAttributedString, width: CGFloat) -> Lines {
-        let storage = NSTextStorage(attributedString: text)
+        let storage = NSTextStorage(attributedString: wrapping(text))
         let manager = NSLayoutManager()
         let container = NSTextContainer(size: CGSize(width: max(width, 1), height: .greatestFiniteMagnitude))
         container.lineFragmentPadding = 0
@@ -183,7 +198,11 @@ struct CSSLineBox: Layout {
         let pitch = max(lineHeight, ascent + descent)
         let lines = max(1, Int(((last - first) / pitch).rounded()) + 1)
         let cssFirst = lineHeight / 2 + (ascent - descent) / 2
-        let height = max(lineHeight * CGFloat(lines), lineHeight)
+        // The first line's box, then each further line where SwiftUI actually set it: `pitch` apart,
+        // not `lineHeight` -- n lines of the CSS height left every line past the first running over
+        // what lay under the box wherever the font's own line is the taller (the 4 Nov 2026 device
+        // audit). One line, or lines set at the CSS pitch, measure exactly as CSS does.
+        let height = lines > 1 ? (last - first) + lineHeight : lineHeight
         return (size, height, ascent - cssFirst)
     }
 }
@@ -220,6 +239,16 @@ struct PrettyText: UIViewRepresentable {
     /// text, as the reference's centred flex column and Android's `prettyWrap` do. Off, the
     /// paragraph keeps every point it is offered.
     var hugs: Bool = false
+    /// 0 for no limit; more clamps with an ellipsis, AFTER the breaks are chosen on the whole text --
+    /// `text-wrap: pretty` under `-webkit-line-clamp`, as the Date screen's message preview has it.
+    var maxLines: Int = 0
+
+    /// This text clamped to `n` lines.
+    func lines(_ n: Int) -> PrettyText {
+        var clamped = self
+        clamped.maxLines = n
+        return clamped
+    }
 
     /// The type size the user chose, as a factor of the default: 1 at the default size. The fonts
     /// here are UIFonts built at a fixed size, which Dynamic Type never touches on its own -- so at
@@ -239,7 +268,7 @@ struct PrettyText: UIViewRepresentable {
     }
 
     init(runs: [(String, Bool)], font: UIFont, lineHeight: CGFloat, color: Color,
-         emphasisFont: UIFont?, emphasisColor: Color?, centered: Bool = false) {
+         emphasisFont: UIFont?, emphasisColor: Color?, centered: Bool = false, pretty: Bool = true) {
         self.runs = runs
         self.font = font
         self.lineHeight = lineHeight
@@ -247,6 +276,7 @@ struct PrettyText: UIViewRepresentable {
         self.emphasisFont = emphasisFont
         self.emphasisColor = emphasisColor
         self.centered = centered
+        self.pretty = pretty
     }
 
     func makeUIView(context: Context) -> PrettyLabel {
@@ -274,6 +304,10 @@ struct PrettyText: UIViewRepresentable {
             ]))
         }
         v.attributedText = out
+        // Clamped: the paragraph keeps wrapping, and the LABEL truncates its last line -- a truncating
+        // paragraph style would make UIKit lay the text out on one line whatever `numberOfLines` says.
+        v.numberOfLines = maxLines
+        if maxLines > 0 { v.lineBreakMode = .byTruncatingTail }
         v.pretty = pretty
         v.balance = balance
         v.invalidateIntrinsicContentSize()
@@ -299,13 +333,33 @@ final class PrettyLabel: UILabel {
     var balance = false
 
     override func drawText(in rect: CGRect) {
-        guard pretty || balance, let text = attributedText else { return super.drawText(in: rect) }
+        guard pretty || balance, let label = attributedText else { return super.drawText(in: rect) }
+        let text = CSSTextLayout.wrapping(label)
         let used = CSSTextLayout.wrapWidth(text, within: rect.width, pretty: pretty, balance: balance)
         guard used < rect.width else { return super.drawText(in: rect) }
         let centred = textAlignment == .center
             || (text.length > 0
                 && (text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment == .center)
         let x = centred ? rect.minX + (rect.width - used) / 2 : rect.minX
-        super.drawText(in: CGRect(x: x, y: rect.minY, width: used, height: rect.height))
+        // DRAWN BY TEXTKIT, the engine that measured the breaks. Not `super.drawText(in:)` with a
+        // narrowed rect: UILabel lays out for its own bounds and drew only the first line. Not
+        // NSAttributedString drawing capped at the label's height either: it measures a hair taller
+        // than UILabel sizes, and a line that does not wholly fit is silently left out. Both ways the
+        // Date screen's `Sort last-minute details before` lost `you meet` (SHOWUP-193 iOS evidence, 3
+        // and 4 Nov 2026). The container has no height to fall short of; clamped, it stops at
+        // `numberOfLines` and the last of them takes the ellipsis.
+        let storage = NSTextStorage(attributedString: text)
+        let manager = NSLayoutManager()
+        let container = NSTextContainer(size: CGSize(width: used, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        container.maximumNumberOfLines = numberOfLines
+        container.lineBreakMode = numberOfLines > 0 ? .byTruncatingTail : .byWordWrapping
+        storage.addLayoutManager(manager)
+        manager.addTextContainer(container)
+        let glyphs = manager.glyphRange(for: container)
+        let height = manager.usedRect(for: container).height
+        let origin = CGPoint(x: x, y: rect.minY + max(0, (rect.height - height) / 2))
+        manager.drawBackground(forGlyphRange: glyphs, at: origin)
+        manager.drawGlyphs(forGlyphRange: glyphs, at: origin)
     }
 }

@@ -42,4 +42,34 @@ sealed interface AppRoute {
      */
     @Serializable
     data object LocationGate : AppRoute
+
+    /**
+     * The match's profile, read-only, opened from the Date screen (SHOWUP-193 ⑫). Whether it is up
+     * is the date profile view model's (`DateProfileViewModel.state`), so a process death that
+     * restores it with nothing open pops it, as [SearchProfile] is popped.
+     */
+    @Serializable
+    data object DateProfile : AppRoute
+
+    /**
+     * The chat tutorial (SHOWUP-194 A), pushed over the Date screen before the first open of each
+     * date's chat. `Open the chat` replaces it with [Chat]; back pops it.
+     */
+    @Serializable
+    data object ChatTutorial : AppRoute
+
+    /**
+     * The coordinate chat (SHOWUP-194 B to F), pushed over the Date screen. [entry] is the §39
+     * `chat_entry` wire value it was opened from. The thread, the draft and the chip are the chat
+     * view model's, held for the session; the route carries only how it was reached.
+     */
+    @Serializable
+    data class Chat(val entry: String) : AppRoute
+
+    /**
+     * G or H (SHOWUP-194), after a date ended in the chat. The outcome rides in the route itself, so
+     * a process death on it restores the same screen; [photoUrl] is the match's, for the avatar.
+     */
+    @Serializable
+    data class DateEnded(val dateId: String, val name: String, val endedByYou: Boolean, val photoUrl: String?) : AppRoute
 }

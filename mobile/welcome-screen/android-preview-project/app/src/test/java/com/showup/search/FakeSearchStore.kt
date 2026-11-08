@@ -28,10 +28,12 @@ internal class FakeSearchStore : SearchStore {
         queueFailure?.let { return Outcome.Failed(it) }
         return Outcome.Ok(SearchQueue(profiles.size, profiles, SearchSamples.VIEWER))
     }
-    override suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Unit> {
+    /** The server answers the next likes `matched`: each one made a date. */
+    var likeMatches = false
+    override suspend fun like(targetUserId: String, message: String?, position: Int): Outcome<Boolean> {
         likes += Triple(targetUserId, message, position)
         if (likeFailures > 0) { likeFailures--; return Outcome.Failed(CallFailure.Network) }
-        return Outcome.Ok(Unit)
+        return Outcome.Ok(likeMatches)
     }
     override suspend fun pass(targetUserId: String, type: SearchAnalytics.PassType): Outcome<Unit> {
         passes += targetUserId to type

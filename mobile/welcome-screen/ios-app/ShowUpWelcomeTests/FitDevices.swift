@@ -54,6 +54,26 @@ let fitDevices: [FitDevice] = [
     FitDevice(name: "iPhone 16 / 17 Pro Max", width: 440, height: 956, top: 62, bottom: 34),
 ]
 
+/// The twin of `Devices.kt`'s `EDGE_DEVICES`, row for row: real screens `fitDevices` does not hold,
+/// measured by the Date screen and the chat (the 4 Nov 2026 device audit, widened 8 Nov 2026) --
+/// Display Zoom, split screen, unfolded foldables, foldable cover screens, 16:9, budget HD+, a phone at
+/// its smallest display size and a tablet. See there for why each row exists and why it is not in the
+/// shared list yet.
+let edgeFitDevices: [FitDevice] = [
+    FitDevice(name: "iPhone SE, Display Zoom", width: 320, height: 568, top: 20, bottom: 0),
+    FitDevice(name: "split screen, top half", width: 360, height: 380, top: 24, bottom: 0),
+    FitDevice(name: "unfolded foldable, Fold 5 / 6 class", width: 700, height: 840, top: 24, bottom: 24),
+    FitDevice(name: "unfolded foldable, Fold 7", width: 984, height: 1092, top: 24, bottom: 24),
+    FitDevice(name: "6.1-inch iPhone, Display Zoom", width: 320, height: 693, top: 59, bottom: 34),
+    FitDevice(name: "Galaxy Z Fold 5, cover screen", width: 344, height: 882, top: 24, bottom: 48),
+    FitDevice(name: "Galaxy Z Fold 6, cover screen", width: 369, height: 905, top: 24, bottom: 48),
+    FitDevice(name: "16:9 Android, Pixel 2 class", width: 411, height: 731, top: 24, bottom: 48),
+    FitDevice(name: "18:9 budget Android", width: 360, height: 720, top: 24, bottom: 48),
+    FitDevice(name: "19:9 HD+ Android", width: 360, height: 760, top: 24, bottom: 48),
+    FitDevice(name: "1080 px phone, smallest display size", width: 480, height: 1066, top: 24, bottom: 24),
+    FitDevice(name: "Android tablet, portrait", width: 800, height: 1280, top: 24, bottom: 48),
+]
+
 //  WHY THERE IS NO ELEMENT-LEVEL FIT HARNESS ON iOS
 //
 //  Android's FitHarness.kt measures every screen element at every one of these sizes: text
