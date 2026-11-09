@@ -237,7 +237,9 @@ class ChatFitTest {
      */
     @Test
     fun `the chat with the keyboard up is clean on every phone`() {
-        val typing = chats.filter { (name, _) -> name !in setOf("B start", "D guide", "F end sheet") }
+        // Only where a person can type: not B (no field), D (the field waits), F and K (the sheet is up) or I
+        // (no field until the chat has loaded).
+        val typing = chats.filter { (name, _) -> name !in setOf("B start", "D guide", "F end sheet", "I couldn't load", "K end didn't go through") }
         val fresh = mutableListOf<String>()
         for (scale in listOf(1f, 1.3f, 2f)) phones.filter { it.height >= FULL_SCREEN_DP }.forEach { d ->
             val keys = keyboardOn(d)
