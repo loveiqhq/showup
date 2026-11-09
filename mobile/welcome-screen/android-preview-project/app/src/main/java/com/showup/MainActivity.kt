@@ -2679,6 +2679,7 @@ class MainActivity : ComponentActivity() {
                     onKeep = vm::keepDate,
                     onEnd = vm::endDate,
                     onRetry = vm::retry,
+                    onResend = vm::resend,
                 )
             }
 

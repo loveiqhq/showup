@@ -1157,7 +1157,8 @@ private struct TutorialFlow: View {
                 onEndCard: { model.openEndSheet() },
                 onKeep: { model.keepDate() },
                 onEnd: { model.endDate() },
-                onRetry: { model.retry() })
+                onRetry: { model.retry() },
+                onResend: { model.resend($0) })
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
                 // Once per showing: a second `onAppear` reported the visit twice and restarted it.

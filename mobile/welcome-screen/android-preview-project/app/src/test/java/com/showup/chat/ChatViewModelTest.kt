@@ -188,20 +188,101 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `a failed send keeps the draft and the chip, and adds nothing to the thread`() = chatTest {
+    fun `a failed send stays in the thread, unsent, and frees the field (J)`() = chatTest {
         val vm = opened()
         store.sendFails = CallFailure.Network
         vm.pick(ChatReason.OnMyWay, ChipSurface.Dock)
         vm.send()
         runCurrent()
-        assertEquals(ChatReason.OnMyWay, vm.ui.value.selected)
-        assertEquals("On my way now — see you in a few!", vm.ui.value.draft)
-        assertTrue(vm.ui.value.messages.isEmpty())
-        assertTrue(vm.ui.value.sendFailed)
+        val failed = vm.ui.value.messages.single()
+        assertTrue(failed.failed)
+        assertTrue(failed.fromYou)
+        assertEquals(ChatReason.OnMyWay, failed.reason)
+        assertEquals("On my way now — see you in a few!", failed.body)
+        assertNull("the field is free for the next message", vm.ui.value.selected)
+        assertEquals("", vm.ui.value.draft)
         assertFalse(vm.ui.value.sending)
         assertTrue(analytics.of("message_sent").isEmpty())
-        vm.edit("On my way now!")
-        assertFalse("editing clears the failure", vm.ui.value.sendFailed)
+        stop(vm)
+    }
+
+    @Test
+    fun `tapping the line resends it once with the same reason and id, and message_sent fires then`() = chatTest {
+        val vm = opened()
+        store.sendFails = CallFailure.Network
+        vm.pick(ChatReason.OnMyWay, ChipSurface.Dock)
+        vm.send()
+        runCurrent()
+        val failed = vm.ui.value.messages.single()
+        store.sendFails = null
+        now = now.plusSeconds(60)
+        vm.resend(failed.clientId!!)
+        runCurrent()
+        assertEquals(listOf(ChatReason.OnMyWay to "On my way now — see you in a few!"), store.sent)
+        assertEquals("one id for the message, every attempt", 1, store.clientIds.toSet().size)
+        val sent = vm.ui.value.messages.single()
+        assertFalse(sent.failed)
+        val event = analytics.of("message_sent").single().properties
+        assertEquals("on_my_way", event["reason"])
+        assertEquals(false, event["prefill_edited"])
+        assertEquals(true, event["is_first"])
+        assertEquals("counted when it was actually sent", 77, event["minutes_before_start"])
+        stop(vm)
+    }
+
+    @Test
+    fun `a resend that fails again stays failed, and a second tap while one is on its way sends nothing`() = chatTest {
+        val vm = opened()
+        store.sendFails = CallFailure.Network
+        vm.edit("Here!")
+        vm.send()
+        runCurrent()
+        val id = vm.ui.value.messages.single().clientId!!
+        val gate = CompletableDeferred<Unit>()
+        store.sendGate = gate
+        vm.resend(id)
+        runCurrent()
+        assertTrue(id in vm.ui.value.resending)
+        vm.resend(id)
+        runCurrent()
+        assertEquals(2, store.calls.count { it == "send" })
+        gate.complete(Unit)
+        runCurrent()
+        assertTrue(vm.ui.value.messages.single().failed)
+        assertTrue(vm.ui.value.resending.isEmpty())
+        assertTrue(analytics.of("message_sent").isEmpty())
+        stop(vm)
+    }
+
+    @Test
+    fun `a send that landed though its answer was lost is matched by the next poll, never shown twice`() = chatTest {
+        val vm = opened()
+        store.landsThenFails = true
+        vm.edit("Here!")
+        vm.send()
+        runCurrent()
+        assertTrue(vm.ui.value.messages.single().failed)
+        store.landsThenFails = false
+        advanceTimeBy(5_001)
+        val sent = vm.ui.value.messages.single()
+        assertFalse(sent.failed)
+        assertEquals("the poll found it sent: counted once", 1, analytics.of("message_sent").size)
+        stop(vm)
+    }
+
+    @Test
+    fun `a failed I can't make it today message brings no end card, and no end sheet`() = chatTest {
+        val vm = opened()
+        store.sendFails = CallFailure.Network
+        vm.pick(ChatReason.CantMakeIt, ChipSurface.Dock)
+        vm.ackGuide()
+        vm.edit("So sorry Leonie")
+        vm.send()
+        runCurrent()
+        assertTrue(vm.ui.value.messages.single().failed)
+        assertFalse("nothing reaches the match until it sends", vm.ui.value.endCard)
+        vm.openEndSheet()
+        assertFalse(vm.ui.value.endSheet)
         stop(vm)
     }
 
@@ -284,7 +365,7 @@ class ChatViewModelTest {
         dates.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
         vm.send()
         runCurrent()
-        assertFalse(vm.ui.value.sendFailed)
+        assertTrue(vm.ui.value.messages.none { it.failed })
         assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
         stop(vm)
     }
@@ -486,6 +567,20 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `chat_opened waits for the chat to load - none for a failed load, one once Try again lands`() = chatTest {
+        store.thread = Outcome.Failed(CallFailure.Network)
+        val vm = opened()
+        assertTrue(analytics.of("chat_opened").isEmpty())
+        store.thread = Outcome.Ok(emptyList())
+        vm.retry()
+        runCurrent()
+        assertEquals(1, analytics.of("chat_opened").size)
+        advanceTimeBy(5_001)
+        assertEquals("once per visit", 1, analytics.of("chat_opened").size)
+        stop(vm)
+    }
+
+    @Test
     fun `action_chip_used fires on every chip tap with its surface`() = chatTest {
         val vm = opened()
         vm.pick(ChatReason.RunningLate, ChipSurface.Entry)
@@ -534,6 +629,13 @@ class ChatViewModelTest {
 class FakeChatStore : ChatStore {
     var thread: Outcome<List<ChatMessage>> = Outcome.Ok(emptyList())
     var sendFails: CallFailure? = null
+
+    /** The server keeps the message but the answer is lost: the phone sees a failure. */
+    var landsThenFails = false
+
+    /** While set, a send waits on it: the message is on its way. */
+    var sendGate: CompletableDeferred<Unit>? = null
+    val clientIds = mutableListOf<String>()
     var end: EndResult = EndResult.Ended(EndedInChat("d1", "Leonie", endedByYou = true))
     val calls = mutableListOf<String>()
     val sent = mutableListOf<Pair<ChatReason?, String>>()
@@ -544,14 +646,18 @@ class FakeChatStore : ChatStore {
         return thread
     }
 
-    override suspend fun send(dateId: String, reason: ChatReason?, body: String): Outcome<ChatMessage> {
+    override suspend fun send(dateId: String, reason: ChatReason?, body: String, clientId: String): Outcome<ChatMessage> {
         calls += "send"
+        clientIds += clientId
+        sendGate?.await()
         sendFails?.let { return Outcome.Failed(it) }
+        // As the server: a message it already has under this id is answered with that copy.
+        (thread as? Outcome.Ok)?.value?.firstOrNull { it.clientId == clientId }?.let { return Outcome.Ok(it) }
         sent += reason to body
-        val message = ChatMessage("s${++next}", reason, body, fromYou = true, sentAt = Instant.EPOCH, read = false)
+        val message = ChatMessage("s${++next}", reason, body, fromYou = true, sentAt = Instant.EPOCH, read = false, clientId = clientId)
         // The server has it from now on: the next read returns it.
         thread = (thread as? Outcome.Ok)?.let { Outcome.Ok(it.value + message) } ?: thread
-        return Outcome.Ok(message)
+        return if (landsThenFails) Outcome.Failed(CallFailure.Network) else Outcome.Ok(message)
     }
 
     override suspend fun markRead(dateId: String) {

@@ -124,6 +124,19 @@ final class EvidenceShots: XCTestCase {
                 }, name + "-keyboard", on: device, into: dir)
             }
         }
+        // 9 Nov 2026: I, J and K at 390 x 844, and D at 375 x 667 at the largest text size.
+        let mid = frames.filter { $0.width == 390 && $0.height == 844 }
+        let small = frames.filter { $0.width == 375 && $0.height == 667 }
+        XCTAssertEqual([mid.count, small.count], [1, 1], "the 390 x 844 and 375 x 667 frames")
+        for device in mid {
+            for (name, ui) in [("I-load-failed", ChatSamples.i), ("J-send-failed", ChatSamples.j), ("K-end-failed", ChatSamples.k)] {
+                try shoot(ChatScreen(ui: ui, zone: DateSamples.zone), name, on: device, into: dir)
+            }
+        }
+        for device in small {
+            try shoot(ChatScreen(ui: ChatSamples.d, zone: DateSamples.zone), "D-cancel-guide-largest", on: device,
+                      type: .accessibility5, into: dir)
+        }
     }
 
     func testDateScreenEvidence() throws {

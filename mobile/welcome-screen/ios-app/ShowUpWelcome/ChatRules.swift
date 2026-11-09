@@ -21,7 +21,7 @@ enum Guide: Equatable, Sendable { case none, locked, acked }
 /// The End date card: only once an "I can't make it today" message is in the thread, from either person,
 /// and not while that chip is selected -- the guide takes its place at the foot of the thread.
 func endCardVisible(messages: [ChatMessage], selected: ChatReason?) -> Bool {
-    selected != .cantMakeIt && messages.contains { $0.reason == .cantMakeIt }
+    selected != .cantMakeIt && cantMakeItFrom(messages) != nil
 }
 
 /// The field and Send wait for `Got it` after "I can't make it today" is picked, and only then.
@@ -52,7 +52,8 @@ func prefillEdited(reason: ChatReason?, sent: String) -> Bool? {
 /// `cant_make_it_from`: who sent the latest "I can't make it today" message, seen from this phone -- `self`
 /// or `match` -- or nil when the thread has none. The server decides it the same way.
 func cantMakeItFrom(_ messages: [ChatMessage]) -> String? {
-    messages.last { $0.reason == .cantMakeIt }.map { $0.fromYou ? "self" : "match" }
+    // A message that did not send never reached the match (Date 02 J): it opens nothing.
+    messages.last { $0.reason == .cantMakeIt && !$0.failed }.map { $0.fromYou ? "self" : "match" }
 }
 
 /// The header's line before the countdown, from the latest AGREED values: `Today · 19:00 · Cafe Krone`. A

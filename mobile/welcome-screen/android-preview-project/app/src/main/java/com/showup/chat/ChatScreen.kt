@@ -12,6 +12,8 @@
  */
 package com.showup.chat
 
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -94,7 +96,7 @@ import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.pillShadows
 import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.rememberMotion
-import com.showup.search.CentredStatement
+import com.showup.designsystem.LoadFailed
 import com.showup.search.SearchCopy
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
@@ -120,6 +122,7 @@ fun ChatScreen(
     onKeep: () -> Unit,
     onEnd: () -> Unit,
     onRetry: () -> Unit,
+    onResend: (String) -> Unit = {},
 ) {
     val date = ui.date
     val motion = rememberMotion()
@@ -141,10 +144,12 @@ fun ChatScreen(
         ) {
             ChatHeader(date, ui.now, zone, onBack)
             when {
-                ui.loading -> Box(Modifier.weight(1f).fillMaxWidth().background(Elevated))
+                // I: the thread's place, the header kept, no dock and so no keyboard. It stays while
+                // Try again reloads, the button waiting.
                 ui.failed != null -> Box(Modifier.weight(1f).fillMaxWidth().background(Elevated)) {
-                    CentredStatement(ChatCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
+                    LoadFailed(ChatCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry, busy = ui.loading)
                 }
+                ui.loading -> Box(Modifier.weight(1f).fillMaxWidth().background(Elevated))
                 ui.start -> StartGrid(Modifier.weight(1f), onPick)
                 else -> BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                     // The thread keeps [ThreadLeast] and the dock may take the rest -- unless the field
@@ -154,7 +159,7 @@ fun ChatScreen(
                     // of two lines, the dock is under it and nothing changes.
                     val dockMost = (maxHeight - ThreadLeast).coerceAtLeast(0.dp)
                     Column(Modifier.fillMaxSize()) {
-                        Thread(ui, date, zone, Modifier.weight(1f), onAckGuide, onEndCard)
+                        Thread(ui, date, zone, Modifier.weight(1f), onAckGuide, onEndCard, onResend)
                         Dock(ui, date, dockMost, onPick, onEdit, onSend)
                     }
                 }
@@ -222,6 +227,7 @@ private fun Thread(
     modifier: Modifier,
     onAckGuide: () -> Unit,
     onEndCard: () -> Unit,
+    onResend: (String) -> Unit,
 ) {
     val scroll = rememberScrollState()
     val guide = ui.selected == ChatReason.CantMakeIt
@@ -244,10 +250,52 @@ private fun Thread(
         },
     ) {
         ui.messages.forEachIndexed { i, message ->
-            val lastOfRun = !message.fromYou && (i == ui.messages.lastIndex || ui.messages[i + 1].fromYou)
-            ChatBubble(message, date.match.name, date.match.photoUrl, showAvatar = lastOfRun, zone = zone)
+            if (message.failed) {
+                UnsentMessage(message, date, zone, resending = message.clientId in ui.resending, onResend)
+            } else {
+                val lastOfRun = !message.fromYou && (i == ui.messages.lastIndex || ui.messages[i + 1].fromYou)
+                ChatBubble(message, date.match.name, date.match.photoUrl, showAvatar = lastOfRun, zone = zone)
+            }
         }
         if (ui.endCard) EndDateCard(onEndCard)
+    }
+}
+
+/** J's line: 12 / 600 / 1.35 in the danger ink. */
+private val ResendLine = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = (12 * 1.35).sp, color = DangerFg, textAlign = TextAlign.End)
+
+/**
+ * J (9 Nov 2026): a message whose send failed -- the bubble at opacity .6 with no receipt, and 4 under
+ * it, right-aligned, the line that resends it: `alert-circle` 14 / 2.4, gap 6, the sentence at most 280,
+ * the line at least 44 high and 48 to touch, the Android floor. It announces itself, as `role="alert"`
+ * does. While the resend is on its way the line does nothing.
+ */
+@Composable
+private fun UnsentMessage(message: ChatMessage, date: ActiveDate, zone: ZoneId, resending: Boolean, onResend: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.fillMaxWidth().graphicsLayer { alpha = 0.6f }) {
+            ChatBubble(message, date.match.name, date.match.photoUrl, showAvatar = false, zone = zone)
+        }
+        OverflowTapTarget(
+            touch = Modifier
+                .testTag(CHAT_RESEND_TAG)
+                .clickable(role = Role.Button, onClick = { if (!resending) message.clientId?.let(onResend) })
+                .semantics {
+                    contentDescription = ChatCopy.SEND_FAILED
+                    liveRegion = LiveRegionMode.Assertive
+                },
+            floor = 48.dp,
+        ) {
+            Row(
+                Modifier.widthIn(max = 280.dp).heightIn(min = 44.dp).clearAndSetSemantics {}.padding(horizontal = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(BrandIcon.AlertCircle, 14.dp, tint = DangerFg, strokeWidth = 2.4f)
+                val line = AnnotatedString(ChatCopy.SEND_FAILED)
+                Text(line, modifier = Modifier.prettyWrap(line, ResendLine).cssLineBox(ResendLine.lineHeight), style = ResendLine)
+            }
+        }
     }
 }
 
@@ -255,8 +303,8 @@ private fun Thread(
 
 /**
  * The field (pad 11 14 9, gap 9) and the compact chips (pad 2 14 10, gap 6, no heading) on cream 96%
- * glass under a soft rule. A failed send says so between the two and keeps the draft and the chip.
- * The field always shows whole; the failure line and the chips have what is left of [most] under it, and
+ * glass under a soft rule. A failed send stays in the thread (J), not here.
+ * The field always shows whole; the chips have what is left of [most] under it, and
  * scroll there -- only on a split screen or at the largest type on a small phone; everywhere else the
  * dock is its content's height and nothing scrolls. Where the field alone is taller than [most] -- its
  * placeholder in three lines at 200 % with the keys up on a 360 x 640 phone -- the thread gives way, not
@@ -289,31 +337,19 @@ private fun Dock(
     }
 }
 
-/**
- * The failure line and the chips, scrolling together where the dock leaves them less than they need: on
- * a split screen the line was cut, fighting the field for the room. At rest the scroll is at its top, so
- * the line is what shows first.
- */
+/** The chips, scrolling where the dock leaves them less than they need: a split screen, the largest type. */
 @Composable
 private fun DockChips(ui: ChatUi, onPick: (ChatReason, ChipSurface) -> Unit) {
     Column(Modifier.verticalScroll(rememberScrollState())) {
-        if (ui.sendFailed) {
-            Text(
-                ChatCopy.SEND_FAILED,
-                modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 6.dp),
-                color = DangerFg,
-                fontFamily = Manrope,
-                fontWeight = FontWeight.Medium,
-                fontSize = 12.sp,
-            )
-        }
         ChipGrid(
             SHOWN_REASONS,
             selected = ui.selected,
             compact = true,
             surface = ChipSurface.Dock,
             onPick = onPick,
-            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 10.dp),
+            // Pad 2 14 10, plus the 1 the field's row gives up (its 9 is 8 here): the top row's chips answer
+            // 3 above themselves, and the chips' scroll clips at its top -- 2 would have cut that to 2.
+            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 10.dp),
         )
     }
 }
@@ -342,7 +378,8 @@ private fun Composer(ui: ChatUi, name: String, onEdit: (String) -> Unit, onSend:
         else -> ChatCopy.PLACEHOLDER
     }
     Row(
-        Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 11.dp, bottom = 9.dp),
+        // Pad 11 14 9, the 9 split: 8 here and 1 above the chips, inside their scroll (see [DockChips]).
+        Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 11.dp, bottom = 8.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
         val shape = RoundedCornerShape(20.dp)

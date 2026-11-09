@@ -19,6 +19,10 @@ struct ChatMessage: Equatable, Sendable, Identifiable {
     var sentAt: Date
     /// Mine: whether the other person has read the chat since. Theirs: nil.
     var read: Bool?
+    /// Mine: the id this phone gave it, the same on every resend (Date 02 J). Theirs, and before then: nil.
+    var clientId: String? = nil
+    /// Mine, and not sent: its send failed and it waits for the person to tap its line (Date 02 J).
+    var failed = false
 }
 
 /// What `End date` came back with.
@@ -33,8 +37,9 @@ enum EndResult: Equatable, Sendable {
 protocol ChatStoring: Sendable {
     /// The thread, oldest first.
     func thread(dateId: String) async -> Result<[ChatMessage], CallFailure>
-    /// One message: the trimmed text, with the selected chip's reason or none.
-    func send(dateId: String, reason: ChatReason?, body: String) async -> Result<ChatMessage, CallFailure>
+    /// One message: the trimmed text, with the selected chip's reason or none. `clientId` is the same on every
+    /// resend, so a message the server already has is answered with that copy, never added twice.
+    func send(dateId: String, reason: ChatReason?, body: String, clientId: String) async -> Result<ChatMessage, CallFailure>
     /// The viewer has read the thread up to now. A stamp: a failed one is not reported, the next covers it.
     func markRead(dateId: String) async
     /// `Open the chat` on the tutorial: it does not show again for this date. A stamp, as `markRead`.
@@ -59,14 +64,14 @@ struct ChatRepository: ChatStoring {
         }
     }
 
-    func send(dateId: String, reason: ChatReason?, body: String) async -> Result<ChatMessage, CallFailure> {
+    func send(dateId: String, reason: ChatReason?, body: String, clientId: String) async -> Result<ChatMessage, CallFailure> {
         // By wire value, not case name: a regenerated enum case must not change what is sent.
         var payload: Components.Schemas.SendChatMessageDto.reasonPayload?
         if let reason {
             guard let wire = Components.Schemas.ChatReason(rawValue: reason.rawValue) else { return .failure(.server) }
             payload = .init(value1: wire)
         }
-        let dto = Components.Schemas.SendChatMessageDto(body: body, reason: payload)
+        let dto = Components.Schemas.SendChatMessageDto(body: body, clientId: clientId, reason: payload)
         do {
             if case .created(let created) = try await api.client.sendDateChatMessage(path: .init(id: dateId), body: .json(dto)) {
                 return .success(ChatMessage(try created.body.json))
@@ -123,6 +128,8 @@ extension ChatMessage {
             body: dto.body ?? chip?.label ?? "",
             fromYou: dto.fromYou,
             sentAt: dto.createdAt,
-            read: dto.read)
+            read: dto.read,
+            // Postgres hands a uuid back in lower case; the phone makes its ids lower case to match.
+            clientId: dto.clientId?.lowercased())
     }
 }

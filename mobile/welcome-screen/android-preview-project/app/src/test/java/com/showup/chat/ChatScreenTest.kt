@@ -2,7 +2,7 @@
  * ChatScreenTest.kt
  * ShowUp · the coordinate chat's structure (SHOWUP-194): B, C, the guide, the card and the sheet
  *
- * Measured from the laid-out nodes where the ticket gives a number (two columns, chips 48 high, Keep
+ * Measured from the laid-out nodes where the ticket gives a number (two columns, chips 36 high, Keep
  * above End), read from the tree where it gives a string.
  */
 package com.showup.chat
@@ -13,6 +13,8 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -44,6 +46,8 @@ class ChatScreenTest {
     private var kept = 0
     private var ended = 0
     private var endCards = 0
+    private val resent = mutableListOf<String>()
+    private var retries = 0
 
     @androidx.compose.runtime.Composable
     private fun Screen(ui: ChatUi) = ChatScreen(
@@ -57,7 +61,8 @@ class ChatScreenTest {
         onEndCard = { endCards++ },
         onKeep = { kept++ },
         onEnd = { ended++ },
-        onRetry = {},
+        onRetry = { retries++ },
+        onResend = { resent += it },
     )
 
     @Test
@@ -93,14 +98,20 @@ class ChatScreenTest {
     }
 
     @Test
-    // 48, Android's touch floor, as every other control: the ticket's 36 was raised on 9 Nov 2026 (Esma).
-    fun `the dock has no heading line, five chips, and each chip is 48 high`() = runComposeUiTest {
+    fun `the dock has no heading line, five chips 38 high, each answering 3 beyond it on every side`() = runComposeUiTest {
         setContent { Screen(ChatSamples.C) }
         onAllNodesWithText("Tap a chip", substring = true).assertCountEquals(0)
         onAllNodesWithText("Quick", substring = true).assertCountEquals(0)
         for (r in SHOWN_REASONS) {
-            val node = onNodeWithTag(chipTag(r, ChipSurface.Dock), useUnmergedTree = true).fetchSemanticsNode()
-            assertEquals("${r.wire} is 48 high", 48f, node.size.height / node.layoutInfo.density.density, 0.5f)
+            val face = onNodeWithTag(chipFaceTag(r, ChipSurface.Dock), useUnmergedTree = true).fetchSemanticsNode()
+            val touch = onNodeWithTag(chipTag(r, ChipSurface.Dock), useUnmergedTree = true).fetchSemanticsNode()
+            val dp = face.layoutInfo.density.density
+            assertEquals("${r.wire} is 38 high", 38f, face.size.height / dp, 0.5f)
+            // 9 Nov 2026: a 44 tap area, 3 into the 6 gap on every side, so neighbours meet and never overlap.
+            assertEquals("${r.wire} answers 44 high", 44f, touch.size.height / dp, 0.5f)
+            assertEquals(3f, (face.boundsInRoot.left - touch.boundsInRoot.left) / dp, 0.5f)
+            assertEquals(3f, (touch.boundsInRoot.right - face.boundsInRoot.right) / dp, 0.5f)
+            assertEquals(3f, (face.boundsInRoot.top - touch.boundsInRoot.top) / dp, 0.5f)
         }
         onAllNodesWithText(ChatReason.Arrived.label).assertCountEquals(0)
     }
@@ -182,5 +193,54 @@ class ChatScreenTest {
         ui = ChatSamples.B.copy(loading = false, failed = com.showup.api.CallFailure.Network)
         waitForIdle()
         onNodeWithText("Try again").assertExists()
+    }
+
+    @Test
+    fun `I - a failed load keeps the header, says so with Try again, and shows no dock`() = runComposeUiTest {
+        var ui by androidx.compose.runtime.mutableStateOf(ChatSamples.C.copy(loading = false, failed = com.showup.api.CallFailure.Network, messages = emptyList()))
+        setContent { Screen(ui) }
+        onNodeWithText("Couldn't load your chat. Check your connection and try again.").assertExists()
+        onNodeWithText("Leonie").assertExists()
+        onAllNodesWithTag(CHAT_DOCK_TAG).assertCountEquals(0)
+        onNodeWithText("Try again").performClick()
+        assertEquals(1, retries)
+        // Reloading: the message stays and Try again waits.
+        ui = ui.copy(loading = true)
+        waitForIdle()
+        onNodeWithText("Couldn't load your chat. Check your connection and try again.").assertExists()
+        onNodeWithText("Try again").performClick()
+        assertEquals(1, retries)
+    }
+
+    @Test
+    fun `J - a failed message stays in the thread with no receipt, and its line resends it`() = runComposeUiTest {
+        val unsent = ChatSamples.UNSENT
+        setContent { Screen(ChatSamples.J) }
+        onNodeWithText(unsent.body).assertExists()
+        onAllNodesWithContentDescription("Delivered").assertCountEquals(0)
+        onAllNodesWithContentDescription("Read").assertCountEquals(0)
+        val line = onNodeWithText("Couldn't send. Check your connection and try again.", useUnmergedTree = true)
+        line.assertExists()
+        onNodeWithTag(CHAT_RESEND_TAG).performClick()
+        assertEquals(listOf(unsent.clientId), resent)
+    }
+
+    @Test
+    fun `K - a failed End date says so inside the sheet, above the buttons, which stay`() = runComposeUiTest {
+        var ui by androidx.compose.runtime.mutableStateOf(ChatSamples.F)
+        setContent { Screen(ui) }
+        val keepBefore = onNodeWithTag(END_SHEET_KEEP_TAG).fetchSemanticsNode().boundsInRoot
+        val endBefore = onNodeWithTag(END_SHEET_END_TAG).fetchSemanticsNode().boundsInRoot
+        ui = ChatSamples.K
+        waitForIdle()
+        val error = onNodeWithText("Couldn't end the date. Check your connection and try again.").fetchSemanticsNode().boundsInRoot
+        val keep = onNodeWithTag(END_SHEET_KEEP_TAG).fetchSemanticsNode().boundsInRoot
+        val end = onNodeWithTag(END_SHEET_END_TAG).fetchSemanticsNode().boundsInRoot
+        assertTrue("the error sits above Keep the date", error.bottom <= keep.top)
+        // The sheet grows upward from the bottom: the buttons keep their size and their place.
+        assertEquals(keepBefore, keep)
+        assertEquals(endBefore, end)
+        onNodeWithTag(END_SHEET_END_TAG).performClick()
+        assertEquals("End date tries again", 1, ended)
     }
 }

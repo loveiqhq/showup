@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 /**
  * Gives a control at least [ComponentSizes.minTapTarget] in both directions.
@@ -71,6 +72,10 @@ fun Modifier.minTapTarget(min: Dp = ComponentSizes.minTapTarget): Modifier {
  * semantics of its own (`clearAndSetSemantics {}`), and [touch] carries the role, the state and the
  * label for both.
  *
+ * [slop] grows the area past the drawing on every side as well, before the floor: the chat dock's chips
+ * are drawn 38 and answer 3 beyond that into the 6 gap around each, so neighbours' areas meet and never
+ * overlap (SHOWUP-194, 9 Nov 2026: "38 high, 44 tap area").
+ *
  * [floor] is the shared 44 unless a caller holds itself to Android's 48 -- the Date screen does, since
  * its device audit (4 Nov 2026) measured every touch area there; the 44 / 48 split is the unresolved
  * one documented above.
@@ -80,13 +85,15 @@ fun OverflowTapTarget(
     touch: Modifier,
     modifier: Modifier = Modifier,
     floor: Dp = ComponentSizes.minTapTarget,
+    slop: Dp = 0.dp,
     content: @Composable () -> Unit,
 ) {
     Layout(contents = listOf(content, { Box(touch) }), modifier = modifier) { (drawn, hit), constraints ->
         val drawing = drawn.first().measure(constraints)
         val least = floor.roundToPx()
-        val w = maxOf(drawing.width, least)
-        val h = maxOf(drawing.height, least)
+        val reach = slop.roundToPx()
+        val w = maxOf(drawing.width + 2 * reach, least)
+        val h = maxOf(drawing.height + 2 * reach, least)
         val area = hit.first().measure(Constraints.fixed(w, h))
         layout(drawing.width, drawing.height) {
             drawing.place(0, 0)

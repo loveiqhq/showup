@@ -9,6 +9,7 @@
  */
 package com.showup.chat
 
+import com.showup.designsystem.OverflowTapTarget
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -133,11 +134,14 @@ const val CHAT_END_CARD_TAG = "chat:end-card"
 const val CHAT_SHEET_TAG = "chat:sheet"
 const val CHAT_CTA_TAG = "chat:cta"
 
-/** The dock chip's least height: Android's touch floor, as every other control (9 Nov 2026; the ticket said 36). */
-internal val DOCK_CHIP_HEIGHT = 48.dp
-
 /** One chip on one surface: the start grid's tile and the dock's compact chip are different nodes. */
 fun chipTag(reason: ChatReason, surface: ChipSurface) = "chat-chip-${surface.wire}-${reason.wire}"
+
+/** A dock chip's drawing, which answers 3 beyond itself on every side ([chipTag] is the touch area). */
+fun chipFaceTag(reason: ChatReason, surface: ChipSurface) = "${chipTag(reason, surface)}:face"
+
+/** J: the line under a failed message that resends it. */
+const val CHAT_RESEND_TAG = "chat-resend"
 
 // ── small shared pieces ──────────────────────────────────────────────────────
 
@@ -292,6 +296,7 @@ private val BubbleText = TextStyle(fontFamily = Manrope, fontWeight = FontWeight
 internal fun ChatBubble(message: ChatMessage, name: String, photoUrl: String?, showAvatar: Boolean, zone: ZoneId) {
     val mine = message.fromYou
     BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // J: a message that did not send has no Delivered / Read -- it was neither.
         val most = maxWidth * 0.78f
         Row(
             Modifier.fillMaxWidth(),
@@ -343,7 +348,7 @@ internal fun ChatBubble(message: ChatMessage, name: String, photoUrl: String?, s
                         messageTime(message.sentAt, zone),
                         color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.sp,
                     )
-                    if (mine) Receipt(read = message.read == true)
+                    if (mine && !message.failed) Receipt(read = message.read == true)
                 }
             }
         }
@@ -480,15 +485,15 @@ internal fun ThreadScroll(
 
 /**
  * The reference's `BigActionChip`: a tile on the start grid (pad 15, radius 18, at least 68, icon box
- * 42 / 13 with the icon 21, label 15 / 700) or the dock's compact chip (radius 13, at least 48 -- the touch
- * floor every other control keeps, raised from the ticket's 36 on 9 Nov 2026 (Esma) -- icon box 30 / 9 with
- * the icon 16, label 13 / 700; was: pad 4 10 4 5, radius 11, at least
- * 36, icon box 26 / 8 with the icon 14, label 11.5 / 700). Selected: the tone's fill and a border in the
+ * 42 / 13 with the icon 21, label 15 / 700)  * or the dock's compact chip (pad 4 10 4 5, radius 11, at least
+ * 38, icon box 26 / 8 with the icon 14, label 11.5 / 700). Selected: the tone's fill and a border in the
  * tone's ink; otherwise white with the tone's chip border. The small shadow either way. The full label
  * always -- it wraps, and a word wider than its column shrinks to fit rather than break.
  *
- * Below the 48 floor at 36: the dock's grid is 36 rows 6 apart, so no touch area can be 48 without
- * lying on its neighbour's. Compose gives each chip the gap's half nearest it.
+ * The compact chip answers 3 beyond its drawing on every side, into the 6 gap: 44 to touch where it is
+ * drawn 38, and neighbours' areas meet without overlapping (SHOWUP-194, 9 Nov 2026: "38 high, 44 tap
+ * area ... not 48 on Android: four rows would cost 32 px more with the keyboard up"). The one control
+ * here under Android's 48, by the ticket's decision.
  */
 @Composable
 internal fun BigActionChip(
@@ -504,37 +509,76 @@ internal fun BigActionChip(
     val spec = tween<Color>(if (motion.enabled) Motion.TINT else 0)
     val fill by animateColorAsState(if (active) tone.bg else Elevated, spec, label = "chip-fill")
     val edge by animateColorAsState(if (active) tone.fg else tone.chipBorder, spec, label = "chip-border")
-    val radius = if (compact) 13.dp else 18.dp
+    val radius = if (compact) 11.dp else 18.dp
     val shape = RoundedCornerShape(radius)
     val interaction = remember { MutableInteractionSource() }
     val label = chipLabel(compact).copy(color = if (tone == ReasonTone.DarkRed || tone == ReasonTone.Danger) tone.fg else Fg)
+    if (!compact) {
+        ChipFace(
+            reason, compact = false, fill, edge, radius, label,
+            modifier
+                .testTag(chipTag(reason, surface))
+                .press(interaction)
+                .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+                .semantics { selected = active },
+        )
+        return
+    }
+    // The touch area carries the role, the state and the name; the drawing says nothing of its own.
+    OverflowTapTarget(
+        touch = Modifier
+            .testTag(chipTag(reason, surface))
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { selected = active; contentDescription = reason.label },
+        modifier = modifier,
+        slop = DOCK_CHIP_SLOP,
+    ) {
+        ChipFace(
+            reason, compact = true, fill, edge, radius, label,
+            Modifier.testTag(chipFaceTag(reason, surface)).clearAndSetSemantics {}.press(interaction),
+        )
+    }
+}
+
+/** How far a dock chip answers beyond its drawing, on every side: half the 6 gap. */
+private val DOCK_CHIP_SLOP = 3.dp
+
+/** A chip as it is drawn: the fill, the border, the icon tile and the label. */
+@Composable
+private fun ChipFace(
+    reason: ChatReason,
+    compact: Boolean,
+    fill: Color,
+    edge: Color,
+    radius: Dp,
+    label: TextStyle,
+    modifier: Modifier,
+) {
+    val tone = reason.tone
+    val shape = RoundedCornerShape(radius)
     Row(
         modifier
-            .testTag(chipTag(reason, surface))
-            .press(interaction)
             .roundedShadows(SolidColor(fill), radius, ShadowSm)
             .border(1.5.dp, edge, shape)
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
-            .semantics { selected = active }
-            .heightIn(min = if (compact) DOCK_CHIP_HEIGHT else 68.dp)
+            .heightIn(min = if (compact) 38.dp else 68.dp)
             // The reference's padding plus the 1.5 border, which CSS counts in the box and Compose only
             // draws: tiles come out 75 tall as the sheet renders them. The compact chip takes the border
-            // at its sides only, so its label wraps as the reference's and it stays the ticket's 36 high.
+            // at its sides only, so its label wraps as the reference's and it stays the ticket's 38 high.
             .padding(
-                if (compact) PaddingValues(start = 9.5.dp, end = 13.5.dp, top = 5.dp, bottom = 5.dp) else PaddingValues(16.5.dp),
+                if (compact) PaddingValues(start = 6.5.dp, end = 11.5.dp, top = 4.dp, bottom = 4.dp) else PaddingValues(16.5.dp),
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconTile(
-            size = if (compact) 30.dp else 42.dp,
-            radius = if (compact) 9.dp else 13.dp,
+            size = if (compact) 26.dp else 42.dp,
+            radius = if (compact) 8.dp else 13.dp,
             fill = SolidColor(tone.bg),
             icon = reason.icon,
-            iconSize = if (compact) 16.dp else 21.dp,
+            iconSize = if (compact) 14.dp else 21.dp,
             tint = tone.fg,
             stroke = 2.3f,
         )
-        Spacer(Modifier.width(if (compact) 9.dp else 12.dp))
+        Spacer(Modifier.width(if (compact) 8.dp else 12.dp))
         // Weighted, so the row's intrinsic height -- one height for both chips in a grid row -- measures
         // the label at the width it really gets, wrapped, not on one line.
         Text(
@@ -545,12 +589,12 @@ internal fun BigActionChip(
     }
 }
 
-/** A chip's label: Manrope 700, 15 / 1.16 on a tile, 13 / 1.16 compact. */
+/** A chip's label: Manrope 700, 15 / 1.16 on a tile, 11.5 / 1.16 compact. */
 private fun chipLabel(compact: Boolean) = TextStyle(
     fontFamily = Manrope,
     fontWeight = FontWeight.Bold,
-    fontSize = if (compact) 13.sp else 15.sp,
-    lineHeight = ((if (compact) 13.0 else 15.0) * 1.16).sp,
+    fontSize = if (compact) 11.5.sp else 15.sp,
+    lineHeight = ((if (compact) 11.5 else 15.0) * 1.16).sp,
 )
 
 /** A tile's width that is not its label: the 16.5 padding either side, the icon box 42 and the gap 12. */
@@ -575,7 +619,7 @@ internal fun ChipGrid(
     onPick: (ChatReason, ChipSurface) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val gap: Dp = if (compact) 8.dp else 10.dp
+    val gap: Dp = if (compact) 6.dp else 10.dp
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val floor = wordFitFloor()

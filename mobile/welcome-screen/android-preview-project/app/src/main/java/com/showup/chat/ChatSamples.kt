@@ -9,6 +9,7 @@
  */
 package com.showup.chat
 
+import com.showup.api.CallFailure
 import com.showup.date.DateSamples
 import com.showup.date.EndedInChat
 import java.time.Instant
@@ -27,6 +28,18 @@ object ChatSamples {
         read = true,
     )
 
+    /** J's seed: my running-late message, sent at 17:41 and failed. */
+    val UNSENT = ChatMessage(
+        id = "unsent:6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10",
+        reason = ChatReason.RunningLate,
+        body = ChatReason.RunningLate.draft.orEmpty(),
+        fromYou = true,
+        sentAt = Instant.parse("2026-11-03T16:41:00Z"),
+        read = null,
+        clientId = "6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10",
+        failed = true,
+    )
+
     /** B: no message yet. */
     val B = ChatUi(date = DATE, now = NOW, loading = false)
 
@@ -41,6 +54,15 @@ object ChatSamples {
 
     /** F: E with the End the date sheet open. */
     val F = E.copy(endSheet = true)
+
+    /** I: the chat's first load failed. */
+    val I = B.copy(failed = CallFailure.Network)
+
+    /** J: a send failed; the message stays in the thread and the field is free. */
+    val J = B.copy(messages = listOf(UNSENT))
+
+    /** K: End date on F did not go through. */
+    val K = F.copy(endFailed = CallFailure.Network)
 
     /** G: you ended it. */
     val G = EndedInChat(DATE.id, DATE.match.name, endedByYou = true)

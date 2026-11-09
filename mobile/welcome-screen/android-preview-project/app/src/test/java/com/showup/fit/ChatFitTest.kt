@@ -62,7 +62,10 @@ class ChatFitTest {
         "E end card" to ChatSamples.E,
         "F end sheet" to ChatSamples.F,
         "long thread" to ChatSamples.C.copy(messages = long + ChatSamples.CANCEL_SENT),
-        "failed send" to ChatSamples.C.copy(sendFailed = true),
+        "I couldn't load" to ChatSamples.I,
+        "J didn't send" to ChatSamples.J,
+        "J didn't send, long thread" to ChatSamples.C.copy(messages = long + ChatSamples.UNSENT),
+        "K end didn't go through" to ChatSamples.K,
     )
 
     /** The chat's rules, run in each render after the shared ones; [keyboard] is the keys' height, if up. */
@@ -73,12 +76,14 @@ class ChatFitTest {
         }
         val dock = f.tagged(CHAT_DOCK_TAG)
 
-        // 1. Every touch area 48 dp both ways, none partly on another -- the dock's chips too, since they
-        // were raised from the ticket's 36 to the floor (9 Nov 2026).
+        // 1. Every touch area 48 dp both ways, none partly on another. THE DOCK'S CHIPS ARE THE ONE
+        // EXCEPTION, by the ticket's decision (9 Nov 2026): drawn 38, they answer 44 -- 3 into the 6 gap
+        // on every side, so neighbours' areas meet and never overlap. They are held to that 44.
         val taps = f.tapTargets()
         taps.forEach { (name, r, _) ->
-            if (r.width < ANDROID_TAP_DP - SLACK || r.height < ANDROID_TAP_DP - SLACK) {
-                fail(name, "TAP AREA UNDER 48DP", "%.1f x %.1fdp".format(r.width, r.height))
+            val floor = if (isDockChip(name)) DOCK_CHIP_TAP_DP else ANDROID_TAP_DP
+            if (r.width < floor - SLACK || r.height < floor - SLACK) {
+                fail(name, "TAP AREA UNDER ${floor.roundToInt()}DP", "%.1f x %.1fdp".format(r.width, r.height))
             }
         }
         fun contains(a: FitRect, b: FitRect) =
@@ -251,6 +256,9 @@ class ChatFitTest {
     private companion object {
         /** Android's touch floor: Material's 48, as `android-preview-project/CLAUDE.md` states it. */
         const val ANDROID_TAP_DP = 48f
+
+        /** The dock chips' touch area: drawn 38, 3 beyond on every side (SHOWUP-194, 9 Nov 2026). */
+        const val DOCK_CHIP_TAP_DP = 44f
         const val SLACK = 0.75f
         /** A window this tall or taller is a whole phone; a split screen's half is under it. */
         const val FULL_SCREEN_DP = 500
