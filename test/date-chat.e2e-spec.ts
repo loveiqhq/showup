@@ -151,6 +151,57 @@ describe('The Coordinate chat (e2e)', () => {
     });
   });
 
+  it('sends a resent message once: the same clientId answers with the first copy (Date 02 J)', async () => {
+    const dateId = await makeDate(60);
+    const clientId = '6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10';
+    const message = { clientId, reason: 'running_late', body: 'Running late' };
+    // The first send landed but its answer was lost: the phone shows `Couldn't send` and resends.
+    const first = await send(dateId, 'you', message).expect(201);
+    const again = await send(dateId, 'you', message).expect(201);
+    expect(again.body.id).toBe(first.body.id);
+    expect(first.body.clientId).toBe(clientId);
+
+    const theirs = (await list(dateId, 'leonie')).body;
+    expect(theirs).toHaveLength(1);
+    // Only the sender's own phone matches its outbox against the thread.
+    expect(theirs[0].clientId).toBeNull();
+    expect((await list(dateId, 'you')).body[0].clientId).toBe(clientId);
+  });
+
+  it('keeps messages with different clientIds, and the same clientId from the other person, apart', async () => {
+    const dateId = await makeDate(60);
+    const clientId = '0b7d4a1e-2c3f-4e5a-8b6c-7d8e9f0a1b2c';
+    await send(dateId, 'you', { clientId, body: 'One' }).expect(201);
+    await send(dateId, 'you', {
+      clientId: '1c8e5b2f-3d4a-4f6b-9c7d-8e9f0a1b2c3d',
+      body: 'Two',
+    }).expect(201);
+    await send(dateId, 'leonie', { clientId, body: 'Mine' }).expect(201);
+    await send(dateId, 'you', { body: 'No id' }).expect(201);
+    await send(dateId, 'you', { body: 'No id' }).expect(201);
+    expect((await list(dateId, 'you')).body).toHaveLength(5);
+  });
+
+  it('adds one message when two sends of it arrive at once', async () => {
+    const dateId = await makeDate(60);
+    const message = {
+      clientId: '2d9f6c3a-4e5b-4a7c-8d9e-0f1a2b3c4d5e',
+      body: 'Here!',
+    };
+    const [a, b] = await Promise.all([
+      send(dateId, 'you', message),
+      send(dateId, 'you', message),
+    ]);
+    expect([a.status, b.status]).toEqual([201, 201]);
+    expect(a.body.id).toBe(b.body.id);
+    expect((await list(dateId, 'leonie')).body).toHaveLength(1);
+  });
+
+  it('refuses a clientId that is not a UUID', async () => {
+    const dateId = await makeDate(60);
+    await send(dateId, 'you', { clientId: 'abc', body: 'x' }).expect(400);
+  });
+
   it('refuses the two reasons that open the Date 05 picker', async () => {
     const dateId = await makeDate(60);
     await send(dateId, 'you', { reason: 'change_time', body: 'x' }).expect(400);

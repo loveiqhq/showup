@@ -169,6 +169,7 @@ export class DatesController {
       user.id,
       dto.reason ?? null,
       dto.body,
+      dto.clientId ?? null,
     );
     // Just sent: the other person cannot have read it yet.
     return ChatMessageDto.from(message, user.id, null);

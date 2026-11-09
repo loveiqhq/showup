@@ -41,6 +41,11 @@ export class DateChatMessage {
   @Column({ name: 'body', type: 'varchar', length: 1000, nullable: true })
   body: string | null;
 
+  // The id the sender's phone gave the message, kept for every resend: unique per date and sender
+  // (migration 1717000034000), so a resend of a message that already landed adds nothing (Date 02 J).
+  @Column({ name: 'client_id', type: 'uuid', nullable: true })
+  clientId: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

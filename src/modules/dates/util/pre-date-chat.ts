@@ -7,6 +7,8 @@
  * is what feeds analytics (Epic 11); the free text stays private between the two participants.
  */
 
+import { QueryFailedError } from 'typeorm';
+
 /** The preset reasons a person can pick when opening the chat (from the current design mockup). */
 export enum ChatReason {
   OnMyWay = 'on_my_way',
@@ -64,4 +66,15 @@ export function chatWindowError(
   if (isChatOpen(scheduledAt, now)) return null;
   const opens = chatOpensAt(scheduledAt);
   return `The chat opens about ${CHAT_OPENS_MINUTES_BEFORE} minutes before the date (from ${opens.toISOString()})`;
+}
+
+/**
+ * Whether a save failed on a unique index (Postgres `23505`): two sends of one message at once, with
+ * the same `client_id`, where the index let one in (Date 02 J). TypeORM keeps the driver's error.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof QueryFailedError &&
+    (error.driverError as { code?: unknown } | undefined)?.code === '23505'
+  );
 }

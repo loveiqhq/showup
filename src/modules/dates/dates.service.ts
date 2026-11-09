@@ -36,6 +36,7 @@ import {
   ChatReason,
   SENDABLE_REASONS,
   chatWindowError,
+  isUniqueViolation,
 } from './util/pre-date-chat';
 
 @Injectable()
@@ -270,12 +271,17 @@ export class DatesService {
    * optional free text. Only a participant may send, only on a still-live (confirmed) date, and only
    * once the chat window has opened (~1.5 h before). The reason tag is what later feeds analytics
    * (Epic 11); the free-text body stays private between the two people.
+   *
+   * `clientId` (Date 02 J): a resend of a message the server already has -- its first answer was
+   * lost -- is answered with that copy and adds nothing, so the match receives it exactly once. It is
+   * looked up before the date's checks: a message that landed before the date ended was sent.
    */
   async sendChatMessage(
     dateId: string,
     userId: string,
     reason: ChatReason | null,
     body: string,
+    clientId: string | null = null,
   ): Promise<DateChatMessage> {
     if (reason !== null && !SENDABLE_REASONS.has(reason)) {
       throw new BadRequestException(
@@ -283,15 +289,36 @@ export class DatesService {
       );
     }
     const date = await this.participantDate(dateId, userId);
+    const sent = (): Promise<DateChatMessage | null> =>
+      clientId === null
+        ? Promise.resolve(null)
+        : this.chat.findOne({
+            where: { dateId: date.id, senderId: userId, clientId },
+          });
+    const already = await sent();
+    if (already) return already;
     if (date.status !== DateStatus.Confirmed) {
       throw new ConflictException('The chat has closed: the date is over');
     }
     const windowError = chatWindowError(date.scheduledAt);
     if (windowError) throw new BadRequestException(windowError);
 
-    return this.chat.save(
-      this.chat.create({ dateId: date.id, senderId: userId, reason, body }),
-    );
+    try {
+      return await this.chat.save(
+        this.chat.create({
+          dateId: date.id,
+          senderId: userId,
+          reason,
+          body,
+          clientId,
+        }),
+      );
+    } catch (error) {
+      // Two sends of one message at once: the unique index let one in. Answer with it.
+      const winner = isUniqueViolation(error) ? await sent() : null;
+      if (winner) return winner;
+      throw error;
+    }
   }
 
   /**
