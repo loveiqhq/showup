@@ -107,7 +107,9 @@ class DateViewModel(
 
     /** `Try again` on the failed state: read again, the visit still waiting for it. */
     fun retry() {
-        _state.update { it.copy(loading = true, failed = null) }
+        // The message stays up while it reads, and a second tap meanwhile reads nothing (9 Nov 2026).
+        if (_state.value.loading) return
+        _state.update { it.copy(loading = true) }
         read()
     }
 

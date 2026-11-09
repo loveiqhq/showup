@@ -154,7 +154,8 @@ fun TabBar(
                     locked -> Faint
                     else -> FgSubtle
                 }
-                val badge = if (tab == Tab.Likes) likesBadgeText(likes) else null
+                // No count on a locked tab (SHOWUP-193, 9 Nov 2026): it returns when the tab does.
+                val badge = if (tab == Tab.Likes && !locked) likesBadgeText(likes) else null
                 Column(
                     Modifier
                         .weight(1f)

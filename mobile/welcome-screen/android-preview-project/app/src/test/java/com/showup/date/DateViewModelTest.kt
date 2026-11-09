@@ -327,10 +327,15 @@ class DateViewModelTest {
         assertTrue(analytics.names().isEmpty())
 
         store.read = Outcome.Ok(DateRead.Active(date()))
+        val reads = store.reads
         vm.retry()
         assertTrue("loading again while it reads", vm.state.value.loading)
-        assertEquals(null, vm.state.value.failed)
+        // 9 Nov 2026: the message stays while it reloads, and a second tap does nothing.
+        assertEquals(CallFailure.Network, vm.state.value.failed)
+        vm.retry()
         advanceUntilIdle()
+        assertEquals(reads + 1, store.reads)
+        assertEquals(null, vm.state.value.failed)
         assertEquals(date(), vm.state.value.date)
         assertEquals(listOf("screen_viewed", "date_screen_viewed"), analytics.names())
     }

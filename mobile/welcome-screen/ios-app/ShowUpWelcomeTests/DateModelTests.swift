@@ -330,10 +330,16 @@ final class DateModelTests: XCTestCase {
         XCTAssertNil(m.state.date)
         XCTAssertTrue(analytics.entries.isEmpty)
         await store.setRead(.success(.active(date())))
+        let reads = await store.reads
         m.retry()
         XCTAssertTrue(m.state.loading, "loading again while it reads")
-        XCTAssertNil(m.state.failed)
+        // 9 Nov 2026: the message stays while it reloads, and a second tap does nothing.
+        XCTAssertEqual(m.state.failed, .network)
+        m.retry()
         await settle()
+        let after = await store.reads
+        XCTAssertEqual(after, reads + 1)
+        XCTAssertNil(m.state.failed)
         XCTAssertEqual(m.state.date, date())
         XCTAssertEqual(names(analytics), ["screen_viewed", "date_screen_viewed"])
     }

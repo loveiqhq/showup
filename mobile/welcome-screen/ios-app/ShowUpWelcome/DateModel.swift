@@ -131,8 +131,9 @@ final class DateModel {
 
     /// `Try again` on the failed state: read again, the visit still waiting for it.
     func retry() {
+        // The message stays up while it reads, and a second tap meanwhile reads nothing (9 Nov 2026).
+        guard !state.loading else { return }
         state.loading = true
-        state.failed = nil
         read()
     }
 

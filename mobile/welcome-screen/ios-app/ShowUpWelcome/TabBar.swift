@@ -61,6 +61,12 @@ func likesBadgeText(_ count: Int) -> String? {
     return count > 99 ? "99+" : String(count)
 }
 
+/// What `tab` shows over its icon: the Likes count, on the Likes tab while it is open -- a locked tab shows no
+/// number, and the count returns when the tab does (SHOWUP-193, 9 Nov 2026).
+func tabBadgeText(_ tab: AppTab, likes: Int, locked: Bool) -> String? {
+    tab == .likes && !locked ? likesBadgeText(likes) : nil
+}
+
 /// The badge's accessible label, `{n} open likes` / `1 open like` (SHOWUP-186 copy).
 func likesBadgeLabel(_ count: Int) -> String {
     count == 1 ? "1 open like" : "\(count) open likes"
@@ -118,7 +124,7 @@ struct TabBar: View {
         let selected = tab == active
         let locked = disabled.contains(tab)
         let tint = selected ? Color.liqPurple : (locked ? Color.liqFaint : Color.liqSubtle)
-        let badge = tab == .likes ? likesBadgeText(likes) : nil
+        let badge = tabBadgeText(tab, likes: likes, locked: locked)
         return Button(action: { if locked { hintTaps += 1 } else { onTab(tab) } }) {
             VStack(spacing: 3) {
                 BrandIconView(icon: tab.icon, size: 24, stroke: selected ? 2.2 : 1.7, tint: tint)
