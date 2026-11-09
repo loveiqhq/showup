@@ -229,6 +229,21 @@ class DateViewModelTest {
     }
 
     @Test
+    fun `a failed re-read while the date is on screen leaves no failure to show once the date goes`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        store.read = Outcome.Failed(CallFailure.Network)
+        vm.foreground()
+        advanceUntilIdle()
+        // The screen showed the date throughout: "Couldn't load your date" is for a screen with nothing.
+        assertEquals(null, vm.state.value.failed)
+        vm.outcomeShown()
+        assertEquals(null, vm.state.value.failed)
+    }
+
+    @Test
     fun `each quick action reports its section 38 value, and ride is never one`() = runTest(dispatcher) {
         store.read = Outcome.Ok(DateRead.Active(date()))
         val vm = vm()

@@ -233,15 +233,21 @@ final class ChatModel {
         Task { [weak self] in
             let result = await store.send(dateId: date.id, reason: reason, body: body, clientId: clientId)
             guard let self else { return }
+            var landed = false
             switch result {
             case .success(let sent):
                 self.unconfirmed.append(sent)
+                landed = true
             case .failure:
                 // Refused because the date ended meanwhile: the date read shows the outcome at once, not
                 // `Couldn't send` until the next poll. Still on, it was the send that failed: it stays in the
-                // thread, and the field is free for the next message -- as after a send that landed.
+                // thread, and the field is free for the next message -- as after a send that landed. Unless a
+                // poll meanwhile brought it: the answer was lost, the message was not, and it shows once.
                 guard await self.readDate(date.id) else { return }
-                self.outbox.append(Unsent(clientId: clientId, reason: reason, body: body, prefillEdited: edited, at: self.clock()))
+                landed = self.lastRead.contains { $0.clientId == clientId }
+                if !landed {
+                    self.outbox.append(Unsent(clientId: clientId, reason: reason, body: body, prefillEdited: edited, at: self.clock()))
+                }
             }
             // Text typed while it was sending is the person's: only what was sent is cleared.
             let untouched = self.ui.draft == draft && self.ui.selected == reason
@@ -252,10 +258,8 @@ final class ChatModel {
                 self.ui.draft = ""
                 self.ui.guide = .none
             }
-            if case .success = result {
-                self.reportSent(date, reason: reason, body: body, edited: edited, isFirst: isFirst)
-                await self.refresh(date.id)
-            }
+            if landed { self.reportSent(date, reason: reason, body: body, edited: edited, isFirst: isFirst) }
+            if case .success = result { await self.refresh(date.id) }
         }
     }
 
@@ -275,9 +279,13 @@ final class ChatModel {
                 let still = await self.readDate(date.id)
                 guard still else { return }
             }
-            if case .success(let sent) = result, let index = self.outbox.firstIndex(where: { $0.clientId == clientId }) {
+            // Sent -- or failed, but a poll meanwhile brought it (see `send`).
+            var sent: ChatMessage?
+            if case .success(let message) = result { sent = message }
+            let landed = sent != nil || self.lastRead.contains { $0.clientId == clientId }
+            if landed, let index = self.outbox.firstIndex(where: { $0.clientId == clientId }) {
                 self.outbox.remove(at: index)
-                self.unconfirmed.append(sent)
+                if let sent { self.unconfirmed.append(sent) }
                 self.reportSent(date, reason: unsent.reason, body: unsent.body, edited: unsent.prefillEdited, isFirst: isFirst)
             }
             self.ui.messages = self.shown()

@@ -271,6 +271,28 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `a send whose answer is lost after a poll already brought it is shown once and counted once`() = chatTest {
+        val vm = opened()
+        store.landsThenFails = true
+        val gate = CompletableDeferred<Unit>()
+        store.sendGate = gate
+        vm.edit("Here!")
+        vm.send()
+        runCurrent()
+        // The server has it; a poll reads it before the send's answer is given up on.
+        advanceTimeBy(5_001)
+        gate.complete(Unit)
+        runCurrent()
+        assertEquals(1, vm.ui.value.messages.size)
+        assertFalse(vm.ui.value.messages.single().failed)
+        assertEquals(1, analytics.of("message_sent").size)
+        advanceTimeBy(5_001)
+        assertEquals(1, vm.ui.value.messages.size)
+        assertEquals("counted once", 1, analytics.of("message_sent").size)
+        stop(vm)
+    }
+
+    @Test
     fun `a failed I can't make it today message brings no end card, and no end sheet`() = chatTest {
         val vm = opened()
         store.sendFails = CallFailure.Network
@@ -649,7 +671,8 @@ class FakeChatStore : ChatStore {
     override suspend fun send(dateId: String, reason: ChatReason?, body: String, clientId: String): Outcome<ChatMessage> {
         calls += "send"
         clientIds += clientId
-        sendGate?.await()
+        // A message that lands and then loses its answer waits AFTER the server has it: a read meanwhile sees it.
+        if (!landsThenFails) sendGate?.await()
         sendFails?.let { return Outcome.Failed(it) }
         // As the server: a message it already has under this id is answered with that copy.
         (thread as? Outcome.Ok)?.value?.firstOrNull { it.clientId == clientId }?.let { return Outcome.Ok(it) }
@@ -657,6 +680,7 @@ class FakeChatStore : ChatStore {
         val message = ChatMessage("s${++next}", reason, body, fromYou = true, sentAt = Instant.EPOCH, read = false, clientId = clientId)
         // The server has it from now on: the next read returns it.
         thread = (thread as? Outcome.Ok)?.let { Outcome.Ok(it.value + message) } ?: thread
+        if (landsThenFails) sendGate?.await()
         return if (landsThenFails) Outcome.Failed(CallFailure.Network) else Outcome.Ok(message)
     }
 

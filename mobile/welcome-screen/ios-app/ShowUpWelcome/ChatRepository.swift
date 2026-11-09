@@ -71,7 +71,8 @@ struct ChatRepository: ChatStoring {
             guard let wire = Components.Schemas.ChatReason(rawValue: reason.rawValue) else { return .failure(.server) }
             payload = .init(value1: wire)
         }
-        let dto = Components.Schemas.SendChatMessageDto(body: body, clientId: clientId, reason: payload)
+        guard let uuid = UUID(uuidString: clientId) else { return .failure(.server) }
+        let dto = Components.Schemas.SendChatMessageDto(body: body, clientId: Self.wire(clientId, uuid), reason: payload)
         do {
             if case .created(let created) = try await api.client.sendDateChatMessage(path: .init(id: dateId), body: .json(dto)) {
                 return .success(ChatMessage(try created.body.json))
@@ -117,7 +118,18 @@ struct ChatRepository: ChatStoring {
     private static func failure(_ error: any Error) -> CallFailure {
         ShowUpAPI.isNoResponse(error) ? .network : .server
     }
+
+    /// `clientId` as the generated request types it. The contract says `format: uuid`; the generator in use
+    /// reads that as a string, and a later one may read it as `UUID` -- whichever type the initialiser wants,
+    /// one of these two type-checks (`CheckInRepository.wire`).
+    private static func wire(_ text: String, _ uuid: UUID) -> String { text }
+    private static func wire(_ text: String, _ uuid: UUID) -> UUID { uuid }
 }
+
+/// A message's `clientId` as the generated response types it, in lower case either way: Postgres hands a
+/// uuid back in lower case, and the phone makes its ids lower case to match.
+private func lowerCased(_ id: String?) -> String? { id?.lowercased() }
+private func lowerCased(_ id: UUID?) -> String? { id?.uuidString.lowercased() }
 
 extension ChatMessage {
     init(_ dto: Components.Schemas.ChatMessageDto) {
@@ -129,7 +141,6 @@ extension ChatMessage {
             fromYou: dto.fromYou,
             sentAt: dto.createdAt,
             read: dto.read,
-            // Postgres hands a uuid back in lower case; the phone makes its ids lower case to match.
-            clientId: dto.clientId?.lowercased())
+            clientId: lowerCased(dto.clientId))
     }
 }

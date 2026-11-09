@@ -236,12 +236,15 @@ class ChatViewModel(
         _ui.update { it.copy(sending = true) }
         viewModelScope.launch {
             val sent = store.send(date.id, reason, body, clientId)
+            var landed = sent is Outcome.Ok
             // Refused because the date ended meanwhile: the date read shows the outcome at once, not
             // `Couldn't send` until the next poll. Still on, it was the send that failed: it stays in the
-            // thread, and the field is free for the next message -- as after a send that landed.
+            // thread, and the field is free for the next message -- as after a send that landed. Unless a
+            // poll meanwhile brought it: the answer was lost, the message was not, and it shows once.
             if (sent is Outcome.Failed) {
                 if (!readDate(date.id)) return@launch
-                outbox += Unsent(clientId, reason, body, prefillEdited(reason, body), clock())
+                landed = read.any { it.clientId == clientId }
+                if (!landed) outbox += Unsent(clientId, reason, body, prefillEdited(reason, body), clock())
             } else if (sent is Outcome.Ok) {
                 unconfirmed += sent.value
             }
@@ -256,10 +259,8 @@ class ChatViewModel(
                     guide = if (untouched) Guide.None else now.guide,
                 )
             }
-            if (sent is Outcome.Ok) {
-                reportSent(date, reason, body, prefillEdited(reason, body), isFirst)
-                refresh(date.id)
-            }
+            if (landed) reportSent(date, reason, body, prefillEdited(reason, body), isFirst)
+            if (sent is Outcome.Ok) refresh(date.id)
         }
     }
 
@@ -277,8 +278,10 @@ class ChatViewModel(
         viewModelScope.launch {
             val sent = store.send(date.id, unsent.reason, unsent.body, clientId)
             if (sent is Outcome.Failed && !readDate(date.id)) return@launch
-            if (sent is Outcome.Ok && outbox.remove(unsent)) {
-                unconfirmed += sent.value
+            // Sent -- or failed, but a poll meanwhile brought it (see [send]).
+            val landed = sent is Outcome.Ok || read.any { it.clientId == clientId }
+            if (landed && outbox.remove(unsent)) {
+                if (sent is Outcome.Ok) unconfirmed += sent.value
                 reportSent(date, unsent.reason, unsent.body, unsent.prefillEdited, isFirst)
             }
             _ui.update { it.copy(messages = shown(), resending = it.resending - clientId) }

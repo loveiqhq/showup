@@ -135,7 +135,7 @@ class DateViewModel(
     fun chatTutorialSeen() = _state.update { it.copy(date = it.date?.copy(chatTutorialSeen = true)) }
 
     /** G or H has been seen and left: no date is held, so Search, Likes and Instant open again. */
-    fun outcomeShown() = _state.update { it.copy(date = null, ended = null, left = false) }
+    fun outcomeShown() = _state.update { it.copy(date = null, ended = null, left = false, failed = null) }
 
     /** The clock moved. The state follows it; nothing is reported. */
     fun tick() = _state.update { it.copy(now = clock()) }
@@ -175,10 +175,12 @@ class DateViewModel(
                         _state.update { it.copy(date = read.date, now = now, loading = false, failed = null, left = false, ended = null) }
                         reportVisit(read.date, now)
                     }
-                    is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, ended = read.outcome) }
-                    DateRead.None -> _state.update { it.copy(now = now, loading = false, left = true) }
+                    is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, failed = null, ended = read.outcome) }
+                    DateRead.None -> _state.update { it.copy(now = now, loading = false, failed = null, left = true) }
                 }
-                is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = answer.why) }
+                // A failure is shown only where nothing else is: a dropped poll under a date on screen
+                // left one behind, and after the date the next visit opened on `Couldn't load your date`.
+                is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = if (it.date == null) answer.why else null) }
             }
         }
     }

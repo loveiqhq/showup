@@ -116,6 +116,7 @@ final class DateModel {
         state.date = nil
         state.ended = nil
         state.left = false
+        state.failed = nil
     }
 
     /// The launch read already found `date`: draw it at once rather than a blank frame while the
@@ -179,11 +180,15 @@ final class DateModel {
                 self.state.ended = nil
                 self.reportVisit(date, now: now)
             case .success(.ended(let outcome)):
+                self.state.failed = nil
                 self.state.ended = outcome
             case .success(.none):
+                self.state.failed = nil
                 self.state.left = true
             case .failure(let why):
-                self.state.failed = why
+                // A failure is shown only where nothing else is: a dropped poll under a date on screen left one
+                // behind, and after the date the next visit opened on `Couldn't load your date`.
+                self.state.failed = self.state.date == nil ? why : nil
             }
         }
     }

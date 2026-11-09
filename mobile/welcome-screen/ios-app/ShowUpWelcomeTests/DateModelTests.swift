@@ -233,6 +233,21 @@ final class DateModelTests: XCTestCase {
         XCTAssertFalse(m.state.left)
     }
 
+    func testAFailedReReadWhileTheDateIsOnScreenLeavesNoFailureToShowOnceTheDateGoes() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        await store.setRead(.failure(.network))
+        m.foreground()
+        await settle()
+        // The screen showed the date throughout: "Couldn't load your date" is for a screen with nothing.
+        XCTAssertNil(m.state.failed)
+        m.outcomeShown()
+        XCTAssertNil(m.state.failed)
+    }
+
     func testEachQuickActionReportsItsSection38Value() async {
         let store = FakeDateStore()
         await store.setRead(.success(.active(date())))

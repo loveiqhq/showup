@@ -39,7 +39,8 @@ actor FakeChatStore: ChatStoring {
     func send(dateId: String, reason: ChatReason?, body: String, clientId: String) async -> Result<ChatMessage, CallFailure> {
         calls.append("send")
         clientIds.append(clientId)
-        if sendDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(sendDelay * 1_000_000_000)) }
+        // A message that lands and then loses its answer waits AFTER the server has it: a read meanwhile sees it.
+        if !landsThenFails, sendDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(sendDelay * 1_000_000_000)) }
         if let sendFails { return .failure(sendFails) }
         // As the server: a message it already has under this id is answered with that copy.
         if case .success(let list) = thread, let copy = list.first(where: { $0.clientId == clientId }) { return .success(copy) }
@@ -49,6 +50,7 @@ actor FakeChatStore: ChatStoring {
                                   clientId: clientId)
         // The server has it from now on: the next read returns it.
         if case .success(let list) = thread { thread = .success(list + [message]) }
+        if landsThenFails, sendDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(sendDelay * 1_000_000_000)) }
         return landsThenFails ? .failure(.network) : .success(message)
     }
 
@@ -389,6 +391,25 @@ final class ChatModelTests: XCTestCase {
         XCTAssertEqual(m.ui.messages.count, 1)
         XCTAssertFalse(m.ui.messages[0].failed)
         XCTAssertEqual(analytics.entries.filter { $0.event == "message_sent" }.count, 1, "the poll found it sent: counted once")
+        m.onScreen(false)
+    }
+
+    func testASendWhoseAnswerIsLostAfterAPollAlreadyBroughtItIsShownOnceAndCountedOnce() async {
+        let store = FakeChatStore()
+        let analytics = RecordingAnalytics()
+        let m = await opened(store, FakeDateStore(), analytics)
+        await store.setLandsThenFails(true)
+        // The poll (every 50 ms) reads the message while its send waits to give up.
+        await store.setSendDelay(0.2)
+        m.edit("Here!")
+        m.send()
+        await settle(0.35)
+        XCTAssertEqual(m.ui.messages.count, 1)
+        XCTAssertFalse(m.ui.messages[0].failed)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_sent" }.count, 1)
+        await settle(0.15)
+        XCTAssertEqual(m.ui.messages.count, 1)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_sent" }.count, 1, "counted once")
         m.onScreen(false)
     }
 
