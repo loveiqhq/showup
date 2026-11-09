@@ -6,7 +6,7 @@
  * long thread (the end of the scroll must rest above the dock), a long message, D after Got it, and a
  * failed send -- on every phone of the shared list and [EDGE_DEVICES], all seven Android font steps, and
  * every Android from 11 to 15; and the chat with the keyboard up on every full-screen phone. Beyond the
- * shared checks, the 193 rules: every touch area 48 dp and none partly on another, no word broken between
+ * shared checks, the 193 rules: every touch area 44 dp and none partly on another, no word broken between
  * its letters; and the chat's own: the dock never covers the thread and stays above the keys, the
  * tutorial's and the outcome's CTA on screen, and at 375 x 667 D's guide title and Got it inside the
  * thread once revealed.
@@ -76,14 +76,13 @@ class ChatFitTest {
         }
         val dock = f.tagged(CHAT_DOCK_TAG)
 
-        // 1. Every touch area 48 dp both ways, none partly on another. THE DOCK'S CHIPS ARE THE ONE
-        // EXCEPTION, by the ticket's decision (9 Nov 2026): drawn 38, they answer 44 -- 3 into the 6 gap
-        // on every side, so neighbours' areas meet and never overlap. They are held to that 44.
+        // 1. Every touch area 44 dp both ways -- the app's floor on both platforms since 9 Nov 2026 -- and
+        // none partly on another. The dock's chips are drawn 38 and answer 44, 3 into the 6 gap on every
+        // side, so neighbours' areas meet and never overlap.
         val taps = f.tapTargets()
         taps.forEach { (name, r, _) ->
-            val floor = if (isDockChip(name)) DOCK_CHIP_TAP_DP else ANDROID_TAP_DP
-            if (r.width < floor - SLACK || r.height < floor - SLACK) {
-                fail(name, "TAP AREA UNDER ${floor.roundToInt()}DP", "%.1f x %.1fdp".format(r.width, r.height))
+            if (r.width < TAP_DP - SLACK || r.height < TAP_DP - SLACK) {
+                fail(name, "TAP AREA UNDER 44DP", "%.1f x %.1fdp".format(r.width, r.height))
             }
         }
         fun contains(a: FitRect, b: FitRect) =
@@ -256,11 +255,9 @@ class ChatFitTest {
     private fun keyboardOn(d: Device) = (d.height * 0.38f).roundToInt().coerceIn(250, 330)
 
     private companion object {
-        /** Android's touch floor: Material's 48, as `android-preview-project/CLAUDE.md` states it. */
-        const val ANDROID_TAP_DP = 48f
+        /** The touch floor: 44 on both platforms (9 Nov 2026), as `android-preview-project/CLAUDE.md` states it. */
+        const val TAP_DP = 44f
 
-        /** The dock chips' touch area: drawn 38, 3 beyond on every side (SHOWUP-194, 9 Nov 2026). */
-        const val DOCK_CHIP_TAP_DP = 44f
         const val SLACK = 0.75f
         /** A window this tall or taller is a whole phone; a split screen's half is under it. */
         const val FULL_SCREEN_DP = 500

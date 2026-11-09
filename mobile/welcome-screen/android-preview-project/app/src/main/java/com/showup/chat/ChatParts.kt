@@ -3,9 +3,9 @@
  * ShowUp · the coordinate chat's parts (SHOWUP-194): `ChatHeader`, `ChatBubble`, `ThreadScroll`,
  * `BigActionChip` and the chip grid, from `screen-chat-reference.jsx`, with its numbers
  *
- * Each part takes values and returns pixels. Where the reference draws a control smaller than
- * Android's 48 floor (the back chevron 34, Send 46), the drawing keeps its size and the touch area is
- * laid over it ([DrawnSmall] / [OverflowTapTarget]), as on the Date screen.
+ * Each part takes values and returns pixels. Where the reference draws a control smaller than the 44
+ * floor (the back chevron 34), the drawing keeps its size and the touch area is laid over it
+ * ([DrawnSmall] / [OverflowTapTarget]), as on the Date screen.
  */
 package com.showup.chat
 
@@ -492,8 +492,7 @@ internal fun ThreadScroll(
  *
  * The compact chip answers 3 beyond its drawing on every side, into the 6 gap: 44 to touch where it is
  * drawn 38, and neighbours' areas meet without overlapping (SHOWUP-194, 9 Nov 2026: "38 high, 44 tap
- * area ... not 48 on Android: four rows would cost 32 px more with the keyboard up"). The one control
- * here under Android's 48, by the ticket's decision.
+ * area ... not 48 on Android: four rows would cost 32 px more with the keyboard up").
  */
 @Composable
 internal fun BigActionChip(

@@ -79,6 +79,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import com.showup.date.ActiveDate
+import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Cream
@@ -267,8 +268,7 @@ private val ResendLine = TextStyle(fontFamily = Manrope, fontWeight = FontWeight
 /**
  * J (9 Nov 2026): a message whose send failed -- the bubble at opacity .6 with no receipt, and 4 under
  * it, right-aligned, the line that resends it: `alert-circle` 14 / 2.4, gap 6, the sentence at most 280,
- * the line at least 44 high and 48 to touch, the Android floor. It announces itself, as `role="alert"`
- * does. While the resend is on its way the line does nothing.
+ * the line at least 44 high, the floor. It announces itself, as `role="alert"` does. While the resend is on its way the line does nothing.
  */
 @Composable
 private fun UnsentMessage(message: ChatMessage, date: ActiveDate, zone: ZoneId, resending: Boolean, onResend: (String) -> Unit) {
@@ -284,7 +284,6 @@ private fun UnsentMessage(message: ChatMessage, date: ActiveDate, zone: ZoneId, 
                     contentDescription = ChatCopy.SEND_FAILED
                     liveRegion = LiveRegionMode.Assertive
                 },
-            floor = 48.dp,
         ) {
             Row(
                 Modifier.widthIn(max = 280.dp).heightIn(min = 44.dp).clearAndSetSemantics {}.padding(horizontal = 2.dp),
@@ -397,8 +396,8 @@ private fun Composer(ui: ChatUi, name: String, onEdit: (String) -> Unit, onSend:
             decorationBox = { inner ->
                 Box(
                     Modifier
-                        // Android's 48 floor: the reference's field is 45.6 tall, a touch area under it.
-                        .heightIn(min = 48.dp)
+                        // The 44 floor; the reference's field is 45.6 tall, so it is the field's own height.
+                        .heightIn(min = ComponentSizes.minTapTarget)
                         .background(fill, shape)
                         .border(1.5.dp, border, shape)
                         // Pad 9 14, plus the 1.5 border CSS counts in the box, plus the 2 every browser
@@ -434,7 +433,6 @@ private fun SendButton(enabled: Boolean, onSend: () -> Unit) {
             .testTag(CHAT_SEND_TAG)
             .clickable(enabled = enabled, role = Role.Button, onClick = onSend)
             .semantics { contentDescription = ChatCopy.SEND },
-        floor = 48.dp,
     ) {
         Box(
             Modifier

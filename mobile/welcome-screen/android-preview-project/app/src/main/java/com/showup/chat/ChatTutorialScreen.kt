@@ -81,7 +81,7 @@ fun ChatTutorialScreen(name: String, onOpen: () -> Unit, onBack: () -> Unit) {
         SunsetWash()
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
             // Back and the context line: pad 4 12 8, gap 8; 13 / 700 muted. 7 above, not 4: the chevron draws
-            // 34 and answers at 48, and at 4 its touch area ran 3 above the screen.
+            // 34 and answers 5 beyond that, at 44, so at 4 its touch area ran above the screen (iOS keeps 7 too).
             Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 ChatBackButton(onBack)
                 Spacer(Modifier.width(8.dp))
