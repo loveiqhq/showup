@@ -173,6 +173,9 @@ struct ChatScreen: View {
                 .focused($fieldFocused)
                 // Pad 9 14, plus the 1.5 border CSS counts, plus the 2 every browser pads a textarea with.
                 .padding(EdgeInsets(top: 12.5, leading: 17.5, bottom: 12.5, trailing: 17.5))
+                // At least the 44 touch floor, as Android's field keeps its 48: at the smallest type sizes the box
+                // was 43 (the 9 Nov 2026 CI sweep, once the dock's blanket exemption went). At the default it is 45.
+                .frame(minHeight: 44)
                 .background(shape.fill(ui.locked ? Color.liqBorderSoft : Color.liqElevated))
                 .overlay(shape.strokeBorder(strong ? Color.liqFg : Color.liqBorder, lineWidth: 1.5))
                 // The whole box takes the touch, not only the line of text inside it: a tap on its padding
