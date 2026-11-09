@@ -2506,7 +2506,7 @@
             "type": "integer"
           },
           "distanceKm": {
-            "description": "Rounded: 0 means under one km (\"< 1 km\"), otherwise whole km (\"~N km\"). Never exact.",
+            "description": "Rounded: 0 means under one km (\"< 1 km\"), otherwise whole km (\"~N km\"). Never exact. Absent only where the distance is unknown -- a match without a located Check-In, seen from the Date screen",
             "type": "integer"
           },
           "district": {
@@ -2581,7 +2581,6 @@
         "required": [
           "userId",
           "name",
-          "distanceKm",
           "meetAt",
           "meetDay",
           "attendedCount",

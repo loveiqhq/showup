@@ -85,6 +85,29 @@ final class DateModelTests: XCTestCase {
         XCTAssertEqual(m.state.state, .locked)
     }
 
+    func testBackFromTheMatchsProfileOrTheChatTheScreenBeforeIsThatOneNotTheOneBeforeTheDateScreen() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let analytics = RecordingAnalytics()
+        let m = model(store, analytics, TestClock(meet.addingTimeInterval(-3 * 3600)))
+        // The host only knows the flow screen the Date screen was reached from.
+        let flowBefore = ProfileScreen.checkinSearchUnavailable
+        m.arrived(referrer: flowBefore)
+        await settle()
+        for pushed in [ProfileScreen.searchProfile, .dateChatTutorial, .dateChat] {
+            m.leftFor(pushed)
+            m.arrived(referrer: flowBefore)
+            await settle()
+            let last = analytics.entries.last { $0.event == "screen_viewed" }?.properties ?? [:]
+            XCTAssertEqual(last["referrer_screen_id"] as? String, pushed.rawValue)
+        }
+        // Spent once used: a later arrival names what the host says.
+        m.arrived(referrer: flowBefore)
+        await settle()
+        let last = analytics.entries.last { $0.event == "screen_viewed" }?.properties ?? [:]
+        XCTAssertEqual(last["referrer_screen_id"] as? String, flowBefore.rawValue)
+    }
+
     func testAVisitInCReportsAvailableWithHasUnreadAndTheReferrer() async {
         let store = FakeDateStore()
         let u = DateUnread(count: 1, reason: .runningLate, body: "Ten minutes late!", sentAt: unlock)

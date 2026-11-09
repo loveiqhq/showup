@@ -130,12 +130,13 @@ export class SearchProfileDto {
   })
   age?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: 'integer',
     description:
-      'Rounded: 0 means under one km ("< 1 km"), otherwise whole km ("~N km"). Never exact.',
+      'Rounded: 0 means under one km ("< 1 km"), otherwise whole km ("~N km"). Never exact. ' +
+      'Absent only where the distance is unknown -- a match without a located Check-In, seen from the Date screen',
   })
-  distanceKm: number;
+  distanceKm?: number;
 
   @ApiPropertyOptional({
     description: 'The neighbourhood their phone named at Find my date',

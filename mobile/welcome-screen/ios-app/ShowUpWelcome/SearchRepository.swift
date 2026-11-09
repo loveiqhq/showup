@@ -38,8 +38,9 @@ struct SearchProfile: Equatable, Sendable {
     var name: String
     /// Nil when the person hides their age: the name stands alone.
     var age: Int?
-    /// Rounded by the server: 0 is "< 1 km".
-    var distanceKm: Int
+    /// Rounded by the server: 0 is "< 1 km". Nil where it is unknown -- the Date screen's match without a
+    /// located Check-In -- and then no distance is drawn, never "< 1 km". Search's queue always has one.
+    var distanceKm: Int?
     var district: String?
     var meetAt: Date
     /// `today` or `tomorrow`, by the Check-In's 7am day, from the server.

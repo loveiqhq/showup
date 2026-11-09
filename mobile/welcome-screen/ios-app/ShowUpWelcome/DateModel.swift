@@ -48,6 +48,8 @@ final class DateModel {
 
     /// A visit waiting for its first read, and where it came from.
     private var pendingVisit: Visit?
+    /// The screen this one opened over itself -- the match's profile, the chat -- for the next arrival.
+    private var opened: ProfileScreen?
     private var copiedTask: Task<Void, Never>?
     @ObservationIgnored private var poll: Task<Void, Never>?
     /// How often the screen re-reads while it is up: `datePollSeconds`. Short in tests.
@@ -72,14 +74,24 @@ final class DateModel {
         self.state = DateUi(now: clock())
     }
 
-    /// The screen is on screen (from launch, a match, or back from a pushed screen): one visit.
+    /// The screen is on screen (from launch, a match, or back from a pushed screen): one visit. `referrer` is
+    /// the flow screen the host came from; back from a screen this one opened (`leftFor`), that screen is the
+    /// one before instead -- the host's flow screen is still the one before the Date screen.
     func arrived(referrer: ProfileScreen?) {
         // An arrival is never a leave: whether the date is gone is the read's to say. Without this a
         // second date in the same process arrived with the last one's `left` and was bounced off.
         state.left = false
+        let before = opened ?? referrer
+        opened = nil
         if pendingVisit != nil { return }
-        pendingVisit = Visit(referrer: referrer)
+        pendingVisit = Visit(referrer: before)
         read()
+    }
+
+    /// The Date screen opened `screen` over itself: the match's read-only profile, the chat's tutorial or the
+    /// chat. Coming back, that is `screen_viewed`'s `referrer_screen_id` (the SHOWUP-193 review).
+    func leftFor(_ screen: ProfileScreen) {
+        opened = screen
     }
 
     /// The app came back to the foreground: re-read, report nothing.

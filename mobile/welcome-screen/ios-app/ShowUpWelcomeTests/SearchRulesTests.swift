@@ -23,6 +23,13 @@ final class SearchRulesTests: XCTestCase {
         XCTAssertEqual(distanceParts(0, nil), ["< 1 km"])
     }
 
+    func testAnUnknownDistanceIsNoDistanceNeverUnderOneKm() {
+        // The Date screen's match without a located Check-In: the server sends none.
+        XCTAssertEqual(distanceParts(nil, "Neukölln"), ["Neukölln"])
+        XCTAssertEqual(distanceParts(nil, nil), [])
+        XCTAssertEqual(distanceLine(nil, "Neukölln"), "Neukölln")
+    }
+
     func testFiltersActiveNamesAgeAndDistanceWhenTheProfileDefaultIsUnavailable() {
         let defaults = CheckInFilters(genders: ["woman"])
         XCTAssertEqual(filtersActive(defaults), [])

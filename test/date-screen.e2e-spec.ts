@@ -38,6 +38,8 @@ const VENUE = {
 };
 const BRANDENBURG_GATE = { lat: 52.5163, lng: 13.3777 };
 const REICHSTAG = { lat: 52.5186, lng: 13.3761 };
+/** About 5.4 km from the Reichstag. */
+const TEMPELHOF = { lat: 52.473, lng: 13.403 };
 const TZ = 'Europe/Berlin';
 
 describe('The Date screen (e2e)', () => {
@@ -359,6 +361,64 @@ describe('The Date screen (e2e)', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('shows the real distance between two located people, on the screen and on the full profile', async () => {
+    // Leonie at the Reichstag, the other person at Tempelhof: two real Check-Ins about 5.4 km apart.
+    await app.get(CheckInsService).create(id.other, {
+      availabilityStart: minutesFromNow(1).toISOString(),
+      availabilityEnd: minutesFromNow(240).toISOString(),
+      preparationMinutes: 20,
+      latitude: TEMPELHOF.lat,
+      longitude: TEMPELHOF.lng,
+    });
+    await dates.save(
+      dates.create({
+        userAId: id.other,
+        userBId: id.leonie,
+        scheduledAt: minutesFromNow(180),
+        venueId,
+        status: DateStatus.Confirmed,
+      }),
+    );
+    expect((await getDate('other')).body.date.match.distanceKm).toBe(5);
+    const profile = await request(server)
+      .get('/me/date/profile')
+      .query({ tz: TZ })
+      .set('Authorization', as('other'))
+      .expect(200);
+    expect(profile.body.distanceKm).toBe(5);
+  });
+
+  it('never touches a date with a real person through the dev helpers', async () => {
+    const real = await makeDate(60);
+    // A test date cannot be made over a real one: the app holds one date at a time.
+    await request(server)
+      .post('/dev/date')
+      .set('Authorization', as('you'))
+      .send({ minutesFromNow: 60 })
+      .expect(409);
+    // The match's message and the match's end act on the test match's date only.
+    await request(server)
+      .post('/dev/date/message')
+      .set('Authorization', as('you'))
+      .send({ body: 'Not from Leonie' })
+      .expect(404);
+    await request(server)
+      .post('/dev/date/end-in-chat')
+      .set('Authorization', as('you'))
+      .expect(404);
+    await request(server)
+      .post('/dev/date/end')
+      .set('Authorization', as('you'))
+      .expect(204);
+    const after = await dates.findOneByOrFail({ id: real });
+    expect(after.status).toBe(DateStatus.Confirmed);
+    const chat = await request(server)
+      .get(`/dates/${real}/chat`)
+      .set('Authorization', as('you'))
+      .expect(200);
+    expect(chat.body).toEqual([]);
   });
 
   it('is not someone else’s date', async () => {

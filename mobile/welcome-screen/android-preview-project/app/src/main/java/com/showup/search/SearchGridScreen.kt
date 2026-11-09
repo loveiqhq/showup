@@ -371,7 +371,7 @@ private fun CardInfo(card: PremiumCard, zone: ZoneId, backdrop: HeroBackdrop?, m
             )
             profile != null -> {
                 val meet = meetLine(profile.meetAt, profile.meetDay, zone)
-                val distance = searchDistance(profile.distanceKm)
+                val distance = profile.distanceKm?.let(::searchDistance)
                 MetaLine(gridMetaLine(profile, zone), meet, distance, Modifier.testTag(GRID_META_TAG_PREFIX + card.userId))
                 motivationOf(profile.motivation)?.let { m ->
                     // "The motivation label on one line with ellipsis" (Search 02): the whole label is
@@ -395,7 +395,7 @@ private val MetaStyle = TextStyle(color = Color.White, fontFamily = Manrope, fon
  * form that fits is composed.
  */
 @Composable
-private fun MetaLine(full: String, time: String, distance: String, modifier: Modifier = Modifier) {
+private fun MetaLine(full: String, time: String, distance: String?, modifier: Modifier = Modifier) {
     val measurer = rememberTextMeasurer()
     BoxWithConstraints(modifier) {
         val fits = !constraints.hasBoundedWidth ||
@@ -405,7 +405,7 @@ private fun MetaLine(full: String, time: String, distance: String, modifier: Mod
         } else {
             Column {
                 Text(time, style = MetaStyle)
-                Text(distance, style = MetaStyle)
+                distance?.let { Text(it, style = MetaStyle) }
             }
         }
     }

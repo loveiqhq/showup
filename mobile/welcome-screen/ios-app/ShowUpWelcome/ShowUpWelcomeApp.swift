@@ -1037,7 +1037,10 @@ private struct TutorialFlow: View {
                 copyAddress(placeText(place))
                 dateModel.copied()
             },
-            onSeeProfile: { dateProfileModel.open() },
+            onSeeProfile: {
+                dateModel.leftFor(.searchProfile)
+                dateProfileModel.open()
+            },
             // Locked tabs never call this: only Settings does, and it fires nothing -- `tab_switched`
             // needs a tab it switched from, and no tab is active here.
             onTab: { tab in if tab == .settings { go(to: .checkInSettings) } },
@@ -1136,7 +1139,10 @@ private struct TutorialFlow: View {
                 onBack: { chatPath = [] })
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
-                .onFirstAppear { chatEvents.tutorialShown(date) }
+                .onFirstAppear {
+                    chatEvents.tutorialShown(date)
+                    dateModel.leftFor(.dateChatTutorial)
+                }
         }
     }
 
@@ -1165,6 +1171,7 @@ private struct TutorialFlow: View {
                 .onFirstAppear {
                     model.open(date, entry: entry)
                     chatEvents.chatShown(referrer: entry == .tutorial ? .dateChatTutorial : .dateScreen)
+                    dateModel.leftFor(.dateChat)
                 }
                 // The thread and the date are read only while the app is in front.
                 .onChange(of: scenePhase) { _, phase in model.onScreen(phase == .active) }

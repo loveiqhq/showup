@@ -145,12 +145,12 @@ fun gridCardLabel(name: String, notNow: Boolean, leaving: Leave?, likedYou: Bool
 fun likesPhotoLabel(name: String, notNow: Boolean): String =
     (if (notNow) PremiumCopy.CARD_LABEL_NOT_NOW else PremiumCopy.CARD_LABEL).format(name)
 
-/** The grid card's meta line: `{HH:MM} {day} · ~{n} km` -- on one line at 375. */
+/** The grid card's meta line: `{HH:MM} {day} · ~{n} km` -- on one line at 375; the time alone when the distance is unknown. */
 fun gridMetaLine(profile: SearchProfile, zone: ZoneId): String =
-    "${meetLine(profile.meetAt, profile.meetDay, zone)} · ${searchDistance(profile.distanceKm)}"
+    listOfNotNull(meetLine(profile.meetAt, profile.meetDay, zone), profile.distanceKm?.let(::searchDistance)).joinToString(" · ")
 
-/** The Likes card's distance, after the name: `· < 1 km` / `· ~{n} km`. */
-fun likesDistance(km: Int): String = "· ${searchDistance(km)}"
+/** The Likes card's distance, after the name: `· < 1 km` / `· ~{n} km`. Null when it is unknown: nothing is drawn. */
+fun likesDistance(km: Int?): String? = km?.let { "· ${searchDistance(it)}" }
 
 /** The liker's message, "in straight double quotes, as written". */
 fun quotedMessage(message: String): String = "\"$message\""

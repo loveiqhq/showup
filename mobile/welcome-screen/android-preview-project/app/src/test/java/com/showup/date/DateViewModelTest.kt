@@ -78,6 +78,26 @@ class DateViewModelTest {
     }
 
     @Test
+    fun `back from the match's profile or the chat, the screen before is that one, not the one before the Date screen`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        // The host only knows the flow screen the Date screen was reached from.
+        val flowBefore = ProfileScreen.CheckinSearchUnavailable
+        vm.arrived(referrer = flowBefore)
+        advanceUntilIdle()
+        for (pushed in listOf(ProfileScreen.SearchProfile, ProfileScreen.DateChatTutorial, ProfileScreen.DateChat)) {
+            vm.leftFor(pushed)
+            vm.arrived(referrer = flowBefore)
+            advanceUntilIdle()
+            assertEquals(pushed.screenId, analytics.of("screen_viewed").last().properties["referrer_screen_id"])
+        }
+        // Spent once used: a later arrival names what the host says.
+        vm.arrived(referrer = flowBefore)
+        advanceUntilIdle()
+        assertEquals(flowBefore.screenId, analytics.of("screen_viewed").last().properties["referrer_screen_id"])
+    }
+
+    @Test
     fun `a visit in C reports available with has_unread, and the referrer`() = runTest(dispatcher) {
         now = unlock.plusSeconds(60)
         store.read = Outcome.Ok(DateRead.Active(date(unread = DateUnread(1, ChatReason.RunningLate, "Late!", now))))

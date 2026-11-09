@@ -78,19 +78,36 @@ class DateViewModel(
 
     /** A visit waiting for its first read, and where it came from. */
     private var pendingVisit: Visit? = null
+
+    /** The screen this one opened over itself -- the match's profile, the chat -- for the next arrival. */
+    private var opened: ProfileScreen? = null
     private var copiedJob: Job? = null
     private var poll: Job? = null
 
     private class Visit(val referrer: ProfileScreen?)
 
-    /** The screen is on screen (from launch, a match, or back from a pushed screen): one visit. */
+    /**
+     * The screen is on screen (from launch, a match, or back from a pushed screen): one visit. [referrer]
+     * is the flow screen the host came from; back from a screen this one opened ([leftFor]), that screen
+     * is the one before instead -- the host's flow screen is still the one before the Date screen.
+     */
     fun arrived(referrer: ProfileScreen?) {
         // An arrival is never a leave: whether the date is gone is the read's to say. Without this a
         // second date in the same process arrived with the last one's `left` and was bounced off.
         _state.update { it.copy(left = false) }
+        val before = opened ?: referrer
+        opened = null
         if (pendingVisit != null) return
-        pendingVisit = Visit(referrer)
+        pendingVisit = Visit(before)
         read()
+    }
+
+    /**
+     * The Date screen opened [screen] over itself: the match's read-only profile, the chat's tutorial or the
+     * chat. Coming back, that is `screen_viewed`'s `referrer_screen_id` (the SHOWUP-193 review).
+     */
+    fun leftFor(screen: ProfileScreen) {
+        opened = screen
     }
 
     /** The app came back to the foreground: re-read, report nothing. */
