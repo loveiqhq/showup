@@ -192,7 +192,9 @@ final class ChatFitTests: XCTestCase {
     /// sheet. Not a split screen's top half: the keys cover the other app. Android's keyboard sweep.
     func testTheChatWithTheKeyboardUpIsCleanOnEveryPhone() {
         var failures: [String] = []
-        let typing = chats.filter { !["B start", "D guide", "F end sheet"].contains($0.0) }
+        // Only where a person can type: not B (no field), D (the field waits), F and K (the sheet is up) or I
+        // (no field until the chat has loaded).
+        let typing = chats.filter { !["B start", "D guide", "F end sheet", "I couldn't load", "K end didn't go through"].contains($0.0) }
         for type in [DynamicTypeSize.large, .xxxLarge, .accessibility2] {
             for device in phones where device.height >= 500 {
                 // About two fifths of a phone, as the iOS keyboard and Gboard take, 250 to 330.
