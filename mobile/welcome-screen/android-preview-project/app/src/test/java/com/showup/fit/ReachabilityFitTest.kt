@@ -309,9 +309,10 @@ class ReachabilityFitTest {
      * state, which is the only one a finger or a screen reader actually addresses -- the 22dp
      * square is `clearAndSetSemantics {}` decoration and does not appear here at all.
      *
-     * Android's floor is 48, not 44, and `CLAUDE.md` is explicit that the stricter one applies:
-     * this project shipped an input measuring 23dp inside a 56dp row that responded only in its
-     * middle third on 15 of 18 sizes.
+     * 44, the ticket's number ("padded to 44 tall", "a >= 44pt hit target") and the app's floor on
+     * both platforms since 9 Nov 2026 -- it was held to Android's 48 until then. This project shipped
+     * an input measuring 23dp inside a 56dp row that responded only in its middle third on 15 of 18
+     * sizes.
      */
     @Test
     fun `the switch and all three rows are full-size targets`() {
@@ -324,13 +325,13 @@ class ReachabilityFitTest {
                     4, s.toggleBoxes.size,
                 )
                 s.toggleBoxes.forEachIndexed { i, (h, w) ->
-                    if (h < 48f) small += "$d @$scale  control $i is ${h}dp tall"
+                    if (h < 44f - 0.01f) small += "$d @$scale  control $i is ${h}dp tall"
                     // The ROW, not the square: a target as wide as the card is the criterion.
                     if (i > 0 && w < 200f) small += "$d @$scale  row $i is only ${w}dp wide"
                 }
             }
         }
-        assertTrue("every control must clear 48dp:\n" + small.joinToString("\n"), small.isEmpty())
+        assertTrue("every control must clear 44dp:\n" + small.joinToString("\n"), small.isEmpty())
     }
 
     /**
