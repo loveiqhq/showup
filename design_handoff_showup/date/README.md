@@ -4,11 +4,14 @@
 date/
   screen-date-reference.jsx   ← Date 01: the Date screen (ScreenMatchCoord). Read values from here.
   screen-chat-reference.jsx   ← Date 02: tutorial, chat, cancel guide, End the date, outcome screens
+  screen-checkin-reference.jsx ← Date 03: Check-in bar, guard, done + Undo, gate, arrival card
   tickets/00-epic.md          ← flow shape, built-once inventory, flow-level rules
   tickets/01-date-screen.md   ← scope, copy strings, AC, tracking
   tickets/02-coordinate-chat.md
+  tickets/03-arrival-checkin.md
   spec-sheets/01-date-screen.png
   spec-sheets/02-coordinate-chat.png
+  spec-sheets/03-arrival-checkin.png
   07a-decisions.md            ← check-in, time/place changes, auto-switch, retention (2 Nov 2026)
 ```
 
@@ -18,8 +21,8 @@ Kit source: `ui_kits/show-up/screens-date-chat.jsx`, `screens-date-change.jsx`, 
 |---|---|---|---|
 | 01 | Date screen | A locked (+ change tiles, reissued 5 Nov) · B available · C unread · D full scroll | ticketed — not built |
 | 02 | Coordinate chat | A tutorial · B start · C thread · D cancel guide · E End the date card · F sheet · G you ended · H match sees | ticketed — not built (5 Nov 2026) |
-| 03 | Arrival check-in | Check-in 1–3 · "I arrived at the spot" branch | to write |
-| 04 | Match notified | Check-in 4 | to write (may fold into 03) |
+| 03 | Arrival check-in (+ 04) | A before · B guard · C no location fix · D checked in + Undo · E after Close · F chat chip · G location gate (consumed) · H match sees | ticketed — not built (6 Nov 2026) |
+| 04 | ~~Match notified~~ | folded into 03 | — |
 | 05 | Change meet time and place | Change 1–6 | to write |
 | 06 | End date and report a problem | wrap-up · report · no-show exits | to write |
 | 07 | Cancel this date | penalty guard · what the match sees | to write |
@@ -51,3 +54,9 @@ Order: 01 → 02 → 03 and 05 in parallel → 06, 07, 08 → 09.
 - Date 01 reissued: the locked Coordinate card carries **Change meet time · Change location** tiles (built in 01, open the Date 05 pickers, hidden until 05 ships). Sheet re-exported; AC rewritten in place.
 - Date 02: tutorial has 2 steps · chips always a 2-column grid, full labels · "I can't make it today" = guide, field locked until Got it, no prefill · **End the date only after a cant_make_it message**, either side · ending in the chat = no review, both search again · no move to another day in the app.
 - Tracking: family L respecified, 3 NEW events, 3 retired, §11 ×3, §39 `chat_entry`, §40 `chat_reason` — registry 1.4.33 / taxonomy 1.4.26.
+
+## Decided 6 Nov 2026 — Date 03
+
+- Date 04 folded into 03. No time window on the Check-in bar. No location fix → nothing stored, Try again (kit: Check-in · 2b).
+- **Undo check-in** under Close on the done sheet, only there: deletes the record, back to the Check-in bar on the Date screen. The match is notified on Close, never on Yes.
+- Tracking: `arrival_confirm_shown` · `arrival_undone` NEW, `arrival_confirm_submitted` · `arrival_confirmed` respecified, §41 `arrival_entry` — registry 1.4.34 / taxonomy 1.4.27.

@@ -1,5 +1,7 @@
 # Tracking — how to work with these files
 
+> **Registry 1.4.34 / taxonomy 1.4.27 merged, 10 November 2026** (Date 03, SHOWUP-195). Only family M's four arrival events (`arrival_confirm_shown`, `arrival_confirm_submitted`, `arrival_confirmed`, `arrival_undone`), §41 `arrival_entry` and the numbers were taken from the handoff. The rest of this repo's registry was kept. `implemented` stays the repo's.
+
 > **Registry 1.4.32 / taxonomy 1.4.25 merged, 3 November 2026** (Date 01, SHOWUP-193). Only the additions were taken from the handoff: §11 `date_screen`, §38 `date_quick_action`, `date_quick_action_tapped` (new) and `date_screen_viewed` (respecified). The rest of this repo's registry was kept, because it carries edits the handoff predates (184's `search_empty_shown` and `opened_from`, 190's `backend_status`). `implemented` stays the repo's.
 
 > **Registry 1.4.29 / taxonomy 1.4.20 merged, 21 October 2026** (Date search, SHOWUP-184 to 186). The handoff's file was taken whole and the code reconciliation carried over event by event: `implemented` and `code_delta` are the repo's, never the handoff's. Six events are new and not built yet: `profile_photo_opened`, `like_withdrawn`, `pass_undone`, `like_confirm_failed`, `search_coach_shown`, `search_coach_dismissed`.

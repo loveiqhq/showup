@@ -19,7 +19,7 @@ match ──► Date screen (01) ──── meet − 1:30 ────► Coor
               │                                         │
               │  Change time / place (05) ◄─────────────┘
               │
-              ├── arrive ──► Check-in (03) ──► match sees "arrived" (04)
+              ├── arrive ──► Check-in (03) ──► match sees "arrived" (03)
               │
               ├── End date ──────────────┐
               ├── Report a problem (06) ─┤
@@ -35,8 +35,8 @@ Each story is one screen (or one logic job) with all its states, a spec sheet an
 | --- | --- | --- | --- | --- |
 | 01 | Date screen | `coord-announce` · `-full` · `-full-games` · `coord-available` · `coord-available-unread` | The host screen: A locked (with the Change meet time · Change location tiles, reissued 5 Nov 2026) · B available · C unread · D full scroll. The slots for 02–08 and 10 | **ticketed — not built** |
 | 02 | Coordinate chat | `chat-tutorial` · `chat-entry` · `chat-open` · `chat-open-cancel` · `chat-end-card` · `chat-end-sheet` · `chat-end-done` · `coord-cancel-4-partner-chat` | Tutorial (2 steps), the chip grid + editable prefill, the thread and dock, the cancel guide (field locked until Got it), **End the date** — only after an "I can't make it today" message — and both outcome screens | **ticketed — not built** (5 Nov 2026) |
-| 03 | Arrival check-in | Check-in 1–3 · `chat-entry-arrived` | Check-in bar + `End date` link, "Have you arrived?" guard, "You are amazing for showing up!", the stored location, the chat chip branch, location-off case | to write |
-| 04 | Match notified | Check-in 4 | "{name} has arrived at the meeting location" in Coordinate's unread slot. Push copy later | to write — may fold into 03 |
+| 03 | Arrival check-in + match notified | Check-in 1–4 · `chat-entry-arrived` | Check-in bar + `End date` link, "Have you arrived?" guard, "You are amazing for showing up!" with **Undo check-in**, the stored location, the chat chip branch, and "{name} has arrived" on the match's Coordinate card. Push copy later | to write |
+| 04 | ~~Match notified~~ | — | **Folded into 03** (6 Nov 2026) | — |
 | 05 | Change meet time and place | Change 1–9 | Both full-screen pickers, suggestion cards, I agree / Suggest another, Waiting / Agreed tags, binding note with the meet − 0:30 deadline, expiry, Google Places | to write |
 | 06 | End date and report a problem | `coord-wrap-*` · `coord-report-*` | "How did it go?", the "My date isn't showing up" guidance (shared by both paths), no-penalty exit, "check in first" | to write |
 | 07 | Cancel this date | `coord-cancel-2-confirm` · `coord-cancel-4-partner` | Penalty-guard sheet, the confirmed outcome, what the match sees | to write |
@@ -44,7 +44,7 @@ Each story is one screen (or one logic job) with all its states, a spec sheet an
 | 09 | Switch to flow 10 | — | Server/client logic, no spec sheet: every date still open at +2 h moves both users to flow 10 | to write |
 | 10 | Match Mate | — | Content and UI for the Match Mate slot. **Needs design first** | to design |
 
-**Build order:** 01 → 02 → 03 and 05 in parallel → 06, 07, 08 → 09. 04 rides with 03. 10 can land any time after 01; until then its slot renders nothing.
+**Build order:** 01 → 02 → 03 and 05 in parallel → 06, 07, 08 → 09. 04 is folded into 03. 10 can land any time after 01; until then its slot renders nothing.
 
 **Not in this epic:** flow 10 Review your date (incl. the "I was there" claim and disputing "You didn't show up") · the Show-up Rate resolution logic · push / SMS / WhatsApp / email copy · Order Ride (ride-app API) · the parked AI safety call and "I'm in danger".
 
@@ -53,7 +53,7 @@ Each story is one screen (or one logic job) with all its states, a spec sheet an
 A second copy of any of these is a bug.
 
 - **`ScreenMatchCoord`** — the Date screen. Built by 01. Every other story adds a sheet, a bar or a state to it; **extended, never forked**
-- **`CoordinateModule`** — locked / available / unread. Built by 01; the **arrival** variant added by 04 (same slot, same treatment)
+- **`CoordinateModule`** — locked / available / unread. Built by 01; the **arrival** variant added by 03 (same slot, same treatment — was 04, folded 6 Nov 2026)
 - **The sticky footer slot** — built by 01, swaps on `checkedIn`. `CheckInBar` by 03, `DateStatusBar` (End Date) by 06
 - **`CHAT_REASONS` + `REASON_TONES` + `ReasonBadge`** — the chat's reason vocabulary. Built by 02; 01 reads it for the unread card, 03 for the "I arrived at the spot" chip
 - **`useArrivedGate`** — the one check-in gate. Built by 03; used by the date screen, the chat chip and Report → "My date isn't showing up" (06). **Three entry points, one flow**
@@ -77,7 +77,7 @@ A second copy of any of these is a bug.
 
 **3. Changes go through the Coordinate card before the chat opens, and through the chat after — one per type.** From the match on, the locked card's **Change meet time · Change location** tiles (Date 01) open the same pickers as the chat chips (Date 05). One time and one place suggestion can be open at once, answered separately. A new suggestion of the same type replaces the open one. Times: **later the same day only** — **no move to another day in the app** (if both want another day, they agree in the chat and one ends the date, Date 02) — within the other person's availability, 15-min slots. Places: **public venues only** (cafés, bars, restaurants), Google Places. A suggestion must be agreed **by 30 minutes before the binding meet time** (meet − 0:30); unanswered, it **expires** and the original time and place stay binding. The deadline counts from the binding time, never the suggested one. *(Changed 3 Nov 2026 — was: expires at the binding meet time. Changed 5 Nov 2026 — was: "Changes happen through the chat".)*
 
-**4. Check-in.** UI says **Check-in**; tickets and tracking say **arrival check-in** (kept apart from the 48 h Check-In). Available whenever the date is active. A deliberate "Yes, I've arrived" stores location + timestamp + user ID; **"Not yet" stores nothing**. **No check-in without location.** Both check-ins with overlapping check-ins (**150 m** radius each) → the date happened.
+**4. Check-in.** UI says **Check-in**; tickets and tracking say **arrival check-in** (kept apart from the 48 h Check-In). Available whenever the date is active. A deliberate "Yes, I've arrived" stores location + timestamp + user ID; **"Not yet" stores nothing**. **Undo check-in** on the done sheet deletes it again; once that sheet is closed there is no undo, and only then is the match notified *(6 Nov 2026)*. No fix means retry, never a check-in without coordinates. **No check-in without location:** while location is not usable, the Date screen is blocked by the location gate (Search 04), so Check-in can never be tapped with location off (5 Nov 2026). Both check-ins with overlapping check-ins (**150 m** radius each) → the date happened.
 
 **5. Every date ends in flow 10, for both people — with one exception.**
 - **Ended in the chat** (Date 02) after an "I can't make it today" message → the date did not happen: **no review, no flow 10**, both can search again at once, and **nobody's Show-up Rate changes**. Button label `End date`, as on the Date screen. Available until the date has ended.
@@ -108,7 +108,7 @@ Family **K — Date Coordination** and **L — Chat Metadata** in `design_handof
 - `date_screen_viewed` — once per visit, with `state`, `has_unread`, `checked_in`, `minutes_before_start` (from the latest agreed time)
 - `coordinate_unlocked` — server, at meet − 1:30
 - `date_quick_action_tapped` — Directions · Share Date · Calendar · Copy address (`ride` reserved)
-- `arrival_confirm_submitted` · `arrival_confirmed` — **respecified by 03** for the arrival check-in
+- `arrival_confirm_shown` (NEW) · `arrival_confirm_submitted` · `arrival_confirmed` (server, respecified) · `arrival_undone` (server, NEW) — family M, **Date 03**, registry 1.4.34 / taxonomy 1.4.27, §41 `arrival_entry`
 - Family L (`chat_tutorial_*`, `chat_opened`, `action_chip_used`, `message_sent`, `message_received`, `chat_closed`) — **respecified by 02** (5 Nov 2026). `action_chip_used.surface: "coordinate_card"` covers 01's change tiles
 - `cancel_guide_acknowledged` · `end_date_sheet_opened` · `date_ended_in_chat` (server) — **NEW, 02**
 - **Retired by 02:** `coordinate_viewed` · `date_status_sent` · `date_status_undone`
