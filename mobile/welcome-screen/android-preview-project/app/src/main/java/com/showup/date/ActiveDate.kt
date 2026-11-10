@@ -32,6 +32,9 @@ data class DateMatch(
 /** The newest unread message from the match. [reason] is its chip, null for a message sent with none. */
 data class DateUnread(val count: Int, val reason: ChatReason?, val body: String?, val sentAt: Instant)
 
+/** The match's committed arrival (SHOWUP-195): shown until the viewer opens the chat or taps the card. */
+data class DateArrival(val checkedInAt: Instant)
+
 /** Everything the Date screen renders. Time and place are the latest AGREED values. */
 data class ActiveDate(
     val id: String,
@@ -49,10 +52,12 @@ data class ActiveDate(
     val sharedVibes: List<String>,
     val sharedInterests: List<String>,
     val unread: DateUnread?,
-    /** The viewer's own arrival check-in. Always false until Date 03. */
+    /** The viewer has a committed arrival check-in (Date 03). */
     val checkedIn: Boolean,
     /** The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial. */
     val chatTutorialSeen: Boolean,
+    /** The match's committed check-in the viewer has not seen; null once seen (Date 03). */
+    val arrival: DateArrival? = null,
 )
 
 /**

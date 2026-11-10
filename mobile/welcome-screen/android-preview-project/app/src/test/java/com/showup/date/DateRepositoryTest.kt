@@ -53,7 +53,7 @@ class DateRepositoryTest {
          "motivations":{"you":"long_term","them":"long_term"},
          "sharedVibes":["coffee_chat","playful"],"sharedInterests":["reading"],
          "unread":{"count":2,"reason":"running_late","body":"Ten minutes late!","sentAt":"2026-11-03T17:10:00.000Z"},
-         "checkedIn":false,"chatTutorialSeen":true},"ended":null}
+         "checkedIn":false,"arrival":{"checkedInAt":"2026-11-03T17:50:00.000Z"},"chatTutorialSeen":true},"ended":null}
     """.trimIndent()
 
     @Test
@@ -63,6 +63,7 @@ class DateRepositoryTest {
         assertTrue("expected Ok, got $read", read is Outcome.Ok<*>)
         val date = ((read as Outcome.Ok<DateRead>).value as DateRead.Active).date
         assertEquals("d1", date.id)
+        assertEquals(DateArrival(Instant.parse("2026-11-03T17:50:00Z")), date.arrival)
         assertEquals(Instant.parse("2026-11-03T18:00:00Z"), date.meetAt)
         assertEquals("today", date.meetDay)
         assertEquals(Instant.parse("2026-11-03T16:30:00Z"), date.unlockAt)
@@ -91,7 +92,7 @@ class DateRepositoryTest {
                "unlockAt":"2026-11-03T16:30:00.000Z","coordinateOpen":true,"place":null,
                "match":{"userId":"u2","name":"Leonie","attendedCount":0},
                "motivations":{"you":null,"them":"casual"},"sharedVibes":[],"sharedInterests":[],
-               "unread":null,"checkedIn":false,"chatTutorialSeen":false},"ended":null}""",
+               "unread":null,"checkedIn":false,"arrival":null,"chatTutorialSeen":false},"ended":null}""",
         )
         val date = (((repo.active("UTC")) as Outcome.Ok<DateRead>).value as DateRead.Active).date
         assertNull(date.place)
@@ -101,6 +102,7 @@ class DateRepositoryTest {
         assertNull(date.match.photoUrl)
         assertNull(date.motivationYou)
         assertNull(date.unread)
+        assertNull(date.arrival)
         assertEquals("tomorrow", date.meetDay)
     }
 

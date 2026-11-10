@@ -44,7 +44,7 @@ enum class ChatReason(
     val shown: Boolean,
 ) {
     OnMyWay("on_my_way", "I'm on my way", "On my way now — see you in a few!", BrandIcon.Navigation, ReasonTone.Orange, true),
-    Arrived("arrived", "I arrived at the spot", "I'm here at the meeting spot — see you soon!", BrandIcon.Check, ReasonTone.Orange, false),
+    Arrived("arrived", "I arrived at the spot", "I'm here at the meeting spot — see you soon!", BrandIcon.Check, ReasonTone.Orange, true),
     CantFind("cant_find", "I can't spot you", "I'm here but can't spot you — where are you sitting?", BrandIcon.Binoculars, ReasonTone.Orange, true),
     WhenArrive("when_arrive", "When will you arrive?", "When do you think you'll get here?", BrandIcon.Walking, ReasonTone.Orange, true),
     ChangeTime("change_time", "Change meet time", null, BrandIcon.Clock, ReasonTone.Violet, false),

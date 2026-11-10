@@ -6,6 +6,7 @@ package com.showup.chat
 
 import com.showup.AppRoute
 import com.showup.analytics.RecordingAnalytics
+import com.showup.date.DateArrival
 import com.showup.date.DateUnread
 import com.showup.date.EndedInChat
 import com.showup.profile.ProfileScreen
@@ -29,6 +30,13 @@ class ChatRoutingTest {
         assertEquals(ChatEntry.OpenChat, chatEntryFor(date))
         assertEquals(ChatEntry.ReadReply, chatEntryFor(date.copy(unread = DateUnread(1, ChatReason.RunningLate, "Late", now))))
         assertEquals(AppRoute.Chat("read_reply"), chatRoute(date, chatEntryFor(date.copy(unread = DateUnread(1, null, "Hi", now)))))
+    }
+
+    @Test
+    fun `the match's arrival says Open chat, whatever else waits`() {
+        val arrival = DateArrival(now)
+        assertEquals(ChatEntry.OpenChat, chatEntryFor(date.copy(arrival = arrival)))
+        assertEquals(ChatEntry.OpenChat, chatEntryFor(date.copy(arrival = arrival, unread = DateUnread(1, null, "Hi", now))))
     }
 
     @Test

@@ -40,12 +40,12 @@ class DateViewModelTest {
     private val analytics = RecordingAnalytics()
     private val store = FakeDateStore()
 
-    private fun date(unread: DateUnread? = null, checkedIn: Boolean = false) = ActiveDate(
+    private fun date(unread: DateUnread? = null, checkedIn: Boolean = false, arrival: DateArrival? = null) = ActiveDate(
         id = "d1", meetAt = meet, meetDay = "today", unlockAt = unlock, coordinateOpen = false,
         place = DatePlace("Cafe Krone", "Oranienstrasse 42, Kreuzberg"),
         match = DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
         motivationYou = "long_term", motivationThem = "long_term",
-        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = unread, checkedIn = checkedIn, chatTutorialSeen = false,
+        sharedVibes = emptyList(), sharedInterests = emptyList(), unread = unread, checkedIn = checkedIn, chatTutorialSeen = false, arrival = arrival,
     )
 
     private fun vm() = DateViewModel(store, analytics, clock = { now }, zone = { ZoneId.of("Europe/Berlin") })
@@ -374,6 +374,42 @@ class DateViewModelTest {
         assertEquals(date(), vm.state.value.date)
         assertEquals(listOf("screen_viewed", "date_screen_viewed"), analytics.names())
     }
+
+    @Test
+    fun `a cleared arrival stays cleared until a newer check-in`() = runTest(dispatcher) {
+        val first = DateArrival(Instant.parse("2026-11-03T17:50:00Z"))
+        store.read = Outcome.Ok(DateRead.Active(date(arrival = first)))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        assertEquals(first, vm.state.value.date?.arrival)
+
+        vm.arrivalSeen()
+        assertEquals("cleared at once", null, vm.state.value.date?.arrival)
+        advanceUntilIdle()
+        assertEquals(listOf("d1"), store.seen)
+
+        vm.foreground()
+        advanceUntilIdle()
+        assertEquals("the same check-in does not come back", null, vm.state.value.date?.arrival)
+
+        val later = DateArrival(Instant.parse("2026-11-03T17:59:00Z"))
+        store.read = Outcome.Ok(DateRead.Active(date(arrival = later)))
+        vm.foreground()
+        advanceUntilIdle()
+        assertEquals(later, vm.state.value.date?.arrival)
+    }
+
+    @Test
+    fun `seeing an arrival that is not there tells nobody`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        vm.arrivalSeen()
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), store.seen)
+    }
 }
 
 /** Answers from fields the test sets; counts the reads. */
@@ -392,4 +428,16 @@ class FakeDateStore : DateStore {
     override suspend fun messageFromMatch(reason: ChatReason?, body: String) = Result.success(true)
     override suspend fun endTestDate() = Result.success(true)
     override suspend fun matchEndsInChat() = Result.success(true)
+
+    val seen = mutableListOf<String>()
+    var partnerCheckIns = 0
+
+    override suspend fun markArrivalSeen(dateId: String) {
+        seen += dateId
+    }
+
+    override suspend fun partnerChecksIn(): Result<Boolean> {
+        partnerCheckIns++
+        return Result.success(true)
+    }
 }

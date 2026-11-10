@@ -116,6 +116,24 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `a gated chip fires the event and changes nothing else`() = chatTest {
+        val vm = opened()
+        vm.edit("Typed before")
+        val before = vm.ui.value
+        analytics.clear()
+        vm.pick(ChatReason.Arrived, ChipSurface.Dock, gated = true)
+        assertEquals(listOf("action_chip_used"), analytics.names())
+        assertEquals("arrived", analytics.of("action_chip_used").single().properties["reason"])
+        assertEquals(before.selected, vm.ui.value.selected)
+        assertEquals(before.draft, vm.ui.value.draft)
+        assertEquals(before.messages, vm.ui.value.messages)
+        vm.pick(ChatReason.Arrived, ChipSurface.Dock)
+        assertEquals(ChatReason.Arrived, vm.ui.value.selected)
+        assertEquals(ChatReason.Arrived.draft, vm.ui.value.draft)
+        stop(vm)
+    }
+
+    @Test
     fun `I can't make it today empties and locks the field until Got it, and another chip removes the guide`() = chatTest {
         val vm = opened()
         vm.pick(ChatReason.RunningLate, ChipSurface.Entry)

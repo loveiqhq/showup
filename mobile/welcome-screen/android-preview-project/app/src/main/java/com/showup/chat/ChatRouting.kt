@@ -25,9 +25,11 @@ fun chatRoute(date: ActiveDate, entry: ChatEntry): AppRoute =
 
 /**
  * Which button opened the chat. The Date screen shows `Open chat` (B) or `Read & reply` (C), never
- * both: C is B with an unread message, so the waiting message says which it was.
+ * both: C is B with an unread message, so the waiting message says which it was. The match's arrival
+ * card (Date 03) says `Open chat` whatever else waits.
  */
-fun chatEntryFor(date: ActiveDate): ChatEntry = if (date.unread != null) ChatEntry.ReadReply else ChatEntry.OpenChat
+fun chatEntryFor(date: ActiveDate): ChatEntry =
+    if (date.arrival == null && date.unread != null) ChatEntry.ReadReply else ChatEntry.OpenChat
 
 /** G or H, with everything they draw. */
 fun outcomeRoute(outcome: EndedInChat, photoUrl: String?): AppRoute.DateEnded =

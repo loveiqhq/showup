@@ -66,10 +66,10 @@ class ChatScreenTest {
     )
 
     @Test
-    fun `B shows the five chips as tiles in two columns, the privacy line, and no field`() = runComposeUiTest {
+    fun `B shows the chips as tiles in two columns, the privacy line, and no field`() = runComposeUiTest {
         setContent { Screen(ChatSamples.B) }
         for (r in SHOWN_REASONS) onNodeWithText(r.label).assertExists()
-        for (r in listOf(ChatReason.Arrived, ChatReason.ChangeTime, ChatReason.ChangePlace)) {
+        for (r in listOf(ChatReason.ChangeTime, ChatReason.ChangePlace)) {
             onAllNodesWithText(r.label).assertCountEquals(0)
         }
         val lefts = SHOWN_REASONS.map { onNodeWithTag(chipTag(it, ChipSurface.Entry)).fetchSemanticsNode().boundsInRoot.left }
@@ -98,7 +98,7 @@ class ChatScreenTest {
     }
 
     @Test
-    fun `the dock has no heading line, five chips 38 high, each answering 3 beyond it on every side`() = runComposeUiTest {
+    fun `the dock has no heading line, the chips 38 high, each answering 3 beyond it on every side`() = runComposeUiTest {
         setContent { Screen(ChatSamples.C) }
         onAllNodesWithText("Tap a chip", substring = true).assertCountEquals(0)
         onAllNodesWithText("Quick", substring = true).assertCountEquals(0)
