@@ -92,9 +92,9 @@ fun HomePlaceholderScreen(outcome: SignUpOutcome, onStartOver: () -> Unit) {
             Box(
                 Modifier
                     .padding(top = Spacing.lg)
-                    // 48, Android's Material floor, passed explicitly: minTapTarget clamps upward
-                    // only, so this raises the shared 44 and cannot lower it.
-                    .minTapTarget(48.dp)
+                    // The app's 44 floor on both platforms (settled 9 Nov 2026, see TapTarget.kt);
+                    // it was Material's 48 until then.
+                    .minTapTarget()
                     .border(1.dp, Border, RoundedCornerShape(50))
                     .clickable(onClick = onStartOver)
                     .padding(horizontal = 22.dp, vertical = Spacing.xl),
