@@ -6,6 +6,7 @@ import request from 'supertest';
 import { DataSource, In, Repository } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
+import { ArrivalCheckInsService } from './../src/modules/dates/arrival-check-ins.service';
 import { AnalyticsService } from './../src/modules/analytics/analytics.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
@@ -269,6 +270,21 @@ describe('Arrival check-in (e2e)', () => {
     await create('you', body(), () => missing).expect(404);
     const ended = await makeDate(DateStatus.EndedInChat);
     await create('you', body(), () => ended).expect(409);
+  });
+
+  it('the retention sweep deletes a row a year and a second old and keeps one a second younger', async () => {
+    const now = new Date('2027-06-15T12:00:00.000Z');
+    const old = new Date('2026-06-15T11:59:59.000Z');
+    const young = new Date('2026-06-15T12:00:01.000Z');
+    await create('you', body()).expect(201);
+    await create('leonie', body()).expect(201);
+    await db.query(
+      `UPDATE date_arrival_check_ins SET checked_in_at = CASE WHEN user_id = $2 THEN $3::timestamptz ELSE $4::timestamptz END WHERE date_id = $1`,
+      [dateId, id.you, old, young],
+    );
+    expect(await app.get(ArrivalCheckInsService).deleteExpired(now)).toBe(1);
+    const left = await rows();
+    expect(left.map((r) => r.user_id)).toEqual([id.leonie]);
   });
 
   it.each([

@@ -19,7 +19,7 @@ import { firstName } from '../search/util/search-profile';
 import { CreateArrivalCheckInDto } from './dto/arrival.dto';
 import { DateArrivalCheckIn } from './entities/date-arrival-check-in.entity';
 import { DateEntity } from './entities/date.entity';
-import { minutesVsStart, secondsSince } from './util/arrival';
+import { minutesVsStart, retentionCutoff, secondsSince } from './util/arrival';
 import { DateStatus } from './util/date-lifecycle';
 
 const TABLE = 'date_arrival_check_ins';
@@ -171,6 +171,20 @@ export class ArrivalCheckInsService {
   /** Both people's rows for a date (no coordinates: the column is not selected). */
   rowsFor(dateId: string): Promise<DateArrivalCheckIn[]> {
     return this.rows.find({ where: { dateId } });
+  }
+
+  /**
+   * The retention sweep (R14): deletes check-ins a year old or older. The cutoff is a parameter, not
+   * `now()` in SQL, so a test controls the clock. Returns how many rows went.
+   */
+  async deleteExpired(now: Date = new Date()): Promise<number> {
+    const removed = normalise<{ id: string }>(
+      await this.rows.query(
+        `DELETE FROM ${TABLE} WHERE checked_in_at < $1 RETURNING id`,
+        [retentionCutoff(now)],
+      ),
+    );
+    return removed.length;
   }
 
   /** The push to the match: the checker's first name, the date id, never a place. */

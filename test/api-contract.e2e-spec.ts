@@ -101,6 +101,7 @@ const PROTECTED: Route[] = [
   { method: 'post', path: `/dates/${ID}/arrival` },
   { method: 'delete', path: `/dates/${ID}/arrival` },
   { method: 'post', path: `/dates/${ID}/arrival/commit` },
+  { method: 'post', path: '/dev/date/arrival' },
   // matching.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },
