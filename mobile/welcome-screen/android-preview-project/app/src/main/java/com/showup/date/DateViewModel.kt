@@ -78,19 +78,36 @@ class DateViewModel(
 
     /** A visit waiting for its first read, and where it came from. */
     private var pendingVisit: Visit? = null
+
+    /** The screen this one opened over itself -- the match's profile, the chat -- for the next arrival. */
+    private var opened: ProfileScreen? = null
     private var copiedJob: Job? = null
     private var poll: Job? = null
 
     private class Visit(val referrer: ProfileScreen?)
 
-    /** The screen is on screen (from launch, a match, or back from a pushed screen): one visit. */
+    /**
+     * The screen is on screen (from launch, a match, or back from a pushed screen): one visit. [referrer]
+     * is the flow screen the host came from; back from a screen this one opened ([leftFor]), that screen
+     * is the one before instead -- the host's flow screen is still the one before the Date screen.
+     */
     fun arrived(referrer: ProfileScreen?) {
         // An arrival is never a leave: whether the date is gone is the read's to say. Without this a
         // second date in the same process arrived with the last one's `left` and was bounced off.
         _state.update { it.copy(left = false) }
+        val before = opened ?: referrer
+        opened = null
         if (pendingVisit != null) return
-        pendingVisit = Visit(referrer)
+        pendingVisit = Visit(before)
         read()
+    }
+
+    /**
+     * The Date screen opened [screen] over itself: the match's read-only profile, the chat's tutorial or the
+     * chat. Coming back, that is `screen_viewed`'s `referrer_screen_id` (the SHOWUP-193 review).
+     */
+    fun leftFor(screen: ProfileScreen) {
+        opened = screen
     }
 
     /** The app came back to the foreground: re-read, report nothing. */
@@ -107,7 +124,9 @@ class DateViewModel(
 
     /** `Try again` on the failed state: read again, the visit still waiting for it. */
     fun retry() {
-        _state.update { it.copy(loading = true, failed = null) }
+        // The message stays up while it reads, and a second tap meanwhile reads nothing (9 Nov 2026).
+        if (_state.value.loading) return
+        _state.update { it.copy(loading = true) }
         read()
     }
 
@@ -133,7 +152,7 @@ class DateViewModel(
     fun chatTutorialSeen() = _state.update { it.copy(date = it.date?.copy(chatTutorialSeen = true)) }
 
     /** G or H has been seen and left: no date is held, so Search, Likes and Instant open again. */
-    fun outcomeShown() = _state.update { it.copy(date = null, ended = null, left = false) }
+    fun outcomeShown() = _state.update { it.copy(date = null, ended = null, left = false, failed = null) }
 
     /** The clock moved. The state follows it; nothing is reported. */
     fun tick() = _state.update { it.copy(now = clock()) }
@@ -173,10 +192,12 @@ class DateViewModel(
                         _state.update { it.copy(date = read.date, now = now, loading = false, failed = null, left = false, ended = null) }
                         reportVisit(read.date, now)
                     }
-                    is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, ended = read.outcome) }
-                    DateRead.None -> _state.update { it.copy(now = now, loading = false, left = true) }
+                    is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, failed = null, ended = read.outcome) }
+                    DateRead.None -> _state.update { it.copy(now = now, loading = false, failed = null, left = true) }
                 }
-                is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = answer.why) }
+                // A failure is shown only where nothing else is: a dropped poll under a date on screen
+                // left one behind, and after the date the next visit opened on `Couldn't load your date`.
+                is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = if (it.date == null) answer.why else null) }
             }
         }
     }

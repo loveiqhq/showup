@@ -5,9 +5,7 @@
  * From the ticket's "Copy — final strings", verbatim; `audit/verify-date.py` quotes the ticket at
  * run time against this file and its Swift twin. `%s` is filled by [DateRules] / the screen.
  *
- * The two footer bars' strings are not in this ticket's copy section: the bars belong to Date 03
- * (Check-in) and Date 06 (End Date), and the acceptance criteria put them in this screen's footer
- * now. They are the reference's own (`screen-date-reference.jsx`, `CheckInBar`, `DateStatusBar`).
+ * No footer bar strings: the bars are Date 03's and Date 06's, which write them (9 Nov 2026).
  */
 package com.showup.date
 
@@ -69,21 +67,10 @@ object DateCopy {
     const val SHARE_TEXT_NO_PLACE = "I'm meeting %s %s at %s."
     const val CALENDAR_TITLE = "Date with %s"
 
-    // ── the footer bars (Date 03 / Date 06's, drawn here per this ticket's AC) ──
-    const val BAR_TITLE = "Your date with %s"
-    const val CHECK_IN_BAR_SUB = "Confirm you arrived at the meeting location, we will let your date know."
-    const val CHECK_IN = "Check-in"
-    const val END_DATE_LINK = "End date"
-    const val END_BAR_SUB = "Tap End Date - when your date is finished."
-    const val END_DATE = "End Date"
-
-    // ── not in the ticket: PROPOSED, for Philipp ─────────────────────────────
-    //
-    // Every screen has a failed state (CLAUDE.md) and the ticket draws none: the Date screen's first
-    // read can fail (offline as a match lands). Search's approved sentence, said of the date; Search's
-    // `Try again` beside it.
+    // ── 9 Nov 2026 ──────────────────────────────────────────────────────────
+    /** The first read failed, with nothing to show; beside Search's `Try again`. */
     const val LOAD_FAILED = "Couldn't load your date. Check your connection and try again."
 
-    /** The read-only profile's back pill, named for where it goes as `All profiles` and `All likes` are. */
+    /** The read-only profile's back pill. */
     const val PROFILE_BACK = "Your date"
 }

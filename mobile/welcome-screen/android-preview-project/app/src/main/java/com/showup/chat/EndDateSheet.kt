@@ -7,6 +7,7 @@
  */
 package com.showup.chat
 
+import com.showup.designsystem.SheetErrorBox
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -61,7 +62,11 @@ private val SheetBody = TextStyle(
  * Pad 14 24 24, centred: the dark-red 9% circle 80 with `x` 34 / 2.4, the title (Lora 700 26, 16 above,
  * 8 below, at most 310), the line (15 / 1.5 muted, at most 300, 22 below), `Keep the date` (h 50, radius
  * 16, white with the soft border, 14.5 / 700 muted) and `End date` (10 below, h 56, radius 18, dark red,
- * 16.5 / 700 white). While it ends, `End date` waits; if it fails, the sheet says so and stays.
+ * 16.5 / 700 white). While it ends, `End date` waits.
+ *
+ * K (9 Nov 2026): if it fails, the sheet stays open and says so in [SheetErrorBox], 14 under the line
+ * (its 22 less 8) and 16 above `Keep the date`. The sheet grows upward from the bottom, so the buttons
+ * keep their order, size and place; `End date` tries again.
  */
 @Composable
 internal fun EndDateSheet(name: String, ending: Boolean, failed: Boolean, onKeep: () -> Unit, onEnd: () -> Unit) {
@@ -92,17 +97,12 @@ internal fun EndDateSheet(name: String, ending: Boolean, failed: Boolean, onKeep
                 style = SheetBody,
             )
             if (failed) {
-                Text(
-                    ChatCopy.END_FAILED,
-                    modifier = Modifier.padding(top = 10.dp).widthIn(max = 300.dp),
-                    color = DangerFg,
-                    fontFamily = Manrope,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 13.5.sp,
-                    textAlign = TextAlign.Center,
-                )
+                Spacer(Modifier.height(14.dp))
+                SheetErrorBox(ChatCopy.END_FAILED)
+                Spacer(Modifier.height(16.dp))
+            } else {
+                Spacer(Modifier.height(22.dp))
             }
-            Spacer(Modifier.height(22.dp))
             val keepShape = RoundedCornerShape(16.dp)
             Box(
                 Modifier

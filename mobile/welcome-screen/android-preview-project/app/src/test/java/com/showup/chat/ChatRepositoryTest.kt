@@ -71,21 +71,26 @@ class ChatRepositoryTest {
 
     @Test
     fun `send posts the reason and the text, and reads the message back`() = runTest {
-        json("""{"id":"m3","reason":"cant_make_it","body":"So sorry","fromYou":true,"createdAt":"2026-11-03T16:40:00.000Z","read":false}""", 201)
-        val sent = (store.send("d1", ChatReason.CantMakeIt, "So sorry") as Outcome.Ok).value
-        assertEquals(ChatMessage("m3", ChatReason.CantMakeIt, "So sorry", true, Instant.parse("2026-11-03T16:40:00Z"), false), sent)
+        json("""{"id":"m3","reason":"cant_make_it","body":"So sorry","fromYou":true,"createdAt":"2026-11-03T16:40:00.000Z","read":false,"clientId":"6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10"}""", 201)
+        val sent = (store.send("d1", ChatReason.CantMakeIt, "So sorry", "6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10") as Outcome.Ok).value
+        assertEquals(
+            ChatMessage("m3", ChatReason.CantMakeIt, "So sorry", true, Instant.parse("2026-11-03T16:40:00Z"), false, clientId = "6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10"),
+            sent,
+        )
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/dates/d1/chat", request.path)
         val body = request.body.readUtf8()
         assertTrue(body, body.contains("\"reason\":\"cant_make_it\""))
         assertTrue(body, body.contains("\"body\":\"So sorry\""))
+        // The id the phone keeps for every resend: the server answers a second copy with the first.
+        assertTrue(body, body.contains("\"clientId\":\"6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10\""))
     }
 
     @Test
     fun `a message with no chip is sent with no reason`() = runTest {
         json("""{"id":"m4","reason":null,"body":"Hi","fromYou":true,"createdAt":"2026-11-03T16:40:00.000Z","read":false}""", 201)
-        store.send("d1", null, "Hi")
+        store.send("d1", null, "Hi", "0b7d4a1e-2c3f-4e5a-8b6c-7d8e9f0a1b2c")
         val body = server.takeRequest().body.readUtf8()
         assertFalse(body, Regex("\"reason\":\"").containsMatchIn(body))
     }
@@ -93,9 +98,9 @@ class ChatRepositoryTest {
     @Test
     fun `a refused send is a Server failure, nothing answering a Network one`() = runTest {
         json("""{"statusCode":409}""", 409)
-        assertEquals(Outcome.Failed(CallFailure.Server), store.send("d1", null, "Hi"))
+        assertEquals(Outcome.Failed(CallFailure.Server), store.send("d1", null, "Hi", "0b7d4a1e-2c3f-4e5a-8b6c-7d8e9f0a1b2c"))
         server.shutdown()
-        assertEquals(Outcome.Failed(CallFailure.Network), store.send("d1", null, "Hi"))
+        assertEquals(Outcome.Failed(CallFailure.Network), store.send("d1", null, "Hi", "0b7d4a1e-2c3f-4e5a-8b6c-7d8e9f0a1b2c"))
     }
 
     @Test

@@ -40,8 +40,11 @@ data class SearchProfile(
     val name: String,
     /** Null when the person hides their age: the name stands alone. */
     val age: Int?,
-    /** Rounded by the server: 0 is "< 1 km". */
-    val distanceKm: Int,
+    /**
+     * Rounded by the server: 0 is "< 1 km". Null where it is unknown -- the Date screen's match without a
+     * located Check-In -- and then no distance is drawn, never "< 1 km". Search's queue always has one.
+     */
+    val distanceKm: Int?,
     val district: String?,
     val meetAt: Instant,
     /** `today` or `tomorrow`, by the Check-In's 7am day, from the server. */

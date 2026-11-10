@@ -163,13 +163,16 @@ func likesPhotoLabel(_ name: String, notNow: Bool) -> String {
     notNow ? PremiumCopy.cardLabelNotNow(name) : PremiumCopy.cardLabel(name)
 }
 
-/// The grid card's meta line: `{HH:MM} {day} · ~{n} km` -- on one line at 375.
+/// The grid card's meta line: `{HH:MM} {day} · ~{n} km` -- on one line at 375; the time alone when the distance
+/// is unknown.
 func gridMetaLine(_ profile: SearchProfile, zone: TimeZone) -> String {
-    "\(meetLine(profile.meetAt, day: profile.meetDay, zone: zone)) · \(searchDistance(profile.distanceKm))"
+    [meetLine(profile.meetAt, day: profile.meetDay, zone: zone), profile.distanceKm.map(searchDistance)]
+        .compactMap { $0 }
+        .joined(separator: " · ")
 }
 
-/// The Likes card's distance, after the name: `· < 1 km` / `· ~{n} km`.
-func likesDistance(_ km: Int) -> String { "· \(searchDistance(km))" }
+/// The Likes card's distance, after the name: `· < 1 km` / `· ~{n} km`. Nil when it is unknown: nothing is drawn.
+func likesDistance(_ km: Int?) -> String? { km.map { "· \(searchDistance($0))" } }
 
 /// The liker's message, "in straight double quotes, as written".
 func quotedMessage(_ message: String) -> String { "\"\(message)\"" }

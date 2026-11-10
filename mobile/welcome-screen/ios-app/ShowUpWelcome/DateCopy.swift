@@ -5,9 +5,7 @@
 // against this file and its Kotlin twin, and checks the two hold the same strings. A value is filled
 // by a function here, never assembled at a call site.
 //
-// The two footer bars' strings are not in this ticket's copy section: the bars belong to Date 03
-// (Check-in) and Date 06 (End Date), and the acceptance criteria put them in this screen's footer now.
-// They are the reference's own (`screen-date-reference.jsx`, `CheckInBar`, `DateStatusBar`).
+// No footer bar strings: the bars are Date 03's and Date 06's, which write them (9 Nov 2026).
 
 import Foundation
 
@@ -72,21 +70,10 @@ enum DateCopy {
     }
     static func calendarTitle(_ name: String) -> String { "Date with \(name)" }
 
-    // MARK: the footer bars (Date 03 / Date 06's, drawn here per this ticket's AC)
-    static func barTitle(_ name: String) -> String { "Your date with \(name)" }
-    static let checkInBarSub = "Confirm you arrived at the meeting location, we will let your date know."
-    static let checkIn = "Check-in"
-    static let endDateLink = "End date"
-    static let endBarSub = "Tap End Date - when your date is finished."
-    static let endDate = "End Date"
-
-    // MARK: not in the ticket: PROPOSED, for Philipp
-    //
-    // Every screen has a failed state (CLAUDE.md) and the ticket draws none: the Date screen's first
-    // read can fail (offline as a match lands). Search's approved sentence, said of the date; Search's
-    // `Try again` beside it.
+    // MARK: 9 Nov 2026
+    /// The first read failed, with nothing to show; beside Search's `Try again`.
     static let loadFailed = "Couldn't load your date. Check your connection and try again."
 
-    /// The read-only profile's back pill, named for where it goes as `All profiles` and `All likes` are.
+    /// The read-only profile's back pill.
     static let profileBack = "Your date"
 }

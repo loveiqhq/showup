@@ -43,8 +43,8 @@ class DevStatesTest {
         val perTicket = DEV_STATES.groupingBy { it.id.take(3) }.eachCount()
         // 193: the sheet's A, B, C and D's end, plus the two states it adds (the read-only profile
         // and a first read that failed).
-        // 194: the sheet's A to H.
-        assertEquals(mapOf("178" to 2, "179" to 5, "180" to 3, "181" to 5, "182" to 3, "183" to 5, "184" to 10, "193" to 6, "194" to 8), perTicket)
+        // 194: the sheet's A to K (I, J and K, the three failures, 9 Nov 2026).
+        assertEquals(mapOf("178" to 2, "179" to 5, "180" to 3, "181" to 5, "182" to 3, "183" to 5, "184" to 10, "193" to 6, "194" to 11), perTicket)
     }
 
     @Test

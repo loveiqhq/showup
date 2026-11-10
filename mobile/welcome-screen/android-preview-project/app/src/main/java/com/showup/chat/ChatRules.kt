@@ -33,7 +33,7 @@ enum class Guide { None, Locked, Acked }
  * person, and not while that chip is selected -- the guide takes its place at the foot of the thread.
  */
 fun endCardVisible(messages: List<ChatMessage>, selected: ChatReason?): Boolean =
-    selected != ChatReason.CantMakeIt && messages.any { it.reason == ChatReason.CantMakeIt }
+    selected != ChatReason.CantMakeIt && cantMakeItFrom(messages) != null
 
 /** The field and Send wait for `Got it` after "I can't make it today" is picked, and only then. */
 fun fieldLocked(selected: ChatReason?, guide: Guide): Boolean =
@@ -64,7 +64,8 @@ fun prefillEdited(reason: ChatReason?, sent: String): Boolean? =
  * `self` or `match` -- or null when the thread has none. The server decides it the same way.
  */
 fun cantMakeItFrom(messages: List<ChatMessage>): String? =
-    messages.lastOrNull { it.reason == ChatReason.CantMakeIt }?.let { if (it.fromYou) "self" else "match" }
+    // A message that did not send never reached the match (Date 02 J): it opens nothing.
+    messages.lastOrNull { it.reason == ChatReason.CantMakeIt && !it.failed }?.let { if (it.fromYou) "self" else "match" }
 
 /**
  * The header's line before the countdown, from the latest AGREED values: `Today · 19:00 · Cafe Krone`.

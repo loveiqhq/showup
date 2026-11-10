@@ -19,6 +19,7 @@ import com.showup.date.EndedInChat
 import kotlinx.coroutines.CancellationException
 import java.io.IOException
 import java.time.Instant
+import java.util.UUID
 import com.showup.api.generated.model.ChatReason as WireReason
 
 /** One message in the thread, in the app's own types. */
@@ -32,6 +33,10 @@ data class ChatMessage(
     val sentAt: Instant,
     /** Mine: whether the other person has read the chat since. Theirs: null. */
     val read: Boolean?,
+    /** Mine: the id this phone gave it, the same on every resend (Date 02 J). Theirs, and before then: null. */
+    val clientId: String? = null,
+    /** Mine, and not sent: its send failed and it waits for the person to tap its line (Date 02 J). */
+    val failed: Boolean = false,
 )
 
 /** What `End date` came back with. */
@@ -49,8 +54,11 @@ interface ChatStore {
     /** The thread, oldest first. */
     suspend fun thread(dateId: String): Outcome<List<ChatMessage>>
 
-    /** One message: the trimmed text, with the selected chip's reason or none. */
-    suspend fun send(dateId: String, reason: ChatReason?, body: String): Outcome<ChatMessage>
+    /**
+     * One message: the trimmed text, with the selected chip's reason or none. [clientId] is the same on
+     * every resend, so a message the server already has is answered with that copy, never added twice.
+     */
+    suspend fun send(dateId: String, reason: ChatReason?, body: String, clientId: String): Outcome<ChatMessage>
 
     /** The viewer has read the thread up to now. A stamp: a failed one is not reported, the next covers it. */
     suspend fun markRead(dateId: String)
@@ -72,10 +80,11 @@ class ApiChatStore(private val api: ShowUpApi) : ChatStore {
         response.body()?.takeIf { response.isSuccessful }?.map { it.toMessage() }
     }
 
-    override suspend fun send(dateId: String, reason: ChatReason?, body: String): Outcome<ChatMessage> = outcome {
+    override suspend fun send(dateId: String, reason: ChatReason?, body: String, clientId: String): Outcome<ChatMessage> = outcome {
         // By wire value, not constant name: a regenerated enum constant must not change what is sent.
         val wire = reason?.let { chip -> WireReason.entries.first { it.value == chip.wire } }
-        val response = api.dates.sendDateChatMessage(dateId, SendChatMessageDto(body = body, reason = wire))
+        val dto = SendChatMessageDto(body = body, clientId = UUID.fromString(clientId), reason = wire)
+        val response = api.dates.sendDateChatMessage(dateId, dto)
         response.body()?.takeIf { response.isSuccessful }?.toMessage()
     }
 
@@ -113,6 +122,6 @@ class ApiChatStore(private val api: ShowUpApi) : ChatStore {
 
     private fun ChatMessageDto.toMessage(): ChatMessage {
         val chip = ChatReason.fromWire(reason?.value)
-        return ChatMessage(id, chip, body ?: chip?.label.orEmpty(), fromYou, createdAt.toInstant(), read)
+        return ChatMessage(id, chip, body ?: chip?.label.orEmpty(), fromYou, createdAt.toInstant(), read, clientId?.toString())
     }
 }

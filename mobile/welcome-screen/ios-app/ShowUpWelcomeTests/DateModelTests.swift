@@ -85,6 +85,29 @@ final class DateModelTests: XCTestCase {
         XCTAssertEqual(m.state.state, .locked)
     }
 
+    func testBackFromTheMatchsProfileOrTheChatTheScreenBeforeIsThatOneNotTheOneBeforeTheDateScreen() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let analytics = RecordingAnalytics()
+        let m = model(store, analytics, TestClock(meet.addingTimeInterval(-3 * 3600)))
+        // The host only knows the flow screen the Date screen was reached from.
+        let flowBefore = ProfileScreen.checkinSearchUnavailable
+        m.arrived(referrer: flowBefore)
+        await settle()
+        for pushed in [ProfileScreen.searchProfile, .dateChatTutorial, .dateChat] {
+            m.leftFor(pushed)
+            m.arrived(referrer: flowBefore)
+            await settle()
+            let last = analytics.entries.last { $0.event == "screen_viewed" }?.properties ?? [:]
+            XCTAssertEqual(last["referrer_screen_id"] as? String, pushed.rawValue)
+        }
+        // Spent once used: a later arrival names what the host says.
+        m.arrived(referrer: flowBefore)
+        await settle()
+        let last = analytics.entries.last { $0.event == "screen_viewed" }?.properties ?? [:]
+        XCTAssertEqual(last["referrer_screen_id"] as? String, flowBefore.rawValue)
+    }
+
     func testAVisitInCReportsAvailableWithHasUnreadAndTheReferrer() async {
         let store = FakeDateStore()
         let u = DateUnread(count: 1, reason: .runningLate, body: "Ten minutes late!", sentAt: unlock)
@@ -233,6 +256,21 @@ final class DateModelTests: XCTestCase {
         XCTAssertFalse(m.state.left)
     }
 
+    func testAFailedReReadWhileTheDateIsOnScreenLeavesNoFailureToShowOnceTheDateGoes() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        await store.setRead(.failure(.network))
+        m.foreground()
+        await settle()
+        // The screen showed the date throughout: "Couldn't load your date" is for a screen with nothing.
+        XCTAssertNil(m.state.failed)
+        m.outcomeShown()
+        XCTAssertNil(m.state.failed)
+    }
+
     func testEachQuickActionReportsItsSection38Value() async {
         let store = FakeDateStore()
         await store.setRead(.success(.active(date())))
@@ -330,10 +368,16 @@ final class DateModelTests: XCTestCase {
         XCTAssertNil(m.state.date)
         XCTAssertTrue(analytics.entries.isEmpty)
         await store.setRead(.success(.active(date())))
+        let reads = await store.reads
         m.retry()
         XCTAssertTrue(m.state.loading, "loading again while it reads")
-        XCTAssertNil(m.state.failed)
+        // 9 Nov 2026: the message stays while it reloads, and a second tap does nothing.
+        XCTAssertEqual(m.state.failed, .network)
+        m.retry()
         await settle()
+        let after = await store.reads
+        XCTAssertEqual(after, reads + 1)
+        XCTAssertNil(m.state.failed)
         XCTAssertEqual(m.state.date, date())
         XCTAssertEqual(names(analytics), ["screen_viewed", "date_screen_viewed"])
     }

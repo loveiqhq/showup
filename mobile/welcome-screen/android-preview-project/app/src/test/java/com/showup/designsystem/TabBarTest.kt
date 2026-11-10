@@ -10,6 +10,8 @@
  */
 package com.showup.designsystem
 
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -67,6 +69,16 @@ class TabBarTest {
         // The cap is the drawing's; the spoken count is the real one.
         assertEquals("Likes, 120 open likes", description(Tab.Likes, likes = 120))
         assertEquals("Likes", description(Tab.Likes, likes = 0))
+    }
+
+    @Test
+    fun `a disabled Likes tab shows no count (SHOWUP-193, 9 Nov)`() = runComposeUiTest {
+        setContent { TabBar(active = null, onTab = {}, likes = 2, disabled = setOf(Tab.Search, Tab.Likes, Tab.Instant)) }
+        assertEquals(
+            "Likes",
+            onNodeWithTag(tabTag(Tab.Likes)).fetchSemanticsNode().config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(),
+        )
+        onAllNodesWithText("2").assertCountEquals(0)
     }
 
     @Test

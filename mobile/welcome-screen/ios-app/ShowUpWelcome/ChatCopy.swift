@@ -115,10 +115,9 @@ enum ChatCopy {
     static let back = "Back"
     static let send = "Send"
 
-    // MARK: not in the ticket: PROPOSED, for Philipp
+    // MARK: the three failures, I, J and K (9 Nov 2026)
     //
-    // Every screen has a failed state (CLAUDE.md) and the ticket draws none. Search's approved sentence, said
-    // of the chat, as the Date screen says it of the date; Search's `Try again` beside the first.
+    // Search's `Try again` beside the first.
     static let loadFailed = "Couldn't load your chat. Check your connection and try again."
     static let sendFailed = "Couldn't send. Check your connection and try again."
     static let endFailed = "Couldn't end the date. Check your connection and try again."

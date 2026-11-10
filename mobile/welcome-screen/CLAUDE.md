@@ -140,8 +140,9 @@ the two move together.
   laid-out run. A fixed width is right at one screen size and wrong at sixteen others.
 - **No fixed width on anything containing text**, and none derived from the screen width. Fixed
   frames are for icons, avatars and badges.
-- **44pt / 48dp minimum for anything tappable**, even where the reference draws smaller. A visible
-  control whose touch area is smaller than it looks is a bug the eye cannot see.
+- **44pt / 44dp minimum for anything tappable** (one floor on both platforms, by product decision of
+  9 Nov 2026), even where the reference draws smaller. A visible control whose touch area is smaller
+  than it looks is a bug the eye cannot see.
 - **Reserve space that does not depend on whether content is present.** Both platforms have shipped a
   CTA that moved because a reserved region was sized for content that was absent or shorter than
   reality.
@@ -251,7 +252,7 @@ A screen is not done until every one of these is true. This is the merge gate.
 - [ ] Both apps build and test in CI — Android on `ubuntu`, iOS on `macos-15`
 - [ ] The screen is in `ScreenFitTest` and adds no new fit findings
 - [ ] Renders correctly at **320 x 686** and **440 x 956**
-- [ ] Every tappable thing is **at least 44pt / 48dp**
+- [ ] Every tappable thing is **at least 44pt / 44dp**
 - [ ] No new hardcoded colour, size or spacing
 - [ ] Copy matches the ticket exactly, checked by a verifier that quotes the ticket
 - [ ] Survives rotation, backgrounding and process death

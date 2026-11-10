@@ -10,6 +10,7 @@
 // The screen takes `ChatUi` and returns pixels; every decision is the model's or `ChatRules`'.
 
 import SwiftUI
+import UIKit
 
 struct ChatScreen: View {
     let ui: ChatUi
@@ -23,6 +24,8 @@ struct ChatScreen: View {
     var onKeep: () -> Void = {}
     var onEnd: () -> Void = {}
     var onRetry: () -> Void = {}
+    /// J: the line under a failed message, by its `clientId`.
+    var onResend: (String) -> Void = { _ in }
 
     @FocusState private var fieldFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -33,14 +36,16 @@ struct ChatScreen: View {
             if let date = ui.date {
                 VStack(spacing: 0) {
                     ChatHeader(date: date, now: ui.now, zone: zone, onBack: onBack)
-                    if ui.loading {
-                        Color.liqElevated.frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if ui.failed != nil {
+                    if ui.failed != nil {
+                        // I: the thread's place, the header kept, no dock and so no keyboard. It stays while
+                        // Try again reloads, the button waiting.
                         ZStack {
                             Color.liqElevated
-                            CentredStatement(text: ChatCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
+                            LoadFailed(text: ChatCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry, busy: ui.loading)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if ui.loading {
+                        Color.liqElevated.frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if ui.start {
                         startGrid
                     } else {
@@ -107,9 +112,14 @@ struct ChatScreen: View {
             footKey: footKey,
             messages: { width in
                 ForEach(Array(ui.messages.enumerated()), id: \.element.id) { i, message in
-                    let lastOfRun = !message.fromYou && (i == ui.messages.count - 1 || ui.messages[i + 1].fromYou)
-                    ChatBubble(message: message, name: date.match.name, photoURL: date.match.photoUrl,
-                               showAvatar: lastOfRun, zone: zone, width: width)
+                    if message.failed {
+                        UnsentMessage(message: message, date: date, zone: zone, width: width,
+                                      resending: message.clientId.map { ui.resending.contains($0) } ?? false, onResend: onResend)
+                    } else {
+                        let lastOfRun = !message.fromYou && (i == ui.messages.count - 1 || ui.messages[i + 1].fromYou)
+                        ChatBubble(message: message, name: date.match.name, photoURL: date.match.photoUrl,
+                                   showAvatar: lastOfRun, zone: zone, width: width)
+                    }
                 }
                 if !guide && ui.endCardShown { EndDateCard(onEnd: onEndCard) }
             },
@@ -123,9 +133,9 @@ struct ChatScreen: View {
     // MARK: the dock
 
     /// The field (pad 11 14 9, gap 9) and the compact chips (pad 2 14 10, gap 6, no heading) on cream 96%
-    /// glass under a soft rule. A failed send says so between the two and keeps the draft and the chip.
-    /// The field always shows; where the failure line and the chips do not fit under it they scroll -- only
-    /// on a split screen or at the largest type on a small phone, where `ThreadAndDock` caps the dock.
+    /// glass under a soft rule. A failed send stays in the thread (J), not here.
+    /// The field always shows; where the chips do not fit under it they scroll -- only on a split screen or
+    /// at the largest type on a small phone, where `ThreadAndDock` caps the dock.
     private func dock(_ date: ActiveDate) -> some View {
         VStack(spacing: 0) {
             composer(date)
@@ -139,16 +149,11 @@ struct ChatScreen: View {
         .fitAnchor("chat:dock")
     }
 
+    /// Pad 2 14 10, plus the 1 the field's row gives up (its 9 is 8 here): the top row's chips answer 3 above
+    /// themselves, and where the chips scroll the scroll clips at its top. Android's `DockChips`.
     private var dockChips: some View {
-        VStack(spacing: 0) {
-            if ui.sendFailed {
-                Text(ChatCopy.sendFailed).font(F.manrope(12, .medium)).foregroundColor(.liqDangerFg)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: 0, leading: 18, bottom: 6, trailing: 18))
-            }
-            ChipGrid(reasons: shownReasons, selected: ui.selected, compact: true) { onPick($0, .dock) }
-                .padding(EdgeInsets(top: 2, leading: 14, bottom: 10, trailing: 14))
-        }
+        ChipGrid(reasons: shownReasons, selected: ui.selected, compact: true) { onPick($0, .dock) }
+            .padding(EdgeInsets(top: 3, leading: 14, bottom: 10, trailing: 14))
     }
 
     /// The field and Send. The field: radius 20, pad 9 14, a 1.5 border in the ink while a chip is selected
@@ -173,6 +178,9 @@ struct ChatScreen: View {
                 .focused($fieldFocused)
                 // Pad 9 14, plus the 1.5 border CSS counts, plus the 2 every browser pads a textarea with.
                 .padding(EdgeInsets(top: 12.5, leading: 17.5, bottom: 12.5, trailing: 17.5))
+                // At least the 44 touch floor, as Android's field keeps its 48: at the smallest type sizes the box
+                // was 43 (the 9 Nov 2026 CI sweep, once the dock's blanket exemption went). At the default it is 45.
+                .frame(minHeight: 44)
                 .background(shape.fill(ui.locked ? Color.liqBorderSoft : Color.liqElevated))
                 .overlay(shape.strokeBorder(strong ? Color.liqFg : Color.liqBorder, lineWidth: 1.5))
                 // The whole box takes the touch, not only the line of text inside it: a tap on its padding
@@ -185,7 +193,8 @@ struct ChatScreen: View {
                 .animation(reduceMotion ? nil : .easeInOut(duration: Motion.tint), value: ui.locked)
             sendButton
         }
-        .padding(EdgeInsets(top: 11, leading: 14, bottom: 9, trailing: 14))
+        // Pad 11 14 9, the 9 split: 8 here and 1 above the chips (see `dockChips`).
+        .padding(EdgeInsets(top: 11, leading: 14, bottom: 8, trailing: 14))
     }
 
     private var sendButton: some View {
@@ -204,6 +213,48 @@ struct ChatScreen: View {
         .disabled(!on)
         .overflowTapTarget()
         .accessibilityLabel(ChatCopy.send)
+    }
+}
+
+/// J (9 Nov 2026): a message whose send failed -- the bubble at opacity .6 with no receipt, and 4 under it,
+/// right-aligned, the line that resends it: `alert-circle` 14 / 2.4, gap 6, the sentence 12 / 600 / 1.35 in the
+/// danger ink at most 280, the line at least 44 high. It announces itself, as `role="alert"` does. While the
+/// resend is on its way the line does nothing. Android's `UnsentMessage`.
+private struct UnsentMessage: View {
+    let message: ChatMessage
+    let date: ActiveDate
+    let zone: TimeZone
+    let width: CGFloat
+    let resending: Bool
+    let onResend: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            ChatBubble(message: message, name: date.match.name, photoURL: date.match.photoUrl,
+                       showAvatar: false, zone: zone, width: width)
+                .opacity(0.6)
+            Button(action: { if !resending, let id = message.clientId { onResend(id) } }) {
+                HStack(spacing: 6) {
+                    BrandIconView(icon: .alertCircle, size: 14, stroke: 2.4, tint: .liqDangerFg)
+                    // Right-aligned as the reference's `text-align: right`, which PrettyText does not draw; the
+                    // last two words kept together for its `text-wrap: pretty`.
+                    Text(lastWordsTogether(ChatCopy.sendFailed))
+                        .font(F.manrope(12, .semibold))
+                        .lineSpacing(TypeMetrics.lineSpacing(PS.manropeSemi, size: 12, multiple: 1.35))
+                        .foregroundColor(.liqDangerFg)
+                        .multilineTextAlignment(.trailing)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 2)
+                .frame(maxWidth: 280, minHeight: 44, alignment: .trailing)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressScale())
+            .fitTapArea()
+            .accessibilityLabel(ChatCopy.sendFailed)
+            .onAppear { UIAccessibility.post(notification: .announcement, argument: ChatCopy.sendFailed) }
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 

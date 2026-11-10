@@ -24,6 +24,14 @@ class ChatRulesTest {
     }
 
     @Test
+    fun `a message that did not send is not in the thread for the end card or cant_make_it_from (J)`() {
+        val unsent = msg("1", ChatReason.CantMakeIt, true).copy(failed = true)
+        assertFalse(endCardVisible(listOf(unsent), null))
+        assertNull(cantMakeItFrom(listOf(unsent)))
+        assertEquals("match", cantMakeItFrom(listOf(msg("0", ChatReason.CantMakeIt, false), unsent)))
+    }
+
+    @Test
     fun `the end card steps aside while I can't make it today is the selected chip`() {
         assertFalse(endCardVisible(listOf(msg("1", ChatReason.CantMakeIt, false)), ChatReason.CantMakeIt))
     }

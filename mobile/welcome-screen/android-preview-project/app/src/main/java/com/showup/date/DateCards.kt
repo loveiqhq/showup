@@ -141,7 +141,7 @@ internal fun Modifier.press(interaction: MutableInteractionSource): Modifier {
     return graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
-/** A tappable surface with the press scale and a 48 dp floor. */
+/** A tappable surface with the press scale; its size is the drawing's, each of them at least the 44 floor. */
 @Composable
 internal fun Modifier.pressable(role: Role, label: String? = null, onClick: () -> Unit): Modifier {
     val interaction = remember { MutableInteractionSource() }
@@ -151,11 +151,11 @@ internal fun Modifier.pressable(role: Role, label: String? = null, onClick: () -
 }
 
 /**
- * A button DRAWN at the reference's size that ANSWERS at Android's 48 floor: the touch area is laid
- * over the drawing ([OverflowTapTarget]) instead of growing the row it sits in. `minTapTarget` on these
- * pushed the time card 18 taller than the sheet (the Copy pill) and the Check-in bar 10 (End date).
- * 48, not the shared 44, since the 4 Nov 2026 device audit measured every touch area here against this
- * module's CLAUDE.md -- invisible, the drawing does not move.
+ * A button DRAWN at the reference's size that ANSWERS at the 44 floor: the touch area is laid over the
+ * drawing ([OverflowTapTarget]) instead of growing the row it sits in. `minTapTarget` on these pushed the
+ * time card 18 taller than the sheet (the Copy pill). 44 on Android as on iOS, the app's one floor: it
+ * was 48 here from the 4 Nov 2026 device audit until 9 Nov 2026, when 44 was settled for the whole app
+ * (Philipp's "44 tap area ... not 48 on Android") -- invisible, the drawing does not move.
  *
  * The touch area is a sibling of the drawing, so it carries the name: the drawing's own text is
  * cleared and TalkBack reads one button, once. [content] gets the press scale for its drawing.
@@ -174,7 +174,6 @@ internal fun DrawnSmall(
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
             .semantics { text = AnnotatedString(label) },
         modifier = modifier,
-        floor = 48.dp,
     ) {
         Box(Modifier.clearAndSetSemantics {}) { content(Modifier.press(interaction)) }
     }

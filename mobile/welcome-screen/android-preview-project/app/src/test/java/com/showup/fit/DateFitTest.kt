@@ -11,7 +11,7 @@
  * list plus [EDGE_DEVICES] (Display Zoom, split screen, foldables open and folded, 16:9, budget HD+,
  * the smallest display size, a tablet), all seven Android font steps, every Android from 11 to 15
  * (8 Nov 2026) -- and added the Date screen's own rules to the shared ones:
- * every touch area 48 dp both ways and none on another, the cards in a column that never overlaps,
+ * every touch area 44 dp both ways and none on another, the cards in a column that never overlaps,
  * and the end of the scroll resting above the footer, scrolled there and measured.
  */
 package com.showup.fit
@@ -118,13 +118,13 @@ class DateFitTest {
             else -> f.height
         }
 
-        // 1. Every touch area 48 dp both ways -- Android's floor (this module's CLAUDE.md), not the
-        // shared harness's 44 -- and no two partly on each other, where a tap could land on the wrong
+        // 1. Every touch area 44 dp both ways -- the app's floor on both platforms since 9 Nov 2026 (this
+        // module's CLAUDE.md) -- and no two partly on each other, where a tap could land on the wrong
         // one. One inside another is a nested control and fine. A control in the scroll passing under
         // the pinned footer is not an overlap: the footer is on top and the control scrolls clear.
         val taps = f.tapTargets()
         if (dateOwned) taps.forEach { (name, r) ->
-            if (r.width < ANDROID_TAP_DP - SLACK || r.height < ANDROID_TAP_DP - SLACK) {
+            if (r.width < TAP_DP - SLACK || r.height < TAP_DP - SLACK) {
                 fail(name, "TAP AREA UNDER 48DP", "%.1f x %.1fdp".format(r.width, r.height))
             }
         }
@@ -241,7 +241,7 @@ class DateFitTest {
 
     private companion object {
         /** Android's touch floor: Material's 48, as `android-preview-project/CLAUDE.md` states it. */
-        const val ANDROID_TAP_DP = 48f
+        const val TAP_DP = 44f
         const val SLACK = 0.75f
         val CARD_TAGS = listOf(
             DATE_HERO_TAG, DATE_TIME_CARD_TAG, DATE_COORDINATE_TAG, DATE_REPORT_TAG, DATE_INTENT_TAG,

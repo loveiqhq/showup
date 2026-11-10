@@ -113,12 +113,14 @@ fun PrimaryButton(
     /** Mirrors [leading]. Used once: the tutorial CTA's trailing arrow. */
     trailing: (@Composable () -> Unit)? = null,
     /**
-     * The glow under [PrimaryButtonVariant.Sunset] and [PrimaryButtonVariant.Violet]: the kit's
-     * `--liq-shadow-violet` unless a reference names another. The chat tutorial's `Open the chat` names
-     * `--liq-shadow-cta` (SHOWUP-194), the orange one. Ignored by the other variants, which draw none.
+     * The glow under [PrimaryButtonVariant.Sunset], [PrimaryButtonVariant.Violet] and
+     * [PrimaryButtonVariant.Orange]: the kit's `--liq-shadow-violet` -- `--liq-shadow-cta` under Orange --
+     * unless a reference names another. The chat tutorial's `Open the chat` names `--liq-shadow-cta`
+     * (SHOWUP-194). Ignored by the other variants, which draw none.
      */
-    shadows: List<CssShadow> = ShadowViolet,
+    shadows: List<CssShadow>? = null,
 ) {
+    val glow = shadows ?: if (variant == PrimaryButtonVariant.Orange) ShadowCta else ShadowViolet
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val motion = rememberMotion()
@@ -156,11 +158,15 @@ fun PrimaryButton(
                     // ever showed the deviation. verify-spec.py already forbade exactly this in
                     // TutorialShell.kt. Found comparing the Check-In footer against its sheets.
                     PrimaryButtonVariant.Sunset -> Modifier
-                        .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), shadows)
+                        .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), glow)
                         .clip(shape)
                     // Flat violet, not a gradient. The same glow as [Sunset], drawn the same way.
                     PrimaryButtonVariant.Violet -> Modifier
-                        .pillShadows(SolidColor(Purple), shadows)
+                        .pillShadows(SolidColor(Purple), glow)
+                        .clip(shape)
+                    // The kit's `Button variant="primary"`: flat orange under the orange glow.
+                    PrimaryButtonVariant.Orange -> Modifier
+                        .pillShadows(SolidColor(Orange), glow)
                         .clip(shape)
                     PrimaryButtonVariant.Ghost -> Modifier
                         .clip(shape)
@@ -196,7 +202,7 @@ fun PrimaryButton(
             modifier = if (labelWidth != null) Modifier.width(labelWidth) else Modifier,
             textAlign = if (labelWidth != null) TextAlign.Start else TextAlign.Center,
             color = when (variant) {
-                PrimaryButtonVariant.Sunset, PrimaryButtonVariant.Violet,
+                PrimaryButtonVariant.Sunset, PrimaryButtonVariant.Violet, PrimaryButtonVariant.Orange,
                 PrimaryButtonVariant.Apple, PrimaryButtonVariant.Facebook -> Color.White
                 PrimaryButtonVariant.Google -> Color(0xFF1F1F1F)  // Google's specified label colour
                 PrimaryButtonVariant.Ghost -> Fg
@@ -233,5 +239,9 @@ fun PrimaryButton(
  * sunset gradient, and that difference is the point: sunset is reserved for commitment beats, and
  * "Allow photo access" is the user getting back to where they already were. Added as a variant
  * rather than a second button, which is the rule this file exists to enforce.
+ *
+ * [Orange] is the kit's own `Button variant="primary"`: flat `--liq-orange-500` with `--liq-shadow-cta`.
+ * First drawn as a recovery too -- `Try again` when the Date screen or the chat could not load
+ * (SHOWUP-193 / 194, 9 Nov 2026).
  */
-enum class PrimaryButtonVariant { Sunset, Violet, Ghost, Plain, Apple, Google, Facebook }
+enum class PrimaryButtonVariant { Sunset, Violet, Orange, Ghost, Plain, Apple, Google, Facebook }

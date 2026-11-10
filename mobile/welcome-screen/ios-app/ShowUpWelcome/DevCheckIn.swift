@@ -145,6 +145,9 @@ let devStates: [DevState] = [
     DevState(id: "194F", ticket: "SHOWUP-194 Coordinate chat", label: "F · End the date sheet"),
     DevState(id: "194G", ticket: "SHOWUP-194 Coordinate chat", label: "G · You ended the date"),
     DevState(id: "194H", ticket: "SHOWUP-194 Coordinate chat", label: "H · The match ended the date"),
+    DevState(id: "194I", ticket: "SHOWUP-194 Coordinate chat", label: "I · Chat couldn't load"),
+    DevState(id: "194J", ticket: "SHOWUP-194 Coordinate chat", label: "J · Message didn't send"),
+    DevState(id: "194K", ticket: "SHOWUP-194 Coordinate chat", label: "K · End date didn't go through"),
 ]
 
 /// The tickets, in the order their frames are listed.
@@ -164,6 +167,7 @@ enum DevFrame: Equatable, CaseIterable {
     case searchRest, searchBeSure, searchMessage, searchMinimum, searchCoach
     case searchVoice, searchViewer, searchLoading, searchFailed, searchEmpty
     case chatTutorial, chatStart, chatThread, chatGuide, chatEndCard, chatEndSheet, chatYouEnded, chatMatchEnded
+    case chatLoadFailed, chatSendFailed, chatEndFailed
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -208,6 +212,9 @@ enum DevFrame: Equatable, CaseIterable {
         case "194F": return .chatEndSheet
         case "194G": return .chatYouEnded
         case "194H": return .chatMatchEnded
+        case "194I": return .chatLoadFailed
+        case "194J": return .chatSendFailed
+        case "194K": return .chatEndFailed
         default: return nil
         }
     }
@@ -297,6 +304,9 @@ struct CheckInGalleryFrame: View {
         case .chatEndSheet?: ChatScreen(ui: ChatSamples.f, zone: DateSamples.zone, onBack: leave)
         case .chatYouEnded?: DateEndedScreen(outcome: ChatSamples.g, onFindNext: leave)
         case .chatMatchEnded?: DateEndedScreen(outcome: ChatSamples.h, onFindNext: leave)
+        case .chatLoadFailed?: ChatScreen(ui: ChatSamples.i, zone: DateSamples.zone, onBack: leave)
+        case .chatSendFailed?: ChatScreen(ui: ChatSamples.j, zone: DateSamples.zone, onBack: leave)
+        case .chatEndFailed?: ChatScreen(ui: ChatSamples.k, zone: DateSamples.zone, onBack: leave)
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
             Text("Unknown state \(state)")

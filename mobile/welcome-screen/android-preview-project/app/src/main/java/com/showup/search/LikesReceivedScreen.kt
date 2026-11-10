@@ -277,10 +277,12 @@ fun OpenLikeCard(card: PremiumCard, placeholder: Int, zone: ZoneId, onOpen: (() 
                             nameLine(card.name, card.age), color = Fg, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 17.sp,
                             modifier = Modifier.alignByBaseline(),
                         )
-                        Text(
-                            likesDistance(profile.distanceKm), color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.5.sp, modifier = Modifier.alignByBaseline(),
-                        )
+                        likesDistance(profile.distanceKm)?.let { distance ->
+                            Text(
+                                distance, color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.5.sp, modifier = Modifier.alignByBaseline(),
+                            )
+                        }
                     }
                     if (card.notNow) PillLabel(PremiumCopy.NOT_NOW_LABEL, compact = true)
                 }

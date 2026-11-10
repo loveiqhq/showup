@@ -5,7 +5,9 @@ import {
   chatOpensAt,
   chatWindowError,
   isChatOpen,
+  isUniqueViolation,
 } from './pre-date-chat';
+import { QueryFailedError } from 'typeorm';
 
 describe('pre-date chat rules (SHOWUP-115)', () => {
   const scheduledAt = new Date('2026-07-14T20:00:00.000Z');
@@ -101,6 +103,26 @@ describe('pre-date chat rules (SHOWUP-115)', () => {
       );
       expect(SENDABLE_REASONS.has(ChatReason.ChangeTime)).toBe(false);
       expect(SENDABLE_REASONS.has(ChatReason.ChangePlace)).toBe(false);
+    });
+  });
+
+  describe('isUniqueViolation (Date 02 J: two sends of one message at once)', () => {
+    it("is Postgres's unique violation, 23505", () => {
+      expect(
+        isUniqueViolation(
+          new QueryFailedError('INSERT', [], { code: '23505' } as never),
+        ),
+      ).toBe(true);
+    });
+
+    it('is not another database error, or an error that never reached the database', () => {
+      expect(
+        isUniqueViolation(
+          new QueryFailedError('INSERT', [], { code: '23503' } as never),
+        ),
+      ).toBe(false);
+      expect(isUniqueViolation(new Error('23505'))).toBe(false);
+      expect(isUniqueViolation(undefined)).toBe(false);
     });
   });
 });

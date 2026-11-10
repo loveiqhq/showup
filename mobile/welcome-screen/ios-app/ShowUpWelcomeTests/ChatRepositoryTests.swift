@@ -50,17 +50,21 @@ final class ChatRepositoryTests: XCTestCase {
     }
 
     func testSendReadsTheMessageBack() async {
-        let body = #"{"id":"m3","reason":"cant_make_it","body":"So sorry","fromYou":true,"createdAt":"2026-11-03T16:40:00Z","read":false}"#
-        guard case .success(let sent) = await repo(status: 201, body: body).send(dateId: "d1", reason: .cantMakeIt, body: "So sorry") else {
+        let body = #"{"id":"m3","reason":"cant_make_it","body":"So sorry","fromYou":true,"createdAt":"2026-11-03T16:40:00Z","read":false,"clientId":"6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10"}"#
+        guard case .success(let sent) = await repo(status: 201, body: body)
+            .send(dateId: "d1", reason: .cantMakeIt, body: "So sorry", clientId: "6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10") else {
             return XCTFail("expected the sent message")
         }
         XCTAssertEqual(sent.id, "m3")
         XCTAssertEqual(sent.reason, .cantMakeIt)
         XCTAssertEqual(sent.read, false)
+        // The id the phone keeps for every resend, read back so a read can match the outbox (Date 02 J).
+        XCTAssertEqual(sent.clientId, "6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10")
+        XCTAssertFalse(sent.failed)
     }
 
     func testARefusedSendIsTheServers() async {
-        guard case .failure(.server) = await repo(status: 409, body: #"{"statusCode":409}"#).send(dateId: "d1", reason: nil, body: "Hi") else {
+        guard case .failure(.server) = await repo(status: 409, body: #"{"statusCode":409}"#).send(dateId: "d1", reason: nil, body: "Hi", clientId: "0b7d4a1e-2c3f-4e5a-8b6c-7d8e9f0a1b2c") else {
             return XCTFail("expected a server failure")
         }
     }

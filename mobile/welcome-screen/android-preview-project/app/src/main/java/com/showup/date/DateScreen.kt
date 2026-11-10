@@ -84,7 +84,7 @@ import com.showup.designsystem.Cream
 import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.Tab
 import com.showup.designsystem.TabBar
-import com.showup.search.CentredStatement
+import com.showup.designsystem.LoadFailed
 import com.showup.search.SearchCopy
 import com.showup.search.cssLinearGradient
 import java.time.ZoneId
@@ -153,9 +153,11 @@ fun DateScreen(
     onCopy: () -> Unit = {},
     onSeeProfile: () -> Unit = {},
     onCancel: () -> Unit = {},
-    onCheckIn: () -> Unit = {},
-    onEndDate: () -> Unit = {},
     onTab: (Tab) -> Unit = {},
+    /** ⑯ The footer before check-in: the Check-in bar, Date 03's. Empty until it ships. */
+    checkInBar: @Composable () -> Unit = {},
+    /** ⑯ The footer after check-in: the End Date bar, Date 06's. Empty until it ships. */
+    endDateBar: @Composable () -> Unit = {},
     /** ⑮ Match Mate: a slot, always between How the date works and Cancel. Empty until Date 10. */
     matchMate: @Composable () -> Unit = {},
     /** `Try again` when the first read failed and there is nothing to show. */
@@ -231,23 +233,24 @@ fun DateScreen(
                     )
                 }
                 val bar = @Composable { m: Modifier ->
-                    DateBar(date.checkedIn, date.match.name, onCheckIn, onEndDate, m.onSizeChanged { barHeight = it.height })
+                    FooterSlot(date.checkedIn, checkInBar, endDateBar, m.onSizeChanged { barHeight = it.height })
                 }
                 if (barInFlow) bar(Modifier)
                 Spacer(Modifier.height(with(density) { pinnedHeight.toDp() }))
             }
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                 if (!barInFlow) {
-                    DateBar(date.checkedIn, date.match.name, onCheckIn, onEndDate, Modifier.onSizeChanged { barHeight = it.height })
+                    FooterSlot(date.checkedIn, checkInBar, endDateBar, Modifier.onSizeChanged { barHeight = it.height })
                 }
                 tabBar()
             }
         } else {
-            // The first read failed with nothing to show (offline as a match lands): Search's failed
-            // statement, said of the date, and the locked bar -- the lock holds whatever the network.
-            if (!ui.loading && ui.failed != null) {
+            // The first read failed with nothing to show (offline as a match lands; 9 Nov 2026): the
+            // message and Try again in place of the content, centred over the locked TabBar -- the lock
+            // holds whatever the network. It stays while Try again reloads, the button waiting.
+            if (ui.failed != null) {
                 Box(Modifier.fillMaxSize().padding(bottom = with(density) { tabHeight.toDp() })) {
-                    CentredStatement(DateCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry)
+                    LoadFailed(DateCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry, busy = ui.loading)
                 }
             }
             // Loading: the screen is reached only once a read found a date, so this is the moment

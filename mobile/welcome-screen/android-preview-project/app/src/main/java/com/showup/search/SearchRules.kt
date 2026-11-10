@@ -135,15 +135,18 @@ fun searchDistance(km: Int): String = if (km < 1) "< 1 km" else "~$km km"
 
 /**
  * The distance pill's runs: the distance, `·`, the district -- or the distance alone when no district
- * was named. Separate because the reference writes `{distance} · {district}` straight into a flex row
+ * was named, or the district alone when the distance is unknown (null), and nothing when neither is. Separate because the reference writes `{distance} · {district}` straight into a flex row
  * with a 6 gap, and the signed-off sheet renders each text node as its own item: 6 either side of
  * the dot, not a word space (the 184 evidence review, 24 Oct 2026).
  */
-fun distanceParts(km: Int, district: String?): List<String> =
-    district?.trim()?.takeIf { it.isNotEmpty() }?.let { listOf(searchDistance(km), "·", it) } ?: listOf(searchDistance(km))
+fun distanceParts(km: Int?, district: String?): List<String> {
+    val distance = km?.let(::searchDistance)
+    val named = district?.trim()?.takeIf { it.isNotEmpty() }
+    return if (distance != null && named != null) listOf(distance, "·", named) else listOfNotNull(distance, named)
+}
 
 /** `< 1 km · {district}` / `~{n} km · {district}`: the pill as one line, which is what a screen reader hears. */
-fun distanceLine(km: Int, district: String?): String = distanceParts(km, district).joinToString(" ")
+fun distanceLine(km: Int?, district: String?): String = distanceParts(km, district).joinToString(" ")
 
 /**
  * `filters_active` on `search_viewed`: the §10 filters set away from Check-In 05's defaults, in §10

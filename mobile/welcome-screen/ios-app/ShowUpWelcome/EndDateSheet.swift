@@ -10,7 +10,11 @@ import SwiftUI
 /// Pad 14 24 24, centred: the dark-red 9% circle 80 with `x` 34 / 2.4, the title (Lora 700 26, 16 above, 8
 /// below, at most 310), the line (15 / 1.5 muted, at most 300, 22 below), `Keep the date` (h 50, radius 16,
 /// white with the soft border, 14.5 / 700 muted) and `End date` (10 below, h 56, radius 18, dark red, 16.5 /
-/// 700 white). While it ends, `End date` waits; if it fails, the sheet says so and stays.
+/// 700 white). While it ends, `End date` waits.
+///
+/// K (9 Nov 2026): if it fails, the sheet stays open and says so in `SheetErrorBox`, 14 under the line (its 22
+/// less 8) and 16 above `Keep the date`. The sheet grows upward from the bottom, so the buttons keep their
+/// order, size and place; `End date` tries again.
 struct EndDateSheet: View {
     let name: String
     let ending: Bool
@@ -38,10 +42,8 @@ struct EndDateSheet: View {
                     .frame(maxWidth: 300)
                     .padding(.top, 8)
                 if failed {
-                    Text(ChatCopy.endFailed).font(F.manrope(13.5, .medium)).foregroundColor(.liqDangerFg)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 300)
-                        .padding(.top, 10)
+                    SheetErrorBox(message: ChatCopy.endFailed)
+                        .padding(.top, 14)
                 }
                 Button(action: onKeep) {
                     Text(ChatCopy.keepTheDate).font(F.manrope(14.5, .bold)).foregroundColor(.liqMuted)
@@ -51,7 +53,7 @@ struct EndDateSheet: View {
                 }
                 .buttonStyle(PressScale())
                 .fitTapArea()
-                .padding(.top, 22)
+                .padding(.top, failed ? 16 : 22)
                 Button(action: { if !ending { onEnd() } }) {
                     Text(ChatCopy.endDate).font(F.manrope(16.5, .bold)).foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 56)

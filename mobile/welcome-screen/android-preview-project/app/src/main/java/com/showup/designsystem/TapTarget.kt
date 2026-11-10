@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 /**
  * Gives a control at least [ComponentSizes.minTapTarget] in both directions.
@@ -45,9 +46,10 @@ import androidx.compose.ui.unit.Dp
  * Android too. The call sites are correspondingly mixed: the tutorial's back control passes 48, the
  * phone screens' takes the 44 default, and both were hardcoded numbers before this file existed.
  *
- * That mismatch is real and is NOT resolved here, because resolving it means changing a rendered hit
- * area. It is written up in `docs/design-system.md` with a recommendation. What this modifier does is
- * make the number visible and shared instead of typed in four places.
+ * SETTLED 9 Nov 2026: 44 on both platforms. Philipp's answer for the chat's chips was "44 tap area on iOS
+ * and Android ... not 48 on Android", every touch size in the design is 44, and Esma made it the app's.
+ * The four call sites that still pass 48 (the tutorial's back, ConsentSwitch, CheckRow, the home
+ * placeholder) grow their rows with it, so lowering them changes those screens -- not done yet.
  */
 fun Modifier.minTapTarget(min: Dp = ComponentSizes.minTapTarget): Modifier {
     val floor = if (min > ComponentSizes.minTapTarget) min else ComponentSizes.minTapTarget
@@ -71,22 +73,27 @@ fun Modifier.minTapTarget(min: Dp = ComponentSizes.minTapTarget): Modifier {
  * semantics of its own (`clearAndSetSemantics {}`), and [touch] carries the role, the state and the
  * label for both.
  *
- * [floor] is the shared 44 unless a caller holds itself to Android's 48 -- the Date screen does, since
- * its device audit (4 Nov 2026) measured every touch area there; the 44 / 48 split is the unresolved
- * one documented above.
+ * [slop] grows the area past the drawing on every side as well, before the floor: the chat dock's chips
+ * are drawn 38 and answer 3 beyond that into the 6 gap around each, so neighbours' areas meet and never
+ * overlap (SHOWUP-194, 9 Nov 2026: "38 high, 44 tap area").
+ *
+ * [floor] is the shared 44. The Date screen and the chat held themselves to Android's 48 from 4 Nov 2026
+ * until 9 Nov 2026, when 44 was settled for the app on both platforms (see [minTapTarget]).
  */
 @Composable
 fun OverflowTapTarget(
     touch: Modifier,
     modifier: Modifier = Modifier,
     floor: Dp = ComponentSizes.minTapTarget,
+    slop: Dp = 0.dp,
     content: @Composable () -> Unit,
 ) {
     Layout(contents = listOf(content, { Box(touch) }), modifier = modifier) { (drawn, hit), constraints ->
         val drawing = drawn.first().measure(constraints)
         val least = floor.roundToPx()
-        val w = maxOf(drawing.width, least)
-        val h = maxOf(drawing.height, least)
+        val reach = slop.roundToPx()
+        val w = maxOf(drawing.width + 2 * reach, least)
+        val h = maxOf(drawing.height + 2 * reach, least)
         val area = hit.first().measure(Constraints.fixed(w, h))
         layout(drawing.width, drawing.height) {
             drawing.place(0, 0)

@@ -21,6 +21,14 @@ final class ChatRulesTests: XCTestCase {
         XCTAssertTrue(endCardVisible(messages: [msg("1", .cantMakeIt, fromYou: false)], selected: .onMyWay))
     }
 
+    func testAMessageThatDidNotSendIsNotInTheThreadForTheEndCardOrCantMakeItFrom() {
+        var unsent = msg("1", .cantMakeIt, fromYou: true)
+        unsent.failed = true
+        XCTAssertFalse(endCardVisible(messages: [unsent], selected: nil))
+        XCTAssertNil(cantMakeItFrom([unsent]))
+        XCTAssertEqual(cantMakeItFrom([msg("0", .cantMakeIt, fromYou: false), unsent]), "match")
+    }
+
     func testTheEndCardStepsAsideWhileICantMakeItTodayIsSelected() {
         XCTAssertFalse(endCardVisible(messages: [msg("1", .cantMakeIt, fromYou: false)], selected: .cantMakeIt))
     }

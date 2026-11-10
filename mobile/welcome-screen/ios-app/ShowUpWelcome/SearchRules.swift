@@ -167,15 +167,21 @@ let sharedVibesShown = 3
 func searchDistance(_ km: Int) -> String { km < 1 ? "< 1 km" : "~\(km) km" }
 
 /// The distance pill's runs: the distance, `·`, the district -- or the distance alone when no
-/// district was named. Separate because the signed-off sheet renders each text node of the reference's
+/// district was named, or the district alone when the distance is unknown (nil), and nothing when neither is. Separate because the signed-off sheet renders each text node of the reference's
 /// `{distance} · {district}` as its own flex item: 6 either side of the dot, not a word space.
-func distanceParts(_ km: Int, _ district: String?) -> [String] {
+func distanceParts(_ km: Int?, _ district: String?) -> [String] {
+    let distance = km.map(searchDistance)
     let named = district?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    return named.isEmpty ? [searchDistance(km)] : [searchDistance(km), "·", named]
+    switch (distance, named.isEmpty) {
+    case let (distance?, false): return [distance, "·", named]
+    case let (distance?, true): return [distance]
+    case (nil, false): return [named]
+    case (nil, true): return []
+    }
 }
 
 /// `< 1 km · {district}`: the pill as one line, which is what VoiceOver reads.
-func distanceLine(_ km: Int, _ district: String?) -> String { distanceParts(km, district).joined(separator: " ") }
+func distanceLine(_ km: Int?, _ district: String?) -> String { distanceParts(km, district).joined(separator: " ") }
 
 /// `filters_active` on `search_viewed`: the §10 filters set away from Check-In 05's defaults, in §10
 /// order. `meet_gender` when the saved genders, as a set, are not the viewer's own pre-fill

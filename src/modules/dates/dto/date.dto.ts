@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -117,6 +118,16 @@ export class SendChatMessageDto {
   @IsNotEmpty()
   @MaxLength(CHAT_MESSAGE_MAX_LENGTH)
   body: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'The id the phone gave this message, the same on every resend: a message with an id already sent ' +
+      'on this date by you is answered with that copy, never added twice (Date 02 J)',
+  })
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }
 
 /** A single pre-date chat message as seen by a participant. */
@@ -150,6 +161,15 @@ export class ChatMessageDto {
   })
   read: boolean | null;
 
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    description:
+      'Your message: the id your phone gave it, to match a resend against the thread (Date 02 J). Theirs: null',
+  })
+  clientId: string | null;
+
   /** `otherReadAt`: when the OTHER person last read the chat, for the receipt on the viewer's own messages. */
   static from(
     m: DateChatMessage,
@@ -166,6 +186,7 @@ export class ChatMessageDto {
       read: fromYou
         ? otherReadAt !== null && otherReadAt.getTime() >= m.createdAt.getTime()
         : null,
+      clientId: fromYou ? m.clientId : null,
     };
   }
 }
