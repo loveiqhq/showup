@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource, IsNull, Not } from 'typeorm';
 
 import { CheckInsService } from '../check-ins/check-ins.service';
@@ -30,6 +34,10 @@ const PARTNER_OFFSET_LAT = 0.009;
  * SHOWUP-193): a date with a test match at a chosen time, a message from that match (state C),
  * and an end to it, so a test never gets stuck on a screen whose real exits are later tickets.
  * The controller refuses all of it in production.
+ *
+ * ONLY EVER THE TEST MATCH'S DATE. On a test server real people test the real app too: every helper
+ * finds the caller's date with Leonie and nothing else, so a tester's real date is never ended, sent
+ * a message as their match, or ended in the chat by a dev button.
  */
 @Injectable()
 export class DateDevService {
@@ -40,8 +48,19 @@ export class DateDevService {
     private readonly screen: DateScreenService,
   ) {}
 
-  /** Ends any active date of the caller, then makes a confirmed one with Leonie in `minutes`. */
+  /**
+   * Ends the caller's test date, if any, then makes a confirmed one with Leonie in `minutes`. Refused
+   * while the caller has a date with a real person: the app holds one date at a time, and that one is
+   * theirs to end in the app.
+   */
   async createDate(userId: string, minutes: number): Promise<void> {
+    const active = await this.screen.activeDateRow(userId);
+    const testPartner = await this.testPartnerId();
+    if (active && !this.isWith(active, userId, testPartner)) {
+      throw new ConflictException(
+        'You have a date with a real person; end it in the app first',
+      );
+    }
     await this.endDate(userId);
     const partnerId = await this.partnerFor(userId);
     const venueId = await this.venue();
@@ -63,22 +82,20 @@ export class DateDevService {
     reason: ChatReason | null,
     body: string,
   ): Promise<void> {
-    const date = await this.screen.activeDateRow(userId);
-    if (!date) throw new NotFoundException('No active date');
-    const partnerId = date.userAId === userId ? date.userBId : date.userAId;
+    const { date, partnerId } = await this.testDate(userId);
     await this.dates.sendChatMessage(date.id, partnerId, reason, body);
   }
 
   /** The test match ends the caller's date in the chat, through the real path (Date 02). */
   async endInChat(userId: string): Promise<void> {
-    const date = await this.screen.activeDateRow(userId);
-    if (!date) throw new NotFoundException('No active date');
-    const partnerId = date.userAId === userId ? date.userBId : date.userAId;
+    const { date, partnerId } = await this.testDate(userId);
     await this.dates.endInChat(date.id, partnerId);
   }
 
-  /** Cancels every confirmed date of the caller's -- the dev escape from the Date screen. */
+  /** Cancels the caller's confirmed dates with the test match -- the dev escape from the Date screen. */
   async endDate(userId: string): Promise<void> {
+    const partnerId = await this.testPartnerId();
+    if (!partnerId) return;
     await this.db
       .getRepository(DateEntity)
       .createQueryBuilder()
@@ -88,11 +105,42 @@ export class DateDevService {
         cancelledAt: new Date(),
         cancelledById: userId,
       })
-      .where('(user_a_id = :id OR user_b_id = :id) AND status = :status', {
-        id: userId,
-        status: DateStatus.Confirmed,
-      })
+      .where(
+        '((user_a_id = :id AND user_b_id = :partner) OR (user_a_id = :partner AND user_b_id = :id)) AND status = :status',
+        { id: userId, partner: partnerId, status: DateStatus.Confirmed },
+      )
       .execute();
+  }
+
+  /** The caller's active date with the test match; 404 when their active date (if any) is a real one. */
+  private async testDate(
+    userId: string,
+  ): Promise<{ date: DateEntity; partnerId: string }> {
+    const [date, partnerId] = await Promise.all([
+      this.screen.activeDateRow(userId),
+      this.testPartnerId(),
+    ]);
+    if (!date || !partnerId || !this.isWith(date, userId, partnerId)) {
+      throw new NotFoundException('No test date');
+    }
+    return { date, partnerId };
+  }
+
+  /** The test match's user id, or null before the first test date made her. */
+  private async testPartnerId(): Promise<string | null> {
+    const partner = await this.db
+      .getRepository(User)
+      .findOne({ where: { phone: PARTNER_PHONE } });
+    return partner?.id ?? null;
+  }
+
+  private isWith(
+    date: DateEntity,
+    userId: string,
+    partnerId: string | null,
+  ): boolean {
+    const other = date.userAId === userId ? date.userBId : date.userAId;
+    return partnerId !== null && other === partnerId;
   }
 
   /**

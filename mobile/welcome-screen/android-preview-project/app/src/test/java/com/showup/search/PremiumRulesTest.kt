@@ -70,6 +70,9 @@ class PremiumRulesTest {
         assertEquals("18:00 tomorrow · < 1 km", gridMetaLine(SearchSamples.GRID[2].profile, SearchSamples.ZONE))
         assertEquals("· ~4 km", likesDistance(4))
         assertEquals("· < 1 km", likesDistance(0))
+        // Unknown: no distance at all, never `< 1 km`.
+        assertEquals(null, likesDistance(null))
+        assertEquals("19:00 today", gridMetaLine(p.copy(distanceKm = null), SearchSamples.ZONE))
     }
 
     @Test

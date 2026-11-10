@@ -78,6 +78,26 @@ class DateViewModelTest {
     }
 
     @Test
+    fun `back from the match's profile or the chat, the screen before is that one, not the one before the Date screen`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        // The host only knows the flow screen the Date screen was reached from.
+        val flowBefore = ProfileScreen.CheckinSearchUnavailable
+        vm.arrived(referrer = flowBefore)
+        advanceUntilIdle()
+        for (pushed in listOf(ProfileScreen.SearchProfile, ProfileScreen.DateChatTutorial, ProfileScreen.DateChat)) {
+            vm.leftFor(pushed)
+            vm.arrived(referrer = flowBefore)
+            advanceUntilIdle()
+            assertEquals(pushed.screenId, analytics.of("screen_viewed").last().properties["referrer_screen_id"])
+        }
+        // Spent once used: a later arrival names what the host says.
+        vm.arrived(referrer = flowBefore)
+        advanceUntilIdle()
+        assertEquals(flowBefore.screenId, analytics.of("screen_viewed").last().properties["referrer_screen_id"])
+    }
+
+    @Test
     fun `a visit in C reports available with has_unread, and the referrer`() = runTest(dispatcher) {
         now = unlock.plusSeconds(60)
         store.read = Outcome.Ok(DateRead.Active(date(unread = DateUnread(1, ChatReason.RunningLate, "Late!", now))))
@@ -229,6 +249,21 @@ class DateViewModelTest {
     }
 
     @Test
+    fun `a failed re-read while the date is on screen leaves no failure to show once the date goes`() = runTest(dispatcher) {
+        store.read = Outcome.Ok(DateRead.Active(date()))
+        val vm = vm()
+        vm.arrived(referrer = null)
+        advanceUntilIdle()
+        store.read = Outcome.Failed(CallFailure.Network)
+        vm.foreground()
+        advanceUntilIdle()
+        // The screen showed the date throughout: "Couldn't load your date" is for a screen with nothing.
+        assertEquals(null, vm.state.value.failed)
+        vm.outcomeShown()
+        assertEquals(null, vm.state.value.failed)
+    }
+
+    @Test
     fun `each quick action reports its section 38 value, and ride is never one`() = runTest(dispatcher) {
         store.read = Outcome.Ok(DateRead.Active(date()))
         val vm = vm()
@@ -327,10 +362,15 @@ class DateViewModelTest {
         assertTrue(analytics.names().isEmpty())
 
         store.read = Outcome.Ok(DateRead.Active(date()))
+        val reads = store.reads
         vm.retry()
         assertTrue("loading again while it reads", vm.state.value.loading)
-        assertEquals(null, vm.state.value.failed)
+        // 9 Nov 2026: the message stays while it reloads, and a second tap does nothing.
+        assertEquals(CallFailure.Network, vm.state.value.failed)
+        vm.retry()
         advanceUntilIdle()
+        assertEquals(reads + 1, store.reads)
+        assertEquals(null, vm.state.value.failed)
         assertEquals(date(), vm.state.value.date)
         assertEquals(listOf("screen_viewed", "date_screen_viewed"), analytics.names())
     }

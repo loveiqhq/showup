@@ -112,10 +112,9 @@ object ChatCopy {
     const val BACK = "Back"
     const val SEND = "Send"
 
-    // ── not in the ticket: PROPOSED, for Philipp ─────────────────────────────
+    // ── the three failures, I, J and K (9 Nov 2026) ─────────────────────────
     //
-    // Every screen has a failed state (CLAUDE.md) and the ticket draws none. Search's approved sentence,
-    // said of the chat, as the Date screen says it of the date; Search's `Try again` beside the first.
+    // Search's `Try again` beside the first.
     const val LOAD_FAILED = "Couldn't load your chat. Check your connection and try again."
     const val SEND_FAILED = "Couldn't send. Check your connection and try again."
     const val END_FAILED = "Couldn't end the date. Check your connection and try again."

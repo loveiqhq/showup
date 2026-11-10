@@ -144,17 +144,51 @@ class DateScreenTest {
     }
 
     @Test
-    fun `the footer is the Check-in bar with End date before check-in, End Date after, without moving`() = runComposeUiTest {
+    fun `the footer slot draws nothing of its own, before check-in or after (9 Nov)`() = runComposeUiTest {
         var state by mutableStateOf(ui())
         setContent { DateScreen(state, zone = berlin) }
-        onNodeWithText("Check-in").assertExists()
-        onNodeWithText("End date").assertExists()
         val tabBarBefore = onNodeWithTag(com.showup.designsystem.TAB_BAR_TAG, useUnmergedTree = true).top()
+        for (checkedIn in listOf(false, true)) {
+            state = ui(checkedIn = checkedIn)
+            waitForIdle()
+            for (word in listOf("Check-in", "End date", "End Date")) onAllNodesWithText(word).assertCountEquals(0)
+            onAllNodesWithText("Your date with", substring = true).assertCountEquals(0)
+            assertEquals(tabBarBefore, onNodeWithTag(com.showup.designsystem.TAB_BAR_TAG, useUnmergedTree = true).top(), 0.5f)
+        }
+    }
+
+    @Test
+    fun `the slot swaps on checkedIn - Date 03's bar before, Date 06's after`() = runComposeUiTest {
+        var state by mutableStateOf(ui())
+        setContent {
+            DateScreen(
+                state, zone = berlin,
+                checkInBar = { androidx.compose.material3.Text("Date 03 bar") },
+                endDateBar = { androidx.compose.material3.Text("Date 06 bar") },
+            )
+        }
+        onNodeWithText("Date 03 bar").assertExists()
+        onAllNodesWithText("Date 06 bar").assertCountEquals(0)
         state = ui(checkedIn = true)
         waitForIdle()
-        onNodeWithText("End Date").assertExists()
-        onAllNodesWithText("Check-in").assertCountEquals(0)
-        assertEquals(tabBarBefore, onNodeWithTag(com.showup.designsystem.TAB_BAR_TAG, useUnmergedTree = true).top(), 0.5f)
+        onNodeWithText("Date 06 bar").assertExists()
+        onAllNodesWithText("Date 03 bar").assertCountEquals(0)
+    }
+
+    @Test
+    fun `a failed first load says so with Try again in place of the content, the TabBar kept, waiting while it reloads`() = runComposeUiTest {
+        var retries = 0
+        var state by mutableStateOf(DateUi(now = ui().now, loading = false, failed = com.showup.api.CallFailure.Network))
+        setContent { DateScreen(state, zone = berlin, onRetry = { retries++ }) }
+        onNodeWithText("Couldn't load your date. Check your connection and try again.").assertExists()
+        onNodeWithTag(com.showup.designsystem.TAB_BAR_TAG, useUnmergedTree = true).assertExists()
+        onNodeWithText("Try again").performClick()
+        assertEquals(1, retries)
+        state = state.copy(loading = true)
+        waitForIdle()
+        onNodeWithText("Couldn't load your date. Check your connection and try again.").assertExists()
+        onNodeWithText("Try again").performClick()
+        assertEquals("inert while it loads", 1, retries)
     }
 
     @Test

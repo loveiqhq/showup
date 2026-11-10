@@ -26,6 +26,17 @@ enum ChatSamples {
         sentAt: DateSamples.meet.addingTimeInterval(-82 * 60),
         read: true)
 
+    /// J's seed: my running-late message, sent at 17:41 and failed.
+    static let unsent = ChatMessage(
+        id: "unsent:6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10",
+        reason: .runningLate,
+        body: ChatReason.runningLate.draft ?? "",
+        fromYou: true,
+        sentAt: DateSamples.meet.addingTimeInterval(-79 * 60),
+        read: nil,
+        clientId: "6f1c2a52-6a4e-4d8f-9b39-2f4f3b8d1e10",
+        failed: true)
+
     /// B: no message yet.
     static let b = ChatUi(date: date, now: now, loading: false)
 
@@ -56,6 +67,27 @@ enum ChatSamples {
     static let f: ChatUi = {
         var ui = e
         ui.endSheet = true
+        return ui
+    }()
+
+    /// I: the chat's first load failed.
+    static let i: ChatUi = {
+        var ui = b
+        ui.failed = .network
+        return ui
+    }()
+
+    /// J: a send failed; the message stays in the thread and the field is free.
+    static let j: ChatUi = {
+        var ui = b
+        ui.messages = [unsent]
+        return ui
+    }()
+
+    /// K: End date on F did not go through.
+    static let k: ChatUi = {
+        var ui = f
+        ui.endFailed = .network
         return ui
     }()
 

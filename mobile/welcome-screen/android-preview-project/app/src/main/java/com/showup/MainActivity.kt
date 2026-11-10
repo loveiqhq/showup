@@ -918,7 +918,10 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(dateProfileOpen) {
                 val top = navController.currentBackStackEntry?.destination
                 if (dateProfileOpen) {
-                    if (top?.hasRoute<AppRoute.Flow>() == true) navController.navigate(AppRoute.DateProfile) { launchSingleTop = true }
+                    if (top?.hasRoute<AppRoute.Flow>() == true) {
+                        date.leftFor(ProfileScreen.SearchProfile)
+                        navController.navigate(AppRoute.DateProfile) { launchSingleTop = true }
+                    }
                 } else if (top?.hasRoute<AppRoute.DateProfile>() == true) {
                     navController.popBackStack(AppRoute.Flow, inclusive = false)
                 }
@@ -2592,6 +2595,7 @@ class MainActivity : ComponentActivity() {
                     if (!reported) {
                         reported = true
                         chatEvents.tutorialShown(d)
+                        date.leftFor(ProfileScreen.DateChatTutorial)
                     }
                 }
                 ChatTutorialScreen(
@@ -2634,6 +2638,7 @@ class MainActivity : ComponentActivity() {
                         opened = true
                         vm.open(d, reached)
                         chatEvents.chatShown(if (reached == ChatEntry.Tutorial) ProfileScreen.DateChatTutorial else ProfileScreen.DateScreen)
+                        date.leftFor(ProfileScreen.DateChat)
                     }
                 }
                 // The thread and the date are read only while the chat is in front.
@@ -2679,6 +2684,7 @@ class MainActivity : ComponentActivity() {
                     onKeep = vm::keepDate,
                     onEnd = vm::endDate,
                     onRetry = vm::retry,
+                    onResend = vm::resend,
                 )
             }
 

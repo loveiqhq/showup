@@ -296,6 +296,12 @@
             "nullable": true,
             "type": "string"
           },
+          "clientId": {
+            "description": "Your message: the id your phone gave it, to match a resend against the thread (Date 02 J). Theirs: null",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -2500,7 +2506,7 @@
             "type": "integer"
           },
           "distanceKm": {
-            "description": "Rounded: 0 means under one km (\"< 1 km\"), otherwise whole km (\"~N km\"). Never exact.",
+            "description": "Rounded: 0 means under one km (\"< 1 km\"), otherwise whole km (\"~N km\"). Never exact. Absent only where the distance is unknown -- a match without a located Check-In, seen from the Date screen",
             "type": "integer"
           },
           "district": {
@@ -2575,7 +2581,6 @@
         "required": [
           "userId",
           "name",
-          "distanceKm",
           "meetAt",
           "meetDay",
           "attendedCount",
@@ -2668,6 +2673,11 @@
             "description": "The message, trimmed: 1 to 1000 characters. Private to the two people.",
             "maxLength": 1000,
             "minLength": 1,
+            "type": "string"
+          },
+          "clientId": {
+            "description": "The id the phone gave this message, the same on every resend: a message with an id already sent on this date by you is answered with that copy, never added twice (Date 02 J)",
+            "format": "uuid",
             "type": "string"
           },
           "reason": {

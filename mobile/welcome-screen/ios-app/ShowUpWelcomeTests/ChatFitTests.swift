@@ -6,8 +6,8 @@
 // on every full-screen phone. The 193 rules -- every touch area 44 both ways and none partly on another --
 // and the chat's own: the dock under the thread, never over it, and above the keys; the tutorial's and the
 // outcome's CTA on screen; and on the 375 x 667 phone D's guide and Got it inside the thread once
-// revealed. The dock's chips are the one touch area allowed under 44: the ticket fixes them 36 high, 6
-// apart.
+// revealed. The dock's chips are drawn 38 and answer 44, 3 into the 6 gap on every side (9 Nov 2026), so
+// they keep the floor like every other control. And I, J and K, the three failures (9 Nov 2026).
 
 import XCTest
 import SwiftUI
@@ -86,23 +86,24 @@ final class ChatFitTests: XCTestCase {
                                          : "No worries, see you soon.",
                         fromYou: i % 2 == 1, sentAt: ChatSamples.now, read: i % 2 == 1 ? i < 8 : nil)
         } + [ChatSamples.cancelSent]
+        var unsentLong = ChatSamples.c
+        unsentLong.messages = long.messages + [ChatSamples.unsent]
         return [("B start", ChatSamples.b), ("C thread", ChatSamples.c), ("D guide", ChatSamples.d),
                 ("D after Got it", acked), ("E end card", ChatSamples.e), ("F end sheet", ChatSamples.f),
-                ("long thread", long)]
+                ("long thread", long), ("I couldn't load", ChatSamples.i), ("J didn't send", ChatSamples.j),
+                ("J didn't send, long thread", unsentLong), ("K end didn't go through", ChatSamples.k)]
     }
 
-    /// Every touch area at least 44 both ways but the dock's chips, and no two partly on each other. Where
+    /// Every touch area at least 44 both ways, the dock's chips too, and no two partly on each other. Where
     /// the chips scroll (a split screen) the last rows sit below the dock's foot, out of sight.
     private func tapFailures(_ shot: Shot, _ tag: String) -> [String] {
         var failures: [String] = []
         let dock = shot.frames["chat:dock"]
         let areas = shot.taps.filter { $0.frame.width > 0 && $0.frame.height > 0 }
         for tap in areas where tap.frame.width < 43.5 || tap.frame.height < 43.5 {
-            let inDock = dock.map { d in
-                tap.frame.minY >= d.minY - 0.5 && tap.frame.minX >= d.minX - 0.5 && tap.frame.maxX <= d.maxX + 0.5
-            } == true
-            let dockChip = inDock && tap.frame.height >= 35
-            if !dockChip {
+            // Only a chip scrolled out of the dock -- out of sight -- is not judged.
+            let scrolledAway = dock.map { d in tap.frame.minY >= d.maxY - 0.5 } == true
+            if !scrolledAway {
                 failures.append("\(tag): a touch area \(tap.frame.width) x \(tap.frame.height) at \(tap.frame.origin), under 44")
             }
         }
@@ -191,7 +192,9 @@ final class ChatFitTests: XCTestCase {
     /// sheet. Not a split screen's top half: the keys cover the other app. Android's keyboard sweep.
     func testTheChatWithTheKeyboardUpIsCleanOnEveryPhone() {
         var failures: [String] = []
-        let typing = chats.filter { !["B start", "D guide", "F end sheet"].contains($0.0) }
+        // Only where a person can type: not B (no field), D (the field waits), F and K (the sheet is up) or I
+        // (no field until the chat has loaded).
+        let typing = chats.filter { !["B start", "D guide", "F end sheet", "I couldn't load", "K end didn't go through"].contains($0.0) }
         for type in [DynamicTypeSize.large, .xxxLarge, .accessibility2] {
             for device in phones where device.height >= 500 {
                 // About two fifths of a phone, as the iOS keyboard and Gboard take, 250 to 330.

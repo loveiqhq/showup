@@ -1196,7 +1196,8 @@ class EvidenceScreenshots {
 
     /**
      * SHOWUP-194's evidence: A to H at the three frames the acceptance criteria name -- 24 images. The
-     * frames are the spec sheet's (`ScreenChatOpen` with its seeds, [com.showup.chat.ChatSamples]).
+     * frames are the spec sheet's (`ScreenChatOpen` with its seeds, [com.showup.chat.ChatSamples]). And,
+     * added 9 Nov 2026: I, J and K at 390 x 844, and D at 375 x 667 at the largest text size.
      */
     @Test
     fun `SHOWUP-194 the coordinate chat, A to H`() {
@@ -1206,6 +1207,13 @@ class EvidenceScreenshots {
             com.showup.chat.ChatScreen(ui, zone, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})
         }
         val before = written.size
+        val mid = frames.filter { it.width == 390 && it.height == 844 }
+        val small = frames.filter { it.width == 375 && it.height == 667 }
+        assertEquals("the 390 x 844 and 375 x 667 frames", listOf(1, 1), listOf(mid.size, small.size))
+        shoot("SHOWUP-194", "I-load-failed", devices = mid) { chat(samples.I) }
+        shoot("SHOWUP-194", "J-send-failed", devices = mid) { chat(samples.J) }
+        shoot("SHOWUP-194", "K-end-failed", devices = mid) { chat(samples.K) }
+        shoot("SHOWUP-194", "D-cancel-guide-largest", fontScale = 2f, devices = small) { chat(samples.D) }
         shoot("SHOWUP-194", "A-tutorial") { com.showup.chat.ChatTutorialScreen("Leonie", onOpen = {}, onBack = {}) }
         shoot("SHOWUP-194", "B-start") { chat(samples.B) }
         shoot("SHOWUP-194", "C-thread") { chat(samples.C) }
@@ -1228,7 +1236,7 @@ class EvidenceScreenshots {
             }
         }
         val images = written.drop(before)
-        assertEquals("A to H at the three frames, and C to E over a keyboard", 33, images.size)
+        assertEquals("I to K, D at the largest type, A to H at the three frames, and C to E over a keyboard", 37, images.size)
         images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
 }

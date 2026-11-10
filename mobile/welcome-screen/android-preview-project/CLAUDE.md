@@ -87,7 +87,9 @@ take values and lambdas. This is the rule; MVVM is the name people give it.
 - **Never design for one device.** Every screen goes into `ScreenFitTest`, which measures 17 sizes
   from 320×686 to 440×956. `320 × 686` is the Galaxy Fold cover screen and is the hardest case —
   narrower than any iPhone.
-- **48dp minimum for anything tappable** (44pt is the iOS floor; Material says 48). This project
+- **44dp minimum for anything tappable** — the same 44 as iOS, by product decision (9 Nov 2026:
+  Philipp's "44 tap area on iOS and Android ... not 48 on Android", and every touch size in the design
+  is 44). Material's 48 is not this app's floor; `ComponentSizes.minTapTarget` holds the 44. This project
   shipped an input measuring 23dp inside a 56dp row: it looked right and only its middle third
   responded, on 15 of 18 sizes. Invisible in source and in a screenshot — only measurement finds it.
 - **Modifier order changes behaviour.** `.height(36.dp).padding(top = 10.dp)` and

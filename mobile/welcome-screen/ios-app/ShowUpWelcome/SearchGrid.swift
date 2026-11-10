@@ -279,7 +279,7 @@ private struct CardInfo: View {
             } else if let profile = card.profile {
                 MetaLine(full: gridMetaLine(profile, zone: zone),
                          time: meetLine(profile.meetAt, day: profile.meetDay, zone: zone),
-                         distance: searchDistance(profile.distanceKm))
+                         distance: profile.distanceKm.map(searchDistance))
                     // The card's own, not the height probe's copy of it, is the one the fit tests read.
                     .fitAnchor(glass ? FitAnchorID.gridMeta(card.userId) : "probe-meta-\(card.userId)")
                 if let m = motivationOf(profile.motivation) {
@@ -302,14 +302,15 @@ private struct CardInfo: View {
 private struct MetaLine: View {
     let full: String
     let time: String
-    let distance: String
+    /// Nil when the distance is unknown: the time stands alone.
+    let distance: String?
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
             line(full).lineLimit(1).fixedSize()
             VStack(alignment: .leading, spacing: 0) {
                 line(time)
-                line(distance)
+                if let distance { line(distance) }
             }
         }
     }

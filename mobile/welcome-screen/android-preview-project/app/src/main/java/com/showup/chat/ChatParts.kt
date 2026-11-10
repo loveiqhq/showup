@@ -3,12 +3,13 @@
  * ShowUp · the coordinate chat's parts (SHOWUP-194): `ChatHeader`, `ChatBubble`, `ThreadScroll`,
  * `BigActionChip` and the chip grid, from `screen-chat-reference.jsx`, with its numbers
  *
- * Each part takes values and returns pixels. Where the reference draws a control smaller than
- * Android's 48 floor (the back chevron 34, Send 46), the drawing keeps its size and the touch area is
- * laid over it ([DrawnSmall] / [OverflowTapTarget]), as on the Date screen.
+ * Each part takes values and returns pixels. Where the reference draws a control smaller than the 44
+ * floor (the back chevron 34), the drawing keeps its size and the touch area is laid over it
+ * ([DrawnSmall] / [OverflowTapTarget]), as on the Date screen.
  */
 package com.showup.chat
 
+import com.showup.designsystem.OverflowTapTarget
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -135,6 +136,12 @@ const val CHAT_CTA_TAG = "chat:cta"
 
 /** One chip on one surface: the start grid's tile and the dock's compact chip are different nodes. */
 fun chipTag(reason: ChatReason, surface: ChipSurface) = "chat-chip-${surface.wire}-${reason.wire}"
+
+/** A dock chip's drawing, which answers 3 beyond itself on every side ([chipTag] is the touch area). */
+fun chipFaceTag(reason: ChatReason, surface: ChipSurface) = "${chipTag(reason, surface)}:face"
+
+/** J: the line under a failed message that resends it. */
+const val CHAT_RESEND_TAG = "chat-resend"
 
 // ── small shared pieces ──────────────────────────────────────────────────────
 
@@ -289,6 +296,7 @@ private val BubbleText = TextStyle(fontFamily = Manrope, fontWeight = FontWeight
 internal fun ChatBubble(message: ChatMessage, name: String, photoUrl: String?, showAvatar: Boolean, zone: ZoneId) {
     val mine = message.fromYou
     BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // J: a message that did not send has no Delivered / Read -- it was neither.
         val most = maxWidth * 0.78f
         Row(
             Modifier.fillMaxWidth(),
@@ -340,7 +348,7 @@ internal fun ChatBubble(message: ChatMessage, name: String, photoUrl: String?, s
                         messageTime(message.sentAt, zone),
                         color = FgSubtle, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.sp,
                     )
-                    if (mine) Receipt(read = message.read == true)
+                    if (mine && !message.failed) Receipt(read = message.read == true)
                 }
             }
         }
@@ -477,13 +485,14 @@ internal fun ThreadScroll(
 
 /**
  * The reference's `BigActionChip`: a tile on the start grid (pad 15, radius 18, at least 68, icon box
- * 42 / 13 with the icon 21, label 15 / 700) or the dock's compact chip (pad 4 10 4 5, radius 11, at least
- * 36, icon box 26 / 8 with the icon 14, label 11.5 / 700). Selected: the tone's fill and a border in the
+ * 42 / 13 with the icon 21, label 15 / 700)  * or the dock's compact chip (pad 4 10 4 5, radius 11, at least
+ * 38, icon box 26 / 8 with the icon 14, label 11.5 / 700). Selected: the tone's fill and a border in the
  * tone's ink; otherwise white with the tone's chip border. The small shadow either way. The full label
  * always -- it wraps, and a word wider than its column shrinks to fit rather than break.
  *
- * Below the 48 floor at 36: the dock's grid is 36 rows 6 apart, so no touch area can be 48 without
- * lying on its neighbour's. Compose gives each chip the gap's half nearest it.
+ * The compact chip answers 3 beyond its drawing on every side, into the 6 gap: 44 to touch where it is
+ * drawn 38, and neighbours' areas meet without overlapping (SHOWUP-194, 9 Nov 2026: "38 high, 44 tap
+ * area ... not 48 on Android: four rows would cost 32 px more with the keyboard up").
  */
 @Composable
 internal fun BigActionChip(
@@ -503,18 +512,57 @@ internal fun BigActionChip(
     val shape = RoundedCornerShape(radius)
     val interaction = remember { MutableInteractionSource() }
     val label = chipLabel(compact).copy(color = if (tone == ReasonTone.DarkRed || tone == ReasonTone.Danger) tone.fg else Fg)
+    if (!compact) {
+        ChipFace(
+            reason, compact = false, fill, edge, radius, label,
+            modifier
+                .testTag(chipTag(reason, surface))
+                .press(interaction)
+                .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+                .semantics { selected = active },
+        )
+        return
+    }
+    // The touch area carries the role, the state and the name; the drawing says nothing of its own.
+    OverflowTapTarget(
+        touch = Modifier
+            .testTag(chipTag(reason, surface))
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { selected = active; contentDescription = reason.label },
+        modifier = modifier,
+        slop = DOCK_CHIP_SLOP,
+    ) {
+        ChipFace(
+            reason, compact = true, fill, edge, radius, label,
+            Modifier.testTag(chipFaceTag(reason, surface)).clearAndSetSemantics {}.press(interaction),
+        )
+    }
+}
+
+/** How far a dock chip answers beyond its drawing, on every side: half the 6 gap. */
+private val DOCK_CHIP_SLOP = 3.dp
+
+/** A chip as it is drawn: the fill, the border, the icon tile and the label. */
+@Composable
+private fun ChipFace(
+    reason: ChatReason,
+    compact: Boolean,
+    fill: Color,
+    edge: Color,
+    radius: Dp,
+    label: TextStyle,
+    modifier: Modifier,
+) {
+    val tone = reason.tone
+    val shape = RoundedCornerShape(radius)
     Row(
         modifier
-            .testTag(chipTag(reason, surface))
-            .press(interaction)
             .roundedShadows(SolidColor(fill), radius, ShadowSm)
             .border(1.5.dp, edge, shape)
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
-            .semantics { selected = active }
-            .heightIn(min = if (compact) 36.dp else 68.dp)
+            .heightIn(min = if (compact) 38.dp else 68.dp)
             // The reference's padding plus the 1.5 border, which CSS counts in the box and Compose only
             // draws: tiles come out 75 tall as the sheet renders them. The compact chip takes the border
-            // at its sides only, so its label wraps as the reference's and it stays the ticket's 36 high.
+            // at its sides only, so its label wraps as the reference's and it stays the ticket's 38 high.
             .padding(
                 if (compact) PaddingValues(start = 6.5.dp, end = 11.5.dp, top = 4.dp, bottom = 4.dp) else PaddingValues(16.5.dp),
             ),

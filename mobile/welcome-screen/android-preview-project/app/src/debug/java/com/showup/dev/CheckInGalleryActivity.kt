@@ -145,6 +145,9 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "194F" -> ChatFrame(ChatSamples.F, leave)
         "194G" -> DateEndedScreen(ChatSamples.G, photoUrl = null, onFindNext = leave)
         "194H" -> DateEndedScreen(ChatSamples.H, photoUrl = null, onFindNext = leave)
+        "194I" -> ChatFrame(ChatSamples.I, leave)
+        "194J" -> ChatFrame(ChatSamples.J, leave)
+        "194K" -> ChatFrame(ChatSamples.K, leave)
         else -> Text("Unknown state $state")
     }
 }

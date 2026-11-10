@@ -143,6 +143,12 @@ describe('buildSearchProfile', () => {
       0,
     );
   });
+
+  it('sends no distance it does not know: never "under one km" for a missing location', () => {
+    // The Date screen's match whose latest Check-In has no location (the date outlives Search).
+    const dto = buildSearchProfile(source({ distanceMeters: Number.NaN }));
+    expect(keysOf(dto)).not.toContain('distanceKm');
+  });
 });
 
 describe('firstName', () => {

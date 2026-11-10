@@ -222,8 +222,14 @@ struct SearchHero: View {
                     // `top: 16, left: 16, right: 16`, space-between, gap 8: the distance pill, and on a
                     // profile that liked the viewer the `Liked you` badge at the other end (Search 02).
                     HeroTopRow {
-                        DistancePill(parts: distanceParts(profile.distanceKm, profile.district),
-                                     label: distanceLine(profile.distanceKm, profile.district))
+                        let parts = distanceParts(profile.distanceKm, profile.district)
+                        // No distance and no district known: no pill -- an empty first place, so a badge
+                        // keeps its own at the end of the row.
+                        if parts.isEmpty {
+                            Color.clear.frame(width: 0, height: 0)
+                        } else {
+                            DistancePill(parts: parts, label: distanceLine(profile.distanceKm, profile.district))
+                        }
                         if likedYou { LikedYouBadge() }
                     }
                     .padding(16)

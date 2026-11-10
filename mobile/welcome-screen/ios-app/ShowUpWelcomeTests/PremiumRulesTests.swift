@@ -66,6 +66,11 @@ final class PremiumRulesTests: XCTestCase {
         XCTAssertEqual(gridMetaLine(SearchSamples.grid[2].profile, zone: SearchSamples.zone), "18:00 tomorrow · < 1 km")
         XCTAssertEqual(likesDistance(4), "· ~4 km")
         XCTAssertEqual(likesDistance(0), "· < 1 km")
+        // Unknown: no distance at all, never `< 1 km`.
+        XCTAssertNil(likesDistance(nil))
+        var unknown = SearchSamples.grid[0].profile
+        unknown.distanceKm = nil
+        XCTAssertEqual(gridMetaLine(unknown, zone: SearchSamples.zone), "19:00 today")
     }
 
     func testTheMessageIsQuotedInStraightDoubleQuotesAsWritten() {

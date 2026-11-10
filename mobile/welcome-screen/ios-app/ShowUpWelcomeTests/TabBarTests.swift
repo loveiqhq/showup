@@ -33,6 +33,13 @@ final class TabBarTests: XCTestCase {
         XCTAssertEqual(likesBadgeText(100), "99+")
     }
 
+    func testOnlyAnOpenLikesTabCarriesTheCountAndALockedOneShowsNone() {
+        XCTAssertEqual(tabBadgeText(.likes, likes: 2, locked: false), "2")
+        // SHOWUP-193, 9 Nov 2026: while a date is active the Likes tab shows no number.
+        XCTAssertNil(tabBadgeText(.likes, likes: 2, locked: true))
+        XCTAssertNil(tabBadgeText(.search, likes: 2, locked: false))
+    }
+
     func testTheBadgeLabelIsOneOpenLikeOrNOpenLikes() {
         XCTAssertEqual(likesBadgeLabel(1), "1 open like")
         XCTAssertEqual(likesBadgeLabel(2), "2 open likes")

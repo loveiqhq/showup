@@ -246,8 +246,10 @@ struct OpenLikeCard: View {
         Text(nameLine(card.name, card.age)).font(F.lora(17, bold: true)).foregroundColor(.liqFg)
     }
 
-    private func distance(_ profile: SearchProfile) -> some View {
-        Text(likesDistance(profile.distanceKm)).font(F.manrope(11.5, .semibold)).foregroundColor(.liqSubtle)
+    @ViewBuilder private func distance(_ profile: SearchProfile) -> some View {
+        if let distance = likesDistance(profile.distanceKm) {
+            Text(distance).font(F.manrope(11.5, .semibold)).foregroundColor(.liqSubtle)
+        }
     }
 }
 

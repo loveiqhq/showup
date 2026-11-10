@@ -348,13 +348,15 @@ fun SearchHero(profile: SearchProfile, zone: ZoneId, onPhoto: (Int) -> Unit, lik
                 ) {
                     // `top: 16, left: 16, right: 16`, space-between, gap 8: the distance pill, and on a
                     // profile that liked the viewer the `Liked you` badge at the other end (Search 02).
+                    val parts = distanceParts(profile.distanceKm, profile.district)
                     HeroTopRow(
                         pill = {
-                            DistancePill(
-                                distanceParts(profile.distanceKm, profile.district),
-                                distanceLine(profile.distanceKm, profile.district),
-                                backdrop,
-                            )
+                            // No distance and no district known: no pill. The row still needs a child.
+                            if (parts.isEmpty()) {
+                                Box(Modifier)
+                            } else {
+                                DistancePill(parts, distanceLine(profile.distanceKm, profile.district), backdrop)
+                            }
                         },
                         badge = if (likedYou) ({ LikedYouBadge() }) else null,
                         modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().padding(16.dp),

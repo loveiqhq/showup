@@ -65,8 +65,20 @@ private fun Chat(ui: ChatUi) = ChatScreen(ui, Berlin, {}, { _, _ -> }, {}, {}, {
 @Preview(name = "Date 02 · H · 430", widthDp = 430, heightDp = 932)
 @Composable private fun PreviewMatchEnded430() = DateEndedScreen(ChatSamples.H, photoUrl = null, onFindNext = {})
 
-@Preview(name = "Date 02 · failed first read · 320", widthDp = 320, heightDp = 686)
-@Composable private fun PreviewFailed320() = Chat(ChatSamples.B.copy(failed = com.showup.api.CallFailure.Network))
+@Preview(name = "Date 02 · I · couldn't load · 320", widthDp = 320, heightDp = 686)
+@Composable private fun PreviewFailed320() = Chat(ChatSamples.I)
 
-@Preview(name = "Date 02 · failed send · 320", widthDp = 320, heightDp = 686)
-@Composable private fun PreviewSendFailed320() = Chat(ChatSamples.C.copy(sendFailed = true))
+@Preview(name = "Date 02 · I · couldn't load · 430", widthDp = 430, heightDp = 932)
+@Composable private fun PreviewFailed430() = Chat(ChatSamples.I)
+
+@Preview(name = "Date 02 · J · didn't send · 320", widthDp = 320, heightDp = 686)
+@Composable private fun PreviewSendFailed320() = Chat(ChatSamples.J)
+
+@Preview(name = "Date 02 · J · didn't send · 430", widthDp = 430, heightDp = 932)
+@Composable private fun PreviewSendFailed430() = Chat(ChatSamples.J)
+
+@Preview(name = "Date 02 · K · end didn't go through · 320", widthDp = 320, heightDp = 686)
+@Composable private fun PreviewEndFailed320() = Chat(ChatSamples.K)
+
+@Preview(name = "Date 02 · K · end didn't go through · 430", widthDp = 430, heightDp = 932)
+@Composable private fun PreviewEndFailed430() = Chat(ChatSamples.K)

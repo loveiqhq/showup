@@ -34,7 +34,11 @@ import SwiftUI
 /// sunset gradient, and that difference is the point: sunset is reserved for commitment beats, and
 /// "Allow photo access" is the user getting back to where they already were. Added as a variant
 /// rather than a second button, which is the rule this file exists to enforce.
-enum PrimaryButtonVariant { case sunset, violet, ghost, plain, apple, google, facebook }
+///
+/// `orange` is the kit's own `Button variant="primary"`: flat `--liq-orange-500` under `--liq-shadow-cta`.
+/// First drawn as a recovery too -- `Try again` when the Date screen or the chat could not load (SHOWUP-193 /
+/// 194, 9 Nov 2026).
+enum PrimaryButtonVariant { case sunset, violet, orange, ghost, plain, apple, google, facebook }
 
 /// `Button` from components/shared.jsx at `size="lg"`: height 56, padding 0/28, radius 9999,
 /// Manrope 700 16, gap 8.
@@ -149,7 +153,7 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
 
     private var labelColor: Color {
         switch variant {
-        case .sunset, .violet, .apple, .facebook: return .white
+        case .sunset, .violet, .orange, .apple, .facebook: return .white
         case .google: return Color(hex: 0x1F1F1F)     // Google's specified label colour
         case .ghost: return .liqFg
         case .plain: return .liqMuted
@@ -161,7 +165,8 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
     /// shape under each shadow is the button's own fill, so its antialiased edge carries no fringe
     /// of another colour; CSS's first layer is listed last, so it ends on top.
     @ViewBuilder private var glow: some View {
-        if let layers = glowLayers, variant == .sunset || variant == .violet {
+        if let layers = glowLayers ?? (variant == .orange ? shadowCta : nil),
+           variant == .sunset || variant == .violet || variant == .orange {
             // A reference that names another glow (the chat tutorial's `--liq-shadow-cta`, SHOWUP-194).
             ZStack {
                 ForEach(Array(layers.reversed().enumerated()), id: \.offset) { _, layer in
@@ -191,6 +196,8 @@ struct PrimaryButton<Leading: View, Trailing: View>: View {
         // Flat violet, not a gradient.
         case .violet:
             Color.liqPurple
+        case .orange:
+            Color.liqOrange
         case .ghost, .plain:
             Color.clear
         // Black is one of the three appearances Apple's guidelines allow.

@@ -247,7 +247,7 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("193C", "SHOWUP-193 Date screen", "C · Unread message waiting"),
     DevState("193D-end", "SHOWUP-193 Date screen", "D · Scrolled to the end"),
     DevState("193-profile", "SHOWUP-193 Date screen", "See full profile, read-only"),
-    DevState("193-failed", "SHOWUP-193 Date screen", "First read failed (proposed copy)"),
+    DevState("193-failed", "SHOWUP-193 Date screen", "Couldn't load your date"),
     DevState("194A", "SHOWUP-194 Coordinate chat", "A · Tutorial, before the first open"),
     DevState("194B", "SHOWUP-194 Coordinate chat", "B · Start, no message yet"),
     DevState("194C", "SHOWUP-194 Coordinate chat", "C · Thread, a chip picked"),
@@ -256,6 +256,9 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("194F", "SHOWUP-194 Coordinate chat", "F · End the date sheet"),
     DevState("194G", "SHOWUP-194 Coordinate chat", "G · You ended the date"),
     DevState("194H", "SHOWUP-194 Coordinate chat", "H · The match ended the date"),
+    DevState("194I", "SHOWUP-194 Coordinate chat", "I · Chat couldn't load"),
+    DevState("194J", "SHOWUP-194 Coordinate chat", "J · Message didn't send"),
+    DevState("194K", "SHOWUP-194 Coordinate chat", "K · End date didn't go through"),
 )
 
 /** The developer menu's Date actions (SHOWUP-193), each a dev-server route. */

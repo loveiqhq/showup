@@ -54,6 +54,10 @@ extension View {
     /// overflows by nothing. Until 13 October 2026 this worked from the design's drawn height, so a
     /// grown chip still reached 3 into the gap, a pill 5 and the toggle 9 — into the next row's.
     ///
+    /// `slop` grows it past the control on every side as well, before the floor: the chat dock's chips are
+    /// drawn 38 and answer 3 beyond that into the 6 gap around each, so neighbours' areas meet and never
+    /// overlap (SHOWUP-194, 9 Nov 2026: "38 high, 44 tap area").
+    ///
     /// `wide` grows it across too, for a control narrower than the floor with nothing beside it to reach
     /// into -- the chat's back chevron, drawn 34. Off by default: Check-In's hour cells sit 4 apart and
     /// must not reach into each other. (Android's `OverflowTapTarget` always grows both ways.)
@@ -63,10 +67,10 @@ extension View {
     /// sits BEHIND the control taking no touches. Until 7 Nov 2026 it was a `Color.clear` with a content
     /// shape and no action, in FRONT of the control -- and SwiftUI hands a touch to the front-most view
     /// with a shape, so a touch there could stop on it and never reach the control.
-    func overflowTapTarget(wide: Bool = false) -> some View {
-        OverflowTapLayout(wide: wide) {
+    func overflowTapTarget(wide: Bool = false, slop: CGFloat = 0) -> some View {
+        OverflowTapLayout(wide: wide, slop: slop) {
             Color.clear.allowsHitTesting(false).fitTapArea()
-            self.contentShape(TapFloorShape(wide: wide))
+            self.contentShape(TapFloorShape(wide: wide, slop: slop))
         }
     }
 }
@@ -75,12 +79,19 @@ extension View {
 /// `wide` -- the same area `OverflowTapLayout` publishes.
 private struct TapFloorShape: Shape {
     let wide: Bool
+    var slop: CGFloat = 0
 
     func path(in rect: CGRect) -> Path {
-        let tall = Swift.max(rect.height, ComponentSizes.minTapTarget)
-        let across = wide ? Swift.max(rect.width, ComponentSizes.minTapTarget) : rect.width
-        return Path(CGRect(x: rect.midX - across / 2, y: rect.midY - tall / 2, width: across, height: tall))
+        Path(tapArea(around: rect, wide: wide, slop: slop))
     }
+}
+
+/// The touch area around a control's `rect`: grown by `slop` on every side, then to the floor -- tall always,
+/// across when `wide` or when the slop already reaches past it.
+private func tapArea(around rect: CGRect, wide: Bool, slop: CGFloat) -> CGRect {
+    let tall = Swift.max(rect.height + 2 * slop, ComponentSizes.minTapTarget)
+    let across = wide ? Swift.max(rect.width + 2 * slop, ComponentSizes.minTapTarget) : rect.width + 2 * slop
+    return CGRect(x: rect.midX - across / 2, y: rect.midY - tall / 2, width: across, height: tall)
 }
 
 /// `overflowTapTarget`'s two layers: behind, the published area -- at least `ComponentSizes.minTapTarget`
@@ -89,6 +100,7 @@ private struct TapFloorShape: Shape {
 /// it.
 private struct OverflowTapLayout: Layout {
     let wide: Bool
+    var slop: CGFloat = 0
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         subviews.last?.sizeThatFits(proposal) ?? .zero
@@ -96,10 +108,8 @@ private struct OverflowTapLayout: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 2 else { return }
-        let touch = Swift.max(bounds.height, ComponentSizes.minTapTarget)
-        let across = wide ? Swift.max(bounds.width, ComponentSizes.minTapTarget) : bounds.width
-        subviews[0].place(at: CGPoint(x: bounds.midX - across / 2, y: bounds.midY - touch / 2), anchor: .topLeading,
-                          proposal: ProposedViewSize(width: across, height: touch))
+        let area = tapArea(around: bounds, wide: wide, slop: slop)
+        subviews[0].place(at: area.origin, anchor: .topLeading, proposal: ProposedViewSize(area.size))
         subviews[1].place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(bounds.size))
     }
 }

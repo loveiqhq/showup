@@ -119,8 +119,10 @@ struct DateScreen: View {
     var onCopy: () -> Void = {}
     var onSeeProfile: () -> Void = {}
     var onCancel: () -> Void = {}
-    var onCheckIn: () -> Void = {}
-    var onEndDate: () -> Void = {}
+    /// ⑯ The footer before check-in: the Check-in bar, Date 03's. Empty until it ships.
+    var checkInBar: () -> AnyView = { AnyView(EmptyView()) }
+    /// ⑯ The footer after check-in: the End Date bar, Date 06's. Empty until it ships.
+    var endDateBar: () -> AnyView = { AnyView(EmptyView()) }
     var onTab: (AppTab) -> Void = { _ in }
     /// `Try again` when the first read failed and there is nothing to show.
     var onRetry: () -> Void = {}
@@ -168,15 +170,16 @@ struct DateScreen: View {
                 .fitAnchor("date:footer")
                 .fitPinnedBar()
             } else {
-                // The first read failed with nothing to show (offline as a match lands): Search's failed
-                // statement, said of the date, and the locked bar -- the lock holds whatever the network.
-                // Loading is cream and the bar alone: the screen is reached only once a read found a date.
-                if !ui.loading, ui.failed != nil {
+                // The first read failed with nothing to show (offline as a match lands; 9 Nov 2026): the
+                // message and Try again in place of the content over the locked TabBar -- the lock holds
+                // whatever the network. It stays while Try again reloads, the button waiting. Loading is cream
+                // and the bar alone: the screen is reached only once a read found a date.
+                if ui.failed != nil {
                     // Centred above the TabBar, scrolling where it is taller than that room -- at the
                     // largest type in split screen it pushed the TabBar off the screen (the 4 Nov 2026
                     // device audit).
                     ScrollView {
-                        CentredStatement(text: DateCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry)
+                        LoadFailed(text: DateCopy.loadFailed, action: SearchCopy.tryAgain, onAction: onRetry, busy: ui.loading)
                             .frame(maxWidth: .infinity, minHeight: max(0, g.size.height - tab))
                     }
                     .padding(.bottom, tab)
@@ -201,7 +204,7 @@ struct DateScreen: View {
     }
 
     private func barView(_ date: ActiveDate) -> some View {
-        DateBar(checkedIn: date.checkedIn, name: date.match.name, onCheckIn: onCheckIn, onEndDate: onEndDate)
+        FooterSlot(checkedIn: date.checkedIn, checkInBar: checkInBar, endDateBar: endDateBar)
             .measuredHeight("bar")
     }
 

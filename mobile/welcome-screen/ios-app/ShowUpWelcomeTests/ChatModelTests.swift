@@ -12,6 +12,11 @@ import XCTest
 actor FakeChatStore: ChatStoring {
     private(set) var thread: Result<[ChatMessage], CallFailure> = .success([])
     private(set) var sendFails: CallFailure?
+    /// The server keeps the message but the answer is lost: the phone sees a failure.
+    private(set) var landsThenFails = false
+    /// How long a send takes to answer: the message on its way.
+    private(set) var sendDelay: Double = 0
+    private(set) var clientIds: [String] = []
     private(set) var end: EndResult = .ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))
     /// How long End date takes to answer: the end on its way.
     private(set) var endDelay: Double = 0
@@ -21,6 +26,8 @@ actor FakeChatStore: ChatStoring {
 
     func setThread(_ value: Result<[ChatMessage], CallFailure>) { thread = value }
     func setSendFails(_ value: CallFailure?) { sendFails = value }
+    func setLandsThenFails(_ value: Bool) { landsThenFails = value }
+    func setSendDelay(_ value: Double) { sendDelay = value }
     func setEnd(_ value: EndResult) { end = value }
     func setEndDelay(_ value: Double) { endDelay = value }
 
@@ -29,15 +36,22 @@ actor FakeChatStore: ChatStoring {
         return thread
     }
 
-    func send(dateId: String, reason: ChatReason?, body: String) async -> Result<ChatMessage, CallFailure> {
+    func send(dateId: String, reason: ChatReason?, body: String, clientId: String) async -> Result<ChatMessage, CallFailure> {
         calls.append("send")
+        clientIds.append(clientId)
+        // A message that lands and then loses its answer waits AFTER the server has it: a read meanwhile sees it.
+        if !landsThenFails, sendDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(sendDelay * 1_000_000_000)) }
         if let sendFails { return .failure(sendFails) }
+        // As the server: a message it already has under this id is answered with that copy.
+        if case .success(let list) = thread, let copy = list.first(where: { $0.clientId == clientId }) { return .success(copy) }
         sent.append("\(reason?.rawValue ?? "none"):\(body)")
         next += 1
-        let message = ChatMessage(id: "s\(next)", reason: reason, body: body, fromYou: true, sentAt: Date(), read: false)
+        let message = ChatMessage(id: "s\(next)", reason: reason, body: body, fromYou: true, sentAt: Date(), read: false,
+                                  clientId: clientId)
         // The server has it from now on: the next read returns it.
         if case .success(let list) = thread { thread = .success(list + [message]) }
-        return .success(message)
+        if landsThenFails, sendDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(sendDelay * 1_000_000_000)) }
+        return landsThenFails ? .failure(.network) : .success(message)
     }
 
     func markRead(dateId: String) async { calls.append("read") }
@@ -136,7 +150,7 @@ final class ChatModelTests: XCTestCase {
         await dates.setRead(.success(.ended(ended)))
         model.send()
         await settle()
-        XCTAssertFalse(model.ui.sendFailed)
+        XCTAssertFalse(model.ui.messages.contains { $0.failed })
         XCTAssertEqual(model.ui.outcome, ended)
     }
 
@@ -288,7 +302,7 @@ final class ChatModelTests: XCTestCase {
         XCTAssertEqual(second["is_first"] as? Bool, false)
     }
 
-    func testAFailedSendKeepsTheDraftAndTheChipAndAddsNothing() async {
+    func testAFailedSendStaysInTheThreadUnsentAndFreesTheField() async {
         let store = FakeChatStore()
         let analytics = RecordingAnalytics()
         let m = await opened(store, FakeDateStore(), analytics)
@@ -296,14 +310,123 @@ final class ChatModelTests: XCTestCase {
         m.pick(.onMyWay, surface: .dock)
         m.send()
         await settle()
-        XCTAssertEqual(m.ui.selected, .onMyWay)
-        XCTAssertEqual(m.ui.draft, "On my way now — see you in a few!")
-        XCTAssertTrue(m.ui.messages.isEmpty)
-        XCTAssertTrue(m.ui.sendFailed)
+        XCTAssertEqual(m.ui.messages.count, 1)
+        let failed = m.ui.messages[0]
+        XCTAssertTrue(failed.failed)
+        XCTAssertTrue(failed.fromYou)
+        XCTAssertEqual(failed.reason, .onMyWay)
+        XCTAssertEqual(failed.body, "On my way now — see you in a few!")
+        XCTAssertNil(m.ui.selected, "the field is free for the next message")
+        XCTAssertEqual(m.ui.draft, "")
         XCTAssertFalse(m.ui.sending)
         XCTAssertFalse(analytics.names().contains("message_sent"))
-        m.edit("On my way now!")
-        XCTAssertFalse(m.ui.sendFailed, "editing clears the failure")
+        m.onScreen(false)
+    }
+
+    func testTappingTheLineResendsItOnceWithTheSameReasonAndIdAndMessageSentFiresThen() async {
+        let store = FakeChatStore()
+        let analytics = RecordingAnalytics()
+        let m = await opened(store, FakeDateStore(), analytics)
+        await store.setSendFails(.network)
+        m.pick(.onMyWay, surface: .dock)
+        m.send()
+        await settle()
+        let failed = m.ui.messages[0]
+        await store.setSendFails(nil)
+        now = now.addingTimeInterval(60)
+        m.resend(failed.clientId!)
+        await settle()
+        let sent = await store.sent
+        XCTAssertEqual(sent, ["on_my_way:On my way now — see you in a few!"])
+        let ids = await store.clientIds
+        XCTAssertEqual(Set(ids).count, 1, "one id for the message, every attempt")
+        XCTAssertEqual(m.ui.messages.count, 1)
+        XCTAssertFalse(m.ui.messages[0].failed)
+        let events = analytics.entries.filter { $0.event == "message_sent" }
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events[0].properties["reason"] as? String, "on_my_way")
+        XCTAssertEqual(events[0].properties["prefill_edited"] as? Bool, false)
+        XCTAssertEqual(events[0].properties["is_first"] as? Bool, true)
+        XCTAssertEqual(events[0].properties["minutes_before_start"] as? Int, 77, "counted when it was actually sent")
+        m.onScreen(false)
+    }
+
+    func testAResendThatFailsAgainStaysFailedAndASecondTapWhileOneIsOnItsWaySendsNothing() async {
+        let store = FakeChatStore()
+        let analytics = RecordingAnalytics()
+        let m = await opened(store, FakeDateStore(), analytics)
+        m.onScreen(false)
+        await store.setSendFails(.network)
+        m.edit("Here!")
+        m.send()
+        await settle()
+        let id = m.ui.messages[0].clientId!
+        await store.setSendDelay(0.15)
+        m.resend(id)
+        await settle(0.03)
+        XCTAssertTrue(m.ui.resending.contains(id))
+        m.resend(id)
+        await settle(0.3)
+        let calls = await store.calls
+        XCTAssertEqual(calls.filter { $0 == "send" }.count, 2)
+        XCTAssertTrue(m.ui.messages[0].failed)
+        XCTAssertTrue(m.ui.resending.isEmpty)
+        XCTAssertFalse(analytics.names().contains("message_sent"))
+    }
+
+    func testASendThatLandedThoughItsAnswerWasLostIsMatchedByTheNextPollNeverShownTwice() async {
+        let store = FakeChatStore()
+        let analytics = RecordingAnalytics()
+        let m = await opened(store, FakeDateStore(), analytics)
+        m.onScreen(false)
+        await store.setLandsThenFails(true)
+        m.edit("Here!")
+        m.send()
+        await settle()
+        XCTAssertEqual(m.ui.messages.count, 1)
+        XCTAssertTrue(m.ui.messages[0].failed)
+        await store.setLandsThenFails(false)
+        m.onScreen(true)
+        await settle()
+        XCTAssertEqual(m.ui.messages.count, 1)
+        XCTAssertFalse(m.ui.messages[0].failed)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_sent" }.count, 1, "the poll found it sent: counted once")
+        m.onScreen(false)
+    }
+
+    func testASendWhoseAnswerIsLostAfterAPollAlreadyBroughtItIsShownOnceAndCountedOnce() async {
+        let store = FakeChatStore()
+        let analytics = RecordingAnalytics()
+        let m = await opened(store, FakeDateStore(), analytics)
+        await store.setLandsThenFails(true)
+        // The poll (every 50 ms) reads the message while its send waits to give up.
+        await store.setSendDelay(0.2)
+        m.edit("Here!")
+        m.send()
+        await settle(0.35)
+        XCTAssertEqual(m.ui.messages.count, 1)
+        XCTAssertFalse(m.ui.messages[0].failed)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_sent" }.count, 1)
+        await settle(0.15)
+        XCTAssertEqual(m.ui.messages.count, 1)
+        XCTAssertEqual(analytics.entries.filter { $0.event == "message_sent" }.count, 1, "counted once")
+        m.onScreen(false)
+    }
+
+    func testAFailedICantMakeItTodayMessageBringsNoEndCardAndNoEndSheet() async {
+        let store = FakeChatStore()
+        let m = await opened(store, FakeDateStore(), RecordingAnalytics())
+        await store.setSendFails(.network)
+        m.pick(.cantMakeIt, surface: .dock)
+        m.ackGuide()
+        m.edit("So sorry Leonie")
+        m.send()
+        await settle()
+        XCTAssertTrue(m.ui.messages[0].failed)
+        XCTAssertFalse(m.ui.endCardShown, "nothing reaches the match until it sends")
+        m.openEndSheet()
+        XCTAssertFalse(m.ui.endSheet)
+        m.onScreen(false)
     }
 
     // MARK: polling
@@ -455,6 +578,21 @@ final class ChatModelTests: XCTestCase {
         let second = analytics.entries.last { $0.event == "chat_opened" }!.properties
         XCTAssertEqual(second["entry"] as? String, "read_reply")
         XCTAssertEqual(second["is_first"] as? Bool, false)
+    }
+
+    func testChatOpenedWaitsForTheChatToLoadNoneForAFailedLoadOneOnceTryAgainLands() async {
+        let store = FakeChatStore()
+        let analytics = RecordingAnalytics()
+        await store.setThread(.failure(.network))
+        let m = await opened(store, FakeDateStore(), analytics)
+        XCTAssertFalse(analytics.names().contains("chat_opened"))
+        await store.setThread(.success([]))
+        m.retry()
+        await settle()
+        XCTAssertEqual(analytics.names().filter { $0 == "chat_opened" }.count, 1)
+        await settle(0.15)
+        XCTAssertEqual(analytics.names().filter { $0 == "chat_opened" }.count, 1, "once per visit")
+        m.onScreen(false)
     }
 
     func testActionChipUsedFiresOnEveryTapWithItsSurface() async {

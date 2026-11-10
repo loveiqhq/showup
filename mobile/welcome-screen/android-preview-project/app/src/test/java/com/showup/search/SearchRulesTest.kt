@@ -34,6 +34,14 @@ class SearchRulesTest {
     }
 
     @Test
+    fun `an unknown distance is no distance, never under one km`() {
+        // The Date screen's match without a located Check-In: the server sends none.
+        assertEquals(listOf("Neukölln"), distanceParts(null, "Neukölln"))
+        assertEquals(emptyList<String>(), distanceParts(null, null))
+        assertEquals("Neukölln", distanceLine(null, "Neukölln"))
+    }
+
+    @Test
     fun `filters_active names age and distance when the profile default is unavailable`() {
         val defaults = com.showup.checkin.CheckInFilters(genders = setOf("woman"))
         assertEquals(emptyList<String>(), filtersActive(defaults))

@@ -159,7 +159,8 @@ struct ChatBubble: View {
                 bubble(mine)
                 HStack(spacing: 5) {
                     Text(messageTime(message.sentAt, zone: zone)).font(F.manrope(11, .semibold)).foregroundColor(.liqSubtle)
-                    if mine { receipt }
+                    // J: a message that did not send has no Delivered / Read -- it was neither.
+                    if mine && !message.failed { receipt }
                 }
                 .padding(.horizontal, 4)
             }
@@ -329,7 +330,7 @@ struct ThreadScroll<Messages: View, Foot: View>: View {
 // MARK: - BigActionChip
 
 /// The reference's `BigActionChip`: a tile on the start grid (pad 15, radius 18, at least 68, icon box 42 / 13
-/// with the icon 21, label 15 / 700) or the dock's compact chip (pad 4 10 4 5, radius 11, at least 36, icon box
+/// with the icon 21, label 15 / 700) or the dock's compact chip (pad 4 10 4 5, radius 11, at least 38, icon box
 /// 26 / 8 with the icon 14, label 11.5 / 700). Selected: the tone's fill and a border in the tone's ink;
 /// otherwise white with the tone's chip border. The small shadow either way. The full label always.
 struct BigActionChip: View {
@@ -339,7 +340,7 @@ struct BigActionChip: View {
     let onTap: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    var body: some View {
+    @ViewBuilder private var chip: some View {
         let tone = reason.tone
         let radius: CGFloat = compact ? 11 : 18
         let shape = RoundedRectangle(cornerRadius: radius)
@@ -362,18 +363,27 @@ struct BigActionChip: View {
             }
             // The reference's padding plus the 1.5 border, which CSS counts and SwiftUI only draws: tiles come
             // out 75 tall as the sheet renders them. The compact chip takes the border at its sides only, so
-            // its label wraps as the reference's and it stays the ticket's 36 high.
+            // its label wraps as the reference's and it stays the ticket's 38 high.
             .padding(compact ? EdgeInsets(top: 4, leading: 6.5, bottom: 4, trailing: 11.5)
                              : EdgeInsets(top: 16.5, leading: 16.5, bottom: 16.5, trailing: 16.5))
-            .frame(maxWidth: .infinity, minHeight: compact ? 36 : 68, maxHeight: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: compact ? 38 : 68, maxHeight: .infinity, alignment: .leading)
             .background(ShadowedShape(shape: shape, fill: active ? tone.bg : Color.liqElevated, shadows: shadowSm))
             .overlay(shape.strokeBorder(active ? tone.fg : tone.chipBorder, lineWidth: 1.5))
             .contentShape(shape)
             .animation(reduceMotion ? nil : .easeInOut(duration: Motion.tint), value: active)
         }
         .buttonStyle(PressScale())
-        .fitTapArea()
         .accessibilityAddTraits(active ? .isSelected : [])
+    }
+
+    var body: some View {
+        // The dock's chip answers 3 beyond its drawing on every side, into the 6 gap: 44 to touch where it is
+        // drawn 38, and neighbours' areas meet without overlapping (SHOWUP-194, 9 Nov 2026).
+        if compact {
+            chip.overflowTapTarget(slop: 3)
+        } else {
+            chip.fitTapArea()
+        }
     }
 }
 

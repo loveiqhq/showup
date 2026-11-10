@@ -83,12 +83,15 @@
 	     only while it is open. Asked from the in-app ask's CTA, never on screen entry. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to find people nearby and choose a halfway meeting spot for your date.</string>
-	<!-- CALENDAR, WRITE-ONLY (SHOWUP-193 ⑪ Calendar). The Date screen hands its date to the system's
-	     new-event sheet, which since iOS 17 runs out of process and needs no access to show, so
-	     nothing is requested; this is the string the OS shows if it ever asks. Write-only: the app
-	     never reads the calendar. Flagged for Philipp to word. -->
+	<!-- CALENDAR (SHOWUP-193 ⑪ Calendar, 9 Nov 2026). The Date screen hands its date to the system's
+	     new-event sheet, which since iOS 17 runs out of process and needs no access to show, so nothing
+	     is requested. NSCalendarsUsageDescription is the ticket's string for iOS 16 and earlier, which
+	     ask once; the app's floor is iOS 17, so it is there for the OS, as the write-only one is, which
+	     carries the same words. The app never reads the calendar. -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>Show Up only adds your date to your calendar. It never reads your events.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
-	<string>Show Up adds your date to your calendar, nothing else.</string>
+	<string>Show Up only adds your date to your calendar. It never reads your events.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

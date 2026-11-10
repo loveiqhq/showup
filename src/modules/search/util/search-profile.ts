@@ -85,7 +85,11 @@ export function buildSearchProfile(src: SearchProfileSource): SearchProfileDto {
     userId: p.userId,
     name: firstName(p.displayName),
     age,
-    distanceKm: roundedDistanceKm(src.distanceMeters),
+    // Unknown -- the Date screen's match with no located Check-In -- is no distance at all, never 0
+    // ("< 1 km"). Search's queue always knows it: a Check-In needs a location.
+    distanceKm: Number.isFinite(src.distanceMeters)
+      ? roundedDistanceKm(src.distanceMeters)
+      : undefined,
     district,
     meetAt: src.meetAt.toISOString(),
     meetDay: src.meetDay,
