@@ -81,7 +81,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -92,7 +94,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.showup.date.DATE_LOCKED_TABS
+import com.showup.date.DateCopy
 import com.showup.designsystem.Cream
+import com.showup.designsystem.cssLineBox
+import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.IconSizes
 import com.showup.designsystem.Lavender
 import com.showup.designsystem.LilacWash
@@ -118,6 +124,8 @@ import com.showup.welcome.OrbPlacement
 import com.showup.welcome.WashHeadline
 import com.showup.welcome.WelcomeBackdrop
 import com.showup.welcome.WelcomeScaffold
+import java.time.Instant
+import java.time.ZoneId
 
 /** Fit-harness anchors. */
 internal const val LOCATION_FOOTER_TAG = "location-footer"
@@ -205,6 +213,32 @@ internal object LocationCopy {
         /** D's back pill. */
         const val BACK = "Back"
     }
+
+    /**
+     * The gate over the Date screen (SHOWUP-195 G, the kit's `LOCATION_COPY.date`, 5 Nov 2026). Headline and
+     * body are functions of the match's name; the CTAs are Profile 12's. Apostrophes are U+2019.
+     */
+    object Date {
+        const val CARD_LEAD = "You and "
+        const val CARD_MID = " are meeting "
+        const val STARTS_IN = "Starts in %dh %dm"
+        const val STARTED = "Started %d min ago"
+        const val MAY_BE_WAITING = "%s may be waiting"
+
+        const val A_LEAD = "Urgent! Allow location to get access to your "
+        const val B_LEAD = "Urgent! Turn on location to get access to your "
+        const val EM = "date information"
+        const val TAIL = "."
+
+        fun aBody(name: String) = "Your date screen needs your location. It gets you to the meeting place and " +
+            "lets you check in when you arrive, so $name knows you’re there."
+
+        fun bBody(name: String) = "Location is off for Show Up, so your date screen is locked. Turn it on to see " +
+            "your date, get directions and check in when you arrive, so $name knows you’re there."
+
+        fun cBody(name: String) = "Location is off for every app on this phone, so your date screen is locked. " +
+            "Turn it on to see your date, get directions and check in when you arrive, so $name knows you’re there."
+    }
 }
 
 /** One benefit row: a lilac pip, a Lora title, and on row 2 a sub-line. */
@@ -248,6 +282,23 @@ sealed interface LocationScreenContext {
         val onBack: (() -> Unit)? = null,
         val backLabel: String = LocationCopy.App.BACK,
     ) : LocationScreenContext
+
+    /**
+     * SHOWUP-195 G: the gate over the Date screen while a date is active. No header (the Date screen has none),
+     * the date card where the radar was, the TabBar in date mode (Search, Likes and Instant locked; Settings
+     * open) and no way past but giving location access.
+     */
+    data class Date(
+        val name: String,
+        /** `today` or `tomorrow`, the server's. */
+        val meetDay: String,
+        val meetAt: Instant,
+        val place: String?,
+        val photoUrl: String?,
+        val now: Instant,
+        val zone: ZoneId,
+        val onTab: (Tab) -> Unit,
+    ) : LocationScreenContext
 }
 
 @Composable
@@ -262,6 +313,10 @@ fun ProfileLocationScreen(
 ) {
     if (context is LocationScreenContext.App) {
         LocationGateLayout(state, requesting, onAllow, onOpenSettings, context)
+        return
+    }
+    if (context is LocationScreenContext.Date) {
+        DateGateLayout(state, requesting, onAllow, onOpenSettings, context)
         return
     }
 
@@ -420,6 +475,96 @@ private fun LocationGateLayout(
                     )
                 }
                 TabBar(active = app.tab, onTab = app.onTab, likes = app.likes)
+            }
+        }
+    }
+}
+
+/**
+ * The date context (SHOWUP-195 G): padding 20 24 0, the date card, the headline (Lora 700 30 / 1.12, -0.015em,
+ * 26 below, balanced, left), the body (Manrope 500 14.5 / 1.5, 12 below), the privacy note 18 below on A only,
+ * ONE flexible spacer floored at 16, the sunset CTA 22 above the TabBar. Backdrop live on A only. Past the
+ * spacer's floor the content scrolls under the pinned CTA (Profile 12's precedent) rather than push it off.
+ */
+@Composable
+private fun DateGateLayout(
+    state: LocationState,
+    requesting: Boolean,
+    onAllow: () -> Unit,
+    onOpenSettings: () -> Unit,
+    date: LocationScreenContext.Date,
+) {
+    val blocked = state != LocationState.Ask
+    val lead = if (state == LocationState.Ask) LocationCopy.Date.A_LEAD else LocationCopy.Date.B_LEAD
+    val body = when (state) {
+        LocationState.Ask -> LocationCopy.Date.aBody(date.name)
+        LocationState.Denied -> LocationCopy.Date.bBody(date.name)
+        LocationState.ServicesOff -> LocationCopy.Date.cBody(date.name)
+    }
+    Box(Modifier.fillMaxSize().background(Cream)) {
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
+            WelcomeBackdrop(
+                placement = OrbPlacement.Startup,
+                orangeAlpha = if (blocked) 0.16f else 0.32f,
+                violetAlpha = if (blocked) 0.14f else 0.28f,
+                washAlpha = if (blocked) 0.28f else 0.55f,
+            )
+            Column(Modifier.fillMaxSize()) {
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val area = maxHeight
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag(GATE_SCROLL_TAG)) {
+                        Column(Modifier.heightIn(min = area).padding(start = 24.dp, end = 24.dp, top = 20.dp)) {
+                            DateGateCard(date.name, date.meetDay, date.meetAt, date.place, date.photoUrl, date.now, date.zone)
+                            WashHeadline(
+                                parts = listOf(lead to false, LocationCopy.Date.EM to true, LocationCopy.Date.TAIL to false),
+                                fontSize = 30.sp,
+                                lineHeight = (30f * 1.12f).sp,
+                                letterSpacing = (-0.015).em,
+                                balance = true,
+                                cssLineBox = true,
+                                modifier = Modifier
+                                    .padding(top = 26.dp)
+                                    .testTag(GATE_HEADLINE_TAG)
+                                    .semantics {
+                                        heading()
+                                        liveRegion = LiveRegionMode.Polite
+                                    },
+                            )
+                            val bodyStyle = TextStyle(
+                                color = Neutral, fontFamily = Manrope, fontWeight = FontWeight.Medium,
+                                fontSize = 14.5.sp, lineHeight = (14.5f * 1.5f).sp,
+                            )
+                            val bodyText = AnnotatedString(body)
+                            Text(
+                                bodyText,
+                                modifier = Modifier.padding(top = 12.dp).prettyWrap(bodyText, bodyStyle).cssLineBox(bodyStyle.lineHeight),
+                                style = bodyStyle,
+                            )
+                            if (state == LocationState.Ask) PrivacyNote(Modifier.padding(top = 18.dp).testTag(GATE_NOTE_TAG))
+                            Spacer(Modifier.weight(1f).requiredHeightIn(min = 16.dp))
+                        }
+                    }
+                }
+                PrimaryButton(
+                    label = if (blocked) LocationCopy.OPEN_SETTINGS else LocationCopy.ALLOW,
+                    onClick = { if (blocked) onOpenSettings() else if (!requesting) onAllow() },
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 22.dp).testTag(DATE_GATE_CTA_TAG),
+                    variant = PrimaryButtonVariant.Sunset,
+                    labelMaxLines = 3,
+                    leading = {
+                        Box(Modifier.clearAndSetSemantics {}) {
+                            Icon(if (blocked) BrandIcon.Settings else BrandIcon.MapPin, 18.dp, tint = Color.White, strokeWidth = 2.2f)
+                        }
+                    },
+                )
+                // Cream under the glass, as the Date screen's own TabBar: no backdrop blur here.
+                TabBar(
+                    active = null,
+                    onTab = date.onTab,
+                    modifier = Modifier.background(Cream),
+                    disabled = DATE_LOCKED_TABS,
+                    disabledHint = DateCopy.TAB_HINT,
+                )
             }
         }
     }

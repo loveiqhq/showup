@@ -93,6 +93,8 @@ const val DATE_SCREEN_TAG = "date:screen"
 const val DATE_HERO_TAG = "date:hero"
 const val DATE_TIME_CARD_TAG = "date:time-card"
 const val DATE_COORDINATE_TAG = "date:coordinate"
+/** The Coordinate slot while it holds the match's arrival (Date 03 H); the one card keeps one tag at a time. */
+const val DATE_ARRIVAL_TAG = "date:arrival-card"
 const val DATE_REPORT_TAG = "date:report"
 const val DATE_INTENT_TAG = "date:intent"
 const val DATE_ACTIONS_TAG = "date:actions"
@@ -168,6 +170,8 @@ fun DateScreen(
     changeTiles: List<ChatReason> = CHANGE_TILES,
     /** A change tile was tapped: the Date 05 picker opens, once it exists. */
     onChangeTile: (ChatReason) -> Unit = {},
+    /** The match's arrival card was tapped while the chat is still locked: it clears (Date 03, R2). */
+    onArrivalSeen: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     var frameHeight by remember { mutableIntStateOf(0) }
@@ -202,7 +206,7 @@ fun DateScreen(
                 val holes = remember { WashHoles() }
                 Box(Modifier.onPlaced { holes.origin = it }) {
                     CompositionLocalProvider(LocalWashHoles provides holes) {
-                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles, onChangeTile)
+                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles, onChangeTile, onArrivalSeen)
                     }
                     // ① The sunset wash: top 0, h 320, opacity .18, blur 40 -- scrolling with the content,
                     // drawn after it (see the header).
@@ -278,6 +282,7 @@ private fun DateContent(
     matchMate: @Composable () -> Unit,
     changeTiles: List<ChatReason>,
     onChangeTile: (ChatReason) -> Unit,
+    onArrivalSeen: () -> Unit,
 ) {
     Column(
         Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
@@ -290,15 +295,19 @@ private fun DateContent(
         Spacer(Modifier.height(12.dp))
         val coordinate = @Composable {
             CoordinateModule(
-                state, date, ui.now, zone, onOpenChat, Modifier.testTag(DATE_COORDINATE_TAG),
+                state, date, ui.now, zone, onOpenChat,
+                Modifier.testTag(if (date.arrival != null) DATE_ARRIVAL_TAG else DATE_COORDINATE_TAG),
                 // Only in A: from B on, the chat's chips do the same job.
                 changeTiles = if (state == DateState.Locked) changeTiles else emptyList(),
                 onChangeTile = onChangeTile,
+                onArrivalSeen = onArrivalSeen,
             )
         }
-        if (state == DateState.Unread) coordinate()
+        // The match's arrival and an unread message are both hoisted under the hero (R11).
+        val hoist = hoisted(state, date.arrival)
+        if (hoist) coordinate()
         TimePlaceCard(date, zone, ui.copied, onCopy, Modifier.testTag(DATE_TIME_CARD_TAG))
-        if (state != DateState.Unread) coordinate()
+        if (!hoist) coordinate()
         ReportRow(onReport, Modifier.testTag(DATE_REPORT_TAG))
         IntentCard(date, Modifier.testTag(DATE_INTENT_TAG))
         QuickActions(date.place != null, onDirections, onShare, onCalendar, Modifier.testTag(DATE_ACTIONS_TAG))
