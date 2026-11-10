@@ -8,6 +8,8 @@ import { QUEUE_COORDINATE_UNLOCK } from '../../queue/queue.constants';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { CheckInsModule } from '../check-ins/check-ins.module';
 import { LocationModule } from '../location/location.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { ArrivalCheckInsService } from './arrival-check-ins.service';
 import { DatesController } from './dates.controller';
 import { DatesService } from './dates.service';
 import { DateArrivalCheckIn } from './entities/date-arrival-check-in.entity';
@@ -32,10 +34,12 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
     CheckInsModule,
     LocationModule,
     AnalyticsModule,
+    NotificationsModule,
   ],
   controllers: [DatesController],
   providers: [
     DatesService,
+    ArrivalCheckInsService,
     CoordinateUnlockScheduler,
     CoordinateUnlockProcessor,
   ],
