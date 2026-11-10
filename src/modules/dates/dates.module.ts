@@ -10,6 +10,7 @@ import { CheckInsModule } from '../check-ins/check-ins.module';
 import { LocationModule } from '../location/location.module';
 import { DatesController } from './dates.controller';
 import { DatesService } from './dates.service';
+import { DateArrivalCheckIn } from './entities/date-arrival-check-in.entity';
 import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
@@ -23,6 +24,7 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
       DateEntity,
       DateStatusChange,
       DateChatMessage,
+      DateArrivalCheckIn,
       Profile,
       Match,
     ]),
