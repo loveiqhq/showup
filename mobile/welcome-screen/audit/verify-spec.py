@@ -225,10 +225,9 @@ check("no fixed-width underline survives (swift)", "underlineWidth" not in sw)
 # accessibility
 check("progress announced (kotlin)", "progressBarRangeInfo" in kt)
 check("progress announced (swift)", "accessibilityLabel" in sw)
-# The NUMBERS are unchanged and still asserted; only where they are written moved. The
-# asymmetry is deliberate and is why the floor is a parameter: Android's tutorial back passes
-# 48 (Material's minimum), iOS's takes the 44 default (Apple's HIG).
-check("back 48dp target (kotlin)", "minTapTarget(48.dp)" in code_only(kt))
+# The same 44 on both platforms since 9 Nov 2026 (it was Material's 48 on Android): the floor stays a
+# parameter, but both backs take the default.
+check("back 44dp target (kotlin)", "minTapTarget()" in code_only(kt) and "minTapTarget(48" not in code_only(kt))
 check("back 44pt target (swift)", "minTapTarget()" in code_only(sw))
 # The floor can be raised and NOT lowered. Asserted against the expanded literal, so redefining
 # ComponentSizes.minTapTarget to something smaller fails this rather than renaming past it.

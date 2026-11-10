@@ -67,15 +67,11 @@ fun CheckRow(
             )
             .semantics { collectionItemInfo = CollectionItemInfo(index, 1, 0, 1) }
             .answerRowChrome(wash = wash, divider = !last)
-            // THE 48 FLOOR, AND IT IS A REAL DIFFERENCE FROM THE REFERENCE. 12 / 4 makes a row
-            // 12 + 20.8 + 12 = 44.8 at the default font -- iOS's 44pt floor, and under Android's
-            // 48, which the Android CLAUDE.md holds every tappable thing to "even where the
-            // reference draws smaller". The padding stays the reference's and the label stays
-            // centred; the row is 3.2 taller at the default font and identical once larger type
-            // grows it past 48. `ComponentSizes.minTapTarget` is 44 on both platforms -- the
-            // 44 / 48 split is documented as unresolved in TapTarget.kt -- so this passes 48 the
-            // way the tutorial's back control and Stay reachable's rows already do.
-            .minTapTarget(min = 48.dp)
+            // The 44 floor, as on iOS (settled 9 Nov 2026, see TapTarget.kt). 12 / 4 makes a row
+            // 12 + 20.8 + 12 = 44.8 at the default font, already over it, so the row is the
+            // reference's own height; the floor holds only if a smaller font ever shrank it. It
+            // was 48 until then, 3.2 taller than the reference.
+            .minTapTarget()
             .padding(vertical = Spacing.xl, horizontal = Spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(Spacing.xl),
         verticalAlignment = Alignment.CenterVertically,

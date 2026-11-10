@@ -111,14 +111,10 @@ fun ConsentSwitch(
             // switch grows around it rather than the drawing growing. This project has shipped a
             // 23dp target inside a 56dp row -- a control whose hit area is smaller than it looks
             // is a bug the eye cannot see.
-            // 48, NOT THE 44 DEFAULT. `ComponentSizes.minTapTarget` is 44 on both platforms
-            // and `TapTarget.kt` says why that is unresolved: the token predates this control and
-            // changing it would move hit areas on screens nobody is re-testing. A NEW control has
-            // no such excuse -- Material's floor is 48, `CLAUDE.md` states the rule as "44pt /
-            // 48dp", and the 4dp is padding around a 31dp track, so it costs nothing anybody can
-            // see. The ticket asks for ">= 44" and this clears it on both platforms rather than
-            // meeting it on one.
-            .minTapTarget(48.dp)
+            // 44, the app's floor on both platforms (settled 9 Nov 2026, see TapTarget.kt), and the
+            // ticket's own number: "The switch is 51 x 31 visually, padded to 44 tall" (SHOWUP-163).
+            // It was 48 until then, from Material's floor.
+            .minTapTarget()
             .clip(CircleShape)
             .toggleable(
                 value = on,

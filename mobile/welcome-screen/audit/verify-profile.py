@@ -1513,7 +1513,9 @@ check("163 the interest row is toggleable, not merely clickable (kotlin)",
       "role = Role.Checkbox," in reach_kt and "toggleable(" in reach_kt)
 check("163 the interest row announces its state (swift)",
       "accessibilityValue(on ?" in reach_sw)
-check("163 the switch is padded to the tap floor (kotlin)", "minTapTarget(48.dp)" in switch_kt)
+# 44, the ticket's "padded to 44 tall" and the app's floor on both platforms since 9 Nov 2026 (it was 48).
+check("163 the switch is padded to the tap floor (kotlin)",
+      ".minTapTarget()" in switch_kt and "minTapTarget(48" not in switch_kt)
 check("163 the switch is padded to the tap floor (swift)",
       "ComponentSizes.minTapTarget" in switch_sw)
 

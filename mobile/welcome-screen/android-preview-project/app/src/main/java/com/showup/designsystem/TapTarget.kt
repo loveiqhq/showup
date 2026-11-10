@@ -48,8 +48,9 @@ import androidx.compose.ui.unit.dp
  *
  * SETTLED 9 Nov 2026: 44 on both platforms. Philipp's answer for the chat's chips was "44 tap area on iOS
  * and Android ... not 48 on Android", every touch size in the design is 44, and Esma made it the app's.
- * The four call sites that still pass 48 (the tutorial's back, ConsentSwitch, CheckRow, the home
- * placeholder) grow their rows with it, so lowering them changes those screens -- not done yet.
+ * The four call sites that passed 48 (the tutorial's back, ConsentSwitch, CheckRow, the home
+ * placeholder) take the 44 since 9 Nov 2026 too; no ticket asked for 48 -- Stay reachable's asks for
+ * "padded to 44 tall".
  */
 fun Modifier.minTapTarget(min: Dp = ComponentSizes.minTapTarget): Modifier {
     val floor = if (min > ComponentSizes.minTapTarget) min else ComponentSizes.minTapTarget

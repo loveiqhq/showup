@@ -344,17 +344,16 @@ fun TutorialShell(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // The label is ~20dp tall; 48dp is Android's minimum touch target, so the box
+                // The label is ~20dp tall; 44dp is the app's minimum touch target, so the box
                 // carries the target and the text sits at its leading edge — same pixels, a
                 // tappable area that passes an accessibility scan. When the slot is reserved but
                 // invisible (card 01) it is also cleared from the semantics tree, so a screen
                 // reader does not announce a "Back" that cannot be pressed.
                 Box(
                     Modifier
-                        // 48 rather than the shared 44: Material's floor, which this control has
-                        // always used. Passed explicitly because minTapTarget clamps upward only,
-                        // so this raises the floor and cannot lower it.
-                        .minTapTarget(48.dp)
+                        // The app's 44 floor on both platforms (settled 9 Nov 2026, see
+                        // TapTarget.kt); it was Material's 48 until then.
+                        .minTapTarget()
                         .then(
                             if (showBack) Modifier
                                 .clip(RoundedCornerShape(50))
