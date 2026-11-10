@@ -160,7 +160,8 @@ export class ArrivalCheckInsService {
       ),
     );
     if (committed.length > 0) {
-      void this.notifyPartner(date, userId);
+      // Awaited: notifyPartner swallows its own errors, so the request still cannot fail on a push.
+      await this.notifyPartner(date, userId);
       return;
     }
     if (!(await this.rows.exists({ where: { dateId, userId } }))) {

@@ -152,6 +152,7 @@ describe('Arrival check-in (e2e)', () => {
   beforeEach(async () => {
     events = [];
     pushes = [];
+    sendPush.mockClear();
     await dates
       .createQueryBuilder()
       .delete()
@@ -243,6 +244,10 @@ describe('Arrival check-in (e2e)', () => {
     await create('you', body()).expect(201);
     sendPush.mockRejectedValueOnce(new Error('fcm down'));
     await commit('you').expect(204);
+    // The failing sender really ran, and its rejection was consumed inside the request.
+    expect(sendPush).toHaveBeenCalledTimes(1);
+    const [row] = await rows();
+    expect(row.committed_at).not.toBeNull();
   });
 
   it('after commit: undo and a new check-in are 409; a resend of the same tap is the stored row', async () => {
