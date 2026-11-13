@@ -130,6 +130,8 @@ struct DateScreen: View {
     var changeTiles: [ChatReason] = changeTileReasons
     /// A change tile was tapped: the Date 05 picker opens, once it exists.
     var onChangeTile: (ChatReason) -> Void = { _ in }
+    /// The match's arrival card was tapped while the chat is still locked: it clears (Date 03, R2).
+    var onArrivalSeen: () -> Void = {}
 
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
@@ -216,9 +218,11 @@ struct DateScreen: View {
                 .padding(.top, 8)
                 .fitAnchor("date:hero")
             Color.clear.frame(height: 12)
-            if state == .unread { coordinate(date, state) }
+            // The match's arrival and an unread message are both hoisted under the hero (R11).
+            let hoist = hoisted(state, date.arrival)
+            if hoist { coordinate(date, state) }
             TimePlaceCard(date: date, zone: zone, copied: ui.copied, onCopy: onCopy).fitAnchor("date:time-card")
-            if state != .unread { coordinate(date, state) }
+            if !hoist { coordinate(date, state) }
             ReportRow(onReport: onReport).fitAnchor("date:report")
             IntentCard(date: date).fitAnchor("date:intent")
             QuickActions(hasPlace: date.place != nil, onDirections: onDirections, onShare: onShare, onCalendar: onCalendar)
@@ -238,7 +242,8 @@ struct DateScreen: View {
     private func coordinate(_ date: ActiveDate, _ state: DateState) -> some View {
         // The tiles only in A: from B on, the chat's chips do the same job.
         CoordinateModule(state: state, date: date, now: ui.now, zone: zone, onOpenChat: onOpenChat,
-                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile)
-            .fitAnchor("date:coordinate")
+                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile,
+                         onArrivalSeen: onArrivalSeen)
+            .fitAnchor(date.arrival != nil ? "date:arrival-card" : "date:coordinate")
     }
 }

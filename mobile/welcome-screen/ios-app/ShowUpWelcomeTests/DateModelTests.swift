@@ -12,6 +12,8 @@ actor FakeDateStore: DateStoring {
     private(set) var read: Result<DateRead, CallFailure> = .success(.none)
     private(set) var reads = 0
     private(set) var profile: Result<SearchProfile, CallFailure> = .failure(.server)
+    private(set) var seen: [String] = []
+    private(set) var partnerCheckIns = 0
 
     func setRead(_ value: Result<DateRead, CallFailure>) { read = value }
     func setProfile(_ value: Result<SearchProfile, CallFailure>) { profile = value }
@@ -26,6 +28,11 @@ actor FakeDateStore: DateStoring {
     func messageFromMatch(reason: ChatReason?, body: String) async -> Bool { true }
     func endTestDate() async -> Bool { true }
     func matchEndsInChat() async -> Bool { true }
+    func markArrivalSeen(dateId: String) async { seen.append(dateId) }
+    func partnerChecksIn() async -> Bool {
+        partnerCheckIns += 1
+        return true
+    }
 }
 
 /// The model's clock: read through its closure, moved by the test.
@@ -39,13 +46,14 @@ final class DateModelTests: XCTestCase {
     private let meet = Date(timeIntervalSince1970: 1_793_728_800) // 2026-11-03T18:00:00Z
     private var unlock: Date { meet.addingTimeInterval(-90 * 60) }
 
-    private func date(unread: DateUnread? = nil, checkedIn: Bool = false) -> ActiveDate {
+    private func date(unread: DateUnread? = nil, checkedIn: Bool = false, arrival: DateArrival? = nil) -> ActiveDate {
         ActiveDate(id: "d1", meetAt: meet, meetDay: "today", unlockAt: unlock, coordinateOpen: false,
                    place: DatePlace(name: "Cafe Krone", address: "Oranienstrasse 42, Kreuzberg"),
                    match: DateMatch(userId: "u2", name: "Leonie", age: 28, district: "Neukölln", distanceKm: 1,
                                     photoUrl: nil, attendedCount: 4),
                    motivationYou: "long_term", motivationThem: "long_term",
-                   sharedVibes: [], sharedInterests: [], unread: unread, checkedIn: checkedIn, chatTutorialSeen: false)
+                   sharedVibes: [], sharedInterests: [], unread: unread, checkedIn: checkedIn, chatTutorialSeen: false,
+                   arrival: arrival)
     }
 
     private func settle(_ seconds: Double = 0.05) async {
@@ -326,6 +334,54 @@ final class DateModelTests: XCTestCase {
         XCTAssertFalse(m.state.left, "whether the date is gone is the read's to say")
         await settle()
         XCTAssertEqual(m.state.date?.id, "d2")
+    }
+
+    func testAClearedArrivalStaysClearedUntilANewerCheckIn() async {
+        let first = DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 10 * 60))
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date(arrival: first))))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        XCTAssertEqual(m.state.date?.arrival, first)
+
+        m.arrivalSeen()
+        XCTAssertNil(m.state.date?.arrival, "cleared at once")
+        await settle()
+        let seen = await store.seen
+        XCTAssertEqual(seen, ["d1"])
+
+        m.foreground()
+        await settle()
+        XCTAssertNil(m.state.date?.arrival, "the same check-in does not come back")
+
+        let later = DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 60))
+        await store.setRead(.success(.active(date(arrival: later))))
+        m.foreground()
+        await settle()
+        XCTAssertEqual(m.state.date?.arrival, later)
+    }
+
+    func testASeedCarryingAClearedArrivalDropsIt() async {
+        let first = DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 10 * 60))
+        let store = FakeDateStore()
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.seed(date(arrival: first))
+        m.arrivalSeen()
+        m.seed(date(arrival: first))
+        XCTAssertNil(m.state.date?.arrival)
+    }
+
+    func testSeeingAnArrivalThatIsNotThereTellsNobody() async {
+        let store = FakeDateStore()
+        await store.setRead(.success(.active(date())))
+        let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
+        m.arrived(referrer: nil)
+        await settle()
+        m.arrivalSeen()
+        await settle()
+        let seen = await store.seen
+        XCTAssertEqual(seen, [])
     }
 
     func testSeedingANewDateReplacesAStaleOneAndClearsALeave() async {

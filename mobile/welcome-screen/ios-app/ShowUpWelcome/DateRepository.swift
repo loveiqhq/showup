@@ -23,6 +23,11 @@ protocol DateStoring: Sendable {
     /// Debug only: the test match ends the date in the chat (SHOWUP-194), through the real path -- so it needs
     /// her "I can't make it today" message in the thread, and the viewer lands on H.
     func matchEndsInChat() async -> Bool
+    /// The viewer has seen the match's arrival card: the chat-read stamp, the same one the chat's open sets (Date 03
+    /// R3). A stamp: a failed one is not reported, the chat's open stamps the same field.
+    func markArrivalSeen(dateId: String) async
+    /// Debug only: the test match checks in and commits, sending the push.
+    func partnerChecksIn() async -> Bool
 }
 
 struct DateRepository: DateStoring {
@@ -85,6 +90,15 @@ struct DateRepository: DateStoring {
         return true
     }
 
+    func markArrivalSeen(dateId: String) async {
+        _ = try? await api.client.markDateChatRead(path: .init(id: dateId))
+    }
+
+    func partnerChecksIn() async -> Bool {
+        guard case .noContent? = try? await api.client.devPartnerCheckIn() else { return false }
+        return true
+    }
+
     /// No response is `network`; a response that could not be read is the server's.
     private static func failure(_ error: any Error) -> CallFailure {
         ShowUpAPI.isNoResponse(error) ? .network : .server
@@ -121,6 +135,7 @@ extension ActiveDate {
                            sentAt: $0.sentAt)
             },
             checkedIn: dto.checkedIn,
-            chatTutorialSeen: dto.chatTutorialSeen)
+            chatTutorialSeen: dto.chatTutorialSeen,
+            arrival: dto.arrival.map { DateArrival(checkedInAt: $0.value1.checkedInAt) })
     }
 }

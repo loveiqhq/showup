@@ -36,7 +36,7 @@ final class DateRepositoryTests: XCTestCase {
     "photoUrl":"/uploads/leonie.jpg","attendedCount":4},"motivations":{"you":"long_term","them":"long_term"},\
     "sharedVibes":["coffee_chat","playful"],"sharedInterests":["reading"],\
     "unread":{"count":2,"reason":"running_late","body":"Ten minutes late!","sentAt":"2026-11-03T17:10:00Z"},\
-    "checkedIn":false,"chatTutorialSeen":true},"ended":null}
+    "checkedIn":false,"arrival":{"checkedInAt":"2026-11-03T17:50:00Z"},"chatTutorialSeen":true},"ended":null}
     """
 
     func testADateMapsFieldForField() async {
@@ -62,6 +62,7 @@ final class DateRepositoryTests: XCTestCase {
         XCTAssertEqual(date.unread?.body, "Ten minutes late!")
         XCTAssertFalse(date.checkedIn)
         XCTAssertTrue(date.chatTutorialSeen)
+        XCTAssertEqual(date.arrival, DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 10 * 60)))
     }
 
     func testNoDateIsNone() async {

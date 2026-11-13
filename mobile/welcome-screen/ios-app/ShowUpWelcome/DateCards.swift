@@ -318,9 +318,15 @@ struct CoordinateModule: View {
     /// The change tiles under the locked line: `changeTileReasons`, empty until Date 05 ships.
     var changeTiles: [ChatReason] = []
     var onChangeTile: (ChatReason) -> Void = { _ in }
+    /// The locked arrival card's Open chat: the chat is not open yet, so it only clears the card (R2).
+    var onArrivalSeen: () -> Void = {}
 
     var body: some View {
-        if state == .unread, let unread = date.unread {
+        // Date 03 H: the match's check-in outranks an unread message (R11), locked or not.
+        if let arrival = date.arrival {
+            ArrivalCoordinate(match: date.match, arrival: arrival, now: now, zone: zone,
+                              onCta: state == .locked ? onArrivalSeen : onOpenChat)
+        } else if state == .unread, let unread = date.unread {
             UnreadCoordinate(match: date.match, unread: unread, now: now, zone: zone, onOpenChat: onOpenChat)
         } else {
             // 18 inside the 1.5 border.
@@ -370,21 +376,22 @@ struct CoordinateModule: View {
     }
 }
 
-/// ⑧ The unread card: the reason's tone on a 1.5 border and a 4 rail, the avatar with its count, the
-/// tag, `needs a response · {time}`, the preview clamped to two lines, and `Read & reply` in the tone.
-private struct UnreadCoordinate: View {
+/// The hoisted card's ONE frame (⑧ and Date 03's H): a 1.5 border and a 4 top rail in the tone, the avatar with
+/// its count badge, the name and the tag, the `{line} · {time}` line, the tinted snippet panel and the CTA in the
+/// same tone. The unread and the arrival variants differ only in the words and the panel's content, so they
+/// share this and never fork a second card.
+private struct HoistedCoordinate<Snippet: View>: View {
     let match: DateMatch
-    let unread: DateUnread
-    let now: Date
-    let zone: TimeZone
-    let onOpenChat: () -> Void
+    let count: Int
+    let tone: ReasonTone
+    let tag: String
+    let line: String
+    let ctaLabel: String
+    let onCta: () -> Void
+    @ViewBuilder let snippet: () -> Snippet
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
-        let reason = unread.reason
-        // A message sent with no chip draws no badge; its card keeps the orange the reference's
-        // `reasonFor` falls back to, so it still reads as waiting for a reply.
-        let tone = reason?.tone ?? .orange
         // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
         Card(borderColor: tone.chipBorder, borderWidth: 1.5, padding: EdgeInsets(top: 1.5, leading: 1.5, bottom: 1.5, trailing: 1.5)) {
             UnevenRoundedRectangle(topLeadingRadius: 18.5, topTrailingRadius: 18.5)
@@ -393,34 +400,26 @@ private struct UnreadCoordinate: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center, spacing: 12) {
-                    MatchAvatar(match: match, count: unread.count, tone: tone.fg)
+                    MatchAvatar(match: match, count: count, tone: tone.fg)
                     VStack(alignment: .leading, spacing: 2) {
                         ViewThatFits(in: .horizontal) {
-                            HStack(alignment: .center, spacing: 8) { name; tag(tone) }
-                            VStack(alignment: .leading, spacing: 4) { name; tag(tone) }
+                            HStack(alignment: .center, spacing: 8) { name; tagView }
+                            VStack(alignment: .leading, spacing: 4) { name; tagView }
                         }
-                        Text(DateCopy.needsResponse(unreadTime(sentAt: unread.sentAt, now: now, zone: zone)))
+                        Text(line)
                             .font(F.manrope(12.5, .regular))
                             .foregroundColor(.liqMuted)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                VStack(alignment: .leading, spacing: 7) {
-                    if let reason { ReasonBadge(reason: reason, onLight: true) }
-                    if let body = unread.body {
-                        // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `… sorry!` / `Almost there.”`.
-                        PrettyText("“\(body)”", font: uiFont(PS.manropeMedium, 14, .medium), lineHeight: 14 * 1.4,
-                                   color: .liqFg)
-                            .lines(2)
-                    }
-                }
-                .padding(EdgeInsets(top: 11, leading: 13, bottom: 11, trailing: 13))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 14).fill(tone.bg))
-                .padding(.top, 13)
-                CoordinateCta(label: DateCopy.readAndReply, fill: tone.fg,
+                VStack(alignment: .leading, spacing: 7) { snippet() }
+                    .padding(EdgeInsets(top: 11, leading: 13, bottom: 11, trailing: 13))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(tone.bg))
+                    .padding(.top, 13)
+                CoordinateCta(label: ctaLabel, fill: tone.fg,
                               shadows: tone == .orange ? shadowCta : (tone == .danger ? [] : shadowViolet),
-                              action: onOpenChat)
+                              action: onCta)
                     .padding(.top, 14)
             }
             .padding(16)
@@ -434,12 +433,12 @@ private struct UnreadCoordinate: View {
         }
     }
 
-    private func tag(_ tone: ReasonTone) -> some View {
+    private var tagView: some View {
         HStack(spacing: 4) {
             Circle().fill(tone.fg).frame(width: 5, height: 5)
             // Shrinks rather than widens the card where even the stacked form leaves it too little room
             // (AX5 on a 320 phone pushed the whole screen 35 wider, the 4 Nov 2026 device audit).
-            Text(unreadTag(unread.count).uppercased())
+            Text(tag.uppercased())
                 .font(F.manrope(10, .heavy))
                 .tracking(0.05)
                 .foregroundColor(tone.fg)
@@ -449,6 +448,61 @@ private struct UnreadCoordinate: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .background(Capsule().fill(tone.bg))
+    }
+}
+
+/// ⑧ The unread card: the reason's tone, the avatar with its count, the tag, `needs a response · {time}`, the
+/// preview clamped to two lines, and `Read & reply` in the tone.
+private struct UnreadCoordinate: View {
+    let match: DateMatch
+    let unread: DateUnread
+    let now: Date
+    let zone: TimeZone
+    let onOpenChat: () -> Void
+
+    var body: some View {
+        let reason = unread.reason
+        // A message sent with no chip draws no badge; its card keeps the orange the reference's
+        // `reasonFor` falls back to, so it still reads as waiting for a reply.
+        let tone = reason?.tone ?? .orange
+        HoistedCoordinate(match: match, count: unread.count, tone: tone, tag: unreadTag(unread.count),
+                          line: DateCopy.needsResponse(unreadTime(sentAt: unread.sentAt, now: now, zone: zone)),
+                          ctaLabel: DateCopy.readAndReply, onCta: onOpenChat) {
+            if let reason { ReasonBadge(reason: reason, onLight: true) }
+            if let body = unread.body {
+                // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `... sorry!` / `Almost there.`.
+                PrettyText("\u{201C}\(body)\u{201D}", font: uiFont(PS.manropeMedium, 14, .medium), lineHeight: 14 * 1.4,
+                           color: .liqFg)
+                    .lines(2)
+            }
+        }
+    }
+}
+
+/// Date 03 H: the match has checked in. The unread card's frame in orange with a count of 1 and the pulse ring,
+/// `ARRIVED`, `checked in · {time}` (R10, the unread card's formatter), and one line in the panel: `map-pin` 17 /
+/// 2.2 in the tone, gap 9, `{name} has arrived at the meeting location.` (Manrope 600 14 / 1.4). `onCta` is the
+/// host's: it opens the chat, or while the chat is still locked only clears the card (R2).
+private struct ArrivalCoordinate: View {
+    let match: DateMatch
+    let arrival: DateArrival
+    let now: Date
+    let zone: TimeZone
+    let onCta: () -> Void
+
+    var body: some View {
+        let tone = ReasonTone.orange
+        HoistedCoordinate(match: match, count: 1, tone: tone, tag: ArrivalCopy.arrivedTag,
+                          line: ArrivalCopy.arrivedTime(unreadTime(sentAt: arrival.checkedInAt, now: now, zone: zone)),
+                          ctaLabel: ArrivalCopy.openChat, onCta: onCta) {
+            HStack(alignment: .center, spacing: 9) {
+                BrandIconView(icon: .mapPin, size: 17, stroke: 2.2, tint: tone.fg)
+                    .accessibilityHidden(true)
+                PrettyText(ArrivalCopy.arrivedBody(match.name), font: uiFont(PS.manropeSemi, 14, .semibold),
+                           lineHeight: 14 * 1.4, color: .liqFg)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 }
 
