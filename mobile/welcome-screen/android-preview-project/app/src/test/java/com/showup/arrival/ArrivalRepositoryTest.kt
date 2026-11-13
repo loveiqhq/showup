@@ -88,6 +88,23 @@ class ArrivalRepositoryTest {
     }
 
     @Test
+    fun `every 4xx on undo and commit is settled with one request, never retried`() = runTest {
+        for (code in listOf(400, 401, 403, 429)) {
+            json("""{"statusCode":$code}""", code)
+            assertEquals("undo $code", Outcome.Ok(Unit), store.undo("d1"))
+            json("""{"statusCode":$code}""", code)
+            assertEquals("commit $code", Outcome.Ok(Unit), store.commit("d1"))
+        }
+        assertEquals(8, server.requestCount)
+    }
+
+    @Test
+    fun `a check-in refused with another 4xx is a failure, not already checked in`() = runTest {
+        json("""{"statusCode":403}""", 403)
+        assertEquals(CheckInResult.Failed(CallFailure.Server), store.checkIn("d1", fix, ArrivalEntry.DateScreen, id))
+    }
+
+    @Test
     fun `commit posts, and 404 (nothing to commit) is nothing left to retry`() = runTest {
         empty()
         assertEquals(Outcome.Ok(Unit), store.commit("d1"))

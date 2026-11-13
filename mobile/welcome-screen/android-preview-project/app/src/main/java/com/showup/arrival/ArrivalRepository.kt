@@ -34,12 +34,12 @@ interface ArrivalStore {
     suspend fun checkIn(dateId: String, fix: LocationFix, entry: ArrivalEntry, clientId: String): CheckInResult
 
     /**
-     * Deletes an uncommitted check-in. Terminal answers (409: already committed) are [Outcome.Ok]: there is
-     * nothing left to retry. Only no answer or a server error is [Outcome.Failed].
+     * Deletes an uncommitted check-in. Every 4xx (409: already committed, among them) is [Outcome.Ok]: there is
+     * nothing left to retry. Only no answer or a 5xx is [Outcome.Failed].
      */
     suspend fun undo(dateId: String): Outcome<Unit>
 
-    /** Tells the match. 404 (nothing to commit) is [Outcome.Ok] for the same reason. */
+    /** Tells the match. Every 4xx (404: nothing to commit) is [Outcome.Ok] for the same reason. */
     suspend fun commit(dateId: String): Outcome<Unit>
 }
 
@@ -69,14 +69,18 @@ class ApiArrivalStore(private val api: ShowUpApi) : ArrivalStore {
         CheckInResult.Failed(CallFailure.Server)
     }
 
-    override suspend fun undo(dateId: String): Outcome<Unit> = settled(terminal = 409) { api.dates.undoArrivalCheckIn(dateId) }
+    override suspend fun undo(dateId: String): Outcome<Unit> = settled { api.dates.undoArrivalCheckIn(dateId) }
 
-    override suspend fun commit(dateId: String): Outcome<Unit> = settled(terminal = 404) { api.dates.commitArrivalCheckIn(dateId) }
+    override suspend fun commit(dateId: String): Outcome<Unit> = settled { api.dates.commitArrivalCheckIn(dateId) }
 
-    /** Success or the one [terminal] code is done; no answer is Network, anything else Server. */
-    private inline fun settled(terminal: Int, call: () -> Response<*>): Outcome<Unit> = try {
+    /**
+     * Success or ANY 4xx is done: a refused request answers the same again (409 already committed, 404 nothing
+     * to commit, 400/401/403/429 no retry will fix), so retrying it forever helps nobody. No answer is Network,
+     * a 5xx Server: those are retried.
+     */
+    private inline fun settled(call: () -> Response<*>): Outcome<Unit> = try {
         val response = call()
-        if (response.isSuccessful || response.code() == terminal) Outcome.Ok(Unit) else Outcome.Failed(CallFailure.Server)
+        if (response.isSuccessful || response.code() in 400..499) Outcome.Ok(Unit) else Outcome.Failed(CallFailure.Server)
     } catch (e: CancellationException) {
         throw e
     } catch (e: IOException) {

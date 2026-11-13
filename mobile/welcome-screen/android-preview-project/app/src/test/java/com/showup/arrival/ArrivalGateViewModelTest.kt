@@ -13,6 +13,10 @@ import com.showup.api.Outcome
 import com.showup.date.ActiveDate
 import com.showup.date.DateMatch
 import com.showup.date.DatePlace
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -407,5 +411,83 @@ class ArrivalGateViewModelTest {
         advanceTimeBy(6_000)
         assertEquals(0, store.stored.size)
         assertEquals(GatePhase.Idle, vm.ui.value.phase)
+    }
+
+    // ── the work scope (commit and undo outlive the model) ────────────────────────────────────
+
+    private fun TestScope.owned(work: CoroutineScope?): Pair<ViewModelStore, ArrivalGateViewModel> {
+        val owner = ViewModelStore()
+        val factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = ArrivalGateViewModel(
+                store = store,
+                reader = { fix },
+                analytics = analytics,
+                clock = { now },
+                newId = { "id-${++ids}" },
+                work = work,
+            ) as T
+        }
+        val vm = ViewModelProvider(owner, factory)[ArrivalGateViewModel::class.java]
+        vm.bind(date())
+        runCurrent()
+        vm.open(ArrivalEntry.DateScreen)
+        vm.yes()
+        runCurrent()
+        assertTrue(vm.ui.value.phase is GatePhase.Done)
+        return owner to vm
+    }
+
+    @Test
+    fun `a retrying commit continues after the model is cleared, when it has a work scope`() = runTest(dispatcher) {
+        store.commits += List(3) { Outcome.Failed(CallFailure.Network) }
+        val (owner, vm) = owned(backgroundScope)
+        vm.close()
+        runCurrent()
+        assertEquals(1, store.commitCalls)
+        owner.clear()
+        advanceTimeBy(2_001)
+        assertEquals(2, store.commitCalls)
+        advanceTimeBy(4_001)
+        assertEquals(3, store.commitCalls)
+        advanceTimeBy(8_001)
+        assertEquals("landed on the fourth", 4, store.commitCalls)
+        advanceTimeBy(60_000)
+        assertEquals(4, store.commitCalls)
+    }
+
+    @Test
+    fun `a retrying undo continues after the model is cleared, when it has a work scope`() = runTest(dispatcher) {
+        store.undos += List(2) { Outcome.Failed(CallFailure.Network) }
+        val (owner, vm) = owned(backgroundScope)
+        vm.undo()
+        runCurrent()
+        owner.clear()
+        advanceTimeBy(2_001)
+        advanceTimeBy(4_001)
+        assertEquals(3, store.undoCalls)
+    }
+
+    @Test
+    fun `without a work scope clearing the model ends the retry`() = runTest(dispatcher) {
+        store.commits += List(3) { Outcome.Failed(CallFailure.Network) }
+        val (owner, vm) = owned(null)
+        vm.close()
+        runCurrent()
+        owner.clear()
+        advanceTimeBy(60_000)
+        assertEquals(1, store.commitCalls)
+    }
+
+    @Test
+    fun `binding another date still cancels a retrying commit on the work scope`() = runTest(dispatcher) {
+        store.commits += List(5) { Outcome.Failed(CallFailure.Network) }
+        val (_, vm) = owned(backgroundScope)
+        vm.close()
+        runCurrent()
+        assertEquals(1, store.commitCalls)
+        vm.bind(date(id = "d2"))
+        advanceTimeBy(120_000)
+        assertEquals(1, store.commitCalls)
     }
 }

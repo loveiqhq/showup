@@ -22,6 +22,9 @@
  * CHECKED IN IS THE SERVER'S WORD OR THIS SESSION'S COMMIT. A date read that still says `checkedIn =
  * false` while the commit is in flight must not bring the Check-in bar back.
  *
+ * COMMIT AND UNDO OUTLIVE THIS MODEL when given a `work` scope: an Activity finished while offline must
+ * still tell the match once the network is back. The read-and-store of `Yes` stays on the model's scope.
+ *
  * NO COORDINATE IN ANY EVENT. The fix goes to the store and nowhere else; nothing here logs.
  */
 package com.showup.arrival
@@ -32,6 +35,7 @@ import com.showup.analytics.AnalyticsTracker
 import com.showup.api.Outcome
 import com.showup.date.ActiveDate
 import com.showup.profile.report
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,7 +69,11 @@ class ArrivalGateViewModel(
     private val analytics: AnalyticsTracker?,
     private val clock: () -> Instant,
     private val newId: () -> String,
+    /** Where commit and undo run, so their retries outlive this model; null is [viewModelScope] (tests, previews). */
+    work: CoroutineScope? = null,
 ) : ViewModel() {
+
+    private val workScope: CoroutineScope = work ?: viewModelScope
 
     private val _ui = MutableStateFlow(GateUi())
     val ui: StateFlow<GateUi> = _ui.asStateFlow()
@@ -137,7 +145,7 @@ class ArrivalGateViewModel(
         if (_ui.value.phase !is GatePhase.Done) return
         _ui.update { it.copy(phase = GatePhase.Idle, committed = true, undone = false) }
         commitJob?.cancel()
-        commitJob = viewModelScope.launch { retried { store.commit(date.id) } }
+        commitJob = workScope.launch { retried { store.commit(date.id) } }
     }
 
     /** `Undo check-in` on D: the record is deleted, never committed. */
@@ -147,7 +155,7 @@ class ArrivalGateViewModel(
         commitJob?.cancel()
         _ui.update { it.copy(phase = GatePhase.Idle, committed = false, undone = true) }
         undoJob?.cancel()
-        undoJob = viewModelScope.launch { retried { store.undo(date.id) } }
+        undoJob = workScope.launch { retried { store.undo(date.id) } }
     }
 
     /** The app went to the background: with D up that is Close. */

@@ -1,6 +1,9 @@
 package com.showup
 
 import android.app.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import com.showup.observability.Crashes
 
 /**
@@ -15,6 +18,9 @@ import com.showup.observability.Crashes
  * state is what `CLAUDE.md` forbids.
  */
 class ShowUpApplication : Application() {
+    /** Outlives every Activity and ViewModel: an arrival commit or undo still retrying must not die with the screen. */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     override fun onCreate() {
         super.onCreate()
 
