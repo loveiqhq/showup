@@ -158,7 +158,6 @@ internal fun DateGateCard(
                             is GatePill.Started -> LocationCopy.Date.STARTED.format(pill.minutes)
                         },
                         color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                        maxLines = 1, softWrap = false,
                     )
                 }
                 if (late) {

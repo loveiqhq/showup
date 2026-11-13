@@ -522,6 +522,7 @@ private fun DateGateLayout(
                                 letterSpacing = (-0.015).em,
                                 balance = true,
                                 cssLineBox = true,
+                                fitWords = true,
                                 modifier = Modifier
                                     .padding(top = 26.dp)
                                     .testTag(GATE_HEADLINE_TAG)
