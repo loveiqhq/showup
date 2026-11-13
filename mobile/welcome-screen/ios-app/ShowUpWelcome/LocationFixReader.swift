@@ -58,7 +58,11 @@ final class CLLocationFixReader: NSObject, LocationFixReading, CLLocationManager
                 manager.requestLocation()
             }
         } onCancel: {
-            Task { @MainActor in self.deliver(nil) }
+            // Cancelled or timed out: the request must not linger.
+            Task { @MainActor in
+                self.manager?.stopUpdatingLocation()
+                self.deliver(nil)
+            }
         }
     }
 
@@ -69,7 +73,9 @@ final class CLLocationFixReader: NSObject, LocationFixReading, CLLocationManager
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let fix = locations.last.map {
+        let now = Date()
+        // A cached position `requestLocation` may hand back is no fix at all.
+        let fix = locations.last.flatMap { isFresh($0.timestamp, now: now) ? $0 : nil }.map {
             LocationFix(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude,
                         accuracyM: $0.horizontalAccuracy >= 0 ? $0.horizontalAccuracy : nil)
         }

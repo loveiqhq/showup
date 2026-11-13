@@ -21,6 +21,8 @@ final class ArrivalRepositoryTests: XCTestCase {
     private struct StubTransport: ClientTransport {
         let status: Int?
         let seen: Seen
+        /// Replaces the body a 4xx or 5xx is answered with.
+        var rawBody: String? = nil
 
         func send(_ request: HTTPRequest, body: HTTPBody?, baseURL: URL,
                   operationID: String) async throws -> (HTTPResponse, HTTPBody?) {
@@ -30,7 +32,7 @@ final class ArrivalRepositoryTests: XCTestCase {
             guard let status else { throw URLError(.notConnectedToInternet) }
             let answer = status == 201
                 ? #"{"checkedInAt":"2026-11-03T17:58:00.000Z","committed":false}"#
-                : #"{"statusCode":\#(status)}"#
+                : (rawBody ?? #"{"statusCode":\#(status),"message":"x","error":"y"}"#)
             return (HTTPResponse(status: .init(code: status), headerFields: [.contentType: "application/json"]),
                     HTTPBody(answer))
         }
@@ -39,9 +41,9 @@ final class ArrivalRepositoryTests: XCTestCase {
     private let id = "0b7d4a1e-2c3f-4e5a-8b6c-7d8e9f0a1b2c"
     private let fix = LocationFix(latitude: 52.5186, longitude: 13.3761, accuracyM: 12.5)
 
-    private func repo(_ status: Int?, _ seen: Seen = Seen()) -> ArrivalRepository {
+    private func repo(_ status: Int?, _ seen: Seen = Seen(), rawBody: String? = nil) -> ArrivalRepository {
         ArrivalRepository(api: ShowUpAPI(tokens: InMemoryTokenStore(accessToken: "t"),
-                                         transport: StubTransport(status: status, seen: seen)))
+                                         transport: StubTransport(status: status, seen: seen, rawBody: rawBody)))
     }
 
     private func isOk(_ result: Result<Void, CallFailure>) -> Bool {
@@ -114,6 +116,20 @@ final class ArrivalRepositoryTests: XCTestCase {
         }
         let count = await seen.requests.count
         XCTAssertEqual(count, 8)
+    }
+
+    func testAnUndecodable4xxBodyIsStillSettledWithOneRequestEach() async {
+        let seen = Seen()
+        for code in [400, 401] {
+            let undone = await repo(code, seen, rawBody: "<html>nope</html>").undo(dateId: "d1")
+            XCTAssertTrue(isOk(undone), "undo \(code)")
+            let committed = await repo(code, seen, rawBody: "{").commit(dateId: "d1")
+            XCTAssertTrue(isOk(committed), "commit \(code)")
+        }
+        let count = await seen.requests.count
+        XCTAssertEqual(count, 4)
+        let broken = await repo(500, rawBody: "<html>").undo(dateId: "d1")
+        XCTAssertEqual(failure(broken), .server)
     }
 
     func testCommitPostsAnd404NothingToCommitIsNothingLeftToRetry() async {

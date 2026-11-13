@@ -65,7 +65,7 @@ struct ArrivalRepository: ArrivalStoring {
                 return .failure(.server)
             }
         } catch {
-            return .failure(Self.failure(error))
+            return Self.thrown(error)
         }
     }
 
@@ -80,8 +80,15 @@ struct ArrivalRepository: ArrivalStoring {
                 return .failure(.server)
             }
         } catch {
-            return .failure(Self.failure(error))
+            return Self.thrown(error)
         }
+    }
+
+    /// A call that threw. A 4xx the client could not decode (a malformed body) is still a 4xx: settled, never
+    /// retried. No response is `network`; anything else, a 5xx included, is the server's.
+    private static func thrown(_ error: any Error) -> Result<Void, CallFailure> {
+        if let status = ShowUpAPI.responseStatus(error) { return settled(status) }
+        return .failure(failure(error))
     }
 
     /// Success or ANY 4xx is done: a refused request answers the same again (409 already committed, 404 nothing to

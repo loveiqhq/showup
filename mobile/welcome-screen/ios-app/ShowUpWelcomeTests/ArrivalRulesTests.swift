@@ -32,6 +32,14 @@ final class ArrivalRulesTests: XCTestCase {
         XCTAssertFalse(hoisted(.locked, nil))
     }
 
+    func testAFixOlderThan30SecondsIsNotFresh() {
+        XCTAssertEqual(maxFixAge, 30)
+        XCTAssertTrue(isFresh(meet, now: meet))
+        XCTAssertTrue(isFresh(meet, now: meet.addingTimeInterval(30)))
+        XCTAssertFalse(isFresh(meet, now: meet.addingTimeInterval(31)))
+        XCTAssertTrue(isFresh(meet.addingTimeInterval(2), now: meet), "a stamp a hair ahead of the clock is fresh")
+    }
+
     func testSixChipsAreShownArrivedAmongThem() {
         XCTAssertEqual(shownReasons, [.onMyWay, .arrived, .cantFind, .whenArrive, .runningLate, .cantMakeIt])
     }

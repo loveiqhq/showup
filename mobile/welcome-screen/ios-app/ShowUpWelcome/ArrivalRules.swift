@@ -15,6 +15,12 @@ enum ArrivalEntry: String, CaseIterable, Sendable {
 /// How long one location read may take before the person is told, in ms.
 let locationFixTimeoutMs = 10_000
 
+/// How old a position may be and still be where the person is now: evidence for the 150 m comparison.
+let maxFixAge: TimeInterval = 30
+
+/// Whether a position stamped `timestamp` is fresh enough to send. A cached fix is refused, not used.
+func isFresh(_ timestamp: Date, now: Date) -> Bool { now.timeIntervalSince(timestamp) <= maxFixAge }
+
 /// Whole minutes from the latest agreed meet time to `now`: negative before, truncated toward zero -- the
 /// server's `minutes_vs_start`, so both sides' events agree.
 func minutesVsStart(_ meetAt: Date, _ now: Date) -> Int {
