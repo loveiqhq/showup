@@ -231,6 +231,7 @@ private fun ScreensPage(
                 DevTextButton("Message from Leonie (C, needs B)") { onDateAction(DevDateAction.Message) }
                 DevTextButton("Leonie can't make it (End date card, needs B)") { onDateAction(DevDateAction.MatchCantMakeIt) }
                 DevTextButton("Leonie ends the date in the chat (H, needs her can't-make-it)") { onDateAction(DevDateAction.MatchEndsInChat) }
+                DevTextButton("Leonie checks in (H, the arrival card)") { onDateAction(DevDateAction.PartnerChecksIn) }
                 DevTextButton("End test date") { onDateAction(DevDateAction.End) }
             }
         }

@@ -50,7 +50,16 @@ import com.showup.checkin.CheckInVibeScreen
 import com.showup.checkin.SlotTier
 import com.showup.checkin.checkInDays
 import com.showup.checkin.gridOf
+import com.showup.arrival.ArrivalEntry
+import com.showup.arrival.ArrivalOver
+import com.showup.arrival.CheckInBar
+import com.showup.arrival.GatePhase
+import com.showup.arrival.GateUi
 import com.showup.chat.ChatSamples
+import com.showup.date.DateArrival
+import com.showup.profile.LocationScreenContext
+import com.showup.profile.LocationState
+import com.showup.profile.ProfileLocationScreen
 import com.showup.chat.ChatScreen
 import com.showup.chat.ChatTutorialScreen
 import com.showup.chat.ChatUi
@@ -148,6 +157,23 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "194I" -> ChatFrame(ChatSamples.I, leave)
         "194J" -> ChatFrame(ChatSamples.J, leave)
         "194K" -> ChatFrame(ChatSamples.K, leave)
+        "195A" -> DateScreen(DateUi(DateSamples.DATE, DateSamples.B_NOW, loading = false), DateSamples.ZONE, checkInBar = ArrivalSamples.bar)
+        "195B" -> ArrivalSamples.over(ArrivalSamples.B, leave) { DateScreen(DateUi(DateSamples.DATE, DateSamples.B_NOW, loading = false), DateSamples.ZONE, checkInBar = ArrivalSamples.bar) }
+        "195C" -> ArrivalSamples.over(ArrivalSamples.C, leave) { DateScreen(DateUi(DateSamples.DATE, DateSamples.B_NOW, loading = false), DateSamples.ZONE, checkInBar = ArrivalSamples.bar) }
+        "195D" -> ArrivalSamples.over(ArrivalSamples.D, leave) { DateScreen(DateUi(DateSamples.DATE, DateSamples.B_NOW, loading = false), DateSamples.ZONE, checkInBar = ArrivalSamples.bar) }
+        "195E" -> DateScreen(DateUi(DateSamples.DATE.copy(checkedIn = true), DateSamples.B_NOW, loading = false), DateSamples.ZONE, checkInBar = ArrivalSamples.bar)
+        "195F" -> ArrivalSamples.over(ArrivalSamples.F, leave) { ChatFrame(ChatSamples.B, leave) }
+        "195G" -> ProfileLocationScreen(
+            state = LocationState.Denied,
+            context = LocationScreenContext.Date(
+                name = DateSamples.DATE.match.name, meetDay = DateSamples.DATE.meetDay, meetAt = DateSamples.DATE.meetAt,
+                place = DateSamples.DATE.place?.name, photoUrl = null, now = DateSamples.B_NOW, zone = DateSamples.ZONE, onTab = {},
+            ),
+        )
+        "195H" -> DateScreen(
+            DateUi(DateSamples.DATE.copy(arrival = DateArrival(DateSamples.B_NOW.minusSeconds(120))), DateSamples.B_NOW, loading = false),
+            DateSamples.ZONE, checkInBar = ArrivalSamples.bar,
+        )
         else -> Text("Unknown state $state")
     }
 }
@@ -156,3 +182,16 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
 @Composable
 private fun ChatFrame(ui: ChatUi, leave: () -> Unit) =
     ChatScreen(ui, DateSamples.ZONE, leave, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})
+
+/** SHOWUP-195's frames: the gate's phases drawn over a screen, nothing wired. */
+private object ArrivalSamples {
+    val bar: @Composable () -> Unit = { CheckInBar(name = DateSamples.DATE.match.name, onCheckIn = {}) }
+    val B = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = false, busy = false, note = null))
+    val C = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null))
+    val D = GateUi(GatePhase.Done(ArrivalEntry.DateScreen))
+    val F = GateUi(GatePhase.Confirm(ArrivalEntry.ChatChip, locError = false, busy = false, note = null))
+
+    @Composable
+    fun over(ui: GateUi, leave: () -> Unit, content: @Composable () -> Unit) =
+        ArrivalOver(ui, DateSamples.DATE.match.name, onYes = {}, onNotYet = leave, onClose = leave, onUndo = leave, content = content)
+}
