@@ -9,8 +9,8 @@ beside it (`Must read` in `Must read -- how messaging works`) is held in the app
 as those runs. Apostrophes compare as one character.
 
 Then the rules a reading can check:
-  - the five chips shown today, in the vocabulary's order, on both apps; the three later tickets own
-    (`arrived`, `change_time`, `change_place`) hidden on both
+  - the six chips shown today, in the vocabulary's order, on both apps (`arrived` joined with SHOWUP-195,
+    design ruling R13); the two Date 05 owns (`change_time`, `change_place`) hidden on both
   - no heading line above the chips: no `Tap a chip` anywhere in the chat
   - none of the events this ticket retires (`coordinate_viewed`, `date_status_sent`, `date_status_undone`)
     sent by either app
@@ -119,16 +119,16 @@ mutated = kt.replace(victim, "")
 check("the copy check reports a string removed from the source (mutation)",
       any(victim in m for m in missing_from(mutated, "Android")))
 
-# ── the chips: five shown in order, three hidden, on both ───────────────────────────────────────
+# ── the chips: six shown in order (SHOWUP-195 R13 added `arrived`), two hidden, on both ───────────────────────────────────────
 ORDER = ["on_my_way", "arrived", "cant_find", "when_arrive", "change_time", "change_place", "running_late", "cant_make_it"]
-SHOWN = ["on_my_way", "cant_find", "when_arrive", "running_late", "cant_make_it"]
-HIDDEN = {"arrived", "change_time", "change_place"}
+SHOWN = ["on_my_way", "arrived", "cant_find", "when_arrive", "running_late", "cant_make_it"]
+HIDDEN = {"change_time", "change_place"}
 
 kt_reasons = read(os.path.join(KT, "ChatReasons.kt"))
 kt_entries = re.findall(r'^\s*\w+\("([a-z_]+)",.*,\s*(true|false)\),?\s*$', kt_reasons, re.M)
 check("Android: the vocabulary is the registry's eight, in order", [w for w, _ in kt_entries] == ORDER)
-check("Android: the five shown chips, in order", [w for w, s in kt_entries if s == "true"] == SHOWN)
-check("Android: the three later chips hidden", {w for w, s in kt_entries if s == "false"} == HIDDEN)
+check("Android: the six shown chips, in order (SHOWUP-195 R13)", [w for w, s in kt_entries if s == "true"] == SHOWN)
+check("Android: the two Date 05 chips hidden (SHOWUP-195 R13)", {w for w, s in kt_entries if s == "false"} == HIDDEN)
 
 sw_reasons = read(os.path.join(SW, "ChatReasons.swift"))
 sw_cases = re.findall(r'^\s*case \w+ = "([a-z_]+)"', sw_reasons, re.M)
@@ -136,7 +136,7 @@ check("iOS: the vocabulary is the registry's eight, in order", sw_cases == ORDER
 hidden_case = re.search(r"var shown: Bool \{.*?case ([^:]+): return false", sw_reasons, re.S)
 sw_case_names = dict(re.findall(r'^\s*case (\w+) = "([a-z_]+)"', sw_reasons, re.M))
 sw_hidden = {sw_case_names.get(c.strip().lstrip(".")) for c in hidden_case.group(1).split(",")} if hidden_case else set()
-check("iOS: the three later chips hidden", sw_hidden == HIDDEN)
+check("iOS: the two Date 05 chips hidden (SHOWUP-195 R13)", sw_hidden == HIDDEN)
 
 # ── no heading line above the chips ─────────────────────────────────────────────────────────────
 check("Android: no `Tap a chip` line", "Tap a chip" not in kt)

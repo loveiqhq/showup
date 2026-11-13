@@ -19,6 +19,15 @@ class ArrivalRulesTest {
     private val meet = Instant.parse("2026-11-03T18:00:00Z")
 
     @Test
+    fun `a fix is fresh up to and including 30 seconds, stale after, and a future stamp is fresh`() {
+        val now = 100_000_000_000L
+        assertTrue(isFresh(now, now))
+        assertTrue(isFresh(now - 30_000_000_000L, now))
+        assertFalse(isFresh(now - 31_000_000_000L, now))
+        assertTrue(isFresh(now + 5_000_000_000L, now))
+    }
+
+    @Test
     fun `minutes vs start is whole minutes from the meet time, negative before, truncated toward zero`() {
         assertEquals(-30, minutesVsStart(meet, meet.minusSeconds(30 * 60)))
         assertEquals(0, minutesVsStart(meet, meet))

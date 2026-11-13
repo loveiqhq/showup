@@ -16,6 +16,16 @@ enum class ArrivalEntry(val wire: String) {
 /** How long one location read may take before the person is told, in ms. */
 const val LOCATION_FIX_TIMEOUT_MS = 10_000L
 
+/** The oldest a location fix may be, in ms: the 150 m comparison needs where the person is now. */
+const val MAX_FIX_AGE_MS = 30_000L
+
+/**
+ * Whether a fix is recent enough to compare. getCurrentLocation may answer from a recent cache, so the
+ * fix's own clock is checked. Inclusive at 30 s; a stamp ahead of now counts as fresh (as on iOS).
+ */
+fun isFresh(fixElapsedNanos: Long, nowElapsedNanos: Long): Boolean =
+    nowElapsedNanos - fixElapsedNanos <= MAX_FIX_AGE_MS * 1_000_000L
+
 /**
  * Whole minutes from the latest agreed meet time to [now]: negative before, truncated toward zero --
  * the server's `minutes_vs_start`, so both sides' events agree.

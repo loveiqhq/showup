@@ -17,6 +17,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.CancellationSignal
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -42,6 +43,8 @@ class AndroidLocationFixReader(context: Context) : LocationFixReader {
         if (!LocationManagerCompat.isLocationEnabled(manager)) return null
         val provider = provider(manager) ?: return null
         val location = current(manager, provider) ?: return null
+        // A cached answer is not where the person is now (frame C).
+        if (!isFresh(location.elapsedRealtimeNanos, SystemClock.elapsedRealtimeNanos())) return null
         return LocationFix(location.latitude, location.longitude, if (location.hasAccuracy()) location.accuracy.toDouble() else null)
     }
 
