@@ -74,8 +74,8 @@ told, on the Date screen's Coordinate card (and by push), and never before, so a
   Close swaps the footer at once. Each request retries in the background (2 s doubling to 30 s) until it lands.
   Neither can turn into the other: an unlanded undo is never committed (R4).
 - **R9 — The sheets swap in place.** B → C grows the error box (Motion.STATE, the brand curve); B/C → D
-  crossfades the content and animates the height (Motion.PROGRESS) on the same scrim; D → closed lowers the
-  sheet as every sheet does. Reduced motion: instant. The kit has no animation; this keeps one scrim instead of
+  crossfades the content and animates the height (Motion.PROGRESS) on the same scrim; D → closed removes the
+  sheet at once, as every sheet in the app is removed (corrected 13 Nov: SheetScaffold has no exit animation). Reduced motion: instant. The kit has no animation; this keeps one scrim instead of
   two sheets dropping and rising.
 - **R10 — `{time}` on the arrival card** is the unread card's formatter (`now` within the minute, then `HH:mm`)
   of the check-in's stored timestamp.
