@@ -107,7 +107,14 @@ private val BodyStyle = TextStyle(
  * The guard's title is `max-width: 310` in the reference. Chrome with the bundled Lora measures `meeting location
  * for your` at 310.58, so it breaks before `your` (`meeting location for` / `your date with Leonie?`, as the spec
  * sheet draws it); Compose measures the same run at under 310 and keeps `your` on the line. One dp of room
- * (309) gives Chrome's break; the 310 lines it does not touch (measured in headless Chrome 157, 13 Nov 2026).
+ * (309) gives Chrome's break (measured in headless Chrome 157, 13 Nov 2026).
+ *
+ * TUNED TO THIS TITLE WITH THE SAMPLE NAME `Leonie`, and deliberately local. The two engines' advances differ by
+ * a fraction of a dp per run, so which side of 310 a line falls on is a property of the exact string; a global
+ * change (a narrower `prettyWrap`, or every max-width less one) would move wraps on screens already reviewed
+ * against their sheets, for a difference that only shows where a line is within a dp of its limit. Another name
+ * can therefore still break a word differently from Chrome; the sheet draws only `Leonie`. Pinned for `Leonie`
+ * by `ArrivalFitTest` (the break at 390 wide, default type).
  */
 private val ConfirmTitleMax = 309.dp
 

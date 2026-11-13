@@ -293,7 +293,8 @@ class ArrivalFitTest {
         // at 375 x 667 at the default type, `Not yet`, the primary and C's error box wholly inside it.
         // The visible part is under the 88 % cap's top and above the bottom of the frame.
         if (sheetUp) {
-            val capTop = f.height * (1f - 0.88f)
+            // The visible part starts at the LOWER of the 88 % cap's top and the sheet content's own top.
+            val capTop = maxOf(f.height * (1f - 0.88f), f.tagged(ARRIVAL_SHEET_TAG)?.top ?: 0f)
             val whole = f.device.width == 375 && f.device.height == 667 && scale == 1f
             listOf(ARRIVAL_CIRCLE_TAG, ARRIVAL_NOT_YET_TAG, ARRIVAL_YES_TAG, ARRIVAL_CLOSE_TAG, ARRIVAL_UNDO_TAG, ARRIVAL_ERROR_TAG).forEach { t ->
                 val r = f.tagged(t) ?: return@forEach
@@ -365,7 +366,8 @@ class ArrivalFitTest {
         report(sweep(gateFrames, scales), "arrival-fit-gate.txt")
     }
 
-    /** The ticket's own check, on the phone it names, at the default and a large type size. */
+    /** The ticket's own check, on the phone it names, at the default type size (as the ticket asks): B, B with a
+     *  note, C, C with a note, D (Close and Undo) and F over the chat. */
     @Test
     fun `at 375 x 667 the guard's buttons and C's error are fully visible`() {
         val phone = DEVICES.first { it.width == 375 && it.height == 667 }
@@ -374,6 +376,24 @@ class ArrivalFitTest {
             fresh += run(phone, make(), 1f)
         }
         report(fresh, "arrival-fit-375.txt")
+    }
+
+    /**
+     * The guard's title breaks as the spec sheet draws it (Chrome with the bundled Lora): at 390 wide, default
+     * type, for `Leonie`. Pins `ConfirmTitleMax`, which is tuned to this one string.
+     */
+    @Test
+    fun `B's title breaks into three lines as the spec sheet draws it`() {
+        val phone = DEVICES.first { it.width == 390 && it.height == 844 }
+        val want = listOf("Have you arrived at the", "meeting location for", "your date with Leonie?")
+        val found = measureFit(phone, "Arrival/B title", 1f, 0, extra = { f ->
+            val title = ArrivalCopy.CONFIRM_TITLE.format(name)
+            val ends = f.lineBreaks().firstOrNull { it.first == title }?.second
+            val got = ends?.let { e -> (listOf(0) + e + title.length).zipWithNext { a, b -> title.substring(a, b).trim() } }
+            if (got == want) emptyList()
+            else listOf(Violation(f.device, f.screen, "B's title", "TITLE BREAKS DIFFER", "$got, want $want"))
+        }) { sheet("B", confirm()).content() }.filterNot { it.advisory }
+        assertTrue(found.joinToString(System.lineSeparator()), found.isEmpty())
     }
 
     /** Every Android the app installs on that Robolectric draws -- 11, 12, 12L, 13, and 15 beside the 14
