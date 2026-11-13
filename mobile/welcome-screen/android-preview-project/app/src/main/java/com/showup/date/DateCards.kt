@@ -486,8 +486,12 @@ private fun HoistedCoordinate(
     snippet: @Composable ColumnScope.() -> Unit,
 ) {
     // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
+    // The clip is the CARD's inner shape, on the rail and the body together, as `overflow: hidden` clips them:
+    // clipped on the 4-tall rail alone, Compose shrinks the 18.5 radius to fit that height and the rail runs
+    // out square past the card's rounded corners (found against the spec sheet's H, 13 Nov 2026).
     Card(modifier, border = BorderStroke(1.5.dp, tone.chipBorder), contentPadding = PaddingValues(1.5.dp)) {
-        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(topStart = 18.5.dp, topEnd = 18.5.dp)).background(tone.fg))
+        Column(Modifier.clip(RoundedCornerShape(18.5.dp))) {
+        Box(Modifier.fillMaxWidth().height(4.dp).background(tone.fg))
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 MatchAvatar(match, count, tone.fg)
@@ -543,6 +547,7 @@ private fun HoistedCoordinate(
                 else -> ShadowViolet
             }
             CoordinateCta(ctaLabel, tone.fg, shadows, onCta)
+        }
         }
     }
 }

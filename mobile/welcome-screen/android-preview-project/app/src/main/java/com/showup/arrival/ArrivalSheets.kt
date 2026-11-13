@@ -103,6 +103,14 @@ private val BodyStyle = TextStyle(
     fontFamily = Manrope, fontSize = 15.sp, lineHeight = (15 * 1.5).sp, color = Muted, textAlign = TextAlign.Center,
 )
 
+/**
+ * The guard's title is `max-width: 310` in the reference. Chrome with the bundled Lora measures `meeting location
+ * for your` at 310.58, so it breaks before `your` (`meeting location for` / `your date with Leonie?`, as the spec
+ * sheet draws it); Compose measures the same run at under 310 and keeps `your` on the line. One dp of room
+ * (309) gives Chrome's break; the 310 lines it does not touch (measured in headless Chrome 157, 13 Nov 2026).
+ */
+private val ConfirmTitleMax = 309.dp
+
 /** B / C are one kind, D the other: the key the host's swap animates on. */
 private enum class SheetKind { Confirm, Done }
 
@@ -173,7 +181,7 @@ private fun SheetCircle(icon: BrandIcon) {
             .testTag(ARRIVAL_CIRCLE_TAG)
             .background(Purple.copy(alpha = 0.12f), CircleShape),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, 34.dp, tint = Purple, strokeWidth = 2.2f) }
+    ) { Icon(icon, 34.dp, tint = Purple, strokeWidth = 2.2f, fillAndStroke = true) }
 }
 
 @Composable
@@ -228,7 +236,7 @@ fun CheckInConfirmSheet(
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         SheetCircle(BrandIcon.MapPin)
         Spacer(Modifier.height(16.dp))
-        SheetTitleText(ArrivalCopy.CONFIRM_TITLE.format(name), 310.dp)
+        SheetTitleText(ArrivalCopy.CONFIRM_TITLE.format(name), ConfirmTitleMax)
         if (note != null) {
             Spacer(Modifier.height(12.dp))
             val text = AnnotatedString(note)
