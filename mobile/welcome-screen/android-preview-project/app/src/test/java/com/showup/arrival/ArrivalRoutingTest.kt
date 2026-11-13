@@ -74,9 +74,7 @@ class ArrivalRoutingTest {
         val before = analytics.names().size
         val gate = gate()
 
-        val gated = arrivalChipGated(ChatReason.Arrived, gate)
-        chat.pick(ChatReason.Arrived, ChipSurface.Entry, gated)
-        if (gated) gate.open(ArrivalEntry.ChatChip)
+        onChatChip(ChatReason.Arrived, ChipSurface.Entry, gate, chat::pick)
         chat.onScreen(false)
 
         assertEquals(listOf("action_chip_used", "arrival_confirm_shown"), analytics.names().drop(before))
@@ -91,5 +89,38 @@ class ArrivalRoutingTest {
         assertEquals(UndoLanding.ConsumeOnly, undoLanding(undone = true, chatOnTop = false))
         assertEquals(UndoLanding.None, undoLanding(undone = false, chatOnTop = true))
         assertEquals(UndoLanding.None, undoLanding(undone = false, chatOnTop = false))
+    }
+
+    @Test
+    fun `routeUndo from the chat leaves it then consumes once, on the Date screen it only consumes`() {
+        val calls = mutableListOf<String>()
+        routeUndo(true, chatOnTop = true, leaveChat = { calls += "leave" }, consume = { calls += "consume" })
+        assertEquals(listOf("leave", "consume"), calls)
+        calls.clear()
+        routeUndo(true, chatOnTop = false, leaveChat = { calls += "leave" }, consume = { calls += "consume" })
+        assertEquals(listOf("consume"), calls)
+        calls.clear()
+        routeUndo(false, chatOnTop = true, leaveChat = { calls += "leave" }, consume = { calls += "consume" })
+        assertEquals(emptyList<String>(), calls)
+    }
+
+    @Test
+    fun `a stop that is only a rebuild keeps the done sheet and commits nothing`() = runTest(dispatcher) {
+        val store = FakeArrivalStore()
+        val g = ArrivalGateViewModel(store, { LocationFix(52.5, 13.4, 5.0) }, analytics, { now }, { "id" }).also { it.bind(date()) }
+        g.open(ArrivalEntry.DateScreen)
+        g.yes()
+        runCurrent()
+        assertTrue(g.ui.value.phase is GatePhase.Done)
+
+        onAppStopped(g, changingConfigurations = true)
+        runCurrent()
+        assertTrue(g.ui.value.phase is GatePhase.Done)
+        assertEquals(0, store.commitCalls)
+
+        onAppStopped(g, changingConfigurations = false)
+        runCurrent()
+        assertEquals(GatePhase.Idle, g.ui.value.phase)
+        assertEquals(1, store.commitCalls)
     }
 }

@@ -330,4 +330,31 @@ class LocationGateViewModelTest {
         g.mounted(ProfileScreen.LikesReceived)
         assertEquals(listOf("screen_viewed", ProfileAnalytics.LOCATION_GATE_SHOWN), analytics.names())
     }
+
+    @Test
+    fun `the date context then Search without a leave -- Search reports once`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        g.mounted(ProfileScreen.LikesReceived)
+        g.mounted(ProfileScreen.LikesReceived)
+        assertEquals(listOf("screen_viewed", ProfileAnalytics.LOCATION_GATE_SHOWN), analytics.names())
+        g.openSettingsPressed()
+        assertEquals("Search's press reports", 1, analytics.names().count { it == "permission_settings_opened" })
+    }
+
+    @Test
+    fun `Search then the date context without a leave -- nothing more fires, presses are silent`() {
+        phone(PermissionStatus.NotDetermined)
+        val g = gate()
+        g.mounted(ProfileScreen.LikesReceived)
+        val before = analytics.names()
+        g.dateMounted()
+        g.allowPressed()
+        g.permissionAnswered(false)
+        g.openSettingsPressed()
+        assertEquals(before, analytics.names())
+        assertEquals(1, host.requests)
+        assertEquals(listOf(LocationState.Denied), host.settings)
+    }
 }

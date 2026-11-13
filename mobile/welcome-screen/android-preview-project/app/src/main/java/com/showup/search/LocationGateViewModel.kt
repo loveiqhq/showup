@@ -130,9 +130,11 @@ class LocationGateViewModel(
      */
     fun mounted(referrer: ProfileScreen?) {
         val shown = _state.value.blocked ?: return
-        if (mounted) return
+        // Already up for Search: nothing to do. Up for the Date screen: Search takes the context over.
+        if (mounted && !silent) return
         mounted = true
         silent = false
+        reported = null
         liftedOnTab = false
         analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.SearchLocationGate, referrer))
         announce(shown)
@@ -150,9 +152,11 @@ class LocationGateViewModel(
      * gate does and fires NO event: the ticket's tracking for this gate is Philipp's open decision (R1).
      */
     fun dateMounted() {
-        if (_state.value.blocked == null || mounted) return
+        if (_state.value.blocked == null) return
+        // Takes the context over even from Search: what follows reports nothing.
         mounted = true
         silent = true
+        reported = null
         liftedOnTab = false
     }
 

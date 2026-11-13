@@ -100,9 +100,9 @@ import com.showup.arrival.ArrivalGateViewModel
 import com.showup.arrival.ArrivalOver
 import com.showup.arrival.CheckInBar
 import com.showup.arrival.GateUi
-import com.showup.arrival.UndoLanding
-import com.showup.arrival.arrivalChipGated
-import com.showup.arrival.undoLanding
+import com.showup.arrival.onAppStopped
+import com.showup.arrival.onChatChip
+import com.showup.arrival.routeUndo
 import com.showup.chat.ChatViewModel
 import com.showup.chat.SharedPrefsReceivedLedger
 import com.showup.chat.DateEndedScreen
@@ -229,7 +229,6 @@ import com.showup.profile.ProfileHeightScreen
 import com.showup.profile.ProfileLocationScreen
 import com.showup.profile.LocationGateScreen
 import com.showup.profile.LocationScreenContext
-import com.showup.profile.ProfileLocationScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.animation.EnterExitState
 import androidx.compose.runtime.Composable
@@ -930,7 +929,8 @@ class MainActivity : ComponentActivity() {
             val arrivalLifecycle = LocalLifecycleOwner.current
             DisposableEffect(arrivalLifecycle, arrivalGate) {
                 val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_STOP) arrivalGate?.leftApp()
+                    // Not a rotation, dark-mode or font change: the Activity is rebuilt, the person did not leave.
+                    if (event == Lifecycle.Event.ON_STOP) arrivalGate?.let { onAppStopped(it, this@MainActivity.isChangingConfigurations) }
                 }
                 arrivalLifecycle.lifecycle.addObserver(observer)
                 onDispose { arrivalLifecycle.lifecycle.removeObserver(observer) }
@@ -2547,7 +2547,8 @@ class MainActivity : ComponentActivity() {
                         // An undo from the Date screen: nothing to leave, the bar is back already.
                         LaunchedEffect(arrivalUi.undone, onTop) {
                             val chatUp = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.Chat>() == true
-                            if (onTop && undoLanding(arrivalUi.undone, chatUp) == UndoLanding.ConsumeOnly) arrivalGate?.consumeUndone()
+                            // With the chat up, the chat's own effect leaves and consumes.
+                            if (onTop && !chatUp) arrivalGate?.let { routeUndo(arrivalUi.undone, chatOnTop = false, leaveChat = {}, consume = it::consumeUndone) }
                         }
                         val dateBlocked = gateState.blocked
                         val shownDate = shown.date
@@ -2774,10 +2775,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(ui.date) { ui.date?.let(gate::bind) }
                 // An undo from the chat lands on the Date screen, the Check-in bar back.
                 LaunchedEffect(arrivalUi.undone) {
-                    if (undoLanding(arrivalUi.undone, chatOnTop = true) == UndoLanding.LeaveChat) {
-                        leave()
-                        gate.consumeUndone()
-                    }
+                    routeUndo(arrivalUi.undone, chatOnTop = true, leaveChat = { leave() }, consume = gate::consumeUndone)
                 }
                 // Ended from anywhere -- this phone, the match, a second tap -- or gone some other way.
                 LaunchedEffect(ui.outcome) {
@@ -2807,11 +2805,7 @@ class MainActivity : ComponentActivity() {
                     onBack = leave,
                     // `I arrived at the spot` before check-in opens the guard instead: the chip's event
                     // first, then the confirm's.
-                    onPick = { r, s ->
-                        val gated = arrivalChipGated(r, gate)
-                        vm.pick(r, s, gated)
-                        if (gated) gate.open(ArrivalEntry.ChatChip)
-                    },
+                    onPick = { r, s -> onChatChip(r, s, gate, vm::pick) },
                     onEdit = vm::edit,
                     onAckGuide = vm::ackGuide,
                     onSend = vm::send,
