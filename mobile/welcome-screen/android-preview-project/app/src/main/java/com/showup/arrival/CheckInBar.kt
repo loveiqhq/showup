@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -54,6 +55,7 @@ import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.pillShadows
 import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.roundedShadows
+import com.showup.search.cssLinearGradient
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 
@@ -130,7 +132,10 @@ fun CheckInBar(
                         .testTag(ARRIVAL_CHECK_IN_TAG)
                         .heightIn(min = 46.dp)
                         .pressable(Role.Button, onClick = onCheckIn)
+                        // The glow behind, then the reference's 135deg sunset clipped to the pill.
                         .pillShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), ShadowCta)
+                        .clip(RoundedCornerShape(50))
+                        .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first })
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center,
                 ) {

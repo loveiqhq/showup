@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.showup.designsystem.SheetCopy
@@ -108,6 +109,37 @@ class ArrivalSheetsTest {
         assertEquals(0, notYet)
         assertEquals(0, close)
         assertEquals(0, yes)
+    }
+
+    @Test
+    fun `busy ignores swipe, scrim and system back, and the sheet stays`() = runComposeUiTest {
+        val owner = object : androidx.activity.OnBackPressedDispatcherOwner, androidx.lifecycle.LifecycleOwner {
+            private val registry = androidx.lifecycle.LifecycleRegistry(this).also {
+                it.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
+            }
+            override val lifecycle: androidx.lifecycle.Lifecycle get() = registry
+            override val onBackPressedDispatcher = androidx.activity.OnBackPressedDispatcher()
+        }
+        setContent {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.activity.compose.LocalOnBackPressedDispatcherOwner provides owner,
+            ) {
+                ArrivalSheetHost(
+                    confirm(busy = true), "Leonie",
+                    onYes = { yes++ }, onNotYet = { notYet++ }, onClose = { close++ }, onUndo = { undo++ },
+                )
+            }
+        }
+        onNodeWithTag(ARRIVAL_SHEET_TAG).performTouchInput { swipeDown() }
+        onNodeWithContentDescription(SheetCopy.DISMISS).performTouchInput { click(Offset(centerX, 40f)) }
+        runOnIdle { owner.onBackPressedDispatcher.onBackPressed() }
+        waitForIdle()
+        assertEquals(0, notYet)
+        assertEquals(0, close)
+        assertEquals(0, yes)
+        assertEquals(0, undo)
+        onNodeWithTag(ARRIVAL_SHEET_TAG).assertExists()
+        onNodeWithTag(ARRIVAL_YES_TAG).assertIsNotEnabled()
     }
 
     @Test

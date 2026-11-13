@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -78,6 +79,7 @@ import com.showup.designsystem.SunsetStops
 import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.rememberMotion
+import com.showup.search.cssLinearGradient
 import com.showup.designsystem.roundedShadows
 import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
@@ -194,7 +196,10 @@ private fun SunsetSheetButton(label: String, tag: String, waiting: Boolean, onCl
             .heightIn(min = 56.dp)
             .alpha(if (waiting) 0.6f else 1f)
             .then(if (waiting) Modifier.semantics { disabled() } else Modifier.pressable(Role.Button, onClick = onClick))
-            .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 18.dp, ShadowCta),
+            // The glow behind, then the reference's 135deg sunset clipped to the radius-18 shape.
+            .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 18.dp, ShadowCta)
+            .clip(RoundedCornerShape(18.dp))
+            .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first }),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.5.sp)

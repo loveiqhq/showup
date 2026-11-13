@@ -42,6 +42,18 @@ class DateLocationGateTest {
     }
 
     @Test
+    fun `the countdown rounds up, so the last minute is 0h 1m and never 0h 0m`() {
+        assertEquals(GatePill.Starts(0, 1), gatePill("today", meet, meet.minusSeconds(59)))
+        assertEquals(GatePill.Starts(0, 1), gatePill("today", meet, meet.minusSeconds(1)))
+        assertEquals(GatePill.Starts(1, 18), gatePill("today", meet, meet.minusSeconds(77 * 60 + 30)))
+        assertEquals(GatePill.Starts(1, 18), gatePill("today", meet, meet.minusSeconds(78 * 60)))
+        assertEquals(GatePill.Starts(1, 0), gatePill("today", meet, meet.minusSeconds(3600)))
+        assertEquals(GatePill.Started(0), gatePill("today", meet, meet))
+        assertEquals(GatePill.Started(0), gatePill("today", meet, meet.plusSeconds(59)))
+        assertEquals(GatePill.Started(1), gatePill("today", meet, meet.plusSeconds(60)))
+    }
+
+    @Test
     fun `denied draws the date card, the date headline, its body and Open Settings, with no privacy note`() = runComposeUiTest {
         var settings = 0
         setContent {

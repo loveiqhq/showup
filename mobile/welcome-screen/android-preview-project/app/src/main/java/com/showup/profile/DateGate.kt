@@ -67,12 +67,14 @@ sealed interface GatePill {
 
 /**
  * `Starts in {h}h {m}m` today before the meet time, `Started {n} min ago` after it, nothing for tomorrow.
- * Whole minutes, truncated toward zero, as the chat header's countdown counts them.
+ * Counting down is rounded up to the minute; counting up is whole minutes elapsed.
  */
 fun gatePill(meetDay: String, meetAt: Instant, now: Instant): GatePill? {
-    val delta = (meetAt.epochSecond - now.epochSecond) / 60
+    val seconds = meetAt.epochSecond - now.epochSecond
+    // Counting down rounds UP, so the last minute reads 0h 1m and never 0h 0m.
+    val delta = Math.floorDiv(seconds + 59, 60L)
     return when {
-        !now.isBefore(meetAt) -> GatePill.Started((-delta).toInt())
+        !now.isBefore(meetAt) -> GatePill.Started(((-seconds) / 60).toInt())
         meetDay == "today" -> GatePill.Starts((delta / 60).toInt(), (delta % 60).toInt())
         else -> null
     }
