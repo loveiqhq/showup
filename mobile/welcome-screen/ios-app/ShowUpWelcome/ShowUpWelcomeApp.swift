@@ -309,6 +309,13 @@ private struct TutorialFlow: View {
     /// The tutorial, the chat or G / H, pushed over the Date screen; empty when none is up.
     @State private var chatPath: [AppRoute] = []
     @State private var chatEvents = ChatHostEvents(analytics: AppAnalytics.shared)
+    // ── the arrival check-in (SHOWUP-195) ─────────────────────────────────────
+    //
+    // One gate model per account, shared by the Date screen and the chat and held for the session like the chat's.
+    // Android keys one per date; here `bind` to another date resets it, which is the same rule. Commit and undo
+    // retries hold the store and the date id, never the model, so they outlive the screen.
+    @State private var arrivalGate = ArrivalGateModel(store: ArrivalRepository(api: APIAccess.client),
+                                                      reader: CLLocationFixReader(), analytics: AppAnalytics.shared)
     /// Where G or H was reached from, for its `screen_viewed` referrer.
     @State private var outcomeFrom: ProfileScreen = .dateScreen
     /// The share sheet's sentence while it is up, and the calendar sheet's event.
@@ -763,6 +770,8 @@ private struct TutorialFlow: View {
         dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
         dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
+        arrivalGate = ArrivalGateModel(store: ArrivalRepository(api: APIAccess.client),
+                                       reader: CLLocationFixReader(), analytics: AppAnalytics.shared)
         chatModel = nil
         chatDateId = nil
         chatPath = []
@@ -1012,41 +1021,10 @@ private struct TutorialFlow: View {
 
     /// Date 01 (SHOWUP-193): the screen both people live on from the match until the date ends.
     private var dateScreen: some View {
-        DateScreen(
-            ui: dateModel.state,
-            zone: .current,
-            onOpenChat: { openChat() },
-            onDirections: {
-                guard let place = dateModel.state.date?.place, let url = directionsURL(place) else { return }
-                dateModel.quickAction(.directions)
-                openURL(url)
-            },
-            onShare: {
-                guard let date = dateModel.state.date else { return }
-                dateModel.quickAction(.share)
-                sharingText = shareText(date, zone: .current)
-            },
-            onCalendar: {
-                guard let date = dateModel.state.date else { return }
-                dateModel.quickAction(.calendar)
-                calendarSheetEvent = calendarEvent(date)
-            },
-            onCopy: {
-                guard let place = dateModel.state.date?.place else { return }
-                dateModel.quickAction(.copyAddress)
-                copyAddress(placeText(place))
-                dateModel.copied()
-            },
-            onSeeProfile: {
-                dateModel.leftFor(.searchProfile)
-                dateProfileModel.open()
-            },
-            // Locked tabs never call this: only Settings does, and it fires nothing -- `tab_switched`
-            // needs a tab it switched from, and no tab is active here.
-            onTab: { tab in if tab == .settings { go(to: .checkInSettings) } },
-            onRetry: { dateModel.retry() },
-            // The tile's event now; the Date 05 picker it opens arrives with Date 05.
-            onChangeTile: { dateModel.changeTile($0) })
+        // A container, so the screen's reads, clock and sheets keep running under the location gate (G), which
+        // replaces only what is drawn. A ZStack rather than a bare `if`: modifiers on a conditional would fire
+        // again each time the branch swapped.
+        ZStack { dateOrGate }
         // One visit per arrival: launch, a match, or back from Settings or the profile.
         .onAppear { dateModel.arrived(referrer: profileScreen(of: cameFrom)) }
         // THE MATCH'S END REACHES THIS PHONE (SHOWUP-194): the date is read again every 15 s while the screen
@@ -1080,12 +1058,107 @@ private struct TutorialFlow: View {
                 CalendarSheet(event: event, onDone: { calendarSheetEvent = nil })
             }
         }
+        // An undo from the Date screen: nothing to leave, the bar is back already. With the chat up, the chat's own
+        // handler leaves and consumes.
+        .onChange(of: arrivalGate.ui.undone, initial: true) { _, _ in routeArrivalUndoOnDate() }
+        .onChange(of: chatPath.isEmpty) { _, _ in routeArrivalUndoOnDate() }
+    }
+
+    /// Checked in is the server's word or this session's commit: the footer swaps the moment Close is tapped, and
+    /// a read that has not caught up cannot bring the bar back.
+    private var shownDate: DateUi {
+        var shown = dateModel.state
+        if arrivalGate.ui.committed, shown.date?.checkedIn == false { shown.date?.checkedIn = true }
+        return shown
+    }
+
+    /// G (SHOWUP-195, R1): the location gate in place of the Date screen while location is unavailable. It lifts
+    /// on its own on the foreground re-read, and reports nothing (the tracking is Philipp's to say).
+    @ViewBuilder private var dateOrGate: some View {
+        let shown = shownDate
+        if let blocked = locationGate.ui.blocked, let date = shown.date {
+            ProfileLocationView(
+                state: blocked,
+                requesting: locationGate.ui.requesting,
+                onAllow: { Task { await locationGate.allowPressed() } },
+                onOpenSettings: { locationGate.openSettingsPressed() },
+                context: .date(LocationDateContext(
+                    name: date.match.name, meetDay: date.meetDay, meetAt: date.meetAt, place: date.place?.name,
+                    photoUrl: date.match.photoUrl, now: shown.now, zone: .current,
+                    onTab: { tab in if tab == .settings { go(to: .checkInSettings) } })))
+            .onAppear { locationGate.dateMounted() }
+            .onDisappear { locationGate.dateLeft() }
+        } else {
+            ArrivalOver(
+                ui: arrivalGate.ui,
+                name: shown.date?.match.name ?? "",
+                onYes: { arrivalGate.yes() },
+                onNotYet: { arrivalGate.notYet() },
+                onClose: { arrivalGate.close() },
+                onUndo: { arrivalGate.undo() }
+            ) { dateScreenContent(shown) }
+        }
+    }
+
+    private func dateScreenContent(_ shown: DateUi) -> some View {
+        DateScreen(
+            ui: shown,
+            zone: .current,
+            onOpenChat: { openChat(clearingArrival: true) },
+            onDirections: {
+                guard let place = dateModel.state.date?.place, let url = directionsURL(place) else { return }
+                dateModel.quickAction(.directions)
+                openURL(url)
+            },
+            onShare: {
+                guard let date = dateModel.state.date else { return }
+                dateModel.quickAction(.share)
+                sharingText = shareText(date, zone: .current)
+            },
+            onCalendar: {
+                guard let date = dateModel.state.date else { return }
+                dateModel.quickAction(.calendar)
+                calendarSheetEvent = calendarEvent(date)
+            },
+            onCopy: {
+                guard let place = dateModel.state.date?.place else { return }
+                dateModel.quickAction(.copyAddress)
+                copyAddress(placeText(place))
+                dateModel.copied()
+            },
+            onSeeProfile: {
+                dateModel.leftFor(.searchProfile)
+                dateProfileModel.open()
+            },
+            // R15: the End date link waits for Date 06.
+            checkInBar: {
+                AnyView(CheckInBar(name: shown.date?.match.name ?? "",
+                                   onCheckIn: { arrivalGate.open(.dateScreen) }, onEnd: nil))
+            },
+            // Locked tabs never call this: only Settings does, and it fires nothing -- `tab_switched`
+            // needs a tab it switched from, and no tab is active here.
+            onTab: { tab in if tab == .settings { go(to: .checkInSettings) } },
+            onRetry: { dateModel.retry() },
+            // The tile's event now; the Date 05 picker it opens arrives with Date 05.
+            onChangeTile: { dateModel.changeTile($0) },
+            // The match's arrival card: opening the chat clears it first, so coming back never flashes it again
+            // (R2); locked, it only clears.
+            onArrivalSeen: { dateModel.arrivalSeen() })
+    }
+
+    private func routeArrivalUndoOnDate() {
+        guard chatPath.isEmpty else { return }
+        routeUndo(undone: arrivalGate.ui.undone, chatOnTop: false, leaveChat: {}, consume: { arrivalGate.consumeUndone() })
     }
 
     /// `Open chat` (B) or `Read & reply` (C): the tutorial until it has been seen, then the chat. The chat model
     /// is this date's for the session, made on the first open.
-    private func openChat() {
+    ///
+    /// `clearingArrival`: the match's arrival card was the way in. The route is decided from the date as it was
+    /// BEFORE the card clears, so the card's `Open chat` stays `Open chat` whatever else waits (`chatEntryFor`).
+    private func openChat(clearingArrival: Bool = false) {
         guard let date = dateModel.state.date else { return }
+        if clearingArrival { dateModel.arrivalSeen() }
         if chatModel == nil || chatDateId != date.id {
             // `message_received` once per message across launches: what was reported is kept on the phone.
             chatModel = ChatModel(store: chatStore, dates: dateStore, analytics: AppAnalytics.shared,
@@ -1146,17 +1219,32 @@ private struct TutorialFlow: View {
         }
     }
 
+    /// Back, or an undo, off the chat: the visit ends and the Date screen is what is left.
+    private func leaveChat(_ model: ChatModel) {
+        model.close()
+        chatPath = []
+    }
+
     /// B to F: the chat over the Date screen, reached from `entry`.
     @ViewBuilder private func chatView(_ entry: ChatEntry) -> some View {
         if let model = chatModel, let date = dateModel.state.date {
+            ArrivalOver(
+                ui: arrivalGate.ui,
+                name: date.match.name,
+                onYes: { arrivalGate.yes() },
+                onNotYet: { arrivalGate.notYet() },
+                onClose: { arrivalGate.close() },
+                onUndo: { arrivalGate.undo() }
+            ) {
             ChatScreen(
                 ui: model.ui,
                 zone: .current,
-                onBack: {
-                    model.close()
-                    chatPath = []
+                onBack: { leaveChat(model) },
+                // `I arrived at the spot` before check-in opens the gate instead: the chip's event first, then
+                // the confirm's.
+                onPick: { reason, surface in
+                    onChatChip(reason, surface, arrivalGate, pick: { model.pick($0, surface: $1, gated: $2) })
                 },
-                onPick: { model.pick($0, surface: $1) },
                 onEdit: { model.edit($0) },
                 onAckGuide: { model.ackGuide() },
                 onSend: { model.send() },
@@ -1165,6 +1253,7 @@ private struct TutorialFlow: View {
                 onEnd: { model.endDate() },
                 onRetry: { model.retry() },
                 onResend: { model.resend($0) })
+            }
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
                 // Once per showing: a second `onAppear` reported the visit twice and restarted it.
@@ -1175,6 +1264,15 @@ private struct TutorialFlow: View {
                 }
                 // The thread and the date are read only while the app is in front.
                 .onChange(of: scenePhase) { _, phase in model.onScreen(phase == .active) }
+                // The chat's reads are the freshest while it is up (the Date model does not poll then).
+                .onChange(of: model.ui.date, initial: true) { _, read in
+                    if let read { arrivalGate.bind(read) }
+                }
+                // An undo from the chat lands on the Date screen, the Check-in bar back.
+                .onChange(of: arrivalGate.ui.undone, initial: true) { _, undone in
+                    routeUndo(undone: undone, chatOnTop: true, leaveChat: { leaveChat(model) },
+                              consume: { arrivalGate.consumeUndone() })
+                }
                 // Ended from anywhere -- this phone, the match, a second tap -- or gone some other way.
                 .onChange(of: model.ui.outcome) { _, outcome in
                     if let outcome {
@@ -1770,6 +1868,7 @@ private struct TutorialFlow: View {
                         case .message: _ = await store.messageFromMatch(reason: .runningLate, body: DateSamples.unread.body ?? "")
                         case .matchCantMakeIt: _ = await store.messageFromMatch(reason: .cantMakeIt, body: ChatSamples.matchCantMakeIt)
                         case .matchEndsInChat: _ = await store.matchEndsInChat()
+                        case .partnerChecksIn: _ = await store.partnerChecksIn()
                         case .end: _ = await store.endTestDate()
                         }
                         // The Date screen's own read shows the result: a new date or message lands in place,
@@ -2167,6 +2266,13 @@ private struct TutorialFlow: View {
             locationGate.attach(locationHost)
             await locationGate.refresh()
         }
+        // EVERY DATE READ GOES THROUGH THE ARRIVAL GATE (the chat binds its own reads while it is up). Backgrounding,
+        // anywhere: with the done sheet up that is Close, so the match is told -- `.background` only, never
+        // `.inactive` (Control Center, a call banner).
+        .onChange(of: dateModel.state.date, initial: true) { _, read in
+            if let read { arrivalGate.bind(read) }
+        }
+        .onChange(of: scenePhase) { _, phase in onScenePhase(phase, gate: arrivalGate) }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:

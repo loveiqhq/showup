@@ -148,6 +148,14 @@ let devStates: [DevState] = [
     DevState(id: "194I", ticket: "SHOWUP-194 Coordinate chat", label: "I · Chat couldn't load"),
     DevState(id: "194J", ticket: "SHOWUP-194 Coordinate chat", label: "J · Message didn't send"),
     DevState(id: "194K", ticket: "SHOWUP-194 Coordinate chat", label: "K · End date didn't go through"),
+    DevState(id: "195A", ticket: "SHOWUP-195 Arrival check-in", label: "A · Check-in bar"),
+    DevState(id: "195B", ticket: "SHOWUP-195 Arrival check-in", label: "B · Guard sheet, Are you at the spot?"),
+    DevState(id: "195C", ticket: "SHOWUP-195 Arrival check-in", label: "C · Couldn't find your location"),
+    DevState(id: "195D", ticket: "SHOWUP-195 Arrival check-in", label: "D · Done, Leonie is told on Close"),
+    DevState(id: "195E", ticket: "SHOWUP-195 Arrival check-in", label: "E · After Close, footer empty"),
+    DevState(id: "195F", ticket: "SHOWUP-195 Arrival check-in", label: "F · Chat chip, guard over the chat"),
+    DevState(id: "195G", ticket: "SHOWUP-195 Arrival check-in", label: "G · Date location gate (denied)"),
+    DevState(id: "195H", ticket: "SHOWUP-195 Arrival check-in", label: "H · Leonie arrived card"),
 ]
 
 /// The tickets, in the order their frames are listed.
@@ -168,6 +176,7 @@ enum DevFrame: Equatable, CaseIterable {
     case searchVoice, searchViewer, searchLoading, searchFailed, searchEmpty
     case chatTutorial, chatStart, chatThread, chatGuide, chatEndCard, chatEndSheet, chatYouEnded, chatMatchEnded
     case chatLoadFailed, chatSendFailed, chatEndFailed
+    case arrivalBar, arrivalGuard, arrivalNoFix, arrivalDone, arrivalAfterClose, arrivalChip, arrivalDateGate, arrivalCard
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -215,6 +224,14 @@ enum DevFrame: Equatable, CaseIterable {
         case "194I": return .chatLoadFailed
         case "194J": return .chatSendFailed
         case "194K": return .chatEndFailed
+        case "195A": return .arrivalBar
+        case "195B": return .arrivalGuard
+        case "195C": return .arrivalNoFix
+        case "195D": return .arrivalDone
+        case "195E": return .arrivalAfterClose
+        case "195F": return .arrivalChip
+        case "195G": return .arrivalDateGate
+        case "195H": return .arrivalCard
         default: return nil
         }
     }
@@ -307,8 +324,60 @@ struct CheckInGalleryFrame: View {
         case .chatLoadFailed?: ChatScreen(ui: ChatSamples.i, zone: DateSamples.zone, onBack: leave)
         case .chatSendFailed?: ChatScreen(ui: ChatSamples.j, zone: DateSamples.zone, onBack: leave)
         case .chatEndFailed?: ChatScreen(ui: ChatSamples.k, zone: DateSamples.zone, onBack: leave)
+        case .arrivalBar?, .arrivalGuard?, .arrivalNoFix?, .arrivalDone?, .arrivalAfterClose?, .arrivalChip?,
+             .arrivalDateGate?, .arrivalCard?:
+            ArrivalGalleryFrame(state: state, leave: leave)
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
+            Text("Unknown state \(state)")
+                .font(F.manrope(15, .bold))
+                .foregroundColor(.liqDanger)
+        }
+    }
+}
+
+/// SHOWUP-195's frames: the gate's phases drawn over a screen, nothing wired. Android's `ArrivalSamples`.
+private struct ArrivalGalleryFrame: View {
+    let state: String
+    let leave: () -> Void
+
+    private let name = DateSamples.date.match.name
+
+    private func dateScreen(_ edit: (inout ActiveDate) -> Void = { _ in }) -> some View {
+        var date = DateSamples.date
+        edit(&date)
+        return DateScreen(ui: DateUi(date: date, now: DateSamples.bNow, loading: false), zone: DateSamples.zone,
+                          checkInBar: { AnyView(CheckInBar(name: DateSamples.date.match.name, onCheckIn: {})) })
+    }
+
+    private func over<Content: View>(_ phase: GatePhase, @ViewBuilder _ content: @escaping () -> Content) -> some View {
+        ArrivalOver(ui: GateUi(phase: phase), name: name, onYes: {}, onNotYet: leave, onClose: leave, onUndo: leave,
+                    content: content)
+    }
+
+    var body: some View {
+        switch DevFrame.of(state) {
+        case .arrivalBar?: dateScreen()
+        case .arrivalGuard?:
+            over(.confirm(entry: .dateScreen, locError: false, busy: false, note: nil)) { dateScreen() }
+        case .arrivalNoFix?:
+            over(.confirm(entry: .dateScreen, locError: true, busy: false, note: nil)) { dateScreen() }
+        case .arrivalDone?: over(.done(entry: .dateScreen)) { dateScreen() }
+        case .arrivalAfterClose?: dateScreen { $0.checkedIn = true }
+        case .arrivalChip?:
+            over(.confirm(entry: .chatChip, locError: false, busy: false, note: nil)) {
+                ChatScreen(ui: ChatSamples.b, zone: DateSamples.zone, onBack: leave)
+            }
+        case .arrivalDateGate?:
+            ProfileLocationView(
+                state: .denied,
+                context: .date(LocationDateContext(
+                    name: name, meetDay: DateSamples.date.meetDay, meetAt: DateSamples.date.meetAt,
+                    place: DateSamples.date.place?.name, photoUrl: nil, now: DateSamples.bNow, zone: DateSamples.zone,
+                    onTab: { _ in })))
+        case .arrivalCard?:
+            dateScreen { $0.arrival = DateArrival(checkedInAt: DateSamples.bNow.addingTimeInterval(-120)) }
+        default:
             Text("Unknown state \(state)")
                 .font(F.manrope(15, .bold))
                 .foregroundColor(.liqDanger)
