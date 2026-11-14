@@ -144,6 +144,13 @@ enum FitAnchorID {
     /// That whole row, inside its padding: the width the one-line form has to fit.
     static let mediaRecordedRow = "media-recorded-row"
 
+    /// `ModalShell`'s cream surface as drawn (not its run into the home indicator's inset): every sheet on it is as
+    /// tall as its content, at most the 88 % cap (SHOWUP-195, `ModalShellFitTests`).
+    static let modalShell = "modal-shell"
+    /// The frame `SheetScaffold` docks that surface in (the screen inside its safe area, risen with the sheet): its
+    /// foot is the sheet's foot, and 88 % of its height the cap.
+    static let modalShellDock = "modal-shell:dock"
+
     // The arrival check-in (SHOWUP-195): the sheets' controls and the bar's, for `ArrivalFitTests`.
     static let arrivalSheet = "arrival:sheet"
     static let arrivalCircle = "arrival:circle"

@@ -43,6 +43,7 @@ struct ArrivalSheetHost: View {
     var body: some View {
         if ui.phase != .idle {
             let kind: SheetKind = { if case .done = ui.phase { return .done } else { return .confirm } }()
+            let erring: Bool = { if case .confirm(_, true, _, _) = ui.phase { return true } else { return false } }()
             ModalShell(
                 label: kind == .done ? ArrivalCopy.doneTitle : ArrivalCopy.confirmTitle(name),
                 onDismiss: { _ in
@@ -69,9 +70,13 @@ struct ArrivalSheetHost: View {
                 }
                 .frame(maxWidth: .infinity)
                 .fitAnchor(FitAnchorID.arrivalSheet)
-                .animation(reduceMotion ? nil : Motion.brand(Motion.progress), value: kind)
             }
             .fitModal()
+            // On the shell, not inside it: the sheet is as tall as its content, so the swap and C's error box move
+            // its cream edge too, and only a transaction that reaches the surface animates that edge with them. The
+            // swap's is the inner one, so it wins when C turns into D (both change).
+            .animation(reduceMotion ? nil : Motion.brand(Motion.progress), value: kind)
+            .animation(reduceMotion ? nil : Motion.brand(Motion.fast), value: erring)
         }
     }
 }
@@ -101,7 +106,7 @@ private struct SheetTitle: View {
         // No word broken between two letters at any type size: where the widest word is wider than the box the title
         // is drawn at the largest smaller size where it fits (`FitWords`, never under the default size). At the default
         // size nothing changes: the first try is the title as it was, at its max width.
-        FitWords(text: text, anchor: FitAnchorID.arrivalTitleWord, oneLineIdeal: true, font: { s in F.lora(26 * s, bold: true) }) { s in
+        FitWords(text: text, anchor: FitAnchorID.arrivalTitleWord, font: { s in F.lora(26 * s, bold: true) }) { s in
             var title = PrettyText(text, font: chatFont(PS.loraBold, 26 * s, .bold), lineHeight: 26 * 1.15 * s, color: .liqFg,
                                    centered: true)
             title.tracking = -0.01 * 26 * s
@@ -212,7 +217,7 @@ struct CheckInDoneSheet: View {
             SheetTitle(text: ArrivalCopy.doneTitle, maxWidth: 300)
                 .padding(.top, 16)
             // Whole words at every type size, as the title (`FitWords`); unchanged at the default size.
-            FitWords(text: ArrivalCopy.doneBody(name), anchor: FitAnchorID.arrivalBodyWord, oneLineIdeal: true,
+            FitWords(text: ArrivalCopy.doneBody(name), anchor: FitAnchorID.arrivalBodyWord,
                      font: { s in F.manrope(15 * s, .regular) }) { s in
                 PrettyText(ArrivalCopy.doneBody(name), font: chatFont(PS.manropeRegular, 15 * s, .regular),
                            lineHeight: 15 * 1.5 * s, color: .liqMuted, centered: true)

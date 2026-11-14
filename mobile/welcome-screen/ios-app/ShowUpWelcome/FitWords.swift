@@ -28,11 +28,6 @@ struct FitWords<Label: View>: View {
     /// Publishes the widest word as drawn -- the hidden copy of the words, at the size chosen -- under this fit anchor
     /// id, for the fit tests (a word wider than its box is a word broken).
     var anchor: String? = nil
-    /// Report, to an ideal-size query (no width proposed), the text's own one-line height rather than its height at
-    /// the widest word's width, where every word is a line. A sheet that sizes itself to its content asks that way
-    /// (`ViewThatFits(in: .vertical)` in `ModalShell`): answered with the one-word-a-line height it judged the sheet
-    /// taller than its cap and filled it. OFF BY DEFAULT: the other callers were reviewed as they are.
-    var oneLineIdeal: Bool = false
     /// `label`'s font at a scale.
     let font: (CGFloat) -> Font
     /// The text at a scale: 1 is its own size.
@@ -58,7 +53,7 @@ struct FitWords<Label: View>: View {
     private func attempt(_ scale: CGFloat) -> some View {
         // Words, and the parts of a hyphenated one marked breakable (`breakAfterHyphens`).
         let kept = words ?? text.split(whereSeparator: { $0.isWhitespace || $0 == "\u{200B}" }).map(String.init)
-        return WordFitLayout(oneLineIdeal: oneLineIdeal) {
+        return WordFitLayout {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(kept.indices, id: \.self) { i in
                     Text(kept[i]).font(font(scale)).fixedSize()
@@ -91,15 +86,11 @@ func widestWordWidth(_ text: String, _ font: UIFont) -> CGFloat {
 /// Two subviews, the hidden words then the text. Asked for its ideal width, it answers the widest
 /// word's; offered a real width, the text takes it.
 private struct WordFitLayout: Layout {
-    let oneLineIdeal: Bool
-
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard subviews.count == 2 else { return .zero }
         guard let width = proposal.width, width.isFinite else {
             let widest = subviews[0].sizeThatFits(.unspecified).width
-            let height = oneLineIdeal
-                ? subviews[1].sizeThatFits(.unspecified).height
-                : subviews[1].sizeThatFits(ProposedViewSize(width: widest, height: nil)).height
+            let height = subviews[1].sizeThatFits(ProposedViewSize(width: widest, height: nil)).height
             return CGSize(width: widest, height: height)
         }
         return subviews[1].sizeThatFits(ProposedViewSize(width: width, height: proposal.height))

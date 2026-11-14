@@ -468,17 +468,27 @@ final class ArrivalFitTests: XCTestCase {
         XCTAssertTrue(found.isEmpty, "\(found.count) problems: " + summary(found))
     }
 
-    /// A sheet is as tall as its content: at 390 x 844 the content ends 24 above the frame's foot (the shell's padding)
-    /// and begins well under the 88 % cap's top -- not filling the cap, as a title that reported one word a line made it.
+    /// A sheet is as tall as its content (`ModalShell`): at 390 x 844 the cream rests on the foot of the frame
+    /// `SheetScaffold` docks it in (the screen inside its safe area), begins just over the content -- the grabber's
+    /// 8 + 4 and the arrival padding's 14 -- and the content ends the padding's 24 above that foot, well under the
+    /// 88 % cap's top. The 14 Nov 2026 CI run had all four at the cap, the content floating in its middle: the cream
+    /// was drawn on the cap's frame (`frame(maxHeight:)` takes the height offered up to its max), not on the sheet.
+    /// The foot is read from the dock rather than from the phone's insets, so a rise still settling moves both alike.
     func testTheArrivalSheetsAreAsTallAsTheirContent() {
         guard let phone = fitDevices.first(where: { $0.width == 390 && $0.height == 844 }) else { return XCTFail("no 390 x 844 phone") }
         var found: [String] = []
         for frame in [sheetFrames[0], sheetFrames[3], sheetFrames[5], chatSheet("F chat start + B", locError: false)] {
             let shot = layout(frame.view, on: phone, type: .large, settle: 0.6)
-            guard let sheet = shot.frames[FitAnchorID.arrivalSheet] else { found.append("\(frame.label): no sheet"); continue }
-            let capTop = phone.height * 0.12
+            guard let sheet = shot.frames[FitAnchorID.arrivalSheet], let surface = shot.frames[FitAnchorID.modalShell],
+                  let dock = shot.frames[FitAnchorID.modalShellDock] else {
+                found.append("\(frame.label): the sheet is NOT DRAWN"); continue
+            }
+            let capTop = dock.maxY - dock.height * 0.88
             if sheet.minY < capTop + 80 { found.append("\(frame.label): the content starts at \(sheet.minY), near the cap's top \(capTop)") }
-            let foot = phone.height - phone.bottom - sheet.maxY
+            if abs(surface.maxY - dock.maxY) > 1 { found.append("\(frame.label): the sheet ends \(dock.maxY - surface.maxY) above the foot") }
+            let over = sheet.minY - surface.minY
+            if abs(over - (8 + 4 + 14)) > 1 { found.append("\(frame.label): the content starts \(over) under the sheet's top, not the grabber's 12 + 14") }
+            let foot = dock.maxY - sheet.maxY
             if abs(foot - 24) > 1.5 { found.append("\(frame.label): the content ends \(foot) above the foot, not the shell's 24") }
         }
         XCTAssertTrue(found.isEmpty, found.joined(separator: " · "))

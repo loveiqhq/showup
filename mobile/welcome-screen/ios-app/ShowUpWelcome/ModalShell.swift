@@ -18,7 +18,8 @@ let modalShellBlur: CGFloat = 8
 /// type cannot hold a static stored property; a `let` String, so nothing for concurrency to question.
 private let modalShellEnd = "modal.shell.end"
 
-/// The kit's `ModalShell` surface inside the app's one sheet behaviour.
+/// The kit's `ModalShell` surface inside the app's one sheet behaviour: docked to the bottom, as tall as its
+/// content, at most 88 % of the frame and scrolling past it -- Android's `heightIn(max = cap)` + `verticalScroll`.
 struct ModalShell<Content: View>: View {
     let label: String
     let onDismiss: (SheetDismissMethod) -> Void
@@ -38,8 +39,16 @@ struct ModalShell<Content: View>: View {
                 let cap = g.size.height * 0.88
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
+                    // HEIGHT FROM CONTENT (the kit's sheet is as tall as what it holds). Offered at most the cap,
+                    // `ViewThatFits` keeps the whole surface when its own height fits and the scrolling copy, cap
+                    // tall, when it does not -- and is as tall as the one it keeps. So the cream is drawn on it,
+                    // BEFORE the cap's frame: a frame given only a `maxHeight` takes the height it is offered, up
+                    // to that max, even when its child is shorter, and centres the child in it. Drawn on that
+                    // frame, every sheet was cap tall with its content floating in the middle (CI, 14 Nov 2026).
                     ViewThatFits(in: .vertical) {
-                        surface
+                        // Its own height whatever it is offered: a view inside that grows to fill (the message
+                        // sheet's editor) would otherwise stretch the sheet to the cap again.
+                        surface.fixedSize(horizontal: false, vertical: true)
                         ScrollViewReader { proxy in
                             ScrollView { surface }
                                 .scrollBounceBehavior(.basedOnSize)
@@ -48,7 +57,6 @@ struct ModalShell<Content: View>: View {
                                 }
                         }
                     }
-                    .frame(maxHeight: cap)
                     .background(
                         UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28)
                             .fill(Color.liqCream)
@@ -57,8 +65,13 @@ struct ModalShell<Content: View>: View {
                             // Docked to the edge: its colour runs down into the home indicator's inset.
                             .ignoresSafeArea(edges: .bottom)
                     )
+                    .fitAnchor(FitAnchorID.modalShell)
+                    // Only the most the sheet may take; the sheet rests on its foot inside it, and the space
+                    // above draws nothing and answers nothing (a tap there reaches the scrim).
+                    .frame(maxHeight: cap, alignment: .bottom)
                 }
             }
+            .fitAnchor(FitAnchorID.modalShellDock)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
             .accessibilityLabel(Text(label))
