@@ -7,9 +7,10 @@ and the Swift arrival copy, so an edit to the ticket fails both platforms until 
 `{name}` / `{time}` placeholder is checked as its literal runs, because each app fills them its own way.
 Apostrophes compare as one character, and the ticket's ASCII `I've` / `couldn't` must be what the code holds.
 
-G (the date gate, `LOCATION_COPY.date`) is Search 04's screen in `context="date"`; the ticket consumes it and
-does not quote it, so its strings are held here from the SHOWUP-195 plan's Global Constraints (the kit's
-LOCATION_COPY.date) and checked in each platform's location screen.
+G (the date gate, `LOCATION_COPY.date`) is Search 04's screen in `context="date"`; the ticket consumes it and does
+not quote it, so its strings are read AT RUN TIME from the kit excerpt (docs/superpowers/specs/kit/
+2026-11-10-date-gate-kit-excerpt.jsx: the `date:` block and DateGateCard's pill strings) and every literal run of
+each is checked in each platform's location screen. A kit edit fails the script until both apps follow.
 
 Then the rules a reading can check:
   - END_DATE_LINK_SHOWN is false on both apps (the End date link waits for Date 06)
@@ -19,8 +20,8 @@ Then the rules a reading can check:
   - no message_sent / date_cancelled / screen_viewed emitted from the arrival packages
   - the four events are in events.json family M, and `entry` takes only section 41's values
 
-And it proves it can fail: the copy check is run once more against an Android source with one ticket string
-removed, and that run must report it.
+And it proves each group can fail: the copy, gate-copy, flag, payload-key, never-emitted and registry checks are
+each run once more against a deliberately broken input and must report it.
 """
 import glob
 import io
@@ -35,6 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(MOBILE))
 HANDOFF = os.path.join(ROOT, "design_handoff_showup")
 TICKET = os.path.join(HANDOFF, "date", "tickets", "03-arrival-checkin.md")
 EVENTS = os.path.join(HANDOFF, "tracking", "events.json")
+KIT = os.path.join(ROOT, "docs", "superpowers", "specs", "kit", "2026-11-10-date-gate-kit-excerpt.jsx")
 KT_ROOT = os.path.join(MOBILE, "android-preview-project", "app", "src", "main", "java", "com", "showup")
 KT = os.path.join(KT_ROOT, "arrival")
 SW = os.path.join(MOBILE, "ios-app", "ShowUpWelcome")
@@ -97,46 +99,75 @@ for ln in lines:
 strings = [q for q in dict.fromkeys(quoted) if not re.fullmatch(r"\{[^}]*\}", q) and q != "note"]
 check("the ticket's copy section was read (%d strings)" % len(strings), len(strings) >= 18)
 for want in ("I've arrived", "couldn't find"):
-    check("the ticket spells %r with an ASCII apostrophe" % want, any(want.replace("'", "'") in s for s in strings))
+    check("the ticket spells %r with an ASCII apostrophe" % want, any(want in s for s in strings))
 
-for m in missing_from(strings, kt_copy, "Android ArrivalCopy.kt") + missing_from(strings, sw_copy, "iOS ArrivalCopy.swift"):
-    check(m, False)
-count += len(strings) * 2
+copy_missing = missing_from(strings, kt_copy, "Android ArrivalCopy.kt") + missing_from(strings, sw_copy, "iOS ArrivalCopy.swift")
+check("every ticket string is in both apps' arrival copy (%d strings x 2)" % len(strings), not copy_missing)
+for m in copy_missing:
+    failures.append(m)
 
-# ── G, the date gate's strings (LOCATION_COPY.date; Search 04 in context="date") ────────────────
-G_HEAD_A = "Urgent! Allow location to get access to your "
-G_HEAD_B = "Urgent! Turn on location to get access to your "
-G_STRINGS = [
-    G_HEAD_A, G_HEAD_B, "date information",
-    "Your date screen needs your location. It gets you to the meeting place and lets you check in when you arrive, "
-    "so {name} knows you're there.",
-    "Location is off for Show Up, so your date screen is locked. Turn it on to see your date, get directions and "
-    "check in when you arrive, so {name} knows you're there.",
-    "Location is off for every app on this phone, so your date screen is locked. Turn it on to see your date, get "
-    "directions and check in when you arrive, so {name} knows you're there.",
-    "Allow location access", "Open Settings",
-    "Starts in %dh %dm", "Started %d min ago", "%s may be waiting",
-]
+# ── G, the date gate's strings, read from the kit (LOCATION_COPY.date, DateGateCard's pills) ────
+ENTITIES = (("&rsquo;", "'"), ("&mdash;", "—"), ("&amp;", "&"), ("&nbsp;", " "))
+kit = read(KIT)
+date_block = kit.split("  date: {", 1)[1].split("\n};", 1)[0] if "  date: {" in kit else ""
+
+
+def jsx_text(s):
+    """A kit JSX string as plain text: entities resolved, the `<em>` / `<>` wrappers dropped, `{n}` as `{name}`."""
+    for ent, ch in ENTITIES:
+        s = s.replace(ent, ch)
+    return re.sub(r"</?em>", "{em}", re.sub(r"<>|</>", "", s)).replace("{n}", "{name}")
+
+
+kit_strings = [jsx_text(m) for m in re.findall(r"(?:headline|body): <>(.*?)</>", date_block)]
+kit_strings += re.findall(r"cta: '([^']+)'", date_block)
+kit_strings += [m.replace("${startsIn}", "{startsIn}").replace("${lateMin}", "{lateMin}")
+                for m in re.findall(r"`((?:Starts in|Started) [^`$]*\$\{[^`]*)`", kit)]
+kit_strings += re.findall(r"\{name\} may be waiting", kit)
+kit_strings = list(dict.fromkeys(kit_strings))
+# date information is the underlined italic: its own run in the apps, so it is a string of its own too.
+check("the kit's date block was read (%d strings)" % len(kit_strings), len(kit_strings) >= 10)
+check("the kit's `date information` italic was read", any(s.startswith("Urgent! ") for s in kit_strings))
+em = re.search(r"<em>(date information)</em>", date_block)
+if em:
+    kit_strings.append(em.group(1))
+
+# The pills' platform form: the kit says `Starts in {startsIn}`, each app builds the `{h}h {m}m` itself.
+KT_PILLS = ("Starts in %dh %dm", "Started %d min ago")
+SW_PILLS = (r'"Starts in \\\(\w+\)h \\\(\w+\)m"', r'"Started \\\(\w+\) min ago"')
+
+
+def gate_missing(strings, kt_src, sw_src):
+    """Every literal run of every kit string, on both platforms (no length floor: ` min ago` counts)."""
+    out = []
+    for s in strings:
+        for r in (x for x in re.split(r"\{[^}]*\}", s) if x):
+            for label, src in (("Android", kt_src), ("iOS", sw_src)):
+                if r not in src:
+                    out.append("%s date gate lacks %r (of %r)" % (label, r, s[:40]))
+    out += ["Android date gate lacks the pill %r" % p for p in KT_PILLS if p not in kt_src]
+    out += ["iOS date gate lacks the pill %s" % p for p in SW_PILLS if not re.search(p, sw_src)]
+    return out
+
+
 kt_gate = norm(joined_literals(read(os.path.join(KT_ROOT, "profile", "ProfileLocationScreen.kt"))))
 sw_gate = norm(joined_literals(read(os.path.join(SW, "ProfileLocation.swift"))))
-
-
-def with_name(s, token):
-    return s.replace("{name}", token)
-
-
-for s in G_STRINGS:
-    check("Android date gate holds %r" % s[:50], with_name(s, "$name") in kt_gate or s in kt_gate)
-    sw_form = s.replace("%dh %dm", "\\(h)h \\(m)m").replace("%d min", "\\(n) min")
-    check("iOS date gate holds %r" % s[:50],
-          with_name(s, "\\(name)") in sw_gate or sw_form in sw_gate or s in sw_gate
-          or all(r in sw_gate for r in re.split(r"%\w|\{name\}", s) if len(r) > 3))
+gate_gaps = gate_missing(kit_strings, kt_gate, sw_gate)
+check("every kit date-gate string, run by run, is in both apps' location screens", not gate_gaps)
+failures.extend(gate_gaps)
 
 # ── it can fail: one ticket string taken out of the Android source must be reported ─────────────
 victim = "Undo check-in"
 check("the mutation check has a string to remove", victim in kt_copy)
 check("the copy check reports a string removed from the source (mutation)",
       any(victim in m for m in missing_from(strings, kt_copy.replace(victim, ""), "Android")))
+
+check("the gate-copy check reports a run removed from the Android source (mutation)",
+      any("Open Settings" in m for m in gate_missing(kit_strings, kt_gate.replace("Open Settings", ""), sw_gate)))
+check("the gate-copy check reports a pill removed from the iOS source (mutation)",
+      any("pill" in m for m in gate_missing(kit_strings, kt_gate, sw_gate.replace("min ago", ""))))
+check("the gate-copy check reports a run changed in the Swift body (mutation)",
+      any("so your date screen is locked" in m for m in gate_missing(kit_strings, kt_gate, sw_gate.replace("your date screen is locked", "x"))))
 
 # ── the rules ───────────────────────────────────────────────────────────────────────────────────
 kt_bar = read(os.path.join(KT, "CheckInBar.kt"))
@@ -225,6 +256,39 @@ check("Android: ArrivalEntry values are section 41's (%s)" % sorted(kt_wire & EN
 sw_wire = set(re.findall(r'case \w+ = "([a-z_]+)"', read(os.path.join(SW, "ArrivalRules.swift"))))
 check("iOS: ArrivalEntry values include date_screen and chat_chip and nothing outside section 41",
       sw_wire >= {"date_screen", "chat_chip"} and sw_wire <= ENTRY_VALUES)
+
+# ── it can fail: one negative self-test per group ───────────────────────────────────────────────
+# flags: the End date link switched on must stop matching the `= false` pattern.
+check("the flag check fails when END_DATE_LINK_SHOWN is true (mutation)",
+      re.search(r"const val END_DATE_LINK_SHOWN\s*=\s*false\b", kt_bar.replace("END_DATE_LINK_SHOWN = false", "END_DATE_LINK_SHOWN = true")) is None)
+check("the flag check fails when endDateLinkShown is true (mutation)",
+      re.search(r"let endDateLinkShown\s*=\s*false\b", sw_bar.replace("endDateLinkShown = false", "endDateLinkShown = true")) is None)
+check("the Arrived chip check fails when the chip is hidden (mutation)",
+      re.search(r'^\s*Arrived\("arrived",.*,\s*(true)\),?\s*$', re.sub(r'(Arrived\("arrived",.*,\s*)true\)', r"\1false)", kt_reasons), re.M) is None)
+
+# payload keys: a coordinate key added to either app's builder, or to the server's, is caught.
+bad_kt = set(re.findall(r'put\("([a-z_]+)"', strip_comments(kt_an + '\n        put("latitude", 1)\n')))
+bad_sw = set(re.findall(r'^\s*"([a-z_]+)":\s', strip_comments(sw_an + '\n            "accuracy": 1,\n'), re.M))
+check("the payload check fails on a coordinate key in the Android builder (mutation)",
+      bad_kt != CLIENT_KEYS and any(FORBIDDEN.search(k) for k in bad_kt))
+check("the payload check fails on an accuracy key in the iOS builder (mutation)",
+      bad_sw != CLIENT_KEYS and any(FORBIDDEN.search(k) for k in bad_sw))
+real_server = server
+server = real_server.replace("is_first: isFirst,", "is_first: isFirst,\n      distance: 12,")
+mutated_keys = builder_keys("arrivalConfirmedEvent")
+server = real_server
+check("the server builder check fails on a distance key (mutation)",
+      mutated_keys != (CLIENT_KEYS | {"is_first"}) and any(FORBIDDEN.search(k) for k in mutated_keys or []))
+check("the never-emitted check fails on a screen_viewed in the arrival package (mutation)",
+      "screen_viewed" in strip_comments(kt_arrival + '\n val x = "screen_viewed"') and
+      "screen_viewed" in strip_comments(sw_arrival + '\n let x = "screen_viewed"'))
+
+# registry: an event not marked implemented, or with a coordinate in its payload, is caught.
+sample = dict(by_name["arrival_confirmed"])
+check("the registry check fails on an event not marked implemented (mutation)", dict(sample, implemented=False).get("implemented") is not True)
+check("the registry check fails on a coordinate in an arrival payload (mutation)",
+      any(FORBIDDEN.search(p["name"]) for p in sample.get("payload", []) + [{"name": "coordinates"}]))
+check("the section 41 check fails on a changed value set (mutation)", set(sec["values"] + ["somewhere"]) != ENTRY_VALUES)
 
 print("arrival conformance: %d checks" % count)
 if failures:
