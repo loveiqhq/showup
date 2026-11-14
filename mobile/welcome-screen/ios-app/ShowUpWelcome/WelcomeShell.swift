@@ -806,7 +806,7 @@ struct BrandIconView: View {
     /// icon / size / stroke / tint in that order.
     var opticalCentre: Bool = false
     /// Draw a FILLED mark as the kit's SVG does: fill AND stroke. The kit's `Icon` sets `stroke="currentColor"` on the
-    /// `<svg>`, a filled path inherits it, so `heart-filled` at size 34 / stroke 2.2 is 2.2 grid units fatter all round
+    /// `<svg>`, a filled path inherits it, so `heart-filled` at size 34 / stroke 2.2 is 2.2 points fatter all round
     /// than its fill alone (66 against 60 on the 390 sheet, measured on Android). OFF BY DEFAULT: every other filled
     /// mark in the app was reviewed against its sheet as a plain fill. Declared after `opticalCentre` for the same
     /// positional-init reason.

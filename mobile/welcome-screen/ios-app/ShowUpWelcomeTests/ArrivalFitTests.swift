@@ -316,16 +316,24 @@ final class ArrivalFitTests: XCTestCase {
                     found.append("\(tag): \(id) is not fully inside the sheet's visible part at 375 x 667 (\(r.minY)...\(r.maxY) of \(visibleTop)...\(device.height - device.bottom))")
                 }
             }
-            // No word broken between two letters, up to the largest type Android draws (200 %: AX2).
-            if scale(type) <= 2.0 {
+            // No word broken between two letters, at all twelve sizes. The title and D's body are drawn by `FitWords`,
+            // which publishes the widest word as drawn: it must sit inside the box. The note and C's error are
+            // checked by prediction (widest word x the type scale against the column).
+            for (box, word, what) in [(FitAnchorID.arrivalTitle, FitAnchorID.arrivalTitleWord, "title"),
+                                      (FitAnchorID.arrivalBody, FitAnchorID.arrivalBodyWord, "body")] {
+                if label.hasPrefix("D") || box == FitAnchorID.arrivalTitle {
+                    guard let boxFrame = f[box], let wordFrame = f[word] else {
+                        found.append("\(tag): the sheet's \(what) anchors are NOT DRAWN"); continue
+                    }
+                    if wordFrame.width > boxFrame.width + 0.5 {
+                        found.append("\(tag): WORD BROKEN, the \(what)'s widest word is \(wordFrame.width) wide in \(boxFrame.width)")
+                    }
+                }
+            }
+            do {
                 let wide = device.width - 48
                 var words: [String?] = []
-                if label.hasPrefix("D") {
-                    words.append(brokenWord(ArrivalCopy.doneTitle, chatFont(PS.loraBold, 26, .bold), type: type, within: min(300, wide)))
-                    words.append(brokenWord(ArrivalCopy.doneBody(name), chatFont(PS.manropeRegular, 15, .regular), type: type, within: min(300, wide)))
-                } else {
-                    words.append(brokenWord(ArrivalCopy.confirmTitle(name), chatFont(PS.loraBold, 26, .bold), type: type,
-                                            within: min(confirmTitleMax, wide)))
+                if !label.hasPrefix("D") {
                     if label.contains("note") {
                         words.append(brokenWord(ArrivalCopy.reportNote, chatFont(PS.manropeRegular, 14, .regular), type: type, within: min(310, wide)))
                     }

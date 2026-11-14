@@ -155,6 +155,11 @@ enum FitAnchorID {
     static let arrivalBar = "arrival:bar"
     static let arrivalCheckIn = "arrival:check-in"
     static let dateGateCard = "date-gate:card"
+    /// The sheets' title and D's body: the box, and the widest word as drawn (`FitWords`), for the whole-word rule.
+    static let arrivalTitle = "arrival:title"
+    static let arrivalTitleWord = "arrival:title-word"
+    static let arrivalBody = "arrival:body"
+    static let arrivalBodyWord = "arrival:body-word"
     static let dateGatePill = "date-gate:pill"
     /// The bar's text column: the width its longest word has to fit (R12).
     static let arrivalBarText = "arrival:bar-text"

@@ -98,11 +98,18 @@ private struct SheetTitle: View {
     let maxWidth: CGFloat
 
     var body: some View {
-        var title = PrettyText(text, font: chatFont(PS.loraBold, 26, .bold), lineHeight: 26 * 1.15, color: .liqFg, centered: true)
-        title.tracking = -0.01 * 26
-        return title
-            .frame(maxWidth: maxWidth)
-            .accessibilityAddTraits(.isHeader)
+        // No word broken between two letters at any type size: where the widest word is wider than the box the title
+        // is drawn at the largest smaller size where it fits (`FitWords`, never under the default size). At the default
+        // size nothing changes: the first try is the title as it was, at its max width.
+        FitWords(text: text, anchor: FitAnchorID.arrivalTitleWord, font: { s in F.lora(26 * s, bold: true) }) { s in
+            var title = PrettyText(text, font: chatFont(PS.loraBold, 26 * s, .bold), lineHeight: 26 * 1.15 * s, color: .liqFg,
+                                   centered: true)
+            title.tracking = -0.01 * 26 * s
+            return title
+        }
+        .frame(maxWidth: maxWidth)
+        .fitAnchor(FitAnchorID.arrivalTitle)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -198,9 +205,14 @@ struct CheckInDoneSheet: View {
             SheetCircle(icon: .heartFilled)
             SheetTitle(text: ArrivalCopy.doneTitle, maxWidth: 300)
                 .padding(.top, 16)
-            PrettyText(ArrivalCopy.doneBody(name), font: chatFont(PS.manropeRegular, 15, .regular), lineHeight: 15 * 1.5,
-                       color: .liqMuted, centered: true)
+            // Whole words at every type size, as the title (`FitWords`); unchanged at the default size.
+            FitWords(text: ArrivalCopy.doneBody(name), anchor: FitAnchorID.arrivalBodyWord,
+                     font: { s in F.manrope(15 * s, .regular) }) { s in
+                PrettyText(ArrivalCopy.doneBody(name), font: chatFont(PS.manropeRegular, 15 * s, .regular),
+                           lineHeight: 15 * 1.5 * s, color: .liqMuted, centered: true)
+            }
                 .frame(maxWidth: 300)
+                .fitAnchor(FitAnchorID.arrivalBody)
                 .padding(.top, 8)
             SunsetSheetButton(label: ArrivalCopy.close, waiting: false, action: onClose, anchor: FitAnchorID.arrivalClose)
                 .padding(.top, 22)
