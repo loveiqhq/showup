@@ -65,6 +65,21 @@ final class DateRepositoryTests: XCTestCase {
         XCTAssertEqual(date.arrival, DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 10 * 60)))
     }
 
+    /// The server's real dates carry milliseconds (`toISOString()`); every other case here stubs them without.
+    func testDatesTheServerWritesWithMillisecondsDecode() async {
+        let withMillis = full
+            .replacingOccurrences(of: "2026-11-03T18:00:00Z", with: "2026-11-03T18:00:00.000Z")
+            .replacingOccurrences(of: "2026-11-03T16:30:00Z", with: "2026-11-03T16:30:00.000Z")
+            .replacingOccurrences(of: "2026-11-03T17:10:00Z", with: "2026-11-03T17:10:00.000Z")
+            .replacingOccurrences(of: "2026-11-03T17:50:00Z", with: "2026-11-03T17:50:00.000Z")
+        guard case .success(.active(let date)) = await repo(status: 200, body: withMillis).active(zone: "Europe/Berlin") else {
+            return XCTFail("a date with millisecond timestamps must decode")
+        }
+        XCTAssertEqual(date.meetAt, Date(timeIntervalSince1970: 1_793_728_800))
+        XCTAssertEqual(date.unlockAt, Date(timeIntervalSince1970: 1_793_728_800 - 90 * 60))
+        XCTAssertEqual(date.arrival, DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 10 * 60)))
+    }
+
     func testNoDateIsNone() async {
         guard case .success(.none) = await repo(status: 200, body: #"{"date":null,"ended":null}"#).active(zone: "Europe/Berlin") else {
             return XCTFail("expected no date")

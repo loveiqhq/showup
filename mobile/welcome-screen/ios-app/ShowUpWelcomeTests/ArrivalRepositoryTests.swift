@@ -46,6 +46,13 @@ final class ArrivalRepositoryTests: XCTestCase {
                                          transport: StubTransport(status: status, seen: seen, rawBody: rawBody)))
     }
 
+    /// The body as values. The runtime pretty-prints, so a substring of the text would depend on spacing.
+    private static func json(_ body: String) -> [String: Any] {
+        guard let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
+        return object
+    }
+
     private func isOk(_ result: Result<Void, CallFailure>) -> Bool {
         if case .success = result { return true }
         return false
@@ -63,10 +70,12 @@ final class ArrivalRepositoryTests: XCTestCase {
         let request = await seen.requests[0]
         XCTAssertEqual(request.method, .post)
         XCTAssertEqual(request.path, "/dates/d1/arrival")
-        XCTAssertTrue(request.body.contains("\"entry\":\"chat_chip\""), request.body)
-        XCTAssertTrue(request.body.contains("\"clientId\":\"\(id)\""), request.body)
-        XCTAssertTrue(request.body.contains("\"latitude\":52.5186"), request.body)
-        XCTAssertTrue(request.body.contains("\"accuracyM\":12.5"), request.body)
+        let json = Self.json(request.body)
+        XCTAssertEqual(json["entry"] as? String, "chat_chip", request.body)
+        XCTAssertEqual(json["clientId"] as? String, id, request.body)
+        XCTAssertEqual(json["latitude"] as? Double, 52.5186, request.body)
+        XCTAssertEqual(json["longitude"] as? Double, 13.3761, request.body)
+        XCTAssertEqual(json["accuracyM"] as? Double, 12.5, request.body)
     }
 
     func testAFixWithoutAnAccuracySendsNone() async {
@@ -74,7 +83,9 @@ final class ArrivalRepositoryTests: XCTestCase {
         _ = await repo(201, seen).checkIn(dateId: "d1", fix: LocationFix(latitude: 1, longitude: 2, accuracyM: nil),
                                           entry: .dateScreen, clientId: id)
         let request = await seen.requests[0]
-        XCTAssertFalse(request.body.contains("accuracyM"), request.body)
+        let json = Self.json(request.body)
+        XCTAssertNil(json["accuracyM"], request.body)
+        XCTAssertEqual(json["entry"] as? String, "date_screen", request.body)
     }
 
     func testA409IsAlreadyCheckedInAnythingElseAFailureNoAnswerANetworkOne() async {
