@@ -468,6 +468,22 @@ final class ArrivalFitTests: XCTestCase {
         XCTAssertTrue(found.isEmpty, "\(found.count) problems: " + summary(found))
     }
 
+    /// A sheet is as tall as its content: at 390 x 844 the content ends 24 above the frame's foot (the shell's padding)
+    /// and begins well under the 88 % cap's top -- not filling the cap, as a title that reported one word a line made it.
+    func testTheArrivalSheetsAreAsTallAsTheirContent() {
+        guard let phone = fitDevices.first(where: { $0.width == 390 && $0.height == 844 }) else { return XCTFail("no 390 x 844 phone") }
+        var found: [String] = []
+        for frame in [sheetFrames[0], sheetFrames[3], sheetFrames[5], chatSheet("F chat start + B", locError: false)] {
+            let shot = layout(frame.view, on: phone, type: .large, settle: 0.6)
+            guard let sheet = shot.frames[FitAnchorID.arrivalSheet] else { found.append("\(frame.label): no sheet"); continue }
+            let capTop = phone.height * 0.12
+            if sheet.minY < capTop + 80 { found.append("\(frame.label): the content starts at \(sheet.minY), near the cap's top \(capTop)") }
+            let foot = phone.height - phone.bottom - sheet.maxY
+            if abs(foot - 24) > 1.5 { found.append("\(frame.label): the content ends \(foot) above the foot, not the shell's 24") }
+        }
+        XCTAssertTrue(found.isEmpty, found.joined(separator: " · "))
+    }
+
     // MARK: the guard's title
 
     /// `text` as TextKit breaks it at `width` -- the guard title's own recipe (Lora 700 26 / 1.15, -0.01em, centred,

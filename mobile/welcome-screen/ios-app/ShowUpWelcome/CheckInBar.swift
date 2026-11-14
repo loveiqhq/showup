@@ -40,6 +40,12 @@ struct CheckInBar: View {
         max(widestWordWidth(ArrivalCopy.barTitle(name), titleFont), widestWordWidth(ArrivalCopy.barLine, lineFont)) * typeScale
     }
 
+    private var barTitleText: PrettyText {
+        var title = PrettyText(ArrivalCopy.barTitle(name), font: titleFont, lineHeight: 18 * 1.15, color: .white)
+        title.pretty = false
+        return title
+    }
+
     var body: some View {
         let shape = UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22)
         VStack(spacing: 6) {
@@ -49,7 +55,9 @@ struct CheckInBar: View {
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.12)))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    PrettyText(ArrivalCopy.barTitle(name), font: titleFont, lineHeight: 18 * 1.15, color: .white)
+                    // Greedy wrapping, not pretty: the reference's title sets no `text-wrap` (only the line under it
+                    // does), so it breaks `Your date with` / `Leonie`, as Android's plain text does.
+                    barTitleText
                         .accessibilityAddTraits(.isHeader)
                     PrettyText(ArrivalCopy.barLine, font: lineFont, lineHeight: 12.5 * 1.4, color: .white)
                         .padding(.top, 3)

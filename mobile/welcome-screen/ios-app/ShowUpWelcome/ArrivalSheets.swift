@@ -101,7 +101,7 @@ private struct SheetTitle: View {
         // No word broken between two letters at any type size: where the widest word is wider than the box the title
         // is drawn at the largest smaller size where it fits (`FitWords`, never under the default size). At the default
         // size nothing changes: the first try is the title as it was, at its max width.
-        FitWords(text: text, anchor: FitAnchorID.arrivalTitleWord, font: { s in F.lora(26 * s, bold: true) }) { s in
+        FitWords(text: text, anchor: FitAnchorID.arrivalTitleWord, oneLineIdeal: true, font: { s in F.lora(26 * s, bold: true) }) { s in
             var title = PrettyText(text, font: chatFont(PS.loraBold, 26 * s, .bold), lineHeight: 26 * 1.15 * s, color: .liqFg,
                                    centered: true)
             title.tracking = -0.01 * 26 * s
@@ -212,7 +212,7 @@ struct CheckInDoneSheet: View {
             SheetTitle(text: ArrivalCopy.doneTitle, maxWidth: 300)
                 .padding(.top, 16)
             // Whole words at every type size, as the title (`FitWords`); unchanged at the default size.
-            FitWords(text: ArrivalCopy.doneBody(name), anchor: FitAnchorID.arrivalBodyWord,
+            FitWords(text: ArrivalCopy.doneBody(name), anchor: FitAnchorID.arrivalBodyWord, oneLineIdeal: true,
                      font: { s in F.manrope(15 * s, .regular) }) { s in
                 PrettyText(ArrivalCopy.doneBody(name), font: chatFont(PS.manropeRegular, 15 * s, .regular),
                            lineHeight: 15 * 1.5 * s, color: .liqMuted, centered: true)
