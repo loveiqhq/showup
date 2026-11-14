@@ -245,4 +245,55 @@ final class LocationGateModelTests: XCTestCase {
         XCTAssertNil(g.ui.blocked)
         XCTAssertFalse(g.takeLift(), "no Search arrival from D's lift")
     }
+
+    // MARK: - the date context (SHOWUP-195 G): reads and asks like the gate, fires nothing
+
+    func testTheDateContextFiresNoEventForAMountAPressAnAnswerOrALift() async {
+        let access = GateAccess(.notDetermined)
+        let g = await gate(access)
+        host.answer = false
+        g.dateMounted()
+        await g.allowPressed()
+        XCTAssertEqual(host.dialogs, 1, "the OS dialog still goes up")
+        XCTAssertEqual(g.ui.blocked, .denied)
+        g.openSettingsPressed()
+        XCTAssertEqual(host.settings, [.denied], "Settings still opens")
+        await access.set(.granted)
+        await g.refresh()
+        XCTAssertNil(g.ui.blocked)
+        XCTAssertEqual(events.names, [])
+        XCTAssertFalse(g.takeLift(), "a Search screen is not reached from this gate")
+    }
+
+    func testLeavingTheDateContextLetsTheSearchGateReportAgain() async {
+        let g = await gate(GateAccess(.denied))
+        g.dateMounted()
+        g.dateLeft()
+        g.mounted(referrer: .likesReceived)
+        XCTAssertEqual(events.names, ["screen_viewed", ProfileAnalytics.locationGateShownName])
+    }
+
+    func testTheDateContextThenSearchWithoutALeaveSearchReportsOnce() async {
+        let g = await gate(GateAccess(.denied))
+        g.dateMounted()
+        g.mounted(referrer: .likesReceived)
+        g.mounted(referrer: .likesReceived)
+        XCTAssertEqual(events.names, ["screen_viewed", ProfileAnalytics.locationGateShownName])
+        g.openSettingsPressed()
+        XCTAssertEqual(events.names.filter { $0 == ProfileAnalytics.permissionSettingsOpenedName }.count, 1,
+                       "Search's press reports")
+    }
+
+    func testSearchThenTheDateContextWithoutALeaveNothingMoreFiresAndPressesAreSilent() async {
+        let g = await gate(GateAccess(.notDetermined))
+        host.answer = false
+        g.mounted(referrer: .likesReceived)
+        let before = events.names
+        g.dateMounted()
+        await g.allowPressed()
+        g.openSettingsPressed()
+        XCTAssertEqual(events.names, before)
+        XCTAssertEqual(host.dialogs, 1)
+        XCTAssertEqual(host.settings, [.denied])
+    }
 }

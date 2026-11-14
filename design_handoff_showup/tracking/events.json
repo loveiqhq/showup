@@ -1,11 +1,20 @@
 {
-  "taxonomy_version": "1.4.26",
+  "taxonomy_version": "1.4.27",
   "changed_in_1_4_24": [
     "Search 01 decisions, 27 Oct 2026: filters_active compares saved genders with checkinGenderDefault on the viewer's current profile and lists true dealbreakers; gender values are never sent. Search filter saves add opened_from: search to check_in_filters_changed without Check-In funnel events. Returning from Filters is a new Search visit, position resets to 1, and the coach remains suppressed. The no-results state emits search_empty_shown with reason no_results."
   ],
   "reconciled_against": "loveiqhq/showup development @ 8540ee4",
   "generated": "2026-09-25",
-  "event_count": 306,
+  "event_count": 308,
+  "changed_in_1_4_27": [
+    "Date 03 (Arrival check-in, incl. the folded Date 04), 6 Nov 2026 — family M arrival events respecified for the arrival check-in.",
+    "arrival_confirm_shown — NEW (client): the guard is shown. entry §41 NEW. Not yet fires nothing.",
+    "arrival_confirm_submitted — RESPECIFIED: date_id + entry NEW; minutes_vs_start counts from the latest agreed meet time.",
+    "arrival_confirmed — RESPECIFIED (server): the check-in is STORED; no geofence/code; date_id + entry + is_first NEW.",
+    "arrival_undone — NEW (server): Undo check-in deleted the stored check-in. Matching's 'date happened' label = arrival_confirmed with no arrival_undone after it.",
+    "Never in any arrival payload: coordinates, accuracy, distance, place. Location stays in the check-in store.",
+    "event_count 306 → 308."
+  ],
   "changed_in_1_4_26": [
     "Date 02 (Coordinate chat), 5 Nov 2026 — family L respecified: chat_tutorial_shown · chat_tutorial_acknowledged · chat_opened · action_chip_used · message_sent · message_received · chat_closed all carry date_id.",
     "chat_opened: trigger + layout REMOVED → entry (§39 chat_entry) + is_first + minutes_before_start.",
@@ -4786,36 +4795,104 @@
           "implemented": false
         },
         {
-          "name": "arrival_confirm_submitted",
+          "name": "arrival_confirm_shown",
           "code_anchor": null,
-          "source": "client",
           "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "implemented": true,
+          "source": "client",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §41 arrival_entry. NEW 1.4.27"
+            },
+            {
               "name": "minutes_vs_start",
-              "type": "int"
+              "type": "int — minutes from the latest AGREED meet time; negative = before"
             }
           ],
+          "trigger": "NEW 1.4.27 (Date 03). The guard \"Have you arrived at the meeting location…?\" is shown — Check-in bar, the chat's I arrived at the spot chip before check-in, or Report → My date isn't showing up (06). Not yet fires NOTHING: shown without a following arrival_confirm_submitted is the Not yet / scrim count."
+        },
+        {
+          "name": "arrival_confirm_submitted",
+          "code_anchor": null,
+          "tier": "T2",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "User taps \"I Have Arrived\" button",
-          "implemented": false
+          "backend_status": "Client only",
+          "implemented": true,
+          "source": "client",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str — NEW 1.4.27"
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §41. NEW 1.4.27"
+            },
+            {
+              "name": "minutes_vs_start",
+              "type": "int — from the latest AGREED meet time; negative = before"
+            }
+          ],
+          "trigger": "RESPECIFIED 1.4.27 (Date 03). User taps Yes, I've arrived on the guard. Fires before the location is read. Was: \"User taps I Have Arrived button\"."
         },
         {
           "name": "arrival_confirmed",
           "code_anchor": null,
-          "source": "server",
           "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Built (SHOWUP-195)",
+          "implemented": true,
+          "source": "server",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str — NEW 1.4.27"
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §41. NEW 1.4.27"
+            },
+            {
               "name": "minutes_vs_start",
+              "type": "int — from the latest AGREED meet time"
+            },
+            {
+              "name": "is_first",
+              "type": "bool — NEW 1.4.27. true when the match has no stored check-in for this date yet"
+            }
+          ],
+          "trigger": "RESPECIFIED 1.4.27 (Date 03). The server has stored the arrival check-in (location + timestamp + user ID). No geofence, no code: the 150 m overlap is decided in flow 10, never here. Was: \"Server verifies arrival via geofence/code\". Matching reads it as 'date happened' ONLY if no arrival_undone follows."
+        },
+        {
+          "name": "arrival_undone",
+          "code_anchor": null,
+          "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Built (SHOWUP-195)",
+          "implemented": true,
+          "source": "server",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §41, the entry of the check-in being undone"
+            },
+            {
+              "name": "seconds_since_confirm",
               "type": "int"
             }
           ],
-          "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Server verifies arrival via geofence/code",
-          "implemented": false
+          "trigger": "NEW 1.4.27 (Date 03). Undo check-in on \"You are amazing for showing up!\" — the stored check-in is DELETED. Only reachable before that sheet is closed, so the match was never notified."
         },
         {
           "name": "late_decision_prompted",

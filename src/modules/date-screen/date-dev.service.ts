@@ -5,9 +5,13 @@ import {
 } from '@nestjs/common';
 import { DataSource, IsNull, Not } from 'typeorm';
 
+import { randomUUID } from 'crypto';
+
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { CheckInWindow } from '../check-ins/entities/check-in-window.entity';
 import { CheckInVibe } from '../check-ins/util/check-in-flow';
+import { ArrivalCheckInsService } from '../dates/arrival-check-ins.service';
+import { ArrivalEntry } from '../dates/util/arrival';
 import { DatesService } from '../dates/dates.service';
 import { DateEntity } from '../dates/entities/date.entity';
 import { DateStatus } from '../dates/util/date-lifecycle';
@@ -26,6 +30,8 @@ const VENUE = {
   lat: 52.5016,
   lng: 13.4186,
 };
+/** Where the test match arrives when the date has no venue point. */
+const BERLIN = { lat: 52.52, lng: 13.405 };
 /** About 1 km north: far enough that About reads "~1 km away", near enough to be plausible. */
 const PARTNER_OFFSET_LAT = 0.009;
 
@@ -46,6 +52,7 @@ export class DateDevService {
     private readonly dates: DatesService,
     private readonly checkIns: CheckInsService,
     private readonly screen: DateScreenService,
+    private readonly arrivals: ArrivalCheckInsService,
   ) {}
 
   /**
@@ -90,6 +97,30 @@ export class DateDevService {
   async endInChat(userId: string): Promise<void> {
     const { date, partnerId } = await this.testDate(userId);
     await this.dates.endInChat(date.id, partnerId);
+  }
+
+  /**
+   * The test match arrives (Date 03): stores and commits her check-in through the real service, at
+   * the venue's point when it has one. Already arrived answers quietly, with no second push.
+   */
+  async partnerArrives(userId: string): Promise<void> {
+    const { date, partnerId } = await this.testDate(userId);
+    const rows = await this.arrivals.rowsFor(date.id);
+    if (rows.some((r) => r.userId === partnerId && r.committedAt)) return;
+    const [point] = date.venueId
+      ? await this.db.query<Array<{ lat: number; lng: number }>>(
+          `SELECT ST_Y("location"::geometry) AS "lat", ST_X("location"::geometry) AS "lng"
+             FROM "venues" WHERE "id" = $1 AND "location" IS NOT NULL`,
+          [date.venueId],
+        )
+      : [];
+    await this.arrivals.create(date.id, partnerId, {
+      latitude: point?.lat ?? BERLIN.lat,
+      longitude: point?.lng ?? BERLIN.lng,
+      entry: ArrivalEntry.DateScreen,
+      clientId: randomUUID(),
+    });
+    await this.arrivals.commit(date.id, partnerId);
   }
 
   /** Cancels the caller's confirmed dates with the test match -- the dev escape from the Date screen. */

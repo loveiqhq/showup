@@ -199,6 +199,6 @@ The app-wide location gate on Search and Instant (header + message + tab bar red
 ## Open (not blocking)
 
 - **Android first denial can still re-prompt in-app**, which the 9 Sep 2026 permission rule says should not need a Settings trip. Decision 5 keeps one denied state with `Open Settings` for simplicity. Worth revisiting if Android Settings round-trips convert badly.
-- **The privacy note differs from the gate's**: this screen says "approximate distance e.g. 1.5km", the gate does not. To be settled when the gate is ticketed; this screen's string is final as written.
+- ~~**The privacy note differs from the gate's**~~ — settled 22 Oct 2026 (Search 04): the gate uses this screen's string unchanged.
 - **Only row 2 has a sub-line.** Correct as drawn; if rows 1 and 3 gain one, A at 375 × 667 needs re-checking first.
-- **Radar component is duplicated** between this screen and the gate in the kit. Extract one when the gate is built — do not build two.
+- ~~**Radar component is duplicated**~~ — settled 22 Oct 2026 (Search 04): the gate reuses this screen's `LocationRadarHero` and adds only a muted variant. Nothing on this screen changes.

@@ -1,6 +1,10 @@
 {
-  "registry_version": "1.4.33",
+  "registry_version": "1.4.34",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_34": [
+    "§41 arrival_entry — NEW value set: date_screen · chat_chip · report (report RESERVED until Date 06). Date 03, 6 Nov 2026.",
+    "No §11 row: the guard and the done sheet are overlays on date_screen / date_chat, not screens."
+  ],
   "changed_in_1_4_33": [
     "§11 date_chat_tutorial / Date - Chat tutorial · date_chat / Date - Coordinate chat · date_ended_in_chat / Date - Ended in chat — NEW rows, Date 02. 5 Nov 2026.",
     "§39 chat_entry — NEW value set: open_chat · read_reply · tutorial · notification. Date 02.",
@@ -1890,6 +1894,17 @@
         "change_place",
         "running_late",
         "cant_make_it"
+      ]
+    },
+    {
+      "id": "e41",
+      "num": "41",
+      "name": "arrival_entry",
+      "note": "WHERE THE ARRIVAL CHECK-IN STARTED (arrival_confirm_shown / _submitted / arrival_confirmed / arrival_undone .entry). date_screen = the Check-in bar · chat_chip = I arrived at the spot before check-in (Date 02 chat) · report = Report a problem → My date isn't showing up, RESERVED until Date 06 ships. One gate (useArrivedGate), three entries. Created 6 Nov 2026 with Date 03.",
+      "values": [
+        "date_screen",
+        "chat_chip",
+        "report"
       ]
     }
   ],

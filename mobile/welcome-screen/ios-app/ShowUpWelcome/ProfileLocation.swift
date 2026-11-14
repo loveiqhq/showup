@@ -64,6 +64,36 @@ enum LocationCopy {
         /// D's back pill.
         static let back = "Back"
     }
+
+    /// The gate over the Date screen (SHOWUP-195 G, the kit's `LOCATION_COPY.date`, 5 Nov 2026). Headline and body
+    /// are functions of the match's name; the CTAs are Profile 12's. Apostrophes are U+2019.
+    enum Date {
+        static let cardLead = "You and "
+        static let cardMid = " are meeting "
+        static func startsIn(_ hours: Int, _ minutes: Int) -> String { "Starts in \(hours)h \(minutes)m" }
+        static func started(_ minutes: Int) -> String { "Started \(minutes) min ago" }
+        static func mayBeWaiting(_ name: String) -> String { "\(name) may be waiting" }
+
+        static let aLead = "Urgent! Allow location to get access to your "
+        static let bLead = "Urgent! Turn on location to get access to your "
+        static let em = "date information"
+        static let tail = "."
+
+        static func aBody(_ name: String) -> String {
+            "Your date screen needs your location. It gets you to the meeting place and lets you check in when you "
+                + "arrive, so \(name) knows you\u{2019}re there."
+        }
+
+        static func bBody(_ name: String) -> String {
+            "Location is off for Show Up, so your date screen is locked. Turn it on to see your date, get directions "
+                + "and check in when you arrive, so \(name) knows you\u{2019}re there."
+        }
+
+        static func cBody(_ name: String) -> String {
+            "Location is off for every app on this phone, so your date screen is locked. Turn it on to see your "
+                + "date, get directions and check in when you arrive, so \(name) knows you\u{2019}re there."
+        }
+    }
 }
 
 /// Which context the ONE location screen is drawn in (SHOWUP-188 ①, `context: "profile" | "app"`).
@@ -72,6 +102,22 @@ enum LocationCopy {
 enum LocationScreenContext {
     case profile
     case app(LocationAppContext)
+    /// SHOWUP-195 G: the gate over the Date screen while a date is active.
+    case date(LocationDateContext)
+}
+
+/// The gate over the Date screen: no header (the Date screen has none), the date card where the radar was, the
+/// TabBar in date mode (Search, Likes and Instant locked; Settings open) and no way past but giving location access.
+struct LocationDateContext {
+    let name: String
+    /// `today` or `tomorrow`, the server's.
+    let meetDay: String
+    let meetAt: Date
+    let place: String?
+    let photoUrl: URL?
+    let now: Date
+    let zone: TimeZone
+    let onTab: (AppTab) -> Void
 }
 
 /// The gate's chrome: the Search top bar (no filter button) and the TabBar, and in D -- pushed over a
@@ -122,6 +168,9 @@ struct ProfileLocationView: View {
         case .app(let app):
             LocationGateLayout(state: state, requesting: requesting, onAllow: onAllow,
                                onOpenSettings: onOpenSettings, app: app)
+        case .date(let date):
+            DateGateLayout(state: state, requesting: requesting, onAllow: onAllow,
+                           onOpenSettings: onOpenSettings, date: date)
         }
     }
 
@@ -500,6 +549,107 @@ private struct LocationGateLayout: View {
         .padding(.horizontal, 24)
         .padding(.top, 4)
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// The date context (SHOWUP-195 G): padding 20 24 0, the date card, the headline (Lora 700 30 / 1.12, -0.015em, 26
+/// below, balanced, left), the body (Manrope 500 14.5 / 1.5, 12 below), the privacy note 18 below on A only, ONE
+/// flexible spacer floored at 16, the sunset CTA 22 above the TabBar. Backdrop live on A only. Past the spacer's
+/// floor the content scrolls under the pinned CTA (Profile 12's precedent) rather than push it off. Android's
+/// `DateGateLayout`.
+private struct DateGateLayout: View {
+    let state: LocationState
+    let requesting: Bool
+    let onAllow: () -> Void
+    let onOpenSettings: () -> Void
+    let date: LocationDateContext
+
+    private var blocked: Bool { state != .ask }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ViewThatFits(in: .vertical) {
+                column
+                ScrollView(.vertical, showsIndicators: false) { column }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+
+            PrimaryButton(label: blocked ? LocationCopy.openSettings : LocationCopy.allow, variant: .sunset,
+                          labelLineLimit: 3,
+                          // Never disabled: while our dialog is up it simply stops answering.
+                          action: { if blocked { onOpenSettings() } else if !requesting { onAllow() } },
+                          leading: {
+                              BrandIconView(icon: blocked ? .settings : .mapPin, size: 18, stroke: 2.2, tint: .white)
+                                  .accessibilityHidden(true)
+                          },
+                          trailing: { EmptyView() })
+                .fitAnchor(FitAnchorID.gateCta)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 22)
+
+            // Cream under the glass, as the Date screen's own TabBar: no backdrop blur here.
+            TabBar(active: nil, onTab: date.onTab, likes: 0, disabled: dateLockedTabs, disabledHint: DateCopy.tabHint)
+                .background(Color.liqCream.ignoresSafeArea(edges: .bottom))
+                .fitAnchor(FitAnchorID.tabBar)
+        }
+        .background(alignment: .top) {
+            WelcomeBackdrop(placement: .startup,
+                            orangeAlpha: blocked ? 0.16 : 0.32,
+                            violetAlpha: blocked ? 0.14 : 0.28,
+                            washAlpha: blocked ? 0.28 : 0.55)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .background(Color.liqCream.ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
+    }
+
+    private var headlineParts: [(String, Bool)] {
+        [(state == .ask ? LocationCopy.Date.aLead : LocationCopy.Date.bLead, false),
+         (LocationCopy.Date.em, true), (LocationCopy.Date.tail, false)]
+    }
+
+    /// The headline's words as the line breaker sees them: split at ordinary spaces only, the emphasis run's own
+    /// spaces held (it is `nowrap`), so `date information.` is one word, with its tail.
+    static func headlineWords(_ parts: [(String, Bool)]) -> [String] {
+        parts.map { $0.1 ? $0.0.replacingOccurrences(of: " ", with: "\u{00A0}") : $0.0 }.joined()
+            .split(separator: " ").map { $0.replacingOccurrences(of: "\u{00A0}", with: " ") }
+    }
+
+    private var bodyText: String {
+        switch state {
+        case .ask: return LocationCopy.Date.aBody(date.name)
+        case .denied: return LocationCopy.Date.bBody(date.name)
+        case .servicesOff: return LocationCopy.Date.cBody(date.name)
+        }
+    }
+
+    private var column: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            DateGateCard(name: date.name, meetDay: date.meetDay, meetAt: date.meetAt, place: date.place,
+                         photoUrl: date.photoUrl, now: date.now, zone: date.zone)
+            // No word broken between two letters at the largest type on the narrowest phone: where the widest word
+            // -- the emphasis run is one, its spaces do not break -- is wider than the box, the headline is drawn
+            // at the largest smaller size where it fits (`FitWords`, never under the default size). `date
+            // information.` at 60 pt is wider than a 320 phone's 272. This headline only (Android's `fitWords`).
+            FitWords(text: headlineParts.map(\.0).joined(), words: Self.headlineWords(headlineParts),
+                     anchor: FitAnchorID.dateGateHeadlineWord,
+                     font: { s in F.lora(30 * s, bold: true) }) { s in
+                WashHeadline(parts: headlineParts, fontSize: 30 * s, lineHeightMultiple: 1.12, trackingEm: -0.015,
+                             balance: true, cssLineBox: true, heading: true)
+            }
+            .fitAnchor(FitAnchorID.gateHeadline)
+            .padding(.top, 26)
+            PrettyText(bodyText,
+                       font: TypeMetrics.uiFont(PS.manropeMedium, 14.5, fallback: .systemFont(ofSize: 14.5, weight: .medium)),
+                       lineHeight: 14.5 * 1.5, color: .liqNeutral)
+                .padding(.top, 12)
+            if state == .ask { PrivacyNote().padding(.top, 18) }
+            Spacer(minLength: 16)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

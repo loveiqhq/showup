@@ -241,6 +241,23 @@ final class ChatModelTests: XCTestCase {
         XCTAssertEqual(m.ui.draft, "On my way now — see you in a few!")
     }
 
+    func testAGatedChipFiresTheEventAndChangesNothingElse() async {
+        let analytics = RecordingAnalytics()
+        let m = await opened(FakeChatStore(), FakeDateStore(), analytics)
+        m.edit("Typed before")
+        let before = m.ui
+        let fired = analytics.entries.count
+        m.pick(.arrived, surface: .dock, gated: true)
+        XCTAssertEqual(Array(analytics.names().dropFirst(fired)), ["action_chip_used"])
+        XCTAssertEqual(analytics.of("action_chip_used").last?.properties["reason"] as? String, "arrived")
+        XCTAssertEqual(m.ui.selected, before.selected)
+        XCTAssertEqual(m.ui.draft, before.draft)
+        XCTAssertEqual(m.ui.messages, before.messages)
+        m.pick(.arrived, surface: .dock)
+        XCTAssertEqual(m.ui.selected, .arrived)
+        XCTAssertEqual(m.ui.draft, ChatReason.arrived.draft)
+    }
+
     func testICantMakeItTodayLocksTheFieldUntilGotItAndAnotherChipRemovesTheGuide() async {
         let m = await opened(FakeChatStore(), FakeDateStore(), RecordingAnalytics())
         m.pick(.runningLate, surface: .entry)

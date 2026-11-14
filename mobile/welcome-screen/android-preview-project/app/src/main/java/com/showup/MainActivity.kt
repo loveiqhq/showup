@@ -93,10 +93,21 @@ import com.showup.chat.ChatHostEvents
 import com.showup.chat.ChatSamples
 import com.showup.chat.ChatScreen
 import com.showup.chat.ChatTutorialScreen
+import com.showup.arrival.AndroidLocationFixReader
+import com.showup.arrival.ApiArrivalStore
+import com.showup.arrival.ArrivalEntry
+import com.showup.arrival.ArrivalGateViewModel
+import com.showup.arrival.ArrivalOver
+import com.showup.arrival.CheckInBar
+import com.showup.arrival.GateUi
+import com.showup.arrival.onAppStopped
+import com.showup.arrival.onChatChip
+import com.showup.arrival.routeUndo
 import com.showup.chat.ChatViewModel
 import com.showup.chat.SharedPrefsReceivedLedger
 import com.showup.chat.DateEndedScreen
 import com.showup.chat.chatEntryFor
+import com.showup.chat.openChatFromArrivalCard
 import com.showup.chat.chatRoute
 import com.showup.chat.outcomeRoute
 import androidx.navigation.toRoute
@@ -218,6 +229,8 @@ import com.showup.profile.ProfileEmbraceDetailsScreen
 import com.showup.profile.ProfileHeightScreen
 import com.showup.profile.ProfileLocationScreen
 import com.showup.profile.LocationGateScreen
+import com.showup.profile.LocationScreenContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.animation.EnterExitState
 import androidx.compose.runtime.Composable
 import com.showup.welcome.PhoneAuthRepository
@@ -886,6 +899,45 @@ class MainActivity : ComponentActivity() {
                     },
                 )
             }
+
+            // ── the arrival check-in (SHOWUP-195) ─────────────────────────────
+            //
+            // One gate model per account and date, beside the chat's, shared by the Date screen and the
+            // chat. Commit and undo run on the process-wide scope and the store holds only the
+            // application-scoped `api`, so a retry outlives this Activity.
+            val arrivalStore = remember(api) { ApiArrivalStore(api) }
+            val arrivalGate: ArrivalGateViewModel? = dateState.date?.id?.let { id ->
+                viewModel(
+                    key = "arrival-$account-$id",
+                    factory = viewModelFactory {
+                        initializer {
+                            ArrivalGateViewModel(
+                                store = arrivalStore,
+                                reader = AndroidLocationFixReader(applicationContext),
+                                analytics = AppAnalytics,
+                                clock = java.time.Instant::now,
+                                newId = { java.util.UUID.randomUUID().toString() },
+                                work = (application as ShowUpApplication).appScope,
+                            )
+                        }
+                    },
+                )
+            }
+            val arrivalUi by remember(arrivalGate) { arrivalGate?.ui ?: MutableStateFlow(GateUi()) }.collectAsStateWithLifecycle()
+            // Every date read goes through the gate (the chat binds its own reads while it is up).
+            LaunchedEffect(arrivalGate, dateState.date) { dateState.date?.let { arrivalGate?.bind(it) } }
+            // Backgrounding, anywhere: with the done sheet up that is Close, so the match is told.
+            val arrivalLifecycle = LocalLifecycleOwner.current
+            DisposableEffect(arrivalLifecycle, arrivalGate) {
+                val observer = LifecycleEventObserver { _, event ->
+                    // Not a rotation, dark-mode or font change: the Activity is rebuilt, the person did not leave.
+                    if (event == Lifecycle.Event.ON_STOP) arrivalGate?.let { onAppStopped(it, this@MainActivity.isChangingConfigurations) }
+                    // Back in front before a read's store landed: that store shows the done sheet as normal.
+                    if (event == Lifecycle.Event.ON_START) arrivalGate?.foregrounded()
+                }
+                arrivalLifecycle.lifecycle.addObserver(observer)
+                onDispose { arrivalLifecycle.lifecycle.removeObserver(observer) }
+            }
             /** Where G or H was reached from, for its `screen_viewed` referrer. */
             var outcomeFrom by remember { mutableStateOf(ProfileScreen.DateScreen) }
 
@@ -1231,6 +1283,14 @@ class MainActivity : ComponentActivity() {
             fun openChat() {
                 val d = dateState.date ?: return
                 navController.navigate(chatRoute(d, chatEntryFor(d))) { launchSingleTop = true }
+            }
+
+            /** `Open chat` on the arrival card: entry decided from the date as the card showed it, then cleared. */
+            fun openChatFromCard() {
+                val d = dateState.date ?: return
+                openChatFromArrivalCard(d, arrivalSeen = date::arrivalSeen) { route ->
+                    navController.navigate(route) { launchSingleTop = true }
+                }
             }
 
             /** G or H over whatever is up, with only the flow under it: back from it never reopens the chat. */
@@ -2487,44 +2547,104 @@ class MainActivity : ComponentActivity() {
                             val ended = dateState.ended
                             if (onTop && ended != null) showOutcome(ended, ProfileScreen.DateScreen)
                         }
-                        val shown = heldWhileLeaving(dateState, onTop)
-                        DateScreen(
-                            ui = shown,
-                            zone = zone,
-                            onOpenChat = { openChat() },
-                            // The tile's event now; the Date 05 picker it opens arrives with Date 05.
-                            onChangeTile = date::changeTile,
-                            onDirections = {
-                                shown.date?.place?.let {
-                                    date.quickAction(QuickAction.Directions)
-                                    openDirections(context, it)
-                                }
-                            },
-                            onShare = {
-                                shown.date?.let {
-                                    date.quickAction(QuickAction.Share)
-                                    shareDate(context, shareText(it, zone))
-                                }
-                            },
-                            onCalendar = {
-                                shown.date?.let {
-                                    date.quickAction(QuickAction.Calendar)
-                                    addToCalendar(context, calendarEvent(it))
-                                }
-                            },
-                            onCopy = {
-                                shown.date?.place?.let {
-                                    date.quickAction(QuickAction.CopyAddress)
-                                    copyAddress(context, placeText(it))
-                                    date.copied()
-                                }
-                            },
-                            onSeeProfile = dateProfile::open,
-                            // Locked tabs never call this: only Settings does, and it fires nothing --
-                            // `tab_switched` needs a tab it switched from, and no tab is active here.
-                            onTab = { tab -> if (tab == Tab.Settings) goTo(FlowScreen.CheckInSettings) },
-                            onRetry = date::retry,
-                        )
+                        val heldDate = heldWhileLeaving(dateState, onTop)
+                        // Checked in is the server's word or this session's commit: the footer swaps the
+                        // moment Close is tapped, and a read that has not caught up cannot bring the bar back.
+                        val shown = if (arrivalUi.committed && heldDate.date?.checkedIn == false) {
+                            heldDate.copy(date = heldDate.date.copy(checkedIn = true))
+                        } else {
+                            heldDate
+                        }
+                        // An undo from the Date screen: nothing to leave, the bar is back already.
+                        LaunchedEffect(arrivalUi.undone, onTop) {
+                            val chatUp = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.Chat>() == true
+                            // With the chat up, the chat's own effect leaves and consumes.
+                            if (onTop && !chatUp) arrivalGate?.let { routeUndo(arrivalUi.undone, chatOnTop = false, leaveChat = {}, consume = it::consumeUndone) }
+                        }
+                        val dateBlocked = gateState.blocked
+                        val shownDate = shown.date
+                        if (dateBlocked != null && shownDate != null) {
+                            // G (SHOWUP-195, R1): the location gate in place of the Date screen. It lifts on its
+                            // own on the foreground re-read, and reports nothing (the tracking is Philipp's to say).
+                            LaunchedEffect(onTop) {
+                                if (onTop) locationGate.dateMounted() else locationGate.dateLeft()
+                            }
+                            DisposableEffect(Unit) { onDispose { locationGate.dateLeft() } }
+                            ProfileLocationScreen(
+                                state = dateBlocked,
+                                onAllow = locationGate::allowPressed,
+                                onOpenSettings = locationGate::openSettingsPressed,
+                                requesting = gateState.requesting,
+                                context = LocationScreenContext.Date(
+                                    name = shownDate.match.name,
+                                    meetDay = shownDate.meetDay,
+                                    meetAt = shownDate.meetAt,
+                                    place = shownDate.place?.name,
+                                    photoUrl = shownDate.match.photoUrl,
+                                    now = shown.now,
+                                    zone = zone,
+                                    onTab = { tab -> if (tab == Tab.Settings) goTo(FlowScreen.CheckInSettings) },
+                                ),
+                            )
+                        } else {
+                            ArrivalOver(
+                                ui = arrivalUi,
+                                name = shownDate?.match?.name.orEmpty(),
+                                onYes = { arrivalGate?.yes() },
+                                onNotYet = { arrivalGate?.notYet() },
+                                onClose = { arrivalGate?.close() },
+                                onUndo = { arrivalGate?.undo() },
+                            ) {
+                                DateScreen(
+                                    ui = shown,
+                                    zone = zone,
+                                    // The match's arrival card: opening the chat clears it first, so coming back
+                                    // never flashes it again (R2); locked, it only clears.
+                                    onArrivalSeen = date::arrivalSeen,
+                                    checkInBar = {
+                                        CheckInBar(
+                                            name = shownDate?.match?.name.orEmpty(),
+                                            onCheckIn = { arrivalGate?.open(ArrivalEntry.DateScreen) },
+                                            // R15: the End date link waits for Date 06.
+                                            onEnd = null,
+                                        )
+                                    },
+                                    onOpenChat = ::openChatFromCard,
+                                    // The tile's event now; the Date 05 picker it opens arrives with Date 05.
+                                    onChangeTile = date::changeTile,
+                                    onDirections = {
+                                        shown.date?.place?.let {
+                                            date.quickAction(QuickAction.Directions)
+                                            openDirections(context, it)
+                                        }
+                                    },
+                                    onShare = {
+                                        shown.date?.let {
+                                            date.quickAction(QuickAction.Share)
+                                            shareDate(context, shareText(it, zone))
+                                        }
+                                    },
+                                    onCalendar = {
+                                        shown.date?.let {
+                                            date.quickAction(QuickAction.Calendar)
+                                            addToCalendar(context, calendarEvent(it))
+                                        }
+                                    },
+                                    onCopy = {
+                                        shown.date?.place?.let {
+                                            date.quickAction(QuickAction.CopyAddress)
+                                            copyAddress(context, placeText(it))
+                                            date.copied()
+                                        }
+                                    },
+                                    onSeeProfile = dateProfile::open,
+                                    // Locked tabs never call this: only Settings does, and it fires nothing --
+                                    // `tab_switched` needs a tab it switched from, and no tab is active here.
+                                    onTab = { tab -> if (tab == Tab.Settings) goTo(FlowScreen.CheckInSettings) },
+                                    onRetry = date::retry,
+                                )
+                            }
+                        }
                     }
 
                     FlowScreen.Home ->
@@ -2624,11 +2744,14 @@ class MainActivity : ComponentActivity() {
             ) { entry ->
                 val vm = chat
                 val d = dateState.date
-                if (vm == null || d == null) {
+                val gate = arrivalGate
+                if (vm == null || d == null || gate == null) {
                     LaunchedEffect(Unit) { navController.popBackStack(AppRoute.Flow, inclusive = false) }
                     return@composable
                 }
                 val ui by vm.ui.collectAsStateWithLifecycle()
+                val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+                val focus = androidx.compose.ui.platform.LocalFocusManager.current
                 val zone = remember { ZoneId.systemDefault() }
                 val reached = ChatEntry.fromWire(entry.toRoute<AppRoute.Chat>().entry) ?: ChatEntry.OpenChat
                 // One visit per showing, not again on a configuration change.
@@ -2658,6 +2781,12 @@ class MainActivity : ComponentActivity() {
                     Unit
                 }
                 BackHandler(onBack = leave)
+                // The chat's reads are the freshest while it is up (the Date model does not poll then).
+                LaunchedEffect(ui.date) { ui.date?.let(gate::bind) }
+                // An undo from the chat lands on the Date screen, the Check-in bar back.
+                LaunchedEffect(arrivalUi.undone) {
+                    routeUndo(arrivalUi.undone, chatOnTop = true, leaveChat = { leave() }, consume = gate::consumeUndone)
+                }
                 // Ended from anywhere -- this phone, the match, a second tap -- or gone some other way.
                 LaunchedEffect(ui.outcome) {
                     ui.outcome?.let {
@@ -2672,11 +2801,24 @@ class MainActivity : ComponentActivity() {
                         date.foreground()
                     }
                 }
+                ArrivalOver(
+                    ui = arrivalUi,
+                    name = d.match.name,
+                    onYes = gate::yes,
+                    onNotYet = gate::notYet,
+                    onClose = gate::close,
+                    onUndo = gate::undo,
+                ) {
                 ChatScreen(
                     ui = ui,
                     zone = zone,
                     onBack = leave,
-                    onPick = vm::pick,
+                    // `I arrived at the spot` before check-in opens the guard instead: the chip's event
+                    // first, then the confirm's.
+                    onPick = { r, s ->
+                        // The guard opens over the composer: put the keyboard away first.
+                        onChatChip(r, s, gate, vm::pick, beforeGate = { focus.clearFocus(); keyboard?.hide() })
+                    },
                     onEdit = vm::edit,
                     onAckGuide = vm::ackGuide,
                     onSend = vm::send,
@@ -2686,6 +2828,7 @@ class MainActivity : ComponentActivity() {
                     onRetry = vm::retry,
                     onResend = vm::resend,
                 )
+                }
             }
 
             composable<AppRoute.DateEnded>(
@@ -2951,6 +3094,7 @@ class MainActivity : ComponentActivity() {
                                     DevDateAction.Message -> dateStore.messageFromMatch(com.showup.chat.ChatReason.RunningLate, DateSamples.UNREAD_BODY)
                                     DevDateAction.MatchCantMakeIt -> dateStore.messageFromMatch(com.showup.chat.ChatReason.CantMakeIt, ChatSamples.MATCH_CANT_MAKE_IT)
                                     DevDateAction.MatchEndsInChat -> dateStore.matchEndsInChat()
+                                    DevDateAction.PartnerChecksIn -> dateStore.partnerChecksIn()
                                     DevDateAction.End -> dateStore.endTestDate()
                                 }
                                 // The Date screen's own read shows the result: a new date or message

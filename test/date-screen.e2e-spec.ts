@@ -6,6 +6,7 @@ import { DataSource, In, Repository } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
 import { DEV_PARTNER_PHONE } from './../src/modules/date-screen/date-dev.service';
+import { NotificationDispatchService } from './../src/modules/notifications/services/notification-dispatch.service';
 import { AnalyticsService } from './../src/modules/analytics/analytics.service';
 import { CheckInWindow } from './../src/modules/check-ins/entities/check-in-window.entity';
 import { CheckInsService } from './../src/modules/check-ins/check-ins.service';
@@ -330,6 +331,39 @@ describe('The Date screen (e2e)', () => {
     });
   });
 
+  it('tells each side only what the arrival rules allow: committed, and until the chat is read', async () => {
+    const dateId = await makeDate(60);
+    const body = (clientId: string) => ({
+      latitude: REICHSTAG.lat,
+      longitude: REICHSTAG.lng,
+      entry: 'date_screen',
+      clientId,
+    });
+    await request(server)
+      .post(`/dates/${dateId}/arrival`)
+      .set('Authorization', as('you'))
+      .send(body('3f0b8e0e-8a5e-4c43-9a55-0a1a3d9d1c01'))
+      .expect(201);
+    expect((await getDate('you')).body.date.checkedIn).toBe(false);
+    expect((await getDate('leonie')).body.date.arrival).toBeNull();
+
+    await request(server)
+      .post(`/dates/${dateId}/arrival/commit`)
+      .set('Authorization', as('you'))
+      .expect(204);
+    expect((await getDate('you')).body.date.checkedIn).toBe(true);
+    expect((await getDate('you')).body.date.arrival).toBeNull();
+    const seen = (await getDate('leonie')).body.date;
+    expect(typeof seen.arrival.checkedInAt).toBe('string');
+    expect(JSON.stringify(seen.arrival)).not.toMatch(/52\.5|13\.37/);
+
+    await request(server)
+      .post(`/dates/${dateId}/chat/read`)
+      .set('Authorization', as('leonie'))
+      .expect(204);
+    expect((await getDate('leonie')).body.date.arrival).toBeNull();
+  });
+
   it('stamps coordinate_unlocked once for a due date, and leaves a later one alone', async () => {
     const due = await makeDate(60);
     const sent: Array<{
@@ -466,5 +500,40 @@ describe('The Date screen (e2e)', () => {
       .set('Authorization', as('other'))
       .expect(204);
     expect((await getDate('other')).body).toEqual({ date: null, ended: null });
+  });
+
+  it('the test match arrives through the real path: one push, the arrival set, a second call silent', async () => {
+    const sendPush = jest
+      .spyOn(app.get(NotificationDispatchService), 'sendPush')
+      .mockResolvedValue({ status: 'sent', delivered: 1 } as never);
+    try {
+      await request(server)
+        .post('/dev/date/arrival')
+        .set('Authorization', as('other'))
+        .expect(404);
+      await request(server)
+        .post('/dev/date')
+        .set('Authorization', as('other'))
+        .send({ minutesFromNow: 60 })
+        .expect(204);
+      await request(server)
+        .post('/dev/date/arrival')
+        .set('Authorization', as('other'))
+        .expect(204);
+      await request(server)
+        .post('/dev/date/arrival')
+        .set('Authorization', as('other'))
+        .expect(204);
+      expect(
+        typeof (await getDate('other')).body.date.arrival.checkedInAt,
+      ).toBe('string');
+      expect(sendPush).toHaveBeenCalledTimes(1);
+      expect(sendPush.mock.calls[0][1]).toBe('date_partner_arrived');
+    } finally {
+      sendPush.mockRestore();
+      await request(server)
+        .post('/dev/date/end')
+        .set('Authorization', as('other'));
+    }
   });
 });

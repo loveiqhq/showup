@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -19,6 +20,8 @@ import {
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { ArrivalCheckInDto, CreateArrivalCheckInDto } from './dto/arrival.dto';
+import { ArrivalCheckInsService } from './arrival-check-ins.service';
 import {
   CancelDateDto,
   ChatMessageDto,
@@ -32,7 +35,10 @@ import { DatesService } from './dates.service';
 @ApiBearerAuth()
 @Controller()
 export class DatesController {
-  constructor(private readonly dates: DatesService) {}
+  constructor(
+    private readonly dates: DatesService,
+    private readonly arrivals: ArrivalCheckInsService,
+  ) {}
 
   /** The dates the user is part of. */
   @Get('me/dates')
@@ -173,5 +179,46 @@ export class DatesController {
     );
     // Just sent: the other person cannot have read it yet.
     return ChatMessageDto.from(message, user.id, null);
+  }
+
+  /** "I'm here" (Date 03): store the caller's arrival, private and undoable until it is committed. */
+  @Post('dates/:id/arrival')
+  @ApiOperation({ operationId: 'createArrivalCheckIn' })
+  @HttpCode(201)
+  @ApiCreatedResponse({ type: ArrivalCheckInDto })
+  async createArrival(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateArrivalCheckInDto,
+  ): Promise<ArrivalCheckInDto> {
+    const row = await this.arrivals.create(id, user.id, dto);
+    return {
+      checkedInAt: row.checkedInAt.toISOString(),
+      committed: row.committedAt !== null,
+    };
+  }
+
+  /** Take the arrival back before Close. Idempotent; 409 once committed. */
+  @Delete('dates/:id/arrival')
+  @ApiOperation({ operationId: 'undoArrivalCheckIn' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async undoArrival(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.arrivals.undo(id, user.id);
+  }
+
+  /** Close: commit the arrival and tell the match, once. 404 if there is none. */
+  @Post('dates/:id/arrival/commit')
+  @ApiOperation({ operationId: 'commitArrivalCheckIn' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async commitArrival(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.arrivals.commit(id, user.id);
   }
 }

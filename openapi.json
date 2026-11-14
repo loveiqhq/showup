@@ -3,12 +3,22 @@
     "schemas": {
       "ActiveDateDto": {
         "properties": {
+          "arrival": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DateArrivalDto"
+              }
+            ],
+            "description": "The match's committed arrival; null before it, and once the viewer has read the chat after it",
+            "nullable": true,
+            "type": "object"
+          },
           "chatTutorialSeen": {
             "description": "The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial",
             "type": "boolean"
           },
           "checkedIn": {
-            "description": "The viewer's own arrival check-in. Always false until Date 03 adds the check-in store",
+            "description": "True once the viewer's own arrival check-in is committed (Close); one not yet committed is still private",
             "type": "boolean"
           },
           "coordinateOpen": {
@@ -88,6 +98,7 @@
           "sharedInterests",
           "unread",
           "checkedIn",
+          "arrival",
           "chatTutorialSeen"
         ],
         "type": "object"
@@ -230,6 +241,32 @@
           "identityToken"
         ],
         "type": "object"
+      },
+      "ArrivalCheckInDto": {
+        "properties": {
+          "checkedInAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "committed": {
+            "description": "True once the check-in was committed (Close)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checkedInAt",
+          "committed"
+        ],
+        "type": "object"
+      },
+      "ArrivalEntry": {
+        "description": "Where the person tapped \"I'm here\"",
+        "enum": [
+          "date_screen",
+          "chat_chip",
+          "report"
+        ],
+        "type": "string"
       },
       "AuthResponseDto": {
         "properties": {
@@ -606,6 +643,48 @@
         ],
         "type": "object"
       },
+      "CreateArrivalCheckInDto": {
+        "properties": {
+          "accuracyM": {
+            "description": "Horizontal accuracy of the fix in metres",
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "clientId": {
+            "description": "The id the phone gave this tap, so a resend of the same tap is stored once",
+            "format": "uuid",
+            "type": "string"
+          },
+          "entry": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ArrivalEntry"
+              }
+            ],
+            "description": "Where the person tapped \"I'm here\""
+          },
+          "latitude": {
+            "example": 52.5186,
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "longitude": {
+            "example": 13.3761,
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "entry",
+          "clientId"
+        ],
+        "type": "object"
+      },
       "CreateBlockDto": {
         "properties": {
           "targetUserId": {
@@ -758,6 +837,18 @@
         "required": [
           "targetUserId",
           "passType"
+        ],
+        "type": "object"
+      },
+      "DateArrivalDto": {
+        "properties": {
+          "checkedInAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkedInAt"
         ],
         "type": "object"
       },
@@ -4741,6 +4832,198 @@
         ]
       }
     },
+    "/dates/{id}/arrival": {
+      "delete": {
+        "operationId": "undoArrivalCheckIn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      },
+      "post": {
+        "operationId": "createArrivalCheckIn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArrivalCheckInDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArrivalCheckInDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
+    "/dates/{id}/arrival/commit": {
+      "post": {
+        "operationId": "commitArrivalCheckIn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
     "/dates/{id}/cancel": {
       "post": {
         "operationId": "cancelDate",
@@ -5372,6 +5655,46 @@
               }
             },
             "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/arrival": {
+      "post": {
+        "operationId": "devPartnerCheckIn",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
           },
           "401": {
             "content": {

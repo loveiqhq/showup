@@ -805,6 +805,12 @@ struct BrandIconView: View {
     /// Declared LAST: Swift's memberwise init is positional, and every existing call site passes
     /// icon / size / stroke / tint in that order.
     var opticalCentre: Bool = false
+    /// Draw a FILLED mark as the kit's SVG does: fill AND stroke. The kit's `Icon` sets `stroke="currentColor"` on the
+    /// `<svg>`, a filled path inherits it, so `heart-filled` at size 34 / stroke 2.2 is 2.2 points fatter all round
+    /// than its fill alone (66 against 60 on the 390 sheet, measured on Android). OFF BY DEFAULT: every other filled
+    /// mark in the app was reviewed against its sheet as a plain fill. Declared after `opticalCentre` for the same
+    /// positional-init reason.
+    var fillAndStroke: Bool = false
 
     var body: some View {
         Canvas { ctx, _ in
@@ -1441,6 +1447,9 @@ struct BrandIconView: View {
             let scaled = p.applying(t)
             if filled {
                 ctx.fill(scaled, with: .color(tint))
+                if fillAndStroke {
+                    ctx.stroke(scaled, with: .color(tint), style: StrokeStyle(lineWidth: stroke, lineCap: .round, lineJoin: .round))
+                }
             } else {
                 ctx.stroke(scaled, with: .color(tint), style: StrokeStyle(lineWidth: stroke, lineCap: .round, lineJoin: .round))
             }

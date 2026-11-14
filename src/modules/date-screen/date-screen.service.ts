@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { DataSource, In, IsNull, Not } from 'typeorm';
 
 import { CheckInWindow } from '../check-ins/entities/check-in-window.entity';
+import { ArrivalCheckInsService } from '../dates/arrival-check-ins.service';
+import { arrivalOf } from '../dates/util/arrival';
 import { DateChatMessage } from '../dates/entities/date-chat-message.entity';
 import { DateEntity } from '../dates/entities/date.entity';
 import { DateStatus } from '../dates/util/date-lifecycle';
@@ -26,6 +28,7 @@ export class DateScreenService {
   constructor(
     private readonly db: DataSource,
     private readonly search: SearchService,
+    private readonly arrivals: ArrivalCheckInsService,
   ) {}
 
   /** The viewer's active date, newest first if (against the rules) there were two. */
@@ -52,8 +55,8 @@ export class DateScreenService {
     const viewerIsA = date.userAId === viewerId;
     const partnerId = viewerIsA ? date.userBId : date.userAId;
 
-    const [windows, viewerProfile, venue, meters, messages] = await Promise.all(
-      [
+    const [windows, viewerProfile, venue, meters, messages, arrivalRows] =
+      await Promise.all([
         this.latestWindows([viewerId, partnerId]),
         this.db.getRepository(Profile).findOne({ where: { userId: viewerId } }),
         this.venueOf(date.venueId),
@@ -62,8 +65,8 @@ export class DateScreenService {
           where: { dateId: date.id },
           order: { createdAt: 'ASC' },
         }),
-      ],
-    );
+        this.arrivals.rowsFor(date.id),
+      ]);
     const partner = await this.search.profileFor(
       partnerId,
       windows.get(partnerId) ?? null,
@@ -96,8 +99,13 @@ export class DateScreenService {
         viewerId,
         viewerIsA ? date.aChatReadAt : date.bChatReadAt,
       ),
-      // Date 03 adds the arrival check-in store; until then nobody has checked in.
-      checkedIn: false,
+      checkedIn: arrivalRows.some(
+        (r) => r.userId === viewerId && r.committedAt !== null,
+      ),
+      arrival: arrivalOf(
+        arrivalRows.find((r) => r.userId === partnerId) ?? null,
+        viewerIsA ? date.aChatReadAt : date.bChatReadAt,
+      ),
       chatTutorialSeen:
         (viewerIsA ? date.aChatTutorialAt : date.bChatTutorialAt) !== null,
       meetDay: meetDay(date.scheduledAt, now, tz),

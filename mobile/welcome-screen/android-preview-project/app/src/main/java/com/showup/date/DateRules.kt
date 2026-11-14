@@ -36,6 +36,12 @@ fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOp
 }
 
 /**
+ * Whether a card is hoisted under the hero: the match's arrival (Date 03) or an unread message. The arrival
+ * outranks a message in that slot (R11); both clear together.
+ */
+fun hoisted(state: DateState, arrival: DateArrival?): Boolean = arrival != null || state == DateState.Unread
+
+/**
  * The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet
  * time` and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the
  * vocabulary's own switch. They are hidden until Date 05 ships (epic rule 8): the day Date 05 shows those

@@ -10,6 +10,7 @@ export type NotificationCategory = 'essential' | 'engagement' | 'marketing';
 /** Every kind of message the backend can send. Add new kinds here + in the maps below + the catalog. */
 export type NotificationType =
   | 'date_reminder'
+  | 'date_partner_arrived'
   | 'check_in_expiry'
   | 'new_match'
   | 'email_verification'
@@ -35,6 +36,7 @@ export const DEFAULT_PREFERENCES: NotificationPreferenceState = {
 
 const CATEGORY_BY_TYPE: Record<NotificationType, NotificationCategory> = {
   date_reminder: 'engagement',
+  date_partner_arrived: 'engagement',
   check_in_expiry: 'engagement',
   new_match: 'engagement',
   email_verification: 'essential',

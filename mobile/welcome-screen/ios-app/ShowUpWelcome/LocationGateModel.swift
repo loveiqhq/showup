@@ -41,6 +41,8 @@ final class LocationGateModel {
 
     /// The gate is on screen: `screen_viewed` once per mount, never per state.
     @ObservationIgnored private var mounted = false
+    /// Mounted for the Date screen's gate (SHOWUP-195 G): it reads and asks as ever and reports nothing.
+    @ObservationIgnored private var silent = false
     /// The state last reported while mounted, so only a CHANGE reports again.
     @ObservationIgnored private var reported: LocationState?
     /// The gate lifted on the Search tab while it was up: the Search that replaces it was reached
@@ -75,13 +77,13 @@ final class LocationGateModel {
 
     private func apply(_ now: LocationState?) {
         guard let now else {
-            if ui.blocked != nil, mounted, !ui.overProfile { liftedOnTab = true }
+            if ui.blocked != nil, mounted, !silent, !ui.overProfile { liftedOnTab = true }
             ui = LocationGateUiState(known: true)
             return
         }
         ui.known = true
         ui.blocked = now
-        if mounted, now != reported { announce(now) }
+        if mounted, !silent, now != reported { announce(now) }
     }
 
     private func announce(_ shown: LocationState) {
@@ -91,8 +93,12 @@ final class LocationGateModel {
 
     /// The gate is on display -- the Search tab blocked (A-C), or pushed over a Likes profile (D).
     func mounted(referrer: ProfileScreen?) {
-        guard let shown = ui.blocked, !mounted else { return }
+        guard let shown = ui.blocked else { return }
+        // Already up for Search: nothing to do. Up for the Date screen: Search takes the context over.
+        if mounted, !silent { return }
         mounted = true
+        silent = false
+        reported = nil
         liftedOnTab = false
         analytics?.report(ProfileAnalytics.screenViewed(.searchLocationGate, referrer: referrer))
         announce(shown)
@@ -101,8 +107,23 @@ final class LocationGateModel {
     /// The gate left the screen. The next showing reports again.
     func left() {
         mounted = false
+        silent = false
         reported = nil
     }
+
+    /// The gate is on display over the Date screen (SHOWUP-195 G). It reads and asks exactly as the Search gate
+    /// does and fires NO event: the ticket's tracking for this gate is Philipp's open decision (R1).
+    func dateMounted() {
+        guard ui.blocked != nil else { return }
+        // Takes the context over even from Search: what follows reports nothing.
+        mounted = true
+        silent = true
+        reported = nil
+        liftedOnTab = false
+    }
+
+    /// The date gate left the screen.
+    func dateLeft() { left() }
 
     /// Asked once by the Search screen that replaces the gate: was it reached from the gate?
     func takeLift() -> Bool {
@@ -116,11 +137,15 @@ final class LocationGateModel {
     func allowPressed() async {
         guard mounted, !ui.requesting, ui.blocked == .ask, let host else { return }
         ui.requesting = true
-        analytics?.report(ProfileAnalytics.permissionOsSheetShown(
-            type: ProfileAnalytics.permissionLocation, screen: .searchLocationGate))
+        if !silent {
+            analytics?.report(ProfileAnalytics.permissionOsSheetShown(
+                type: ProfileAnalytics.permissionLocation, screen: .searchLocationGate))
+        }
         let granted = await host.requestLocationPermission()
-        analytics?.report(ProfileAnalytics.permissionResult(
-            granted: granted, type: ProfileAnalytics.permissionLocation, screen: .searchLocationGate))
+        if !silent {
+            analytics?.report(ProfileAnalytics.permissionResult(
+                granted: granted, type: ProfileAnalytics.permissionLocation, screen: .searchLocationGate))
+        }
         // Read rather than assumed: a grant with Location Services off still blocks (C).
         let now: LocationState? = granted ? await read() : .denied
         ui.requesting = false
@@ -130,8 +155,10 @@ final class LocationGateModel {
     /// `Open Settings` on B or C: our app page (iOS cannot open Location Services), and the gate STAYS.
     func openSettingsPressed() {
         guard mounted, let shown = ui.blocked, shown != .ask else { return }
-        analytics?.report(ProfileAnalytics.permissionSettingsOpened(
-            type: ProfileAnalytics.permissionLocation, screen: .searchLocationGate))
+        if !silent {
+            analytics?.report(ProfileAnalytics.permissionSettingsOpened(
+                type: ProfileAnalytics.permissionLocation, screen: .searchLocationGate))
+        }
         host?.openSettings(for: shown)
     }
 

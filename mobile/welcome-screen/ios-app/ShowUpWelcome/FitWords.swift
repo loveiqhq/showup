@@ -22,6 +22,12 @@ import UIKit
 struct FitWords<Label: View>: View {
     /// The words `label` draws: what is measured.
     let text: String
+    /// The words to keep whole, when they are not `text` split at white space: a run the caller holds together (an
+    /// emphasis phrase whose spaces do not break) is one word here. nil: `text`'s own words.
+    var words: [String]? = nil
+    /// Publishes the widest word as drawn -- the hidden copy of the words, at the size chosen -- under this fit anchor
+    /// id, for the fit tests (a word wider than its box is a word broken).
+    var anchor: String? = nil
     /// `label`'s font at a scale.
     let font: (CGFloat) -> Font
     /// The text at a scale: 1 is its own size.
@@ -46,13 +52,14 @@ struct FitWords<Label: View>: View {
 
     private func attempt(_ scale: CGFloat) -> some View {
         // Words, and the parts of a hyphenated one marked breakable (`breakAfterHyphens`).
-        let words = text.split(whereSeparator: { $0.isWhitespace || $0 == "\u{200B}" }).map(String.init)
+        let kept = words ?? text.split(whereSeparator: { $0.isWhitespace || $0 == "\u{200B}" }).map(String.init)
         return WordFitLayout {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(words.indices, id: \.self) { i in
-                    Text(words[i]).font(font(scale)).fixedSize()
+                ForEach(kept.indices, id: \.self) { i in
+                    Text(kept[i]).font(font(scale)).fixedSize()
                 }
             }
+            .fitAnchor(ifGiven: anchor)
             .hidden()
             .accessibilityHidden(true)
             label(scale)

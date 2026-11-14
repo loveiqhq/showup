@@ -134,8 +134,14 @@ final class DevMenuRulesTests: XCTestCase {
         XCTAssertEqual(Set(devStates.map(\.id)).count, devStates.count)
         var perTicket: [String: Int] = [:]
         for state in devStates { perTicket[String(state.id.prefix(3)), default: 0] += 1 }
-        XCTAssertEqual(perTicket, ["178": 2, "179": 5, "180": 3, "181": 5, "182": 3, "183": 5, "184": 10, "194": 11])
-        XCTAssertEqual(devStateTickets.count, 8)
+        XCTAssertEqual(perTicket, ["178": 2, "179": 5, "180": 3, "181": 5, "182": 3, "183": 5, "184": 10, "194": 11, "195": 8])
+        XCTAssertEqual(devStateTickets.count, 9)
+    }
+
+    func testTheDateActionsOfferLeonieCheckingInBeforeTheEnd() {
+        let labels = DevDateAction.allCases.map(\.label)
+        XCTAssertEqual(labels.last, "End test date")
+        XCTAssertEqual(labels.firstIndex(of: "Leonie checks in (H, the arrival card)"), labels.count - 2)
     }
 
     func testEveryOtherScreenLandsWhereAsked() {

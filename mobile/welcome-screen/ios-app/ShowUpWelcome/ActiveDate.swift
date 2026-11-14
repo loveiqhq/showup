@@ -34,6 +34,11 @@ struct DateUnread: Equatable, Sendable {
     var sentAt: Date
 }
 
+/// The match's committed arrival (SHOWUP-195): shown until the viewer opens the chat or taps the card.
+struct DateArrival: Equatable, Sendable {
+    var checkedInAt: Date
+}
+
 /// Everything the Date screen renders. Time and place are the latest AGREED values.
 struct ActiveDate: Equatable, Sendable {
     var id: String
@@ -51,10 +56,12 @@ struct ActiveDate: Equatable, Sendable {
     var sharedVibes: [String]
     var sharedInterests: [String]
     var unread: DateUnread?
-    /// The viewer's own arrival check-in. Always false until Date 03.
+    /// The viewer has a committed arrival check-in (Date 03).
     var checkedIn: Bool
     /// The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial.
     var chatTutorialSeen: Bool
+    /// The match's committed check-in the viewer has not seen; nil once seen (Date 03).
+    var arrival: DateArrival? = nil
 }
 
 /// A date ended in the chat after "I can't make it today" (Date 02) that the viewer has not seen yet: the

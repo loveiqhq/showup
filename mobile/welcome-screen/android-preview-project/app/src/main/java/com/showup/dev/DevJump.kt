@@ -207,7 +207,7 @@ fun devJump(
  */
 data class DevState(val id: String, val ticket: String, val label: String)
 
-/** Every frame of SHOWUP-178 to 184's, 193's and 194's evidence, in ticket order -- plus the states between them. */
+/** Every frame of SHOWUP-178 to 184's, 193's, 194's and 195's evidence, in ticket order -- plus the states between them. */
 val DEV_STATES: List<DevState> = listOf(
     DevState("178A", "SHOWUP-178 Intro + gate", "A · Intro"),
     DevState("178B", "SHOWUP-178 Intro + gate", "B · Date search not available"),
@@ -259,6 +259,14 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("194I", "SHOWUP-194 Coordinate chat", "I · Chat couldn't load"),
     DevState("194J", "SHOWUP-194 Coordinate chat", "J · Message didn't send"),
     DevState("194K", "SHOWUP-194 Coordinate chat", "K · End date didn't go through"),
+    DevState("195A", "SHOWUP-195 Arrival check-in", "A · Check-in bar"),
+    DevState("195B", "SHOWUP-195 Arrival check-in", "B · Guard sheet, Are you at the spot?"),
+    DevState("195C", "SHOWUP-195 Arrival check-in", "C · Couldn't find your location"),
+    DevState("195D", "SHOWUP-195 Arrival check-in", "D · Done, Leonie is told on Close"),
+    DevState("195E", "SHOWUP-195 Arrival check-in", "E · After Close, footer empty"),
+    DevState("195F", "SHOWUP-195 Arrival check-in", "F · Chat chip, guard over the chat"),
+    DevState("195G", "SHOWUP-195 Arrival check-in", "G · Date location gate (denied)"),
+    DevState("195H", "SHOWUP-195 Arrival check-in", "H · Leonie arrived card"),
 )
 
 /** The developer menu's Date actions (SHOWUP-193), each a dev-server route. */
@@ -274,6 +282,9 @@ sealed interface DevDateAction {
 
     /** Leonie ends the date in the chat, after her can't-make-it message: this phone lands on H. */
     data object MatchEndsInChat : DevDateAction
+
+    /** Leonie checks in at the spot (SHOWUP-195 H): her arrival card shows under the hero. */
+    data object PartnerChecksIn : DevDateAction
 
     /** Ends the test date: the screen leaves for the normal resume. */
     data object End : DevDateAction

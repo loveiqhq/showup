@@ -91,6 +91,10 @@ final class ChatRulesTests: XCTestCase {
         XCTAssertEqual(chatEntryFor(date), .openChat)
         date.unread = DateUnread(count: 1, reason: .runningLate, body: "Late", sentAt: at)
         XCTAssertEqual(chatEntryFor(date), .readReply)
+        // The match's arrival says Open chat, whatever else waits (Date 03).
+        var arrived = date
+        arrived.arrival = DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800))
+        XCTAssertEqual(chatEntryFor(arrived), .openChat)
     }
 
     func testAnEntryReadsBackFromItsWireValue() {

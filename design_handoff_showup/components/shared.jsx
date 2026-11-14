@@ -372,9 +372,11 @@ function AppHeader({ title, leading = 'back', trailing, onBack, dense = false })
 // Tab bar (Show Up's bottom nav)
 //
 // Search, Likes, Instant, Settings — the same four tabs for EVERY user
-// (21 Oct 2026). likes = open received likes → badge, shown to Freemium too
-// (the Premium upsell). Premium tap → Likes received (Search 03); Freemium
-// tap → the likes upsell screen (own story, not built). Always visible on the
+// (21 Oct 2026). likes = open received likes → badge on the tab, shown to
+// Freemium too: it is the Premium upsell. Premium tap → Likes received
+// (Search 03); Freemium tap → the likes upsell screen (own story, not built).
+// Kit default for likes = the mock LIKES_RECEIVED; in the app, the server count.
+// Always visible on the
 // Date Search and Match screens; on Match the Search + Instant
 // tabs are disabled while the user has an active date. Tapping a
 // disabled tab pops a short hint above the bar explaining why
@@ -547,6 +549,7 @@ const PHOTOS = {
   Anna:   ['ph_anna_0',   'ph_anna_1'],
   Emma:   ['ph_emma_0',   'ph_emma_1'],
   Liv:    ['ph_liv_0',    'ph_liv_1'],
+  // Clara (Likes tab, closed card) — Liv's second photo; Liv is never on the Likes tab.
   Clara:  ['ph_liv_1'],
   You:    ['ph_you_0',    'ph_you_1'],
   Jonas:  ['ph_jonas_0',  'ph_jonas_1'],
@@ -775,6 +778,34 @@ function ShowUpPill({ value = 94, variant = 'soft', size = 'md' }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Show-up count (decided 20 Oct 2026) — replaces the percentage on the
+// Date search profile. Reward-only: counts dates confirmed by both people
+// (arrive → QR scan, logic later). Missed dates are never counted or shown.
+//   count 0 or none → "New in the App" (new users and users with no
+//                     confirmed date yet — decided 20 Oct 2026)
+//   count ≥ 1    → "N date(s) attended"
+// ─────────────────────────────────────────────────────────────
+function ShowUpCount({ count, variant = 'soft', size = 'md' }) {
+  const isNew = !(count > 0);
+  const t = showUpTone(100);
+  const fs = size === 'xs' ? 11 : size === 'sm' ? 12 : 12.5;
+  const pad = size === 'xs' ? '4px 9px' : '7px 12px';
+  const pal = isNew
+    ? (variant === 'dark' ? { bg: 'rgba(255,255,255,0.92)', fg: 'var(--liq-primary-500)' } : { bg: 'rgba(129,42,236,0.10)', fg: 'var(--liq-primary-500)' })
+    : variant === 'dark' ? { bg: t.pillBg, fg: t.pillFg } : { bg: t.softBg, fg: t.fg };
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6, padding: pad, borderRadius: 9999,
+      background: pal.bg, color: pal.fg, backdropFilter: variant === 'dark' ? 'blur(8px)' : undefined,
+      fontFamily: 'var(--liq-font-sans)', fontSize: fs, fontWeight: 700, lineHeight: 1, whiteSpace: 'nowrap',
+    }}>
+      <Icon name={isNew ? 'sparkles' : 'shield-check'} size={fs + 1} stroke={2.2}/>
+      {isNew ? 'New in the App' : <span><span style={{ fontWeight: 800 }}>{count}</span> {count === 1 ? 'date' : 'dates'} attended</span>}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // Section heading (eyebrow + title + sub)
 // ─────────────────────────────────────────────────────────────
 function SectionHead({ eyebrow, title, sub, align = 'left' }) {
@@ -960,7 +991,7 @@ function ProfileVisibility({
 Object.assign(window, {
   Wordmark, Icon, Button, NextButton, SkipLink, Chip, Card, Phone, AppHeader, TabBar,
   Avatar, PortraitPlaceholder, Eyebrow, TimeSlot, StepProgress, ScoreRing,
-  ShowUpPill, showUpTone, StatusBar, HomeIndicator,
+  ShowUpPill, ShowUpCount, showUpTone, StatusBar, HomeIndicator,
   SectionHead, Field, avatarGrad, photoFor, PHOTOS,
   Atmosphere, ProfileVisibility,
 });
