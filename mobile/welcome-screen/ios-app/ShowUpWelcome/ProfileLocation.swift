@@ -609,11 +609,10 @@ private struct DateGateLayout: View {
          (LocationCopy.Date.em, true), (LocationCopy.Date.tail, false)]
     }
 
-    /// The headline's words as the line breaker sees them: split at ordinary spaces only, the emphasis run's own
-    /// spaces held (it is `nowrap`), so `date information.` is one word, with its tail.
+    /// The headline's words as the line breaker sees them: split at ordinary spaces, the emphasis run's included (the
+    /// kit sets no nowrap on this `<em>`), so the tail's `.` stays with `information.` and the widest word is that.
     static func headlineWords(_ parts: [(String, Bool)]) -> [String] {
-        parts.map { $0.1 ? $0.0.replacingOccurrences(of: " ", with: "\u{00A0}") : $0.0 }.joined()
-            .split(separator: " ").map { $0.replacingOccurrences(of: "\u{00A0}", with: " ") }
+        parts.map(\.0).joined().split(separator: " ").map(String.init)
     }
 
     private var bodyText: String {
@@ -629,14 +628,14 @@ private struct DateGateLayout: View {
             DateGateCard(name: date.name, meetDay: date.meetDay, meetAt: date.meetAt, place: date.place,
                          photoUrl: date.photoUrl, now: date.now, zone: date.zone)
             // No word broken between two letters at the largest type on the narrowest phone: where the widest word
-            // -- the emphasis run is one, its spaces do not break -- is wider than the box, the headline is drawn
-            // at the largest smaller size where it fits (`FitWords`, never under the default size). `date
-            // information.` at 60 pt is wider than a 320 phone's 272. This headline only (Android's `fitWords`).
+            // -- `information.`, the emphasis run's own words wrap (`emphasisBreaks`) -- is wider than the box, the
+            // headline is drawn at the largest smaller size where it fits (`FitWords`, never under the default size).
+            // This headline only (Android's `fitWords`).
             FitWords(text: headlineParts.map(\.0).joined(), words: Self.headlineWords(headlineParts),
                      anchor: FitAnchorID.dateGateHeadlineWord,
                      font: { s in F.lora(30 * s, bold: true) }) { s in
                 WashHeadline(parts: headlineParts, fontSize: 30 * s, lineHeightMultiple: 1.12, trackingEm: -0.015,
-                             balance: true, cssLineBox: true, heading: true)
+                             balance: true, cssLineBox: true, heading: true, emphasisBreaks: true)
             }
             .fitAnchor(FitAnchorID.gateHeadline)
             .padding(.top, 26)

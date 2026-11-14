@@ -100,6 +100,16 @@ private struct DateHeightsKey: PreferenceKey {
     }
 }
 
+/// The most of the screen the sticky footer may cover before the bar moves into the scroll (Android's `FOOTER_MAX_SHARE`).
+private let footerMaxShare: CGFloat = 0.6
+
+/// Whether the Check-in bar gives way and ends the scroll instead of sticking over the TabBar: the two together
+/// would cover more than 60 % of `frame`, the screen's height. THE ONE DECISION: the layout and `ArrivalFitTests`
+/// both call it, so a rule held to a different threshold or tolerance cannot disagree with the screen.
+func dateBarInFlow(bar: CGFloat, tab: CGFloat, frame: CGFloat) -> Bool {
+    frame > 0 && bar + tab > frame * footerMaxShare
+}
+
 private extension View {
     func measuredHeight(_ id: String) -> some View {
         background(GeometryReader { g in Color.clear.preference(key: DateHeightsKey.self, value: [id: g.size.height]) })
@@ -136,14 +146,12 @@ struct DateScreen: View {
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
 
-    /// The most of the screen the sticky footer may cover before the bar moves into the scroll.
-    private static let footerMaxShare: CGFloat = 0.6
 
     var body: some View {
         let frame = heights["frame"] ?? 0
         let bar = heights["bar"] ?? 0
         let tab = heights["tab"] ?? 0
-        let barInFlow = frame > 0 && bar + tab > frame * Self.footerMaxShare
+        let barInFlow = dateBarInFlow(bar: bar, tab: tab, frame: frame)
         // THE SCREEN IS THE PHONE'S WIDTH, EXACTLY. A ZStack takes the width of its widest child, so a
         // footer a point too rigid (a long name at the 402-wide phone's exact width) widened the scroll
         // with it and moved every card off its 16 gutter. Pinned here, nothing inside can.

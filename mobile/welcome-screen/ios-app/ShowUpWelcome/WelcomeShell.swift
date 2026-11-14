@@ -439,6 +439,10 @@ struct WashHeadline: UIViewRepresentable {
     /// the host below, labelled with the text -- so the trait cannot land on an empty container,
     /// which is what Android's merged semantics fixed on its side.
     var heading: Bool = false
+    /// The emphasis run wraps like the words around it, its spaces ordinary ones, instead of `white-space: nowrap`.
+    /// The date gate's kit headline sets no nowrap on its `<em>`: `date information.` may break between the words, and
+    /// the wash follows it onto the second line, one band a line. OFF BY DEFAULT: every other headline holds its run.
+    var emphasisBreaks: Bool = false
 
     func makeUIView(context: Context) -> WashHost {
         WashHost()
@@ -517,7 +521,7 @@ struct WashHeadline: UIViewRepresentable {
             // `white-space: nowrap` on the emphasis span, expressed the only way an attributed
             // string can: a space that is not a break opportunity. Without it "Show Up" can split
             // across two lines and the wash paints under two disconnected fragments.
-            let text = isItalic ? rawText.replacingOccurrences(of: " ", with: "\u{00A0}") : rawText
+            let text = isItalic && !emphasisBreaks ? rawText.replacingOccurrences(of: " ", with: "\u{00A0}") : rawText
             let start = out.length
             out.append(NSAttributedString(string: text, attributes: [
                 .font: isItalic ? italic : regular,
@@ -696,6 +700,26 @@ final class WashLabel: UILabel {
         manager.ensureLayout(for: container)
 
         let glyphRange = manager.glyphRange(forCharacterRange: italicRange, actualCharacterRange: nil)
+        // One band a line: a run that wraps (`emphasisBreaks`) is painted under each of its lines, the space the
+        // line broke at left out. A run on one line is one segment, painted exactly as before.
+        var segments: [NSRange] = []
+        manager.enumerateLineFragments(forGlyphRange: glyphRange) { _, _, _, lineGlyphs, _ in
+            var part = NSIntersectionRange(lineGlyphs, glyphRange)
+            guard part.length > 0 else { return }
+            if NSMaxRange(part) < NSMaxRange(glyphRange), part.length > 1 {
+                let last = manager.characterIndexForGlyph(at: NSMaxRange(part) - 1)
+                if (attributed.string as NSString).substring(with: NSRange(location: last, length: 1))
+                    .trimmingCharacters(in: .whitespaces).isEmpty { part.length -= 1 }
+            }
+            segments.append(part)
+        }
+        for segment in segments.isEmpty ? [glyphRange] : segments {
+            paintWash(manager: manager, container: container, glyphRange: segment, ctx: ctx)
+        }
+    }
+
+    private func paintWash(manager: NSLayoutManager, container: NSTextContainer, glyphRange: NSRange,
+                           ctx: CGContext) {
         var box = CGRect.null
         manager.enumerateEnclosingRects(forGlyphRange: glyphRange,
                                         withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0),

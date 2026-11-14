@@ -30,6 +30,21 @@ import XCTest
 import SwiftUI
 @testable import ShowUpWelcome
 
+private final class ScaleBox {
+    var value: CGFloat = 1
+}
+
+/// Reads the `@ScaledMetric(relativeTo: .body)` factor at the environment's type size, for `ArrivalFitTests.scale`.
+private struct ScaleProbe: View {
+    let box: ScaleBox
+    @ScaledMetric(relativeTo: .body) private var factor: CGFloat = 1
+
+    var body: some View {
+        let _ = box.value = factor
+        Color.clear
+    }
+}
+
 @MainActor
 final class ArrivalFitTests: XCTestCase {
 
@@ -94,27 +109,26 @@ final class ArrivalFitTests: XCTestCase {
         [.xxxLarge, .accessibility1], [.accessibility2, .accessibility3], [.accessibility4, .accessibility5],
     ]
 
-    /// The type size as a factor of the default, as `@ScaledMetric(relativeTo: .body)` has it.
+    /// What `@ScaledMetric(relativeTo: .body)` reads as at a type size: the factor every `PrettyText` and the bar's
+    /// longest-word measure multiply their fonts by. READ FROM A HOSTED VIEW, not estimated from `UIFontMetrics`
+    /// (which scales a 100 pt value on a different curve than the 1 pt one `ScaledMetric` scales: the bar's text read
+    /// 102.67 against a longest word of 105.37, 2.6 % off, at AX2).
     private func scale(_ type: DynamicTypeSize) -> CGFloat {
-        let category: UIContentSizeCategory
-        switch type {
-        case .xSmall: category = .extraSmall
-        case .small: category = .small
-        case .medium: category = .medium
-        case .large: category = .large
-        case .xLarge: category = .extraLarge
-        case .xxLarge: category = .extraExtraLarge
-        case .xxxLarge: category = .extraExtraExtraLarge
-        case .accessibility1: category = .accessibilityMedium
-        case .accessibility2: category = .accessibilityLarge
-        case .accessibility3: category = .accessibilityExtraLarge
-        case .accessibility4: category = .accessibilityExtraExtraLarge
-        case .accessibility5: category = .accessibilityExtraExtraExtraLarge
-        @unknown default: category = .large
-        }
-        return UIFontMetrics(forTextStyle: .body)
-            .scaledValue(for: 100, compatibleWith: UITraitCollection(preferredContentSizeCategory: category)) / 100
+        if let known = scaleCache[type] { return known }
+        let box = ScaleBox()
+        let controller = UIHostingController(rootView: ScaleProbe(box: box).environment(\.dynamicTypeSize, type))
+        let window = FixedInsetWindow(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        window.rootViewController = controller
+        window.isHidden = false
+        window.layoutIfNeeded()
+        controller.view.layoutIfNeeded()
+        window.isHidden = true
+        window.rootViewController = nil
+        scaleCache[type] = box.value
+        return box.value
     }
+
+    private var scaleCache: [DynamicTypeSize: CGFloat] = [:]
 
     // MARK: the frames
 
@@ -272,7 +286,7 @@ final class ArrivalFitTests: XCTestCase {
                 if text.width + 0.5 < need { found.append("\(tag): the bar's text is \(text.width) wide, its longest word needs \(need)") }
             }
             if let tab, let footer, let screen = f["date:screen"] {
-                let shouldPin = bar.height + tab.height <= screen.height * 0.6 + 1
+                let shouldPin = !dateBarInFlow(bar: bar.height, tab: tab.height, frame: screen.height)
                 let pinned = footer.height > tab.height + 0.5
                 if shouldPin && !pinned { found.append("\(tag): the bar is not on the TabBar (bar \(bar.height), TabBar \(tab.height) of \(screen.height))") }
                 if !shouldPin && pinned { found.append("\(tag): the bar is pinned though it and the TabBar take over 60 % (\(bar.height) + \(tab.height) of \(screen.height))") }
