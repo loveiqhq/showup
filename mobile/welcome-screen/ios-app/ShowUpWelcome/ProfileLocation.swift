@@ -583,12 +583,14 @@ private struct DateGateLayout: View {
                                   .accessibilityHidden(true)
                           },
                           trailing: { EmptyView() })
+                .fitAnchor(FitAnchorID.gateCta)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 22)
 
             // Cream under the glass, as the Date screen's own TabBar: no backdrop blur here.
             TabBar(active: nil, onTab: date.onTab, likes: 0, disabled: dateLockedTabs, disabledHint: DateCopy.tabHint)
                 .background(Color.liqCream.ignoresSafeArea(edges: .bottom))
+                .fitAnchor(FitAnchorID.tabBar)
         }
         .background(alignment: .top) {
             WelcomeBackdrop(placement: .startup,
@@ -607,6 +609,13 @@ private struct DateGateLayout: View {
          (LocationCopy.Date.em, true), (LocationCopy.Date.tail, false)]
     }
 
+    /// The headline's words as the line breaker sees them: split at ordinary spaces only, the emphasis run's own
+    /// spaces held (it is `nowrap`), so `date information.` is one word, with its tail.
+    static func headlineWords(_ parts: [(String, Bool)]) -> [String] {
+        parts.map { $0.1 ? $0.0.replacingOccurrences(of: " ", with: "\u{00A0}") : $0.0 }.joined()
+            .split(separator: " ").map { $0.replacingOccurrences(of: "\u{00A0}", with: " ") }
+    }
+
     private var bodyText: String {
         switch state {
         case .ask: return LocationCopy.Date.aBody(date.name)
@@ -619,9 +628,18 @@ private struct DateGateLayout: View {
         VStack(alignment: .leading, spacing: 0) {
             DateGateCard(name: date.name, meetDay: date.meetDay, meetAt: date.meetAt, place: date.place,
                          photoUrl: date.photoUrl, now: date.now, zone: date.zone)
-            WashHeadline(parts: headlineParts, fontSize: 30, lineHeightMultiple: 1.12, trackingEm: -0.015,
-                         balance: true, cssLineBox: true, heading: true)
-                .padding(.top, 26)
+            // No word broken between two letters at the largest type on the narrowest phone: where the widest word
+            // -- the emphasis run is one, its spaces do not break -- is wider than the box, the headline is drawn
+            // at the largest smaller size where it fits (`FitWords`, never under the default size). `date
+            // information.` at 60 pt is wider than a 320 phone's 272. This headline only (Android's `fitWords`).
+            FitWords(text: headlineParts.map(\.0).joined(), words: Self.headlineWords(headlineParts),
+                     anchor: FitAnchorID.dateGateHeadlineWord,
+                     font: { s in F.lora(30 * s, bold: true) }) { s in
+                WashHeadline(parts: headlineParts, fontSize: 30 * s, lineHeightMultiple: 1.12, trackingEm: -0.015,
+                             balance: true, cssLineBox: true, heading: true)
+            }
+            .fitAnchor(FitAnchorID.gateHeadline)
+            .padding(.top, 26)
             PrettyText(bodyText,
                        font: TypeMetrics.uiFont(PS.manropeMedium, 14.5, fallback: .systemFont(ofSize: 14.5, weight: .medium)),
                        lineHeight: 14.5 * 1.5, color: .liqNeutral)

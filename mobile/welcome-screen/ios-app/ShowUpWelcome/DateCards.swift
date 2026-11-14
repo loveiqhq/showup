@@ -394,35 +394,42 @@ private struct HoistedCoordinate<Snippet: View>: View {
     var body: some View {
         // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
         Card(borderColor: tone.chipBorder, borderWidth: 1.5, padding: EdgeInsets(top: 1.5, leading: 1.5, bottom: 1.5, trailing: 1.5)) {
-            UnevenRoundedRectangle(topLeadingRadius: 18.5, topTrailingRadius: 18.5)
-                .fill(tone.fg)
-                .frame(height: 4)
-                .accessibilityHidden(true)
+            // The clip is the CARD's inner shape (20 - 1.5 border = 18.5) on the rail and the body together, as CSS's
+            // `overflow: hidden` clips them: a rail clipped on its own 4-tall shape shrinks the 18.5 radius to fit and
+            // runs out square past the card's rounded corners (found against the spec sheet's H, 13 Nov 2026).
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center, spacing: 12) {
-                    MatchAvatar(match: match, count: count, tone: tone.fg)
-                    VStack(alignment: .leading, spacing: 2) {
-                        ViewThatFits(in: .horizontal) {
-                            HStack(alignment: .center, spacing: 8) { name; tagView }
-                            VStack(alignment: .leading, spacing: 4) { name; tagView }
+                Rectangle()
+                    .fill(tone.fg)
+                    .frame(height: 4)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(alignment: .center, spacing: 12) {
+                        MatchAvatar(match: match, count: count, tone: tone.fg)
+                        VStack(alignment: .leading, spacing: 2) {
+                            ViewThatFits(in: .horizontal) {
+                                HStack(alignment: .center, spacing: 8) { name; tagView }
+                                VStack(alignment: .leading, spacing: 4) { name; tagView }
+                            }
+                            Text(line)
+                                .font(F.manrope(12.5, .regular))
+                                .foregroundColor(.liqMuted)
                         }
-                        Text(line)
-                            .font(F.manrope(12.5, .regular))
-                            .foregroundColor(.liqMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 7) { snippet() }
+                        .padding(EdgeInsets(top: 11, leading: 13, bottom: 11, trailing: 13))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(tone.bg))
+                        .padding(.top, 13)
+                    CoordinateCta(label: ctaLabel, fill: tone.fg,
+                                  shadows: tone == .orange ? shadowCta : (tone == .danger ? [] : shadowViolet),
+                                  action: onCta)
+                        .padding(.top, 14)
                 }
-                VStack(alignment: .leading, spacing: 7) { snippet() }
-                    .padding(EdgeInsets(top: 11, leading: 13, bottom: 11, trailing: 13))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(tone.bg))
-                    .padding(.top, 13)
-                CoordinateCta(label: ctaLabel, fill: tone.fg,
-                              shadows: tone == .orange ? shadowCta : (tone == .danger ? [] : shadowViolet),
-                              action: onCta)
-                    .padding(.top, 14)
+                .padding(16)
             }
-            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .clipShape(RoundedRectangle(cornerRadius: 18.5))
         }
     }
 

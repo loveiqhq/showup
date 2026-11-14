@@ -54,6 +54,7 @@ struct CheckInBar: View {
                     PrettyText(ArrivalCopy.barLine, font: lineFont, lineHeight: 12.5 * 1.4, color: .white)
                         .padding(.top, 3)
                 }
+                .fitAnchor(FitAnchorID.arrivalBarText)
                 Button(action: onCheckIn) {
                     Text(ArrivalCopy.barButton)
                         .font(F.manrope(15, .heavy))
@@ -67,6 +68,7 @@ struct CheckInBar: View {
                         .fitTapArea()
                 }
                 .buttonStyle(PressScale())
+                .fitAnchor(FitAnchorID.arrivalCheckIn)
             }
             if let onEnd {
                 Button(action: onEnd) {
@@ -82,6 +84,7 @@ struct CheckInBar: View {
         }
         .padding(EdgeInsets(top: 16, leading: 16, bottom: 10, trailing: 16))
         .frame(maxWidth: .infinity)
+        .fitAnchor(FitAnchorID.arrivalBar)
         .background {
             // The shadow's fill is the bar's own, so the rounded bottom corners it draws are covered.
             ZStack {

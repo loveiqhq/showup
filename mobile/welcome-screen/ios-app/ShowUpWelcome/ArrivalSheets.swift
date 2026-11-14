@@ -16,6 +16,15 @@
 import SwiftUI
 import UIKit
 
+/// The guard's title is `max-width: 310` in the reference. Chrome with the bundled Lora measures `meeting location
+/// for your` at 310.58, so it breaks before `your` (`meeting location for` / `your date with Leonie?`, as the spec
+/// sheet draws it); a text engine that measures the same run at under 310 keeps `your` on the line. One point of room
+/// (309) gives Chrome's break; the 310 lines it does not touch (measured in headless Chrome 157, 13 Nov 2026).
+/// Tuned to THIS title with the sample name `Leonie`, not a global change: a wider pretty-wrap rule or max-width
+/// would move reviewed wraps on other screens for a sub-point engine difference, and another name can still break a
+/// word differently.
+let confirmTitleMax: CGFloat = 309
+
 /// B / C are one kind, D the other: the key the host's swap animates on.
 private enum SheetKind { case confirm, done }
 
@@ -59,6 +68,7 @@ struct ArrivalSheetHost: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
+                .fitAnchor(FitAnchorID.arrivalSheet)
                 .animation(reduceMotion ? nil : Motion.brand(Motion.progress), value: kind)
             }
             .fitModal()
@@ -67,13 +77,16 @@ struct ArrivalSheetHost: View {
 }
 
 /// The 80 circle, violet 12%, with its icon (34 / 2.2) and the 8 above it.
+/// `heart-filled` is fill AND stroke here, as the kit's SVG draws it (the stroke is inherited from the `<svg>`); the stroke
+/// of the map pin is its own line either way.
 private struct SheetCircle: View {
     let icon: BrandIcon
 
     var body: some View {
-        BrandIconView(icon: icon, size: 34, stroke: 2.2, tint: .liqPurple)
+        BrandIconView(icon: icon, size: 34, stroke: 2.2, tint: .liqPurple, fillAndStroke: true)
             .frame(width: 80, height: 80)
             .background(Circle().fill(Color.liqPurple.opacity(0.12)))
+            .fitAnchor(FitAnchorID.arrivalCircle)
             .padding(.top, 8)
             .accessibilityHidden(true)
     }
@@ -98,6 +111,7 @@ private struct SunsetSheetButton: View {
     let label: String
     let waiting: Bool
     let action: () -> Void
+    let anchor: String
 
     var body: some View {
         Button(action: action) {
@@ -109,11 +123,12 @@ private struct SunsetSheetButton: View {
         }
         .buttonStyle(PressScale())
         .fitTapArea()
+        .fitAnchor(anchor)
         .disabled(waiting)
     }
 }
 
-/// B and C: circle 80 over the title (Lora 700 26 / 1.15, -0.01em, 16 above, at most 310, pretty), the optional
+/// B and C: circle 80 over the title (Lora 700 26 / 1.15, -0.01em, 16 above, at most `confirmTitleMax` = 309, pretty), the optional
 /// `note` (14 / 1.5 muted, 12 under the title), C's `SheetErrorBox` (14 under the title, 12 under a note, 16 above the
 /// buttons), `Not yet` (h 50, radius 16, white, soft border, 14.5 / 700 muted) and the primary 10 below (h 56, radius
 /// 18, sunset, `Yes, I've arrived` / `Try again`).
@@ -133,7 +148,7 @@ struct CheckInConfirmSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             SheetCircle(icon: .mapPin)
-            SheetTitle(text: ArrivalCopy.confirmTitle(name), maxWidth: 310)
+            SheetTitle(text: ArrivalCopy.confirmTitle(name), maxWidth: confirmTitleMax)
                 .padding(.top, 16)
             if let note {
                 PrettyText(note, font: chatFont(PS.manropeRegular, 14, .regular), lineHeight: 14 * 1.5, color: .liqMuted,
@@ -144,6 +159,7 @@ struct CheckInConfirmSheet: View {
             // 14 (or 12) above + 8 below the title block = the 22 (or 20) a calm sheet has; with the box, 16 below it.
             if locError {
                 SheetErrorBox(message: ArrivalCopy.locError)
+                    .fitAnchor(FitAnchorID.arrivalError)
                     .padding(.top, note == nil ? 14 : 12)
                     .padding(.bottom, 16)
                     .transition(.opacity)
@@ -158,8 +174,10 @@ struct CheckInConfirmSheet: View {
             }
             .buttonStyle(PressScale())
             .fitTapArea()
+            .fitAnchor(FitAnchorID.arrivalNotYet)
             .disabled(busy)
-            SunsetSheetButton(label: locError ? ArrivalCopy.tryAgain : ArrivalCopy.yes, waiting: busy, action: onYes)
+            SunsetSheetButton(label: locError ? ArrivalCopy.tryAgain : ArrivalCopy.yes, waiting: busy, action: onYes,
+                              anchor: FitAnchorID.arrivalYes)
                 .padding(.top, 10)
         }
         .frame(maxWidth: .infinity)
@@ -184,7 +202,7 @@ struct CheckInDoneSheet: View {
                        color: .liqMuted, centered: true)
                 .frame(maxWidth: 300)
                 .padding(.top, 8)
-            SunsetSheetButton(label: ArrivalCopy.close, waiting: false, action: onClose)
+            SunsetSheetButton(label: ArrivalCopy.close, waiting: false, action: onClose, anchor: FitAnchorID.arrivalClose)
                 .padding(.top, 22)
             Button(action: onUndo) {
                 Text(ArrivalCopy.undo).font(F.manrope(14, .semibold)).foregroundColor(.liqMuted)
@@ -194,6 +212,7 @@ struct CheckInDoneSheet: View {
                     .fitTapArea()
             }
             .buttonStyle(PressScale())
+            .fitAnchor(FitAnchorID.arrivalUndo)
             .padding(.top, 6)
         }
         .frame(maxWidth: .infinity)

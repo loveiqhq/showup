@@ -63,12 +63,14 @@ struct DateGateCard: View {
                         Text(pillText(pill))
                             .font(F.manrope(13, .bold))
                             .foregroundColor(.white)
-                            .lineLimit(1)
-                            .fixedSize()
+                            // Wraps inside the row rather than running out of it on a narrow phone (`Started N min
+                            // ago` at 200 % type on a 320 phone, 13 Nov 2026): the capsule grows a line, as Android's.
+                            .multilineTextAlignment(.leading)
                     }
                     .padding(.horizontal, 12)
                     .frame(minHeight: 30)
                     .background(Capsule().fill(late ? Color.liqDanger : Color.liqOrange))
+                    .fitAnchor(FitAnchorID.dateGatePill)
                     if late {
                         Text(LocationCopy.Date.mayBeWaiting(name))
                             .font(F.manrope(13, .bold))
@@ -81,6 +83,7 @@ struct DateGateCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 20).fill(Color.liqLilacCard))
+        .fitAnchor(FitAnchorID.dateGateCard)
         .accessibilityElement(children: .combine)
     }
 
