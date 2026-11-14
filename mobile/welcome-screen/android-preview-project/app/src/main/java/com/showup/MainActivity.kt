@@ -107,6 +107,7 @@ import com.showup.chat.ChatViewModel
 import com.showup.chat.SharedPrefsReceivedLedger
 import com.showup.chat.DateEndedScreen
 import com.showup.chat.chatEntryFor
+import com.showup.chat.openChatFromArrivalCard
 import com.showup.chat.chatRoute
 import com.showup.chat.outcomeRoute
 import androidx.navigation.toRoute
@@ -931,6 +932,8 @@ class MainActivity : ComponentActivity() {
                 val observer = LifecycleEventObserver { _, event ->
                     // Not a rotation, dark-mode or font change: the Activity is rebuilt, the person did not leave.
                     if (event == Lifecycle.Event.ON_STOP) arrivalGate?.let { onAppStopped(it, this@MainActivity.isChangingConfigurations) }
+                    // Back in front before a read's store landed: that store shows the done sheet as normal.
+                    if (event == Lifecycle.Event.ON_START) arrivalGate?.foregrounded()
                 }
                 arrivalLifecycle.lifecycle.addObserver(observer)
                 onDispose { arrivalLifecycle.lifecycle.removeObserver(observer) }
@@ -1280,6 +1283,14 @@ class MainActivity : ComponentActivity() {
             fun openChat() {
                 val d = dateState.date ?: return
                 navController.navigate(chatRoute(d, chatEntryFor(d))) { launchSingleTop = true }
+            }
+
+            /** `Open chat` on the arrival card: entry decided from the date as the card showed it, then cleared. */
+            fun openChatFromCard() {
+                val d = dateState.date ?: return
+                openChatFromArrivalCard(d, arrivalSeen = date::arrivalSeen) { route ->
+                    navController.navigate(route) { launchSingleTop = true }
+                }
             }
 
             /** G or H over whatever is up, with only the flow under it: back from it never reopens the chat. */
@@ -2576,66 +2587,63 @@ class MainActivity : ComponentActivity() {
                                 ),
                             )
                         } else {
-                        ArrivalOver(
-                            ui = arrivalUi,
-                            name = shownDate?.match?.name.orEmpty(),
-                            onYes = { arrivalGate?.yes() },
-                            onNotYet = { arrivalGate?.notYet() },
-                            onClose = { arrivalGate?.close() },
-                            onUndo = { arrivalGate?.undo() },
-                        ) {
-                        DateScreen(
-                            ui = shown,
-                            zone = zone,
-                            // The match's arrival card: opening the chat clears it first, so coming back
-                            // never flashes it again (R2); locked, it only clears.
-                            onArrivalSeen = date::arrivalSeen,
-                            checkInBar = {
-                                CheckInBar(
-                                    name = shownDate?.match?.name.orEmpty(),
-                                    onCheckIn = { arrivalGate?.open(ArrivalEntry.DateScreen) },
-                                    // R15: the End date link waits for Date 06.
-                                    onEnd = null,
+                            ArrivalOver(
+                                ui = arrivalUi,
+                                name = shownDate?.match?.name.orEmpty(),
+                                onYes = { arrivalGate?.yes() },
+                                onNotYet = { arrivalGate?.notYet() },
+                                onClose = { arrivalGate?.close() },
+                                onUndo = { arrivalGate?.undo() },
+                            ) {
+                                DateScreen(
+                                    ui = shown,
+                                    zone = zone,
+                                    // The match's arrival card: opening the chat clears it first, so coming back
+                                    // never flashes it again (R2); locked, it only clears.
+                                    onArrivalSeen = date::arrivalSeen,
+                                    checkInBar = {
+                                        CheckInBar(
+                                            name = shownDate?.match?.name.orEmpty(),
+                                            onCheckIn = { arrivalGate?.open(ArrivalEntry.DateScreen) },
+                                            // R15: the End date link waits for Date 06.
+                                            onEnd = null,
+                                        )
+                                    },
+                                    onOpenChat = ::openChatFromCard,
+                                    // The tile's event now; the Date 05 picker it opens arrives with Date 05.
+                                    onChangeTile = date::changeTile,
+                                    onDirections = {
+                                        shown.date?.place?.let {
+                                            date.quickAction(QuickAction.Directions)
+                                            openDirections(context, it)
+                                        }
+                                    },
+                                    onShare = {
+                                        shown.date?.let {
+                                            date.quickAction(QuickAction.Share)
+                                            shareDate(context, shareText(it, zone))
+                                        }
+                                    },
+                                    onCalendar = {
+                                        shown.date?.let {
+                                            date.quickAction(QuickAction.Calendar)
+                                            addToCalendar(context, calendarEvent(it))
+                                        }
+                                    },
+                                    onCopy = {
+                                        shown.date?.place?.let {
+                                            date.quickAction(QuickAction.CopyAddress)
+                                            copyAddress(context, placeText(it))
+                                            date.copied()
+                                        }
+                                    },
+                                    onSeeProfile = dateProfile::open,
+                                    // Locked tabs never call this: only Settings does, and it fires nothing --
+                                    // `tab_switched` needs a tab it switched from, and no tab is active here.
+                                    onTab = { tab -> if (tab == Tab.Settings) goTo(FlowScreen.CheckInSettings) },
+                                    onRetry = date::retry,
                                 )
-                            },
-                            onOpenChat = {
-                                date.arrivalSeen()
-                                openChat()
-                            },
-                            // The tile's event now; the Date 05 picker it opens arrives with Date 05.
-                            onChangeTile = date::changeTile,
-                            onDirections = {
-                                shown.date?.place?.let {
-                                    date.quickAction(QuickAction.Directions)
-                                    openDirections(context, it)
-                                }
-                            },
-                            onShare = {
-                                shown.date?.let {
-                                    date.quickAction(QuickAction.Share)
-                                    shareDate(context, shareText(it, zone))
-                                }
-                            },
-                            onCalendar = {
-                                shown.date?.let {
-                                    date.quickAction(QuickAction.Calendar)
-                                    addToCalendar(context, calendarEvent(it))
-                                }
-                            },
-                            onCopy = {
-                                shown.date?.place?.let {
-                                    date.quickAction(QuickAction.CopyAddress)
-                                    copyAddress(context, placeText(it))
-                                    date.copied()
-                                }
-                            },
-                            onSeeProfile = dateProfile::open,
-                            // Locked tabs never call this: only Settings does, and it fires nothing --
-                            // `tab_switched` needs a tab it switched from, and no tab is active here.
-                            onTab = { tab -> if (tab == Tab.Settings) goTo(FlowScreen.CheckInSettings) },
-                            onRetry = date::retry,
-                        )
-                        }
+                            }
                         }
                     }
 
@@ -2742,6 +2750,8 @@ class MainActivity : ComponentActivity() {
                     return@composable
                 }
                 val ui by vm.ui.collectAsStateWithLifecycle()
+                val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+                val focus = androidx.compose.ui.platform.LocalFocusManager.current
                 val zone = remember { ZoneId.systemDefault() }
                 val reached = ChatEntry.fromWire(entry.toRoute<AppRoute.Chat>().entry) ?: ChatEntry.OpenChat
                 // One visit per showing, not again on a configuration change.
@@ -2805,7 +2815,10 @@ class MainActivity : ComponentActivity() {
                     onBack = leave,
                     // `I arrived at the spot` before check-in opens the guard instead: the chip's event
                     // first, then the confirm's.
-                    onPick = { r, s -> onChatChip(r, s, gate, vm::pick) },
+                    onPick = { r, s ->
+                        // The guard opens over the composer: put the keyboard away first.
+                        onChatChip(r, s, gate, vm::pick, beforeGate = { focus.clearFocus(); keyboard?.hide() })
+                    },
                     onEdit = vm::edit,
                     onAckGuide = vm::ackGuide,
                     onSend = vm::send,

@@ -112,6 +112,48 @@ class ArrivalSheetsTest {
     }
 
     @Test
+    fun `busy buttons keep the button role and are disabled`() = runComposeUiTest {
+        host(confirm(busy = true))
+        for (tag in listOf(ARRIVAL_YES_TAG, ARRIVAL_NOT_YET_TAG)) {
+            val config = onNodeWithTag(tag).fetchSemanticsNode().config
+            assertEquals(androidx.compose.ui.semantics.Role.Button, config[androidx.compose.ui.semantics.SemanticsProperties.Role])
+            assertTrue(androidx.compose.ui.semantics.SemanticsProperties.Disabled in config)
+        }
+        onNodeWithTag(ARRIVAL_YES_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun `the titles of B and D are headings`() = runComposeUiTest {
+        var ui by mutableStateOf(confirm())
+        setContent {
+            ArrivalSheetHost(ui, "Leonie", onYes = {}, onNotYet = {}, onClose = {}, onUndo = {})
+        }
+        val heading = androidx.compose.ui.semantics.SemanticsProperties.Heading
+        assertTrue(heading in onNodeWithText("Have you arrived at the meeting location for your date with Leonie?").fetchSemanticsNode().config)
+        ui = done
+        waitForIdle()
+        mainClock.advanceTimeBy(1_000)
+        assertTrue(heading in onNodeWithText(ArrivalCopy.DONE_TITLE).fetchSemanticsNode().config)
+    }
+
+    @Test
+    fun `a second failed read re-creates the error's live region so it is announced again`() = runComposeUiTest {
+        var ui by mutableStateOf(GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, true, false, null, attempt = 1)))
+        setContent {
+            ArrivalSheetHost(ui, "Leonie", onYes = {}, onNotYet = {}, onClose = {}, onUndo = {})
+        }
+        val first = onNodeWithTag(ARRIVAL_ERROR_TAG).fetchSemanticsNode().id
+        // Try again: busy, the error box stays up. Nothing is announced.
+        ui = GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, true, true, null, attempt = 1))
+        waitForIdle()
+        assertEquals(first, onNodeWithTag(ARRIVAL_ERROR_TAG).fetchSemanticsNode().id)
+        // It fails again: a new box, a new announcement.
+        ui = GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, true, false, null, attempt = 2))
+        waitForIdle()
+        assertTrue(first != onNodeWithTag(ARRIVAL_ERROR_TAG).fetchSemanticsNode().id)
+    }
+
+    @Test
     fun `busy ignores swipe, scrim and system back, and the sheet stays`() = runComposeUiTest {
         val owner = object : androidx.activity.OnBackPressedDispatcherOwner, androidx.lifecycle.LifecycleOwner {
             private val registry = androidx.lifecycle.LifecycleRegistry(this).also {

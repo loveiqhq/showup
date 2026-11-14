@@ -40,6 +40,18 @@ class ChatRoutingTest {
     }
 
     @Test
+    fun `Open chat on the arrival card is open_chat even when a message also waits, and the card is cleared after`() {
+        val both = date.copy(arrival = DateArrival(now), unread = DateUnread(1, null, "Hi", now), chatTutorialSeen = true)
+        val calls = mutableListOf<String>()
+        var routed: AppRoute? = null
+        openChatFromArrivalCard(both, arrivalSeen = { calls += "seen" }) { routed = it; calls += "open" }
+        assertEquals(AppRoute.Chat("open_chat"), routed)
+        assertEquals(listOf("seen", "open"), calls)
+        // What the host used to do: read the date after the card was cleared.
+        assertEquals(ChatEntry.ReadReply, chatEntryFor(both.copy(arrival = null)))
+    }
+
+    @Test
     fun `an entry reads back from its wire value, an unknown one as none`() {
         assertEquals(ChatEntry.Tutorial, ChatEntry.fromWire("tutorial"))
         assertEquals(ChatEntry.Notification, ChatEntry.fromWire("notification"))

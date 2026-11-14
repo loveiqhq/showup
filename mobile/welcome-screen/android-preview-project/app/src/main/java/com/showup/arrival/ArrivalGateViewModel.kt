@@ -22,6 +22,10 @@
  * CHECKED IN IS THE SERVER'S WORD OR THIS SESSION'S COMMIT. A date read that still says `checkedIn =
  * false` while the commit is in flight must not bring the Check-in bar back.
  *
+ * A CHECK-IN STORED WHILE THE APP IS AWAY COMMITS AT ONCE. The person tapped Yes and pocketed the phone
+ * during the read; a done sheet nobody sees must not hold the match's push back, so it is Close (as the app
+ * leaving D is). Coming back to the foreground before the store lands clears that, and D shows as normal.
+ *
  * COMMIT AND UNDO OUTLIVE THIS MODEL when given a `work` scope: an Activity finished while offline must
  * still tell the match once the network is back. The read-and-store of `Yes` stays on the model's scope.
  *
@@ -50,7 +54,14 @@ import java.time.Instant
 sealed interface GatePhase {
     data object Idle : GatePhase
 
-    data class Confirm(val entry: ArrivalEntry, val locError: Boolean, val busy: Boolean, val note: String?) : GatePhase
+    /** [attempt] counts the failed reads, so a second failure is a change the sheet can announce again. */
+    data class Confirm(
+        val entry: ArrivalEntry,
+        val locError: Boolean,
+        val busy: Boolean,
+        val note: String?,
+        val attempt: Int = 0,
+    ) : GatePhase
 
     data class Done(val entry: ArrivalEntry) : GatePhase
 }
@@ -83,10 +94,14 @@ class ArrivalGateViewModel(
     private var commitJob: Job? = null
     private var undoJob: Job? = null
 
+    /** The app left while a read was busy and has not come back: a store that lands now commits. */
+    private var away = false
+
     /** Every date read goes through here. Another date resets everything. */
     fun bind(date: ActiveDate) {
         if (this.date?.id != date.id) {
             cancelAll()
+            away = false
             _ui.value = GateUi()
         }
         this.date = date
@@ -121,6 +136,7 @@ class ArrivalGateViewModel(
         val phase = _ui.value.phase as? GatePhase.Confirm ?: return
         if (phase.busy) return
         analytics?.report(ArrivalAnalytics.confirmSubmitted(date.id, phase.entry, minutesVsStart(date.meetAt, clock())))
+        away = false
         _ui.update { it.copy(phase = phase.copy(busy = true)) }
         // The new store replaces the server's uncommitted row; a delete still retrying must not land after it.
         undoJob?.cancel()
@@ -132,7 +148,11 @@ class ArrivalGateViewModel(
                 return@launch
             }
             when (store.checkIn(date.id, fix, phase.entry, clientId)) {
-                CheckInResult.Stored -> _ui.update { it.copy(phase = GatePhase.Done(phase.entry)) }
+                CheckInResult.Stored -> if (away) {
+                    commitNow(date)
+                } else {
+                    _ui.update { it.copy(phase = GatePhase.Done(phase.entry)) }
+                }
                 CheckInResult.AlreadyCheckedIn -> _ui.update { it.copy(phase = GatePhase.Idle, committed = true) }
                 is CheckInResult.Failed -> failed(phase)
             }
@@ -143,6 +163,11 @@ class ArrivalGateViewModel(
     fun close() {
         val date = date ?: return
         if (_ui.value.phase !is GatePhase.Done) return
+        commitNow(date)
+    }
+
+    /** The sheet is gone and the match is told, retried until the server answers. */
+    private fun commitNow(date: ActiveDate) {
         _ui.update { it.copy(phase = GatePhase.Idle, committed = true, undone = false) }
         commitJob?.cancel()
         commitJob = workScope.launch { retried { store.commit(date.id) } }
@@ -158,16 +183,31 @@ class ArrivalGateViewModel(
         undoJob = workScope.launch { retried { store.undo(date.id) } }
     }
 
-    /** The app went to the background: with D up that is Close. */
+    /**
+     * The app went to the background: with D up that is Close; with a read busy, a store that lands before
+     * [foregrounded] commits instead of showing D.
+     */
     fun leftApp() {
-        if (_ui.value.phase is GatePhase.Done) close()
+        when (val phase = _ui.value.phase) {
+            is GatePhase.Done -> close()
+            is GatePhase.Confirm -> if (phase.busy) away = true
+            GatePhase.Idle -> Unit
+        }
+    }
+
+    /** The app is in front again (the host's ON_START): a store that lands now is D as normal. */
+    fun foregrounded() {
+        away = false
     }
 
     /** The host has acted on [GateUi.undone]. */
     fun consumeUndone() = _ui.update { it.copy(undone = false) }
 
     private fun failed(phase: GatePhase.Confirm) =
-        _ui.update { it.copy(phase = phase.copy(locError = true, busy = false)) }
+        _ui.update {
+            val now = it.phase as? GatePhase.Confirm ?: phase
+            it.copy(phase = now.copy(locError = true, busy = false, attempt = now.attempt + 1))
+        }
 
     /** [call] until it answers, waiting [retryDelayMs] between tries. */
     private suspend fun retried(call: suspend () -> Outcome<Unit>) {

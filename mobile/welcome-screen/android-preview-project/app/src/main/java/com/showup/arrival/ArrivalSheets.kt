@@ -44,6 +44,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -170,7 +173,7 @@ fun ArrivalSheetHost(
             when (shown) {
                 SheetKind.Confirm -> {
                     val c = lastConfirm[0]
-                    CheckInConfirmSheet(name, c?.note, c?.locError == true, c?.busy == true, onYes, onNotYet)
+                    CheckInConfirmSheet(name, c?.note, c?.locError == true, c?.busy == true, onYes, onNotYet, attempt = c?.attempt ?: 0)
                 }
                 SheetKind.Done -> CheckInDoneSheet(name, onClose, onUndo)
             }
@@ -196,7 +199,7 @@ private fun SheetTitleText(text: String, maxWidth: androidx.compose.ui.unit.Dp) 
     val heading = AnnotatedString(text)
     Text(
         heading,
-        modifier = Modifier.widthIn(max = maxWidth).prettyWrap(heading, SheetTitle, centered = true).cssLineBox(SheetTitle.lineHeight),
+        modifier = Modifier.semantics { heading() }.widthIn(max = maxWidth).prettyWrap(heading, SheetTitle, centered = true).cssLineBox(SheetTitle.lineHeight),
         style = SheetTitle,
     )
 }
@@ -210,7 +213,7 @@ private fun SunsetSheetButton(label: String, tag: String, waiting: Boolean, onCl
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .alpha(if (waiting) 0.6f else 1f)
-            .then(if (waiting) Modifier.semantics { disabled() } else Modifier.pressable(Role.Button, onClick = onClick))
+            .then(if (waiting) Modifier.semantics { role = Role.Button; disabled() } else Modifier.pressable(Role.Button, onClick = onClick))
             // The glow behind, then the reference's 135deg sunset clipped to the radius-18 shape.
             .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 18.dp, ShadowCta)
             .clip(RoundedCornerShape(18.dp))
@@ -238,6 +241,8 @@ fun CheckInConfirmSheet(
     busy: Boolean,
     onYes: () -> Unit,
     onNotYet: () -> Unit,
+    /** Failed reads so far: the error box is keyed on it, so every failure is announced, not only the first. */
+    attempt: Int = 0,
 ) {
     val motion = rememberMotion()
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -263,9 +268,13 @@ fun CheckInConfirmSheet(
             enter = expandVertically(tween(duration, easing = ShowUpEasing)) + fadeIn(tween(duration, easing = ShowUpEasing)),
             exit = shrinkVertically(tween(duration, easing = ShowUpEasing)) + fadeOut(tween(duration, easing = ShowUpEasing)),
         ) {
-            Column(Modifier.testTag(ARRIVAL_ERROR_TAG)) {
-                SheetErrorBox(ArrivalCopy.LOC_ERROR)
-                Spacer(Modifier.height(16.dp))
+            // A new box per failed attempt: while busy `locError` stays true, so without the key the
+            // assertive live region would never be composed again and a second failure stays silent.
+            key(attempt) {
+                Column(Modifier.testTag(ARRIVAL_ERROR_TAG)) {
+                    SheetErrorBox(ArrivalCopy.LOC_ERROR)
+                    Spacer(Modifier.height(16.dp))
+                }
             }
         }
         AnimatedVisibility(
@@ -279,7 +288,7 @@ fun CheckInConfirmSheet(
                 .testTag(ARRIVAL_NOT_YET_TAG)
                 .fillMaxWidth()
                 .heightIn(min = 50.dp)
-                .then(if (busy) Modifier.semantics { disabled() } else Modifier.pressable(Role.Button, onClick = onNotYet))
+                .then(if (busy) Modifier.semantics { role = Role.Button; disabled() } else Modifier.pressable(Role.Button, onClick = onNotYet))
                 .background(Elevated, notYetShape)
                 .border(1.dp, BorderSoft, notYetShape),
             contentAlignment = Alignment.Center,

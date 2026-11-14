@@ -31,6 +31,17 @@ fun chatRoute(date: ActiveDate, entry: ChatEntry): AppRoute =
 fun chatEntryFor(date: ActiveDate): ChatEntry =
     if (date.arrival == null && date.unread != null) ChatEntry.ReadReply else ChatEntry.OpenChat
 
+/**
+ * `Open chat` on the match's arrival card. The route and the entry are decided from the date AS THE
+ * CARD SHOWED IT, before [arrivalSeen] clears the card: read after, the date has no arrival and an unread
+ * message would make the entry `read_reply` for a button that said `Open chat`.
+ */
+fun openChatFromArrivalCard(date: ActiveDate, arrivalSeen: () -> Unit, open: (AppRoute) -> Unit) {
+    val route = chatRoute(date, chatEntryFor(date))
+    arrivalSeen()
+    open(route)
+}
+
 /** G or H, with everything they draw. */
 fun outcomeRoute(outcome: EndedInChat, photoUrl: String?): AppRoute.DateEnded =
     // The outcome's own photo first: at the next launch no date is held, and [photoUrl] -- the held

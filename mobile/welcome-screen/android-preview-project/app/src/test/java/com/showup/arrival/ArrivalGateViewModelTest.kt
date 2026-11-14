@@ -197,7 +197,7 @@ class ArrivalGateViewModelTest {
         val vm = confirmed()
         vm.yes()
         runCurrent()
-        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null), vm.ui.value.phase)
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null, attempt = 1), vm.ui.value.phase)
         assertEquals(0, store.stored.size)
         readAnswer = { fix }
         vm.yes()
@@ -215,7 +215,7 @@ class ArrivalGateViewModelTest {
         vm.yes()
         advanceTimeBy(LOCATION_FIX_TIMEOUT_MS + 2)
         runCurrent()
-        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null), vm.ui.value.phase)
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null, attempt = 1), vm.ui.value.phase)
         assertEquals(0, store.stored.size)
     }
 
@@ -225,7 +225,7 @@ class ArrivalGateViewModelTest {
         val vm = confirmed()
         vm.yes()
         runCurrent()
-        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null), vm.ui.value.phase)
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null, attempt = 1), vm.ui.value.phase)
         assertEquals(0, store.commitCalls)
     }
 
@@ -378,6 +378,48 @@ class ArrivalGateViewModelTest {
         runCurrent()
         assertTrue(vm.ui.value.phase is GatePhase.Confirm)
         assertEquals(0, store.commitCalls)
+    }
+
+    @Test
+    fun `leaving during the read and a store that lands away commits at once, with no D`() = runTest(dispatcher) {
+        readAnswer = { delay(5_000); fix }
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        vm.leftApp()
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertEquals(1, store.stored.size)
+        assertEquals(1, store.commitCalls)
+        assertEquals(GatePhase.Idle, vm.ui.value.phase)
+        assertTrue(vm.ui.value.committed)
+    }
+
+    @Test
+    fun `leaving during the read and coming back before the store lands shows D and commits nothing`() = runTest(dispatcher) {
+        readAnswer = { delay(5_000); fix }
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        vm.leftApp()
+        vm.foregrounded()
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertTrue(vm.ui.value.phase is GatePhase.Done)
+        assertEquals(0, store.commitCalls)
+        assertFalse(vm.ui.value.committed)
+    }
+
+    @Test
+    fun `each failed read counts an attempt, so the sheet can announce the second one`() = runTest(dispatcher) {
+        readAnswer = { null }
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        assertEquals(1, (vm.ui.value.phase as GatePhase.Confirm).attempt)
+        vm.yes()
+        runCurrent()
+        assertEquals(2, (vm.ui.value.phase as GatePhase.Confirm).attempt)
     }
 
     // ── binding ──────────────────────────────────────────────────────────────────────────────

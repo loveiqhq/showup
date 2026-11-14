@@ -40,6 +40,21 @@ class CheckInBarTest {
     }
 
     @Test
+    fun `in right-to-left the pin tile is at the end side and the button at the start`() = runComposeUiTest {
+        setContent {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl,
+            ) { CheckInBar("Leonie", onCheckIn = {}) }
+        }
+        val bar = onNodeWithTag(ARRIVAL_BAR_TAG).fetchSemanticsNode().boundsInRoot
+        val pin = onNodeWithTag(ARRIVAL_PIN_TAG).fetchSemanticsNode().boundsInRoot
+        val button = onNodeWithTag(ARRIVAL_CHECK_IN_TAG).fetchSemanticsNode().boundsInRoot
+        assertTrue("pin on the right", pin.right > bar.right - with(density) { 20.dp.toPx() })
+        assertTrue("button on the left", button.left < bar.left + with(density) { 20.dp.toPx() + 1f })
+        assertTrue(button.right < pin.left)
+    }
+
+    @Test
     fun `Check-in answers a tap`() = runComposeUiTest {
         var taps = 0
         setContent { CheckInBar("Leonie", onCheckIn = { taps++ }) }

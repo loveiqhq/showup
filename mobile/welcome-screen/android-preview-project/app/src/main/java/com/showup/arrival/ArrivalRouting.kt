@@ -39,10 +39,20 @@ fun undoLanding(undone: Boolean, chatOnTop: Boolean): UndoLanding = when {
  * The chat's chip tap, as the host runs it: [pick] first (`action_chip_used`), then the gate's sheet
  * (`arrival_confirm_shown`) when the chip is gated.
  */
-fun onChatChip(reason: ChatReason, surface: ChipSurface, gate: ArrivalGateViewModel, pick: (ChatReason, ChipSurface, Boolean) -> Unit) {
+fun onChatChip(
+    reason: ChatReason,
+    surface: ChipSurface,
+    gate: ArrivalGateViewModel,
+    pick: (ChatReason, ChipSurface, Boolean) -> Unit,
+    /** Run just before the sheet opens, when the chip is gated: the host puts the keyboard away. */
+    beforeGate: () -> Unit = {},
+) {
     val gated = arrivalChipGated(reason, gate)
     pick(reason, surface, gated)
-    if (gated) gate.open(ArrivalEntry.ChatChip)
+    if (gated) {
+        beforeGate()
+        gate.open(ArrivalEntry.ChatChip)
+    }
 }
 
 /** An undo, as the host acts on it: [leaveChat] first when the chat is on top, then [consume], exactly once. */

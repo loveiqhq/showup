@@ -60,6 +60,7 @@ import com.showup.welcome.BrandIcon
 import com.showup.welcome.Icon
 
 const val ARRIVAL_BAR_TAG = "arrival:bar"
+const val ARRIVAL_PIN_TAG = "arrival:pin"
 const val ARRIVAL_CHECK_IN_TAG = "arrival:check-in"
 const val ARRIVAL_END_DATE_TAG = "arrival:end-date"
 
@@ -110,7 +111,7 @@ fun CheckInBar(
         BarRow(
             pin = {
                 Box(
-                    Modifier.size(46.dp).background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+                    Modifier.testTag(ARRIVAL_PIN_TAG).size(46.dp).background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center,
                 ) { Icon(BrandIcon.MapPin, 22.dp, tint = Color.White, strokeWidth = 2.2f) }
             },
@@ -186,9 +187,9 @@ private fun BarRow(pin: @Composable () -> Unit, text: @Composable () -> Unit, bu
             )
             val h = maxOf(pinP.height, textP.height, buttonP.height)
             layout(width, h) {
-                pinP.place(0, (h - pinP.height) / 2)
-                textP.place(pinP.width + gap, (h - textP.height) / 2)
-                buttonP.place(width - buttonP.width, (h - buttonP.height) / 2)
+                pinP.placeRelative(0, (h - pinP.height) / 2)
+                textP.placeRelative(pinP.width + gap, (h - textP.height) / 2)
+                buttonP.placeRelative(width - buttonP.width, (h - buttonP.height) / 2)
             }
         } else {
             val textP = texts.first().measure(
@@ -197,9 +198,9 @@ private fun BarRow(pin: @Composable () -> Unit, text: @Composable () -> Unit, bu
             val full = buttons.first().measure(Constraints(minWidth = width, maxWidth = width))
             val h = maxOf(pinP.height, textP.height)
             layout(width, h + under + full.height) {
-                pinP.place(0, (h - pinP.height) / 2)
-                textP.place(pinP.width + gap, (h - textP.height) / 2)
-                full.place(0, h + under)
+                pinP.placeRelative(0, (h - pinP.height) / 2)
+                textP.placeRelative(pinP.width + gap, (h - textP.height) / 2)
+                full.placeRelative(0, h + under)
             }
         }
     }

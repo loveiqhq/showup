@@ -84,6 +84,21 @@ class ArrivalRoutingTest {
     }
 
     @Test
+    fun `a gated chip puts the keyboard away before the sheet opens, an ungated one does not`() {
+        val gate = gate()
+        val order = mutableListOf<String>()
+        onChatChip(ChatReason.Arrived, ChipSurface.Entry, gate, { _, _, _ -> order += "pick" }, beforeGate = {
+            order += "keyboard:" + (gate.ui.value.phase is GatePhase.Idle)
+        })
+        assertEquals(listOf("pick", "keyboard:true"), order)
+        assertTrue(gate.ui.value.phase is GatePhase.Confirm)
+
+        val other = mutableListOf<String>()
+        onChatChip(ChatReason.RunningLate, ChipSurface.Entry, gate(), { _, _, _ -> }, beforeGate = { other += "keyboard" })
+        assertTrue(other.isEmpty())
+    }
+
+    @Test
     fun `an undo lands on the Date screen from the chat and stays put elsewhere`() {
         assertEquals(UndoLanding.LeaveChat, undoLanding(undone = true, chatOnTop = true))
         assertEquals(UndoLanding.ConsumeOnly, undoLanding(undone = true, chatOnTop = false))

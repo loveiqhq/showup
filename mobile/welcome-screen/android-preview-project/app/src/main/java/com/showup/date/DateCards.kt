@@ -491,63 +491,63 @@ private fun HoistedCoordinate(
     // out square past the card's rounded corners (found against the spec sheet's H, 13 Nov 2026).
     Card(modifier, border = BorderStroke(1.5.dp, tone.chipBorder), contentPadding = PaddingValues(1.5.dp)) {
         Column(Modifier.clip(RoundedCornerShape(18.5.dp))) {
-        Box(Modifier.fillMaxWidth().height(4.dp).background(tone.fg))
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MatchAvatar(match, count, tone.fg)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    InlineOrStack(gap = 8.dp) {
-                        Text(
-                            match.name,
-                            Modifier.cssLineBox((19 * 1.1).sp),
-                            style = SerifBold.copy(fontSize = 19.sp, lineHeight = (19 * 1.1).sp),
-                        )
-                        Row(
-                            Modifier
-                                .background(tone.bg, RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(Modifier.size(5.dp).background(tone.fg, CircleShape))
-                            Spacer(Modifier.width(4.dp))
+            Box(Modifier.fillMaxWidth().height(4.dp).background(tone.fg))
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MatchAvatar(match, count, tone.fg)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        InlineOrStack(gap = 8.dp) {
                             Text(
-                                tag.uppercase(),
-                                color = tone.fg,
-                                fontFamily = Manrope,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp,
-                                letterSpacing = 0.05.sp,
-                                maxLines = 1,
+                                match.name,
+                                Modifier.cssLineBox((19 * 1.1).sp),
+                                style = SerifBold.copy(fontSize = 19.sp, lineHeight = (19 * 1.1).sp),
                             )
+                            Row(
+                                Modifier
+                                    .background(tone.bg, RoundedCornerShape(50))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(Modifier.size(5.dp).background(tone.fg, CircleShape))
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    tag.uppercase(),
+                                    color = tone.fg,
+                                    fontFamily = Manrope,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 0.05.sp,
+                                    maxLines = 1,
+                                )
+                            }
                         }
+                        Text(
+                            line,
+                            modifier = Modifier.padding(top = 2.dp),
+                            color = Muted,
+                            fontFamily = Manrope,
+                            fontSize = 12.5.sp,
+                        )
                     }
-                    Text(
-                        line,
-                        modifier = Modifier.padding(top = 2.dp),
-                        color = Muted,
-                        fontFamily = Manrope,
-                        fontSize = 12.5.sp,
-                    )
                 }
+                Column(
+                    Modifier
+                        .padding(top = 13.dp)
+                        .fillMaxWidth()
+                        .background(tone.bg, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 13.dp, vertical = 11.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                    content = snippet,
+                )
+                Spacer(Modifier.height(14.dp))
+                val shadows = when (tone) {
+                    ReasonTone.Orange -> ShadowCta
+                    ReasonTone.Danger -> emptyList()
+                    else -> ShadowViolet
+                }
+                CoordinateCta(ctaLabel, tone.fg, shadows, onCta)
             }
-            Column(
-                Modifier
-                    .padding(top = 13.dp)
-                    .fillMaxWidth()
-                    .background(tone.bg, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 13.dp, vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-                content = snippet,
-            )
-            Spacer(Modifier.height(14.dp))
-            val shadows = when (tone) {
-                ReasonTone.Orange -> ShadowCta
-                ReasonTone.Danger -> emptyList()
-                else -> ShadowViolet
-            }
-            CoordinateCta(ctaLabel, tone.fg, shadows, onCta)
-        }
         }
     }
 }
