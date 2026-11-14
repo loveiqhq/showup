@@ -70,6 +70,17 @@ final class ArrivalRoutingTests: XCTestCase {
         XCTAssertEqual(g.ui.phase, .idle)
     }
 
+    func testAGatedChipPutsTheKeyboardAwayBeforeTheSheetOpensAnUngatedOneDoesNot() {
+        let g = gate()
+        var phaseWhenCalled: GatePhase?
+        onChatChip(.arrived, .entry, g, pick: { _, _, _ in }, beforeGate: { phaseWhenCalled = g.ui.phase })
+        XCTAssertEqual(phaseWhenCalled, .idle)
+        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, locError: false, busy: false, note: nil))
+        var called = false
+        onChatChip(.runningLate, .dock, gate(), pick: { _, _, _ in }, beforeGate: { called = true })
+        XCTAssertFalse(called)
+    }
+
     func testAnUndoLandsOnTheDateScreenFromTheChatAndStaysPutElsewhere() {
         XCTAssertEqual(undoLanding(undone: true, chatOnTop: true), .leaveChat)
         XCTAssertEqual(undoLanding(undone: true, chatOnTop: false), .consumeOnly)

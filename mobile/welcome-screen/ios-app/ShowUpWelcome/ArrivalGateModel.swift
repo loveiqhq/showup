@@ -14,6 +14,9 @@
 //     commit of that record, and a new `Yes` cancels a delete still retrying.
 //   · CHECKED IN IS THE SERVER'S WORD OR THIS SESSION'S COMMIT. A date read that still says `checkedIn = false`
 //     while the commit is in flight must not bring the Check-in bar back.
+//   · A CHECK-IN STORED WHILE THE APP IS AWAY COMMITS AT ONCE. The person tapped Yes and pocketed the phone during the
+//     read; a done sheet nobody sees must not hold the match's push back, so it is Close (as the app leaving D is).
+//     Back in the foreground before the store lands clears that, and D shows as normal.
 //   · NO COORDINATE IN ANY EVENT. The fix goes to the store and nowhere else; nothing here logs.
 //
 // COMMIT AND UNDO OUTLIVE THE SCREEN AND THIS MODEL: their retry `Task`s hold the store and the date id, never
@@ -51,11 +54,15 @@ final class ArrivalGateModel {
     /// Waits `ms`. Injected so a test sees the retry schedule without waiting it out.
     private let sleep: @Sendable (Int) async -> Void
     private let fixTimeoutMs: Int
+    /// Gives a commit or undo request iOS's background time, so one that starts as the app leaves is not suspended.
+    private let background: any BackgroundTaskRunning
 
     @ObservationIgnored private var date: ActiveDate?
     @ObservationIgnored private var yesTask: Task<Void, Never>?
     @ObservationIgnored private var commitTask: Task<Void, Never>?
     @ObservationIgnored private var undoTask: Task<Void, Never>?
+    /// The app left while a read was busy and has not come back: a store that lands now commits.
+    @ObservationIgnored private var away = false
 
     init(
         store: any ArrivalStoring,
@@ -66,7 +73,8 @@ final class ArrivalGateModel {
         sleep: @escaping @Sendable (Int) async -> Void = { ms in
             try? await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
         },
-        fixTimeoutMs: Int = locationFixTimeoutMs
+        fixTimeoutMs: Int = locationFixTimeoutMs,
+        background: any BackgroundTaskRunning = UIKitBackgroundRunner()
     ) {
         self.store = store
         self.reader = reader
@@ -75,12 +83,14 @@ final class ArrivalGateModel {
         self.newId = newId
         self.sleep = sleep
         self.fixTimeoutMs = fixTimeoutMs
+        self.background = background
     }
 
     /// Every date read goes through here. Another date resets everything.
     func bind(_ date: ActiveDate) {
         if self.date?.id != date.id {
             cancelAll()
+            away = false
             ui = GateUi()
         }
         self.date = date
@@ -113,6 +123,7 @@ final class ArrivalGateModel {
         guard let date, case .confirm(let entry, let locError, let busy, let note) = ui.phase, !busy else { return }
         analytics?.report(ArrivalAnalytics.confirmSubmitted(
             dateId: date.id, entry: entry, minutesVsStart: minutesVsStart(date.meetAt, clock())))
+        away = false
         ui.phase = .confirm(entry: entry, locError: locError, busy: true, note: note)
         // The new store replaces the server's uncommitted row; a delete still retrying must not land after it.
         undoTask?.cancel()
@@ -131,7 +142,12 @@ final class ArrivalGateModel {
             let result = await store.checkIn(dateId: id, fix: fix, entry: entry, clientId: clientId)
             guard !Task.isCancelled, let self else { return }
             switch result {
-            case .stored: self.ui.phase = .done(entry: entry)
+            case .stored:
+                if self.away {
+                    self.commitNow(dateId: id)
+                } else {
+                    self.ui.phase = .done(entry: entry)
+                }
             case .alreadyCheckedIn:
                 self.ui.phase = .idle
                 self.ui.committed = true
@@ -143,13 +159,17 @@ final class ArrivalGateModel {
     /// `Close`, the scrim or a swipe on D: the match is told.
     func close() {
         guard let date, case .done = ui.phase else { return }
+        commitNow(dateId: date.id)
+    }
+
+    /// The sheet is gone and the match is told, retried until the server answers.
+    private func commitNow(dateId id: String) {
         ui.phase = .idle
         ui.committed = true
         ui.undone = false
         commitTask?.cancel()
         let store = self.store
-        let id = date.id
-        commitTask = retried { await store.commit(dateId: id) }
+        commitTask = retried(named: "arrival-commit") { await store.commit(dateId: id) }
     }
 
     /// `Undo check-in` on D: the record is deleted, never committed.
@@ -162,13 +182,21 @@ final class ArrivalGateModel {
         undoTask?.cancel()
         let store = self.store
         let id = date.id
-        undoTask = retried { await store.undo(dateId: id) }
+        undoTask = retried(named: "arrival-undo") { await store.undo(dateId: id) }
     }
 
-    /// The app went to the background: with D up that is Close.
+    /// The app went to the background: with D up that is Close; with a read busy, a store that lands before
+    /// `foregrounded()` commits instead of showing D.
     func leftApp() {
-        if case .done = ui.phase { close() }
+        switch ui.phase {
+        case .done: close()
+        case .confirm(_, _, let busy, _): if busy { away = true }
+        case .idle: break
+        }
     }
+
+    /// The scene is active again: a store that lands now is D as normal.
+    func foregrounded() { away = false }
 
     /// The host has acted on `undone`.
     func consumeUndone() { ui.undone = false }
@@ -177,13 +205,16 @@ final class ArrivalGateModel {
         ui.phase = .confirm(entry: entry, locError: true, busy: false, note: note)
     }
 
-    /// `call` until it answers, waiting `retryDelayMs` between tries. Holds no model, so it outlives it.
-    private func retried(_ call: @escaping @Sendable () async -> Result<Void, CallFailure>) -> Task<Void, Never> {
+    /// `call` until it answers, waiting `retryDelayMs` between tries. Holds no model, so it outlives it. Each try
+    /// runs under its own background task (begin before, end after, never across the wait).
+    private func retried(named name: String,
+                         _ call: @escaping @Sendable () async -> Result<Void, CallFailure>) -> Task<Void, Never> {
         let sleep = self.sleep
+        let background = self.background
         return Task {
             var attempt = 0
             while !Task.isCancelled {
-                if case .success = await call() { return }
+                if case .success = await background.run(named: name, call) { return }
                 await sleep(retryDelayMs(attempt))
                 attempt += 1
             }

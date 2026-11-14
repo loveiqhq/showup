@@ -113,16 +113,16 @@ public struct ShowUpAPI: Sendable {
     /// Whether a call threw because NO RESPONSE ARRIVED -- offline, timed out, the host unreachable
     /// -- rather than because one arrived that could not be read.
     ///
-    /// The generated client wraps every failure in `ClientError`, an OpenAPIRuntime type the app
-    /// target does not import, so the line is drawn here. A `URLError` underneath is the network;
-    /// anything else had a response and is the server's. The 48hrs Check-In reports the two apart
-    /// (`check_in_commit_failed`'s `network` and `server`), as Android's `IOException` does.
     /// The HTTP status a failed call DID get an answer with, even when the generated client could not decode the
     /// body and threw: nil when there was no response at all (a transport error).
     public static func responseStatus(_ error: any Error) -> Int? {
         (error as? ClientError)?.response?.status.code
     }
 
+    /// The generated client wraps every failure in `ClientError`, an OpenAPIRuntime type the app
+    /// target does not import, so the line is drawn here. A `URLError` underneath is the network;
+    /// anything else had a response and is the server's. The 48hrs Check-In reports the two apart
+    /// (`check_in_commit_failed`'s `network` and `server`), as Android's `IOException` does.
     public static func isNoResponse(_ error: any Error) -> Bool {
         let underlying = (error as? ClientError)?.underlyingError ?? error
         return underlying is URLError

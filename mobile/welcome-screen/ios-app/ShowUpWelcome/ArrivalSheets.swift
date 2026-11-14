@@ -201,6 +201,12 @@ struct CheckInDoneSheet: View {
     let onUndo: () -> Void
 
     var body: some View {
+        content
+            // D replaces B / C inside the same sheet, so no new screen is presented for VoiceOver to announce: say it.
+            .onAppear { UIAccessibility.post(notification: .screenChanged, argument: ArrivalCopy.doneTitle) }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             SheetCircle(icon: .heartFilled)
             SheetTitle(text: ArrivalCopy.doneTitle, maxWidth: 300)

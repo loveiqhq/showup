@@ -59,6 +59,19 @@ actor RecordedSleeps {
     func add(_ ms: Int) { delays.append(ms) }
 }
 
+/// Records each begin / end pair the model asks for, in order, and runs the work between them.
+@MainActor
+final class FakeBackgroundRunner: BackgroundTaskRunning {
+    private(set) var events: [String] = []
+
+    func run<T: Sendable>(named name: String, _ work: @escaping @Sendable () async -> T) async -> T {
+        events.append("begin:\(name)")
+        let result = await work()
+        events.append("end:\(name)")
+        return result
+    }
+}
+
 @MainActor
 final class ArrivalGateModelTests: XCTestCase {
     private let meet = Date(timeIntervalSince1970: 1_793_728_800) // 2026-11-03T18:00:00Z
@@ -67,6 +80,7 @@ final class ArrivalGateModelTests: XCTestCase {
     private let store = FakeArrivalStore()
     private let reader = FakeFixReader()
     private let sleeps = RecordedSleeps()
+    private let runner = FakeBackgroundRunner()
     private var ids = 0
 
     private func date(id: String = "d1", checkedIn: Bool = false) -> ActiveDate {
@@ -91,7 +105,7 @@ final class ArrivalGateModelTests: XCTestCase {
                 await sleeps.add(ms)
                 try? await Task.sleep(nanoseconds: UInt64(pauseMs) * 1_000_000)
             },
-            fixTimeoutMs: timeoutMs)
+            fixTimeoutMs: timeoutMs, background: runner)
     }
 
     private func settle(_ seconds: Double = 0.08) async {
@@ -380,6 +394,58 @@ final class ArrivalGateModelTests: XCTestCase {
         XCTAssertEqual(m.ui.phase, confirm(.dateScreen))
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 0)
+    }
+
+    func testLeavingDuringTheReadAndAStoreThatLandsAwayCommitsAtOnceWithNoD() async {
+        await reader.setAnswer {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            return arrivalTestFix
+        }
+        let m = confirmed(timeoutMs: 1_000)
+        m.yes()
+        await settle(0.02)
+        m.leftApp()
+        await settle(0.25)
+        let stored = await store.stored
+        let commits = await store.commitCalls
+        XCTAssertEqual(stored.count, 1)
+        XCTAssertEqual(commits, 1)
+        XCTAssertEqual(m.ui.phase, .idle)
+        XCTAssertTrue(m.ui.committed)
+    }
+
+    func testLeavingDuringTheReadAndComingBackBeforeTheStoreLandsShowsDAndCommitsNothing() async {
+        await reader.setAnswer {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            return arrivalTestFix
+        }
+        let m = confirmed(timeoutMs: 1_000)
+        m.yes()
+        await settle(0.02)
+        m.leftApp()
+        m.foregrounded()
+        await settle(0.25)
+        let commits = await store.commitCalls
+        XCTAssertEqual(commits, 0)
+        XCTAssertEqual(m.ui.phase, .done(entry: .dateScreen))
+        XCTAssertFalse(m.ui.committed)
+    }
+
+    func testEachCommitAndUndoRequestRunsUnderOneBeginEndPair() async {
+        await store.queueCommits([.failure(.network), .success(())])
+        let m = await done()
+        m.close()
+        await settle(0.2)
+        XCTAssertEqual(runner.events, ["begin:arrival-commit", "end:arrival-commit",
+                                       "begin:arrival-commit", "end:arrival-commit"])
+        let m2 = ArrivalGateModel(store: store, reader: reader, background: runner)
+        m2.bind(date(id: "d2"))
+        m2.open(.dateScreen)
+        m2.yes()
+        await settle(0.2)
+        m2.undo()
+        await settle(0.1)
+        XCTAssertEqual(runner.events.suffix(2), ["begin:arrival-undo", "end:arrival-undo"])
     }
 
     // MARK: binding

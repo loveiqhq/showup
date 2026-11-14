@@ -1243,7 +1243,12 @@ private struct TutorialFlow: View {
                 // `I arrived at the spot` before check-in opens the gate instead: the chip's event first, then
                 // the confirm's.
                 onPick: { reason, surface in
-                    onChatChip(reason, surface, arrivalGate, pick: { model.pick($0, surface: $1, gated: $2) })
+                    onChatChip(reason, surface, arrivalGate, pick: { model.pick($0, surface: $1, gated: $2) },
+                               // The guard opens over the composer: put the keyboard away first.
+                               beforeGate: {
+                                   UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                                   to: nil, from: nil, for: nil)
+                               })
                 },
                 onEdit: { model.edit($0) },
                 onAckGuide: { model.ackGuide() },
