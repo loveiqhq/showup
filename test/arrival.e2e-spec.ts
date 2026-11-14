@@ -277,6 +277,20 @@ describe('Arrival check-in (e2e)', () => {
     await create('you', body(), () => ended).expect(409);
   });
 
+  it.each([[DateStatus.EndedInChat], [DateStatus.Cancelled]])(
+    'commit on a date that became %s while pending is 409 with no push; undo still works',
+    async (status) => {
+      await create('you', body()).expect(201);
+      await dates.update({ id: dateId }, { status });
+      await commit('you').expect(409);
+      expect(pushes).toHaveLength(0);
+      const [row] = await rows();
+      expect(row.committed_at).toBeNull();
+      await undo('you').expect(204);
+      expect(await rows()).toHaveLength(0);
+    },
+  );
+
   it('the retention sweep deletes a row a year and a second old and keeps one a second younger', async () => {
     const now = new Date('2027-06-15T12:00:00.000Z');
     const old = new Date('2026-06-15T11:59:59.000Z');

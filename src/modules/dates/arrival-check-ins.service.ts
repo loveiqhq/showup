@@ -57,7 +57,7 @@ export class ArrivalCheckInsService {
   ): Promise<DateArrivalCheckIn> {
     const date = await this.participantDate(dateId, userId);
     if (date.status !== DateStatus.Confirmed) {
-      throw new ConflictException('This date has already ended');
+      throw new ConflictException('This date is no longer active');
     }
     const partnerId = date.userAId === userId ? date.userBId : date.userAId;
     const partnerHasRow = await this.rows.exists({
@@ -143,7 +143,7 @@ export class ArrivalCheckInsService {
 
   /**
    * Commit the caller's check-in (Close): the match is told, once. Already committed is a no-op;
-   * no row (never made, or undone) is 404, so an undo that landed first is never turned into a commit.
+   * no row (never made, or undone) is 404; a date that is no longer confirmed is 409, so an undo that landed first is never turned into a commit.
    */
   async commit(
     dateId: string,
@@ -151,6 +151,11 @@ export class ArrivalCheckInsService {
     now: Date = new Date(),
   ): Promise<void> {
     const date = await this.participantDate(dateId, userId);
+    // A date cancelled, ended in the chat or marked no-show while the check-in waited must not
+    // tell the person who ended it that the match "has arrived".
+    if (date.status !== DateStatus.Confirmed) {
+      throw new ConflictException('This date is no longer active');
+    }
     const committed = normalise(
       await this.rows.query(
         `UPDATE ${TABLE} SET committed_at = $3
