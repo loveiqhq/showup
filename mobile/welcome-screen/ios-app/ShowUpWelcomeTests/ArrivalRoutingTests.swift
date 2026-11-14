@@ -31,10 +31,6 @@ final class ArrivalRoutingTests: XCTestCase {
         return model
     }
 
-    private func settle(_ seconds: Double = 0.15) async {
-        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-    }
-
     func testOnlyTheArrivedChipBeforeCheckInIsGated() {
         XCTAssertTrue(arrivalChipGated(.arrived, gate()))
         XCTAssertFalse(arrivalChipGated(.arrived, gate(checkedIn: true)))
@@ -49,7 +45,7 @@ final class ArrivalRoutingTests: XCTestCase {
         let chat = ChatModel(store: FakeChatStore(), dates: dates, analytics: analytics, clock: { at },
                              zone: { TimeZone(identifier: "Europe/Berlin")! }, pollEvery: 0.05)
         chat.open(date(), entry: .openChat)
-        await settle()
+        await eventually("the first read landed") { !chat.ui.loading }
         let before = analytics.names().count
         let g = gate()
 
@@ -105,19 +101,17 @@ final class ArrivalRoutingTests: XCTestCase {
         let g = gate(store: store)
         g.open(.dateScreen)
         g.yes()
-        await settle()
-        XCTAssertEqual(g.ui.phase, .done(entry: .dateScreen))
+        await eventually("D is up") { g.ui.phase == .done(entry: .dateScreen) }
 
         // Control Center, a call banner, Face ID: the person did not leave.
         onScenePhase(.inactive, gate: g)
         onScenePhase(.active, gate: g)
-        await settle()
         XCTAssertEqual(g.ui.phase, .done(entry: .dateScreen))
         let early = await store.commitCalls
         XCTAssertEqual(early, 0)
 
         onScenePhase(.background, gate: g)
-        await settle()
+        await eventually("the commit landed") { await store.commitCalls == 1 }
         XCTAssertEqual(g.ui.phase, .idle)
         let after = await store.commitCalls
         XCTAssertEqual(after, 1)

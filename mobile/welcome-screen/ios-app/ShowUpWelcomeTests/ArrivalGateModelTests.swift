@@ -2,11 +2,51 @@
 // ShowUp · the arrival gate: confirm, store, close, undo, retries (SHOWUP-195). Android's
 // `ArrivalGateViewModelTest.kt`, case for case.
 //
-// Fake store, fake reader, injected clock and an injected sleep that records the schedule. Waits are real and short
-// (tens of ms), as `ChatModelTests`'. No test reads a coordinate out of an event: the payloads are asserted whole.
+// Fake store, fake reader, injected clock and an injected sleep that records the schedule and returns at once (or, for
+// a test that needs a retry still waiting, holds until the model cancels it). No test sleeps for a fixed time: each
+// waits for the state its assertion needs (`eventually`), and a read that must stay in flight is held on a gate the test
+// opens. No test reads a coordinate out of an event: the payloads are asserted whole.
 
 import XCTest
 @testable import ShowUpWelcome
+
+/// Polls every 10 ms until `condition` holds; fails the test with `what` after `timeout`. A loaded runner makes the
+/// wait longer, never the test wrong: nothing here is a guess at how long async work takes.
+@MainActor
+func eventually(_ what: String, timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line,
+                _ condition: () async -> Bool) async {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if await condition() { return }
+        try? await Task.sleep(nanoseconds: 10_000_000)
+    }
+    if await condition() { return }
+    XCTFail("timed out after \(timeout) s waiting for: \(what)", file: file, line: line)
+}
+
+/// Lets already-runnable work (a cancelled task unwinding) run before a test asserts that something did NOT happen.
+@MainActor
+func letCancelledWorkUnwind() async {
+    for _ in 0..<50 { await Task.yield() }
+}
+
+/// A read held in flight until the test opens it. Not cancellable on purpose: the test always opens it.
+actor ReadGate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        if isOpen { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        let held = waiters
+        waiters = []
+        for waiter in held { waiter.resume() }
+    }
+}
 
 /// The fix every test reads, at file scope so the fake reader's nonisolated closures can reach it.
 let arrivalTestFix = LocationFix(latitude: 52.5186, longitude: 13.3761, accuracyM: 8)
@@ -80,6 +120,7 @@ final class ArrivalGateModelTests: XCTestCase {
     private let store = FakeArrivalStore()
     private let reader = FakeFixReader()
     private let sleeps = RecordedSleeps()
+    private let gate = ReadGate()
     private let runner = FakeBackgroundRunner()
     private var ids = 0
 
@@ -92,8 +133,9 @@ final class ArrivalGateModelTests: XCTestCase {
                    checkedIn: checkedIn, chatTutorialSeen: true, arrival: nil)
     }
 
-    /// `pauseMs` is how long one retry wait really takes: a few ms to run the schedule, longer to hold a retry.
-    private func makeModel(pauseMs: Int = 3, timeoutMs: Int = 80) -> ArrivalGateModel {
+    /// A retry wait returns at once, after recording the delay asked for. `holdRetries` makes it wait until the model
+    /// cancels it (a bind or a new Yes), so a test can look at the state between two tries.
+    private func makeModel(holdRetries: Bool = false, timeoutMs: Int = 80) -> ArrivalGateModel {
         let sleeps = self.sleeps
         return ArrivalGateModel(
             store: store, reader: reader, analytics: analytics, clock: { [unowned self] in self.now },
@@ -103,31 +145,36 @@ final class ArrivalGateModelTests: XCTestCase {
             },
             sleep: { ms in
                 await sleeps.add(ms)
-                try? await Task.sleep(nanoseconds: UInt64(pauseMs) * 1_000_000)
+                if holdRetries { try? await Task.sleep(nanoseconds: 60_000_000_000) }
             },
             fixTimeoutMs: timeoutMs, background: runner)
     }
 
-    private func settle(_ seconds: Double = 0.08) async {
-        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    /// The reader answers once the test opens the gate.
+    private func holdTheRead() async {
+        let gate = self.gate
+        await reader.setAnswer {
+            await gate.wait()
+            return arrivalTestFix
+        }
     }
 
-    private func ready(checkedIn: Bool = false, pauseMs: Int = 3, timeoutMs: Int = 80) -> ArrivalGateModel {
-        let m = makeModel(pauseMs: pauseMs, timeoutMs: timeoutMs)
+    private func ready(checkedIn: Bool = false, holdRetries: Bool = false, timeoutMs: Int = 80) -> ArrivalGateModel {
+        let m = makeModel(holdRetries: holdRetries, timeoutMs: timeoutMs)
         m.bind(date(checkedIn: checkedIn))
         return m
     }
 
-    private func confirmed(_ entry: ArrivalEntry = .dateScreen, pauseMs: Int = 3, timeoutMs: Int = 80) -> ArrivalGateModel {
-        let m = ready(pauseMs: pauseMs, timeoutMs: timeoutMs)
+    private func confirmed(_ entry: ArrivalEntry = .dateScreen, holdRetries: Bool = false, timeoutMs: Int = 80) -> ArrivalGateModel {
+        let m = ready(holdRetries: holdRetries, timeoutMs: timeoutMs)
         m.open(entry)
         return m
     }
 
-    private func done(pauseMs: Int = 3) async -> ArrivalGateModel {
-        let m = confirmed(pauseMs: pauseMs)
+    private func done(holdRetries: Bool = false) async -> ArrivalGateModel {
+        let m = confirmed(holdRetries: holdRetries)
         m.yes()
-        await settle()
+        await eventually("D is up") { m.ui.phase == .done(entry: .dateScreen) }
         XCTAssertEqual(m.ui.phase, .done(entry: .dateScreen))
         return m
     }
@@ -184,7 +231,7 @@ final class ArrivalGateModelTests: XCTestCase {
         XCTAssertEqual(submitted["date_id"] as? String, "d1")
         XCTAssertEqual(submitted["entry"] as? String, "date_screen")
         XCTAssertEqual(submitted["minutes_vs_start"] as? Int, -5)
-        await settle()
+        await eventually("D is up") { m.ui.phase == .done(entry: .dateScreen) }
         let reads = await reader.reads
         let stored = await store.stored
         XCTAssertEqual(reads, 1)
@@ -194,17 +241,14 @@ final class ArrivalGateModelTests: XCTestCase {
     }
 
     func testYesWhileBusyDoesNothing() async {
-        await reader.setAnswer {
-            try? await Task.sleep(nanoseconds: 150_000_000)
-            return arrivalTestFix
-        }
-        let m = confirmed(timeoutMs: 1_000)
+        await holdTheRead()
+        let m = confirmed(timeoutMs: 60_000)
         m.yes()
         m.yes()
         m.notYet()
-        await settle(0.03)
         XCTAssertEqual(m.ui.phase, confirm(.dateScreen, busy: true))
-        await settle(0.25)
+        await gate.open()
+        await eventually("D is up") { m.ui.phase == .done(entry: .dateScreen) }
         let reads = await reader.reads
         let stored = await store.stored
         XCTAssertEqual(reads, 1)
@@ -217,13 +261,12 @@ final class ArrivalGateModelTests: XCTestCase {
         await reader.setAnswer { nil }
         let m = confirmed()
         m.yes()
-        await settle()
-        XCTAssertEqual(m.ui.phase, confirm(.dateScreen, locError: true))
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
         var stored = await store.stored
         XCTAssertEqual(stored.count, 0)
         await reader.setAnswer { arrivalTestFix }
         m.yes()
-        await settle()
+        await eventually("D is up") { m.ui.phase == .done(entry: .dateScreen) }
         XCTAssertEqual(analytics.of("arrival_confirm_submitted").count, 2)
         XCTAssertEqual(analytics.of("arrival_confirm_shown").count, 1)
         stored = await store.stored
@@ -232,13 +275,14 @@ final class ArrivalGateModelTests: XCTestCase {
     }
 
     func testAFixAfterTheTimeoutIsIgnored() async {
+        // The reader outlasts any timeout; the model cancels it, and the fix it then returns is ignored.
         await reader.setAnswer {
-            try? await Task.sleep(nanoseconds: 400_000_000)
+            try? await Task.sleep(nanoseconds: 60_000_000_000)
             return arrivalTestFix
         }
         let m = confirmed(timeoutMs: 40)
         m.yes()
-        await settle(0.2)
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
         XCTAssertEqual(m.ui.phase, confirm(.dateScreen, locError: true))
         let stored = await store.stored
         XCTAssertEqual(stored.count, 0)
@@ -248,8 +292,7 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCheckIns([.failed(.network)])
         let m = confirmed()
         m.yes()
-        await settle()
-        XCTAssertEqual(m.ui.phase, confirm(.dateScreen, locError: true))
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 0)
     }
@@ -258,9 +301,8 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCheckIns([.alreadyCheckedIn])
         let m = confirmed()
         m.yes()
-        await settle()
+        await eventually("the date counts as checked in") { m.ui.committed }
         XCTAssertEqual(m.ui.phase, .idle)
-        XCTAssertTrue(m.ui.committed)
         XCTAssertTrue(m.checkedIn())
     }
 
@@ -268,9 +310,9 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCheckIns([.failed(.server)])
         let m = confirmed()
         m.yes()
-        await settle()
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
         m.yes()
-        await settle()
+        await eventually("both taps stored") { await store.stored.count == 2 }
         let stored = await store.stored
         XCTAssertEqual(stored.map(\.clientId), ["id-1", "id-2"])
     }
@@ -280,7 +322,7 @@ final class ArrivalGateModelTests: XCTestCase {
     func testCloseCommitsOnceAndTheDateCountsAsCheckedIn() async {
         let m = await done()
         m.close()
-        await settle()
+        await eventually("the commit landed") { await store.commitCalls == 1 }
         XCTAssertEqual(m.ui.phase, .idle)
         XCTAssertTrue(m.ui.committed)
         let commits = await store.commitCalls
@@ -290,7 +332,7 @@ final class ArrivalGateModelTests: XCTestCase {
 
     func testAPollBeforeTheCommitLandsKeepsTheCheckIn() async {
         await store.queueCommits([.failure(.network)])
-        let m = await done(pauseMs: 400)
+        let m = await done(holdRetries: true)
         m.close()
         m.bind(date(checkedIn: false))
         XCTAssertTrue(m.checkedIn())
@@ -302,7 +344,7 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCommits([.failure(.network), .failure(.server)])
         let m = await done()
         m.close()
-        await settle(0.2)
+        await eventually("the third commit attempt") { await store.commitCalls >= 3 }
         let commits = await store.commitCalls
         let delays = await sleeps.delays
         XCTAssertEqual(commits, 3, "landed on the third: no more")
@@ -312,7 +354,6 @@ final class ArrivalGateModelTests: XCTestCase {
     func testCloseDoesNothingOutsideD() async {
         let m = confirmed()
         m.close()
-        await settle()
         XCTAssertEqual(m.ui.phase, confirm(.dateScreen))
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 0)
@@ -325,7 +366,7 @@ final class ArrivalGateModelTests: XCTestCase {
         m.undo()
         XCTAssertEqual(m.ui.phase, .idle)
         XCTAssertTrue(m.ui.undone)
-        await settle()
+        await eventually("the delete landed") { await store.undoCalls == 1 }
         let undos = await store.undoCalls
         let commits = await store.commitCalls
         XCTAssertEqual(undos, 1)
@@ -339,14 +380,14 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueUndos([.failure(.network), .failure(.network)])
         let m = await done()
         m.undo()
-        await settle(0.2)
+        await eventually("the third delete attempt") { await store.undoCalls >= 3 }
         var undos = await store.undoCalls
         XCTAssertEqual(undos, 3)
         let delays = await sleeps.delays
         XCTAssertEqual(delays, [2_000, 4_000])
         m.leftApp()
         m.close()
-        await settle()
+        await letCancelledWorkUnwind()
         let commits = await store.commitCalls
         undos = await store.undoCalls
         XCTAssertEqual(commits, 0)
@@ -356,18 +397,18 @@ final class ArrivalGateModelTests: XCTestCase {
 
     func testAYesAfterAnUndoStoresAgainAndCancelsADeleteStillRetrying() async {
         await store.queueUndos([.failure(.network)])
-        let m = await done(pauseMs: 500)
+        let m = await done(holdRetries: true)
         m.undo()
-        await settle(0.05)
+        await eventually("the first delete attempt") { await store.undoCalls == 1 }
         var undos = await store.undoCalls
         XCTAssertEqual(undos, 1)
         XCTAssertTrue(m.open(.dateScreen))
         m.yes()
-        await settle()
+        await eventually("D is up again") { m.ui.phase == .done(entry: .dateScreen) }
         let stored = await store.stored
         XCTAssertEqual(stored.count, 2)
-        XCTAssertEqual(m.ui.phase, .done(entry: .dateScreen))
-        await settle(0.6)
+        // The held retry ends only by being cancelled, so a delete after this point could only be a missed cancel.
+        await letCancelledWorkUnwind()
         undos = await store.undoCalls
         XCTAssertEqual(undos, 1, "the retrying delete was cancelled")
     }
@@ -378,7 +419,7 @@ final class ArrivalGateModelTests: XCTestCase {
         let m = await done()
         m.leftApp()
         m.leftApp()
-        await settle()
+        await eventually("the commit landed") { await store.commitCalls == 1 }
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 1)
         XCTAssertEqual(m.ui.phase, .idle)
@@ -390,22 +431,18 @@ final class ArrivalGateModelTests: XCTestCase {
         m.leftApp()
         m.open(.dateScreen)
         m.leftApp()
-        await settle()
         XCTAssertEqual(m.ui.phase, confirm(.dateScreen))
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 0)
     }
 
     func testLeavingDuringTheReadAndAStoreThatLandsAwayCommitsAtOnceWithNoD() async {
-        await reader.setAnswer {
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            return arrivalTestFix
-        }
-        let m = confirmed(timeoutMs: 1_000)
+        await holdTheRead()
+        let m = confirmed(timeoutMs: 60_000)
         m.yes()
-        await settle(0.02)
         m.leftApp()
-        await settle(0.25)
+        await gate.open()
+        await eventually("the commit landed") { await store.commitCalls == 1 }
         let stored = await store.stored
         let commits = await store.commitCalls
         XCTAssertEqual(stored.count, 1)
@@ -415,16 +452,13 @@ final class ArrivalGateModelTests: XCTestCase {
     }
 
     func testLeavingDuringTheReadAndComingBackBeforeTheStoreLandsShowsDAndCommitsNothing() async {
-        await reader.setAnswer {
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            return arrivalTestFix
-        }
-        let m = confirmed(timeoutMs: 1_000)
+        await holdTheRead()
+        let m = confirmed(timeoutMs: 60_000)
         m.yes()
-        await settle(0.02)
         m.leftApp()
         m.foregrounded()
-        await settle(0.25)
+        await gate.open()
+        await eventually("D is up") { m.ui.phase == .done(entry: .dateScreen) }
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 0)
         XCTAssertEqual(m.ui.phase, .done(entry: .dateScreen))
@@ -435,16 +469,16 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCommits([.failure(.network), .success(())])
         let m = await done()
         m.close()
-        await settle(0.2)
+        await eventually("both commit attempts ran") { runner.events.count == 4 }
         XCTAssertEqual(runner.events, ["begin:arrival-commit", "end:arrival-commit",
                                        "begin:arrival-commit", "end:arrival-commit"])
         let m2 = ArrivalGateModel(store: store, reader: reader, background: runner)
         m2.bind(date(id: "d2"))
         m2.open(.dateScreen)
         m2.yes()
-        await settle(0.2)
+        await eventually("D is up on the second date") { m2.ui.phase == .done(entry: .dateScreen) }
         m2.undo()
-        await settle(0.1)
+        await eventually("the undo ran") { runner.events.count == 6 }
         XCTAssertEqual(runner.events.suffix(2), ["begin:arrival-undo", "end:arrival-undo"])
     }
 
@@ -453,7 +487,7 @@ final class ArrivalGateModelTests: XCTestCase {
     func testBindingAnotherDateResetsThePhaseAndCommitted() async {
         let m = await done()
         m.close()
-        await settle()
+        await eventually("the commit landed") { await store.commitCalls == 1 }
         XCTAssertTrue(m.ui.committed)
         m.bind(date(id: "d2"))
         XCTAssertEqual(m.ui, GateUi())
@@ -468,15 +502,13 @@ final class ArrivalGateModelTests: XCTestCase {
     }
 
     func testBindingAnotherDateCancelsAReadInFlight() async {
-        await reader.setAnswer {
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            return arrivalTestFix
-        }
-        let m = confirmed(timeoutMs: 1_000)
+        await holdTheRead()
+        let m = confirmed(timeoutMs: 60_000)
         m.yes()
-        await settle(0.03)
+        await eventually("the read is in flight") { await reader.reads == 1 }
         m.bind(date(id: "d2"))
-        await settle(0.4)
+        await gate.open()
+        await letCancelledWorkUnwind()
         let stored = await store.stored
         XCTAssertEqual(stored.count, 0)
         XCTAssertEqual(m.ui.phase, .idle)
@@ -488,22 +520,22 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCommits([.failure(.network), .failure(.network), .failure(.network)])
         var m: ArrivalGateModel? = await done()
         m?.close()
-        await settle(0.01)
         m = nil
-        await settle(0.3)
+        await eventually("the fourth commit attempt") { await store.commitCalls >= 4 }
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 4, "landed on the fourth")
     }
 
     func testBindingAnotherDateStillCancelsARetryingCommit() async {
         await store.queueCommits(Array(repeating: .failure(.network), count: 5))
-        let m = await done(pauseMs: 300)
+        let m = await done(holdRetries: true)
         m.close()
-        await settle(0.05)
+        await eventually("the first commit attempt") { await store.commitCalls == 1 }
         var commits = await store.commitCalls
         XCTAssertEqual(commits, 1)
         m.bind(date(id: "d2"))
-        await settle(0.5)
+        // The held retry ends only by being cancelled, so a second attempt could only be a missed cancel.
+        await letCancelledWorkUnwind()
         commits = await store.commitCalls
         XCTAssertEqual(commits, 1)
     }
