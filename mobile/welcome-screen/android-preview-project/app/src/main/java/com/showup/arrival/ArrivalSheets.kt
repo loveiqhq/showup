@@ -196,10 +196,10 @@ private fun SheetCircle(icon: BrandIcon) {
 
 @Composable
 private fun SheetTitleText(text: String, maxWidth: androidx.compose.ui.unit.Dp) {
-    val heading = AnnotatedString(text)
+    val titleText = AnnotatedString(text)
     Text(
-        heading,
-        modifier = Modifier.semantics { heading() }.widthIn(max = maxWidth).prettyWrap(heading, SheetTitle, centered = true).cssLineBox(SheetTitle.lineHeight),
+        titleText,
+        modifier = Modifier.semantics { heading() }.widthIn(max = maxWidth).prettyWrap(titleText, SheetTitle, centered = true).cssLineBox(SheetTitle.lineHeight),
         style = SheetTitle,
     )
 }
