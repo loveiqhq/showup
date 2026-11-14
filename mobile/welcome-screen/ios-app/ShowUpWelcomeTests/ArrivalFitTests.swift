@@ -118,7 +118,7 @@ final class ArrivalFitTests: XCTestCase {
 
     // MARK: the frames
 
-    private let name = DateSamples.date.match.name
+    private let matchName = DateSamples.date.match.name
     private var openUi: DateUi { DateUi(date: DateSamples.date, now: DateSamples.bNow, loading: false) }
     private var locked: DateUi { DateUi(date: DateSamples.date, now: DateSamples.aNow, loading: false) }
     private var checkedIn: DateUi {
@@ -141,7 +141,7 @@ final class ArrivalFitTests: XCTestCase {
     }
 
     private func dateScreen(_ ui: DateUi, link: Bool = false) -> AnyView {
-        let who = name
+        let who = matchName
         return AnyView(DateScreen(ui: ui, zone: DateSamples.zone,
                                   checkInBar: { AnyView(CheckInBar(name: who, onCheckIn: {}, onEnd: link ? {} : nil)) }))
     }
@@ -151,7 +151,7 @@ final class ArrivalFitTests: XCTestCase {
     }
 
     private func sheet(_ label: String, _ phase: GatePhase) -> Frame {
-        let who = name
+        let who = matchName
         let behind = dateScreen(openUi)
         return Frame(label: label, scrolls: false, view: AnyView(
             ArrivalOver(ui: GateUi(phase: phase), name: who, onYes: {}, onNotYet: {}, onClose: {}, onUndo: {},
@@ -181,7 +181,7 @@ final class ArrivalFitTests: XCTestCase {
     }
 
     private func chatSheet(_ label: String, locError: Bool) -> Frame {
-        let who = name
+        let who = matchName
         return Frame(label: label, scrolls: false, view: AnyView(
             ArrivalOver(ui: GateUi(phase: .confirm(entry: .chatChip, locError: locError, busy: false, note: nil)),
                         name: who, onYes: {}, onNotYet: {}, onClose: {}, onUndo: {},
@@ -190,7 +190,7 @@ final class ArrivalFitTests: XCTestCase {
 
     private func gate(_ label: String, _ state: LocationState, now: Date, day: String = "today",
                       place: String? = "Cafe Krone") -> Frame {
-        let who = name
+        let who = matchName
         return Frame(label: label, scrolls: false, view: AnyView(
             ProfileLocationView(state: state, context: .date(LocationDateContext(
                 name: who, meetDay: day, meetAt: DateSamples.date.meetAt, place: place, photoUrl: nil, now: now,
@@ -266,7 +266,7 @@ final class ArrivalFitTests: XCTestCase {
                 if button.maxX > bar.maxX - 16 + 0.5 { found.append("\(tag): Check-in runs \(button.maxX - (bar.maxX - 16)) past the bar's 16 padding") }
             }
             if let text = f[FitAnchorID.arrivalBarText] {
-                let title = widestWordWidth(ArrivalCopy.barTitle(name), chatFont(PS.loraBold, 18, .bold))
+                let title = widestWordWidth(ArrivalCopy.barTitle(matchName), chatFont(PS.loraBold, 18, .bold))
                 let line = widestWordWidth(ArrivalCopy.barLine, chatFont(PS.manropeRegular, 12.5, .regular))
                 let need = max(title, line) * scale(type)
                 if text.width + 0.5 < need { found.append("\(tag): the bar's text is \(text.width) wide, its longest word needs \(need)") }
