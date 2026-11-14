@@ -4799,8 +4799,8 @@
           "code_anchor": null,
           "tier": "T2",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "implemented": false,
+          "backend_status": "Client only",
+          "implemented": true,
           "source": "client",
           "payload": [
             {
@@ -4823,8 +4823,8 @@
           "code_anchor": null,
           "tier": "T2",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "implemented": false,
+          "backend_status": "Client only",
+          "implemented": true,
           "source": "client",
           "payload": [
             {
@@ -4847,8 +4847,8 @@
           "code_anchor": null,
           "tier": "T2",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "implemented": false,
+          "backend_status": "Built (SHOWUP-195)",
+          "implemented": true,
           "source": "server",
           "payload": [
             {
@@ -4875,8 +4875,8 @@
           "code_anchor": null,
           "tier": "T2",
           "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "implemented": false,
+          "backend_status": "Built (SHOWUP-195)",
+          "implemented": true,
           "source": "server",
           "payload": [
             {
