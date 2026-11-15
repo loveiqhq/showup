@@ -1,0 +1,81 @@
+name: Semgrep
+
+# A free security scan of the whole repository — server, Android and iOS — on every pull request and
+# every push to the three long-lived branches. Semgrep Community Edition with the public registry
+# rules: no Semgrep account, no token, and `--metrics=off`, so nothing about the code leaves the run.
+#
+# Two steps, two jobs:
+#   1. The full scan REPORTS every finding (the job summary lists them; `semgrep-report` holds the
+#      JSON) and never fails, so findings that predate this workflow do not block anyone.
+#   2. On a pull request, the diff scan FAILS only for findings the pull request itself adds
+#      (`--baseline-commit` = the base branch), so the code base can only get cleaner.
+#
+# Kept apart from ci.yml on purpose: the protected branches require that workflow's jobs, and a new
+# scanner should not be able to block a promotion until its baseline has been triaged.
+on:
+  push:
+    branches: [main, staging, development]
+  pull_request:
+
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The registry packs: the cross-language default set, secrets, and the languages this repo is
+  # written in. Swift is covered by the default set.
+  SEMGREP_CONFIGS: --config p/default --config p/secrets --config p/typescript --config p/nodejs --config p/kotlin
+
+jobs:
+  semgrep:
+    name: Semgrep (Community Edition)
+    runs-on: ubuntu-latest
+    container:
+      # Pinned; bump deliberately (Docker Hub semgrep/semgrep).
+      image: semgrep/semgrep:1.182.1
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          # The diff scan needs the base branch's history.
+          fetch-depth: 0
+
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Full scan (report only)
+        run: |
+          semgrep scan $SEMGREP_CONFIGS --metrics=off --json --output semgrep.json || true
+          python3 - <<'PY'
+          import json, os, collections
+          data = json.load(open("semgrep.json"))
+          results = data.get("results", [])
+          by_sev = collections.Counter(r["extra"].get("severity", "?") for r in results)
+          lines = [f"## Semgrep: {len(results)} finding(s)", ""]
+          lines += [f"- {sev}: {n}" for sev, n in sorted(by_sev.items())]
+          lines += ["", "| Severity | Rule | Location |", "|---|---|---|"]
+          for r in sorted(results, key=lambda r: (r["extra"].get("severity", ""), r["path"])):
+              lines.append(f"| {r['extra'].get('severity', '?')} | `{r['check_id'].split('.')[-1]}` | `{r['path']}:{r['start']['line']}` |")
+          errors = data.get("errors", [])
+          if errors:
+              lines += ["", f"{len(errors)} file(s) could not be parsed (see the report)."]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines) + "\n")
+          print("\n".join(lines[:4]))
+          PY
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep.json
+          retention-days: 30
+
+      - name: New findings fail the pull request
+        if: github.event_name == 'pull_request'
+        run: semgrep scan $SEMGREP_CONFIGS --metrics=off --error --baseline-commit "${{ github.event.pull_request.base.sha }}"
