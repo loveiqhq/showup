@@ -194,11 +194,14 @@ class ChatViewModel(
     /**
      * A chip tap, on the start grid or the dock: selects it and REPLACES the field with its draft.
      * "I can't make it today" has none: it empties the field and locks it behind the guide.
+     * [gated]: only the event fires -- the arrival chip before check-in opens the gate instead.
      */
-    fun pick(reason: ChatReason, surface: ChipSurface) {
+    fun pick(reason: ChatReason, surface: ChipSurface, gated: Boolean = false) {
         val date = _ui.value.date ?: return
         val now = clock()
         analytics?.report(ChatAnalytics.actionChipUsed(date, reason, surface, now))
+        // Gated (Date 03): the arrival check-in answers the tap; nothing is selected, drafted or sent.
+        if (gated) return
         if (reason == ChatReason.CantMakeIt) {
             guideShownAt = now
             _ui.update { it.copy(selected = reason, draft = "", guide = Guide.Locked) }

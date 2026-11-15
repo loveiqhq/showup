@@ -18,6 +18,7 @@ package com.showup.dev
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.showup.arrival.ArrivalSamples
 import com.showup.search.messageDraft
 import com.showup.search.SearchUiState
 import com.showup.search.SearchSamples
@@ -51,6 +52,7 @@ import com.showup.checkin.SlotTier
 import com.showup.checkin.checkInDays
 import com.showup.checkin.gridOf
 import com.showup.chat.ChatSamples
+import com.showup.profile.LocationState
 import com.showup.chat.ChatScreen
 import com.showup.chat.ChatTutorialScreen
 import com.showup.chat.ChatUi
@@ -148,6 +150,14 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "194I" -> ChatFrame(ChatSamples.I, leave)
         "194J" -> ChatFrame(ChatSamples.J, leave)
         "194K" -> ChatFrame(ChatSamples.K, leave)
+        "195A" -> ArrivalSamples.dateScreen()
+        "195B" -> ArrivalSamples.over(ArrivalSamples.B, leave) { ArrivalSamples.dateScreen() }
+        "195C" -> ArrivalSamples.over(ArrivalSamples.C, leave) { ArrivalSamples.dateScreen() }
+        "195D" -> ArrivalSamples.over(ArrivalSamples.D, leave) { ArrivalSamples.dateScreen() }
+        "195E" -> ArrivalSamples.dateScreen(ArrivalSamples.CHECKED_IN)
+        "195F" -> ArrivalSamples.over(ArrivalSamples.F, leave) { ArrivalSamples.chat(leave) }
+        "195G" -> ArrivalSamples.gate(LocationState.Denied)
+        "195H" -> ArrivalSamples.dateScreen(ArrivalSamples.ARRIVED)
         else -> Text("Unknown state $state")
     }
 }

@@ -28,7 +28,7 @@ object DateSamples {
         motivationYou = "long_term", motivationThem = "long_term",
         sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
         sharedInterests = listOf("reading", "brunch", "hiking"),
-        unread = null, checkedIn = false, chatTutorialSeen = false,
+        unread = null, checkedIn = false, chatTutorialSeen = false, arrival = null,
     )
 
     /** C: the sheet's running-late message, sent at 17:42; the dev menu sends the same text. */

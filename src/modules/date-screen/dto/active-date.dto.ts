@@ -71,6 +71,12 @@ export class DateUnreadDto {
   sentAt: string;
 }
 
+/** The match's arrival (Date 03): the time they tapped, never a place. */
+export class DateArrivalDto {
+  @ApiProperty({ format: 'date-time' })
+  checkedInAt: string;
+}
+
 /**
  * `GET /me/date`: everything the Date screen (Date 01, SHOWUP-193) renders.
  *
@@ -129,9 +135,17 @@ export class ActiveDateDto {
 
   @ApiProperty({
     description:
-      "The viewer's own arrival check-in. Always false until Date 03 adds the check-in store",
+      "True once the viewer's own arrival check-in is committed (Close); one not yet committed is still private",
   })
   checkedIn: boolean;
+
+  @ApiProperty({
+    type: DateArrivalDto,
+    nullable: true,
+    description:
+      "The match's committed arrival; null before it, and once the viewer has read the chat after it",
+  })
+  arrival: DateArrivalDto | null;
 
   @ApiProperty({
     description:

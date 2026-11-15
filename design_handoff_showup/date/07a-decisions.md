@@ -5,7 +5,7 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 ## Flow
 1. Check-in bar (deep ink) replaces the End Date bar until the user checks in.
 2. Tap **Check-in** → guard pop-up: "Have you arrived at the meeting location for your date with {name}?" · **Not yet** (top, secondary) / **Yes, I've arrived** (bottom, gradient) — order is deliberate so a quick tap on the first button never confirms. Not yet stores nothing.
-3. **Yes** → location + timestamp locked → "You are amazing for showing up!" · **Close** → End Date bar (existing flow).
+3. **Yes** → location + timestamp stored → "You are amazing for showing up!" · **Close** → End Date bar (existing flow) · **Undo check-in** → stored check-in deleted, back to the Check-in bar *(added 6 Nov 2026)*.
 
 ## Rules
 - **Cancel date** link under the Check-in bar → existing Cancel this date flow (penalty guard). ⚠ *Superseded 2 Nov 2026:* the link is **End date** — it does what the End Date bar does (wrap-up sheet), available before check-in. **Cancel this date** stays as its own link at the end of the date screen.
@@ -15,7 +15,7 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - **Stored on Yes:** the device's current location + timestamp, against this date. Internal only — never shown to either user, never sent to analytics.
 - **Match:** each check-in has a **150 m** radius; the two count as "together" when the circles overlap. Compared with each other only — the system never knows for sure where they agreed to meet (they may have agreed in free text). *(3 Nov 2026 — was 200 m.)*
 - **Available:** always while the date is active (meet time can be changed in the chat).
-- **Location off:** show the existing location-off screen (as Search 04). No check-in without a location. Mention in the ticket — not drawn in 07a.
+- **Location off:** show the existing location-off screen (as Search 04). No check-in without a location. Mention in the ticket — not drawn in 07a. ⚠ *Made precise 5 Nov 2026:* while location is not usable, **the Date screen is blocked by the location gate** (Search 04, full screen). Check-in can therefore never be tapped with location off — there is no location-off state inside the check-in flow. No card on the Date screen (parked location questions 4–5 closed). The date gate shows the date (time, place, `Starts in …` / `Started … ago`) and one CTA — **no Report a problem**: the only way forward is giving location access. Kit: Location gate · date (`date-loc-*`).
 - **Match notified:** push to the other person that {name} has arrived at the meeting location. Copy TBD.
 
 - **Report a problem → "My date isn't showing up"**, not checked in yet → check-in flow first ("Check in first, so we can confirm you were there."). Confirmed → the guidance continues. Not yet → back to the menu.
@@ -83,6 +83,13 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - **Ending after talking in the chat → no review** (the date didn't happen). The other person sees `{name} had to cancel the date` · "We hope you two found another day to meet. Search is open again" · rate untouched · **Find your next date**. Kit: Cancel this date · 4b (`coord-cancel-4-partner-chat`).
 - **Ending in the chat (built 5 Nov 2026):** the chat's **End the date** exists ONLY after an "I can't make it today" message has been sent (either side) — no other chip, message or state shows it. Then both see an **End the date** card in the thread → sheet `End the date with {name}?` · Keep the date · End the date → no review, both can search again. Ender sees `You ended the date` (B5), the other `{name} had to cancel the date` (4b). The card only appears after the apology message, so the chat end always follows an explanation. Kit: Coordinate · B3–B5.
 - **Settled 5 Nov 2026:** ending in the chat costs **nobody** Show-up Rate (accepted risk: one message avoids the drop) · the card stays available **until the date has ended**, no cut-off at the meet time · the chat buttons say **End date**, same as the Date screen, to keep copy small.
+
+## Decided 6 Nov 2026 (Date 03 — arrival check-in)
+- **Date 04 folds into 03.** "{name} has arrived" on the match's Coordinate card is the other end of the same check-in and can't be tested without it. One ticket, Date 04 retired as a number.
+- **No time window.** The Check-in bar shows the whole time the date is active — the guard asks "Have you arrived?", and the real meet time can be agreed in free text without the picker, so no clock can be trusted. Confirms the 2 Nov rule.
+- **No GPS fix → retry.** If the device can't return a location, nothing is stored and the user is asked to try again. No low-accuracy fallback, no check-in without coordinates.
+- **Undo check-in** — a quiet link under **Close** on "You are amazing for showing up!", and only there. Undo **deletes the stored location + timestamp**, closes the sheet and returns to the **Date screen** with the **Check-in bar** again (also when the check-in started from the chat chip). Once the sheet is closed there is no undo.
+- **The match is notified on Close**, not on Yes, so an undo never reaches them. Leaving the app with the sheet open counts as Close.
 
 ## Open
 - **Show-up Rate "10-min grace" line** (`screens-score.jsx`) — nothing measures lateness against the binding time. Drop it or define it (check-in > binding time + 10 min).

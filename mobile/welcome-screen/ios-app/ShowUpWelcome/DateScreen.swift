@@ -100,6 +100,16 @@ private struct DateHeightsKey: PreferenceKey {
     }
 }
 
+/// The most of the screen the sticky footer may cover before the bar moves into the scroll (Android's `FOOTER_MAX_SHARE`).
+private let footerMaxShare: CGFloat = 0.6
+
+/// Whether the Check-in bar gives way and ends the scroll instead of sticking over the TabBar: the two together
+/// would cover more than 60 % of `frame`, the screen's height. THE ONE DECISION: the layout and `ArrivalFitTests`
+/// both call it, so a rule held to a different threshold or tolerance cannot disagree with the screen.
+func dateBarInFlow(bar: CGFloat, tab: CGFloat, frame: CGFloat) -> Bool {
+    frame > 0 && bar + tab > frame * footerMaxShare
+}
+
 private extension View {
     func measuredHeight(_ id: String) -> some View {
         background(GeometryReader { g in Color.clear.preference(key: DateHeightsKey.self, value: [id: g.size.height]) })
@@ -130,18 +140,18 @@ struct DateScreen: View {
     var changeTiles: [ChatReason] = changeTileReasons
     /// A change tile was tapped: the Date 05 picker opens, once it exists.
     var onChangeTile: (ChatReason) -> Void = { _ in }
+    /// The match's arrival card was tapped while the chat is still locked: it clears (Date 03, R2).
+    var onArrivalSeen: () -> Void = {}
 
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
 
-    /// The most of the screen the sticky footer may cover before the bar moves into the scroll.
-    private static let footerMaxShare: CGFloat = 0.6
 
     var body: some View {
         let frame = heights["frame"] ?? 0
         let bar = heights["bar"] ?? 0
         let tab = heights["tab"] ?? 0
-        let barInFlow = frame > 0 && bar + tab > frame * Self.footerMaxShare
+        let barInFlow = dateBarInFlow(bar: bar, tab: tab, frame: frame)
         // THE SCREEN IS THE PHONE'S WIDTH, EXACTLY. A ZStack takes the width of its widest child, so a
         // footer a point too rigid (a long name at the 402-wide phone's exact width) widened the scroll
         // with it and moved every card off its 16 gutter. Pinned here, nothing inside can.
@@ -216,9 +226,11 @@ struct DateScreen: View {
                 .padding(.top, 8)
                 .fitAnchor("date:hero")
             Color.clear.frame(height: 12)
-            if state == .unread { coordinate(date, state) }
+            // The match's arrival and an unread message are both hoisted under the hero (R11).
+            let hoist = hoisted(state, date.arrival)
+            if hoist { coordinate(date, state) }
             TimePlaceCard(date: date, zone: zone, copied: ui.copied, onCopy: onCopy).fitAnchor("date:time-card")
-            if state != .unread { coordinate(date, state) }
+            if !hoist { coordinate(date, state) }
             ReportRow(onReport: onReport).fitAnchor("date:report")
             IntentCard(date: date).fitAnchor("date:intent")
             QuickActions(hasPlace: date.place != nil, onDirections: onDirections, onShare: onShare, onCalendar: onCalendar)
@@ -238,7 +250,8 @@ struct DateScreen: View {
     private func coordinate(_ date: ActiveDate, _ state: DateState) -> some View {
         // The tiles only in A: from B on, the chat's chips do the same job.
         CoordinateModule(state: state, date: date, now: ui.now, zone: zone, onOpenChat: onOpenChat,
-                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile)
-            .fitAnchor("date:coordinate")
+                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile,
+                         onArrivalSeen: onArrivalSeen)
+            .fitAnchor(date.arrival != nil ? "date:arrival-card" : "date:coordinate")
     }
 }

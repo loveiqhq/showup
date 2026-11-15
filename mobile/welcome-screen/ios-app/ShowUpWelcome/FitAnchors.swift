@@ -29,6 +29,11 @@ extension View {
             Color.clear.preference(key: FitFrameKey.self, value: [id: g.frame(in: .global)])
         })
     }
+
+    /// `fitAnchor(id)` when there is an id, the view as it is when there is not.
+    @ViewBuilder func fitAnchor(ifGiven id: String?) -> some View {
+        if let id { fitAnchor(id) } else { self }
+    }
 }
 
 /// One touch area, in window coordinates, and whether it sits in a bar pinned over a scroll. A
@@ -138,6 +143,35 @@ enum FitAnchorID {
     static let mediaDelete = "media-delete"
     /// That whole row, inside its padding: the width the one-line form has to fit.
     static let mediaRecordedRow = "media-recorded-row"
+
+    /// `ModalShell`'s cream surface as drawn (not its run into the home indicator's inset): every sheet on it is as
+    /// tall as its content, at most the 88 % cap (SHOWUP-195, `ModalShellFitTests`).
+    static let modalShell = "modal-shell"
+    /// The frame `SheetScaffold` docks that surface in (the screen inside its safe area, risen with the sheet): its
+    /// foot is the sheet's foot, and 88 % of its height the cap.
+    static let modalShellDock = "modal-shell:dock"
+
+    // The arrival check-in (SHOWUP-195): the sheets' controls and the bar's, for `ArrivalFitTests`.
+    static let arrivalSheet = "arrival:sheet"
+    static let arrivalCircle = "arrival:circle"
+    static let arrivalNotYet = "arrival:not-yet"
+    static let arrivalYes = "arrival:yes"
+    static let arrivalError = "arrival:error"
+    static let arrivalClose = "arrival:close"
+    static let arrivalUndo = "arrival:undo"
+    static let arrivalBar = "arrival:bar"
+    static let arrivalCheckIn = "arrival:check-in"
+    static let dateGateCard = "date-gate:card"
+    /// The sheets' title and D's body: the box, and the widest word as drawn (`FitWords`), for the whole-word rule.
+    static let arrivalTitle = "arrival:title"
+    static let arrivalTitleWord = "arrival:title-word"
+    static let arrivalBody = "arrival:body"
+    static let arrivalBodyWord = "arrival:body-word"
+    static let dateGatePill = "date-gate:pill"
+    /// The bar's text column: the width its longest word has to fit (R12).
+    static let arrivalBarText = "arrival:bar-text"
+    /// The gate headline's widest word as drawn, published by `FitWords`.
+    static let dateGateHeadlineWord = "date-gate:headline-word"
 
     // Search 01's interim no-results screen (27 Oct 2026).
     static let searchEmptyCta = "search-empty-cta"

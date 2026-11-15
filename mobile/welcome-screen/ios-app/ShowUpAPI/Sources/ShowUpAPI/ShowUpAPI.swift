@@ -44,6 +44,7 @@ public struct ShowUpAPI: Sendable {
         // refresh, which would fail 401, which would trigger a refresh.
         let bare = Client(
             serverURL: environment.baseURL,
+            configuration: Self.configuration,
             transport: transport
         )
         self.bare = bare
@@ -54,10 +55,15 @@ public struct ShowUpAPI: Sendable {
 
         self.client = Client(
             serverURL: environment.baseURL,
+            configuration: Self.configuration,
             transport: transport,
             middlewares: [AuthMiddleware(tokens: tokens, refresher: refresher)]
         )
     }
+
+    /// Both clients read dates the way the server writes them -- with milliseconds. See
+    /// ``ServerDateTranscoder``; the runtime's default would fail every decode of a server date.
+    private static let configuration = Configuration(dateTranscoder: ServerDateTranscoder())
 
     /// A URL the server sent, made loadable: absolute as it came, or a path resolved against
     /// `baseURL`. Nil only for text that is no URL at all.
@@ -103,6 +109,12 @@ public struct ShowUpAPI: Sendable {
     /// platforms read slightly differently in that list -- readable and correct beats matching
     /// and wrong.
     public static let userAgent = "ShowUp-iOS-0.1"
+
+    /// The HTTP status a failed call DID get an answer with, even when the generated client could not decode the
+    /// body and threw: nil when there was no response at all (a transport error).
+    public static func responseStatus(_ error: any Error) -> Int? {
+        (error as? ClientError)?.response?.status.code
+    }
 
     /// Whether a call threw because NO RESPONSE ARRIVED -- offline, timed out, the host unreachable
     /// -- rather than because one arrived that could not be read.

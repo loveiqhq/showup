@@ -300,4 +300,61 @@ class LocationGateViewModelTest {
         assertTrue(g.confirmNeedsLocation())
         assertEquals(LocationState.ServicesOff, g.state.value.blocked)
     }
+
+    // ── the date context (SHOWUP-195 G): reads and asks like the gate, fires nothing ────────────
+
+    @Test
+    fun `the date context fires no event for a mount, a press, an answer or a lift`() {
+        phone(PermissionStatus.NotDetermined)
+        val g = gate()
+        g.dateMounted()
+        g.allowPressed()
+        assertEquals("the OS dialog still goes up", 1, host.requests)
+        g.permissionAnswered(false)
+        assertEquals(LocationState.Denied, g.state.value.blocked)
+        g.openSettingsPressed()
+        assertEquals("Settings still opens", listOf(LocationState.Denied), host.settings)
+        phone(PermissionStatus.Granted)
+        g.refresh()
+        assertNull(g.state.value.blocked)
+        assertEquals(emptyList<String>(), analytics.names())
+        assertFalse("a Search screen is not reached from this gate", g.takeLift())
+    }
+
+    @Test
+    fun `leaving the date context lets the Search gate report again`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        g.dateLeft()
+        g.mounted(ProfileScreen.LikesReceived)
+        assertEquals(listOf("screen_viewed", ProfileAnalytics.LOCATION_GATE_SHOWN), analytics.names())
+    }
+
+    @Test
+    fun `the date context then Search without a leave -- Search reports once`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        g.mounted(ProfileScreen.LikesReceived)
+        g.mounted(ProfileScreen.LikesReceived)
+        assertEquals(listOf("screen_viewed", ProfileAnalytics.LOCATION_GATE_SHOWN), analytics.names())
+        g.openSettingsPressed()
+        assertEquals("Search's press reports", 1, analytics.names().count { it == "permission_settings_opened" })
+    }
+
+    @Test
+    fun `Search then the date context without a leave -- nothing more fires, presses are silent`() {
+        phone(PermissionStatus.NotDetermined)
+        val g = gate()
+        g.mounted(ProfileScreen.LikesReceived)
+        val before = analytics.names()
+        g.dateMounted()
+        g.allowPressed()
+        g.permissionAnswered(false)
+        g.openSettingsPressed()
+        assertEquals(before, analytics.names())
+        assertEquals(1, host.requests)
+        assertEquals(listOf(LocationState.Denied), host.settings)
+    }
 }

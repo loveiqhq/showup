@@ -5,6 +5,8 @@
  * goes in the properties — cancellation reasons collapse to a boolean.
  */
 
+import type { ArrivalEntry } from '../../dates/util/arrival';
+
 export const DATE_CONFIRMED = 'date_confirmed';
 export const DATE_COMPLETED = 'date_completed';
 export const DATE_CANCELLED = 'date_cancelled';
@@ -76,6 +78,47 @@ export function dateEndedInChatEvent(
       date_id: dateId,
       cant_make_it_from: cantMakeItFrom,
       minutes_before_start: minutesBeforeStart,
+    },
+  };
+}
+
+export const ARRIVAL_CONFIRMED = 'arrival_confirmed';
+export const ARRIVAL_UNDONE = 'arrival_undone';
+
+/**
+ * `arrival_confirmed` (Date 03, registry 1.4.34, server). Once per stored check-in: the entry it came
+ * from, whole minutes to the latest agreed meet time (negative before it), and whether the match has
+ * no check-in yet. Never a coordinate, an accuracy or a place.
+ */
+export function arrivalConfirmedEvent(
+  dateId: string,
+  entry: ArrivalEntry,
+  minutesVsStart: number,
+  isFirst: boolean,
+): AnalyticsEventSpec {
+  return {
+    eventName: ARRIVAL_CONFIRMED,
+    properties: {
+      date_id: dateId,
+      entry,
+      minutes_vs_start: minutesVsStart,
+      is_first: isFirst,
+    },
+  };
+}
+
+/** `arrival_undone` (Date 03): the check-in was taken back before Close; seconds since it was made. */
+export function arrivalUndoneEvent(
+  dateId: string,
+  entry: ArrivalEntry,
+  secondsSinceConfirm: number,
+): AnalyticsEventSpec {
+  return {
+    eventName: ARRIVAL_UNDONE,
+    properties: {
+      date_id: dateId,
+      entry,
+      seconds_since_confirm: secondsSinceConfirm,
     },
   };
 }

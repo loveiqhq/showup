@@ -84,6 +84,9 @@ class DateViewModel(
     private var copiedJob: Job? = null
     private var poll: Job? = null
 
+    /** The arrival this phone cleared, by date: a read that brings no newer one never shows it again. */
+    private var cleared: Pair<String, Instant>? = null
+
     private class Visit(val referrer: ProfileScreen?)
 
     /**
@@ -119,7 +122,7 @@ class DateViewModel(
      */
     fun seed(date: ActiveDate) {
         // Replaces a stale date (the one before, after it went away): the seed is the newer read.
-        _state.update { it.copy(date = date, now = clock(), loading = false, failed = null, left = false) }
+        _state.update { it.copy(date = withoutCleared(date), now = clock(), loading = false, failed = null, left = false) }
     }
 
     /** `Try again` on the failed state: read again, the visit still waiting for it. */
@@ -150,6 +153,25 @@ class DateViewModel(
 
     /** `Open the chat` stamped the tutorial seen on the server; the held date says so at once. */
     fun chatTutorialSeen() = _state.update { it.copy(date = it.date?.copy(chatTutorialSeen = true)) }
+
+    /**
+     * The match's arrival card was opened or tapped (Date 03): it clears now, the server is told once (one try is
+     * enough -- opening the chat stamps the same field), and a later read that carries the same arrival is
+     * dropped. A newer check-in shows.
+     */
+    fun arrivalSeen() {
+        val date = _state.value.date ?: return
+        val arrival = date.arrival ?: return
+        cleared = date.id to arrival.checkedInAt
+        _state.update { it.copy(date = it.date?.copy(arrival = null)) }
+        viewModelScope.launch { repo.markArrivalSeen(date.id) }
+    }
+
+    private fun withoutCleared(date: ActiveDate): ActiveDate {
+        val arrival = date.arrival ?: return date
+        val (id, at) = cleared ?: return date
+        return if (id == date.id && !arrival.checkedInAt.isAfter(at)) date.copy(arrival = null) else date
+    }
 
     /** G or H has been seen and left: no date is held, so Search, Likes and Instant open again. */
     fun outcomeShown() = _state.update { it.copy(date = null, ended = null, left = false, failed = null) }
@@ -189,7 +211,7 @@ class DateViewModel(
                 is Outcome.Ok -> when (val read = answer.value) {
                     is DateRead.Active -> {
                         // `left` back to false: a new date after one that went away is shown, not left.
-                        _state.update { it.copy(date = read.date, now = now, loading = false, failed = null, left = false, ended = null) }
+                        _state.update { it.copy(date = withoutCleared(read.date), now = now, loading = false, failed = null, left = false, ended = null) }
                         reportVisit(read.date, now)
                     }
                     is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, failed = null, ended = read.outcome) }

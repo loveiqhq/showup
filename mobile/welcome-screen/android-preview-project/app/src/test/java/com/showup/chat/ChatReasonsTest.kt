@@ -8,9 +8,9 @@ import org.junit.Test
 class ChatReasonsTest {
 
     @Test
-    fun `five chips are shown, in the grid order, until Date 03 and Date 05 ship`() {
+    fun `six chips are shown, in the grid order, until Date 05 ships`() {
         assertEquals(
-            listOf(ChatReason.OnMyWay, ChatReason.CantFind, ChatReason.WhenArrive, ChatReason.RunningLate, ChatReason.CantMakeIt),
+            listOf(ChatReason.OnMyWay, ChatReason.Arrived, ChatReason.CantFind, ChatReason.WhenArrive, ChatReason.RunningLate, ChatReason.CantMakeIt),
             SHOWN_REASONS,
         )
     }

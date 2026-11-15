@@ -139,6 +139,44 @@ final class EvidenceShots: XCTestCase {
         }
     }
 
+    /// SHOWUP-195: A to F and H at the three ticket frames -- 21 images -- and two audit frames at 390 x 844: G
+    /// (the date gate, denied) and A with the End date link switched on.
+    func testArrivalCheckInEvidence() throws {
+        let dir = try folder("195-arrival-checkin")
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        let name = DateSamples.date.match.name
+        func dateScreen(_ edit: (inout ActiveDate) -> Void = { _ in }, link: Bool = false) -> some View {
+            var date = DateSamples.date
+            edit(&date)
+            return DateScreen(ui: DateUi(date: date, now: DateSamples.bNow, loading: false), zone: DateSamples.zone,
+                              checkInBar: { AnyView(CheckInBar(name: name, onCheckIn: {}, onEnd: link ? {} : nil)) })
+        }
+        func over<Content: View>(_ phase: GatePhase, @ViewBuilder _ content: @escaping () -> Content) -> some View {
+            ArrivalOver(ui: GateUi(phase: phase), name: name, onYes: {}, onNotYet: {}, onClose: {}, onUndo: {}, content: content)
+        }
+        for device in frames {
+            try shoot(dateScreen(), "A-check-in-bar", on: device, into: dir)
+            try shoot(over(.confirm(entry: .dateScreen, locError: false, busy: false, note: nil)) { dateScreen() },
+                      "B-guard", on: device, into: dir)
+            try shoot(over(.confirm(entry: .dateScreen, locError: true, busy: false, note: nil)) { dateScreen() },
+                      "C-no-fix", on: device, into: dir)
+            try shoot(over(.done(entry: .dateScreen)) { dateScreen() }, "D-done", on: device, into: dir)
+            try shoot(dateScreen({ $0.checkedIn = true }), "E-after-close", on: device, into: dir)
+            try shoot(over(.confirm(entry: .chatChip, locError: false, busy: false, note: nil)) {
+                ChatScreen(ui: ChatSamples.b, zone: DateSamples.zone)
+            }, "F-chat-guard", on: device, into: dir)
+            try shoot(dateScreen({ $0.arrival = DateArrival(checkedInAt: DateSamples.bNow.addingTimeInterval(-120)) }),
+                      "H-arrival-card", on: device, into: dir)
+        }
+        // Audit frames, 390 x 844.
+        let mid = try XCTUnwrap(frames.first { $0.width == 390 })
+        try shoot(dateScreen(link: true), "A-end-date-link", on: mid, into: dir)
+        try shoot(ProfileLocationView(state: .denied, context: .date(LocationDateContext(
+            name: name, meetDay: DateSamples.date.meetDay, meetAt: DateSamples.date.meetAt,
+            place: DateSamples.date.place?.name, photoUrl: nil, now: DateSamples.bNow, zone: DateSamples.zone,
+            onTab: { _ in }))), "G-denied", on: mid, into: dir)
+    }
+
     func testDateScreenEvidence() throws {
         let dir = try folder("193-date-screen")
         var unread = DateSamples.date

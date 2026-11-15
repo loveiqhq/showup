@@ -13,6 +13,12 @@ struct MatchPhoto: View {
     let name: String
     let photoURL: URL?
     let size: CGFloat
+    /// A rounded square of this radius instead of the circle (the date gate's card, SHOWUP-195).
+    var cornerRadius: CGFloat? = nil
+
+    private var shape: AnyShape {
+        cornerRadius.map { AnyShape(RoundedRectangle(cornerRadius: $0)) } ?? AnyShape(Circle())
+    }
 
     var body: some View {
         ZStack {
@@ -27,7 +33,7 @@ struct MatchPhoto: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Circle())
+        .clipShape(shape)
         .accessibilityHidden(true)
     }
 }

@@ -4,6 +4,7 @@ import { SearchProfileDto } from '../../search/dto/search.dto';
 import { roundedDistanceKm } from '../../search/util/search';
 import {
   ActiveDateDto,
+  DateArrivalDto,
   DateMatchDto,
   DateUnreadDto,
   EndedInChatDto,
@@ -30,6 +31,8 @@ export interface ActiveDateSource {
   viewer: { motivation: string | null; vibes: string[]; interests: string[] };
   unread: DateUnreadDto | null;
   checkedIn: boolean;
+  /** The match's arrival as the viewer may see it (`arrivalOf`). */
+  arrival: DateArrivalDto | null;
   /** The viewer has tapped "Open the chat" on this date's tutorial (Date 02). */
   chatTutorialSeen: boolean;
   meetDay: 'today' | 'tomorrow';
@@ -133,6 +136,7 @@ export function toActiveDate(src: ActiveDateSource): ActiveDateDto {
     sharedInterests: sharedInOrder(p.interests ?? [], src.viewer.interests),
     unread: src.unread,
     checkedIn: src.checkedIn,
+    arrival: src.arrival,
     chatTutorialSeen: src.chatTutorialSeen,
   };
 }

@@ -24,6 +24,32 @@ describe('message catalog (EN/DE rendering)', () => {
     expect(de.body).toContain('20:00');
   });
 
+  it('renders the arrival push in English and German with the name', () => {
+    expect(
+      renderMessage('date_partner_arrived', 'en', { name: 'Max' }),
+    ).toEqual({
+      title: 'Max has arrived',
+      body: 'Max has arrived at the meeting location.',
+    });
+    expect(
+      renderMessage('date_partner_arrived', 'de', { name: 'Max' }),
+    ).toEqual({
+      title: 'Max ist da',
+      body: 'Max ist am Treffpunkt angekommen.',
+    });
+  });
+
+  it('renders neutral arrival copy when the name is empty', () => {
+    expect(renderMessage('date_partner_arrived', 'en', { name: '' })).toEqual({
+      title: 'Your date has arrived',
+      body: 'Your date has arrived at the meeting location.',
+    });
+    expect(renderMessage('date_partner_arrived', 'de', { name: '' })).toEqual({
+      title: 'Dein Date ist da',
+      body: 'Dein Date ist am Treffpunkt angekommen.',
+    });
+  });
+
   it('renders a discreet check-in expiry reminder (no location detail)', () => {
     const en = renderMessage('check_in_expiry', 'en', {});
     expect(en.title.length).toBeGreaterThan(0);

@@ -23,7 +23,8 @@ struct SheetErrorBox: View {
                        lineHeight: 13.5 * 1.4, color: .liqFg)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(EdgeInsets(top: 11, leading: 13, bottom: 11, trailing: 13))
+        // Pad 11 13 plus the 1 pt border, which CSS counts in the box: 12 / 14 from the outer edge.
+        .padding(EdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14))
         .background(shape.fill(Color.liqDanger.opacity(0.08)))
         .overlay(shape.strokeBorder(Color.liqDanger.opacity(0.20), lineWidth: 1))
         .accessibilityElement(children: .combine)

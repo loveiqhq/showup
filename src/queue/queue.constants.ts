@@ -18,6 +18,9 @@ export const QUEUE_LIKE_EXPIRY = 'like-expiry';
 /** Coordinate unlock (Date 01): sends `coordinate_unlocked` at meet − 1:30, once per date. */
 export const QUEUE_COORDINATE_UNLOCK = 'coordinate-unlock';
 
+/** Arrival retention (Date 03, R14): deletes arrival check-ins older than a year, once a day. */
+export const QUEUE_ARRIVAL_RETENTION = 'arrival-retention';
+
 /**
  * Default options applied to every job (SHOWUP-94/95):
  *  - `attempts` + exponential `backoff`: a failed job is retried a few times, spaced further apart.

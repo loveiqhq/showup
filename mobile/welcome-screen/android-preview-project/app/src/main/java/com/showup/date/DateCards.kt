@@ -30,6 +30,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -82,6 +83,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.showup.arrival.ArrivalCopy
 import com.showup.chat.ReasonBadge
 import com.showup.chat.ReasonTone
 import com.showup.designsystem.BlushStops
@@ -406,8 +408,19 @@ internal fun CoordinateModule(
     /** The change tiles under the locked line: [CHANGE_TILES], empty until Date 05 ships. */
     changeTiles: List<ChatReason> = emptyList(),
     onChangeTile: (ChatReason) -> Unit = {},
+    /** The locked arrival card's Open chat: the chat is not open yet, so it only clears the card (R2). */
+    onArrivalSeen: () -> Unit = {},
 ) {
     val unread = date.unread
+    // Date 03 H: the match's check-in outranks an unread message (R11), locked or not.
+    date.arrival?.let { arrival ->
+        ArrivalCoordinate(
+            date.match, arrival, now, zone,
+            if (state == DateState.Locked) onArrivalSeen else onOpenChat,
+            modifier,
+        )
+        return
+    }
     if (state == DateState.Unread && unread != null) {
         UnreadCoordinate(date.match, unread, now, zone, onOpenChat, modifier)
         return
@@ -455,8 +468,93 @@ internal fun CoordinateModule(
 }
 
 /**
- * ⑧ A message from the match is waiting: the card takes the reason's tone -- a 1.5 border and a 4 top
- * rail -- and says who, why and a two-line preview, with the reply in the same tone.
+ * The hoisted card's ONE frame (⑧ and Date 03's H): a 1.5 border and a 4 top rail in the tone, the avatar
+ * with its count badge, the name and the tag, the `{line} · {time}` line, the tinted snippet panel and
+ * the CTA in the same tone. The unread and the arrival variants differ only in the words and the panel's
+ * content, so they share this and never fork a second card.
+ */
+@Composable
+private fun HoistedCoordinate(
+    match: DateMatch,
+    count: Int,
+    tone: ReasonTone,
+    tag: String,
+    line: String,
+    ctaLabel: String,
+    onCta: () -> Unit,
+    modifier: Modifier,
+    snippet: @Composable ColumnScope.() -> Unit,
+) {
+    // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
+    // The clip is the CARD's inner shape, on the rail and the body together, as `overflow: hidden` clips them:
+    // clipped on the 4-tall rail alone, Compose shrinks the 18.5 radius to fit that height and the rail runs
+    // out square past the card's rounded corners (found against the spec sheet's H, 13 Nov 2026).
+    Card(modifier, border = BorderStroke(1.5.dp, tone.chipBorder), contentPadding = PaddingValues(1.5.dp)) {
+        Column(Modifier.clip(RoundedCornerShape(18.5.dp))) {
+            Box(Modifier.fillMaxWidth().height(4.dp).background(tone.fg))
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MatchAvatar(match, count, tone.fg)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        InlineOrStack(gap = 8.dp) {
+                            Text(
+                                match.name,
+                                Modifier.cssLineBox((19 * 1.1).sp),
+                                style = SerifBold.copy(fontSize = 19.sp, lineHeight = (19 * 1.1).sp),
+                            )
+                            Row(
+                                Modifier
+                                    .background(tone.bg, RoundedCornerShape(50))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(Modifier.size(5.dp).background(tone.fg, CircleShape))
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    tag.uppercase(),
+                                    color = tone.fg,
+                                    fontFamily = Manrope,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 0.05.sp,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                        Text(
+                            line,
+                            modifier = Modifier.padding(top = 2.dp),
+                            color = Muted,
+                            fontFamily = Manrope,
+                            fontSize = 12.5.sp,
+                        )
+                    }
+                }
+                Column(
+                    Modifier
+                        .padding(top = 13.dp)
+                        .fillMaxWidth()
+                        .background(tone.bg, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 13.dp, vertical = 11.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                    content = snippet,
+                )
+                Spacer(Modifier.height(14.dp))
+                val shadows = when (tone) {
+                    ReasonTone.Orange -> ShadowCta
+                    ReasonTone.Danger -> emptyList()
+                    else -> ShadowViolet
+                }
+                CoordinateCta(ctaLabel, tone.fg, shadows, onCta)
+            }
+        }
+    }
+}
+
+/**
+ * ⑧ A message from the match is waiting: the card takes the reason's tone and says who, why and a
+ * two-line preview, with the reply in the same tone.
  */
 @Composable
 private fun UnreadCoordinate(
@@ -471,83 +569,65 @@ private fun UnreadCoordinate(
     // A message sent with no chip draws no badge; its card keeps the orange the reference's
     // `reasonFor` falls back to, so it still reads as waiting for a reply.
     val tone = reason?.tone ?: ReasonTone.Orange
-    // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
-    Card(modifier, border = BorderStroke(1.5.dp, tone.chipBorder), contentPadding = PaddingValues(1.5.dp)) {
-        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(topStart = 18.5.dp, topEnd = 18.5.dp)).background(tone.fg))
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MatchAvatar(match, unread.count, tone.fg)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    InlineOrStack(gap = 8.dp) {
-                        Text(
-                            match.name,
-                            Modifier.cssLineBox((19 * 1.1).sp),
-                            style = SerifBold.copy(fontSize = 19.sp, lineHeight = (19 * 1.1).sp),
-                        )
-                        Row(
-                            Modifier
-                                .background(tone.bg, RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(Modifier.size(5.dp).background(tone.fg, CircleShape))
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                unreadTag(unread.count).uppercase(),
-                                color = tone.fg,
-                                fontFamily = Manrope,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp,
-                                letterSpacing = 0.05.sp,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                    Text(
-                        DateCopy.NEEDS_RESPONSE.format(unreadTime(unread.sentAt, now, zone)),
-                        modifier = Modifier.padding(top = 2.dp),
-                        color = Muted,
-                        fontFamily = Manrope,
-                        fontSize = 12.5.sp,
-                    )
-                }
-            }
-            Column(
-                Modifier
-                    .padding(top = 13.dp)
-                    .fillMaxWidth()
-                    .background(tone.bg, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 13.dp, vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                reason?.let { ReasonBadge(it, onLight = true) }
-                unread.body?.let {
-                    // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `… sorry!` / `Almost there.”`.
-                    val quoted = "“$it”"
-                    val style = TextStyle(
-                        color = Fg,
-                        fontFamily = Manrope,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
-                        lineHeight = (14 * 1.4).sp,
-                    )
-                    Text(
-                        quoted,
-                        Modifier.prettyWrap(AnnotatedString(quoted), style).cssLineBox(style.lineHeight),
-                        style = style,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            val shadows = when (tone) {
-                ReasonTone.Orange -> ShadowCta
-                ReasonTone.Danger -> emptyList()
-                else -> ShadowViolet
-            }
-            CoordinateCta(DateCopy.READ_AND_REPLY, tone.fg, shadows, onOpenChat)
+    HoistedCoordinate(
+        match, unread.count, tone, unreadTag(unread.count),
+        DateCopy.NEEDS_RESPONSE.format(unreadTime(unread.sentAt, now, zone)),
+        DateCopy.READ_AND_REPLY, onOpenChat, modifier,
+    ) {
+        reason?.let { ReasonBadge(it, onLight = true) }
+        unread.body?.let {
+            // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `... sorry!` / `Almost there.”`.
+            val quoted = "“$it”"
+            val style = TextStyle(
+                color = Fg,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                lineHeight = (14 * 1.4).sp,
+            )
+            Text(
+                quoted,
+                Modifier.prettyWrap(AnnotatedString(quoted), style).cssLineBox(style.lineHeight),
+                style = style,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * Date 03 H: the match has checked in. The unread card's frame in orange with a count of 1 and the pulse
+ * ring, `ARRIVED`, `checked in · {time}` (R10, the unread card's formatter), and one line in the panel:
+ * `map-pin` 17 / 2.2 in the tone, gap 9, `{name} has arrived at the meeting location.` (Manrope 600 14 / 1.4).
+ * [onCta] is the host's: it opens the chat, or while the chat is still locked only clears the card (R2).
+ */
+@Composable
+private fun ArrivalCoordinate(
+    match: DateMatch,
+    arrival: DateArrival,
+    now: Instant,
+    zone: ZoneId,
+    onCta: () -> Unit,
+    modifier: Modifier,
+) {
+    val tone = ReasonTone.Orange
+    HoistedCoordinate(
+        match, 1, tone, ArrivalCopy.ARRIVED_TAG,
+        ArrivalCopy.ARRIVED_TIME.format(unreadTime(arrival.checkedInAt, now, zone)),
+        ArrivalCopy.OPEN_CHAT, onCta, modifier,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Box(Modifier.clearAndSetSemantics {}) { Icon(BrandIcon.MapPin, 17.dp, tint = tone.fg, strokeWidth = 2.2f) }
+            val style = TextStyle(
+                color = Fg,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                lineHeight = (14 * 1.4).sp,
+            )
+            val text = AnnotatedString(ArrivalCopy.ARRIVED_BODY.format(match.name))
+            Text(text, Modifier.weight(1f).prettyWrap(text, style).cssLineBox(style.lineHeight), style = style)
         }
     }
 }

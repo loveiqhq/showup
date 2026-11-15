@@ -1239,4 +1239,80 @@ class EvidenceScreenshots {
         assertEquals("I to K, D at the largest type, A to H at the three frames, and C to E over a keyboard", 37, images.size)
         images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
+
+    /**
+     * SHOWUP-195's evidence: A to F and H at the three frames the acceptance criteria name -- 21 images; G is
+     * Search 04's. And for the pixel audit against the spec sheet: G denied, A with the End date link switched
+     * on, B with the report note, H while the chat is still locked, and C at 375 x 667 with the error box.
+     * The animations are frozen as everywhere here (motion off: the pulse ring, the sheet's rise and blur).
+     */
+    @Test
+    fun `SHOWUP-195 the arrival check-in, A to F and H`() {
+        val zone = java.time.ZoneId.of("Europe/Berlin")
+        val meet = java.time.Instant.parse("2026-11-03T18:00:00Z")
+        val unlock = java.time.Instant.parse("2026-11-03T16:30:00Z")
+        val date = com.showup.date.ActiveDate(
+            id = "d1", meetAt = meet, meetDay = "today", unlockAt = unlock, coordinateOpen = false,
+            place = com.showup.date.DatePlace("Cafe Krone", "Oranienstrasse 42, Kreuzberg"),
+            match = com.showup.date.DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
+            motivationYou = "long_term", motivationThem = "long_term",
+            sharedVibes = listOf("coffee_chat", "nature_walk", "playful", "deep_talk"),
+            sharedInterests = listOf("reading", "brunch", "hiking"),
+            unread = null, checkedIn = false, chatTutorialSeen = false,
+        )
+        val now = java.time.Instant.parse("2026-11-03T16:42:00Z")
+        val open = com.showup.date.DateUi(date, now, loading = false)
+        val after = com.showup.date.DateUi(date.copy(checkedIn = true), now, loading = false)
+        val arrived = com.showup.date.DateUi(
+            date.copy(arrival = com.showup.date.DateArrival(now.minusSeconds(10))), now, loading = false,
+        )
+        val bar: @Composable () -> Unit = { com.showup.arrival.CheckInBar("Leonie", onCheckIn = {}) }
+        val dateScreen: @Composable (com.showup.date.DateUi) -> Unit = { ui ->
+            com.showup.date.DateScreen(ui, zone, checkInBar = bar)
+        }
+        fun confirm(locError: Boolean = false, note: String? = null) = com.showup.arrival.GateUi(
+            phase = com.showup.arrival.GatePhase.Confirm(com.showup.arrival.ArrivalEntry.DateScreen, locError, busy = false, note = note),
+        )
+        val done = com.showup.arrival.GateUi(phase = com.showup.arrival.GatePhase.Done(com.showup.arrival.ArrivalEntry.DateScreen))
+        val over: @Composable (com.showup.arrival.GateUi, @Composable () -> Unit) -> Unit = { gate, behind ->
+            com.showup.arrival.ArrivalOver(gate, "Leonie", onYes = {}, onNotYet = {}, onClose = {}, onUndo = {}, content = behind)
+        }
+        val before = written.size
+        shoot("SHOWUP-195", "A-bar") { dateScreen(open) }
+        shoot("SHOWUP-195", "B-guard") { over(confirm()) { dateScreen(open) } }
+        shoot("SHOWUP-195", "C-no-fix") { over(confirm(locError = true)) { dateScreen(open) } }
+        shoot("SHOWUP-195", "D-done") { over(done) { dateScreen(open) } }
+        shoot("SHOWUP-195", "E-after-close") { dateScreen(after) }
+        shoot("SHOWUP-195", "F-chat-chip") {
+            over(
+                com.showup.arrival.GateUi(phase = com.showup.arrival.GatePhase.Confirm(com.showup.arrival.ArrivalEntry.ChatChip, false, false, null)),
+            ) { com.showup.chat.ChatScreen(com.showup.chat.ChatSamples.B, zone, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}) }
+        }
+        shoot("SHOWUP-195", "H-arrival-card") { dateScreen(arrived) }
+        val images = written.drop(before)
+        assertEquals("A to F and H at the three frames", 21, images.size)
+        // Audit-only frames, 390 x 844 unless said.
+        val mid = frames.filter { it.width == 390 && it.height == 844 }
+        val small = frames.filter { it.width == 375 && it.height == 667 }
+        shoot("SHOWUP-195", "audit-A-end-date-link", devices = mid) {
+            com.showup.date.DateScreen(open, zone, checkInBar = { com.showup.arrival.CheckInBar("Leonie", onCheckIn = {}, onEnd = {}) })
+        }
+        shoot("SHOWUP-195", "audit-B-note", devices = mid) { over(confirm(note = com.showup.arrival.ArrivalCopy.REPORT_NOTE)) { dateScreen(open) } }
+        shoot("SHOWUP-195", "audit-C-note", devices = mid) { over(confirm(locError = true, note = com.showup.arrival.ArrivalCopy.REPORT_NOTE)) { dateScreen(open) } }
+        shoot("SHOWUP-195", "audit-H-locked", devices = mid) {
+            dateScreen(arrived.copy(now = java.time.Instant.parse("2026-11-03T15:00:00Z")))
+        }
+        shoot("SHOWUP-195", "audit-G-denied", devices = mid) {
+            com.showup.profile.ProfileLocationScreen(
+                state = com.showup.profile.LocationState.Denied,
+                context = com.showup.profile.LocationScreenContext.Date(
+                    name = "Leonie", meetDay = "today", meetAt = meet, place = "Cafe Krone", photoUrl = null,
+                    now = meet.minusSeconds(78 * 60), zone = zone, onTab = {},
+                ),
+            )
+        }
+        shoot("SHOWUP-195", "audit-C-largest", fontScale = 2f, devices = small) { over(confirm(locError = true)) { dateScreen(open) } }
+        shoot("SHOWUP-195", "audit-A-largest", fontScale = 2f, devices = small) { dateScreen(open) }
+        written.drop(before).forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+    }
 }

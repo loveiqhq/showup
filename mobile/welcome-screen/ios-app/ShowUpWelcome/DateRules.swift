@@ -20,6 +20,10 @@ func dateState(now: Date, unlockAt: Date, unread: DateUnread?, coordinateOpen: B
     return unread != nil ? .unread : .available
 }
 
+/// Whether a card is hoisted under the hero: the match's arrival (Date 03) or an unread message. The arrival
+/// outranks a message in that slot (R11); both clear together.
+func hoisted(_ state: DateState, _ arrival: DateArrival?) -> Bool { arrival != nil || state == .unread }
+
 /// Whole minutes from `now` to the latest agreed meet time, negative after it, rounded toward zero --
 /// the server's `minutesBeforeStart`, so the client's and the server's events agree.
 func minutesBeforeStart(meetAt: Date, now: Date) -> Int {

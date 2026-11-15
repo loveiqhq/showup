@@ -97,6 +97,11 @@ const PROTECTED: Route[] = [
   { method: 'post', path: `/dates/${ID}/chat/tutorial` },
   { method: 'post', path: `/dates/${ID}/end-in-chat` },
   { method: 'post', path: `/dates/${ID}/ended/seen` },
+  // SHOWUP-195 -- the arrival check-in: store, undo, commit.
+  { method: 'post', path: `/dates/${ID}/arrival` },
+  { method: 'delete', path: `/dates/${ID}/arrival` },
+  { method: 'post', path: `/dates/${ID}/arrival/commit` },
+  { method: 'post', path: '/dev/date/arrival' },
   // matching.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },

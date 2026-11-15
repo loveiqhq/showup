@@ -27,6 +27,30 @@ const CATALOG: Record<NotificationType, Record<Locale, Template>> = {
       body: `Erinnerung: Dein Date ist um ${p.time}${p.venue ? ` im ${p.venue}` : ''}. Bis gleich!`,
     }),
   },
+  // Interim copy (Date 03, R6): the final copy lands later. The name is the person who arrived.
+  date_partner_arrived: {
+    // No name on the profile: neutral copy rather than " has arrived".
+    en: (p) =>
+      p.name
+        ? {
+            title: `${p.name} has arrived`,
+            body: `${p.name} has arrived at the meeting location.`,
+          }
+        : {
+            title: 'Your date has arrived',
+            body: 'Your date has arrived at the meeting location.',
+          },
+    de: (p) =>
+      p.name
+        ? {
+            title: `${p.name} ist da`,
+            body: `${p.name} ist am Treffpunkt angekommen.`,
+          }
+        : {
+            title: 'Dein Date ist da',
+            body: 'Dein Date ist am Treffpunkt angekommen.',
+          },
+  },
   check_in_expiry: {
     // Deliberately discreet — a check-in is tied to the user's real-world location (privacy/safety).
     en: () => ({

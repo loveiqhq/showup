@@ -13,8 +13,11 @@ func chatRoute(_ date: ActiveDate, entry: ChatEntry) -> AppRoute {
 }
 
 /// Which button opened the chat. The Date screen shows `Open chat` (B) or `Read & reply` (C), never both: C
-/// is B with an unread message, so the waiting message says which it was.
-func chatEntryFor(_ date: ActiveDate) -> ChatEntry { date.unread != nil ? .readReply : .openChat }
+/// is B with an unread message, so the waiting message says which it was. The match's arrival card (Date 03) says
+/// `Open chat` whatever else waits.
+func chatEntryFor(_ date: ActiveDate) -> ChatEntry {
+    date.arrival == nil && date.unread != nil ? .readReply : .openChat
+}
 
 /// G or H, with everything they draw. The outcome's own photo first: at the next launch no date is held, and
 /// `photoURL` -- the held date's -- is nil, so H drew an initial (the SHOWUP-194 review).

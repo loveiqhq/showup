@@ -7,8 +7,8 @@ import XCTest
 
 final class ChatReasonsTests: XCTestCase {
 
-    func testFiveChipsAreShownInTheGridOrderUntilDate03AndDate05Ship() {
-        XCTAssertEqual(shownReasons, [.onMyWay, .cantFind, .whenArrive, .runningLate, .cantMakeIt])
+    func testSixChipsAreShownInTheGridOrderUntilDate05Ships() {
+        XCTAssertEqual(shownReasons, [.onMyWay, .arrived, .cantFind, .whenArrive, .runningLate, .cantMakeIt])
     }
 
     func testEveryChipIsTheRegistrysWireValueWithTheTicketsLabelAndDraft() {
