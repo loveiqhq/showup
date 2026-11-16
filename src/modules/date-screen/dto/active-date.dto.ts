@@ -106,7 +106,10 @@ export class ActiveDateDto {
   })
   unlockAt: string;
 
-  @ApiProperty({ description: 'True from unlockAt on' })
+  @ApiProperty({
+    description:
+      "True from unlockAt on, or once either person's arrival check-in is committed (Date 03, 16 Nov 2026).",
+  })
   coordinateOpen: boolean;
 
   @ApiProperty({ type: DatePlaceDto, nullable: true })

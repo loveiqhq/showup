@@ -47,10 +47,14 @@ describe('date analytics events', () => {
     });
   });
 
-  it('coordinate_unlocked carries only minutes_before_start (Date 01, registry 1.4.32)', () => {
-    expect(coordinateUnlockedEvent(90)).toEqual({
+  it('coordinate_unlocked carries only minutes_before_start and cause (Date 03, registry 1.4.38)', () => {
+    expect(coordinateUnlockedEvent(90, 'time')).toEqual({
       eventName: COORDINATE_UNLOCKED,
-      properties: { minutes_before_start: 90 },
+      properties: { minutes_before_start: 90, cause: 'time' },
+    });
+    expect(coordinateUnlockedEvent(180, 'arrival_check_in')).toEqual({
+      eventName: COORDINATE_UNLOCKED,
+      properties: { minutes_before_start: 180, cause: 'arrival_check_in' },
     });
     expect(COORDINATE_UNLOCKED).toBe('coordinate_unlocked');
   });

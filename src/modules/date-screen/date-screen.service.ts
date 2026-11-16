@@ -108,6 +108,7 @@ export class DateScreenService {
       ),
       chatTutorialSeen:
         (viewerIsA ? date.aChatTutorialAt : date.bChatTutorialAt) !== null,
+      coordinateUnlockedAt: date.coordinateUnlockedAt,
       meetDay: meetDay(date.scheduledAt, now, tz),
       now,
     });

@@ -50,15 +50,17 @@ export function dateCancelledEvent(date: DateEventInput): AnalyticsEventSpec {
 
 /**
  * The Date screen's Coordinate card unlocked: meet − 1:30 (Date 01, SHOWUP-193; registry 1.4.32).
- * Server-sent, once per person per date, by the unlock job -- never by the in-place A → B swap on
- * the screen, which sends nothing.
+ * Server-sent, once per person per date -- never by the in-place A → B swap on the screen, which sends
+ * nothing. `cause` is `time` from the unlock job and `arrival_check_in` from the first committed
+ * check-in that opens the chat early (registry 1.4.38).
  */
 export function coordinateUnlockedEvent(
   minutesBeforeStart: number,
+  cause: 'time' | 'arrival_check_in',
 ): AnalyticsEventSpec {
   return {
     eventName: COORDINATE_UNLOCKED,
-    properties: { minutes_before_start: minutesBeforeStart },
+    properties: { minutes_before_start: minutesBeforeStart, cause },
   };
 }
 

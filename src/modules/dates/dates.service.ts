@@ -300,7 +300,11 @@ export class DatesService {
     if (date.status !== DateStatus.Confirmed) {
       throw new ConflictException('The chat has closed: the date is over');
     }
-    const windowError = chatWindowError(date.scheduledAt);
+    const windowError = chatWindowError(
+      date.scheduledAt,
+      new Date(),
+      date.coordinateUnlockedAt,
+    );
     if (windowError) throw new BadRequestException(windowError);
 
     try {
@@ -370,6 +374,7 @@ export class DatesService {
     for (const d of stamped) {
       const event = coordinateUnlockedEvent(
         minutesBeforeStart(new Date(d.scheduled_at), now),
+        'time',
       );
       for (const userId of [d.user_a_id, d.user_b_id]) {
         void this.analytics.trackServerEvent({ userId, ...event });

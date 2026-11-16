@@ -35,6 +35,8 @@ export interface ActiveDateSource {
   arrival: DateArrivalDto | null;
   /** The viewer has tapped "Open the chat" on this date's tutorial (Date 02). */
   chatTutorialSeen: boolean;
+  /** The date's `coordinate_unlocked_at`: set once the chat has opened, by time or by a check-in. */
+  coordinateUnlockedAt: Date | null;
   meetDay: 'today' | 'tomorrow';
   now: Date;
 }
@@ -124,7 +126,9 @@ export function toActiveDate(src: ActiveDateSource): ActiveDateDto {
     meetAt: src.scheduledAt.toISOString(),
     meetDay: src.meetDay,
     unlockAt: unlockAt.toISOString(),
-    coordinateOpen: src.now.getTime() >= unlockAt.getTime(),
+    coordinateOpen:
+      src.now.getTime() >= unlockAt.getTime() ||
+      src.coordinateUnlockedAt != null,
     place: src.venue
       ? src.venue.address
         ? { name: src.venue.name, address: src.venue.address }
