@@ -262,6 +262,7 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("195A", "SHOWUP-195 Arrival check-in", "A · Check-in bar"),
     DevState("195B", "SHOWUP-195 Arrival check-in", "B · Guard sheet, Are you at the spot?"),
     DevState("195C", "SHOWUP-195 Arrival check-in", "C · Couldn't find your location"),
+    DevState("195C2", "SHOWUP-195 Arrival check-in", "C2 · Check-in not saved"),
     DevState("195D", "SHOWUP-195 Arrival check-in", "D · Done, Leonie is told on Close"),
     DevState("195E", "SHOWUP-195 Arrival check-in", "E · After Close, footer empty"),
     DevState("195F", "SHOWUP-195 Arrival check-in", "F · Chat chip, guard over the chat"),

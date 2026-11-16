@@ -55,7 +55,7 @@ final class ArrivalRoutingTests: XCTestCase {
         XCTAssertEqual(Array(analytics.names().dropFirst(before)), ["action_chip_used", "arrival_confirm_shown"])
         XCTAssertEqual(chat.ui.draft, "")
         XCTAssertNil(chat.ui.selected)
-        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, locError: false, busy: false, note: nil))
+        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, error: nil, busy: false, note: nil))
     }
 
     func testAnUngatedChipOnlyPicksAndOpensNoSheet() {
@@ -71,7 +71,7 @@ final class ArrivalRoutingTests: XCTestCase {
         var phaseWhenCalled: GatePhase?
         onChatChip(.arrived, .entry, g, pick: { _, _, _ in }, beforeGate: { phaseWhenCalled = g.ui.phase })
         XCTAssertEqual(phaseWhenCalled, .idle)
-        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, locError: false, busy: false, note: nil))
+        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, error: nil, busy: false, note: nil))
         var called = false
         onChatChip(.runningLate, .dock, gate(), pick: { _, _, _ in }, beforeGate: { called = true })
         XCTAssertFalse(called)

@@ -50,14 +50,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 
-/** The sheet in front of the person: none, B / C (one sheet, [Confirm.locError] says which), or D. */
+/**
+ * Why the sheet shows its error box (C and C2 are one sheet, the box and Try again are the same): the
+ * location could not be read, or it was read and the check-in did not save (16 Nov, replacing R5).
+ */
+enum class ConfirmError { NoFix, NotSaved }
+
+/** The sheet in front of the person: none, B / C / C2 (one sheet, [Confirm.error] says which), or D. */
 sealed interface GatePhase {
     data object Idle : GatePhase
 
-    /** [attempt] counts the failed reads, so a second failure is a change the sheet can announce again. */
+    /**
+     * [error] is null for B, [ConfirmError.NoFix] for C and [ConfirmError.NotSaved] for C2, always the last
+     * attempt's. [attempt] counts the failed tries, so a second failure is a change the sheet can announce again.
+     */
     data class Confirm(
         val entry: ArrivalEntry,
-        val locError: Boolean,
+        val error: ConfirmError?,
         val busy: Boolean,
         val note: String?,
         val attempt: Int = 0,
@@ -118,12 +127,12 @@ class ArrivalGateViewModel(
         val date = date ?: return false
         if (checkedIn()) return false
         if (_ui.value.phase != GatePhase.Idle) return true
-        _ui.update { it.copy(phase = GatePhase.Confirm(entry, locError = false, busy = false, note = note)) }
+        _ui.update { it.copy(phase = GatePhase.Confirm(entry, error = null, busy = false, note = note)) }
         analytics?.report(ArrivalAnalytics.confirmShown(date.id, entry, minutesVsStart(date.meetAt, clock())))
         return true
     }
 
-    /** `Not yet`, the scrim, back or swipe on B or C. Inert while busy (R7). */
+    /** `Not yet`, the scrim, back or swipe on B, C or C2. Inert while busy (R7). */
     fun notYet() {
         val phase = _ui.value.phase as? GatePhase.Confirm ?: return
         if (phase.busy) return
@@ -144,7 +153,7 @@ class ArrivalGateViewModel(
         yesJob = viewModelScope.launch {
             val fix = withTimeoutOrNull(LOCATION_FIX_TIMEOUT_MS) { reader.fix() }
             if (fix == null) {
-                failed(phase)
+                failed(phase, ConfirmError.NoFix)
                 return@launch
             }
             when (store.checkIn(date.id, fix, phase.entry, clientId)) {
@@ -154,7 +163,7 @@ class ArrivalGateViewModel(
                     _ui.update { it.copy(phase = GatePhase.Done(phase.entry)) }
                 }
                 CheckInResult.AlreadyCheckedIn -> _ui.update { it.copy(phase = GatePhase.Idle, committed = true) }
-                is CheckInResult.Failed -> failed(phase)
+                is CheckInResult.Failed -> failed(phase, ConfirmError.NotSaved)
             }
         }
     }
@@ -203,10 +212,11 @@ class ArrivalGateViewModel(
     /** The host has acted on [GateUi.undone]. */
     fun consumeUndone() = _ui.update { it.copy(undone = false) }
 
-    private fun failed(phase: GatePhase.Confirm) =
+    /** C or C2, by what just failed: the fix was never read, or it was read and the store did not answer. */
+    private fun failed(phase: GatePhase.Confirm, error: ConfirmError) =
         _ui.update {
             val now = it.phase as? GatePhase.Confirm ?: phase
-            it.copy(phase = now.copy(locError = true, busy = false, attempt = now.attempt + 1))
+            it.copy(phase = now.copy(error = error, busy = false, attempt = now.attempt + 1))
         }
 
     /** [call] until it answers, waiting [retryDelayMs] between tries. */

@@ -173,7 +173,7 @@ fun ArrivalSheetHost(
             when (shown) {
                 SheetKind.Confirm -> {
                     val c = lastConfirm[0]
-                    CheckInConfirmSheet(name, c?.note, c?.locError == true, c?.busy == true, onYes, onNotYet, attempt = c?.attempt ?: 0)
+                    CheckInConfirmSheet(name, c?.note, c?.error, c?.busy == true, onYes, onNotYet, attempt = c?.attempt ?: 0)
                 }
                 SheetKind.Done -> CheckInDoneSheet(name, onClose, onUndo)
             }
@@ -237,7 +237,8 @@ private fun SunsetSheetButton(label: String, tag: String, waiting: Boolean, onCl
 fun CheckInConfirmSheet(
     name: String,
     note: String?,
-    locError: Boolean,
+    /** C and C2 draw the one error box with their own string; null is B. */
+    error: ConfirmError?,
     busy: Boolean,
     onYes: () -> Unit,
     onNotYet: () -> Unit,
@@ -264,21 +265,21 @@ fun CheckInConfirmSheet(
         val duration = if (motion.enabled) Motion.FAST else 0
         // 14 (or 12) above + 8 here = the 22 (or 20) a calm sheet has; with the box, 16 below it instead.
         AnimatedVisibility(
-            visible = locError,
+            visible = error != null,
             enter = expandVertically(tween(duration, easing = ShowUpEasing)) + fadeIn(tween(duration, easing = ShowUpEasing)),
             exit = shrinkVertically(tween(duration, easing = ShowUpEasing)) + fadeOut(tween(duration, easing = ShowUpEasing)),
         ) {
-            // A new box per failed attempt: while busy `locError` stays true, so without the key the
+            // A new box per failed attempt: while busy `error` stays set, so without the key the
             // assertive live region would never be composed again and a second failure stays silent.
             key(attempt) {
                 Column(Modifier.testTag(ARRIVAL_ERROR_TAG)) {
-                    SheetErrorBox(ArrivalCopy.LOC_ERROR)
+                    SheetErrorBox(if (error == ConfirmError.NotSaved) ArrivalCopy.SAVE_ERROR else ArrivalCopy.LOC_ERROR)
                     Spacer(Modifier.height(16.dp))
                 }
             }
         }
         AnimatedVisibility(
-            visible = !locError,
+            visible = error == null,
             enter = expandVertically(tween(duration, easing = ShowUpEasing)),
             exit = shrinkVertically(tween(duration, easing = ShowUpEasing)),
         ) { Spacer(Modifier.height(8.dp)) }
@@ -297,7 +298,7 @@ fun CheckInConfirmSheet(
         }
         Spacer(Modifier.height(10.dp))
         SunsetSheetButton(
-            label = if (locError) ArrivalCopy.TRY_AGAIN else ArrivalCopy.YES,
+            label = if (error != null) ArrivalCopy.TRY_AGAIN else ArrivalCopy.YES,
             tag = ARRIVAL_YES_TAG,
             waiting = busy,
             onClick = onYes,

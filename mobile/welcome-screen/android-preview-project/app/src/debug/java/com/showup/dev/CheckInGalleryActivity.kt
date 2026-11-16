@@ -153,6 +153,7 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "195A" -> ArrivalSamples.dateScreen()
         "195B" -> ArrivalSamples.over(ArrivalSamples.B, leave) { ArrivalSamples.dateScreen() }
         "195C" -> ArrivalSamples.over(ArrivalSamples.C, leave) { ArrivalSamples.dateScreen() }
+        "195C2" -> ArrivalSamples.over(ArrivalSamples.C2, leave) { ArrivalSamples.dateScreen() }
         "195D" -> ArrivalSamples.over(ArrivalSamples.D, leave) { ArrivalSamples.dateScreen() }
         "195E" -> ArrivalSamples.dateScreen(ArrivalSamples.CHECKED_IN)
         "195F" -> ArrivalSamples.over(ArrivalSamples.F, leave) { ArrivalSamples.chat(leave) }

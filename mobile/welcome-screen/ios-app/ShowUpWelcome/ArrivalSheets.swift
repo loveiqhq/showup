@@ -57,8 +57,8 @@ struct ArrivalSheetHost: View {
             ) {
                 ZStack {
                     switch ui.phase {
-                    case .confirm(_, let locError, let busy, let note):
-                        CheckInConfirmSheet(name: name, note: note, locError: locError, busy: busy,
+                    case .confirm(_, let error, let busy, let note):
+                        CheckInConfirmSheet(name: name, note: note, error: error, busy: busy,
                                             onYes: onYes, onNotYet: onNotYet)
                             .transition(.opacity)
                     case .done:
@@ -150,7 +150,8 @@ private struct SunsetSheetButton: View {
 struct CheckInConfirmSheet: View {
     let name: String
     let note: String?
-    let locError: Bool
+    /// C and C2 draw the one error box with their own string; nil is B.
+    let error: ConfirmError?
     let busy: Bool
     let onYes: () -> Void
     let onNotYet: () -> Void
@@ -169,8 +170,8 @@ struct CheckInConfirmSheet: View {
                     .padding(.top, 12)
             }
             // 14 (or 12) above + 8 below the title block = the 22 (or 20) a calm sheet has; with the box, 16 below it.
-            if locError {
-                SheetErrorBox(message: ArrivalCopy.locError)
+            if let error {
+                SheetErrorBox(message: ArrivalCopy.message(for: error))
                     .fitAnchor(FitAnchorID.arrivalError)
                     .padding(.top, note == nil ? 14 : 12)
                     .padding(.bottom, 16)
@@ -188,12 +189,12 @@ struct CheckInConfirmSheet: View {
             .fitTapArea()
             .fitAnchor(FitAnchorID.arrivalNotYet)
             .disabled(busy)
-            SunsetSheetButton(label: locError ? ArrivalCopy.tryAgain : ArrivalCopy.yes, waiting: busy, action: onYes,
+            SunsetSheetButton(label: error != nil ? ArrivalCopy.tryAgain : ArrivalCopy.yes, waiting: busy, action: onYes,
                               anchor: FitAnchorID.arrivalYes)
                 .padding(.top, 10)
         }
         .frame(maxWidth: .infinity)
-        .animation(reduceMotion ? nil : Motion.brand(Motion.fast), value: locError)
+        .animation(reduceMotion ? nil : Motion.brand(Motion.fast), value: error != nil)
     }
 }
 
@@ -243,11 +244,15 @@ struct CheckInDoneSheet: View {
 }
 
 #Preview("Arrival · B") {
-    ArrivalSheetHost(ui: GateUi(phase: .confirm(entry: .dateScreen, locError: false, busy: false, note: nil)),
+    ArrivalSheetHost(ui: GateUi(phase: .confirm(entry: .dateScreen, error: nil, busy: false, note: nil)),
                      name: "Leonie", onYes: {}, onNotYet: {}, onClose: {}, onUndo: {})
 }
 #Preview("Arrival · C") {
-    ArrivalSheetHost(ui: GateUi(phase: .confirm(entry: .dateScreen, locError: true, busy: false, note: nil)),
+    ArrivalSheetHost(ui: GateUi(phase: .confirm(entry: .dateScreen, error: .noFix, busy: false, note: nil)),
+                     name: "Leonie", onYes: {}, onNotYet: {}, onClose: {}, onUndo: {})
+}
+#Preview("Arrival · C2") {
+    ArrivalSheetHost(ui: GateUi(phase: .confirm(entry: .dateScreen, error: .notSaved, busy: false, note: nil)),
                      name: "Leonie", onYes: {}, onNotYet: {}, onClose: {}, onUndo: {})
 }
 #Preview("Arrival · D") {

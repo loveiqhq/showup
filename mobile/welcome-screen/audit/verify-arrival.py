@@ -89,8 +89,8 @@ sw_copy = norm(joined_literals(read(os.path.join(SW, "ArrivalCopy.swift"))))
 
 ticket = read(TICKET)
 section = ticket.split("## Copy", 1)[1].split("\n## ", 1)[0]
-lines = [ln for ln in section.splitlines() if re.match(r"\*\*[ABCDH] ·|\*\*Report entry", ln)]
-check("the ticket's copy section has frames A, B, C, D, H and the report note", len(lines) == 6)
+lines = [ln for ln in section.splitlines() if re.match(r"\*\*(?:[ABCDH]|C2) ·|\*\*Report entry", ln)]
+check("the ticket's copy section has frames A, B, C, C2, D, H and the report note", len(lines) == 7)
 quoted = []
 for ln in lines:
     # Only what is inside backticks, and before the report line's commentary.
@@ -100,6 +100,21 @@ strings = [q for q in dict.fromkeys(quoted) if not re.fullmatch(r"\{[^}]*\}", q)
 check("the ticket's copy section was read (%d strings)" % len(strings), len(strings) >= 18)
 for want in ("I've arrived", "couldn't find"):
     check("the ticket spells %r with an ASCII apostrophe" % want, any(want in s for s in strings))
+
+# C2 (16 Nov): its own line, its own string, and a failed store -- not a missing fix -- is what shows it.
+c2_line = next((ln for ln in lines if ln.startswith("**C2 · Check-in not saved:**")), "")
+c2_strings = [norm(q) for q in re.findall(r"`([^`]+)`", c2_line)]
+check("the ticket's C2 line was read, with its message", any("check you in" in q for q in c2_strings))
+kt_vm = read(os.path.join(KT, "ArrivalGateViewModel.kt"))
+sw_vm = read(os.path.join(SW, "ArrivalGateModel.swift"))
+kt_sheets = read(os.path.join(KT, "ArrivalSheets.kt"))
+sw_sheets = read(os.path.join(SW, "ArrivalSheets.swift"))
+check("Android: a failed store is NotSaved and no fix is NoFix",
+      "is CheckInResult.Failed -> failed(phase, ConfirmError.NotSaved)" in kt_vm and "failed(phase, ConfirmError.NoFix)" in kt_vm)
+check("iOS: a failed store is notSaved and no fix is noFix",
+      "case .failed: self.failed(entry: entry, note: note, error: .notSaved)" in sw_vm and "error: .noFix)" in sw_vm)
+check("Android: the sheet shows SAVE_ERROR for NotSaved", "ConfirmError.NotSaved) ArrivalCopy.SAVE_ERROR" in kt_sheets)
+check("iOS: the sheet shows the save error for notSaved", "case .notSaved: return saveError" in sw_copy and "ArrivalCopy.message(for: error)" in sw_sheets)
 
 copy_missing = missing_from(strings, kt_copy, "Android ArrivalCopy.kt") + missing_from(strings, sw_copy, "iOS ArrivalCopy.swift")
 check("every ticket string is in both apps' arrival copy (%d strings x 2)" % len(strings), not copy_missing)
@@ -245,11 +260,14 @@ for ev in ("arrival_confirm_shown", "arrival_confirm_submitted", "arrival_confir
           not any(FORBIDDEN.search(k) for k in props))
 
 ENTRY_VALUES = {"date_screen", "chat_chip", "report"}
+# The registry also holds `wrapup` (Date 06, registry 1.4.38): no check-in screen of Date 03 starts from it, so the
+# apps may use only ENTRY_VALUES while the section holds the two sets together.
+REGISTRY_ENTRY_VALUES = ENTRY_VALUES | {"wrapup"}
 enums = json.loads(read(os.path.join(HANDOFF, "tracking", "enums.json")))
 sec = next((x for x in enums.get("sets", []) if x.get("name") == "arrival_entry"), None) \
     if isinstance(enums, dict) else None
-check("enums.json section 41 is arrival_entry with date_screen, chat_chip, report",
-      sec is not None and set(sec["values"]) == ENTRY_VALUES)
+check("enums.json section 41 is arrival_entry with date_screen, chat_chip, report, wrapup",
+      sec is not None and set(sec["values"]) == REGISTRY_ENTRY_VALUES)
 wire = set(re.findall(r'\("([a-z_]+)"\)|\w+\("([a-z_]+)"\)', read(os.path.join(KT, "ArrivalRules.kt"))))
 kt_wire = {a or b for a, b in wire}
 check("Android: ArrivalEntry values are section 41's (%s)" % sorted(kt_wire & ENTRY_VALUES), kt_wire >= {"date_screen", "chat_chip"})
@@ -288,7 +306,7 @@ sample = dict(by_name["arrival_confirmed"])
 check("the registry check fails on an event not marked implemented (mutation)", dict(sample, implemented=False).get("implemented") is not True)
 check("the registry check fails on a coordinate in an arrival payload (mutation)",
       any(FORBIDDEN.search(p["name"]) for p in sample.get("payload", []) + [{"name": "coordinates"}]))
-check("the section 41 check fails on a changed value set (mutation)", set(sec["values"] + ["somewhere"]) != ENTRY_VALUES)
+check("the section 41 check fails on a changed value set (mutation)", set(sec["values"] + ["somewhere"]) != REGISTRY_ENTRY_VALUES)
 
 print("arrival conformance: %d checks" % count)
 if failures:

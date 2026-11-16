@@ -35,6 +35,12 @@ import com.showup.profile.LocationState
 @Preview(name = "Date 03 · C · no location fix · 430", widthDp = 430, heightDp = 932)
 @Composable private fun PreviewNoFix430() = ArrivalSamples.over(ArrivalSamples.C) { ArrivalSamples.dateScreen() }
 
+@Preview(name = "Date 03 · C2 · check-in not saved · 320", widthDp = 320, heightDp = 686)
+@Composable private fun PreviewNotSaved320() = ArrivalSamples.over(ArrivalSamples.C2) { ArrivalSamples.dateScreen() }
+
+@Preview(name = "Date 03 · C2 · check-in not saved · 430", widthDp = 430, heightDp = 932)
+@Composable private fun PreviewNotSaved430() = ArrivalSamples.over(ArrivalSamples.C2) { ArrivalSamples.dateScreen() }
+
 @Preview(name = "Date 03 · D · checked in · 320", widthDp = 320, heightDp = 686)
 @Composable private fun PreviewDone320() = ArrivalSamples.over(ArrivalSamples.D) { ArrivalSamples.dateScreen() }
 
