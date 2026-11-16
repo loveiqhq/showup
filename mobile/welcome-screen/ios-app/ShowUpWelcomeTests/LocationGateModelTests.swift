@@ -246,23 +246,52 @@ final class LocationGateModelTests: XCTestCase {
         XCTAssertFalse(g.takeLift(), "no Search arrival from D's lift")
     }
 
-    // MARK: - the date context (SHOWUP-195 G): reads and asks like the gate, fires nothing
+    // MARK: - the date context (SHOWUP-195 G): reads and asks like the gate; two events report
 
-    func testTheDateContextFiresNoEventForAMountAPressAnAnswerOrALift() async {
+    private let dateGateId = "date_location_gate"
+
+    func testTheDateGateReportsOnlyLocationGateShownAndPermissionSettingsOpenedWithTheDateScreenId() async {
         let access = GateAccess(.notDetermined)
         let g = await gate(access)
         host.answer = false
         g.dateMounted()
+        XCTAssertEqual(events.of(ProfileAnalytics.locationGateShownName).first?["reason"] as? String, "not_determined")
+        XCTAssertEqual(events.of(ProfileAnalytics.locationGateShownName).first?["screen_id"] as? String, dateGateId)
         await g.allowPressed()
         XCTAssertEqual(host.dialogs, 1, "the OS dialog still goes up")
         XCTAssertEqual(g.ui.blocked, .denied)
         g.openSettingsPressed()
         XCTAssertEqual(host.settings, [.denied], "Settings still opens")
+        XCTAssertEqual(events.of(ProfileAnalytics.permissionSettingsOpenedName).first?["screen_id"] as? String, dateGateId)
+        XCTAssertEqual(events.of(ProfileAnalytics.permissionSettingsOpenedName).first?["type"] as? String, "location")
         await access.set(.granted)
         await g.refresh()
         XCTAssertNil(g.ui.blocked)
-        XCTAssertEqual(events.names, [])
+        XCTAssertEqual(
+            events.names,
+            [ProfileAnalytics.locationGateShownName, ProfileAnalytics.locationGateShownName,
+             ProfileAnalytics.permissionSettingsOpenedName],
+            "the state once per showing, again only for a new reason, then the Settings press -- nothing else")
         XCTAssertFalse(g.takeLift(), "a Search screen is not reached from this gate")
+    }
+
+    func testTheDateGateReportsItsStateOncePerShowingHoweverOftenItIsReRead() async {
+        let g = await gate(GateAccess(.denied))
+        g.dateMounted()
+        g.dateMounted()
+        await g.refresh()
+        await g.refresh()
+        XCTAssertEqual(events.names, [ProfileAnalytics.locationGateShownName])
+        g.dateLeft()
+        g.dateMounted()
+        XCTAssertEqual(events.names.count, 2, "a new showing reports again")
+    }
+
+    func testSearchLocationGateShownCarriesNoScreenIdKey() async {
+        let g = await gate(GateAccess(.denied))
+        g.mounted(referrer: .likesReceived)
+        XCTAssertNil(events.of(ProfileAnalytics.locationGateShownName).first?["screen_id"])
+        XCTAssertEqual(events.of("screen_viewed").first?["screen_id"] as? String, "search_location_gate")
     }
 
     func testLeavingTheDateContextLetsTheSearchGateReportAgain() async {
@@ -270,7 +299,9 @@ final class LocationGateModelTests: XCTestCase {
         g.dateMounted()
         g.dateLeft()
         g.mounted(referrer: .likesReceived)
-        XCTAssertEqual(events.names, ["screen_viewed", ProfileAnalytics.locationGateShownName])
+        XCTAssertEqual(events.names, [ProfileAnalytics.locationGateShownName, "screen_viewed",
+                                      ProfileAnalytics.locationGateShownName])
+        XCTAssertNil(events.of(ProfileAnalytics.locationGateShownName)[1]["screen_id"])
     }
 
     func testTheDateContextThenSearchWithoutALeaveSearchReportsOnce() async {
@@ -278,21 +309,30 @@ final class LocationGateModelTests: XCTestCase {
         g.dateMounted()
         g.mounted(referrer: .likesReceived)
         g.mounted(referrer: .likesReceived)
-        XCTAssertEqual(events.names, ["screen_viewed", ProfileAnalytics.locationGateShownName])
+        XCTAssertEqual(events.names, [ProfileAnalytics.locationGateShownName, "screen_viewed",
+                                      ProfileAnalytics.locationGateShownName])
         g.openSettingsPressed()
         XCTAssertEqual(events.names.filter { $0 == ProfileAnalytics.permissionSettingsOpenedName }.count, 1,
                        "Search's press reports")
+        XCTAssertEqual(events.of(ProfileAnalytics.permissionSettingsOpenedName).first?["screen_id"] as? String,
+                       "search_location_gate")
     }
 
-    func testSearchThenTheDateContextWithoutALeaveNothingMoreFiresAndPressesAreSilent() async {
+    func testSearchThenTheDateContextWithoutALeaveTheDateGateReportsItselfItsOtherPressesAreSilent() async {
         let g = await gate(GateAccess(.notDetermined))
         host.answer = false
         g.mounted(referrer: .likesReceived)
-        let before = events.names
+        let before = events.names.count
         g.dateMounted()
         await g.allowPressed()
         g.openSettingsPressed()
-        XCTAssertEqual(events.names, before)
+        XCTAssertEqual(
+            Array(events.names.dropFirst(before)),
+            [ProfileAnalytics.locationGateShownName, ProfileAnalytics.locationGateShownName,
+             ProfileAnalytics.permissionSettingsOpenedName])
+        XCTAssertTrue(events.of(ProfileAnalytics.locationGateShownName).dropFirst().allSatisfy {
+            $0["screen_id"] as? String == dateGateId
+        })
         XCTAssertEqual(host.dialogs, 1)
         XCTAssertEqual(host.settings, [.denied])
     }

@@ -84,6 +84,3 @@ import com.showup.profile.LocationState
 
 @Preview(name = "Date 03 · H · what the match sees · 430", widthDp = 430, heightDp = 932)
 @Composable private fun PreviewArrival430() = ArrivalSamples.dateScreen(ArrivalSamples.ARRIVED)
-
-@Preview(name = "Date 03 · H · before the chat unlocks · 320", widthDp = 320, heightDp = 686)
-@Composable private fun PreviewArrivalLocked320() = ArrivalSamples.dateScreen(ArrivalSamples.ARRIVED, now = DateSamples.A_NOW)

@@ -77,6 +77,27 @@ final class ArrivalRoutingTests: XCTestCase {
         XCTAssertFalse(called)
     }
 
+    func testACommittedCheckInShowsTheDateCheckedInAndTheChatOpenNeverTheOneWithoutTheOther() {
+        var before = date(checkedIn: false)
+        before.coordinateOpen = false
+        let shown = committedView(before, committed: true)
+        XCTAssertTrue(shown.checkedIn)
+        XCTAssertTrue(shown.coordinateOpen, "the first check-in opens the chat for the person who made it")
+        var expected = before
+        expected.checkedIn = true
+        expected.coordinateOpen = true
+        XCTAssertEqual(shown, expected, "nothing else moves")
+    }
+
+    func testAnUncommittedSessionOrADateAlreadyCheckedInIsLeftExactlyAsItIs() {
+        var before = date(checkedIn: false)
+        before.coordinateOpen = false
+        XCTAssertEqual(committedView(before, committed: false), before)
+        var server = date(checkedIn: true)
+        server.coordinateOpen = false
+        XCTAssertEqual(committedView(server, committed: true), server, "the server's word is not rewritten")
+    }
+
     func testAnUndoLandsOnTheDateScreenFromTheChatAndStaysPutElsewhere() {
         XCTAssertEqual(undoLanding(undone: true, chatOnTop: true), .leaveChat)
         XCTAssertEqual(undoLanding(undone: true, chatOnTop: false), .consumeOnly)

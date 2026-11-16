@@ -17,6 +17,26 @@ final class ProfileAnalyticsTests: XCTestCase {
 
     // MARK: - the vocabulary that was corrupted
 
+    func testTheDateLocationGateIsASection11ScreenWithItsOwnIdAndLabel() {
+        XCTAssertEqual(ProfileScreen.dateLocationGate.screenId, "date_location_gate")
+        XCTAssertEqual(ProfileScreen.dateLocationGate.screenName, "Date - Location gate")
+    }
+
+    func testLocationGateShownCarriesScreenIdOnlyWhenTheDateGateSendsOne() {
+        let search = ProfileAnalytics.locationGateShown(reason: .denied).1
+        XCTAssertNil(search["screen_id"], "absent means Search")
+        let date = ProfileAnalytics.locationGateShown(reason: .denied, screen: .dateLocationGate).1
+        XCTAssertEqual(date["screen_id"] as? String, "date_location_gate")
+        XCTAssertEqual(date["reason"] as? String, search["reason"] as? String)
+    }
+
+    func testPermissionSettingsOpenedForLocationOnTheDateGateNamesTheDateGate() {
+        let p = ProfileAnalytics.permissionSettingsOpened(
+            type: ProfileAnalytics.permissionLocation, screen: .dateLocationGate).1
+        XCTAssertEqual(p["type"] as? String, "location")
+        XCTAssertEqual(p["screen_id"] as? String, "date_location_gate")
+    }
+
     func testStepIdsCarryNoVersionSuffix() {
         // The exact defect: enums.json §2 read "namev1.2", "emailv1.2", "email_verifyv1.2",
         // "dobv1.2". Fixed in registry 1.3.0; this is what keeps it fixed.

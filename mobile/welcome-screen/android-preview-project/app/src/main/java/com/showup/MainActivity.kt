@@ -100,6 +100,7 @@ import com.showup.arrival.ArrivalGateViewModel
 import com.showup.arrival.ArrivalOver
 import com.showup.arrival.CheckInBar
 import com.showup.arrival.GateUi
+import com.showup.arrival.committedView
 import com.showup.arrival.onAppStopped
 import com.showup.arrival.onChatChip
 import com.showup.arrival.routeUndo
@@ -2550,11 +2551,8 @@ class MainActivity : ComponentActivity() {
                         val heldDate = heldWhileLeaving(dateState, onTop)
                         // Checked in is the server's word or this session's commit: the footer swaps the
                         // moment Close is tapped, and a read that has not caught up cannot bring the bar back.
-                        val shown = if (arrivalUi.committed && heldDate.date?.checkedIn == false) {
-                            heldDate.copy(date = heldDate.date.copy(checkedIn = true))
-                        } else {
-                            heldDate
-                        }
+                        // The first committed check-in also opens the chat, for both people (16 Nov).
+                        val shown = heldDate.copy(date = heldDate.date?.let { committedView(it, arrivalUi.committed) })
                         // An undo from the Date screen: nothing to leave, the bar is back already.
                         LaunchedEffect(arrivalUi.undone, onTop) {
                             val chatUp = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.Chat>() == true
@@ -2565,7 +2563,8 @@ class MainActivity : ComponentActivity() {
                         val shownDate = shown.date
                         if (dateBlocked != null && shownDate != null) {
                             // G (SHOWUP-195, R1): the location gate in place of the Date screen. It lifts on its
-                            // own on the foreground re-read, and reports nothing (the tracking is Philipp's to say).
+                            // own on the foreground re-read, and reports its state and the Settings press as
+                            // `date_location_gate` (16 Nov).
                             LaunchedEffect(onTop) {
                                 if (onTop) locationGate.dateMounted() else locationGate.dateLeft()
                             }
@@ -2598,9 +2597,6 @@ class MainActivity : ComponentActivity() {
                                 DateScreen(
                                     ui = shown,
                                     zone = zone,
-                                    // The match's arrival card: opening the chat clears it first, so coming back
-                                    // never flashes it again (R2); locked, it only clears.
-                                    onArrivalSeen = date::arrivalSeen,
                                     checkInBar = {
                                         CheckInBar(
                                             name = shownDate?.match?.name.orEmpty(),

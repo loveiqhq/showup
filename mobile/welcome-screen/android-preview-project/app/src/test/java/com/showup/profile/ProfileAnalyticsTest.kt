@@ -24,6 +24,30 @@ class ProfileAnalyticsTest {
     // ── the vocabulary that was corrupted ─────────────────────────────────────
 
     @Test
+    fun `the date location gate is a section 11 screen with its own id and label`() {
+        assertEquals("date_location_gate", ProfileScreen.DateLocationGate.screenId)
+        assertEquals("Date - Location gate", ProfileScreen.DateLocationGate.screenName)
+    }
+
+    @Test
+    fun `location_gate_shown carries screen_id only when the Date gate sends one`() {
+        val search = ProfileAnalytics.locationGateShown(LocationUnavailableReason.Denied).second
+        assertFalse("absent means Search", search.containsKey("screen_id"))
+        val date = ProfileAnalytics.locationGateShown(LocationUnavailableReason.Denied, ProfileScreen.DateLocationGate).second
+        assertEquals("date_location_gate", date["screen_id"])
+        assertEquals(search["reason"], date["reason"])
+        // Never a coordinate, accuracy, distance or place.
+        assertEquals(setOf("reason"), date.keys.filterNot { it == "screen_id" }.toSet() - Stamp.of(1).keys)
+    }
+
+    @Test
+    fun `permission_settings_opened for location on the Date gate names the Date gate`() {
+        val p = ProfileAnalytics.permissionSettingsOpened(ProfileAnalytics.PERMISSION_LOCATION, ProfileScreen.DateLocationGate).second
+        assertEquals("location", p["type"])
+        assertEquals("date_location_gate", p["screen_id"])
+    }
+
+    @Test
     fun `step ids carry no version suffix`() {
         // The exact defect: enums.json §2 read "namev1.2", "emailv1.2", "email_verifyv1.2",
         // "dobv1.2". Fixed in registry 1.3.0; this is what keeps it fixed.

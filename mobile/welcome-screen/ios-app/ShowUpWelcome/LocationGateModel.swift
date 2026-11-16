@@ -83,12 +83,15 @@ final class LocationGateModel {
         }
         ui.known = true
         ui.blocked = now
-        if mounted, !silent, now != reported { announce(now) }
+        // On the Date gate too: the state is one of its two events, by the same once-per-showing rule.
+        if mounted, now != reported { announce(now) }
     }
 
     private func announce(_ shown: LocationState) {
         reported = shown
-        analytics?.report(ProfileAnalytics.locationGateShown(reason: shown.gateReason))
+        // Search sends no screen_id (absent = Search); the Date gate sends its own (SHOWUP-195, 16 Nov).
+        analytics?.report(ProfileAnalytics.locationGateShown(
+            reason: shown.gateReason, screen: silent ? .dateLocationGate : nil))
     }
 
     /// The gate is on display -- the Search tab blocked (A-C), or pushed over a Likes profile (D).
@@ -112,14 +115,19 @@ final class LocationGateModel {
     }
 
     /// The gate is on display over the Date screen (SHOWUP-195 G). It reads and asks exactly as the Search gate
-    /// does and fires NO event: the ticket's tracking for this gate is Philipp's open decision (R1).
+    /// does. Of the gate's events only `location_gate_shown` and `permission_settings_opened` report here, with
+    /// `screen_id: date_location_gate` (16 Nov: the ticket adds those two and no more); `silent` keeps every
+    /// other one -- `screen_viewed`, the OS-sheet and answer events -- off the Date screen.
     func dateMounted() {
-        guard ui.blocked != nil else { return }
-        // Takes the context over even from Search: what follows reports nothing.
+        guard let shown = ui.blocked else { return }
+        // Already up for the Date screen (the host re-fires on appear): one showing, one report.
+        if mounted, silent { return }
+        // Takes the context over even from Search: the state reports afresh, under the Date id.
         mounted = true
         silent = true
         reported = nil
         liftedOnTab = false
+        announce(shown)
     }
 
     /// The date gate left the screen.
@@ -155,10 +163,8 @@ final class LocationGateModel {
     /// `Open Settings` on B or C: our app page (iOS cannot open Location Services), and the gate STAYS.
     func openSettingsPressed() {
         guard mounted, let shown = ui.blocked, shown != .ask else { return }
-        if !silent {
-            analytics?.report(ProfileAnalytics.permissionSettingsOpened(
-                type: ProfileAnalytics.permissionLocation, screen: .searchLocationGate))
-        }
+        analytics?.report(ProfileAnalytics.permissionSettingsOpened(
+            type: ProfileAnalytics.permissionLocation, screen: silent ? .dateLocationGate : .searchLocationGate))
         host?.openSettings(for: shown)
     }
 

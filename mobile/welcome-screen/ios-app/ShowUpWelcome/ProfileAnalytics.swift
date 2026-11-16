@@ -145,6 +145,9 @@ enum ProfileScreen: String {
     /// The Search location gate (SHOWUP-188): Profile 12's screen in its app context. Once per
     /// mount, never per state.
     case searchLocationGate = "search_location_gate"
+    /// The same gate in context=date (SHOWUP-195, 16 Nov; §11 `date_location_gate`). It rides only on
+    /// `location_gate_shown` and `permission_settings_opened`.
+    case dateLocationGate = "date_location_gate"
     /// Date 01 (SHOWUP-193, §11 `date_screen`): the screen both people live on from the match until
     /// the date ends. Once per visit, never on the in-place unlock.
     case dateScreen = "date_screen"
@@ -195,6 +198,7 @@ enum ProfileScreen: String {
         case .searchGrid: return "Search - Grid"
         case .likesReceived: return "Search - Likes received"
         case .searchLocationGate: return "Search - Location gate"
+        case .dateLocationGate: return "Date - Location gate"
         case .dateScreen: return "Date - Date screen"
         case .dateChatTutorial: return "Date - Chat tutorial"
         case .dateChat: return "Date - Coordinate chat"
@@ -521,8 +525,14 @@ enum ProfileAnalytics {
     /// the ask and the recovery: it replaces `permissionPrompted` and
     /// `permissionDeniedRecoveryShown`, which never fire there. `reason` is §26, `not_determined`
     /// included.
-    static func locationGateShown(reason: LocationUnavailableReason) -> (String, [String: any Sendable]) {
-        (locationGateShownName, ["reason": reason.rawValue].merging(Stamp.of(1)) { a, _ in a })
+    static func locationGateShown(
+        reason: LocationUnavailableReason,
+        screen: ProfileScreen? = nil
+    ) -> (String, [String: any Sendable]) {
+        // Search sends no `screen_id` (absent = Search); the Date gate sends `date_location_gate` (SHOWUP-195).
+        var props: [String: any Sendable] = ["reason": reason.rawValue]
+        if let screen { props["screen_id"] = screen.screenId }
+        return (locationGateShownName, props.merging(Stamp.of(1)) { a, _ in a })
     }
 
     static func permissionDeniedRecoveryShown(

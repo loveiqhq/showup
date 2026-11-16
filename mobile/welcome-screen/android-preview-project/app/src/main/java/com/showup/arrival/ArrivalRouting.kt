@@ -8,6 +8,7 @@ package com.showup.arrival
 
 import com.showup.chat.ChatReason
 import com.showup.chat.ChipSurface
+import com.showup.date.ActiveDate
 
 /**
  * The `I arrived at the spot` chip before check-in opens the gate instead of selecting a draft. The host
@@ -71,3 +72,12 @@ fun routeUndo(undone: Boolean, chatOnTop: Boolean, leaveChat: () -> Unit, consum
 fun onAppStopped(gate: ArrivalGateViewModel, changingConfigurations: Boolean) {
     if (!changingConfigurations) gate.leftApp()
 }
+
+/**
+ * This session's committed check-in, as the Date screen shows it (SHOWUP-195, 16 Nov): checked in AND the chat
+ * open. The first committed check-in opens the chat for both people, so the person who made it sees it open
+ * the moment Close is tapped, before a read has caught up; the partner's phone gets the same from the server's
+ * `coordinateOpen`. A date the server already reports as checked in is left as it is.
+ */
+fun committedView(date: ActiveDate, committed: Boolean): ActiveDate =
+    if (committed && !date.checkedIn) date.copy(checkedIn = true, coordinateOpen = true) else date

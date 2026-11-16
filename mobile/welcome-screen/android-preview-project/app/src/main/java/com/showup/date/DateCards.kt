@@ -408,17 +408,13 @@ internal fun CoordinateModule(
     /** The change tiles under the locked line: [CHANGE_TILES], empty until Date 05 ships. */
     changeTiles: List<ChatReason> = emptyList(),
     onChangeTile: (ChatReason) -> Unit = {},
-    /** The locked arrival card's Open chat: the chat is not open yet, so it only clears the card (R2). */
-    onArrivalSeen: () -> Unit = {},
 ) {
     val unread = date.unread
     // Date 03 H: the match's check-in outranks an unread message (R11), locked or not.
     date.arrival?.let { arrival ->
-        ArrivalCoordinate(
-            date.match, arrival, now, zone,
-            if (state == DateState.Locked) onArrivalSeen else onOpenChat,
-            modifier,
-        )
+        // Open chat always opens the chat (16 Nov): the card only exists after a committed check-in, and that
+        // check-in has opened the chat, so there is no locked-only clear any more.
+        ArrivalCoordinate(date.match, arrival, now, zone, onOpenChat, modifier)
         return
     }
     if (state == DateState.Unread && unread != null) {
@@ -600,7 +596,7 @@ private fun UnreadCoordinate(
  * Date 03 H: the match has checked in. The unread card's frame in orange with a count of 1 and the pulse
  * ring, `ARRIVED`, `checked in · {time}` (R10, the unread card's formatter), and one line in the panel:
  * `map-pin` 17 / 2.2 in the tone, gap 9, `{name} has arrived at the meeting location.` (Manrope 600 14 / 1.4).
- * [onCta] is the host's: it opens the chat, or while the chat is still locked only clears the card (R2).
+ * [onCta] is the host's: it opens the chat, in every state (16 Nov: the card only exists after a committed check-in).
  */
 @Composable
 private fun ArrivalCoordinate(

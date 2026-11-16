@@ -1068,12 +1068,14 @@ private struct TutorialFlow: View {
     /// a read that has not caught up cannot bring the bar back.
     private var shownDate: DateUi {
         var shown = dateModel.state
-        if arrivalGate.ui.committed, shown.date?.checkedIn == false { shown.date?.checkedIn = true }
+        // The first committed check-in also opens the chat, for both people (16 Nov).
+        shown.date = shown.date.map { committedView($0, committed: arrivalGate.ui.committed) }
         return shown
     }
 
     /// G (SHOWUP-195, R1): the location gate in place of the Date screen while location is unavailable. It lifts
-    /// on its own on the foreground re-read, and reports nothing (the tracking is Philipp's to say).
+    /// on its own on the foreground re-read, and reports its state and the Settings press as `date_location_gate`
+    /// (16 Nov).
     @ViewBuilder private var dateOrGate: some View {
         let shown = shownDate
         if let blocked = locationGate.ui.blocked, let date = shown.date {
@@ -1140,10 +1142,7 @@ private struct TutorialFlow: View {
             onTab: { tab in if tab == .settings { go(to: .checkInSettings) } },
             onRetry: { dateModel.retry() },
             // The tile's event now; the Date 05 picker it opens arrives with Date 05.
-            onChangeTile: { dateModel.changeTile($0) },
-            // The match's arrival card: opening the chat clears it first, so coming back never flashes it again
-            // (R2); locked, it only clears.
-            onArrivalSeen: { dateModel.arrivalSeen() })
+            onChangeTile: { dateModel.changeTile($0) })
     }
 
     private func routeArrivalUndoOnDate() {

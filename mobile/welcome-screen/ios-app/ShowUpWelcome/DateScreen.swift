@@ -140,8 +140,6 @@ struct DateScreen: View {
     var changeTiles: [ChatReason] = changeTileReasons
     /// A change tile was tapped: the Date 05 picker opens, once it exists.
     var onChangeTile: (ChatReason) -> Void = { _ in }
-    /// The match's arrival card was tapped while the chat is still locked: it clears (Date 03, R2).
-    var onArrivalSeen: () -> Void = {}
 
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
@@ -250,8 +248,7 @@ struct DateScreen: View {
     private func coordinate(_ date: ActiveDate, _ state: DateState) -> some View {
         // The tiles only in A: from B on, the chat's chips do the same job.
         CoordinateModule(state: state, date: date, now: ui.now, zone: zone, onOpenChat: onOpenChat,
-                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile,
-                         onArrivalSeen: onArrivalSeen)
+                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile)
             .fitAnchor(date.arrival != nil ? "date:arrival-card" : "date:coordinate")
     }
 }

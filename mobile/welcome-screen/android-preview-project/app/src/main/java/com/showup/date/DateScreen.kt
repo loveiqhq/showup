@@ -170,8 +170,6 @@ fun DateScreen(
     changeTiles: List<ChatReason> = CHANGE_TILES,
     /** A change tile was tapped: the Date 05 picker opens, once it exists. */
     onChangeTile: (ChatReason) -> Unit = {},
-    /** The match's arrival card was tapped while the chat is still locked: it clears (Date 03, R2). */
-    onArrivalSeen: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     var frameHeight by remember { mutableIntStateOf(0) }
@@ -206,7 +204,7 @@ fun DateScreen(
                 val holes = remember { WashHoles() }
                 Box(Modifier.onPlaced { holes.origin = it }) {
                     CompositionLocalProvider(LocalWashHoles provides holes) {
-                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles, onChangeTile, onArrivalSeen)
+                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles, onChangeTile)
                     }
                     // ① The sunset wash: top 0, h 320, opacity .18, blur 40 -- scrolling with the content,
                     // drawn after it (see the header).
@@ -282,7 +280,6 @@ private fun DateContent(
     matchMate: @Composable () -> Unit,
     changeTiles: List<ChatReason>,
     onChangeTile: (ChatReason) -> Unit,
-    onArrivalSeen: () -> Unit,
 ) {
     Column(
         Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
@@ -300,7 +297,6 @@ private fun DateContent(
                 // Only in A: from B on, the chat's chips do the same job.
                 changeTiles = if (state == DateState.Locked) changeTiles else emptyList(),
                 onChangeTile = onChangeTile,
-                onArrivalSeen = onArrivalSeen,
             )
         }
         // The match's arrival and an unread message are both hoisted under the hero (R11).

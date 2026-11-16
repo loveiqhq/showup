@@ -66,3 +66,15 @@ func onScenePhase(_ phase: ScenePhase, gate: ArrivalGateModel) {
     @unknown default: break
     }
 }
+
+/// This session's committed check-in, as the Date screen shows it (SHOWUP-195, 16 Nov): checked in AND the chat
+/// open. The first committed check-in opens the chat for both people, so the person who made it sees it open the
+/// moment Close is tapped, before a read has caught up; the partner's phone gets the same from the server's
+/// `coordinateOpen`. A date the server already reports as checked in is left as it is. Android's `committedView`.
+func committedView(_ date: ActiveDate, committed: Bool) -> ActiveDate {
+    guard committed, !date.checkedIn else { return date }
+    var shown = date
+    shown.checkedIn = true
+    shown.coordinateOpen = true
+    return shown
+}
