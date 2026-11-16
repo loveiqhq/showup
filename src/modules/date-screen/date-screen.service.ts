@@ -109,6 +109,7 @@ export class DateScreenService {
       chatTutorialSeen:
         (viewerIsA ? date.aChatTutorialAt : date.bChatTutorialAt) !== null,
       coordinateUnlockedAt: date.coordinateUnlockedAt,
+      anyCommittedCheckIn: arrivalRows.some((r) => r.committedAt !== null),
       meetDay: meetDay(date.scheduledAt, now, tz),
       now,
     });

@@ -12,7 +12,7 @@ import { Profile } from '../profiles/entities/profile.entity';
 import { Match } from '../matching/entities/match.entity';
 import { MatchStatus, orderedUserPair } from '../matching/util/match';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, IsNull, Repository } from 'typeorm';
+import { Between, In, IsNull, Not, Repository } from 'typeorm';
 
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
@@ -24,6 +24,7 @@ import {
 } from '../analytics/events/date-events';
 import { CheckInsService } from '../check-ins/check-ins.service';
 import { LocationService } from '../location/location.service';
+import { DateArrivalCheckIn } from './entities/date-arrival-check-in.entity';
 import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
@@ -52,6 +53,8 @@ export class DatesService {
     private readonly profiles: Repository<Profile>,
     @InjectRepository(Match)
     private readonly matches: Repository<Match>,
+    @InjectRepository(DateArrivalCheckIn)
+    private readonly arrivalRows: Repository<DateArrivalCheckIn>,
     private readonly checkIns: CheckInsService,
     private readonly location: LocationService,
     private readonly analytics: AnalyticsService,
@@ -305,7 +308,16 @@ export class DatesService {
       new Date(),
       date.coordinateUnlockedAt,
     );
-    if (windowError) throw new BadRequestException(windowError);
+    // A committed check-in opens the chat even when its stamp was lost; only asked when the time
+    // and the stamp say closed.
+    if (
+      windowError &&
+      !(await this.arrivalRows.exists({
+        where: { dateId: date.id, committedAt: Not(IsNull()) },
+      }))
+    ) {
+      throw new BadRequestException(windowError);
+    }
 
     try {
       return await this.chat.save(

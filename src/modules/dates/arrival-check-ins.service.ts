@@ -217,6 +217,7 @@ export class ArrivalCheckInsService {
         await this.dates.query(
           `UPDATE "dates" SET "coordinate_unlocked_at" = $2
             WHERE "id" = $1 AND "coordinate_unlocked_at" IS NULL AND "scheduled_at" > $3
+              AND "status" = 'confirmed'
         RETURNING "user_a_id", "user_b_id", "scheduled_at"`,
           [date.id, now, opensBy],
         ),

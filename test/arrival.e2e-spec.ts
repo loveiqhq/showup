@@ -310,6 +310,33 @@ describe('Arrival check-in (e2e)', () => {
     expect(named('coordinate_unlocked')).toHaveLength(2);
   });
 
+  it('stays open from the committed row when the stamp is lost', async () => {
+    await dates.update(
+      { id: dateId },
+      { scheduledAt: new Date(Date.now() + 180 * 60_000) },
+    );
+    await create('you', body()).expect(201);
+    await commit('you').expect(204);
+    // The swallowed-failure case: the commit landed, the stamp did not.
+    await db.query(
+      `UPDATE dates SET coordinate_unlocked_at = NULL WHERE id = $1`,
+      [dateId],
+    );
+    for (const who of ['you', 'leonie']) {
+      const res = await request(server)
+        .get('/me/date')
+        .query({ tz: 'Europe/Berlin' })
+        .set('Authorization', as(who))
+        .expect(200);
+      expect(res.body.date.coordinateOpen).toBe(true);
+    }
+    await request(server)
+      .post(`/dates/${dateId}/chat`)
+      .set('Authorization', as('leonie'))
+      .send({ reason: 'on_my_way', body: 'On my way', clientId: randomUUID() })
+      .expect(201);
+  });
+
   it('commit after undo is 404', async () => {
     await create('you', body()).expect(201);
     await undo('you').expect(204);
