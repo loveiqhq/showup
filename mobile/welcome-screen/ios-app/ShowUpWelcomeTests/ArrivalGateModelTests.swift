@@ -367,7 +367,8 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCheckIns([.failed(.server)])
         let m = confirmed()
         m.yes()
-        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, error: .noFix) }
+        // A failed store is C2 since 16 Nov (it was C under R5).
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
         m.yes()
         await eventually("both taps stored") { await store.stored.count == 2 }
         let stored = await store.stored
