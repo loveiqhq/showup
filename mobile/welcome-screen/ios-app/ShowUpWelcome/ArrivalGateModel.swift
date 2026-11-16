@@ -7,8 +7,8 @@
 //
 //   · NOTHING IS STORED WITHOUT A FRESH FIX. No fix inside `locationFixTimeoutMs` is frame C and the store is not
 //     called; a fix that arrives after the bound is dropped with the read.
-//   · A FAILED STORE IS FRAME C TOO (R5). The person retries with `Try again`, which reads and stores again under a
-//     new client id.
+//   · A FAILED STORE IS FRAME C2, NOT C (16 Nov, replacing R5): the location was read, the server never got it.
+//     The person retries with `Try again`, which reads and stores again under a new client id.
 //   · CLOSE COMMITS, UNDO DELETES, AND NEITHER CAN BECOME THE OTHER (R4, R8). Both are optimistic -- the sheet
 //     closes at once -- and retried on `retryDelayMs` until the server answers. An undo is never followed by a
 //     commit of that record, and a new `Yes` cancels a delete still retrying.

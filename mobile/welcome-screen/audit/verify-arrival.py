@@ -271,6 +271,8 @@ check("enums.json section 41 is arrival_entry with date_screen, chat_chip, repor
 wire = set(re.findall(r'\("([a-z_]+)"\)|\w+\("([a-z_]+)"\)', read(os.path.join(KT, "ArrivalRules.kt"))))
 kt_wire = {a or b for a, b in wire}
 check("Android: ArrivalEntry values are section 41's (%s)" % sorted(kt_wire & ENTRY_VALUES), kt_wire >= {"date_screen", "chat_chip"})
+# The upper bound too, as iOS has: `wrapup` is Date 06's (registry 1.4.36) and no entry of this ticket's.
+check("Android: ArrivalEntry sends nothing outside this ticket's three (%s)" % sorted(kt_wire - ENTRY_VALUES), kt_wire <= ENTRY_VALUES)
 sw_wire = set(re.findall(r'case \w+ = "([a-z_]+)"', read(os.path.join(SW, "ArrivalRules.swift"))))
 check("iOS: ArrivalEntry values include date_screen and chat_chip and nothing outside section 41",
       sw_wire >= {"date_screen", "chat_chip"} and sw_wire <= ENTRY_VALUES)
