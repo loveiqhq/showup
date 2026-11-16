@@ -235,8 +235,16 @@ change **(16 Nov)**. What it changes here:
   `cause: "arrival_check_in"`; the job sends `cause: "time"`; the two conditional UPDATEs mean exactly one cause per
   date. The stamp and its events come **before** the partner push, so the match's push-driven re-read already
   sees `coordinateOpen: true`. A failed stamp never fails the commit. `coordinateOpen` and the chat send rule read
-  "time or stamp". The checker's own phone flips A → B at Close through the session override, which now sets
-  both `checkedIn` and `coordinateOpen`. An undo opens nothing (no commit).
+  the ticket's rule directly — **time, or the stamp, or either person's committed check-in row** — so the stamp is
+  only the event's once-only guard: a stamp that failed (logged, swallowed) loses its event, never the open chat
+  (the final review's finding; a commit is retried by nobody once it answered 204). The stamp also requires
+  `status = 'confirmed'`. The checker's own phone flips A → B at Close through the session override, which now
+  sets both `checkedIn` and `coordinateOpen`. An undo opens nothing (it deletes only an uncommitted row).
+  `coordinate_unlocked` is sent once per person per date, as Date 01 always has ("once per date" in the registry
+  counts dates, not events).
+- **Known limitation, unchanged by R16 but more visible:** while the checker's commit is still retrying offline,
+  their own phone already shows the open chat (the override), and a send there fails until the commit lands. A
+  commit still retrying when the process dies is lost (§3 R4's crash case): after a restart the bar shows again.
 - **R17 — the date location gate reports two events.** `location_gate_shown` and `permission_settings_opened`
   with `screen_id: "date_location_gate"` (§11 row, registry 1.4.38), by Search 04's triggers. Every other gate
   event stays silent on the date. Search's `location_gate_shown` still sends no `screen_id` (absent = Search).
