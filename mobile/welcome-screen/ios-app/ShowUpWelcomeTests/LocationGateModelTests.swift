@@ -287,6 +287,20 @@ final class LocationGateModelTests: XCTestCase {
         XCTAssertEqual(events.names.count, 2, "a new showing reports again")
     }
 
+    func testAReasonChangeWhileTheDateGateStaysUpReAnnouncesWithTheNewReasonAndTheDateIdOnce() async {
+        let access = GateAccess(.denied)
+        let g = await gate(access)
+        g.dateMounted()
+        await access.set(.denied, servicesOn: false)
+        await g.refresh()
+        await g.refresh()
+        let shown = events.of(ProfileAnalytics.locationGateShownName)
+        XCTAssertEqual(shown.count, 2)
+        XCTAssertEqual(shown[0]["reason"] as? String, LocationUnavailableReason.denied.rawValue)
+        XCTAssertEqual(shown[1]["reason"] as? String, LocationUnavailableReason.servicesOff.rawValue)
+        XCTAssertEqual(shown.map { $0["screen_id"] as? String }, [dateGateId, dateGateId])
+    }
+
     func testSearchLocationGateShownCarriesNoScreenIdKey() async {
         let g = await gate(GateAccess(.denied))
         g.mounted(referrer: .likesReceived)

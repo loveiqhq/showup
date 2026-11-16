@@ -37,7 +37,7 @@ class ProfileAnalyticsTest {
         assertEquals("date_location_gate", date["screen_id"])
         assertEquals(search["reason"], date["reason"])
         // Never a coordinate, accuracy, distance or place.
-        assertEquals(setOf("reason"), date.keys.filterNot { it == "screen_id" }.toSet() - Stamp.of(1).keys)
+        assertEquals(setOf("reason", "screen_id") + Stamp.of(1).keys, date.keys)
     }
 
     @Test

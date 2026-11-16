@@ -4,6 +4,7 @@ import com.showup.analytics.RecordingAnalytics
 import com.showup.profile.FixedLocationAccess
 import com.showup.profile.LocationHost
 import com.showup.profile.LocationState
+import com.showup.profile.LocationUnavailableReason
 import com.showup.profile.LocationStatus
 import com.showup.profile.PermissionStatus
 import com.showup.profile.ProfileAnalytics
@@ -345,6 +346,21 @@ class LocationGateViewModelTest {
         g.dateLeft()
         g.dateMounted()
         assertEquals("a new showing reports again", 2, analytics.names().size)
+    }
+
+    @Test
+    fun `a reason change while the date gate stays up re-announces with the new reason and the date id, once`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        phone(PermissionStatus.Denied, servicesOn = false)
+        g.refresh()
+        g.refresh()
+        val shown = analytics.of(ProfileAnalytics.LOCATION_GATE_SHOWN)
+        assertEquals(2, shown.size)
+        assertEquals(LocationUnavailableReason.Denied.trackingValue, shown[0].properties["reason"])
+        assertEquals(LocationUnavailableReason.ServicesOff.trackingValue, shown[1].properties["reason"])
+        assertEquals(listOf(dateGateId, dateGateId), shown.map { it.properties["screen_id"] })
     }
 
     @Test
