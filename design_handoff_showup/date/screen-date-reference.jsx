@@ -510,7 +510,7 @@ function DateStatusBar({ complete = false, name = 'Leonie', onWrap, onRate }) {
   );
 }
 
-function ScreenMatchCoord({ coordOpen = false, coordUnread = null, tall = false, initialReportOpen = false, reportStep = 'menu', reportEnded = false, matchMateTab = 'topics', dateComplete = false, initialWrapOpen = false, wrapStep = 'menu', initialCancelStep = null, checkInFlow = false, initialCheckInPopup = false, change = null, intentShared = true, rideAction = false }) {
+function ScreenMatchCoord({ coordOpen = false, coordUnread = null, tall = false, initialReportOpen = false, reportStep = 'menu', reportEnded = false, matchMateTab = 'topics', dateComplete = false, initialWrapOpen = false, wrapStep = 'menu', initialCancelStep = null, checkInFlow = false, initialCheckInPopup = false, change = null, intentShared = true, rideAction = false , loadFailed = false, initialProfileOpen = false}) {
   // intentShared: only what matches is shown — different motivations → no intent row (2 Nov 2026).
   // rideAction: Order Ride waits for a ride-app API; hidden until it exists (2 Nov 2026).
   // change: { kind: 'time'|'place', value, was, status: 'pending'|'agreed', by: 'you'|'them' }
@@ -531,6 +531,25 @@ function ScreenMatchCoord({ coordOpen = false, coordUnread = null, tall = false,
   const [complete, setComplete] = useChatState(dateComplete);
   // Cancel-this-date flow: null → 'confirm' (penalty guard) → 'done' (confirmed outcome).
   const [cancelStep, setCancelStep] = useChatState(initialCancelStep);
+  // Load failed (9 Nov 2026): the first load of the date failed — message + Try again
+  // in place of the content; TabBar stays, locked. Same pattern as Search 01.
+  const [profileOpen, setProfileOpen] = useChatState(initialProfileOpen);
+  const [failed, setFailed] = useChatState(loadFailed);
+  if (profileOpen) return <ScreenSearchProfile /* search/screen-search-profile-reference.jsx */ readOnly backLabel="Your date" onBack={() => setProfileOpen(false)}/>;
+  if (failed) return (
+    <Phone time={nowTime} height={844} scroll={false}>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 32px', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 18, background: 'rgba(129,42,236,0.10)', color: 'var(--liq-primary-500)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="refresh" size={24} stroke={2.1}/>
+          </div>
+          <p style={{ margin: 0, maxWidth: 290, fontSize: 15, lineHeight: 1.45, fontWeight: 500, color: 'var(--liq-fg-muted)', textWrap: 'pretty' }}>Couldn't load your date. Check your connection and try again.</p>
+          <div style={{ marginTop: 4 }}><Button variant="primary" size="md" onClick={() => setFailed(false)}>Try again</Button></div>
+        </div>
+        <TabBar sticky={false} active={null} disabled={['search', 'likes', 'instant']} disabledHint="Available again once your date is finished."/>
+      </div>
+    </Phone>
+  );
   return (
     <Phone time={nowTime} height={tall ? 'auto' : 844} scroll={!tall}>
       <div style={{
@@ -710,12 +729,12 @@ function ScreenMatchCoord({ coordOpen = false, coordUnread = null, tall = false,
                     <span style={{ fontFamily: 'var(--liq-font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--liq-fg)' }}>Leonie, 28</span>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--liq-fg-subtle)', fontWeight: 500 }}>
-                    Product Designer · Neukölln · 1.2 km away
+                    Product Designer · Neukölln · 1 km away
                   </div>
                   <div><ShowUpCount count={4} size="xs"/></div>
                 </div>
               </div>
-              <button style={{
+              <button onClick={() => setProfileOpen(true)} style={{
                 width: '100%', padding: '12px 16px', background: 'var(--liq-bg-raised)',
                 borderTop: '1px solid var(--liq-border-soft)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,

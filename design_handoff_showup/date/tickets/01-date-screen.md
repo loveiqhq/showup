@@ -7,6 +7,8 @@
 
 > ⚠ **Reissued 5 Nov 2026 — one addition.** The locked Coordinate card (state A) now carries **Change meet time · Change location** tiles. See *Decided before build*, callout ⑥ on the re-exported sheet, *Copy*, *Behaviour*, the rewritten AC and the new tracking row. Nothing else changed. If you started from the 2 Nov version, only the locked card is affected.
 
+> ⚠ **Updated 9 Nov 2026 — answers to the build questions.** Three new strings (load failed, the profile's back pill, the iOS 16 calendar permission), one new state (load failed) and four clarifications. Marked **(9 Nov)** in *Decided before build*, *Copy*, *Behaviour* and the AC. **Tracking is unchanged.** The kit and spec sheet were updated the same day: **new frames E (load failed) and F (read-only profile)**, callouts ⑲ ⑳. Re-attach the PNG and the zip.
+
 ## Description
 
 The screen both people live on **from the moment they match until the date ends**. It is where the app opens while a date is active, and it is the host for everything else in 07a: the chat, the check-in, time and place changes, ending, reporting and cancelling all start here.
@@ -17,10 +19,12 @@ This ticket builds **the screen and its time states**. The things it hosts are b
 
 | | State | When | Reference props |
 |---|---|---|---|
-| A | Announced — Coordinate locked | more than 1 h 30 before the meet time | `coordOpen={false} checkInFlow` |
-| B | Available — Coordinate open | 1 h 30 or less before | `coordOpen={true} checkInFlow` |
+| A | Announced — Coordinate locked | more than 1 h 30 before the meet time **and nobody has checked in** | `coordOpen={false} checkInFlow` |
+| B | Available — Coordinate open | 1 h 30 or less before, **or either person's check-in is committed (16 Nov)** | `coordOpen={true} checkInFlow` |
 | C | Unread message waiting | B + a message from the match is unread | `coordOpen={true} checkInFlow coordUnread={…}` |
 | D | Full scroll | A, every section | `coordOpen={false} tall checkInFlow` |
+| E | Load failed (9 Nov) | first load of the date failed | `coordOpen={false} checkInFlow loadFailed` |
+| F | Full profile, read-only (9 Nov) | `See {name}'s full profile` tapped | `coordOpen={false} checkInFlow initialProfileOpen` |
 
 All times count from the **latest agreed meet time**. A suggestion that is still waiting does not move it.
 
@@ -39,6 +43,13 @@ All times count from the **latest agreed meet time**. A suggestion that is still
 - **Time and place can be changed from the match on, not only once the chat opens.** The locked card gains a line `Request to change the location or meet time.` and two tiles, **Change meet time · Change location**, in the quick-action tile style. **This ticket builds the tiles**; each opens the **Date 05** picker, and they ship **hidden until Date 05 ships** (epic rule 8). The card itself stays non-tappable. ⚠ *Superseded 5 Nov 2026 (decision of 3 Nov, kit Change · 12): the 2 Nov version of this ticket had no tiles on the locked card.* A change request received while the chat is locked (Change · 14–15) is the unread slot's request variant, built in **Date 05**.
 - **Match Mate is a slot here.** Its content is designed and built in **Date 10**. (2 Nov 2026)
 - **No header, no back.** While a date is active this screen *is* the app's home.
+- **(9 Nov) Load failed.** If the first load of the date fails (no connection, server error), the screen shows an error with `Try again` instead of an empty screen. Same pattern as Search 01's load-failed state.
+- **(9 Nov) No count on the disabled Likes tab.** The "2" in the kit is sample data. While a date is active the Likes tab shows no number; the count returns when the date ends.
+- **(9 Nov) Distance in whole kilometres**, from the same formatter as Search (the server sends whole km only, for privacy). The kit's `1.2 km` is sample data.
+- **(9 Nov) Icons only where the reference draws them.** No icons are added to other chips or rows.
+- **(9 Nov) Directions opens the default maps app directly** — no in-app app picker. A chooser Android shows on its own (no default set) is the OS's.
+- **(9 Nov) Calendar asks for no permission on iOS 17+.** Present the system add-event sheet without requesting calendar access. Only iOS 16 and earlier need the permission string (*Copy*). Android needs none.
+- **(9 Nov) Footer bars are not built here.** This ticket builds the sticky slot and the `checkedIn` swap only. The Check-in bar's strings are final in **Date 03**; the End Date bar's are written in **Date 06** — do not take them from the reference file.
 
 ## Layout — read this before building
 
@@ -50,7 +61,7 @@ All times count from the **latest agreed meet time**. A suggestion that is still
 
 At 390 × 844 the footer covers the lower part of the first screen, so the Coordinate CTA in B is reached by scrolling. That's accepted; don't pin anything to make it fit.
 
-📎 All specs are on the attached **date-01-date-screen-spec-sheet.png** — type, colour, sizing, spacing and layout rules, keyed ①–⑱ across four frames. Black callouts are built here; **violet callouts are slots** built in the ticket they name. The design system has colour and type tokens only, with no spacing scale, so the raw px values are intentional.
+📎 All specs are on the attached **date-01-date-screen-spec-sheet.png** — type, colour, sizing, spacing and layout rules, keyed ①–⑳ across six frames (E and F added 9 Nov). Black callouts are built here; **violet callouts are slots** built in the ticket they name. The design system has colour and type tokens only, with no spacing scale, so the raw px values are intentional.
 
 > **Reference implementation:** `design_handoff_showup/date/screen-date-reference.jsx` — the code that renders the attached spec sheet. Read values from it rather than measuring the PNG. State props are in the table above.
 > Shell components: `design_handoff_showup/components/shared.jsx` · Tokens: `design_handoff_showup/tokens/colors_and_type.css`
@@ -80,6 +91,10 @@ At 390 × 844 the footer covers the lower part of the first screen, so the Coord
 **TabBar hint:** `Available again once your date is finished.`
 **How the date works:** `Meet at {place} at {time}` / `A public place — a café, bar or restaurant.` · `Check in when you arrive` / `Tap Check-in at the spot — we let {name} know you're there.` · `30 minutes, no pressure` / `Stay if you're vibing, leave with a smile.` · `End the date in the app` / `Tap End date when you’re done — then a short review.`
 
+**Load failed (9 Nov):** `Couldn't load your date. Check your connection and try again.` · button `Try again`
+**Profile back pill (9 Nov):** `Your date`
+**iOS calendar permission, iOS 16 and earlier only (9 Nov):** `NSCalendarsUsageDescription` = `Show Up only adds your date to your calendar. It never reads your events.`
+
 **Match Mate:** no strings in this ticket — Date 10.
 
 Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Check-In**.
@@ -89,11 +104,13 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Che
 **Arriving**
 
 - The app opens on this screen **whenever the user has an active date**: from the match (Search 02 / 03 confirm), from any match or reminder notification, and on every app launch.
+- **(9 Nov) First load fails** (no connection or server error, nothing cached to show): the content column is replaced by the load-failed message and `Try again`, centred; the TabBar stays (same disabled state). `Try again` reloads the date; while it loads, the button is inert. On success the screen renders in its time state as normal.
 - The screen reads the **latest agreed** time and place on every foreground. An agreed change (Date 05) updates ③, ⑭ row 1 and the locked line in ⑥ in place.
 
 **Time states**
 
 - **A → B happens in place** at meet − 1:30 while the screen is open: same slot, no reload, no toast. A user who opens the app after that time lands on B.
+- **(16 Nov 2026) A check-in opens the chat early.** When either person's arrival check-in is committed (Date 03), A → B happens at once for **both** people, the same way. It never goes back to A for that date.
 - **B → C** when a message from the match arrives unread. The card moves above ③. **C → B** once the thread has been opened.
 
 **What each element does**
@@ -102,11 +119,11 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Che
 - **Open chat / Read & reply:** opens the Coordinate chat (Date 02), with the tutorial first if not seen.
 - **Change meet time / Change location (locked card, A):** open the Date 05 time / place picker — the same pickers as the chat chips. Nothing else on the locked card is tappable. Hidden until Date 05 ships. In B and C the tiles are not shown: the chat's chips do the same job.
 - **Report a problem:** opens the Report sheet (Date 06). Always present while the date is active.
-- **Directions:** opens the platform maps app with the agreed place as destination.
+- **Directions:** opens the platform's **default** maps app straight away with the agreed place as destination. No app picker of ours. (9 Nov)
 - **Order Ride:** hidden. It returns as a fourth tile when a ride-app API exists (own ticket).
 - **Share Date:** opens the OS share sheet with `I'm meeting {name} {day} at {time} at {place}, {address}.` (for telling a friend where you are).
-- **Calendar:** opens the OS add-to-calendar sheet: title `Date with {name}`, start = meet time, 1 h, location = place + address.
-- **See {name}'s full profile:** opens Search 01's profile screen **read-only** (no action bar), with a back pill to this screen.
+- **Calendar:** opens the OS add-to-calendar sheet: title `Date with {name}`, start = meet time, 1 h, location = place + address. **iOS 17+: no access request** — the system sheet needs none. iOS 16 and earlier: request access once, with the permission string under *Copy*. Android: no permission. (9 Nov)
+- **See {name}'s full profile:** opens Search 01's profile screen **read-only** (no action bar), with the back pill `Your date` (9 Nov) returning to this screen.
 - **Match Mate:** the slot is always visible on this screen; its content is Date 10.
 - **Cancel this date:** opens the penalty-guard sheet (Date 07).
 - **Disabled tab (Search, Likes, Instant):** shows the hint above the bar for 3200 ms; a second tap restarts it. Nothing navigates. **Settings opens as normal.**
@@ -130,6 +147,7 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Che
 - [ ] Copy writes `{place}, {address}` to the clipboard and shows `Copied` for 1600 ms
 - [ ] **A** shows the locked Coordinate card with `Messaging available from {meet − 1:30}`, the line `Request to change the location or meet time.` and the two tiles `Change meet time` · `Change location` (2 columns, gap 8, tile padding 14 / 8, radius 16). **The card is not tappable; only the tiles are**, each opening the Date 05 picker. Until Date 05 ships, the line and tiles are not rendered. *(Rewritten 5 Nov 2026 — was: "the locked Coordinate card, not tappable", with no tiles.)*
 - [ ] **A → B unlocks in place** at meet − 1:30 with the screen open — no reload, no toast
+- [ ] **(16 Nov)** A → B also happens, on both phones, as soon as either person's check-in is committed — whatever the time
 - [ ] **C** moves the same Coordinate card above the time + place card, in the message's tone, preview clamped to 2 lines; it returns to its slot after the thread is opened
 - [ ] `Report a problem` is present in every state while the date is active
 - [ ] **No percentage anywhere on the screen.** ⑩ and ⑫ use `ShowUpCount`
@@ -144,8 +162,13 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Match Mate · Che
 - [ ] The footer is **one sticky container**: Check-in bar (with its `End date` link) before check-in, End Date bar after, TabBar below — the swap happens on `checkedIn` without a layout jump
 - [ ] TabBar: no tab active; **Search, Likes and Instant disabled, Settings open**; a disabled tap shows `Available again once your date is finished.` for 3200 ms
 - [ ] Only the content column scrolls; no absolute Y positioning anywhere
+- [ ] **(9 Nov)** A failed first load shows `Couldn't load your date. Check your connection and try again.` with `Try again` in place of the content, TabBar still shown; `Try again` reloads and, on success, shows the correct time state
+- [ ] **(9 Nov)** The read-only profile's back pill reads `Your date` and returns to this screen
+- [ ] **(9 Nov)** iOS 17+: tapping Calendar shows the system add-event sheet with **no** permission popup; iOS 16: the popup shows the string under *Copy*
+- [ ] **(9 Nov)** The disabled Likes tab shows no count; the distance in About uses Search's formatter (whole km)
+- [ ] **(9 Nov)** The footer slot renders nothing of its own: the Check-in bar appears with Date 03, the End Date bar with Date 06
 - [ ] Copy matches the strings above exactly
-- [ ] **Evidence of done:** screenshots of **A, B, C and D** at **375 × 667, 390 × 844 and 430 × 932** (D as a full-page capture) — twelve images. Plus one screen recording of the A → B unlock with the screen open.
+- [ ] **Evidence of done:** screenshots of **A, B, C and D** at **375 × 667, 390 × 844 and 430 × 932** (D as a full-page capture) — twelve images. Plus one screen recording of the A → B unlock with the screen open. **(9 Nov)** Plus E (load failed) and F (read-only profile) at 390 × 844, and one iOS 17+ recording of Calendar opening with no permission popup.
 
 ## Tracking
 
@@ -155,7 +178,7 @@ Event names come from `design_handoff_showup/tracking/events.json` (family **K �
 |---|---|---|
 | Screenview | `screen_viewed` | `screen_id: "date_screen"`, `screen_name: "Date - Date screen"`, `referrer_screen_id` — §11, **NEW row** |
 | Date screen state | `date_screen_viewed` | `date_id`, `state` (`locked` / `available`), **`has_unread`**, **`checked_in`** — **NEW properties**, `minutes_before_start` — from the latest agreed meet time |
-| Coordinate unlocks | `coordinate_unlocked` | server, at meet − 1:30 · `minutes_before_start` |
+| Coordinate unlocks | `coordinate_unlocked` | server, once per date, at meet − 1:30 **or the first committed check-in**, whichever is first · `minutes_before_start`, **`cause`** (`time` / `arrival_check_in`) **NEW 16 Nov** |
 | **Quick action or Copy** | `date_quick_action_tapped` | **NEW event** · `date_id`, `action` (§38 — **NEW**; `ride` is reserved until Order Ride ships), `minutes_before_start` |
 | **Change tile (locked card)** | `action_chip_used` | `date_id`, `reason` (`change_time` / `change_place`, §40), **`surface: "coordinate_card"`** — **added 5 Nov 2026**, taxonomy 1.4.26. Same event as the chat chips, so "change requested" is one funnel whatever the surface |
 | Full profile | `screen_viewed` | `screen_id: "search_profile"`, `referrer_screen_id: "date_screen"` — no new event |
@@ -163,6 +186,7 @@ Event names come from `design_handoff_showup/tracking/events.json` (family **K �
 **Rules for this screen**
 
 - `date_screen_viewed` fires **once per visit**, alongside `screen_viewed` — **not** on the in-place A → B unlock (`coordinate_unlocked` records that).
+- **(9 Nov) A failed load fires nothing.** `screen_viewed` and `date_screen_viewed` fire once the date has loaded (after `Try again` if needed), never for the error state.
 - `date_quick_action_tapped` fires **on the tap**, before the hand-off. Whether the user completes the OS sheet is not ours and is not measured.
 - **A tap on a disabled tab fires nothing.** No `tab_switched`.
 - **Must NOT fire from this ticket:** `match_mate_*` (Date 10), `coordinate_viewed` (**retired** 5 Nov 2026 by Date 02 — do not emit), `arrival_*` (Date 03), `date_status_*` (**retired** by Date 02), `date_cancelled` (Date 07), any Date 05 suggestion event (the picker fires those). Their entry points are on this screen; their events belong to their tickets.

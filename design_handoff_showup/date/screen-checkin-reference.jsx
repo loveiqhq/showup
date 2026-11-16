@@ -8,6 +8,7 @@
 //   A CheckInBar                       — footer slot until checked in (End date link → Date 06, hidden until it ships)
 //   B CheckInConfirmSheet              — "Have you arrived…?" · Not yet / Yes, I've arrived
 //   C CheckInConfirmSheet locError     — no location fix: nothing stored, Yes → Try again
+//   C2 CheckInConfirmSheet locError="save" — location read, not stored (no connection): own message, Try again
 //   D CheckInDoneSheet                 — "You are amazing for showing up!" · Close · Undo check-in
 //   E footer swap on checkedIn         — content is DateStatusBar (Date 06)
 //   F useArrivedGate                   — the one gate: Date screen · chat chip · Report (06)
@@ -15,7 +16,7 @@
 //                                        this ticket; the rest of CoordinateModule is Date 01 / 05.
 //
 // Kit frame props: A ScreenMatchCoord coordOpen checkInFlow · B … initialCheckInPopup="confirm"
-//   C … ="locerror" · D … ="done" · E ScreenMatchCoord coordOpen · F ScreenChatEntry initialCheckInPopup="confirm"
+//   C … ="locerror" · C2 … ="saveerror" · D … ="done" · E ScreenMatchCoord coordOpen · F ScreenChatEntry initialCheckInPopup="confirm"
 //   G ScreenProfileLocation context="date" state="denied" · H ScreenMatchCoord coordOpen checkInFlow coordUnread={{ arrival: true, time }}
 //
 // Consumed, not built here:
@@ -76,6 +77,8 @@ function CheckInBar({ name = 'Leonie', onCheckIn, onEnd }) {
 // mis-tap or a curious tap never records an arrival. Not yet = nothing stored.
 // locError (6 Nov 2026): Yes was tapped but the phone returned no location —
 // nothing is stored; the same sheet stays up and Yes becomes Try again.
+// locError="save" (16 Nov 2026): the location was read but the server could not
+// store it (no connection) — same box, own message, same Try again.
 function CheckInConfirmSheet({ name = 'Leonie', onYes, onNotYet, note = null, locError = false }) {
   return (
     <ModalShell onCancel={onNotYet}>
@@ -95,7 +98,7 @@ function CheckInConfirmSheet({ name = 'Leonie', onYes, onNotYet, note = null, lo
         {locError && (
           <div role="alert" style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'flex-start', gap: 9, margin: '-8px 0 16px', padding: '11px 13px', borderRadius: 14, background: 'rgba(251,50,59,0.08)', border: '1px solid rgba(251,50,59,0.20)', textAlign: 'left' }}>
             <Icon name="alert-circle" size={17} stroke={2.2} style={{ color: 'var(--liq-danger-fg)', flex: 'none', marginTop: 1 }}/>
-            <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--liq-fg)', textWrap: 'pretty' }}>We couldn't find your location. Check your signal, then try again.</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--liq-fg)', textWrap: 'pretty' }}>{locError === 'save' ? "Couldn't check you in. Check your connection and try again." : "We couldn't find your location. Check your signal, then try again."}</span>
           </div>
         )}
         <button onClick={onNotYet} style={{

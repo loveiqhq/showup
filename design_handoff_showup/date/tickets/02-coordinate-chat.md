@@ -5,13 +5,15 @@
 **Blocks:** Date 03 Arrival check-in (the "I arrived at the spot" chip) · Date 05 Change meet time and place (the two change chips) · Date 07 Cancel this date (extends `ScreenPartnerCancelled`)
 **Blocked by:** Date 01 Date screen (`CoordinateModule`, the entry points)
 
+> ⚠ **Updated 9 Nov 2026 — answers to the build questions.** Three error states (frames **I, J, K**), dock chips **38 high with a 44 tap area** (was 36), and three clarifications (larger text, header cap, change chips hidden). Marked **(9 Nov)** throughout. Kit and spec sheet re-exported. **Tracking is unchanged.**
+
 ## Description
 
-The limited chat both people use to coordinate the last stretch before they meet. It opens at **meet − 1:30** from the Coordinate card on the Date screen (Date 01). Every message starts from an **action chip** — a structured reason we can log — with an editable draft. What people type is private; which reason they picked, and whether a message was sent and answered, is evidence for the Show-up Rate decision in flow 10.
+The limited chat both people use to coordinate the last stretch before they meet. It opens at **meet − 1:30**, or earlier as soon as either person has checked in (Date 03, 16 Nov 2026), from the Coordinate card on the Date screen (Date 01). Every message starts from an **action chip** — a structured reason we can log — with an editable draft. What people type is private; which reason they picked, and whether a message was sent and answered, is evidence for the Show-up Rate decision in flow 10.
 
 This ticket also builds the **only** way to end a date from the chat: after one person has sent an **"I can't make it today"** message, either of them can end the date. No review follows and both can search again.
 
-**Eight frames, one ticket:**
+**Eleven frames, one ticket:**
 
 | | Frame | When | Reference |
 |---|---|---|---|
@@ -23,11 +25,14 @@ This ticket also builds the **only** way to end a date from the chat: after one 
 | F | End the date sheet | End the date tapped on E | `… initialEndSheet` |
 | G | You ended the date | after F, the person who ended it | `ScreenPartnerCancelled viaChat endedByYou` |
 | H | What the match sees | after F, the other person | `ScreenPartnerCancelled viaChat` |
+| I | Chat couldn't load (9 Nov) | the chat's first load failed | `ScreenChatOpen initialKey={null} loadFailed` |
+| J | Message didn't send (9 Nov) | a send failed | `ScreenChatOpen initialKey={null} seed={[{ …, failed: true }]}` |
+| K | End date didn't go through (9 Nov) | End date on F failed | `… initialEndSheet initialEndError` |
 
 ## Decided before build
 
 - **The tutorial is always shown before the first open**, per date and per user. It has **two steps**. Step 3 ("It's how we keep it fair") was **removed** on 5 Nov 2026. The intro paragraph sits in a violet box. (5 Nov 2026)
-- **Chips are always a 2-column grid of every chip, never a horizontal rail.** B uses large tiles; the dock in C uses compact chips (min-h 36). Labels are the **full** text and are never shortened. The "Tap a chip to let us know…" heading above the dock chips is **removed**. ⚠ *The kit's change-flow chat artboards (Change 1–4, 9) still show the old one-row scrolling rail. That is a leftover, not a variant — Date 05 moves them to this dock.* (5 Nov 2026)
+- **Chips are always a 2-column grid of every chip, never a horizontal rail.** B uses large tiles; the dock in C uses compact chips (**min-h 38, tap area 44** — 9 Nov; was 36). Labels are the **full** text and are never shortened. The "Tap a chip to let us know…" heading above the dock chips is **removed**. ⚠ *The kit's change-flow chat artboards (Change 1–4, 9) still show the old one-row scrolling rail. That is a leftover, not a variant — Date 05 moves them to this dock.* (5 Nov 2026)
 - **"I can't make it today" has no prefill.** Picking it shows the cancel guide in the thread; the field and send stay **locked until Got it**; then the user writes the message themselves. (5 Nov 2026)
 - **No move to another day in the app (MVP).** The time can only move later the same day (Date 05). If both want another day, they agree on it in the chat and one of them ends the date. The guide says so. (5 Nov 2026)
 - **End the date in the chat exists ONLY after an "I can't make it today" message has been sent.** From either person. No other chip, message or state shows it. (5 Nov 2026)
@@ -35,7 +40,11 @@ This ticket also builds the **only** way to end a date from the chat: after one 
 - **Ending in the chat costs nobody Show-up Rate** — not the person who ends it, not the match. Both outcome screens say so. (5 Nov 2026)
 - **The End date card stays available until the date has ended** — no cut-off at the meet time. (5 Nov 2026)
 - **Ending in the chat → no review.** The date did not happen, so flow 10 is **not** entered. Both people can search again immediately. The ender sees G, the match sees H. (5 Nov 2026)
-- **The chips that open something else** — Change meet time, Change location (Date 05) and I arrived at the spot before check-in (Date 03) — are routed from here and built there. Until that ticket ships, its chips are **hidden** (epic rule 8).
+- **(9 Nov) Dock chips: 38 high, 44 tap area, on iOS and Android.** Each compact chip is 38 visible with a 3 px hit slop on every side, into the 6 px gap — 38 + 6 = 44, so neighbouring slops meet and never overlap. Not 48 on Android: four rows would cost 32 px more with the keyboard up. B's tiles (68) are unchanged.
+- **(9 Nov) Three error states** — chat load (I), send (J), End date (K). Copy under *Copy*, rules under *Behaviour*.
+- **(9 Nov) Larger text sizes.** The 375 × 667 AC for the cancel guide applies at **default** text size. At larger sizes the thread scrolls to the guide's **top** (title visible) and the user scrolls a little to reach `Got it`. Accepted: the field stays locked until Got it.
+- **(9 Nov) The chat header stops growing at 165 %** text size, iOS and Android alike, so there is room to type with the keyboard up at the largest sizes.
+- **The chips that open something else** — Change meet time, Change location (Date 05) and I arrived at the spot before check-in (Date 03) — are routed from here and built there. Until that ticket ships, its chips are **hidden** (epic rule 8). **(9 Nov) Confirmed:** `Change meet time` and `Change location` stay hidden until Date 05 ships — here and on Date 01's locked card.
 
 ## Layout — read this before building
 
@@ -45,7 +54,7 @@ This ticket also builds the **only** way to end a date from the chat: after one 
 
 ⚠ **No absolute Y positioning.** The dock sits under the thread in the column. The keyboard is the OS's; the thread absorbs whatever height it takes.
 
-📎 All specs are on the attached **date-02-coordinate-chat-spec-sheet.png** — type, colour, sizing, spacing and layout rules, keyed ①–⑯ across eight frames. Black callouts are built here; **violet callouts open another ticket's UI or are not ours**. The design system has colour and type tokens only, with no spacing scale, so the raw px values are intentional.
+📎 All specs are on the attached **date-02-coordinate-chat-spec-sheet.png** — type, colour, sizing, spacing and layout rules, keyed ①–⑲ across eleven frames (I, J, K added 9 Nov). Black callouts are built here; **violet callouts open another ticket's UI or are not ours**. The design system has colour and type tokens only, with no spacing scale, so the raw px values are intentional.
 
 > **Reference implementation:** `design_handoff_showup/date/screen-chat-reference.jsx` — the code that renders the attached spec sheet. Read values from it rather than measuring the PNG. Frame props are in the table above.
 > Shell components: `design_handoff_showup/components/shared.jsx` · Tokens: `design_handoff_showup/tokens/colors_and_type.css`
@@ -103,6 +112,11 @@ This ticket also builds the **only** way to end a date from the chat: after one 
 
 **H · The match:** `{name} had to cancel the date` (`cancel` italic) · `We hope you two found another day to meet. Search is open again — go and find your next date.` · row `Your Show-up Rate stays untouched. There's no review, as the date didn't happen.` · CTA `Find your next date`
 
+**Errors (9 Nov)**
+- **I · Chat couldn't load:** `Couldn't load your chat. Check your connection and try again.` · button `Try again`
+- **J · Message didn't send:** `Couldn't send. Check your connection and try again.` (the line is the resend button)
+- **K · End date didn't go through:** `Couldn't end the date. Check your connection and try again.`
+
 Product terms capitalise exactly: **Show Up · Show-up Rate · Check-In**.
 
 ## Behaviour
@@ -110,7 +124,7 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Check-In**.
 **Opening**
 
 - Entry points: `Open chat` on the Coordinate card (Date 01 state B), `Read & reply` on the hoisted unread card (state C), a message notification. All land on the tutorial if this user has not seen it for this date, otherwise on B (no message yet) or C (thread).
-- The chat opens at **meet − 1:30** of the latest agreed time. Before that the Coordinate card is locked (Date 01) and nothing here is reachable.
+- The chat opens at **meet − 1:30** of the latest agreed time, **or as soon as either person's check-in is committed** (Date 03), whichever comes first — for both people. Before that the Coordinate card is locked (Date 01) and nothing here is reachable. *(16 Nov 2026)*
 - **Tutorial:** shown once per date and per user. `Open the chat` is the only way forward; back returns to the Date screen and the tutorial shows again next time until `Open the chat` has been tapped once.
 
 **Chips and sending**
@@ -136,6 +150,12 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Check-In**.
 - `End date` on the sheet ends the date for both: the date state becomes ended-in-chat, the Coordinate chat closes, **flow 10 is not entered**, and **Search, Likes and Instant open again** for both.
 - The person who ended it lands on **G**. The other person lands on **H** the next time they open the app, or immediately if it is open. `Find your next date` opens Search on both.
 
+**When something fails (9 Nov)**
+
+- **Load (I):** the chat's first load fails → the thread is replaced by the message and `Try again`; the header stays; **no dock** until the chat has loaded. `Try again` reloads.
+- **Send (J):** the message **stays in the thread**, dimmed (opacity .6), with no Delivered / Read line, and the error line under it. **Tapping the line resends** it with the same reason. It is never sent twice, and nothing reaches the match until it sends. The field is free for the next message.
+- **End date (K):** the error appears **inside the sheet**, above the buttons. The sheet stays open; the buttons keep their order, size and place; `End date` tries again; `Keep the date` and the scrim close it as usual. **The date has not ended until the server confirms** — no G, no H, no unblock before that.
+
 **Leaving**
 
 - Back returns to the Date screen. The thread, a typed draft and a selected chip survive leaving and returning within the same app session.
@@ -150,12 +170,13 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Check-In**.
 
 - [ ] The tutorial shows before the first open of each date's chat, once per user; it has **two steps** and no third
 - [ ] B shows all eight chips in a **2-column grid**, full labels, nothing scrolls horizontally
-- [ ] The dock in C shows all eight chips in a 2-column grid, chips **36 high**, **no heading line** above them, full labels
+- [ ] The dock in C shows all eight chips in a 2-column grid, chips **38 high with a 44 tap area** (9 Nov), **no heading line** above them, full labels; neighbouring tap areas do not overlap
 - [ ] A chip tap puts its draft in the field, editable; send sends it with that chip's reason; the selection then clears
 - [ ] `Change meet time` and `Change location` send nothing and open the Date 05 picker (hidden until Date 05 ships)
 - [ ] `I can't make it today`: the field is **empty and disabled**, send is disabled, the guide shows in the thread with `Got it`
 - [ ] `Got it` collapses the guide to one line, enables and focuses the field; the user's own text is what gets sent
-- [ ] The guide's title and `Got it` are fully visible when it appears at 375 × 667 — the thread scrolls to it
+- [ ] At **default text size**, the guide's title and `Got it` are fully visible when it appears at 375 × 667 — the thread scrolls to it. At larger sizes, the guide's title is visible and `Got it` is reachable by scrolling (9 Nov)
+- [ ] **(9 Nov)** The chat header stops growing at 165 % text size on both platforms
 - [ ] **The End the date card appears only after a `cancel`-reason message is in the thread**, for both people — never after any other message, and never before one is sent
 - [ ] The card and sheet buttons read `End date`; the sheet shows `Keep the date` first and `End date` second; Keep and the scrim change nothing
 - [ ] The card stays available until the date has ended — no cut-off at the meet time
@@ -163,8 +184,11 @@ Product terms capitalise exactly: **Show Up · Show-up Rate · Check-In**.
 - [ ] The chat header always shows the latest **agreed** time and place
 - [ ] The thread is the only scroll in C–E; no absolute Y positioning; the keyboard is the OS's
 - [ ] No message text, draft or guide text appears in any tracking payload
+- [ ] **(9 Nov) I:** a failed first load shows the message and `Try again` in place of the thread, header kept, no dock; `Try again` reloads
+- [ ] **(9 Nov) J:** a failed send keeps the message in the thread, dimmed, with the error line; tapping the line resends it once with the same reason; the match receives it exactly once
+- [ ] **(9 Nov) K:** a failed End date shows the error inside the sheet, which stays open with its buttons unmoved; `End date` retries; the date is not ended (no G, no H, no unblock) until the server confirms
 - [ ] Copy matches the strings above exactly
-- [ ] **Evidence of done:** screenshots of **A–H** at **375 × 667, 390 × 844 and 430 × 932** — 24 images. On 375 × 667, state how D fits (guide title and Got it visible). Plus one recording: pick `I can't make it today` → Got it → type → send → End date → G, and the match's phone landing on H.
+- [ ] **Evidence of done:** screenshots of **A–H** at **375 × 667, 390 × 844 and 430 × 932** — 24 images. **(9 Nov)** Plus I, J and K at 390 × 844, and D at 375 × 667 at the largest text size. On 375 × 667, state how D fits (guide title and Got it visible). Plus one recording: pick `I can't make it today` → Got it → type → send → End date → G, and the match's phone landing on H.
 
 ## Tracking
 
@@ -192,6 +216,7 @@ Event names come from `design_handoff_showup/tracking/events.json` (family **L �
 - **Retired with this ticket, do not emit or reuse:** `coordinate_viewed`, `date_status_sent`, `date_status_undone`. A chip message is `message_sent` with a `reason`.
 - `action_chip_used` fires **on every chip tap**, including the ones that open a picker or the check-in gate. Whatever they open fires its own ticket's events.
 - `prefill_edited` is **null** for `cant_make_it` (no draft) and for a message sent with no chip.
+- **(9 Nov) Failures fire nothing new.** `message_sent` fires **once, when the message is actually sent** (after a successful resend), never for the failed attempt. `date_ended_in_chat` fires only when the server has ended the date. `chat_opened` fires once the chat has loaded, not for I.
 - **Keeping the date** is `end_date_sheet_opened` with no `date_ended_in_chat` after it. No event for Keep.
 - `date_ended_in_chat` is **not** `date_cancelled` (Date 07). Never fire both for one ending.
 - **Never in a payload:** message text, the draft, the guide text, the place.

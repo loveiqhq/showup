@@ -81,6 +81,9 @@ quoted = re.findall(r"`([^`]+)`", section)
 # Not copy: the component the intent card names, and the hidden action (checked absent below). The locked
 # card's change line is copy like the rest: built on both apps (5 Nov 2026), shown once Date 05 ships.
 NOT_COPY = {"ShowUpCount", "Order Ride"}
+# iOS 16 and earlier only (9 Nov answer 7): the app's deployment target is iOS 17.0, where the system
+# add-event sheet asks for nothing, so neither app ever shows the permission string.
+NOT_COPY |= {"NSCalendarsUsageDescription", "Show Up only adds your date to your calendar. It never reads your events."}
 
 
 def runs(s):

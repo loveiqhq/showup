@@ -452,7 +452,7 @@ function TabBar({ active = 'search', onTab, disabled = [], disabledHint = '', st
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <Icon name={t.icon} size={24} stroke={sel ? 2.2 : 1.7}/>
-                {t.id === 'likes' && likes > 0 && (
+                {t.id === 'likes' && likes > 0 && !dis && (
                   <span aria-label={likes === 1 ? '1 open like' : `${likes} open likes`} style={{
                     position: 'absolute', top: -4, left: 15, minWidth: 18, height: 18, padding: '0 5px',
                     borderRadius: 9999, background: 'var(--su-grad-sunset)', color: '#fff',
