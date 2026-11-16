@@ -43,7 +43,8 @@ struct ArrivalSheetHost: View {
     var body: some View {
         if ui.phase != .idle {
             let kind: SheetKind = { if case .done = ui.phase { return .done } else { return .confirm } }()
-            let erring: Bool = { if case .confirm(_, true, _, _) = ui.phase { return true } else { return false } }()
+            // C and C2 alike: either error kind grows the same box (16 Nov).
+            let erring: Bool = { if case .confirm(_, .some(_), _, _) = ui.phase { return true } else { return false } }()
             ModalShell(
                 label: kind == .done ? ArrivalCopy.doneTitle : ArrivalCopy.confirmTitle(name),
                 onDismiss: { _ in
