@@ -383,6 +383,8 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.38 (16 November 2026): §11 `date_location_gate` (Date 03); 1.4.35–1.4.37 add Date 05 / 06 / 07 value sets.
+     *
      * 1.4.34 (10 November 2026): §41 `arrival_entry` (Date 03).
      *
      * 1.4.33 (7 November 2026): §11 `date_chat_tutorial` / `date_chat` / `date_ended_in_chat`, §39
@@ -421,7 +423,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.34"
+    const val FIELD_REGISTRY_VERSION = "1.4.38"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
