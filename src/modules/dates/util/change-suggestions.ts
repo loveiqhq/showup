@@ -48,13 +48,22 @@ export function suggestRefusal(input: {
   return null;
 }
 
-/** Why `I agree` is refused with 409; null when the viewer may agree (R15, R22). */
-export type AgreeRefusal = 'sender' | 'not_pending' | 'expired' | 'checked_in';
+/**
+ * Why `I agree` is refused with 409; null when the viewer may agree (R15, R22). `already_agreed` is
+ * not a refusal: the receiver's own earlier agree whose answer was lost, answered with the stored
+ * state and nothing fired again.
+ */
+export type AgreeRefusal =
+  | 'sender'
+  | 'not_pending'
+  | 'expired'
+  | 'already_agreed';
 
 /**
  * Only the receiver of a PENDING suggestion agrees. A suggestion still pending past its deadline
  * (the expiry job runs once a minute) is already expired in effect, so it is refused rather than
- * agreed on a race; a committed check-in freezes the binding values as it freezes suggesting.
+ * agreed on a race. A committed check-in does NOT refuse: an open suggestion stays answerable until
+ * its own deadline in every case (the ticket), it only stops NEW suggestions.
  */
 export function agreeRefusal(input: {
   status: ChangeStatus;
@@ -62,12 +71,11 @@ export function agreeRefusal(input: {
   viewerId: string;
   deadline: Date;
   now: Date;
-  anyCommittedCheckIn: boolean;
 }): AgreeRefusal | null {
-  if (input.status !== ChangeStatus.Pending) return 'not_pending';
   if (input.senderId === input.viewerId) return 'sender';
+  if (input.status === ChangeStatus.Agreed) return 'already_agreed';
+  if (input.status !== ChangeStatus.Pending) return 'not_pending';
   if (input.now.getTime() >= input.deadline.getTime()) return 'expired';
-  if (input.anyCommittedCheckIn) return 'checked_in';
   return null;
 }
 

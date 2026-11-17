@@ -59,7 +59,7 @@ import {
 } from './util/change-suggestions';
 import { minutesBeforeStart } from './util/coordinate-unlock';
 import { DateStatus } from './util/date-lifecycle';
-import { chatOpensAt } from './util/pre-date-chat';
+import { chatOpensAt, isUniqueViolation } from './util/pre-date-chat';
 
 /**
  * The zone a push's `{deadline}` is written in. The server holds no zone for a person (the Date
@@ -75,6 +75,13 @@ function rowsOf<T>(result: unknown): T[] {
     return result[0] as T[];
   }
   return result as T[];
+}
+
+/** Thrown inside `agree`'s transaction (nothing written yet) to answer a repeat with the stored row. */
+class AlreadyAgreed extends Error {
+  constructor(readonly row: DateChangeSuggestion) {
+    super('Already agreed');
+  }
 }
 
 interface BindingVenue extends VenueIdentity {
@@ -131,9 +138,7 @@ export class ChangeSuggestionsService {
     const date = await this.participantDate(dateId, userId);
 
     // Before any check: a resend of a Suggest that landed was made, even if the date has moved on.
-    const sent = await this.rows.findOne({
-      where: { senderId: userId, clientId: dto.clientId },
-    });
+    const sent = await this.sentBy(userId, dto.clientId);
     if (sent) {
       if (sent.dateId !== date.id) {
         throw new ConflictException('This suggestion id is already used');
@@ -153,60 +158,61 @@ export class ChangeSuggestionsService {
         ? await this.publicPlace(dto.placeId)
         : null;
 
-    const created = await this.db.transaction(async (em) => {
-      const locked = await em.findOne(DateEntity, {
-        where: { id: date.id },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!locked) throw new NotFoundException('Date not found');
-      const refusal = suggestRefusal({
-        status: locked.status,
-        bindingAt: locked.scheduledAt,
-        now,
-        anyCommittedCheckIn: await this.anyCommittedCheckIn(em, locked.id),
-      });
-      if (refusal === 'ended') {
-        throw new ConflictException('This date is over');
-      }
-      if (refusal === 'cutoff') {
-        throw new ConflictException(
-          'Changes close 30 minutes before the meet time',
-        );
-      }
-      if (refusal === 'checked_in') {
-        throw new ConflictException('Someone has already arrived');
-      }
-
-      const venue = await this.bindingVenue(em, locked.venueId);
-      if (time && !opts.skipSlotCheck) {
-        const slots = await this.changes.matchSlots(locked, userId, tz);
-        if (!slots.some((s) => s.getTime() === time.getTime())) {
-          throw new ConflictException('That time is not one of the slots');
+    const created = await this.db
+      .transaction(async (em) => {
+        const locked = await em.findOne(DateEntity, {
+          where: { id: date.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!locked) throw new NotFoundException('Date not found');
+        const refusal = suggestRefusal({
+          status: locked.status,
+          bindingAt: locked.scheduledAt,
+          now,
+          anyCommittedCheckIn: await this.anyCommittedCheckIn(em, locked.id),
+        });
+        if (refusal === 'ended') {
+          throw new ConflictException('This date is over');
         }
-      }
-      if (place && venue) {
-        const candidate = {
-          placeId: place.placeId,
-          name: place.name,
-          location: place.location,
-        };
-        if (isBindingVenue(venue, candidate)) {
-          throw new ConflictException('That is already the meeting place');
+        if (refusal === 'cutoff') {
+          throw new ConflictException(
+            'Changes close 30 minutes before the meet time',
+          );
         }
-      }
+        if (refusal === 'checked_in') {
+          throw new ConflictException('Someone has already arrived');
+        }
 
-      const replaced = rowsOf<{ sender_id: string }>(
-        await em.query(
-          `UPDATE "date_change_suggestions"
+        const venue = await this.bindingVenue(em, locked.venueId);
+        if (time && !opts.skipSlotCheck) {
+          const slots = await this.changes.matchSlots(locked, userId, tz);
+          if (!slots.some((s) => s.getTime() === time.getTime())) {
+            throw new ConflictException('That time is not one of the slots');
+          }
+        }
+        if (place && venue) {
+          const candidate = {
+            placeId: place.placeId,
+            name: place.name,
+            location: place.location,
+          };
+          if (isBindingVenue(venue, candidate)) {
+            throw new ConflictException('That is already the meeting place');
+          }
+        }
+
+        const replaced = rowsOf<{ sender_id: string }>(
+          await em.query(
+            `UPDATE "date_change_suggestions"
               SET "status" = 'replaced', "replaced_at" = $3
             WHERE "date_id" = $1 AND "kind" = $2::change_kind AND "status" = 'pending'
         RETURNING "sender_id"`,
-          [locked.id, dto.kind, now],
-        ),
-      );
-      const deadline = changeDeadline(locked.scheduledAt);
-      const [{ id }] = await em.query<Array<{ id: string }>>(
-        `INSERT INTO "date_change_suggestions"
+            [locked.id, dto.kind, now],
+          ),
+        );
+        const deadline = changeDeadline(locked.scheduledAt);
+        const [{ id }] = await em.query<Array<{ id: string }>>(
+          `INSERT INTO "date_change_suggestions"
            ("date_id", "sender_id", "kind", "value_time", "place_id", "place_name", "place_type",
             "place_address", "place_location", "was_time", "was_venue_id", "was_place_name",
             "deadline", "entry", "from_search", "client_id", "created_at")
@@ -214,37 +220,49 @@ export class ChangeSuggestionsService {
                  ST_SetSRID(ST_MakePoint($9::float8, $10::float8), 4326)::geography,
                  $11, $12, $13, $14, $15::change_entry, $16, $17, $18)
          RETURNING "id"`,
-        [
-          locked.id,
-          userId,
-          dto.kind,
-          time,
-          place?.placeId ?? null,
-          place?.name ?? null,
-          place?.type ?? null,
-          place?.address ?? null,
-          place?.location.lng ?? null,
-          place?.location.lat ?? null,
-          locked.scheduledAt,
-          locked.venueId,
-          venue?.name ?? null,
-          deadline,
-          dto.entry,
-          dto.kind === ChangeKind.Place ? (dto.fromSearch ?? false) : null,
-          dto.clientId,
-          now,
-        ],
-      );
-      const row = await em.findOneOrFail(DateChangeSuggestion, {
-        where: { id },
+          [
+            locked.id,
+            userId,
+            dto.kind,
+            time,
+            place?.placeId ?? null,
+            place?.name ?? null,
+            place?.type ?? null,
+            place?.address ?? null,
+            place?.location.lng ?? null,
+            place?.location.lat ?? null,
+            locked.scheduledAt,
+            locked.venueId,
+            venue?.name ?? null,
+            deadline,
+            dto.entry,
+            dto.kind === ChangeKind.Place ? (dto.fromSearch ?? false) : null,
+            dto.clientId,
+            now,
+          ],
+        );
+        const row = await em.findOneOrFail(DateChangeSuggestion, {
+          where: { id },
+        });
+        return {
+          row,
+          replaces: replacesOf(replaced[0]?.sender_id ?? null, userId),
+          bindingAt: locked.scheduledAt,
+          receiverId:
+            locked.userAId === userId ? locked.userBId : locked.userAId,
+        };
+      })
+      .catch(async (error: unknown) => {
+        // Two sends of one Suggest tap at once: the pre-check ran outside the lock, so the loser
+        // reaches the (sender, client_id) index. Answer with the winner's row, like the chat does.
+        const winner = isUniqueViolation(error)
+          ? await this.sentBy(userId, dto.clientId)
+          : null;
+        if (winner) return { stored: winner };
+        throw error;
       });
-      return {
-        row,
-        replaces: replacesOf(replaced[0]?.sender_id ?? null, userId),
-        bindingAt: locked.scheduledAt,
-        receiverId: locked.userAId === userId ? locked.userBId : locked.userAId,
-      };
-    });
+
+    if ('stored' in created) return toSuggestionDto(created.stored, userId);
 
     const { row, bindingAt } = created;
     void this.analytics.trackServerEvent({
@@ -274,7 +292,9 @@ export class ChangeSuggestionsService {
    * `I agree` (R11, R12, R22): only the receiver of a pending suggestion. A time moves
    * `dates.scheduled_at`, a place upserts the venue by its place id and moves `dates.venue_id`.
    * 404 unknown, 403 not a participant, 409 when it is not pending any more (replaced, expired,
-   * already agreed), is the caller's own, is past its deadline, or someone has arrived.
+   * replaced, expired), is the caller's own or is past its deadline. Someone having arrived does
+   * not refuse it: an open suggestion stays answerable until its deadline. The receiver agreeing
+   * again to one they already agreed answers 200 with it (a lost response), firing nothing.
    */
   async agree(
     dateId: string,
@@ -285,96 +305,102 @@ export class ChangeSuggestionsService {
   ): Promise<ChangeSuggestionDto> {
     await this.participantDate(dateId, userId);
 
-    const done = await this.db.transaction(async (em) => {
-      const locked = await em.findOne(DateEntity, {
-        where: { id: dateId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!locked) throw new NotFoundException('Date not found');
-      const row = await em.findOne(DateChangeSuggestion, {
-        where: { id: suggestionId, dateId },
-      });
-      if (!row) throw new NotFoundException('Suggestion not found');
-      if (locked.status !== DateStatus.Confirmed) {
-        throw new ConflictException('This date is over');
-      }
-      const refusal = agreeRefusal({
-        status: row.status,
-        senderId: row.senderId,
-        viewerId: userId,
-        deadline: row.deadline,
-        now,
-        anyCommittedCheckIn: await this.anyCommittedCheckIn(em, dateId),
-      });
-      if (refusal !== null) {
-        throw new ConflictException(
-          {
-            not_pending: 'This suggestion is no longer open',
-            sender: 'You cannot agree to your own suggestion',
-            expired: 'The time to answer has passed',
-            checked_in: 'Someone has already arrived',
-          }[refusal],
-        );
-      }
-
-      const oldTime = locked.scheduledAt;
-      let unlockedNow = false;
-      if (row.kind === ChangeKind.Time) {
-        const newTime = row.valueTime as Date;
-        await em.update(DateEntity, { id: dateId }, { scheduledAt: newTime });
-        // The place suggestion still open now answers to the NEW meet time - 0:30.
-        await em.query(
-          `UPDATE "date_change_suggestions" SET "deadline" = $2
-            WHERE "date_id" = $1 AND "kind" = 'place' AND "status" = 'pending'`,
-          [dateId, changeDeadline(newTime)],
-        );
-        // The chat was open by the old time and is unstamped: stamp it now. Without that, a later
-        // meet time would shut a chat the two people were already writing in (R11).
-        if (
-          locked.coordinateUnlockedAt === null &&
-          chatOpensAt(oldTime).getTime() <= now.getTime()
-        ) {
-          unlockedNow =
-            rowsOf(
-              await em.query(
-                `UPDATE "dates" SET "coordinate_unlocked_at" = $2
-                  WHERE "id" = $1 AND "coordinate_unlocked_at" IS NULL RETURNING "id"`,
-                [dateId, now],
-              ),
-            ).length > 0;
+    const done = await this.db
+      .transaction(async (em) => {
+        const locked = await em.findOne(DateEntity, {
+          where: { id: dateId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!locked) throw new NotFoundException('Date not found');
+        const row = await em.findOne(DateChangeSuggestion, {
+          where: { id: suggestionId, dateId },
+        });
+        if (!row) throw new NotFoundException('Suggestion not found');
+        if (locked.status !== DateStatus.Confirmed) {
+          throw new ConflictException('This date is over');
         }
-      } else {
-        const [venue] = await em.query<Array<{ id: string }>>(
-          `INSERT INTO "venues" ("name", "address", "location", "place_id", "place_type")
+        const refusal = agreeRefusal({
+          status: row.status,
+          senderId: row.senderId,
+          viewerId: userId,
+          deadline: row.deadline,
+          now,
+        });
+        if (refusal === 'already_agreed') throw new AlreadyAgreed(row);
+        if (refusal !== null) {
+          throw new ConflictException(
+            {
+              not_pending: 'This suggestion is no longer open',
+              sender: 'You cannot agree to your own suggestion',
+              expired: 'The time to answer has passed',
+            }[refusal],
+          );
+        }
+
+        const oldTime = locked.scheduledAt;
+        let unlockedNow = false;
+        if (row.kind === ChangeKind.Time) {
+          const newTime = row.valueTime as Date;
+          await em.update(DateEntity, { id: dateId }, { scheduledAt: newTime });
+          // The place suggestion still open now answers to the NEW meet time - 0:30.
+          await em.query(
+            `UPDATE "date_change_suggestions" SET "deadline" = $2
+            WHERE "date_id" = $1 AND "kind" = 'place' AND "status" = 'pending'`,
+            [dateId, changeDeadline(newTime)],
+          );
+          // The chat was open by the old time and is unstamped: stamp it now. Without that, a later
+          // meet time would shut a chat the two people were already writing in (R11).
+          if (
+            locked.coordinateUnlockedAt === null &&
+            chatOpensAt(oldTime).getTime() <= now.getTime()
+          ) {
+            unlockedNow =
+              rowsOf(
+                await em.query(
+                  `UPDATE "dates" SET "coordinate_unlocked_at" = $2
+                  WHERE "id" = $1 AND "coordinate_unlocked_at" IS NULL RETURNING "id"`,
+                  [dateId, now],
+                ),
+              ).length > 0;
+          }
+        } else {
+          const [venue] = await em.query<Array<{ id: string }>>(
+            `INSERT INTO "venues" ("name", "address", "location", "place_id", "place_type")
            SELECT "place_name", "place_address", "place_location", "place_id", "place_type"
              FROM "date_change_suggestions" WHERE "id" = $1
            ON CONFLICT ("place_id") WHERE "place_id" IS NOT NULL DO UPDATE
              SET "name" = EXCLUDED."name", "address" = EXCLUDED."address",
                  "location" = EXCLUDED."location", "place_type" = EXCLUDED."place_type"
            RETURNING "id"`,
-          [row.id],
-        );
-        await em.update(DateEntity, { id: dateId }, { venueId: venue.id });
-      }
+            [row.id],
+          );
+          await em.update(DateEntity, { id: dateId }, { venueId: venue.id });
+        }
 
-      // Conditional, so a concurrent expiry that got there first leaves this a 409, not two answers.
-      const marked = rowsOf(
-        await em.query(
-          `UPDATE "date_change_suggestions" SET "status" = 'agreed', "answered_at" = $2
+        // Conditional, so a concurrent expiry that got there first leaves this a 409, not two answers.
+        const marked = rowsOf(
+          await em.query(
+            `UPDATE "date_change_suggestions" SET "status" = 'agreed', "answered_at" = $2
             WHERE "id" = $1 AND "status" = 'pending' RETURNING "id"`,
-          [row.id, now],
-        ),
-      );
-      if (marked.length === 0) {
-        throw new ConflictException('This suggestion is no longer open');
-      }
-      return {
-        row,
-        oldTime,
-        unlockedNow,
-        users: [locked.userAId, locked.userBId],
-      };
-    });
+            [row.id, now],
+          ),
+        );
+        if (marked.length === 0) {
+          throw new ConflictException('This suggestion is no longer open');
+        }
+        return {
+          row,
+          oldTime,
+          unlockedNow,
+          users: [locked.userAId, locked.userBId],
+        };
+      })
+      .catch((error: unknown) => {
+        // The receiver's own agree again, its answer lost: the stored state, and nothing fires twice.
+        if (error instanceof AlreadyAgreed) return error;
+        throw error;
+      });
+    if (done instanceof AlreadyAgreed) return toSuggestionDto(done.row, userId);
 
     const { row, oldTime } = done;
     void this.analytics.trackServerEvent({
@@ -534,6 +560,13 @@ export class ChangeSuggestionsService {
           : { name: v.name };
     }
     return first.wasPlaceName ? { name: first.wasPlaceName } : null;
+  }
+
+  private async sentBy(
+    userId: string,
+    clientId: string,
+  ): Promise<DateChangeSuggestion | null> {
+    return this.rows.findOne({ where: { senderId: userId, clientId } });
   }
 
   private parsedTime(value: string | undefined): Date {

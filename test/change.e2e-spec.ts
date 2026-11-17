@@ -551,8 +551,10 @@ describe('Date 05 change time and place (e2e)', () => {
       expect((await dateRow()).scheduledAt.getTime()).toBe(bindingAt.getTime());
 
       await agree('leonie', second.id).expect(200);
-      // And once agreed, a repeat is a 409 as well, with no second event.
-      await agree('leonie', second.id).expect(409);
+      // A repeat by the receiver is answered 200 (a lost response), with no second event; the
+      // sender cannot agree to their own.
+      await agree('leonie', second.id).expect(200);
+      await agree('you', second.id).expect(409);
       expect(named('change_agreed')).toHaveLength(1);
     });
 
@@ -568,22 +570,43 @@ describe('Date 05 change time and place (e2e)', () => {
         .expect(400);
     });
 
-    it('answers 409 when the deadline has passed or someone has arrived', async () => {
-      const [a, b] = await slotsFor('you');
+    it('answers 409 once the deadline has passed', async () => {
+      const [a] = await slotsFor('you');
       const late = (await suggestTime('you', a).expect(201)).body;
       await db.query(
         `UPDATE date_change_suggestions SET deadline = now() - interval '1 minute' WHERE id = $1`,
         [late.id],
       );
       await agree('leonie', late.id).expect(409);
+    });
 
+    it('an open suggestion stays answerable after a check-in, until its deadline', async () => {
+      const [, b] = await slotsFor('you');
       const fresh = (await suggestTime('you', b).expect(201)).body;
       await db.query(
         `INSERT INTO date_arrival_check_ins (date_id, user_id, location, entry, client_id, committed_at)
          VALUES ($1, $2, ST_SetSRID(ST_MakePoint(13.4, 52.5), 4326)::geography, 'date_screen', $3, now())`,
         [dateId, id.you, randomUUID()],
       );
-      await agree('leonie', fresh.id).expect(409);
+      const me = await screen('leonie');
+      // New suggestions are over, but the open request is still on the card.
+      expect(me.change.allowed).toBe(false);
+      expect(me.changeRequest.id).toBe(fresh.id);
+      await agree('leonie', fresh.id).expect(200);
+      expect((await dateRow()).scheduledAt.toISOString()).toBe(b);
+    });
+
+    it('the receiver agreeing again (a lost response) gets 200, with no second event, push or move', async () => {
+      const [slot] = await slotsFor('you');
+      const time = (await suggestTime('you', slot).expect(201)).body;
+      await agree('leonie', time.id).expect(200);
+      events = [];
+      pushes = [];
+      const again = await agree('leonie', time.id).expect(200);
+      expect(again.body).toMatchObject({ id: time.id, status: 'agreed' });
+      expect(events).toHaveLength(0);
+      expect(pushes).toHaveLength(0);
+      expect((await dateRow()).scheduledAt.toISOString()).toBe(slot);
     });
   });
 

@@ -80,24 +80,28 @@ describe('agreeRefusal', () => {
     viewerId: ME,
     deadline: at('2026-11-17T18:30:00Z'),
     now: at('2026-11-17T17:00:00Z'),
-    anyCommittedCheckIn: false,
   };
   it('lets the receiver agree to a pending one', () => {
     expect(agreeRefusal(base)).toBeNull();
   });
-  it('refuses the sender, a settled one, a late one and a checked-in date', () => {
+  it('refuses the sender, a replaced or expired one and a late one', () => {
     expect(agreeRefusal({ ...base, senderId: ME })).toBe('sender');
+    expect(
+      agreeRefusal({ ...base, senderId: ME, status: ChangeStatus.Agreed }),
+    ).toBe('sender');
     expect(agreeRefusal({ ...base, status: ChangeStatus.Replaced })).toBe(
       'not_pending',
     );
-    expect(agreeRefusal({ ...base, status: ChangeStatus.Agreed })).toBe(
+    expect(agreeRefusal({ ...base, status: ChangeStatus.Expired })).toBe(
       'not_pending',
     );
     expect(agreeRefusal({ ...base, now: at('2026-11-17T18:30:00Z') })).toBe(
       'expired',
     );
-    expect(agreeRefusal({ ...base, anyCommittedCheckIn: true })).toBe(
-      'checked_in',
+  });
+  it('knows the receiver agreeing again after it was agreed', () => {
+    expect(agreeRefusal({ ...base, status: ChangeStatus.Agreed })).toBe(
+      'already_agreed',
     );
   });
 });
