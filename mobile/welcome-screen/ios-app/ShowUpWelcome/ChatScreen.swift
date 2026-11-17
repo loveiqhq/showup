@@ -85,7 +85,7 @@ struct ChatScreen: View {
                            lineHeight: 14 * 1.5, color: .liqMuted, centered: true)
                     .frame(maxWidth: 290)
                     .padding(.top, 8)
-                ChipGrid(reasons: shownReasons, selected: nil, compact: false) { onPick($0, .entry) }
+                ChipGrid(reasons: visibleReasons(ui.date?.change, now: ui.now), selected: nil, compact: false) { onPick($0, .entry) }
                     .padding(.top, 20)
                 LockLine(text: ChatCopy.startPrivacy)
                     .padding(.top, 18)
@@ -152,7 +152,8 @@ struct ChatScreen: View {
     /// Pad 2 14 10, plus the 1 the field's row gives up (its 9 is 8 here): the top row's chips answer 3 above
     /// themselves, and where the chips scroll the scroll clips at its top. Android's `DockChips`.
     private var dockChips: some View {
-        ChipGrid(reasons: shownReasons, selected: ui.selected, compact: true) { onPick($0, .dock) }
+        // The two change chips come and go with the payload and the clock (Date 05 R7), in place.
+        ChipGrid(reasons: visibleReasons(ui.date?.change, now: ui.now), selected: ui.selected, compact: true) { onPick($0, .dock) }
             .padding(EdgeInsets(top: 3, leading: 14, bottom: 10, trailing: 14))
     }
 

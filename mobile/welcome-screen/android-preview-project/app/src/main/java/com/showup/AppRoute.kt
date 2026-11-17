@@ -72,4 +72,12 @@ sealed interface AppRoute {
      */
     @Serializable
     data class DateEnded(val dateId: String, val name: String, val endedByYou: Boolean, val photoUrl: String?) : AppRoute
+
+    /**
+     * The time or place picker (SHOWUP-196, Date 05 A, B, K, M, N), pushed over whatever opened it: the Date
+     * screen's locked card, or the chat. [kind] is `time` or `place` and [entry] the §42 `change_entry` wire
+     * value; both ride in the route so a process death restores the same picker. Back is Cancel.
+     */
+    @Serializable
+    data class ChangePicker(val kind: String, val entry: String) : AppRoute
 }

@@ -105,6 +105,13 @@ import com.showup.arrival.onAppStopped
 import com.showup.arrival.onChatChip
 import com.showup.arrival.routeUndo
 import com.showup.chat.ChatViewModel
+import com.showup.change.ApiChangeStore
+import com.showup.change.ChangeEntry
+import com.showup.change.ChangeKind
+import com.showup.change.ChangePickerScreen
+import com.showup.change.ChangePickerViewModel
+import com.showup.change.ChangeSheetContext
+import com.showup.change.changePickerRoute
 import com.showup.chat.SharedPrefsReceivedLedger
 import com.showup.chat.DateEndedScreen
 import com.showup.chat.chatEntryFor
@@ -889,6 +896,7 @@ class MainActivity : ComponentActivity() {
             // One chat model per date, held for the session -- the thread, a typed draft and a selected
             // chip survive leaving the chat and coming back -- keyed on the account and the date.
             val chatStore = remember(api) { ApiChatStore(api) }
+            val changeStore = remember(api) { ApiChangeStore(api) }
             val chatEvents = remember { ChatHostEvents(analytics = AppAnalytics) }
             // `message_received` once per message across launches: what was reported is kept on the phone.
             val receivedLedger = remember { SharedPrefsReceivedLedger(applicationContext) }
@@ -2606,8 +2614,13 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     onOpenChat = ::openChatFromCard,
-                                    // The tile's event now; the Date 05 picker it opens arrives with Date 05.
-                                    onChangeTile = date::changeTile,
+                                    // `action_chip_used` first, then the picker (whose own open fires `change_picker_opened`).
+                                    onChangeTile = { reason ->
+                                        date.changeTile(reason)
+                                        changePickerRoute(reason, com.showup.chat.ChipSurface.CoordinateCard)?.let {
+                                            navController.navigate(it) { launchSingleTop = true }
+                                        }
+                                    },
                                     onDirections = {
                                         shown.date?.place?.let {
                                             date.quickAction(QuickAction.Directions)
@@ -2812,8 +2825,18 @@ class MainActivity : ComponentActivity() {
                     // `I arrived at the spot` before check-in opens the guard instead: the chip's event
                     // first, then the confirm's.
                     onPick = { r, s ->
-                        // The guard opens over the composer: put the keyboard away first.
-                        onChatChip(r, s, gate, vm::pick, beforeGate = { focus.clearFocus(); keyboard?.hide() })
+                        val picker = changePickerRoute(r, s)
+                        if (picker != null) {
+                            // A change chip opens its picker (Date 05): the chip's event, then the route. Nothing
+                            // is selected or drafted, and the keyboard goes away first, as for the guard.
+                            vm.pick(r, s)
+                            focus.clearFocus()
+                            keyboard?.hide()
+                            navController.navigate(picker) { launchSingleTop = true }
+                        } else {
+                            // The guard opens over the composer: put the keyboard away first.
+                            onChatChip(r, s, gate, vm::pick, beforeGate = { focus.clearFocus(); keyboard?.hide() })
+                        }
                     },
                     onEdit = vm::edit,
                     onAckGuide = vm::ackGuide,
@@ -2825,6 +2848,56 @@ class MainActivity : ComponentActivity() {
                     onResend = vm::resend,
                 )
                 }
+            }
+
+            // THE TIME OR PLACE PICKER (SHOWUP-196, Date 05), pushed over the Date screen or the chat with the
+            // chat's push and pop, and back is Cancel. The model is the route entry's, so a rotation keeps the
+            // selection; the route carries only the kind and where it was opened from.
+            composable<AppRoute.ChangePicker>(
+                enterTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideInHorizontally(tween(ms)) { w -> w / 6 } + fadeIn(tween(if (motion.enabled) 220 else 0))
+                },
+                popExitTransition = {
+                    val ms = if (motion.enabled) Motion.SCREEN else 0
+                    slideOutHorizontally(tween(ms)) { w -> w / 6 } + fadeOut(tween(if (motion.enabled) Motion.FAST else 0))
+                },
+            ) { entry ->
+                val route = entry.toRoute<AppRoute.ChangePicker>()
+                val kind = ChangeKind.fromWire(route.kind)
+                val from = ChangeEntry.fromWire(route.entry)
+                val d = dateState.date
+                if (d == null || kind == null || from == null) {
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                    return@composable
+                }
+                val vm: ChangePickerViewModel = viewModel(
+                    factory = viewModelFactory { initializer { ChangePickerViewModel(kind, from, changeStore, analytics = AppAnalytics) } },
+                )
+                val ui by vm.ui.collectAsStateWithLifecycle()
+                val zone = remember { ZoneId.systemDefault() }
+                // The model keeps the first date it was given and fires its open event once.
+                LaunchedEffect(vm) { vm.open(d) }
+                // The server confirmed: back to where it was opened, with the date read again (the chat reads
+                // itself on return). Nothing was shown as changed before this.
+                LaunchedEffect(ui.done) {
+                    if (ui.done) {
+                        date.foreground()
+                        navController.popBackStack()
+                    }
+                }
+                LaunchedEffect(ui.closed) { if (ui.closed) navController.popBackStack() }
+                BackHandler(onBack = vm::cancel)
+                ChangePickerScreen(
+                    ctx = ChangeSheetContext(d.match.name, d.meetAt, d.place?.name.orEmpty(), d.change?.slots.orEmpty(), zone),
+                    ui = ui,
+                    onSelectSlot = vm::selectSlot,
+                    onSelectPlace = vm::selectPlace,
+                    onQuery = vm::setQuery,
+                    onRetry = vm::retryPlaces,
+                    onSuggest = vm::suggest,
+                    onCancel = vm::cancel,
+                )
             }
 
             composable<AppRoute.DateEnded>(

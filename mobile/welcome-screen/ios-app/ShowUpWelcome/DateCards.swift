@@ -315,7 +315,7 @@ struct CoordinateModule: View {
     let now: Date
     let zone: TimeZone
     let onOpenChat: () -> Void
-    /// The change tiles under the locked line: `changeTileReasons`, empty until Date 05 ships.
+    /// The change tiles under the locked line: `changeTilesFor`, empty when the payload hides them.
     var changeTiles: [ChatReason] = []
     var onChangeTile: (ChatReason) -> Void = { _ in }
 

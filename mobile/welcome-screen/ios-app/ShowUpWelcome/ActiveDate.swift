@@ -62,6 +62,11 @@ struct ActiveDate: Equatable, Sendable {
     var chatTutorialSeen: Bool
     /// The match's committed check-in the viewer has not seen; nil once seen (Date 03).
     var arrival: DateArrival? = nil
+    /// Date 05: the cutoff, the later slots and the open suggestions. Nil from a server before Date 05, which shows
+    /// no change tile or chip (the one gate, `ChangeRules`).
+    var change: DateChange? = nil
+    /// Date 05: the match's open suggestion with the earliest deadline, for the hoisted request card.
+    var changeRequest: ChangeSuggestion? = nil
 }
 
 /// A date ended in the chat after "I can't make it today" (Date 02) that the viewer has not seen yet: the

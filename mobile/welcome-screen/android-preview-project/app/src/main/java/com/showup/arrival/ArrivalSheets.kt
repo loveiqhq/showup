@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.showup.designsystem.SheetPrimaryButton
 import com.showup.date.pressable
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Elevated
@@ -204,24 +205,10 @@ private fun SheetTitleText(text: String, maxWidth: androidx.compose.ui.unit.Dp) 
     )
 }
 
-/** A sunset button, radius 18, h 56, 16.5 / 700 white, under `--liq-shadow-cta`. Waiting reads at alpha .6. */
+/** The shared sunset sheet button (`designsystem/SheetButtons.kt`), tagged for the tests. Waiting reads at alpha .6. */
 @Composable
 private fun SunsetSheetButton(label: String, tag: String, waiting: Boolean, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .testTag(tag)
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .alpha(if (waiting) 0.6f else 1f)
-            .then(if (waiting) Modifier.semantics { role = Role.Button; disabled() } else Modifier.pressable(Role.Button, onClick = onClick))
-            // The glow behind, then the reference's 135deg sunset clipped to the radius-18 shape.
-            .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 18.dp, ShadowCta)
-            .clip(RoundedCornerShape(18.dp))
-            .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first }),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.5.sp)
-    }
+    SheetPrimaryButton(label, onClick, Modifier.testTag(tag), waiting = waiting)
 }
 
 /**

@@ -136,6 +136,8 @@ extension ActiveDate {
             },
             checkedIn: dto.checkedIn,
             chatTutorialSeen: dto.chatTutorialSeen,
-            arrival: dto.arrival.map { DateArrival(checkedInAt: $0.value1.checkedInAt) })
+            arrival: dto.arrival.map { DateArrival(checkedInAt: $0.value1.checkedInAt) },
+            change: dto.change.map { DateChange($0.value1) },
+            changeRequest: dto.changeRequest.flatMap { ChangeSuggestion($0.value1) })
     }
 }

@@ -79,6 +79,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import com.showup.date.ActiveDate
+import com.showup.change.visibleReasons
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
@@ -151,7 +152,7 @@ fun ChatScreen(
                     LoadFailed(ChatCopy.LOAD_FAILED, SearchCopy.TRY_AGAIN, onRetry, busy = ui.loading)
                 }
                 ui.loading -> Box(Modifier.weight(1f).fillMaxWidth().background(Elevated))
-                ui.start -> StartGrid(Modifier.weight(1f), onPick)
+                ui.start -> StartGrid(Modifier.weight(1f), visibleReasons(date.change, ui.now), onPick)
                 else -> BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                     // The thread keeps [ThreadLeast] and the dock may take the rest -- unless the field
                     // alone needs more, when the thread gives way (see [Dock]). On a split screen or at
@@ -180,7 +181,7 @@ fun ChatScreen(
  * 18 below. No field and no dock: a tile opens the thread with that chip.
  */
 @Composable
-private fun StartGrid(modifier: Modifier, onPick: (ChatReason, ChipSurface) -> Unit) {
+private fun StartGrid(modifier: Modifier, reasons: List<ChatReason>, onPick: (ChatReason, ChipSurface) -> Unit) {
     val body = TextStyle(fontFamily = Manrope, fontSize = 14.sp, lineHeight = (14 * 1.5).sp, color = Muted, textAlign = TextAlign.Center)
     Column(
         modifier
@@ -206,7 +207,7 @@ private fun StartGrid(modifier: Modifier, onPick: (ChatReason, ChipSurface) -> U
             style = body,
         )
         Spacer(Modifier.height(20.dp))
-        ChipGrid(SHOWN_REASONS, selected = null, compact = false, surface = ChipSurface.Entry, onPick = onPick)
+        ChipGrid(reasons, selected = null, compact = false, surface = ChipSurface.Entry, onPick = onPick)
         LockLine(ChatCopy.START_PRIVACY, Modifier.padding(top = 18.dp))
     }
 }
@@ -339,9 +340,11 @@ private fun Dock(
 /** The chips, scrolling where the dock leaves them less than they need: a split screen, the largest type. */
 @Composable
 private fun DockChips(ui: ChatUi, onPick: (ChatReason, ChipSurface) -> Unit) {
+    // The two change chips come and go with the payload and the clock (Date 05 R7), in place.
+    val reasons = visibleReasons(ui.date?.change, ui.now)
     Column(Modifier.verticalScroll(rememberScrollState())) {
         ChipGrid(
-            SHOWN_REASONS,
+            reasons,
             selected = ui.selected,
             compact = true,
             surface = ChipSurface.Dock,

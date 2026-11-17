@@ -225,8 +225,8 @@ final class DateModelTests: XCTestCase {
         XCTAssertFalse(names(analytics).contains("date_quick_action_tapped"))
     }
 
-    func testTheChangeTilesStayHiddenUntilDate05Ships() {
-        XCTAssertTrue(changeTileReasons.isEmpty, "no change chip is shown yet")
+    func testAServerWithNoChangeBlockShowsNoTile() {
+        XCTAssertTrue(changeTilesFor(nil, now: meet.addingTimeInterval(-3 * 3600)).isEmpty)
     }
 
     func testOpenTheChatMarksTheHeldDatesTutorialAsSeenAtOnce() async {

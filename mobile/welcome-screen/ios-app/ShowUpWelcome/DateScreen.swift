@@ -136,8 +136,9 @@ struct DateScreen: View {
     var onTab: (AppTab) -> Void = { _ in }
     /// `Try again` when the first read failed and there is nothing to show.
     var onRetry: () -> Void = {}
-    /// The locked card's change tiles: `changeTileReasons`, empty until Date 05 ships; the evidence passes both.
-    var changeTiles: [ChatReason] = changeTileReasons
+    /// The locked card's change tiles. Nil: the payload decides (`changeTilesFor`, the one gate shared with the chat's
+    /// chips), evaluated with `DateUi.now` so they hide in place at the cutoff. The evidence passes both.
+    var changeTiles: [ChatReason]? = nil
     /// A change tile was tapped: the Date 05 picker opens, once it exists.
     var onChangeTile: (ChatReason) -> Void = { _ in }
 
@@ -248,7 +249,8 @@ struct DateScreen: View {
     private func coordinate(_ date: ActiveDate, _ state: DateState) -> some View {
         // The tiles only in A: from B on, the chat's chips do the same job.
         CoordinateModule(state: state, date: date, now: ui.now, zone: zone, onOpenChat: onOpenChat,
-                         changeTiles: state == .locked ? changeTiles : [], onChangeTile: onChangeTile)
+                         changeTiles: state == .locked ? (changeTiles ?? changeTilesFor(date.change, now: ui.now)) : [],
+                         onChangeTile: onChangeTile)
             .fitAnchor(date.arrival != nil ? "date:arrival-card" : "date:coordinate")
     }
 }

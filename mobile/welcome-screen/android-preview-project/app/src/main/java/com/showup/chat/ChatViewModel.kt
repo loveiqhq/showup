@@ -34,6 +34,7 @@ package com.showup.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
+import com.showup.change.changeKindOf
 import com.showup.api.CallFailure
 import com.showup.api.Outcome
 import com.showup.date.ActiveDate
@@ -201,7 +202,9 @@ class ChatViewModel(
         val now = clock()
         analytics?.report(ChatAnalytics.actionChipUsed(date, reason, surface, now))
         // Gated (Date 03): the arrival check-in answers the tap; nothing is selected, drafted or sent.
-        if (gated) return
+        // Date 05's two change chips are the same: a tap opens the picker (the host's route), it is not a
+        // draft -- a suggestion is not a message, and the field and the selected chip stay as they were.
+        if (gated || changeKindOf(reason) != null) return
         if (reason == ChatReason.CantMakeIt) {
             guideShownAt = now
             _ui.update { it.copy(selected = reason, draft = "", guide = Guide.Locked) }

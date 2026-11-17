@@ -40,8 +40,8 @@ final class ArrivalRulesTests: XCTestCase {
         XCTAssertTrue(isFresh(meet.addingTimeInterval(2), now: meet), "a stamp a hair ahead of the clock is fresh")
     }
 
-    func testSixChipsAreShownArrivedAmongThem() {
-        XCTAssertEqual(shownReasons, [.onMyWay, .arrived, .cantFind, .whenArrive, .runningLate, .cantMakeIt])
+    func testSixChipsAreDrawnWithoutAChangeBlockArrivedAmongThem() {
+        XCTAssertEqual(visibleReasons(nil, now: Date(timeIntervalSince1970: 0)), [.onMyWay, .arrived, .cantFind, .whenArrive, .runningLate, .cantMakeIt])
     }
 
     func testTheEntryWireValuesAreTheRegistrys() {

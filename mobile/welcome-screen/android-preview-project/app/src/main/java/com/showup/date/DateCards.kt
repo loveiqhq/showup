@@ -405,7 +405,7 @@ internal fun CoordinateModule(
     zone: ZoneId,
     onOpenChat: () -> Unit,
     modifier: Modifier = Modifier,
-    /** The change tiles under the locked line: [CHANGE_TILES], empty until Date 05 ships. */
+    /** The change tiles under the locked line: `changeTilesFor`, empty when the payload hides them. */
     changeTiles: List<ChatReason> = emptyList(),
     onChangeTile: (ChatReason) -> Unit = {},
 ) {

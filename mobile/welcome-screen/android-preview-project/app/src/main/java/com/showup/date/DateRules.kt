@@ -42,14 +42,6 @@ fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOp
 fun hoisted(state: DateState, arrival: DateArrival?): Boolean = arrival != null || state == DateState.Unread
 
 /**
- * The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet
- * time` and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the
- * vocabulary's own switch. They are hidden until Date 05 ships (epic rule 8): the day Date 05 shows those
- * chips, the tiles and their line appear with them, and nothing on the Date screen changes.
- */
-val CHANGE_TILES: List<ChatReason> = listOf(ChatReason.ChangeTime, ChatReason.ChangePlace).filter { it.shown }
-
-/**
  * How often the Date screen re-reads the date while it is on screen (SHOWUP-194, the design's §3):
  * the match's End date lands on H within seconds when the app is open. Polling, as the chat's; there
  * is no socket.

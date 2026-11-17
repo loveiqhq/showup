@@ -33,6 +33,7 @@
  */
 package com.showup.date
 
+import com.showup.change.changeTilesFor
 import com.showup.chat.ChatReason
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -166,9 +167,12 @@ fun DateScreen(
     onRetry: () -> Unit = {},
     /** The scroll, hoisted only so the evidence harness can photograph frame D's end. */
     scroll: ScrollState = rememberScrollState(),
-    /** The locked card's change tiles: [CHANGE_TILES], empty until Date 05 ships; the evidence passes both. */
-    changeTiles: List<ChatReason> = CHANGE_TILES,
-    /** A change tile was tapped: the Date 05 picker opens, once it exists. */
+    /**
+     * The locked card's change tiles. Null: the payload decides (`changeTilesFor`, the one gate shared with the
+     * chat's chips), evaluated with [DateUi.now] so they hide in place at the cutoff. The evidence passes both.
+     */
+    changeTiles: List<ChatReason>? = null,
+    /** A change tile was tapped: its Date 05 picker opens (the host's route). */
     onChangeTile: (ChatReason) -> Unit = {},
 ) {
     val density = LocalDensity.current
@@ -204,7 +208,7 @@ fun DateScreen(
                 val holes = remember { WashHoles() }
                 Box(Modifier.onPlaced { holes.origin = it }) {
                     CompositionLocalProvider(LocalWashHoles provides holes) {
-                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles, onChangeTile)
+                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles ?: changeTilesFor(date.change, ui.now), onChangeTile)
                     }
                     // ① The sunset wash: top 0, h 320, opacity .18, blur 40 -- scrolling with the content,
                     // drawn after it (see the header).

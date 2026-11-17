@@ -8,10 +8,17 @@ import org.junit.Test
 class ChatReasonsTest {
 
     @Test
-    fun `six chips are shown, in the grid order, until Date 05 ships`() {
+    fun `eight chips exist, in the grid order, and a payload with no change block draws the six`() {
+        assertEquals(
+            listOf(
+                ChatReason.OnMyWay, ChatReason.Arrived, ChatReason.CantFind, ChatReason.WhenArrive,
+                ChatReason.ChangeTime, ChatReason.ChangePlace, ChatReason.RunningLate, ChatReason.CantMakeIt,
+            ),
+            SHOWN_REASONS,
+        )
         assertEquals(
             listOf(ChatReason.OnMyWay, ChatReason.Arrived, ChatReason.CantFind, ChatReason.WhenArrive, ChatReason.RunningLate, ChatReason.CantMakeIt),
-            SHOWN_REASONS,
+            com.showup.change.visibleReasons(null, java.time.Instant.EPOCH),
         )
     }
 

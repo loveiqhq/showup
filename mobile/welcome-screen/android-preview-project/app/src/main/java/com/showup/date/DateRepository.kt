@@ -13,6 +13,8 @@ import com.showup.api.generated.model.ActiveDateDto
 import com.showup.api.generated.model.CreateDevDateDto
 import com.showup.api.generated.model.DevDateMessageDto
 import com.showup.api.outcome
+import com.showup.change.toChange
+import com.showup.change.toSuggestion
 import com.showup.chat.ChatReason
 import com.showup.search.SearchProfile
 import com.showup.search.toProfile
@@ -120,5 +122,7 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         checkedIn = checkedIn,
         chatTutorialSeen = chatTutorialSeen,
         arrival = arrival?.let { DateArrival(it.checkedInAt.toInstant()) },
+        change = change?.toChange(),
+        changeRequest = changeRequest?.toSuggestion(),
     )
 }
