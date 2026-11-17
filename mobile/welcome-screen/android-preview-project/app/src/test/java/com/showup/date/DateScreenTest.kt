@@ -210,4 +210,42 @@ class DateScreenTest {
         onAllNodesWithText("YOU BOTH WANT").assertCountEquals(0)
         onAllNodesWithText("WHAT YOU HAVE IN COMMON").assertCountEquals(0)
     }
+
+    // ── Date 03 · H, the match's arrival ────────────────────────────────────────────────────────
+
+    private fun arrivalUi(now: Instant, checkedInAt: Instant) =
+        DateUi(date = date().copy(arrival = DateArrival(checkedInAt)), now = now, loading = false)
+
+    @Test
+    fun `H - an arrival draws the orange card above the time and place card`() = runComposeUiTest {
+        val now = unlock.plusSeconds(600)
+        setContent { DateScreen(arrivalUi(now, now.minusSeconds(10)), zone = berlin) }
+        val card = onNodeWithTag(DATE_ARRIVAL_TAG, useUnmergedTree = true).top()
+        val time = onNodeWithTag(DATE_TIME_CARD_TAG, useUnmergedTree = true).top()
+        assertTrue("the arrival card is hoisted", card < time)
+        onNodeWithText("ARRIVED").assertExists()
+        onNodeWithText("checked in · now").assertExists()
+        onNodeWithText("Leonie has arrived at the meeting location.").assertExists()
+        onNodeWithText("Open chat").assertExists()
+    }
+
+    @Test
+    fun `H - open, Open chat opens the chat`() = runComposeUiTest {
+        val now = unlock.plusSeconds(600)
+        var chat = 0
+        setContent { DateScreen(arrivalUi(now, now.minusSeconds(10)), zone = berlin, onOpenChat = { chat++ }) }
+        onNodeWithText("Open chat").performClick()
+        assertEquals(1, chat)
+    }
+
+    @Test
+    fun `H - still locked on the clock, Open chat opens the chat all the same (16 Nov)`() = runComposeUiTest {
+        // The card can only exist after a committed check-in, and that check-in has opened the chat: there is
+        // no locked-only clear any more.
+        var chat = 0
+        setContent { DateScreen(arrivalUi(locked, locked.minusSeconds(10)), zone = berlin, onOpenChat = { chat++ }) }
+        onNodeWithText("ARRIVED").assertExists()
+        onNodeWithText("Open chat").performClick()
+        assertEquals(1, chat)
+    }
 }

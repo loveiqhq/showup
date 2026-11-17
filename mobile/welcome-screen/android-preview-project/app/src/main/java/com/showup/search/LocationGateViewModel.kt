@@ -80,6 +80,12 @@ class LocationGateViewModel(
     /** The gate is on screen: `screen_viewed` once per mount, never per state. */
     private var mounted = false
 
+    /**
+     * Mounted for the Date screen's gate (SHOWUP-195 G): it reads and asks as ever, reports only its state and
+     * the Settings press (under the Date id), and every other event stays off the Date screen.
+     */
+    private var silent = false
+
     /** The reason last reported while mounted, so only a CHANGE reports again. */
     private var reported: LocationState? = null
 
@@ -108,17 +114,19 @@ class LocationGateViewModel(
     private fun apply(now: LocationState?) {
         val was = _state.value
         if (now == null) {
-            if (was.blocked != null && mounted && !was.overProfile) liftedOnTab = true
+            if (was.blocked != null && mounted && !silent && !was.overProfile) liftedOnTab = true
             _state.value = LocationGateUiState()
             return
         }
         _state.update { it.copy(blocked = now) }
+        // On the Date gate too: the state is one of its two events, by the same once-per-showing rule.
         if (mounted && now != reported) announce(now)
     }
 
     private fun announce(shown: LocationState) {
         reported = shown
-        analytics?.report(ProfileAnalytics.locationGateShown(shown.gateReason))
+        // Search sends no screen_id (absent = Search); the Date gate sends its own (SHOWUP-195, 16 Nov).
+        analytics?.report(ProfileAnalytics.locationGateShown(shown.gateReason, if (silent) ProfileScreen.DateLocationGate else null))
     }
 
     /**
@@ -127,8 +135,11 @@ class LocationGateViewModel(
      */
     fun mounted(referrer: ProfileScreen?) {
         val shown = _state.value.blocked ?: return
-        if (mounted) return
+        // Already up for Search: nothing to do. Up for the Date screen: Search takes the context over.
+        if (mounted && !silent) return
         mounted = true
+        silent = false
+        reported = null
         liftedOnTab = false
         analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.SearchLocationGate, referrer))
         announce(shown)
@@ -137,8 +148,30 @@ class LocationGateViewModel(
     /** The gate left the screen -- a tab, the back pill, or the lift. The next showing reports again. */
     fun left() {
         mounted = false
+        silent = false
         reported = null
     }
+
+    /**
+     * The gate is on display over the Date screen (SHOWUP-195 G). It reads and asks exactly as the Search
+     * gate does. Of the gate's events only `location_gate_shown` and `permission_settings_opened` report here,
+     * with `screen_id: date_location_gate` (16 Nov: the ticket adds those two and no more); `silent` keeps every
+     * other one -- `screen_viewed`, the OS-sheet and answer events -- off the Date screen.
+     */
+    fun dateMounted() {
+        val shown = _state.value.blocked ?: return
+        // Already up for the Date screen (the host re-keys on being on top): one showing, one report.
+        if (mounted && silent) return
+        // Takes the context over even from Search: the state reports afresh, under the Date id.
+        mounted = true
+        silent = true
+        reported = null
+        liftedOnTab = false
+        announce(shown)
+    }
+
+    /** The date gate left the screen. */
+    fun dateLeft() = left()
 
     /**
      * Asked once by the Search screen that replaces the gate: was it reached from the gate? True
@@ -152,7 +185,7 @@ class LocationGateViewModel(
         if (!mounted || now.requesting || now.blocked != LocationState.Ask) return
         val host = host ?: return
         _state.update { it.copy(requesting = true) }
-        analytics?.report(
+        if (!silent) analytics?.report(
             ProfileAnalytics.permissionOsSheetShown(ProfileAnalytics.PERMISSION_LOCATION, ProfileScreen.SearchLocationGate),
         )
         host.requestLocationPermission()
@@ -169,7 +202,7 @@ class LocationGateViewModel(
      */
     fun permissionAnswered(granted: Boolean) {
         if (_state.value.blocked != LocationState.Ask) return
-        analytics?.report(
+        if (!silent) analytics?.report(
             ProfileAnalytics.permissionResult(granted, ProfileAnalytics.PERMISSION_LOCATION, ProfileScreen.SearchLocationGate),
         )
         _state.update { it.copy(requesting = false) }
@@ -187,7 +220,10 @@ class LocationGateViewModel(
         val shown = _state.value.blocked ?: return
         if (!mounted || shown == LocationState.Ask) return
         analytics?.report(
-            ProfileAnalytics.permissionSettingsOpened(ProfileAnalytics.PERMISSION_LOCATION, ProfileScreen.SearchLocationGate),
+            ProfileAnalytics.permissionSettingsOpened(
+                ProfileAnalytics.PERMISSION_LOCATION,
+                if (silent) ProfileScreen.DateLocationGate else ProfileScreen.SearchLocationGate,
+            ),
         )
         host?.openSettings(shown)
     }

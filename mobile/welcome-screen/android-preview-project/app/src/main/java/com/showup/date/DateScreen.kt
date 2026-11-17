@@ -93,6 +93,8 @@ const val DATE_SCREEN_TAG = "date:screen"
 const val DATE_HERO_TAG = "date:hero"
 const val DATE_TIME_CARD_TAG = "date:time-card"
 const val DATE_COORDINATE_TAG = "date:coordinate"
+/** The Coordinate slot while it holds the match's arrival (Date 03 H); the one card keeps one tag at a time. */
+const val DATE_ARRIVAL_TAG = "date:arrival-card"
 const val DATE_REPORT_TAG = "date:report"
 const val DATE_INTENT_TAG = "date:intent"
 const val DATE_ACTIONS_TAG = "date:actions"
@@ -290,15 +292,18 @@ private fun DateContent(
         Spacer(Modifier.height(12.dp))
         val coordinate = @Composable {
             CoordinateModule(
-                state, date, ui.now, zone, onOpenChat, Modifier.testTag(DATE_COORDINATE_TAG),
+                state, date, ui.now, zone, onOpenChat,
+                Modifier.testTag(if (date.arrival != null) DATE_ARRIVAL_TAG else DATE_COORDINATE_TAG),
                 // Only in A: from B on, the chat's chips do the same job.
                 changeTiles = if (state == DateState.Locked) changeTiles else emptyList(),
                 onChangeTile = onChangeTile,
             )
         }
-        if (state == DateState.Unread) coordinate()
+        // The match's arrival and an unread message are both hoisted under the hero (R11).
+        val hoist = hoisted(state, date.arrival)
+        if (hoist) coordinate()
         TimePlaceCard(date, zone, ui.copied, onCopy, Modifier.testTag(DATE_TIME_CARD_TAG))
-        if (state != DateState.Unread) coordinate()
+        if (!hoist) coordinate()
         ReportRow(onReport, Modifier.testTag(DATE_REPORT_TAG))
         IntentCard(date, Modifier.testTag(DATE_INTENT_TAG))
         QuickActions(date.place != null, onDirections, onShare, onCalendar, Modifier.testTag(DATE_ACTIONS_TAG))

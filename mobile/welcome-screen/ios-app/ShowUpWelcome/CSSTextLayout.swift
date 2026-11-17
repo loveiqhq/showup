@@ -242,6 +242,9 @@ struct PrettyText: UIViewRepresentable {
     /// 0 for no limit; more clamps with an ellipsis, AFTER the breaks are chosen on the whole text --
     /// `text-wrap: pretty` under `-webkit-line-clamp`, as the Date screen's message preview has it.
     var maxLines: Int = 0
+    /// CSS `letter-spacing` in points (`-0.01em` of 26 is -0.26); 0 leaves the font's own kerning alone, which a
+    /// zero `kern` attribute would switch off.
+    var tracking: CGFloat = 0
 
     /// This text clamped to `n` lines.
     func lines(_ n: Int) -> PrettyText {
@@ -297,11 +300,13 @@ struct PrettyText: UIViewRepresentable {
         para.alignment = centered ? .center : .natural
         let out = NSMutableAttributedString()
         for (text, emphasised) in runs {
-            out.append(NSAttributedString(string: text, attributes: [
+            var attributes: [NSAttributedString.Key: Any] = [
                 .font: emphasised ? (emphasis ?? base) : base,
                 .foregroundColor: UIColor(emphasised ? (emphasisColor ?? color) : color),
                 .paragraphStyle: para,
-            ]))
+            ]
+            if tracking != 0 { attributes[.kern] = tracking * typeScale }
+            out.append(NSAttributedString(string: text, attributes: attributes))
         }
         v.attributedText = out
         // Clamped: the paragraph keeps wrapping, and the LABEL truncates its last line -- a truncating

@@ -4,6 +4,7 @@ import { SearchProfileDto } from '../../search/dto/search.dto';
 import { roundedDistanceKm } from '../../search/util/search';
 import {
   ActiveDateDto,
+  DateArrivalDto,
   DateMatchDto,
   DateUnreadDto,
   EndedInChatDto,
@@ -30,8 +31,17 @@ export interface ActiveDateSource {
   viewer: { motivation: string | null; vibes: string[]; interests: string[] };
   unread: DateUnreadDto | null;
   checkedIn: boolean;
+  /** The match's arrival as the viewer may see it (`arrivalOf`). */
+  arrival: DateArrivalDto | null;
   /** The viewer has tapped "Open the chat" on this date's tutorial (Date 02). */
   chatTutorialSeen: boolean;
+  /** The date's `coordinate_unlocked_at`: set once the chat has opened, by time or by a check-in. */
+  coordinateUnlockedAt: Date | null;
+  /**
+   * Either person has a COMMITTED check-in on this date. A commit opens the chat for good even when
+   * its stamp was lost, so the chat never relocks on a failed write (Date 03, 16 Nov).
+   */
+  anyCommittedCheckIn: boolean;
   meetDay: 'today' | 'tomorrow';
   now: Date;
 }
@@ -121,7 +131,10 @@ export function toActiveDate(src: ActiveDateSource): ActiveDateDto {
     meetAt: src.scheduledAt.toISOString(),
     meetDay: src.meetDay,
     unlockAt: unlockAt.toISOString(),
-    coordinateOpen: src.now.getTime() >= unlockAt.getTime(),
+    coordinateOpen:
+      src.now.getTime() >= unlockAt.getTime() ||
+      src.coordinateUnlockedAt != null ||
+      src.anyCommittedCheckIn,
     place: src.venue
       ? src.venue.address
         ? { name: src.venue.name, address: src.venue.address }
@@ -133,6 +146,7 @@ export function toActiveDate(src: ActiveDateSource): ActiveDateDto {
     sharedInterests: sharedInOrder(p.interests ?? [], src.viewer.interests),
     unread: src.unread,
     checkedIn: src.checkedIn,
+    arrival: src.arrival,
     chatTutorialSeen: src.chatTutorialSeen,
   };
 }

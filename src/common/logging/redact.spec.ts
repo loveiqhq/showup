@@ -9,6 +9,9 @@ describe('redactForLog', () => {
       accessToken: 'abc',
       latitude: 52.52,
       longitude: 13.4,
+      accuracyM: 12,
+      accuracy_m: 12,
+      accuracy: 12,
     }) as Record<string, unknown>;
 
     expect(out.phone).toBe(REDACTED);
@@ -16,6 +19,9 @@ describe('redactForLog', () => {
     expect(out.accessToken).toBe(REDACTED);
     expect(out.latitude).toBe(REDACTED);
     expect(out.longitude).toBe(REDACTED);
+    expect(out.accuracyM).toBe(REDACTED);
+    expect(out.accuracy_m).toBe(REDACTED);
+    expect(out.accuracy).toBe(REDACTED);
   });
 
   it('redacts the special-category profile answers, which arrive as plain body keys', () => {

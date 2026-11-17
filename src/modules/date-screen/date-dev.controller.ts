@@ -120,6 +120,19 @@ export class DateDevController {
     await this.dev.endInChat(user.id);
   }
 
+  /**
+   * The test match taps "I'm here" and commits it (Date 03), through the real service, so the event
+   * and the push to the caller fire exactly as in production.
+   */
+  @Post('arrival')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'devPartnerCheckIn' })
+  @ApiNoContentResponse()
+  async arrival(@CurrentUser() user: User): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.partnerArrives(user.id);
+  }
+
   private refuseInProduction(): void {
     if (this.config.get<string>('app.env') === 'production') {
       throw new NotFoundException();

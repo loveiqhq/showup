@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -30,8 +31,8 @@ import com.showup.search.PhotoBackdrop
  * initial -- Lora 600 at 0.42 of the size, white at 92%. Decorative: the name is always beside it.
  */
 @Composable
-internal fun MatchPhoto(name: String, photoUrl: String?, size: Dp, modifier: Modifier = Modifier) {
-    Box(modifier.size(size).clip(CircleShape).clearAndSetSemantics {}) {
+internal fun MatchPhoto(name: String, photoUrl: String?, size: Dp, modifier: Modifier = Modifier, shape: Shape = CircleShape) {
+    Box(modifier.size(size).clip(shape).clearAndSetSemantics {}) {
         PhotoBackdrop(photoUrl.orEmpty(), 0, Modifier.fillMaxSize())
         if (photoUrl == null) {
             Text(

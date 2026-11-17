@@ -51,6 +51,8 @@ final class DateModel {
     /// The screen this one opened over itself -- the match's profile, the chat -- for the next arrival.
     private var opened: ProfileScreen?
     private var copiedTask: Task<Void, Never>?
+    /// The arrival this phone cleared, by date: a read that brings no newer one never shows it again.
+    @ObservationIgnored private var cleared: (id: String, at: Date)?
     @ObservationIgnored private var poll: Task<Void, Never>?
     /// How often the screen re-reads while it is up: `datePollSeconds`. Short in tests.
     private let pollEvery: TimeInterval
@@ -123,6 +125,26 @@ final class DateModel {
     /// `Open the chat` stamped the tutorial seen on the server; the held date says so at once.
     func chatTutorialSeen() { state.date?.chatTutorialSeen = true }
 
+    /// The match's arrival card was opened or tapped (Date 03): it clears now, the server is told once (one try is
+    /// enough -- opening the chat stamps the same field), and a later read that carries the same arrival is
+    /// dropped. A newer check-in shows.
+    func arrivalSeen() {
+        guard let date = state.date, let arrival = date.arrival else { return }
+        cleared = (date.id, arrival.checkedInAt)
+        state.date?.arrival = nil
+        let store = self.store
+        let id = date.id
+        Task { await store.markArrivalSeen(dateId: id) }
+    }
+
+    private func withoutCleared(_ date: ActiveDate) -> ActiveDate {
+        guard let arrival = date.arrival, let cleared else { return date }
+        guard cleared.id == date.id, arrival.checkedInAt <= cleared.at else { return date }
+        var shown = date
+        shown.arrival = nil
+        return shown
+    }
+
     /// G or H has been seen and left: no date is held, so Search, Likes and Instant open again.
     func outcomeShown() {
         state.date = nil
@@ -136,7 +158,7 @@ final class DateModel {
     func seed(_ date: ActiveDate) {
         // Replaces a stale date (the one before, after it went away): the seed is the newer read.
         state.left = false
-        state.date = date
+        state.date = withoutCleared(date)
         state.now = clock()
         state.loading = false
         state.failed = nil
@@ -185,7 +207,7 @@ final class DateModel {
             self.state.loading = false
             switch answer {
             case .success(.active(let date)):
-                self.state.date = date
+                self.state.date = self.withoutCleared(date)
                 self.state.failed = nil
                 // A new date after one that went away is shown, not left.
                 self.state.left = false

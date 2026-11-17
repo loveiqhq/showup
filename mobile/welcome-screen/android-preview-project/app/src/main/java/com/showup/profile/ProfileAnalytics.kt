@@ -202,6 +202,13 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     SearchLocationGate("search_location_gate", "Search - Location gate"),
 
     /**
+     * The same gate in context=date, over the Date screen (SHOWUP-195, 16 Nov; §11 row `date_location_gate`).
+     * It rides only on `location_gate_shown` and `permission_settings_opened`; the Search gate's id is
+     * `search_location_gate`, and an absent `screen_id` on `location_gate_shown` still means Search.
+     */
+    DateLocationGate("date_location_gate", "Date - Location gate"),
+
+    /**
      * The Date screen (SHOWUP-193, §11 row added 2 Nov 2026, registry 1.4.32): ONE screen id; the
      * time state is `date_screen_viewed`'s `state`, never a second screen.
      */
@@ -383,6 +390,10 @@ object Stamp {
     /**
      * enums.json -> registry_version at the time of writing.
      *
+     * 1.4.38 (16 November 2026): §11 `date_location_gate` (Date 03); 1.4.35–1.4.37 add Date 05 / 06 / 07 value sets.
+     *
+     * 1.4.34 (10 November 2026): §41 `arrival_entry` (Date 03).
+     *
      * 1.4.33 (7 November 2026): §11 `date_chat_tutorial` / `date_chat` / `date_ended_in_chat`, §39
      * `chat_entry` and §40 `chat_reason` (SHOWUP-194, Date 02). No value an event here sends moved.
      *
@@ -419,7 +430,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.33"
+    const val FIELD_REGISTRY_VERSION = "1.4.38"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,
@@ -631,9 +642,11 @@ object ProfileAnalytics {
      * ask and the recovery: it replaces [permissionPrompted] and [permissionDeniedRecoveryShown],
      * which never fire there. `reason` is §26, `not_determined` included.
      */
-    fun locationGateShown(reason: LocationUnavailableReason) =
+    fun locationGateShown(reason: LocationUnavailableReason, screen: ProfileScreen? = null) =
         LOCATION_GATE_SHOWN to buildMap<String, Any> {
             put("reason", reason.trackingValue)
+            // Search sends none (absent = Search); the Date gate sends `date_location_gate` (SHOWUP-195).
+            screen?.let { put("screen_id", it.screenId) }
             putAll(Stamp.of(1))
         }
 

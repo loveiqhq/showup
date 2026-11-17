@@ -83,6 +83,14 @@ class DateRulesTest {
     }
 
     @Test
+    fun `a committed check-in opens the chat at meet minus three hours, for the partner too (16 Nov)`() {
+        // The server sets coordinateOpen once EITHER person's check-in is committed; the clock has no say.
+        val threeHoursBefore = meet.minusSeconds(3 * 3600)
+        assertEquals(DateState.Available, dateState(threeHoursBefore, unlock, null, coordinateOpen = true))
+        assertEquals(DateState.Locked, dateState(threeHoursBefore, unlock, null, coordinateOpen = false))
+    }
+
+    @Test
     fun `the share text is the ticket's sentence, and drops the place when there is none`() {
         assertEquals(
             "I'm meeting Leonie today at 19:00 at Cafe Krone, Oranienstrasse 42, Kreuzberg.",

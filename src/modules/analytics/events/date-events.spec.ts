@@ -4,6 +4,10 @@ import {
   DATE_COMPLETED,
   DATE_CONFIRMED,
   DATE_ENDED_IN_CHAT,
+  ARRIVAL_CONFIRMED,
+  ARRIVAL_UNDONE,
+  arrivalConfirmedEvent,
+  arrivalUndoneEvent,
   coordinateUnlockedEvent,
   dateCancelledEvent,
   dateCompletedEvent,
@@ -43,10 +47,14 @@ describe('date analytics events', () => {
     });
   });
 
-  it('coordinate_unlocked carries only minutes_before_start (Date 01, registry 1.4.32)', () => {
-    expect(coordinateUnlockedEvent(90)).toEqual({
+  it('coordinate_unlocked carries only minutes_before_start and cause (Date 03, registry 1.4.38)', () => {
+    expect(coordinateUnlockedEvent(90, 'time')).toEqual({
       eventName: COORDINATE_UNLOCKED,
-      properties: { minutes_before_start: 90 },
+      properties: { minutes_before_start: 90, cause: 'time' },
+    });
+    expect(coordinateUnlockedEvent(180, 'arrival_check_in')).toEqual({
+      eventName: COORDINATE_UNLOCKED,
+      properties: { minutes_before_start: 180, cause: 'arrival_check_in' },
     });
     expect(COORDINATE_UNLOCKED).toBe('coordinate_unlocked');
   });
@@ -61,5 +69,23 @@ describe('date analytics events', () => {
       },
     });
     expect(DATE_ENDED_IN_CHAT).toBe('date_ended_in_chat');
+  });
+
+  it('arrival_confirmed and arrival_undone carry only their registry properties (Date 03, 1.4.34)', () => {
+    expect(
+      arrivalConfirmedEvent('d7', 'date_screen' as never, 3, false),
+    ).toEqual({
+      eventName: ARRIVAL_CONFIRMED,
+      properties: {
+        date_id: 'd7',
+        entry: 'date_screen',
+        minutes_vs_start: 3,
+        is_first: false,
+      },
+    });
+    expect(arrivalUndoneEvent('d7', 'report' as never, 9)).toEqual({
+      eventName: ARRIVAL_UNDONE,
+      properties: { date_id: 'd7', entry: 'report', seconds_since_confirm: 9 },
+    });
   });
 });

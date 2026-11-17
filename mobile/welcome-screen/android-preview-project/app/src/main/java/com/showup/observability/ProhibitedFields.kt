@@ -28,6 +28,9 @@ internal object ProhibitedFields {
         "gps",
         "coordinates",
         "coords",
+        // How close a location fix was (Date 03 arrival check-in): it travels with the coordinates.
+        "accuracy",
+        "accuracym",
         "address",
         "streetaddress",
         // Private chat content

@@ -4,6 +4,7 @@ import com.showup.analytics.RecordingAnalytics
 import com.showup.profile.FixedLocationAccess
 import com.showup.profile.LocationHost
 import com.showup.profile.LocationState
+import com.showup.profile.LocationUnavailableReason
 import com.showup.profile.LocationStatus
 import com.showup.profile.PermissionStatus
 import com.showup.profile.ProfileAnalytics
@@ -299,5 +300,131 @@ class LocationGateViewModelTest {
         phone(PermissionStatus.Denied, servicesOn = false)
         assertTrue(g.confirmNeedsLocation())
         assertEquals(LocationState.ServicesOff, g.state.value.blocked)
+    }
+
+    // ── the date context (SHOWUP-195 G): reads and asks like the gate; two events report ────────
+
+    private val dateGateId = ProfileScreen.DateLocationGate.screenId
+
+    @Test
+    fun `the date gate reports only location_gate_shown and permission_settings_opened, with the date screen id`() {
+        phone(PermissionStatus.NotDetermined)
+        val g = gate()
+        g.dateMounted()
+        assertEquals(
+            mapOf("reason" to "not_determined", "screen_id" to dateGateId),
+            props(ProfileAnalytics.LOCATION_GATE_SHOWN).filterKeys { it == "reason" || it == "screen_id" },
+        )
+        g.allowPressed()
+        assertEquals("the OS dialog still goes up", 1, host.requests)
+        g.permissionAnswered(false)
+        assertEquals(LocationState.Denied, g.state.value.blocked)
+        g.openSettingsPressed()
+        assertEquals("Settings still opens", listOf(LocationState.Denied), host.settings)
+        assertEquals(dateGateId, props("permission_settings_opened")["screen_id"])
+        assertEquals("location", props("permission_settings_opened")["type"])
+        phone(PermissionStatus.Granted)
+        g.refresh()
+        assertNull(g.state.value.blocked)
+        assertEquals(
+            "the state once per showing, again only for a new reason, then the Settings press -- nothing else",
+            listOf(ProfileAnalytics.LOCATION_GATE_SHOWN, ProfileAnalytics.LOCATION_GATE_SHOWN, "permission_settings_opened"),
+            analytics.names(),
+        )
+        assertFalse("a Search screen is not reached from this gate", g.takeLift())
+    }
+
+    @Test
+    fun `the date gate reports its state once per showing, however often it is re-read`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        g.dateMounted()
+        g.refresh()
+        g.refresh()
+        assertEquals(listOf(ProfileAnalytics.LOCATION_GATE_SHOWN), analytics.names())
+        g.dateLeft()
+        g.dateMounted()
+        assertEquals("a new showing reports again", 2, analytics.names().size)
+    }
+
+    @Test
+    fun `a reason change while the date gate stays up re-announces with the new reason and the date id, once`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        phone(PermissionStatus.Denied, servicesOn = false)
+        g.refresh()
+        g.refresh()
+        val shown = analytics.of(ProfileAnalytics.LOCATION_GATE_SHOWN)
+        assertEquals(2, shown.size)
+        assertEquals(LocationUnavailableReason.Denied.trackingValue, shown[0].properties["reason"])
+        assertEquals(LocationUnavailableReason.ServicesOff.trackingValue, shown[1].properties["reason"])
+        assertEquals(listOf(dateGateId, dateGateId), shown.map { it.properties["screen_id"] })
+    }
+
+    @Test
+    fun `Search's location_gate_shown carries no screen_id key`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.mounted(ProfileScreen.LikesReceived)
+        assertFalse(props(ProfileAnalytics.LOCATION_GATE_SHOWN).containsKey("screen_id"))
+        assertEquals(
+            ProfileScreen.SearchLocationGate.screenId,
+            props("screen_viewed")["screen_id"],
+        )
+    }
+
+    @Test
+    fun `leaving the date context lets the Search gate report again`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        g.dateLeft()
+        g.mounted(ProfileScreen.LikesReceived)
+        assertEquals(
+            listOf(ProfileAnalytics.LOCATION_GATE_SHOWN, "screen_viewed", ProfileAnalytics.LOCATION_GATE_SHOWN),
+            analytics.names(),
+        )
+        assertFalse(props(ProfileAnalytics.LOCATION_GATE_SHOWN, 1).containsKey("screen_id"))
+    }
+
+    @Test
+    fun `the date context then Search without a leave -- Search reports once`() {
+        phone(PermissionStatus.Denied)
+        val g = gate()
+        g.dateMounted()
+        g.mounted(ProfileScreen.LikesReceived)
+        g.mounted(ProfileScreen.LikesReceived)
+        assertEquals(
+            listOf(ProfileAnalytics.LOCATION_GATE_SHOWN, "screen_viewed", ProfileAnalytics.LOCATION_GATE_SHOWN),
+            analytics.names(),
+        )
+        g.openSettingsPressed()
+        assertEquals("Search's press reports", 1, analytics.names().count { it == "permission_settings_opened" })
+        assertEquals(
+            ProfileScreen.SearchLocationGate.screenId,
+            props("permission_settings_opened")["screen_id"],
+        )
+    }
+
+    @Test
+    fun `Search then the date context without a leave -- the date gate reports itself, its other presses are silent`() {
+        phone(PermissionStatus.NotDetermined)
+        val g = gate()
+        g.mounted(ProfileScreen.LikesReceived)
+        val before = analytics.names().size
+        g.dateMounted()
+        g.allowPressed()
+        g.permissionAnswered(false)
+        g.openSettingsPressed()
+        val after = analytics.names().drop(before)
+        assertEquals(
+            listOf(ProfileAnalytics.LOCATION_GATE_SHOWN, ProfileAnalytics.LOCATION_GATE_SHOWN, "permission_settings_opened"),
+            after,
+        )
+        assertTrue(analytics.of(ProfileAnalytics.LOCATION_GATE_SHOWN).drop(1).all { it.properties["screen_id"] == dateGateId })
+        assertEquals(1, host.requests)
+        assertEquals(listOf(LocationState.Denied), host.settings)
     }
 }

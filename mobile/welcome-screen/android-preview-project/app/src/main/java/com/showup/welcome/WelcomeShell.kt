@@ -11,6 +11,7 @@
  */
 package com.showup.welcome
 
+import com.showup.designsystem.fitWordsOf
 import com.showup.designsystem.cssLineBox
 import androidx.compose.ui.semantics.semantics
 import com.showup.designsystem.prettyWidthPx
@@ -454,6 +455,14 @@ fun WashHeadline(
      * on screens already reviewed against their sheets with the offset in them.
      */
     cssLineBox: Boolean = false,
+    /**
+     * No word broken between two letters at the largest type on the narrowest phone: where the widest word
+     * -- the emphasis run is one, its spaces are no-break -- is wider than the box, the whole headline is laid
+     * out at that word's width and drawn scaled down to the box, never below 50 % at 200 % type
+     * ([fitWordsOf], the 4 Nov 2026 device audit). `date information.` at 60sp is wider than a 320 phone's 272.
+     * OFF BY DEFAULT: nothing else moves.
+     */
+    fitWords: Boolean = false,
 ) {
     // `white-space: nowrap` on the emphasis span — the token file sets it on `.su-underlined em`
     // and the ticket restates it: "an emphasis phrase never breaks across lines". A plain space is
@@ -585,8 +594,15 @@ fun WashHeadline(
     )
     }
 
+    val fitting = if (fitWords) {
+        Modifier.fitWordsOf(
+            safe.joinToString("") { it.first },
+            TextStyle(fontFamily = Lora, fontWeight = fontWeight, fontSize = fontSize, lineHeight = lineHeight, letterSpacing = letterSpacing),
+        )
+    } else Modifier
+
     if (!balance && !pretty) {
-        headline(modifier)
+        headline(modifier.then(fitting))
         return
     }
 
@@ -601,7 +617,7 @@ fun WashHeadline(
     // MERGED, so whatever the caller set lands on the text: a `heading()` on this box alone made
     // TalkBack announce an empty heading and then the words as plain text, on every balanced or
     // pretty headline (CheckInSemanticsTest).
-    BoxWithConstraints(modifier.semantics(mergeDescendants = true) {}) {
+    BoxWithConstraints(modifier.then(fitting).semantics(mergeDescendants = true) {}) {
         val available = maxWidth
         val narrowest = remember(textWithIcon, available, fontSize, lineHeight, letterSpacing, balance) {
             with(density) {
@@ -780,6 +796,13 @@ fun Icon(
      */
     strokeWidth: Float = 1.7f,
     opticalCentre: Boolean = false,
+    /**
+     * Draw [BrandIcon.HeartFilled] as the kit's SVG does: fill AND stroke. The kit's `Icon` sets
+     * `stroke="currentColor"` on the `<svg>`, a filled path inherits it, so `heart-filled` at size 34 / stroke
+     * 2.2 is 2.2 grid units fatter all round than its fill alone (66 px against 60 on the 390 sheet, measured).
+     * OFF BY DEFAULT: every other heart in the app was reviewed against its sheet as a plain fill.
+     */
+    fillAndStroke: Boolean = false,
 ) {
     Canvas(Modifier.size(size)) {
         val s = this.size.width / 24f                      // all paths are authored on a 24 grid
@@ -1311,7 +1334,10 @@ fun Icon(
                 // `components/shared.jsx`, which is the standard two-lobe heart: two half-circles of
                 // radius 5.5 meeting at the top notch (12, 5.67) and running down to the point.
                 BrandIcon.Heart -> drawPath(heartPath(), tint, style = stroke)
-                BrandIcon.HeartFilled -> drawPath(heartPath(), tint)
+                BrandIcon.HeartFilled -> {
+                    drawPath(heartPath(), tint)
+                    if (fillAndStroke) drawPath(heartPath(), tint, style = stroke)
+                }
                 // `circle 11,11 r7` + `line 16.65,16.65 -> 21,21`.
                 BrandIcon.Search -> {
                     drawCircle(tint, radius = 7f, center = Offset(11f, 11f), style = stroke)

@@ -6,6 +6,7 @@ package com.showup.chat
 
 import com.showup.AppRoute
 import com.showup.analytics.RecordingAnalytics
+import com.showup.date.DateArrival
 import com.showup.date.DateUnread
 import com.showup.date.EndedInChat
 import com.showup.profile.ProfileScreen
@@ -29,6 +30,25 @@ class ChatRoutingTest {
         assertEquals(ChatEntry.OpenChat, chatEntryFor(date))
         assertEquals(ChatEntry.ReadReply, chatEntryFor(date.copy(unread = DateUnread(1, ChatReason.RunningLate, "Late", now))))
         assertEquals(AppRoute.Chat("read_reply"), chatRoute(date, chatEntryFor(date.copy(unread = DateUnread(1, null, "Hi", now)))))
+    }
+
+    @Test
+    fun `the match's arrival says Open chat, whatever else waits`() {
+        val arrival = DateArrival(now)
+        assertEquals(ChatEntry.OpenChat, chatEntryFor(date.copy(arrival = arrival)))
+        assertEquals(ChatEntry.OpenChat, chatEntryFor(date.copy(arrival = arrival, unread = DateUnread(1, null, "Hi", now))))
+    }
+
+    @Test
+    fun `Open chat on the arrival card is open_chat even when a message also waits, and the card is cleared after`() {
+        val both = date.copy(arrival = DateArrival(now), unread = DateUnread(1, null, "Hi", now), chatTutorialSeen = true)
+        val calls = mutableListOf<String>()
+        var routed: AppRoute? = null
+        openChatFromArrivalCard(both, arrivalSeen = { calls += "seen" }) { routed = it; calls += "open" }
+        assertEquals(AppRoute.Chat("open_chat"), routed)
+        assertEquals(listOf("seen", "open"), calls)
+        // What the host used to do: read the date after the card was cleared.
+        assertEquals(ChatEntry.ReadReply, chatEntryFor(both.copy(arrival = null)))
     }
 
     @Test

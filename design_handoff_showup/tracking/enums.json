@@ -1,6 +1,29 @@
 {
-  "registry_version": "1.4.33",
+  "registry_version": "1.4.38",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_38": [
+    "§11 date_location_gate / Date - Location gate — NEW row, Date 03 (16 Nov 2026). The location gate in context=date; carried by location_gate_shown.screen_id and permission_settings_opened.screen_id."
+  ],
+  "changed_in_1_4_37": [
+    "§46 cancel_guard_exit — NEW value set: keep · dismissed · message. Date 07, 16 Nov 2026.",
+    "§42 change_entry — cancel_sheet NEW.",
+    "§11 date_partner_cancelled / Date - Partner cancelled — NEW row, Date 07.",
+    "No §11 row for the guard sheet: an overlay on date_screen."
+  ],
+  "changed_in_1_4_36": [
+    "§43 date_end_reason · §44 problem_category · §45 end_entry — NEW value sets. Date 06, 10 Nov 2026.",
+    "§41 arrival_entry — report now live; wrapup NEW.",
+    "§44 replaces the inline category values of problem_category_selected: waited RENAMED partner_no_show; unsafe and something_else RESERVED.",
+    "No §11 row: the End date and Report a problem sheets are overlays on date_screen, not screens."
+  ],
+  "changed_in_1_4_35": [
+    "§42 change_entry — NEW value set: coordinate_tile · chat_chip · counter_card · counter_thread. Date 05, 10 Nov 2026.",
+    "No §11 row: the time and place pickers are full-screen overlays on date_screen / date_chat, not screens."
+  ],
+  "changed_in_1_4_34": [
+    "§41 arrival_entry — NEW value set: date_screen · chat_chip · report (report RESERVED until Date 06). Date 03, 6 Nov 2026.",
+    "No §11 row: the guard and the done sheet are overlays on date_screen / date_chat, not screens."
+  ],
   "changed_in_1_4_33": [
     "§11 date_chat_tutorial / Date - Chat tutorial · date_chat / Date - Coordinate chat · date_ended_in_chat / Date - Ended in chat — NEW rows, Date 02. 5 Nov 2026.",
     "§39 chat_entry — NEW value set: open_chat · read_reply · tutorial · notification. Date 02.",
@@ -1233,6 +1256,14 @@
               "notes": "The app-wide location gate, ScreenLocationGate = ScreenProfileLocation context=\"app\" (Profile 12's screen, second context). Added 22 Oct 2026 (registry 1.4.30). ONE screen_id, three states = §26 location_unavailable_reason: A not_determined (Allow location access raises the OS dialog) · B denied · C services_off (Open Settings, routed per platform; copy is platform-neutral). Shown in place of Search when the user can search (committed Check-In, no active date) and location is unavailable — the Check-In gate (checkin_search_unavailable) wins over it. Also pushed over search_profile when Confirm date is tapped on a profile opened from the Likes tab without location (back pill → that profile, Likes tab active). No filter button. Lifts by itself on the foreground re-read: → search_profile (Freemium) / search_grid (Premium) with referrer_screen_id search_location_gate, or back to the Likes profile. Never fires profile_* events; Profile 12 never fires location_gate_shown."
             },
             {
+              "screen_id": "date_location_gate",
+              "screen_name": "Date - Location gate",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 03 (consumes Search 04's gate)",
+              "status": "ticketed — not built",
+              "notes": "The same gate screen in context=\"date\" (ScreenProfileLocation context=date): replaces the whole Date screen while location is unusable during an active date, with the date's time, place and countdown. Same §26 states and triggers as search_location_gate; only the screen_id differs. Added 16 Nov 2026 (registry 1.4.38)."
+            },
+            {
               "screen_id": "date_screen",
               "screen_name": "Date - Date screen",
               "flow": "Date (07a Match & date confirmation)",
@@ -1263,6 +1294,14 @@
               "ticket": "Date 02",
               "status": "ticketed — not built",
               "notes": "Shown to BOTH people after date_ended_in_chat: the one who ended it (“You ended the date”) and the match (“{name} had to cancel the date”). One screen_id; who is who is date_ended_in_chat.cant_make_it_from. Exit: Find your next date → Search. Added 5 Nov 2026 (registry 1.4.33)."
+            },
+            {
+              "screen_id": "date_partner_cancelled",
+              "screen_name": "Date - Partner cancelled",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 07",
+              "status": "ticketed — not built",
+              "notes": "Shown to the person whose match cancelled with the red link (ScreenPartnerCancelled, default variant). Rate untouched, no review. Exit: Find someone who shows up → Search. The chat-end variant is date_ended_in_chat (Date 02). Added 16 Nov 2026 (registry 1.4.37)."
             }
           ]
         }
@@ -1890,6 +1929,76 @@
         "change_place",
         "running_late",
         "cant_make_it"
+      ]
+    },
+    {
+      "id": "e41",
+      "num": "41",
+      "name": "arrival_entry",
+      "note": "WHERE THE ARRIVAL CHECK-IN STARTED (arrival_confirm_shown / _submitted / arrival_confirmed / arrival_undone .entry). date_screen = the Check-in bar · chat_chip = I arrived at the spot before check-in (Date 02 chat) · report = Report a problem → My date isn't showing up OR I don't feel comfortable, not checked in (Date 06, live 10 Nov 2026) · wrapup = End date → My date isn't showing up, not checked in (Date 06, NEW 1.4.36). One gate (useArrivedGate), four entries. Created 6 Nov 2026 with Date 03.",
+      "values": [
+        "date_screen",
+        "chat_chip",
+        "report",
+        "wrapup"
+      ]
+    },
+    {
+      "id": "e42",
+      "num": "42",
+      "name": "change_entry",
+      "note": "HOW A TIME OR PLACE PICKER WAS OPENED (change_picker_opened / change_picker_dismissed / change_suggested .entry). coordinate_tile = Change meet time / Change location on the locked Coordinate card (chat not open yet) · chat_chip = the change_time / change_place chip in the chat (start grid or dock) · counter_card = Suggest another on the hoisted Coordinate card while the chat is locked · counter_thread = Suggest another on the suggestion card in the chat. Created 10 Nov 2026 with Date 05. · cancel_sheet = Change meet time / Change location on the Cancel this date guard sheet (added 16 Nov 2026, Date 07).",
+      "values": [
+        "coordinate_tile",
+        "chat_chip",
+        "counter_card",
+        "counter_thread",
+        "cancel_sheet"
+      ]
+    },
+    {
+      "id": "e43",
+      "num": "43",
+      "name": "date_end_reason",
+      "note": "HOW ONE PERSON ENDED THE DATE FROM A DATE 06 PATH (date_ended.end_reason; wrapup_outcome_selected.outcome uses met | partner_no_show). met = We met → End Date → Review · partner_no_show = My date isn't showing up → End date and review (End date sheet or Report) · uncomfortable = Report → I don't feel comfortable → Head out now. The match's Date 08 screen follows from it: met → date_closed_positive · partner_no_show → you_no_showed, or date_closed_positive when the match has checked in · uncomfortable → date_ended_discomfort. Created 10 Nov 2026 with Date 06.",
+      "values": [
+        "met",
+        "partner_no_show",
+        "uncomfortable"
+      ]
+    },
+    {
+      "id": "e44",
+      "num": "44",
+      "name": "problem_category",
+      "note": "THE REPORT A PROBLEM MENU (problem_category_selected.category). partner_no_show = My date isn't showing up · uncomfortable = I don't feel comfortable · unsafe = I'm in danger, RESERVED (parked — AI safety call out of MVP) · something_else = free text for the safety team, RESERVED (parked 10 Nov 2026). Replaces the old values unsafe | uncomfortable | waited (waited RENAMED partner_no_show). Created 10 Nov 2026 with Date 06.",
+      "values": [
+        "partner_no_show",
+        "uncomfortable",
+        "unsafe",
+        "something_else"
+      ]
+    },
+    {
+      "id": "e45",
+      "num": "45",
+      "name": "end_entry",
+      "note": "WHERE AN END STARTED (wrapup_opened.entry, date_ended.entry). end_date_bar = End Date on the End Date bar (after check-in) · checkin_bar_link = the End date link under the Check-in bar (before check-in) · report = the Report a problem sheet. Created 10 Nov 2026 with Date 06.",
+      "values": [
+        "end_date_bar",
+        "checkin_bar_link",
+        "report"
+      ]
+    },
+    {
+      "id": "e46",
+      "num": "46",
+      "name": "cancel_guard_exit",
+      "note": "HOW THE CANCEL GUARD SHEET CLOSED WITHOUT A CANCEL (cancel_abandoned_at_guard.exit). keep = Don't cancel my date · dismissed = scrim or swipe-down · message = Message {name} instead (chat open). Opening a picker is not an exit. Created 16 Nov 2026 with Date 07.",
+      "values": [
+        "keep",
+        "dismissed",
+        "message"
       ]
     }
   ],

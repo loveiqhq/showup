@@ -49,7 +49,8 @@ fun SheetErrorBox(message: String, modifier: Modifier = Modifier) {
             .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Assertive }
             .background(Danger.copy(alpha = 0.08f), shape)
             .border(1.dp, Danger.copy(alpha = 0.20f), shape)
-            .padding(horizontal = 13.dp, vertical = 11.dp),
+            // Pad 11 13 plus the 1 px border, which CSS counts in the box: 12 / 14 from the outer edge.
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(9.dp),
         verticalAlignment = Alignment.Top,
     ) {

@@ -36,7 +36,7 @@ final class DateRepositoryTests: XCTestCase {
     "photoUrl":"/uploads/leonie.jpg","attendedCount":4},"motivations":{"you":"long_term","them":"long_term"},\
     "sharedVibes":["coffee_chat","playful"],"sharedInterests":["reading"],\
     "unread":{"count":2,"reason":"running_late","body":"Ten minutes late!","sentAt":"2026-11-03T17:10:00Z"},\
-    "checkedIn":false,"chatTutorialSeen":true},"ended":null}
+    "checkedIn":false,"arrival":{"checkedInAt":"2026-11-03T17:50:00Z"},"chatTutorialSeen":true},"ended":null}
     """
 
     func testADateMapsFieldForField() async {
@@ -62,6 +62,22 @@ final class DateRepositoryTests: XCTestCase {
         XCTAssertEqual(date.unread?.body, "Ten minutes late!")
         XCTAssertFalse(date.checkedIn)
         XCTAssertTrue(date.chatTutorialSeen)
+        XCTAssertEqual(date.arrival, DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 10 * 60)))
+    }
+
+    /// The server's real dates carry milliseconds (`toISOString()`); every other case here stubs them without.
+    func testDatesTheServerWritesWithMillisecondsDecode() async {
+        let withMillis = full
+            .replacingOccurrences(of: "2026-11-03T18:00:00Z", with: "2026-11-03T18:00:00.000Z")
+            .replacingOccurrences(of: "2026-11-03T16:30:00Z", with: "2026-11-03T16:30:00.000Z")
+            .replacingOccurrences(of: "2026-11-03T17:10:00Z", with: "2026-11-03T17:10:00.000Z")
+            .replacingOccurrences(of: "2026-11-03T17:50:00Z", with: "2026-11-03T17:50:00.000Z")
+        guard case .success(.active(let date)) = await repo(status: 200, body: withMillis).active(zone: "Europe/Berlin") else {
+            return XCTFail("a date with millisecond timestamps must decode")
+        }
+        XCTAssertEqual(date.meetAt, Date(timeIntervalSince1970: 1_793_728_800))
+        XCTAssertEqual(date.unlockAt, Date(timeIntervalSince1970: 1_793_728_800 - 90 * 60))
+        XCTAssertEqual(date.arrival, DateArrival(checkedInAt: Date(timeIntervalSince1970: 1_793_728_800 - 10 * 60)))
     }
 
     func testNoDateIsNone() async {

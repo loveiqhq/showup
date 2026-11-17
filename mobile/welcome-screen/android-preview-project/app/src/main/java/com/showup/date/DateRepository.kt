@@ -43,6 +43,15 @@ interface DateStore {
      * needs her "I can't make it today" message in the thread, and the viewer lands on H.
      */
     suspend fun matchEndsInChat(): Result<Boolean>
+
+    /**
+     * The viewer has seen the match's arrival card: the chat-read stamp, the same one the chat's open sets
+     * (Date 03 R3). A stamp: a failed one is not reported, the chat's open stamps the same field.
+     */
+    suspend fun markArrivalSeen(dateId: String)
+
+    /** Debug only: the test match checks in and commits, sending the push. */
+    suspend fun partnerChecksIn(): Result<Boolean>
 }
 
 class DateRepository(private val api: ShowUpApi) : DateStore {
@@ -79,6 +88,14 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         api.dev.endDevDateInChat().isSuccessful
     }
 
+    override suspend fun markArrivalSeen(dateId: String) {
+        callCatching { api.dates.markDateChatRead(dateId) }
+    }
+
+    override suspend fun partnerChecksIn(): Result<Boolean> = callCatching {
+        api.dev.devPartnerCheckIn().isSuccessful
+    }
+
     private fun ActiveDateDto.toActiveDate() = ActiveDate(
         id = id,
         meetAt = meetAt.toInstant(),
@@ -102,5 +119,6 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         unread = unread?.let { DateUnread(it.count, ChatReason.fromWire(it.reason?.value), it.body, it.sentAt.toInstant()) },
         checkedIn = checkedIn,
         chatTutorialSeen = chatTutorialSeen,
+        arrival = arrival?.let { DateArrival(it.checkedInAt.toInstant()) },
     )
 }

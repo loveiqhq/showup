@@ -17,6 +17,26 @@ final class ProfileAnalyticsTests: XCTestCase {
 
     // MARK: - the vocabulary that was corrupted
 
+    func testTheDateLocationGateIsASection11ScreenWithItsOwnIdAndLabel() {
+        XCTAssertEqual(ProfileScreen.dateLocationGate.screenId, "date_location_gate")
+        XCTAssertEqual(ProfileScreen.dateLocationGate.screenName, "Date - Location gate")
+    }
+
+    func testLocationGateShownCarriesScreenIdOnlyWhenTheDateGateSendsOne() {
+        let search = ProfileAnalytics.locationGateShown(reason: .denied).1
+        XCTAssertNil(search["screen_id"], "absent means Search")
+        let date = ProfileAnalytics.locationGateShown(reason: .denied, screen: .dateLocationGate).1
+        XCTAssertEqual(date["screen_id"] as? String, "date_location_gate")
+        XCTAssertEqual(date["reason"] as? String, search["reason"] as? String)
+    }
+
+    func testPermissionSettingsOpenedForLocationOnTheDateGateNamesTheDateGate() {
+        let p = ProfileAnalytics.permissionSettingsOpened(
+            type: ProfileAnalytics.permissionLocation, screen: .dateLocationGate).1
+        XCTAssertEqual(p["type"] as? String, "location")
+        XCTAssertEqual(p["screen_id"] as? String, "date_location_gate")
+    }
+
     func testStepIdsCarryNoVersionSuffix() {
         // The exact defect: enums.json §2 read "namev1.2", "emailv1.2", "email_verifyv1.2",
         // "dobv1.2". Fixed in registry 1.3.0; this is what keeps it fixed.
@@ -43,7 +63,7 @@ final class ProfileAnalyticsTests: XCTestCase {
         // browse, and re-verified `prompts` at step_index 2. Stamping the old string would claim a
         // vocabulary these payloads are not using — and this test is the thing that noticed, which
         // is exactly what it is for.
-        XCTAssertEqual(Stamp.fieldRegistryVersion, "1.4.33")
+        XCTAssertEqual(Stamp.fieldRegistryVersion, "1.4.38")
     }
 
     // MARK: - consent_changed, unblocked by registry 1.3.0
@@ -77,7 +97,7 @@ final class ProfileAnalyticsTests: XCTestCase {
     func testConsentIsAClassOneAttributeEvent() {
         let (_, payload) = ProfileAnalytics.consentChanged(on: true)
         XCTAssertEqual(payload["sensitivity_class"] as? Int, 1)
-        XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.33")
+        XCTAssertEqual(payload["field_registry_version"] as? String, "1.4.38")
     }
 
     // MARK: - the rule the ticket calls a bug to break

@@ -42,8 +42,8 @@ enum ReasonTone: Equatable, Sendable {
 
 /// One chip, in the grid's order; `rawValue` is its §40 wire value. Three have no draft: the two changes
 /// are Date 05's, and "I can't make it today" is written by the person after the guide, never pre-filled.
-/// `shown` is false for the chips whose ticket has not shipped -- `arrived` is Date 03's, the two changes
-/// Date 05's -- so the grid shows five until they do.
+/// `shown` is false for the chips whose ticket has not shipped -- the two changes are Date 05's -- so the grid
+/// shows six until they do (`arrived` joined it with Date 03).
 enum ChatReason: String, CaseIterable, Sendable {
     case onMyWay = "on_my_way"
     case arrived = "arrived"
@@ -101,7 +101,7 @@ enum ChatReason: String, CaseIterable, Sendable {
 
     var shown: Bool {
         switch self {
-        case .arrived, .changeTime, .changePlace: return false
+        case .changeTime, .changePlace: return false
         default: return true
         }
     }
